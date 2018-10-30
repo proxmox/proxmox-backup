@@ -3,9 +3,16 @@
 extern crate phf;
 
 extern crate failure;
+use failure::*;
 
 extern crate json_schema;
 use json_schema::*;
+
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+
+use serde_json::{json, Value};
 
 
 static PARAMETERS1: StaticPropertyMap = phf_map! {
@@ -45,11 +52,74 @@ static PARAMETERS1: StaticPropertyMap = phf_map! {
 };
 
 
+struct ApiMethod {
+    description: &'static str,
+    properties: StaticPropertyMap,
+    returns: Jss,
+    handler: fn(Value) -> Result<Value, Error>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Myparam {
+    test: bool,
+}
+
+fn test_api_handler(param: Value) -> Result<Value, Error> {
+    println!("This is a test {}", param);
+
+   // let force: Option<bool> = Some(false);
+
+    //if let Some(force) = param.force {
+    //}
+
+    let force =  param["force"].as_bool()
+        .ok_or_else(|| format_err!("meine fehlermeldung"))?;
+
+    if let Some(force) = param["force"].as_bool() {
+    }
+
+    let tmp: Myparam = serde_json::from_value(param)?;
+
+
+    Ok(json!(null))
+}
+
+static TEST_API_METHOD: ApiMethod = ApiMethod {
+    description: "This is a simple test.",
+    properties: phf_map! {
+        "force" => Boolean!{
+            description => "Test for boolean options."
+        }
+    },
+    returns: Jss::Null,
+    handler: test_api_handler,
+};
+
+type StaticSubdirMap = phf::Map<&'static str, &'static MethodInfo>;
+
+struct MethodInfo {
+    path: &'static str,
+    get: Option<&'static ApiMethod>,
+    subdirs: Option<&'static StaticSubdirMap>,
+}
+
+static API3_NODES: MethodInfo = MethodInfo {
+    path: "",
+    get: Some(&TEST_API_METHOD),
+    subdirs: None,
+};
+
+static API3: MethodInfo = MethodInfo {
+    path: "",
+    get: Some(&TEST_API_METHOD),
+    subdirs: Some(&phf_map!{"nodes" => &API3_NODES}),
+};
+
 fn main() {
     println!("Fast Static Type Definitions 1");
 
     for (k, v) in PARAMETERS1.entries() {
         println!("Parameter: {} Value: {:?}", k, v);
     }
-    
+
 }
