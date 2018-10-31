@@ -5,8 +5,12 @@ extern crate phf;
 extern crate failure;
 use failure::*;
 
-extern crate json_schema;
-use json_schema::*;
+#[macro_use]
+extern crate apitest;
+
+use apitest::json_schema::*;
+use apitest::api_info::*;
+
 
 extern crate serde_json;
 #[macro_use]
@@ -14,6 +18,11 @@ extern crate serde_derive;
 
 use serde_json::{json, Value};
 
+extern crate hyper;
+
+use hyper::{Body, Request, Response, Server};
+use hyper::rt::Future;
+use hyper::service::service_fn_ok;
 
 static PARAMETERS1: StaticPropertyMap = phf_map! {
     "force" => Boolean!{
@@ -52,12 +61,6 @@ static PARAMETERS1: StaticPropertyMap = phf_map! {
 };
 
 
-struct ApiMethod {
-    description: &'static str,
-    properties: StaticPropertyMap,
-    returns: Jss,
-    handler: fn(Value) -> Result<Value, Error>,
-}
 
 #[derive(Serialize, Deserialize)]
 struct Myparam {
@@ -95,25 +98,28 @@ static TEST_API_METHOD: ApiMethod = ApiMethod {
     handler: test_api_handler,
 };
 
-type StaticSubdirMap = phf::Map<&'static str, &'static MethodInfo>;
-
-struct MethodInfo {
-    path: &'static str,
-    get: Option<&'static ApiMethod>,
-    subdirs: Option<&'static StaticSubdirMap>,
-}
 
 static API3_NODES: MethodInfo = MethodInfo {
-    path: "",
     get: Some(&TEST_API_METHOD),
-    subdirs: None,
+    ..METHOD_INFO_DEFAULTS
 };
 
 static API3: MethodInfo = MethodInfo {
-    path: "",
     get: Some(&TEST_API_METHOD),
     subdirs: Some(&phf_map!{"nodes" => &API3_NODES}),
+    ..METHOD_INFO_DEFAULTS
 };
+
+
+fn hello_world(req: Request<Body>) -> Response<Body> {
+
+    let method = req.method();
+    let path = req.uri().path();
+
+    println!("REQUEST {} {}", method, path);
+
+    Response::new(Body::from("hello World!\n"))
+}
 
 fn main() {
     println!("Fast Static Type Definitions 1");
@@ -122,4 +128,17 @@ fn main() {
         println!("Parameter: {} Value: {:?}", k, v);
     }
 
+    let addr = ([127, 0, 0, 1], 8007).into();
+
+    let new_svc = || {
+        // service_fn_ok converts our function into a `Service`
+        service_fn_ok(hello_world)
+    };
+
+    let server = Server::bind(&addr)
+        .serve(new_svc)
+        .map_err(|e| eprintln!("server error: {}", e));
+
+    // Run this server for... forever!
+    hyper::rt::run(server);
 }
