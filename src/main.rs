@@ -45,7 +45,7 @@ static PARAMETERS1: PropertyMap = PropertyMap {
         ("myobject", Object!{
             description => "TEST Object.",
             properties => &PropertyMap {
-                entries: &[ 
+                entries: &[
                     ("vmid", Jss::Reference { reference: &PVE_VMID}),
                     ("loop", Integer!{
                         description => "Totally useless thing.",
@@ -74,7 +74,7 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
     //}
 
     let _force =  param["force"].as_bool()
-        .ok_or_else(|| format_err!("meine fehlermeldung"))?;
+        .ok_or_else(|| format_err!("missing parameter 'force'"))?;
 
     if let Some(_force) = param["force"].as_bool() {
     }
@@ -100,6 +100,10 @@ static TEST_API_METHOD: ApiMethod = ApiMethod {
 };
 
 
+static API3_TEST: MethodInfo = MethodInfo {
+    ..METHOD_INFO_DEFAULTS
+};
+
 static API3_NODES: MethodInfo = MethodInfo {
     get: Some(&TEST_API_METHOD),
     ..METHOD_INFO_DEFAULTS
@@ -107,10 +111,9 @@ static API3_NODES: MethodInfo = MethodInfo {
 
 static API_ROOT: MethodInfo = MethodInfo {
     get: Some(&TEST_API_METHOD),
-    subdirs: Some(&SubdirMap {
-        entries: &[
-            ("nodes", &API3_NODES),
-        ]
+    subdirs: Some(&subdirmap!{
+        test => &API3_TEST,
+        nodes => &API3_NODES
     }),
     ..METHOD_INFO_DEFAULTS
 };
@@ -166,7 +169,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                     &Method::DELETE => info.delete,
                     _ => None,
                 };
-                let _api_method = match api_method_opt {
+                let api_method = match api_method_opt {
                     Some(m) => m,
                     _ => http_error!(NOT_FOUND, format!("No such method '{} {}'\n", method, path)),
                 };
@@ -174,10 +177,20 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 // handle auth
 
                 // extract param
-                let _param = match query {
+                let param = match query {
                     Some(data) => parse_query(data),
                     None => json!({}),
                 };
+
+                match (api_method.handler)(param) {
+                    Ok(res) => {
+                        let json_str = res.to_string();
+                        return Response::new(Body::from(json_str));
+                    }
+                    Err(err) => {
+                        http_error!(NOT_FOUND, format!("Method returned error '{}'\n", err));
+                    }
+                }
 
             } else {
                 http_error!(NOT_FOUND, format!("No such path '{}'\n", path));

@@ -3,6 +3,7 @@ use failure::*;
 use crate::json_schema::*;
 use serde_json::{Value};
 
+#[derive(Debug)]
 pub struct ApiMethod<'a> {
     pub description: &'a str,
     pub properties: &'a PropertyMap<'a>,
@@ -12,6 +13,17 @@ pub struct ApiMethod<'a> {
 
 pub type SubdirMap<'a> = crate::static_map::StaticMap<'a, &'a str, &'a MethodInfo<'a>>;
 
+#[macro_export]
+macro_rules! subdirmap {
+    ($($name:ident => $e:expr),*) => {{
+        SubdirMap {
+            entries: &[
+                $( ( stringify!($name),  $e), )*
+            ]
+        }
+    }}
+}
+#[derive(Debug)]
 pub struct MethodInfo<'a> {
     pub get: Option<&'a ApiMethod<'a>>,
     pub put: Option<&'a ApiMethod<'a>>,

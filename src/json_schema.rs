@@ -1,6 +1,6 @@
 use crate::static_map::StaticMap;
 
-pub type PropertyMap<'a> = StaticMap<'a, &'a str, Jss<'a>>; 
+pub type PropertyMap<'a> = StaticMap<'a, &'a str, Jss<'a>>;
 
 #[derive(Debug)]
 pub struct JssBoolean<'a> {
@@ -131,4 +131,3 @@ pub static PVE_VMID: Jss = Integer!{
     description => "The (unique) ID of the VM.",
     minimum => Some(1)
 };
-
