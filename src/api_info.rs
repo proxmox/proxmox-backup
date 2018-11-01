@@ -28,7 +28,7 @@ pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     subdirs: None,
 };
 
-pub fn find_method_info(root: &'static MethodInfo, components: &[&str]) -> Option<&'static MethodInfo> {
+pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo> {
 
     if components.len() == 0 { return Some(root); };
 
