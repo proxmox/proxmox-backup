@@ -97,7 +97,7 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
 
 static TEST_API_METHOD: ApiMethod = ApiMethod {
     description: "This is a simple test.",
-    properties: StaticPropertyMap {
+    properties: &StaticPropertyMap {
         entries: &[
             ("force", Boolean!{
                 optional => Some(true),
@@ -105,7 +105,7 @@ static TEST_API_METHOD: ApiMethod = ApiMethod {
             })
         ]
     },
-    returns: Jss::Null,
+    returns: &Jss::Null,
     handler: test_api_handler,
 };
 

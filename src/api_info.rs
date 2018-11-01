@@ -5,8 +5,8 @@ use serde_json::{Value};
 
 pub struct ApiMethod {
     pub description: &'static str,
-    pub properties: StaticPropertyMap,
-    pub returns: Jss,
+    pub properties: &'static StaticPropertyMap,
+    pub returns: &'static Jss,
     pub handler: fn(Value) -> Result<Value, Error>,
 }
 
