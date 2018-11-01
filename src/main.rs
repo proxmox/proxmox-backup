@@ -83,13 +83,13 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
     //if let Some(force) = param.force {
     //}
 
-    let force =  param["force"].as_bool()
+    let _force =  param["force"].as_bool()
         .ok_or_else(|| format_err!("meine fehlermeldung"))?;
 
-    if let Some(force) = param["force"].as_bool() {
+    if let Some(_force) = param["force"].as_bool() {
     }
 
-    let tmp: Myparam = serde_json::from_value(param)?;
+    let _tmp: Myparam = serde_json::from_value(param)?;
 
 
     Ok(json!(null))
@@ -176,7 +176,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                     &Method::DELETE => info.delete,
                     _ => None,
                 };
-                let api_method = match api_method_opt {
+                let _api_method = match api_method_opt {
                     Some(m) => m,
                     _ => http_error!(NOT_FOUND, format!("No such method '{} {}'\n", method, path)),
                 };
@@ -184,7 +184,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 // handle auth
 
                 // extract param
-                let param = match query {
+                let _param = match query {
                     Some(data) => parse_query(data),
                     None => json!({}),
                 };
