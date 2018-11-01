@@ -100,23 +100,23 @@ static TEST_API_METHOD: ApiMethod = ApiMethod {
 };
 
 
-static API3_TEST: MethodInfo = MethodInfo {
-    ..METHOD_INFO_DEFAULTS
-};
+methodinfo!{
+    API3_TEST,
+}
 
-static API3_NODES: MethodInfo = MethodInfo {
-    get: Some(&TEST_API_METHOD),
-    ..METHOD_INFO_DEFAULTS
-};
+methodinfo!{
+    API3_NODES,
+    get => &TEST_API_METHOD
+}
 
-static API_ROOT: MethodInfo = MethodInfo {
-    get: Some(&TEST_API_METHOD),
-    subdirs: Some(&subdirmap!{
+methodinfo!{
+    API_ROOT,
+    get => &TEST_API_METHOD,
+    subdirs => &subdirmap!{
         test => &API3_TEST,
         nodes => &API3_NODES
-    }),
-    ..METHOD_INFO_DEFAULTS
-};
+    }
+}
 
 macro_rules! http_error {
     ($status:ident, $msg:expr) => {{

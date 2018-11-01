@@ -23,6 +23,7 @@ macro_rules! subdirmap {
         }
     }}
 }
+
 #[derive(Debug)]
 pub struct MethodInfo<'a> {
     pub get: Option<&'a ApiMethod<'a>>,
@@ -39,6 +40,16 @@ pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     delete: None,
     subdirs: None,
 };
+
+#[macro_export]
+macro_rules! methodinfo {
+    ($name:ident, $($option:ident => $e:expr),*) => {
+        static $name: MethodInfo = MethodInfo {
+            $( $option:  Some($e), )*
+            ..METHOD_INFO_DEFAULTS
+        };
+    }
+}
 
 pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo<'a>> {
 
