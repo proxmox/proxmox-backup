@@ -1,28 +1,18 @@
-extern crate failure;
-use failure::*;
+#[macro_use]
+extern crate apitest;
 
-use apitest::static_map::StaticMap;
+use failure::*;
 
 use std::collections::HashMap;
 
-#[macro_use]
-extern crate apitest;
 
 use apitest::json_schema::*;
 use apitest::api_info::*;
 
-
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-
+use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-extern crate url;
-
 use url::form_urlencoded;
-
-extern crate hyper;
 
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;

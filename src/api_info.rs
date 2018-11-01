@@ -1,6 +1,6 @@
 use failure::*;
 
-use json_schema::*;
+use crate::json_schema::*;
 use serde_json::{Value};
 
 pub struct ApiMethod<'a> {

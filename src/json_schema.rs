@@ -1,4 +1,4 @@
-use static_map::StaticMap;
+use crate::static_map::StaticMap;
 
 pub type PropertyMap<'a> = StaticMap<'a, &'a str, Jss<'a>>; 
 
