@@ -27,4 +27,18 @@ pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     delete: None,
     subdirs: None,
 };
-    
+
+pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo> {
+
+    if components.len() == 0 { return Some(root); };
+
+    let (dir, rest) = (components[0], &components[1..]);
+
+    if let Some(dirmap) = root.subdirs {
+        if let Some(info) = dirmap.get(dir) {
+            return find_method_info(info, rest);
+        }
+    }
+
+    None
+}
