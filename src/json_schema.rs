@@ -1,4 +1,6 @@
-pub type StaticPropertyMap = phf::Map<&'static str, Jss>;
+use static_map::StaticMap;
+
+pub type StaticPropertyMap = StaticMap<'static, &'static str, Jss>;
 
 #[derive(Debug)]
 pub struct JssBoolean {
@@ -107,7 +109,7 @@ macro_rules! Array {
     }}
 }
 
-pub static EMPTYOBJECT: StaticPropertyMap = phf_map!{};
+pub static EMPTYOBJECT: StaticPropertyMap = StaticPropertyMap { entries: &[] };
 
 pub static DEFAULTOBJECT: JssObject = JssObject {
     description: "",

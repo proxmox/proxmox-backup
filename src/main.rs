@@ -1,9 +1,7 @@
-#![feature(plugin)]
-#![plugin(phf_macros)]
-extern crate phf;
-
 extern crate failure;
 use failure::*;
+
+use apitest::static_map::StaticMap;
 
 use std::collections::HashMap;
 
@@ -30,40 +28,44 @@ use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 
-static PARAMETERS1: StaticPropertyMap = phf_map! {
-    "force" => Boolean!{
-        description => "Test for boolean options."
-    },
-    "text1" => ApiString!{
-        description => "A simple text string.",
-        min_length => Some(10),
-        max_length => Some(30)
-    },
-    "count" => Integer!{
-        description => "A counter for everything.",
-        minimum => Some(0),
-        maximum => Some(10)
-    },
-    "myarray1" => Array!{
-        description => "Test Array of simple integers.",
-        items => &PVE_VMID
-    },
-    "myarray2" => Jss::Array(JssArray {
-        description: "Test Array of simple integers.",
-        optional: Some(false),
-        items: &Object!{description => "Empty Object."},
-    }),
-    "myobject" => Object!{
-        description => "TEST Object.",
-        properties => &phf_map!{
-            "vmid" => Jss::Reference { reference: &PVE_VMID},
-            "loop" => Integer!{
-                description => "Totally useless thing.",
-                optional => Some(false)
+static PARAMETERS1: StaticPropertyMap = StaticPropertyMap {
+    entries: &[
+        ("force", Boolean!{
+            description => "Test for boolean options."
+        }),
+        ("text1", ApiString!{
+            description => "A simple text string.",
+            min_length => Some(10),
+            max_length => Some(30)
+        }),
+        ("count", Integer!{
+            description => "A counter for everything.",
+            minimum => Some(0),
+            maximum => Some(10)
+        }),
+        ("myarray1", Array!{
+            description => "Test Array of simple integers.",
+            items => &PVE_VMID
+        }),
+        ("myarray2", Jss::Array(JssArray {
+            description: "Test Array of simple integers.",
+            optional: Some(false),
+            items: &Object!{description => "Empty Object."},
+        })),
+        ("myobject", Object!{
+            description => "TEST Object.",
+            properties => &StaticPropertyMap {
+                entries: &[ 
+                    ("vmid", Jss::Reference { reference: &PVE_VMID}),
+                    ("loop", Integer!{
+                        description => "Totally useless thing.",
+                        optional => Some(false)
+                    })
+                ]
             }
-        }
-    },
-    "emptyobject" => Object!{description => "Empty Object."},
+        }),
+        ("emptyobject", Object!{description => "Empty Object."}),
+    ]
 };
 
 
@@ -95,11 +97,13 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
 
 static TEST_API_METHOD: ApiMethod = ApiMethod {
     description: "This is a simple test.",
-    properties: phf_map! {
-        "force" => Boolean!{
-            optional => Some(true),
-            description => "Test for boolean options."
-        }
+    properties: StaticPropertyMap {
+        entries: &[
+            ("force", Boolean!{
+                optional => Some(true),
+                description => "Test for boolean options."
+            })
+        ]
     },
     returns: Jss::Null,
     handler: test_api_handler,
@@ -113,7 +117,11 @@ static API3_NODES: MethodInfo = MethodInfo {
 
 static API_ROOT: MethodInfo = MethodInfo {
     get: Some(&TEST_API_METHOD),
-    subdirs: Some(&phf_map!{"nodes" => &API3_NODES}),
+    subdirs: Some(&StaticSubdirMap {
+        entries: &[
+            ("nodes", &API3_NODES),
+        ]
+    }),
     ..METHOD_INFO_DEFAULTS
 };
 
@@ -193,7 +201,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
 fn main() {
     println!("Fast Static Type Definitions 1");
 
-    for (k, v) in PARAMETERS1.entries() {
+    for (k, v) in PARAMETERS1.entries {
         println!("Parameter: {} Value: {:?}", k, v);
     }
 
