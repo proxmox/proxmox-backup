@@ -28,7 +28,7 @@ use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 
-static PARAMETERS1: StaticPropertyMap = StaticPropertyMap {
+static PARAMETERS1: PropertyMap = PropertyMap {
     entries: &[
         ("force", Boolean!{
             description => "Test for boolean options."
@@ -54,7 +54,7 @@ static PARAMETERS1: StaticPropertyMap = StaticPropertyMap {
         })),
         ("myobject", Object!{
             description => "TEST Object.",
-            properties => &StaticPropertyMap {
+            properties => &PropertyMap {
                 entries: &[ 
                     ("vmid", Jss::Reference { reference: &PVE_VMID}),
                     ("loop", Integer!{
@@ -97,7 +97,7 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
 
 static TEST_API_METHOD: ApiMethod = ApiMethod {
     description: "This is a simple test.",
-    properties: &StaticPropertyMap {
+    properties: &PropertyMap {
         entries: &[
             ("force", Boolean!{
                 optional => Some(true),
@@ -117,7 +117,7 @@ static API3_NODES: MethodInfo = MethodInfo {
 
 static API_ROOT: MethodInfo = MethodInfo {
     get: Some(&TEST_API_METHOD),
-    subdirs: Some(&StaticSubdirMap {
+    subdirs: Some(&SubdirMap {
         entries: &[
             ("nodes", &API3_NODES),
         ]

@@ -3,21 +3,21 @@ use failure::*;
 use json_schema::*;
 use serde_json::{Value};
 
-pub struct ApiMethod {
-    pub description: &'static str,
-    pub properties: &'static StaticPropertyMap,
-    pub returns: &'static Jss,
+pub struct ApiMethod<'a> {
+    pub description: &'a str,
+    pub properties: &'a PropertyMap<'a>,
+    pub returns: &'a Jss<'a>,
     pub handler: fn(Value) -> Result<Value, Error>,
 }
 
-pub type StaticSubdirMap = crate::static_map::StaticMap<'static, &'static str, &'static MethodInfo>;
+pub type SubdirMap<'a> = crate::static_map::StaticMap<'a, &'a str, &'a MethodInfo<'a>>;
 
-pub struct MethodInfo {
-    pub get: Option<&'static ApiMethod>,
-    pub put: Option<&'static ApiMethod>,
-    pub post: Option<&'static ApiMethod>,
-    pub delete: Option<&'static ApiMethod>,
-    pub subdirs: Option<&'static StaticSubdirMap>,
+pub struct MethodInfo<'a> {
+    pub get: Option<&'a ApiMethod<'a>>,
+    pub put: Option<&'a ApiMethod<'a>>,
+    pub post: Option<&'a ApiMethod<'a>>,
+    pub delete: Option<&'a ApiMethod<'a>>,
+    pub subdirs: Option<&'a SubdirMap<'a>>,
 }
 
 pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
@@ -28,7 +28,7 @@ pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     subdirs: None,
 };
 
-pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo> {
+pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo<'a>> {
 
     if components.len() == 0 { return Some(root); };
 

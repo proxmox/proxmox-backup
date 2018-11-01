@@ -1,17 +1,17 @@
 use static_map::StaticMap;
 
-pub type StaticPropertyMap = StaticMap<'static, &'static str, Jss>;
+pub type PropertyMap<'a> = StaticMap<'a, &'a str, Jss<'a>>; 
 
 #[derive(Debug)]
-pub struct JssBoolean {
-    pub description: &'static str,
+pub struct JssBoolean<'a> {
+    pub description: &'a str,
     pub optional: Option<bool>,
     pub default: Option<bool>,
 }
 
 #[derive(Debug)]
-pub struct JssInteger {
-    pub description: &'static str,
+pub struct JssInteger<'a> {
+    pub description: &'a str,
     pub optional: Option<bool>,
     pub minimum: Option<usize>,
     pub maximum: Option<usize>,
@@ -19,38 +19,38 @@ pub struct JssInteger {
 }
 
 #[derive(Debug)]
-pub struct JssString {
-    pub description: &'static str,
+pub struct JssString<'a> {
+    pub description: &'a str,
     pub optional: Option<bool>,
-    pub default: Option<&'static str>,
+    pub default: Option<&'a str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
 }
 
 #[derive(Debug)]
-pub struct JssArray {
-    pub description: &'static str,
+pub struct JssArray<'a> {
+    pub description: &'a str,
     pub optional: Option<bool>,
-    pub items: &'static Jss,
+    pub items: &'a Jss<'a>,
 }
 
 #[derive(Debug)]
-pub struct JssObject {
-    pub description: &'static str,
+pub struct JssObject<'a> {
+    pub description: &'a str,
     pub optional: Option<bool>,
     pub additional_properties: Option<bool>,
-    pub properties: &'static StaticPropertyMap,
+    pub properties: &'a PropertyMap<'a>,
 }
 
 #[derive(Debug)]
-pub enum Jss {
+pub enum Jss<'a> {
     Null,
-    Boolean(JssBoolean),
-    Integer(JssInteger),
-    String(JssString),
-    Object(JssObject),
-    Array(JssArray),
-    Reference { reference: &'static Jss },
+    Boolean(JssBoolean<'a>),
+    Integer(JssInteger<'a>),
+    String(JssString<'a>),
+    Object(JssObject<'a>),
+    Array(JssArray<'a>),
+    Reference { reference: &'a Jss<'a> },
 }
 
 pub static DEFAULTBOOL: JssBoolean = JssBoolean {
@@ -109,7 +109,7 @@ macro_rules! Array {
     }}
 }
 
-pub static EMPTYOBJECT: StaticPropertyMap = StaticPropertyMap { entries: &[] };
+pub static EMPTYOBJECT: PropertyMap = PropertyMap { entries: &[] };
 
 pub static DEFAULTOBJECT: JssObject = JssObject {
     description: "",
