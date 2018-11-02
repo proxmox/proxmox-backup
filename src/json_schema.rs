@@ -131,3 +131,14 @@ pub static PVE_VMID: Jss = Integer!{
     description => "The (unique) ID of the VM.",
     minimum => Some(1)
 };
+
+#[macro_export]
+macro_rules! propertymap {
+    ($($name:ident => $e:expr),*) => {
+        PropertyMap {
+            entries: &[
+                $( ( stringify!($name),  $e), )*
+            ]
+        }
+    }
+}

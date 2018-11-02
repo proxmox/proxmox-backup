@@ -18,44 +18,40 @@ use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 
-static PARAMETERS1: PropertyMap = PropertyMap {
-    entries: &[
-        ("force", Boolean!{
-            description => "Test for boolean options."
-        }),
-        ("text1", ApiString!{
-            description => "A simple text string.",
-            min_length => Some(10),
-            max_length => Some(30)
-        }),
-        ("count", Integer!{
-            description => "A counter for everything.",
-            minimum => Some(0),
-            maximum => Some(10)
-        }),
-        ("myarray1", Array!{
-            description => "Test Array of simple integers.",
-            items => &PVE_VMID
-        }),
-        ("myarray2", Jss::Array(JssArray {
-            description: "Test Array of simple integers.",
-            optional: Some(false),
-            items: &Object!{description => "Empty Object."},
-        })),
-        ("myobject", Object!{
-            description => "TEST Object.",
-            properties => &PropertyMap {
-                entries: &[
-                    ("vmid", Jss::Reference { reference: &PVE_VMID}),
-                    ("loop", Integer!{
-                        description => "Totally useless thing.",
-                        optional => Some(false)
-                    })
-                ]
+static PARAMETERS1: PropertyMap = propertymap!{
+    force => Boolean!{
+        description => "Test for boolean options."
+    },
+    text1 => ApiString!{
+        description => "A simple text string.",
+        min_length => Some(10),
+        max_length => Some(30)
+    },
+    count => Integer!{
+        description => "A counter for everything.",
+        minimum => Some(0),
+        maximum => Some(10)
+    },
+    myarray1 => Array!{
+        description => "Test Array of simple integers.",
+        items => &PVE_VMID
+    },
+    myarray2 => Jss::Array(JssArray {
+        description: "Test Array of simple integers.",
+        optional: Some(false),
+        items: &Object!{description => "Empty Object."},
+    }),
+    myobject => Object!{
+        description => "TEST Object.",
+        properties => &propertymap!{
+            vmid => Jss::Reference { reference: &PVE_VMID},
+            loop => Integer!{
+                description => "Totally useless thing.",
+                optional => Some(false)
             }
-        }),
-        ("emptyobject", Object!{description => "Empty Object."}),
-    ]
+        }
+    },
+    emptyobject => Object!{description => "Empty Object."}
 };
 
 
@@ -87,13 +83,11 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
 
 static TEST_API_METHOD: ApiMethod = ApiMethod {
     description: "This is a simple test.",
-    properties: &PropertyMap {
-        entries: &[
-            ("force", Boolean!{
-                optional => Some(true),
-                description => "Test for boolean options."
-            })
-        ]
+    properties: &propertymap!{
+        force => Boolean!{
+            optional => Some(true),
+            description => "Test for boolean options."
+        }
     },
     returns: &Jss::Null,
     handler: test_api_handler,
