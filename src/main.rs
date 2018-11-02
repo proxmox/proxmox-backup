@@ -154,7 +154,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 http_error!(NOT_FOUND, format!("Unsupported format '{}'\n", format))
             }
 
-            if let Some(info) = find_method_info(&API_ROOT, &components[2..]) {
+            if let Some(info) = API_ROOT.find_method(&components[2..]) {
                 println!("FOUND INFO");
                 let api_method_opt = match method {
                     &Method::GET => info.get,

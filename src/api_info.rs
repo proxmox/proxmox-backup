@@ -33,6 +33,24 @@ pub struct MethodInfo<'a> {
     pub subdirs: Option<&'a SubdirMap<'a>>,
 }
 
+impl<'a> MethodInfo<'a> {
+
+    pub fn find_method(&'a self, components: &[&str]) -> Option<&'a MethodInfo<'a>> {
+
+        if components.len() == 0 { return Some(self); };
+
+        let (dir, rest) = (components[0], &components[1..]);
+
+        if let Some(ref dirmap) = self.subdirs {
+            if let Some(info) = dirmap.get(&dir) {
+                return info.find_method(rest);
+            }
+        }
+
+        None
+    }
+}
+
 pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     get: None,
     put: None,
@@ -49,19 +67,4 @@ macro_rules! methodinfo {
             ..METHOD_INFO_DEFAULTS
         };
     }
-}
-
-pub fn find_method_info<'a>(root: &'a MethodInfo, components: &[&str]) -> Option<&'a MethodInfo<'a>> {
-
-    if components.len() == 0 { return Some(root); };
-
-    let (dir, rest) = (components[0], &components[1..]);
-
-    if let Some(ref dirmap) = root.subdirs {
-        if let Some(info) = dirmap.get(&dir) {
-            return find_method_info(info, rest);
-        }
-    }
-
-    None
 }
