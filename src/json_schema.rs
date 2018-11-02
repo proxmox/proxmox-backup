@@ -1,6 +1,6 @@
 use crate::static_map::StaticMap;
 
-pub type PropertyMap<'a> = StaticMap<'a, &'a str, Jss<'a>>;
+pub type PropertyMap<'a> = StaticMap<'a, &'a str, &'a Jss<'a>>;
 
 #[derive(Debug)]
 pub struct JssBoolean<'a> {
@@ -50,7 +50,6 @@ pub enum Jss<'a> {
     String(JssString<'a>),
     Object(JssObject<'a>),
     Array(JssArray<'a>),
-    Reference { reference: &'a Jss<'a> },
 }
 
 pub static DEFAULTBOOL: JssBoolean = JssBoolean {
