@@ -59,14 +59,14 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 http_error!(NOT_FOUND, format!("Unsupported format '{}'\n", format))
             }
 
-            if let Some(info) = API_ROOT.find_method(&components[2..]) {
+            if let Some(info) = ROUTER.find_method(&components[2..]) {
                 println!("FOUND INFO");
                 let api_method_opt = match method {
-                    &Method::GET => info.get,
-                    &Method::PUT => info.put,
-                    &Method::POST => info.post,
-                    &Method::DELETE => info.delete,
-                    _ => None,
+                    &Method::GET => &info.get,
+                  //  &Method::PUT => info.put,
+                  //  &Method::POST => info.post,
+                  //  &Method::DELETE => info.delete,
+                    _ => &None,
                 };
                 let api_method = match api_method_opt {
                     Some(m) => m,
@@ -101,7 +101,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
 }
 
 lazy_static!{
-    static ref API_ROOT: MethodInfo = apitest::api3::get_api_definition();
+    static ref ROUTER: MethodInfo = apitest::api3::router();
 }
 
 fn main() {

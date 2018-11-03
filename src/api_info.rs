@@ -6,25 +6,40 @@ use serde_json::{Value};
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct ApiMethod<'a> {
-    pub description: &'a str,
-    pub parameters: &'a Jss<'a>,
-    pub returns: &'a Jss<'a>,
+pub struct ApiMethod {
+    pub description: &'static str,
+    pub parameters: Jss,
+    pub returns: Jss,
     pub handler: fn(Value) -> Result<Value, Error>,
 }
 
 #[derive(Debug)]
 pub struct MethodInfo {
-    pub get: Option<&'static ApiMethod<'static>>,
-    pub put: Option<&'static ApiMethod<'static>>,
-    pub post: Option<&'static ApiMethod<'static>>,
-    pub delete: Option<&'static ApiMethod<'static>>,
+    pub get: Option<ApiMethod>,
+    pub put: Option<ApiMethod>,
+    pub post: Option<ApiMethod>,
+    pub delete: Option<ApiMethod>,
     pub subdirs: Option<HashMap<String, MethodInfo>>,
 }
 
 impl MethodInfo {
 
-    pub fn find_method<'a>(&'a self, components: &[&str]) -> Option<&'a MethodInfo> {
+    pub fn new() -> Self {
+        Self {
+            get: None,
+            put: None,
+            post: None,
+            delete: None,
+            subdirs: None
+        }
+    }
+
+    pub fn get(mut self, m: ApiMethod) -> Self {
+        self.get = Some(m);
+        self
+    }
+
+    pub fn find_method(&self, components: &[&str]) -> Option<&MethodInfo> {
 
         if components.len() == 0 { return Some(self); };
 
@@ -40,20 +55,16 @@ impl MethodInfo {
     }
 }
 
-pub const METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
-    get: None,
-    put: None,
-    post: None,
-    delete: None,
-    subdirs: None,
-};
-
+// fixme: remove - not required?
 #[macro_export]
 macro_rules! methodinfo {
-    ($($option:ident => $e:expr),*) => {
-        MethodInfo {
-            $( $option:  Some($e), )*
-            ..METHOD_INFO_DEFAULTS
-        };
-    }
+    ($($option:ident => $e:expr),*) => {{
+        let info = MethodInfo::new();
+
+        $(
+            info.$option = Some($e);
+        )*
+
+        info
+    }}
 }

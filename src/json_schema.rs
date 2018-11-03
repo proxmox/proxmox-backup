@@ -1,17 +1,17 @@
-use crate::static_map::StaticMap;
+use std::collections::HashMap;
 
-pub type PropertyMap<'a> = StaticMap<'a, &'a str, &'a Jss<'a>>;
+pub type PropertyMap = HashMap<&'static str, Jss>;
 
 #[derive(Debug)]
-pub struct JssBoolean<'a> {
-    pub description: &'a str,
+pub struct JssBoolean {
+    pub description: &'static str,
     pub optional: Option<bool>,
     pub default: Option<bool>,
 }
 
 #[derive(Debug)]
-pub struct JssInteger<'a> {
-    pub description: &'a str,
+pub struct JssInteger {
+    pub description: &'static str,
     pub optional: Option<bool>,
     pub minimum: Option<usize>,
     pub maximum: Option<usize>,
@@ -19,37 +19,37 @@ pub struct JssInteger<'a> {
 }
 
 #[derive(Debug)]
-pub struct JssString<'a> {
-    pub description: &'a str,
+pub struct JssString {
+    pub description: &'static str,
     pub optional: Option<bool>,
-    pub default: Option<&'a str>,
+    pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
 }
 
 #[derive(Debug)]
-pub struct JssArray<'a> {
-    pub description: &'a str,
+pub struct JssArray {
+    pub description: &'static str,
     pub optional: Option<bool>,
-    pub items: &'a Jss<'a>,
+    pub items: Box<Jss>,
 }
 
 #[derive(Debug)]
-pub struct JssObject<'a> {
-    pub description: &'a str,
+pub struct JssObject {
+    pub description: &'static str,
     pub optional: Option<bool>,
     pub additional_properties: Option<bool>,
-    pub properties: &'a PropertyMap<'a>,
+    pub properties: Box<HashMap<&'static str, Jss>>,
 }
 
 #[derive(Debug)]
-pub enum Jss<'a> {
+pub enum Jss {
     Null,
-    Boolean(JssBoolean<'a>),
-    Integer(JssInteger<'a>),
-    String(JssString<'a>),
-    Object(JssObject<'a>),
-    Array(JssArray<'a>),
+    Boolean(JssBoolean),
+    Integer(JssInteger),
+    String(JssString),
+    Object(JssObject),
+    Array(JssArray),
 }
 
 pub const DEFAULTBOOL: JssBoolean = JssBoolean {
@@ -95,53 +95,45 @@ macro_rules! ApiString {
     }}
 }
 
-pub const DEFAULTARRAY: JssArray = JssArray {
-    description: "",
-    optional: None,
-    items: &Jss::Null, // is this a reasonable default??
-};
-
 #[macro_export]
-macro_rules! Array {
+macro_rules! parameter {
     ($($name:ident => $e:expr),*) => {{
-        Jss::Array(JssArray { $($name: $e, )* ..DEFAULTARRAY})
-    }}
-}
+        let inner = JssObject {
+            description: "",
+            optional: None,
+            additional_properties: None,
+            properties: {
+                let mut map = HashMap::<&'static str, Jss>::new();
+                $(
+                    map.insert(stringify!($name), $e);
+                )*
+                Box::new(map)
+            }
+        };
 
-pub const EMPTYOBJECT: PropertyMap = PropertyMap { entries: &[] };
-
-pub const DEFAULTOBJECT: JssObject = JssObject {
-    description: "",
-    optional: None,
-    additional_properties: None,
-    properties: &EMPTYOBJECT, // is this a reasonable default??
-};
-
-#[macro_export]
-macro_rules! Object {
-    ($($name:ident => $e:expr),*) => {{
-        Jss::Object(JssObject { $($name: $e, )* ..DEFAULTOBJECT})
+        Jss::Object(inner)
     }}
 }
 
 
-// Standard Option Definitions
-pub static PVE_VMID: Jss = Integer!{
-    description => "The (unique) ID of the VM.",
-    minimum => Some(1)
-};
 
-#[macro_export]
-macro_rules! propertymap {
-    ($($name:ident => $e:expr),*) => {
-        PropertyMap {
-            entries: &[
-                $( ( stringify!($name),  $e), )*
-            ]
+#[test]
+fn test_shema1() {
+    let schema = Jss::Object(JssObject {
+        description: "TEST",
+        optional: None,
+        additional_properties: None,
+        properties: {
+            let map = HashMap::new();
+
+            Box::new(map)
         }
-    }
+    });
+
+    println!("TEST Schema: {:?}", schema);
 }
 
+/*
 #[test]
 fn test_shema1() {
     static PARAMETERS1: PropertyMap = propertymap!{
@@ -186,3 +178,4 @@ fn test_shema1() {
 
 
 }
+*/

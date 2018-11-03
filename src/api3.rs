@@ -7,20 +7,6 @@ use crate::api_info::*;
 use serde_json::{json, Value};
 
 
-static GET: ApiMethod = ApiMethod {
-    handler: test_api_handler,
-    description: "This is a simple test.",
-    parameters: &Object!{
-        properties => &propertymap!{
-            force => &Boolean!{
-                optional => Some(true),
-                description => "Test for boolean options."
-            }
-        }
-    },
-    returns: &Jss::Null,
-};
-
 fn test_api_handler(param: Value) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
@@ -39,22 +25,23 @@ fn test_api_handler(param: Value) -> Result<Value, Error> {
     Ok(json!(null))
 }
 
-pub fn get_api_definition() -> MethodInfo {
 
-    let subdir1 = methodinfo!{
-        get => &GET
-    };
-    
-    let info = methodinfo!{
-        get => &GET,
-        subdirs => {
-            let mut map = HashMap::new();
+pub fn router() -> MethodInfo {
 
-            map.insert(String::from("subdir"), subdir1);
-            
-            map
-        }
-    };
+    let route = MethodInfo::new()
+        .get(ApiMethod {
+            handler: test_api_handler,
+            description: "This is a simple test.",
+            parameters: parameter!{
+                force => Boolean!{
+                    optional => Some(true),
+                    description => "Test for boolean options."
+                }
+            },
+            returns: Jss::Null,
+        });
 
-    info
+    route
 }
+
+
