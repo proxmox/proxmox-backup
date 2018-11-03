@@ -3,46 +3,35 @@ use failure::*;
 use crate::json_schema::*;
 use serde_json::{Value};
 
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub struct ApiMethod<'a> {
     pub description: &'a str,
-    pub properties: &'a PropertyMap<'a>,
+    pub parameters: &'a Jss<'a>,
     pub returns: &'a Jss<'a>,
     pub handler: fn(Value) -> Result<Value, Error>,
 }
 
-pub type SubdirMap<'a> = crate::static_map::StaticMap<'a, &'a str, &'a MethodInfo<'a>>;
-
-#[macro_export]
-macro_rules! subdirmap {
-    ($($name:ident => $e:expr),*) => {{
-        SubdirMap {
-            entries: &[
-                $( ( stringify!($name),  $e), )*
-            ]
-        }
-    }}
-}
-
 #[derive(Debug)]
-pub struct MethodInfo<'a> {
-    pub get: Option<&'a ApiMethod<'a>>,
-    pub put: Option<&'a ApiMethod<'a>>,
-    pub post: Option<&'a ApiMethod<'a>>,
-    pub delete: Option<&'a ApiMethod<'a>>,
-    pub subdirs: Option<&'a SubdirMap<'a>>,
+pub struct MethodInfo {
+    pub get: Option<&'static ApiMethod<'static>>,
+    pub put: Option<&'static ApiMethod<'static>>,
+    pub post: Option<&'static ApiMethod<'static>>,
+    pub delete: Option<&'static ApiMethod<'static>>,
+    pub subdirs: Option<HashMap<String, MethodInfo>>,
 }
 
-impl<'a> MethodInfo<'a> {
+impl MethodInfo {
 
-    pub fn find_method(&'a self, components: &[&str]) -> Option<&'a MethodInfo<'a>> {
+    pub fn find_method<'a>(&'a self, components: &[&str]) -> Option<&'a MethodInfo> {
 
         if components.len() == 0 { return Some(self); };
 
         let (dir, rest) = (components[0], &components[1..]);
 
         if let Some(ref dirmap) = self.subdirs {
-            if let Some(info) = dirmap.get(&dir) {
+            if let Some(ref info) = dirmap.get(dir) {
                 return info.find_method(rest);
             }
         }
@@ -51,7 +40,7 @@ impl<'a> MethodInfo<'a> {
     }
 }
 
-pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
+pub const METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
     get: None,
     put: None,
     post: None,
@@ -61,8 +50,8 @@ pub static METHOD_INFO_DEFAULTS: MethodInfo = MethodInfo {
 
 #[macro_export]
 macro_rules! methodinfo {
-    ($name:ident, $($option:ident => $e:expr),*) => {
-        static $name: MethodInfo = MethodInfo {
+    ($($option:ident => $e:expr),*) => {
+        MethodInfo {
             $( $option:  Some($e), )*
             ..METHOD_INFO_DEFAULTS
         };

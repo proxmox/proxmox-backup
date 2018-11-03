@@ -1,15 +1,14 @@
-#[macro_use]
 extern crate apitest;
 
-use failure::*;
+//use failure::*;
 
 use std::collections::HashMap;
+use lazy_static::lazy_static;
 
-
-use apitest::json_schema::*;
+//use apitest::json_schema::*;
 use apitest::api_info::*;
 
-use serde_derive::{Serialize, Deserialize};
+//use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
 use url::form_urlencoded;
@@ -17,65 +16,6 @@ use url::form_urlencoded;
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
-
-
-
-
-#[derive(Serialize, Deserialize)]
-struct Myparam {
-    test: bool,
-}
-
-fn test_api_handler(param: Value) -> Result<Value, Error> {
-    println!("This is a test {}", param);
-
-   // let force: Option<bool> = Some(false);
-
-    //if let Some(force) = param.force {
-    //}
-
-    let _force =  param["force"].as_bool()
-        .ok_or_else(|| format_err!("missing parameter 'force'"))?;
-
-    if let Some(_force) = param["force"].as_bool() {
-    }
-
-    let _tmp: Myparam = serde_json::from_value(param)?;
-
-
-    Ok(json!(null))
-}
-
-static TEST_API_METHOD: ApiMethod = ApiMethod {
-    description: "This is a simple test.",
-    properties: &propertymap!{
-        force => &Boolean!{
-            optional => Some(true),
-            description => "Test for boolean options."
-        }
-    },
-    returns: &Jss::Null,
-    handler: test_api_handler,
-};
-
-
-methodinfo!{
-    API3_TEST,
-}
-
-methodinfo!{
-    API3_NODES,
-    get => &TEST_API_METHOD
-}
-
-methodinfo!{
-    API_ROOT,
-    get => &TEST_API_METHOD,
-    subdirs => &subdirmap!{
-        test => &API3_TEST,
-        nodes => &API3_NODES
-    }
-}
 
 macro_rules! http_error {
     ($status:ident, $msg:expr) => {{
@@ -158,6 +98,10 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
     }
 
     Response::new(Body::from("RETURN WEB GUI\n"))
+}
+
+lazy_static!{
+    static ref API_ROOT: MethodInfo = apitest::api3::get_api_definition();
 }
 
 fn main() {
