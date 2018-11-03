@@ -52,7 +52,7 @@ pub enum Jss<'a> {
     Array(JssArray<'a>),
 }
 
-pub static DEFAULTBOOL: JssBoolean = JssBoolean {
+pub const DEFAULTBOOL: JssBoolean = JssBoolean {
     description: "",
     optional: None,
     default: None,
@@ -65,7 +65,7 @@ macro_rules! Boolean {
     }}
 }
 
-pub static DEFAULTINTEGER: JssInteger = JssInteger {
+pub const DEFAULTINTEGER: JssInteger = JssInteger {
     description: "",
     optional: None,
     default: None,
@@ -80,7 +80,7 @@ macro_rules! Integer {
     }}
 }
 
-pub static DEFAULTSTRING: JssString = JssString {
+pub const DEFAULTSTRING: JssString = JssString {
     description: "",
     optional: None,
     default: None,
@@ -95,7 +95,7 @@ macro_rules! ApiString {
     }}
 }
 
-pub static DEFAULTARRAY: JssArray = JssArray {
+pub const DEFAULTARRAY: JssArray = JssArray {
     description: "",
     optional: None,
     items: &Jss::Null, // is this a reasonable default??
@@ -108,9 +108,9 @@ macro_rules! Array {
     }}
 }
 
-pub static EMPTYOBJECT: PropertyMap = PropertyMap { entries: &[] };
+pub const EMPTYOBJECT: PropertyMap = PropertyMap { entries: &[] };
 
-pub static DEFAULTOBJECT: JssObject = JssObject {
+pub const DEFAULTOBJECT: JssObject = JssObject {
     description: "",
     optional: None,
     additional_properties: None,
