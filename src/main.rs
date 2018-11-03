@@ -18,41 +18,6 @@ use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
 use hyper::service::service_fn_ok;
 
-static PARAMETERS1: PropertyMap = propertymap!{
-    force => &Boolean!{
-        description => "Test for boolean options."
-    },
-    text1 => &ApiString!{
-        description => "A simple text string.",
-        min_length => Some(10),
-        max_length => Some(30)
-    },
-    count => &Integer!{
-        description => "A counter for everything.",
-        minimum => Some(0),
-        maximum => Some(10)
-    },
-    myarray1 => &Array!{
-        description => "Test Array of simple integers.",
-        items => &PVE_VMID
-    },
-    myarray2 => &Jss::Array(JssArray {
-        description: "Test Array of simple integers.",
-        optional: Some(false),
-        items: &Object!{description => "Empty Object."},
-    }),
-    myobject => &Object!{
-        description => "TEST Object.",
-        properties => &propertymap!{
-            vmid => &PVE_VMID,
-            loop => &Integer!{
-                description => "Totally useless thing.",
-                optional => Some(false)
-            }
-        }
-    },
-    emptyobject => &Object!{description => "Empty Object."}
-};
 
 
 
@@ -197,10 +162,6 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
 
 fn main() {
     println!("Fast Static Type Definitions 1");
-
-    for (k, v) in PARAMETERS1.entries {
-        println!("Parameter: {} Value: {:?}", k, v);
-    }
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
