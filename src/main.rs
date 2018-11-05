@@ -1,12 +1,13 @@
 extern crate apitest;
 
-//use failure::*;
+use failure::*;
 
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 
 //use apitest::json_schema::*;
 use apitest::api_info::*;
+use apitest::json_schema::*;
 
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
@@ -25,20 +26,6 @@ macro_rules! http_error {
     }}
 }
 
-fn parse_query(query: &str) -> Value {
-
-    println!("PARSE QUERY {}", query);
-
-    // fixme: what about repeated parameters (arrays?)
-    let mut raw_param = HashMap::new();
-    for (k, v) in form_urlencoded::parse(query.as_bytes()) {
-        println!("QUERY PARAM {} value {}", k, v);
-        raw_param.insert(k, v);
-    }
-    println!("QUERY HASH {:?}", raw_param);
-
-    return json!(null);
-}
 
 fn handle_request(req: Request<Body>) -> Response<Body> {
 
@@ -63,9 +50,9 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 println!("FOUND INFO");
                 let api_method_opt = match method {
                     &Method::GET => &info.get,
-                  //  &Method::PUT => info.put,
-                  //  &Method::POST => info.post,
-                  //  &Method::DELETE => info.delete,
+                    &Method::PUT => &info.put,
+                    &Method::POST => &info.post,
+                    &Method::DELETE => &info.delete,
                     _ => &None,
                 };
                 let api_method = match api_method_opt {
@@ -77,7 +64,12 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
 
                 // extract param
                 let param = match query {
-                    Some(data) => parse_query(data),
+                    Some(data) => {
+                        match parse_query(data, &api_method.parameters) {
+                            Ok(query) => query,
+                            Err(err) => http_error!(NOT_FOUND, format!("Unable to parse query parameters '{}' - {}", data, err)),
+                        }
+                    }
                     None => json!({}),
                 };
 
