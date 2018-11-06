@@ -34,7 +34,7 @@ pub fn router() -> MethodInfo {
             description: "This is a simple test.",
             parameters: parameter!{
                 force => Boolean!{
-                    optional => Some(true),
+                    optional => true,
                     description => "Test for boolean options."
                 }
             },

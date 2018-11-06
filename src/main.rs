@@ -70,7 +70,13 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
 
                         match parse_parameter_strings(&param_list, &api_method.parameters) {
                             Ok(query) => query,
-                            Err(err) => http_error!(NOT_FOUND, format!("Unable to parse query parameters '{}' - {}", data, err)),
+                            Err(ref error_list) => {
+                                let mut msg = String::from("");
+                                for item in error_list {
+                                    msg = msg + &item.to_string() + "\n";
+                                }
+                                http_error!(BAD_REQUEST, msg);
+                            }
                         }
                     }
                     None => json!({}),
