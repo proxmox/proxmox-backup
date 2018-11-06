@@ -1,6 +1,7 @@
 use failure::*;
 use std::collections::HashMap;
 use serde_json::{json, Value};
+use url::form_urlencoded;
 
 pub type PropertyMap = HashMap<&'static str, Jss>;
 
@@ -219,21 +220,71 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss) -> Re
     }
 }
 
+pub fn parse_query_string(query: &str, schema: &Jss) -> Result<Value, Vec<Error>> {
+
+    let param_list: Vec<(String, String)> =
+        form_urlencoded::parse(query.as_bytes()).into_owned().collect();
+
+    parse_parameter_strings(&param_list, schema)
+}
+
 #[test]
 fn test_shema1() {
     let schema = Jss::Object(JssObject {
         description: "TEST",
-        optional: None,
-        additional_properties: None,
+        optional: false,
+        additional_properties: false,
         properties: {
             let map = HashMap::new();
 
-            Box::new(map)
+            map
         }
     });
 
     println!("TEST Schema: {:?}", schema);
 }
+
+#[test]
+fn test_query_boolean() {
+
+    let schema = parameter!{force => Boolean!{ optional => false }};
+
+    //let res = parse_query_string("", &schema);
+    //assert!(res.is_err());
+
+    let schema = parameter!{force => Boolean!{ optional => true }};
+
+    let res = parse_query_string("", &schema);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("a=b", &schema);
+    assert!(res.is_err());
+
+
+    let res = parse_query_string("force", &schema);
+    assert!(res.is_err());
+    
+    let res = parse_query_string("force=yes", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=1", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=On", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=TRUE", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=TREU", &schema);
+    assert!(res.is_err());
+
+    let res = parse_query_string("force=NO", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=0", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=off", &schema);
+    assert!(res.is_ok());
+    let res = parse_query_string("force=False", &schema);
+    assert!(res.is_ok());
+}
+
 
 /*
 #[test]

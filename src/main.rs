@@ -12,7 +12,6 @@ use apitest::json_schema::*;
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-use url::form_urlencoded;
 
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::Future;
@@ -65,10 +64,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 // extract param
                 let param = match query {
                     Some(data) => {
-                        let param_list: Vec<(String, String)> =
-                            form_urlencoded::parse(data.as_bytes()).into_owned().collect();
-
-                        match parse_parameter_strings(&param_list, &api_method.parameters) {
+                        match parse_query_string(data, &api_method.parameters) {
                             Ok(query) => query,
                             Err(ref error_list) => {
                                 let mut msg = String::from("");
