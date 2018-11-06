@@ -144,7 +144,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
     Ok(value)
 }
 
-pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss) -> Result<Value, Vec<Error>> {
+pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_required: bool) -> Result<Value, Vec<Error>> {
 
     println!("QUERY Strings {:?}", data);
 
@@ -208,6 +208,22 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss) -> Re
                     }
                 }
             }
+
+            if test_required {
+                for (name, prop_schema) in properties {
+                    let optional = match prop_schema {
+                        Jss::Boolean(jss_boolean) => jss_boolean.optional,
+                        Jss::Integer(jss_integer) => jss_integer.optional,
+                        Jss::String(jss_string) => jss_string.optional,
+                        Jss::Array(jss_array) => jss_array.optional,
+                        Jss::Object(jss_object) => jss_object.optional,
+                        Jss::Null => true,
+                    };
+                    if optional == false && params[name] == Value::Null {
+                        errors.push(format_err!("parameter {}: parameter is missing and it is not optional.", name));
+                    }
+                }
+            }
         }
         _ => errors.push(format_err!("Got unexpected schema type in parse_parameter_strings.")),
 
@@ -220,12 +236,12 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss) -> Re
     }
 }
 
-pub fn parse_query_string(query: &str, schema: &Jss) -> Result<Value, Vec<Error>> {
+pub fn parse_query_string(query: &str, schema: &Jss, test_required: bool) -> Result<Value, Vec<Error>> {
 
     let param_list: Vec<(String, String)> =
         form_urlencoded::parse(query.as_bytes()).into_owned().collect();
 
-    parse_parameter_strings(&param_list, schema)
+    parse_parameter_strings(&param_list, schema, test_required)
 }
 
 #[test]
@@ -249,39 +265,39 @@ fn test_query_boolean() {
 
     let schema = parameter!{force => Boolean!{ optional => false }};
 
-    //let res = parse_query_string("", &schema);
-    //assert!(res.is_err());
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_err());
 
     let schema = parameter!{force => Boolean!{ optional => true }};
 
-    let res = parse_query_string("", &schema);
+    let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
 
-    let res = parse_query_string("a=b", &schema);
+    let res = parse_query_string("a=b", &schema, true);
     assert!(res.is_err());
 
 
-    let res = parse_query_string("force", &schema);
+    let res = parse_query_string("force", &schema, true);
     assert!(res.is_err());
     
-    let res = parse_query_string("force=yes", &schema);
+    let res = parse_query_string("force=yes", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=1", &schema);
+    let res = parse_query_string("force=1", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=On", &schema);
+    let res = parse_query_string("force=On", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=TRUE", &schema);
+    let res = parse_query_string("force=TRUE", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=TREU", &schema);
+    let res = parse_query_string("force=TREU", &schema, true);
     assert!(res.is_err());
 
-    let res = parse_query_string("force=NO", &schema);
+    let res = parse_query_string("force=NO", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=0", &schema);
+    let res = parse_query_string("force=0", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=off", &schema);
+    let res = parse_query_string("force=off", &schema, true);
     assert!(res.is_ok());
-    let res = parse_query_string("force=False", &schema);
+    let res = parse_query_string("force=False", &schema, true);
     assert!(res.is_ok());
 }
 

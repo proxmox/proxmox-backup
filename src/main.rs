@@ -64,7 +64,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 // extract param
                 let param = match query {
                     Some(data) => {
-                        match parse_query_string(data, &api_method.parameters) {
+                        match parse_query_string(data, &api_method.parameters, true) {
                             Ok(query) => query,
                             Err(ref error_list) => {
                                 let mut msg = String::from("");
