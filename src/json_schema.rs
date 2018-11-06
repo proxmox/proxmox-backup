@@ -1,6 +1,5 @@
 use failure::*;
 use std::collections::HashMap;
-use url::form_urlencoded;
 use serde_json::{json, Value};
 
 pub type PropertyMap = HashMap<&'static str, Jss>;
@@ -124,14 +123,6 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss) -> Re
     println!("QUERY Strings {:?}", data);
 
     Ok(json!(null))
-}
-
-pub fn parse_query(query: &str, schema: &Jss) -> Result<Value, Error> {
-
-    let raw_param: Vec<(String, String)> =
-        form_urlencoded::parse(query.as_bytes()).into_owned().collect();
-
-    parse_parameter_strings(&raw_param, schema)
 }
 
 #[test]

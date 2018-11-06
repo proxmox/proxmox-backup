@@ -65,7 +65,10 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                 // extract param
                 let param = match query {
                     Some(data) => {
-                        match parse_query(data, &api_method.parameters) {
+                        let param_list: Vec<(String, String)> =
+                            form_urlencoded::parse(data.as_bytes()).into_owned().collect();
+
+                        match parse_parameter_strings(&param_list, &api_method.parameters) {
                             Ok(query) => query,
                             Err(err) => http_error!(NOT_FOUND, format!("Unable to parse query parameters '{}' - {}", data, err)),
                         }
