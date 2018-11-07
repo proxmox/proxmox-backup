@@ -134,6 +134,19 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
         }
         Jss::Integer(jss_integer) => {
             let res: isize = value_str.parse()?;
+
+            if let Some(minimum) = jss_integer.minimum {
+                if res < minimum {
+                    bail!("value must have a minimum value of '{}'", minimum);
+                }
+            }
+
+            if let Some(maximum) = jss_integer.maximum {
+                if res > maximum {
+                    bail!("value must have a maximum value of '{}'", maximum);
+                }
+            }
+
             Value::Number(res.into())
         }
         Jss::String(jss_string) => {
@@ -158,7 +171,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                 if let Some(prop_schema) = properties.get::<str>(key) {
                     match prop_schema {
                         Jss::Object(_) => {
-                            errors.push(format_err!("parameter {}: cant parse complex Objects.", key));
+                            errors.push(format_err!("parameter '{}': cant parse complex Objects.", key));
                         }
                         Jss::Array(jss_array) => {
                             if params[key] == Value::Null {
@@ -168,10 +181,10 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                                 Value::Array(ref mut array) => {
                                     match parse_simple_value(value, &jss_array.items) {
                                         Ok(res) => array.push(res),
-                                        Err(err) => errors.push(format_err!("parameter {}: {}", key, err)),
+                                        Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                                     }
                                 }
-                                _ => errors.push(format_err!("parameter {}: expected array - type missmatch", key)),
+                                _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
                             }
                         }
                         _ => {
@@ -180,10 +193,10 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                                     if params[key] == Value::Null {
                                         params[key] = res;
                                     } else {
-                                         errors.push(format_err!("parameter {}: duplicate parameter.", key));
+                                         errors.push(format_err!("parameter '{}': duplicate parameter.", key));
                                     }
                                 },
-                                Err(err) => errors.push(format_err!("parameter {}: {}", key, err)),
+                                Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                             }
                         }
 
@@ -201,10 +214,10 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                             Value::Array(ref mut array) => {
                                 array.push(Value::String(value.to_string()));
                             }
-                            _ => errors.push(format_err!("parameter {}: expected array - type missmatch", key)),
+                            _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
                         }
                     } else {
-                        errors.push(format_err!("parameter {}: schema does not allow additional properties.", key));
+                        errors.push(format_err!("parameter '{}': schema does not allow additional properties.", key));
                     }
                 }
             }
@@ -220,7 +233,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                         Jss::Null => true,
                     };
                     if optional == false && params[name] == Value::Null {
-                        errors.push(format_err!("parameter {}: parameter is missing and it is not optional.", name));
+                        errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
                     }
                 }
             }
@@ -261,6 +274,45 @@ fn test_shema1() {
 }
 
 #[test]
+fn test_query_integer() {
+
+    let schema = parameter!{count => Integer!{ optional => false }};
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_err());
+
+    let schema = parameter!{count => Integer!{
+        optional => true,
+        minimum => Some(-3),
+        maximum => Some(50)
+    }};
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("count=abc", &schema, false);
+    assert!(res.is_err());
+
+    let res = parse_query_string("count=30", &schema, false);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("count=-1", &schema, false);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("count=300", &schema, false);
+    assert!(res.is_err());
+
+    let res = parse_query_string("count=-30", &schema, false);
+    assert!(res.is_err());
+
+    let res = parse_query_string("count=50", &schema, false);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("count=-3", &schema, false);
+    assert!(res.is_ok());
+}
+
+#[test]
 fn test_query_boolean() {
 
     let schema = parameter!{force => Boolean!{ optional => false }};
@@ -279,7 +331,7 @@ fn test_query_boolean() {
 
     let res = parse_query_string("force", &schema, true);
     assert!(res.is_err());
-    
+
     let res = parse_query_string("force=yes", &schema, true);
     assert!(res.is_ok());
     let res = parse_query_string("force=1", &schema, true);
