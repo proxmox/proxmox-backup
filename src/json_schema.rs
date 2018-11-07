@@ -137,20 +137,35 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
 
             if let Some(minimum) = jss_integer.minimum {
                 if res < minimum {
-                    bail!("value must have a minimum value of '{}'", minimum);
+                    bail!("value must have a minimum value of {}", minimum);
                 }
             }
 
             if let Some(maximum) = jss_integer.maximum {
                 if res > maximum {
-                    bail!("value must have a maximum value of '{}'", maximum);
+                    bail!("value must have a maximum value of {}", maximum);
                 }
             }
 
             Value::Number(res.into())
         }
         Jss::String(jss_string) => {
-            Value::String(value_str.into())
+            let res: String = value_str.into();
+            let char_count = res.chars().count();
+
+            if let Some(min_length) = jss_string.min_length {
+                if char_count < min_length {
+                    bail!("value must be at least {} characters long", min_length);
+                }
+            }
+
+            if let Some(max_length) = jss_string.max_length {
+                if char_count > max_length {
+                    bail!("value may only be {} characters long", max_length);
+                }
+            }
+
+            Value::String(res)
         }
         _ => bail!("parse_simple_value: schema contains complex Objects."),
     };
@@ -271,6 +286,42 @@ fn test_shema1() {
     });
 
     println!("TEST Schema: {:?}", schema);
+}
+
+#[test]
+fn test_query_string() {
+
+    let schema = parameter!{name => ApiString!{ optional => false }};
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_err());
+
+    let schema = parameter!{name => ApiString!{ optional => true }};
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_ok());
+
+    let schema = parameter!{name => ApiString!{
+        optional => false,
+        min_length => Some(5),
+        max_length => Some(10)
+
+    }};
+
+    let res = parse_query_string("name=abcd", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("name=abcde", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("name=abcdefghijk", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("name=abcdefghij", &schema, true);
+    assert!(res.is_ok());
+
+
+
 }
 
 #[test]
