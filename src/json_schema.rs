@@ -122,7 +122,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
 
     let value = match schema {
         Jss::Null => {
-            bail!("parse_parameter_strings: internal error - schema contains Null.");
+            bail!("internal error - found Null schema.");
         }
         Jss::Boolean(jss_boolean) => {
             let res = match value_str.to_lowercase().as_str() {
@@ -167,7 +167,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
 
             Value::String(res)
         }
-        _ => bail!("parse_simple_value: schema contains complex Objects."),
+        _ => bail!("unable to parse complex (sub) objects."),
     };
     Ok(value)
 }
