@@ -185,9 +185,6 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
             for (key, value) in data {
                 if let Some(prop_schema) = properties.get::<str>(key) {
                     match prop_schema {
-                        Jss::Object(_) => {
-                            errors.push(format_err!("parameter '{}': cant parse complex Objects.", key));
-                        }
                         Jss::Array(jss_array) => {
                             if params[key] == Value::Null {
                                 params[key] = json!([]);
