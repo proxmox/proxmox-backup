@@ -5,15 +5,13 @@ use serde_json::{Value};
 
 use std::collections::HashMap;
 
-#[derive(Debug)]
 pub struct ApiMethod {
     pub description: &'static str,
     pub parameters: Jss,
     pub returns: Jss,
-    pub handler: fn(Value) -> Result<Value, Error>,
+    pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
 }
 
-#[derive(Debug)]
 pub struct MethodInfo {
     pub get: Option<ApiMethod>,
     pub put: Option<ApiMethod>,

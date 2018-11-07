@@ -7,7 +7,7 @@ use crate::api_info::*;
 use serde_json::{json, Value};
 
 
-fn test_api_handler(param: Value) -> Result<Value, Error> {
+fn test_api_handler(param: Value, info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
    // let force: Option<bool> = Some(false);

@@ -78,7 +78,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                     None => json!({}),
                 };
 
-                match (api_method.handler)(param) {
+                match (api_method.handler)(param, &api_method) {
                     Ok(res) => {
                         let json_str = res.to_string();
                         return Response::new(Body::from(json_str));
