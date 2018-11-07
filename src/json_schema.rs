@@ -2,6 +2,7 @@ use failure::*;
 use std::collections::HashMap;
 use serde_json::{json, Value};
 use url::form_urlencoded;
+use regex::Regex;
 
 pub type PropertyMap = HashMap<&'static str, Jss>;
 
@@ -28,6 +29,7 @@ pub struct JssString {
     pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
+    pub pattern: Option<Regex>,
 }
 
 #[derive(Debug)]
@@ -89,6 +91,7 @@ pub const DEFAULTSTRING: JssString = JssString {
     default: None,
     min_length: None,
     max_length: None,
+    pattern: None,
 };
 
 #[macro_export]
@@ -165,7 +168,13 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
                 }
             }
 
-            Value::String(res)
+            if let Some(ref regex) = jss_string.pattern {
+                if !regex.is_match(&res) {
+                    bail!("value does not match the regex pattern");
+                }
+            }
+
+           Value::String(res)
         }
         _ => bail!("unable to parse complex (sub) objects."),
     };
@@ -234,7 +243,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
                 }
             }
 
-            if test_required {
+            if test_required && errors.len() == 0 {
                 for (name, prop_schema) in properties {
                     let optional = match prop_schema {
                         Jss::Boolean(jss_boolean) => jss_boolean.optional,
@@ -298,6 +307,8 @@ fn test_query_string() {
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
 
+    // TEST min_length and max_length
+
     let schema = parameter!{name => ApiString!{
         optional => false,
         min_length => Some(5),
@@ -317,8 +328,29 @@ fn test_query_string() {
     let res = parse_query_string("name=abcdefghij", &schema, true);
     assert!(res.is_ok());
 
+    // TEST regex pattern
 
+    let schema = parameter!{name => ApiString!{
+        optional => false,
+        pattern => Some(Regex::new("test").unwrap())
+    }};
 
+    let res = parse_query_string("name=abcd", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("name=ateststring", &schema, true);
+    assert!(res.is_ok());
+
+    let schema = parameter!{name => ApiString!{
+        optional => false,
+        pattern => Some(Regex::new("^test$").unwrap())
+    }};
+
+    let res = parse_query_string("name=ateststring", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("name=test", &schema, true);
+    assert!(res.is_ok());
 }
 
 #[test]
