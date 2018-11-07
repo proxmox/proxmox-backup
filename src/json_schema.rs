@@ -97,7 +97,7 @@ pub const DEFAULTSTRING: JssString = JssString {
 #[derive(Debug)]
 pub enum ApiStringFormat {
     None,
-    Pattern(Regex),
+    Pattern(Box<Regex>),
     Complex(Box<Jss>),
 }
 
@@ -339,7 +339,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => ApiString!{
         optional => false,
-        format => ApiStringFormat::Pattern(Regex::new("test").unwrap())
+        format => ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))
     }};
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -350,7 +350,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => ApiString!{
         optional => false,
-        format => ApiStringFormat::Pattern(Regex::new("^test$").unwrap())
+        format => ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))
     }};
 
     let res = parse_query_string("name=ateststring", &schema, true);
