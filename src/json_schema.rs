@@ -29,7 +29,7 @@ pub struct JssString {
     pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
-    pub pattern: Option<Regex>,
+    pub format: ApiStringFormat,
 }
 
 #[derive(Debug)]
@@ -91,8 +91,15 @@ pub const DEFAULTSTRING: JssString = JssString {
     default: None,
     min_length: None,
     max_length: None,
-    pattern: None,
+    format: ApiStringFormat::None,
 };
+
+#[derive(Debug)]
+pub enum ApiStringFormat {
+    None,
+    Pattern(Regex),
+    Complex(Box<Jss>),
+}
 
 #[macro_export]
 macro_rules! ApiString {
@@ -168,7 +175,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
                 }
             }
 
-            if let Some(ref regex) = jss_string.pattern {
+            if let ApiStringFormat::Pattern(ref regex) = jss_string.format {
                 if !regex.is_match(&res) {
                     bail!("value does not match the regex pattern");
                 }
@@ -332,7 +339,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => ApiString!{
         optional => false,
-        pattern => Some(Regex::new("test").unwrap())
+        format => ApiStringFormat::Pattern(Regex::new("test").unwrap())
     }};
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -343,7 +350,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => ApiString!{
         optional => false,
-        pattern => Some(Regex::new("^test$").unwrap())
+        format => ApiStringFormat::Pattern(Regex::new("^test$").unwrap())
     }};
 
     let res = parse_query_string("name=ateststring", &schema, true);
