@@ -97,6 +97,7 @@ pub const DEFAULTSTRING: JssString = JssString {
 #[derive(Debug)]
 pub enum ApiStringFormat {
     None,
+    Enum(Vec<String>),
     Pattern(Box<Regex>),
     Complex(Box<Jss>),
 }
@@ -175,13 +176,24 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
                 }
             }
 
-            if let ApiStringFormat::Pattern(ref regex) = jss_string.format {
-                if !regex.is_match(&res) {
-                    bail!("value does not match the regex pattern");
+            match jss_string.format {
+                ApiStringFormat::None => { /* do nothing */ }
+                ApiStringFormat::Pattern(ref regex) => {
+                    if !regex.is_match(&res) {
+                        bail!("value does not match the regex pattern");
+                    }
+                }
+                ApiStringFormat::Enum(ref stringvec) => {
+                    if stringvec.iter().find(|&e| *e == res) == None {
+                        bail!("value is not defined in the enumeration.");
+                    }
+                }
+                ApiStringFormat::Complex(ref subschema) => {
+                    bail!("implement me!");
                 }
             }
 
-           Value::String(res)
+            Value::String(res)
         }
         _ => bail!("unable to parse complex (sub) objects."),
     };
@@ -358,6 +370,26 @@ fn test_query_string() {
 
     let res = parse_query_string("name=test", &schema, true);
     assert!(res.is_ok());
+
+    // TEST string enums
+
+    let schema = parameter!{name => ApiString!{
+        optional => false,
+        format => ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])
+    }};
+
+    let res = parse_query_string("name=noenum", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("name=ev1", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("name=ev2", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("name=ev3", &schema, true);
+    assert!(res.is_err());
+
 }
 
 #[test]
