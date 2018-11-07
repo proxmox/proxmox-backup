@@ -59,7 +59,7 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                     _ => http_error!(NOT_FOUND, format!("No such method '{} {}'\n", method, path)),
                 };
 
-                // handle auth
+                // fixme: handle auth
 
                 // extract param
                 let param = match query {
@@ -67,10 +67,9 @@ fn handle_request(req: Request<Body>) -> Response<Body> {
                         match parse_query_string(data, &api_method.parameters, true) {
                             Ok(query) => query,
                             Err(ref error_list) => {
-                                let mut msg = String::from("");
-                                for item in error_list {
-                                    msg = msg + &item.to_string() + "\n";
-                                }
+                                let msg = error_list.iter().fold(String::from(""), |acc, item| {
+                                    acc + &item.to_string() + "\n"
+                                });
                                 http_error!(BAD_REQUEST, msg);
                             }
                         }
