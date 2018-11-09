@@ -2,7 +2,7 @@ extern crate apitest;
 
 use failure::*;
 
-use std::collections::HashMap;
+//use std::collections::HashMap;
 use lazy_static::lazy_static;
 
 //use apitest::json_schema::*;
@@ -12,18 +12,13 @@ use apitest::json_schema::*;
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-
-use hyper::body::Payload;
+//use hyper::body::Payload;
 use hyper::http::request::Parts;
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
 
-use futures::prelude::*;
 use futures::future;
-
-use http;
-use std::io;
 
 type BoxFut = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
@@ -43,8 +38,10 @@ macro_rules! http_error_future {
 }
 
 fn handle_api_request<'a>(
-    info: &'a ApiMethod, parts: Parts, req_body: Body, query: Option<String>)
-    -> Box<Future<Item = Response<Body>, Error = hyper::Error> + Send + 'a>
+    info: &'a ApiMethod,
+    parts: Parts,
+    req_body: Body,
+) -> Box<Future<Item = Response<Body>, Error = hyper::Error> + Send + 'a>
 {
 
     let entire_body = req_body.concat2();
@@ -55,18 +52,51 @@ fn handle_api_request<'a>(
             Err(err) => http_error!(NOT_FOUND, err.to_string()),
         };
 
-        println!("GOT BODY {:?}", parts);
+        println!("GOT BODY {:?}", bytes);
 
-        match parse_query_string(&bytes, &info.parameters, true) {
-            Ok(res) => {
-                let json_str = res.to_string();
-                return Response::new(Body::from(json_str));
-            }
-            Err(err) => {
-                http_error!(NOT_FOUND, format!("Method returned error '{:?}'\n", err));
+        let mut test_required = true;
+
+        let mut params = json!({});
+
+        let format_error_list = |error_list: Vec<Error>| {
+            error_list.iter().fold(String::from(""), |acc, item| {
+                acc + &item.to_string() + "\n"
+            })
+        };
+
+        if bytes.len() > 0 {
+            params = match parse_query_string(&bytes, &info.parameters, true) {
+                Ok(value) => value,
+                Err(error_list) =>  http_error!(NOT_FOUND, format_error_list(error_list)),
+            };
+            test_required = false;
+        }
+
+        if let Some(query_str) = parts.uri.query() {
+            let query_params = match parse_query_string(query_str, &info.parameters, test_required) {
+                Ok(value) => value,
+                Err(error_list) =>  http_error!(NOT_FOUND, format_error_list(error_list)),
+            };
+
+            for (k, v) in query_params.as_object().unwrap() {
+                params[k] = v.clone(); // fixme: why clone()??
             }
         }
 
+        println!("GOT PARAMS {}", params);
+
+        let res: Value = match (info.handler)(params, info) {
+            Ok(res) => res,
+            Err(err) => http_error!(NOT_FOUND, format!("Method returned error '{}'\n", err)),
+        };
+
+        let json_str = res.to_string();
+
+        Response::builder()
+            .status(200)
+            .header("ContentType", "application/json")
+            .body(Body::from(json_str))
+            .unwrap() // fixme: really?
     });
 
     Box::new(resp)
@@ -78,7 +108,6 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 
     let method = parts.method.clone();
     let path = parts.uri.path();
-    let query = parts.uri.query().map(|x| x.to_owned());
 
     let components: Vec<&str> = path.split('/').filter(|x| !x.is_empty()).collect();
     let comp_len = components.len();
@@ -111,7 +140,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
                 // fixme: handle auth
 
 
-                let res = handle_api_request(api_method, parts, body, query);
+                let res = handle_api_request(api_method, parts, body);
                 return res;
 
                 /*
