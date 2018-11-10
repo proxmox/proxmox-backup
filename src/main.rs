@@ -1,6 +1,7 @@
 extern crate apitest;
 
 use failure::*;
+use std::collections::HashMap;
 
 //use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -202,12 +203,70 @@ fn handle_request(req: Request<Body>) -> BoxFut {
     Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
 }
 
+// add default dirs which includes jquery and bootstrap
+// my $base = '/usr/share/libpve-http-server-perl';
+// add_dirs($self->{dirs}, '/css/' => "$base/css/");
+// add_dirs($self->{dirs}, '/js/' => "$base/js/");
+// add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
+
+use std::io;
+use std::fs::{self, DirEntry};
+use std::path::{Path, PathBuf};
+
+fn add_dirs(cache: &mut HashMap<String, PathBuf>, alias: String, path: &Path) -> Result<(), Error> {
+
+    if path.is_dir() {
+        for direntry in fs::read_dir(path)? {
+            let entry = direntry?;
+            let entry_path = entry.path();
+            let file_type = entry.file_type()?;
+            if let Some(file_name) = entry_path.file_name() {
+                let newalias = alias.clone() + &String::from(file_name.to_string_lossy()); // fixme
+                if file_type.is_dir() {
+                    add_dirs(cache, newalias, entry_path.as_path())?;
+                } else if file_type.is_file() {
+                    cache.insert(newalias, entry_path);
+                }
+            }
+        }
+    }
+    Ok(())
+ }
+
+fn initialize_directory_cache() -> HashMap<String, PathBuf> {
+
+    let mut basedirs = HashMap::new();
+
+    basedirs.insert("novnc", Path::new("/usr/share/novnc-pve"));
+    basedirs.insert("extjs", Path::new("/usr/share/javascript/extjs"));
+    basedirs.insert("fontawesome", Path::new("/usr/share/fonts-font-awesome"));
+    basedirs.insert("xtermjs", Path::new("/usr/share/pve-xtermjs"));
+    basedirs.insert("widgettoolkit", Path::new("/usr/share/javascript/proxmox-widget-toolkit"));
+
+    let mut cache = HashMap::new();
+
+    add_dirs(&mut cache, "/pve2/ext6/".into(), basedirs["extjs"]);
+
+    cache
+}
+
+lazy_static!{
+    static ref CACHED_DIRS: HashMap<String, PathBuf> = initialize_directory_cache();
+}
+
 lazy_static!{
     static ref ROUTER: MethodInfo = apitest::api3::router();
 }
 
 fn main() {
     println!("Fast Static Type Definitions 1");
+
+    let mut count = 0;
+    for (k, v) in CACHED_DIRS.iter() {
+        println!("DIRCACHE: {:?} => {:?}", k, v);
+        count += 1;
+    }
+    println!("Dircache contains {} entries.", count);
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
