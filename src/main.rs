@@ -80,12 +80,11 @@ fn handle_api_request<'a>(
                 let json_str = value.to_string();
 
                 Ok(Response::builder()
-                    .status(200)
-                    .header("ContentType", "application/json")
-                    .body(Body::from(json_str))
-                    .unwrap()) // fixme: really?
+                   .status(StatusCode::OK)
+                   .header("ContentType", "application/json")
+                   .body(Body::from(json_str))?)
             }
-            Err(err) => Ok(error_response!(NOT_FOUND, err.to_string()))
+            Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string()))
         }
     });
 
@@ -110,7 +109,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
         if comp_len >= 2 {
             let format = components[1];
             if format != "json" {
-                http_error_future!(NOT_FOUND, format!("Unsupported format '{}'\n", format))
+                http_error_future!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))
             }
 
             if let Some(info) = ROUTER.find_method(&components[2..]) {
@@ -124,7 +123,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
                 };
                 let api_method = match api_method_opt {
                     Some(m) => m,
-                    _ => http_error_future!(NOT_FOUND, format!("No such method '{} {}'\n", method, path)),
+                    _ => http_error_future!(NOT_FOUND, format!("No such method '{}'.", method)),
                 };
 
                 // fixme: handle auth
@@ -132,7 +131,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
                 return handle_api_request(api_method, parts, body);
 
             } else {
-                http_error_future!(NOT_FOUND, format!("No such path '{}'\n", path));
+                http_error_future!(NOT_FOUND, "Path not found.");
             }
         }
     }
@@ -155,7 +154,7 @@ fn main() {
             handle_request(req).then(|result| -> Result<Response<Body>, String> {
                 match result {
                     Ok(res) => Ok(res),
-                    Err(err) => Ok(error_response!(NOT_FOUND, err.to_string())),
+                    Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string())),
                 }
             })
         })
