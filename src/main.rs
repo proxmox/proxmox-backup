@@ -10,7 +10,7 @@ use apitest::api_info::*;
 use apitest::json_schema::*;
 
 //use serde_derive::{Serialize, Deserialize};
-use serde_json::{json, Value};
+use serde_json::{json};
 
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
@@ -20,19 +20,19 @@ use hyper::service::service_fn;
 
 use futures::future;
 
-type BoxFut = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
-macro_rules! http_error {
+macro_rules! error_response {
     ($status:ident, $msg:expr) => {{
         let mut resp = Response::new(Body::from($msg));
         *resp.status_mut() = StatusCode::$status;
-        return resp
+        resp
     }}
 }
+
 macro_rules! http_error_future {
     ($status:ident, $msg:expr) => {{
-        let mut resp = Response::new(Body::from($msg));
-        *resp.status_mut() = StatusCode::$status;
+        let resp = error_response!($status, $msg);
         return Box::new(futures::future::ok(resp));
     }}
 }
@@ -41,62 +41,52 @@ fn handle_api_request<'a>(
     info: &'a ApiMethod,
     parts: Parts,
     req_body: Body,
-) -> Box<Future<Item = Response<Body>, Error = hyper::Error> + Send + 'a>
+) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
 {
+    let resp = req_body.concat2()
+        .map_err(|err| format_err!("Promlems reading request body: {}", err))
+        .and_then(move |body| {
 
-    let entire_body = req_body.concat2();
+            let bytes = String::from_utf8(body.to_vec())?; // why copy??
 
-    let resp = entire_body.map(move |body| {
-        let bytes = match String::from_utf8(body.to_vec()) { // why copy??
-            Ok(v) => v,
-            Err(err) => http_error!(NOT_FOUND, err.to_string()),
-        };
+            println!("GOT BODY {:?}", bytes);
 
-        println!("GOT BODY {:?}", bytes);
+            let mut test_required = true;
 
-        let mut test_required = true;
+            let mut params = json!({});
 
-        let mut params = json!({});
-
-        let format_error_list = |error_list: Vec<Error>| {
-            error_list.iter().fold(String::from(""), |acc, item| {
-                acc + &item.to_string() + "\n"
-            })
-        };
-
-        if bytes.len() > 0 {
-            params = match parse_query_string(&bytes, &info.parameters, true) {
-                Ok(value) => value,
-                Err(error_list) =>  http_error!(NOT_FOUND, format_error_list(error_list)),
-            };
-            test_required = false;
-        }
-
-        if let Some(query_str) = parts.uri.query() {
-            let query_params = match parse_query_string(query_str, &info.parameters, test_required) {
-                Ok(value) => value,
-                Err(error_list) =>  http_error!(NOT_FOUND, format_error_list(error_list)),
-            };
-
-            for (k, v) in query_params.as_object().unwrap() {
-                params[k] = v.clone(); // fixme: why clone()??
+            if bytes.len() > 0 {
+                params = parse_query_string(&bytes, &info.parameters, true)?;
+                test_required = false;
             }
+
+            if let Some(query_str) = parts.uri.query() {
+                let query_params = parse_query_string(query_str, &info.parameters, test_required)?;
+
+                for (k, v) in query_params.as_object().unwrap() {
+                    params[k] = v.clone(); // fixme: why clone()??
+                }
+            }
+
+            println!("GOT PARAMS {}", params);
+
+            let res = (info.handler)(params, info)?;
+
+            Ok(res)
+
+   }).then(|result| {
+        match result {
+            Ok(ref value) => {
+                let json_str = value.to_string();
+
+                Ok(Response::builder()
+                    .status(200)
+                    .header("ContentType", "application/json")
+                    .body(Body::from(json_str))
+                    .unwrap()) // fixme: really?
+            }
+            Err(err) => Ok(error_response!(NOT_FOUND, err.to_string()))
         }
-
-        println!("GOT PARAMS {}", params);
-
-        let res: Value = match (info.handler)(params, info) {
-            Ok(res) => res,
-            Err(err) => http_error!(NOT_FOUND, format!("Method returned error '{}'\n", err)),
-        };
-
-        let json_str = res.to_string();
-
-        Response::builder()
-            .status(200)
-            .header("ContentType", "application/json")
-            .body(Body::from(json_str))
-            .unwrap() // fixme: really?
     });
 
     Box::new(resp)
@@ -139,43 +129,8 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 
                 // fixme: handle auth
 
+                return handle_api_request(api_method, parts, body);
 
-                let res = handle_api_request(api_method, parts, body);
-                return res;
-
-                /*
-                // extract param
-                let param = match query {
-                    Some(data) => {
-                        match parse_query_string(data, &api_method.parameters, true) {
-                            Ok(query) => query,
-                            Err(ref error_list) => {
-                                let msg = error_list.iter().fold(String::from(""), |acc, item| {
-                                    acc + &item.to_string() + "\n"
-                                });
-                                http_error_future!(BAD_REQUEST, msg);
-                            }
-                        }
-                    }
-                    None => json!({}),
-                };
-
-
-                /*if body.is_end_stream() {
-                    println!("NO BODY");
-                }*/
-
-                match (api_method.handler)(param, &api_method) {
-                    Ok(res) => {
-                        let json_str = res.to_string();
-                        return Response::new(Body::from(json_str));
-                    }
-                    Err(err) => {
-                        http_error_future!(NOT_FOUND, format!("Method returned error '{}'\n", err));
-                    }
-                }
-
-*/
             } else {
                 http_error_future!(NOT_FOUND, format!("No such path '{}'\n", path));
             }
@@ -195,8 +150,15 @@ fn main() {
     let addr = ([127, 0, 0, 1], 8007).into();
 
     let new_svc = || {
-        // service_fn_ok converts our function into a `Service`
-        service_fn(handle_request)
+        service_fn(|req| {
+            // clumsy way to convert failure::Error to Response
+            handle_request(req).then(|result| -> Result<Response<Body>, String> {
+                match result {
+                    Ok(res) => Ok(res),
+                    Err(err) => Ok(error_response!(NOT_FOUND, err.to_string())),
+                }
+            })
+        })
     };
 
     let server = Server::bind(&addr)

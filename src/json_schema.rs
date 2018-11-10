@@ -3,8 +3,39 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 use url::form_urlencoded;
 use regex::Regex;
+use std::fmt;
 
 pub type PropertyMap = HashMap<&'static str, Jss>;
+
+#[derive(Debug, Fail)]
+pub struct ParameterError {
+    error_list: Vec<Error>,
+}
+
+impl ParameterError {
+
+    fn new() -> Self {
+        Self { error_list: vec![] }
+    }
+
+    fn push(&mut self, value: Error) {
+        self.error_list.push(value);
+    }
+
+    fn len(&self) -> usize {
+        self.error_list.len()
+    }
+}
+
+impl fmt::Display for ParameterError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let msg = self.error_list.iter().fold(String::from(""), |acc, item| {
+            acc + &item.to_string() + "\n"
+        });
+
+        write!(f, "{}", msg)
+    }
+}
 
 #[derive(Debug)]
 pub struct JssBoolean {
@@ -200,13 +231,13 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
     Ok(value)
 }
 
-pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_required: bool) -> Result<Value, Vec<Error>> {
+pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_required: bool) -> Result<Value, ParameterError> {
 
     println!("QUERY Strings {:?}", data);
 
     let mut params = json!({});
 
-    let mut errors: Vec<Error> = Vec::new();
+    let mut errors = ParameterError::new();
 
     match schema {
         Jss::Object(JssObject { properties, additional_properties, .. })   => {
@@ -282,14 +313,14 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
 
     }
 
-    if (errors.len() > 0) {
+    if errors.len() > 0 {
         Err(errors)
     } else {
         Ok(params)
     }
 }
 
-pub fn parse_query_string(query: &str, schema: &Jss, test_required: bool) -> Result<Value, Vec<Error>> {
+pub fn parse_query_string(query: &str, schema: &Jss, test_required: bool) -> Result<Value,  ParameterError> {
 
     let param_list: Vec<(String, String)> =
         form_urlencoded::parse(query.as_bytes()).into_owned().collect();
