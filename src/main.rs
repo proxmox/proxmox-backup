@@ -10,7 +10,10 @@ use apitest::api_info::*;
 use apitest::json_schema::*;
 
 //use serde_derive::{Serialize, Deserialize};
-use serde_json::{json};
+use serde_json::{json, Value};
+
+use tokio::prelude::*;
+use tokio::timer::Delay;
 
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
@@ -18,7 +21,9 @@ use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
 
-use futures::future;
+use futures::future::*;
+
+use std::time::{Duration, Instant};
 
 type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
@@ -33,15 +38,15 @@ macro_rules! error_response {
 macro_rules! http_error_future {
     ($status:ident, $msg:expr) => {{
         let resp = error_response!($status, $msg);
-        return Box::new(futures::future::ok(resp));
+        return Box::new(ok(resp));
     }}
 }
 
-fn handle_api_request<'a>(
+fn get_request_parameters_async<'a>(
     info: &'a ApiMethod,
     parts: Parts,
     req_body: Body,
-) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
+) -> Box<Future<Item = Value, Error = failure::Error> + Send + 'a>
 {
     let resp = req_body.concat2()
         .map_err(|err| format_err!("Promlems reading request body: {}", err))
@@ -69,24 +74,81 @@ fn handle_api_request<'a>(
             }
 
             println!("GOT PARAMS {}", params);
+            Ok(params)
+        });
+
+    Box::new(resp)
+}
+
+fn handle_async_api_request<'a>(
+    info: &'a ApiMethod,
+    parts: Parts,
+    req_body: Body,
+) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
+{
+    let params = get_request_parameters_async(info, parts, req_body);
+
+    let resp = params
+        .and_then(move |params| {
+
+            println!("GOT PARAMS {}", params);
+
+            /*
+            let when = Instant::now() + Duration::from_millis(3000);
+            let task = Delay::new(when).then(|_| {
+                println!("A LAZY TASK");
+                ok(())
+            });
+
+            tokio::spawn(task);
+             */
+
+            (info.async_handler)(params, info)
+        });
+
+    Box::new(resp)
+}
+
+fn handle_sync_api_request<'a>(
+    info: &'a ApiMethod,
+    parts: Parts,
+    req_body: Body,
+) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
+{
+    let params = get_request_parameters_async(info, parts, req_body);
+
+    let resp = params
+        .and_then(move |params| {
+
+            println!("GOT PARAMS {}", params);
+
+            /*
+            let when = Instant::now() + Duration::from_millis(3000);
+            let task = Delay::new(when).then(|_| {
+                println!("A LAZY TASK");
+                ok(())
+            });
+
+            tokio::spawn(task);
+             */
 
             let res = (info.handler)(params, info)?;
 
             Ok(res)
 
-   }).then(|result| {
-        match result {
-            Ok(ref value) => {
-                let json_str = value.to_string();
+        }).then(|result| {
+            match result {
+                Ok(ref value) => {
+                    let json_str = value.to_string();
 
-                Ok(Response::builder()
-                   .status(StatusCode::OK)
-                   .header("ContentType", "application/json")
-                   .body(Body::from(json_str))?)
+                    Ok(Response::builder()
+                       .status(StatusCode::OK)
+                       .header("ContentType", "application/json")
+                       .body(Body::from(json_str))?)
+                }
+                Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string()))
             }
-            Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string()))
-        }
-    });
+        });
 
     Box::new(resp)
 }
@@ -128,7 +190,8 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 
                 // fixme: handle auth
 
-                return handle_api_request(api_method, parts, body);
+                //return handle_sync_api_request(api_method, parts, body);
+                return handle_async_api_request(api_method, parts, body);
 
             } else {
                 http_error_future!(NOT_FOUND, "Path not found.");
@@ -136,7 +199,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
         }
     }
 
-    Box::new(future::ok(Response::new(Body::from("RETURN WEB GUI\n"))))
+    Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
 }
 
 lazy_static!{
