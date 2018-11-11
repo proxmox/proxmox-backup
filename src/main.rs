@@ -21,6 +21,7 @@ use hyper::http::request::Parts;
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
+use hyper::header;
 
 use futures::future::*;
 
@@ -144,7 +145,7 @@ fn handle_sync_api_request<'a>(
 
                     Ok(Response::builder()
                        .status(StatusCode::OK)
-                       .header("ContentType", "application/json")
+                       .header(header::CONTENT_TYPE, "application/json")
                        .body(Body::from(json_str))?)
                 }
                 Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string()))
