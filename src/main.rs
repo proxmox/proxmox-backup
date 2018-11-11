@@ -50,8 +50,16 @@ fn get_request_parameters_async<'a>(
     req_body: Body,
 ) -> Box<Future<Item = Value, Error = failure::Error> + Send + 'a>
 {
-    let resp = req_body.concat2()
+    let resp = req_body
         .map_err(|err| format_err!("Promlems reading request body: {}", err))
+        .fold(Vec::new(), |mut acc, chunk| {
+            if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
+                acc.extend_from_slice(&*chunk);
+                ok(acc)
+            } else {
+                err(format_err!("Request body too large"))
+            }
+        })
         .and_then(move |body| {
 
             let bytes = String::from_utf8(body.to_vec())?; // why copy??
