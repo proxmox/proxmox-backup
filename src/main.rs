@@ -13,8 +13,12 @@ use apitest::json_schema::*;
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-use tokio::prelude::*;
-use tokio::timer::Delay;
+use futures::future::*;
+//use tokio::prelude::*;
+//use tokio::timer::Delay;
+use tokio::fs::File;
+use tokio_codec;
+//use bytes::{BytesMut, BufMut};
 
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
@@ -23,9 +27,7 @@ use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
 use hyper::header;
 
-use futures::future::*;
-
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
 
 type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
@@ -163,6 +165,33 @@ fn handle_sync_api_request<'a>(
     Box::new(resp)
 }
 
+fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
+
+    let response = File::open(filename)
+        .and_then(|file| {
+            let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
+                map(|bytes| {
+                    //sigh - howto avoid copy here? or the whole map() ??
+                    hyper::Chunk::from(bytes.to_vec())
+                });
+            let body = Body::wrap_stream(payload);
+            // fixme: set content type and other headers
+            Ok(Response::builder()
+               .status(StatusCode::OK)
+               .body(body)
+               .unwrap())
+        })
+        .or_else(|err| {
+            // fixme: set content type and other headers
+            Ok(Response::builder()
+               .status(StatusCode::NOT_FOUND)
+               .body(format!("File access problems: {}\n", err).into())
+               .unwrap())
+        });
+
+    return Box::new(response);
+}
+
 fn handle_request(req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
@@ -170,8 +199,14 @@ fn handle_request(req: Request<Body>) -> BoxFut {
     let method = parts.method.clone();
     let path = parts.uri.path();
 
+    // normalize path
     let components: Vec<&str> = path.split('/').filter(|x| !x.is_empty()).collect();
     let comp_len = components.len();
+    let path = components.iter().fold(String::new(), |mut acc, chunk| {
+        acc.push('/');
+        acc.push_str(chunk);
+        acc
+    });
 
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
@@ -202,14 +237,19 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 
                 //return handle_sync_api_request(api_method, parts, body);
                 return handle_async_api_request(api_method, parts, body);
-
-            } else {
-                http_error_future!(NOT_FOUND, "Path not found.");
             }
         }
     }
 
-    Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
+    // not Auth for accessing files!
+    if let Some(filename) = CACHED_DIRS.get(&path) {
+
+        println!("SERVER STATIC FILE {:?}", path);
+        return handle_static_file_download(filename.clone());
+    }
+
+    http_error_future!(NOT_FOUND, "Path not found.")
+    //Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
 }
 
 // add default dirs which includes jquery and bootstrap
@@ -218,8 +258,8 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 // add_dirs($self->{dirs}, '/js/' => "$base/js/");
 // add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
 
-use std::io;
-use std::fs::{self, DirEntry};
+//use std::io;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 fn add_dirs(cache: &mut HashMap<String, PathBuf>, alias: String, path: &Path) -> Result<(), Error> {
@@ -254,7 +294,9 @@ fn initialize_directory_cache() -> HashMap<String, PathBuf> {
 
     let mut cache = HashMap::new();
 
-    add_dirs(&mut cache, "/pve2/ext6/".into(), basedirs["extjs"]);
+    if let Err(err) = add_dirs(&mut cache, "/pve2/ext6/".into(), basedirs["extjs"]) {
+        eprintln!("directory cache init error: {}", err);
+    }
 
     cache
 }
@@ -270,11 +312,7 @@ lazy_static!{
 fn main() {
     println!("Fast Static Type Definitions 1");
 
-    let mut count = 0;
-    for (k, v) in CACHED_DIRS.iter() {
-        println!("DIRCACHE: {:?} => {:?}", k, v);
-        count += 1;
-    }
+    let count = CACHED_DIRS.iter().count();
     println!("Dircache contains {} entries.", count);
 
     let addr = ([127, 0, 0, 1], 8007).into();
