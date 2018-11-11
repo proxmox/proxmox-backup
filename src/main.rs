@@ -165,42 +165,47 @@ fn handle_sync_api_request<'a>(
     Box::new(resp)
 }
 
+fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
+
+    Box::new(File::open(filename)
+        .map_err(|err| format_err!("File open failed: {}", err))
+        .and_then(|file| {
+            let buf: Vec<u8> = Vec::new();
+            tokio::io::read_to_end(file, buf)
+                .map_err(|err| format_err!("File read failed: {}", err))
+                .and_then(|data| Ok(Response::new(data.1.into())))
+        }))
+}
+
+fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
+
+    Box::new(File::open(filename)
+        .map_err(|err| format_err!("File open failed: {}", err))
+        .and_then(|file| {
+            let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
+                map(|bytes| {
+                    //sigh - howto avoid copy here? or the whole map() ??
+                    hyper::Chunk::from(bytes.to_vec())
+                });
+            let body = Body::wrap_stream(payload);
+            // fixme: set content type and other headers
+            Ok(Response::builder()
+               .status(StatusCode::OK)
+               .body(body)
+               .unwrap())
+        }))
+}
+
 fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
 
     let response = tokio::fs::metadata(filename.clone())
         .map_err(|err| format_err!("File access problems: {}", err))
         .and_then(|metadata| {
-            println!("TEST METADATA {:?} {}", metadata, metadata.len());
-
-            if metadata.len() < 1024*8 {
-                println!("SMALL SIZED FILE");
-                Either::A(File::open(filename)
-                    .map_err(|err| format_err!("File open failed: {}", err))
-                    .and_then(|file| {
-                        let buf: Vec<u8> = Vec::new();
-                        tokio::io::read_to_end(file, buf)
-                            .map_err(|err| format_err!("File read failed: {}", err))
-                            .and_then(|data| Ok(Response::new(data.1.into())))
-                    }))
-
+            if metadata.len() < 1024*32 {
+                Either::A(simple_static_file_download(filename))
             } else {
-                Either::B(
-                    File::open(filename)
-                        .map_err(|err| format_err!("File open failed: {}", err))
-                    .and_then(|file| {
-                        let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
-                            map(|bytes| {
-                                //sigh - howto avoid copy here? or the whole map() ??
-                                hyper::Chunk::from(bytes.to_vec())
-                            });
-                        let body = Body::wrap_stream(payload);
-                        // fixme: set content type and other headers
-                        Ok(Response::builder()
-                           .status(StatusCode::OK)
-                           .body(body)
-                           .unwrap())
-                    }))
-            }
+                Either::B(chuncked_static_file_download(filename))
+             }
         });
 
     return Box::new(response);
