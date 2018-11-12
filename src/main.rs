@@ -2,6 +2,9 @@ extern crate apitest;
 
 use failure::*;
 use std::collections::HashMap;
+//use std::io;
+use std::fs;
+use std::path::{Path,PathBuf};
 
 //use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -269,14 +272,21 @@ fn handle_request(req: Request<Body>) -> BoxFut {
                 return handle_async_api_request(api_method, parts, body);
             }
         }
+    } else {
+        // not Auth for accessing files!
+
+        let mut prefix = String::new();
+        let mut filename = PathBuf::from("/var/www"); // fixme
+        if comp_len >= 1 {
+            prefix.push_str(components[0]);
+            if let Some(subdir) = DIR_ALIASES.get(&prefix) {
+                filename.push(subdir);
+                for i in 1..comp_len { filename.push(components[i]) }
+            }
+        }
+        return handle_static_file_download(filename);
     }
 
-    // not Auth for accessing files!
-    if let Some(filename) = CACHED_DIRS.get(&path) {
-
-        println!("SERVER STATIC FILE {:?}", path);
-        return handle_static_file_download(filename.clone());
-    }
 
     http_error_future!(NOT_FOUND, "Path not found.")
     //Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
@@ -288,51 +298,26 @@ fn handle_request(req: Request<Body>) -> BoxFut {
 // add_dirs($self->{dirs}, '/js/' => "$base/js/");
 // add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
 
-//use std::io;
-use std::fs;
-use std::path::{Path, PathBuf};
 
-fn add_dirs(cache: &mut HashMap<String, PathBuf>, alias: String, path: &Path) -> Result<(), Error> {
+fn initialize_directory_aliases() -> HashMap<String, PathBuf> {
 
-    if path.is_dir() {
-        for direntry in fs::read_dir(path)? {
-            let entry = direntry?;
-            let entry_path = entry.path();
-            let file_type = entry.file_type()?;
-            if let Some(file_name) = entry_path.file_name() {
-                let newalias = alias.clone() + &String::from(file_name.to_string_lossy()); // fixme
-                if file_type.is_dir() {
-                    add_dirs(cache, newalias, entry_path.as_path())?;
-                } else if file_type.is_file() {
-                    cache.insert(newalias, entry_path);
-                }
-            }
-        }
-    }
-    Ok(())
- }
+    let mut basedirs:  HashMap<String, PathBuf> = HashMap::new();
 
-fn initialize_directory_cache() -> HashMap<String, PathBuf> {
+    let mut add_directory_alias = |name, path| {
+        basedirs.insert(String::from(name), PathBuf::from(path));
+    };
 
-    let mut basedirs = HashMap::new();
+    add_directory_alias("novnc", "/usr/share/novnc-pve");
+    add_directory_alias("extjs", "/usr/share/javascript/extjs");
+    add_directory_alias("fontawesome", "/usr/share/fonts-font-awesome");
+    add_directory_alias("xtermjs", "/usr/share/pve-xtermjs");
+    add_directory_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
 
-    basedirs.insert("novnc", Path::new("/usr/share/novnc-pve"));
-    basedirs.insert("extjs", Path::new("/usr/share/javascript/extjs"));
-    basedirs.insert("fontawesome", Path::new("/usr/share/fonts-font-awesome"));
-    basedirs.insert("xtermjs", Path::new("/usr/share/pve-xtermjs"));
-    basedirs.insert("widgettoolkit", Path::new("/usr/share/javascript/proxmox-widget-toolkit"));
-
-    let mut cache = HashMap::new();
-
-    if let Err(err) = add_dirs(&mut cache, "/pve2/ext6/".into(), basedirs["extjs"]) {
-        eprintln!("directory cache init error: {}", err);
-    }
-
-    cache
+    basedirs
 }
 
 lazy_static!{
-    static ref CACHED_DIRS: HashMap<String, PathBuf> = initialize_directory_cache();
+    static ref DIR_ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
 }
 
 lazy_static!{
@@ -341,9 +326,6 @@ lazy_static!{
 
 fn main() {
     println!("Fast Static Type Definitions 1");
-
-    let count = CACHED_DIRS.iter().count();
-    println!("Dircache contains {} entries.", count);
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
