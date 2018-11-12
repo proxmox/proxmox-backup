@@ -219,13 +219,24 @@ fn handle_request(req: Request<Body>) -> BoxFut {
     let path = parts.uri.path();
 
     // normalize path
-    let components: Vec<&str> = path.split('/').filter(|x| !x.is_empty()).collect();
+    // do not allow ".", "..", or hidden files ".XXXX"
+    // also remove empty path components
+
+    let items = path.split('/');
+    let mut path = String::new();
+    let mut components = vec![];
+
+    for name in items {
+        if name.is_empty() { continue; }
+        if name.starts_with(".") {
+            http_error_future!(BAD_REQUEST, "Path contains illegal components.\n");
+        }
+        path.push('/');
+        path.push_str(name);
+        components.push(name);
+    }
+
     let comp_len = components.len();
-    let path = components.iter().fold(String::new(), |mut acc, chunk| {
-        acc.push('/');
-        acc.push_str(chunk);
-        acc
-    });
 
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
