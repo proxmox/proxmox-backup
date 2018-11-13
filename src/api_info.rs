@@ -1,9 +1,10 @@
+use std::fmt;
 use failure::*;
 use futures::future::*;
 
 use crate::json_schema::*;
 use serde_json::{Value};
-use hyper::{Body, Response};
+use hyper::{Body, Response, StatusCode};
 
 use std::collections::HashMap;
 
@@ -13,6 +14,24 @@ pub struct ApiMethod {
     pub returns: Jss,
     pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
     pub async_handler: fn(Value, &ApiMethod) -> Box<Future<Item = Response<Body>, Error = Error> + Send>
+}
+
+#[derive(Debug, Fail)]
+pub struct ApiError {
+    pub code: StatusCode,
+    pub message: String,
+}
+
+impl ApiError {
+    pub fn new(code: StatusCode, message: String) -> Self {
+        ApiError { code, message }
+    }
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error {}: {}", self.code, self.message)
+    }
 }
 
 pub struct MethodInfo {

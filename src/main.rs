@@ -3,8 +3,8 @@ extern crate apitest;
 use failure::*;
 use std::collections::HashMap;
 //use std::io;
-use std::fs;
-use std::path::{Path,PathBuf};
+//use std::fs;
+use std::path::{PathBuf};
 
 //use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -16,7 +16,7 @@ use apitest::json_schema::*;
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
-use futures::future::*;
+use futures::future::{self, Either};
 //use tokio::prelude::*;
 //use tokio::timer::Delay;
 use tokio::fs::File;
@@ -27,7 +27,7 @@ use tokio_codec;
 use hyper::http::request::Parts;
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
-use hyper::service::service_fn;
+//use hyper::service::service_fn;
 use hyper::header;
 
 //use std::time::{Duration, Instant};
@@ -45,7 +45,7 @@ macro_rules! error_response {
 macro_rules! http_error_future {
     ($status:ident, $msg:expr) => {{
         let resp = error_response!($status, $msg);
-        return Box::new(ok(resp));
+        return Box::new(future::ok(resp));
     }}
 }
 
@@ -56,14 +56,14 @@ fn get_request_parameters_async<'a>(
 ) -> Box<Future<Item = Value, Error = failure::Error> + Send + 'a>
 {
     let resp = req_body
-        .map_err(|err| format_err!("Promlems reading request body: {}", err))
+        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Promlems reading request body: {}", err))))
         .fold(Vec::new(), |mut acc, chunk| {
             if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
                 acc.extend_from_slice(&*chunk);
-                ok(acc)
-            } else {
-                err(format_err!("Request body too large"))
+                future::ok(acc)
             }
+            //else  { ok(acc) } //FIXMEEEEE
+            else { future::err(Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Request body too large")))) }
         })
         .and_then(move |body| {
 
@@ -171,11 +171,11 @@ fn handle_sync_api_request<'a>(
 fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
 
     Box::new(File::open(filename)
-        .map_err(|err| format_err!("File open failed: {}", err))
+        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File open failed: {}", err))))
         .and_then(|file| {
             let buf: Vec<u8> = Vec::new();
             tokio::io::read_to_end(file, buf)
-                .map_err(|err| format_err!("File read failed: {}", err))
+                .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File read failed: {}", err))))
                 .and_then(|data| Ok(Response::new(data.1.into())))
         }))
 }
@@ -183,7 +183,7 @@ fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
 fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
 
     Box::new(File::open(filename)
-        .map_err(|err| format_err!("File open failed: {}", err))
+        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File open failed: {}", err))))
         .and_then(|file| {
             let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
                 map(|bytes| {
@@ -202,7 +202,7 @@ fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
 fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
 
     let response = tokio::fs::metadata(filename.clone())
-        .map_err(|err| format_err!("File access problems: {}", err))
+        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File access problems: {}", err))))
         .and_then(|metadata| {
             if metadata.len() < 1024*32 {
                 Either::A(simple_static_file_download(filename))
@@ -316,6 +316,35 @@ fn initialize_directory_aliases() -> HashMap<String, PathBuf> {
     basedirs
 }
 
+struct ApiServer {
+    basedir: PathBuf,
+}
+
+impl hyper::service::Service for ApiServer {
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = String;
+    type Future = Box<Future<Item = Response<Body>, Error = String> + Send>;
+
+    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+
+        Box::new(handle_request(req).then(|result| {
+            match result {
+                Ok(res) => Ok(res),
+                Err(err) => {
+                    if let Some(apierr) = err.downcast_ref::<ApiError>() {
+                       let mut resp = Response::new(Body::from(apierr.message.clone()));
+                        *resp.status_mut() = apierr.code;
+                        Ok(resp)
+                   } else {
+                        Ok(error_response!(BAD_REQUEST, err.to_string()))
+                    }
+                }
+            }
+        }))
+    }
+}
+
 lazy_static!{
     static ref DIR_ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
 }
@@ -330,15 +359,8 @@ fn main() {
     let addr = ([127, 0, 0, 1], 8007).into();
 
     let new_svc = || {
-        service_fn(|req| {
-            // clumsy way to convert failure::Error to Response
-            handle_request(req).then(|result| -> Result<Response<Body>, String> {
-                match result {
-                    Ok(res) => Ok(res),
-                    Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string())),
-                }
-            })
-        })
+        let service = ApiServer { basedir: "/var/www".into() };
+        future::ok::<_,String>(service)
     };
 
     let server = Server::bind(&addr)
