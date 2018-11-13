@@ -27,7 +27,7 @@ use tokio_codec;
 use hyper::http::request::Parts;
 use hyper::{Method, Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
-//use hyper::service::service_fn;
+use hyper::service::service_fn;
 use hyper::header;
 
 //use std::time::{Duration, Instant};
@@ -214,7 +214,7 @@ fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
     return Box::new(response);
 }
 
-fn handle_request(req: Request<Body>) -> BoxFut {
+fn handle_request(api: &ApiServer, req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
 
@@ -252,7 +252,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
                 http_error_future!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))
             }
 
-            if let Some(info) = ROUTER.find_method(&components[2..]) {
+            if let Some(info) = api.router.find_method(&components[2..]) {
                 println!("FOUND INFO");
                 let api_method_opt = match method {
                     Method::GET => &info.get,
@@ -279,7 +279,7 @@ fn handle_request(req: Request<Body>) -> BoxFut {
         let mut filename = PathBuf::from("/var/www"); // fixme
         if comp_len >= 1 {
             prefix.push_str(components[0]);
-            if let Some(subdir) = DIR_ALIASES.get(&prefix) {
+            if let Some(subdir) = api.aliases.get(&prefix) {
                 filename.push(subdir);
                 for i in 1..comp_len { filename.push(components[i]) }
             }
@@ -318,39 +318,8 @@ fn initialize_directory_aliases() -> HashMap<String, PathBuf> {
 
 struct ApiServer {
     basedir: PathBuf,
-}
-
-impl hyper::service::Service for ApiServer {
-    type ReqBody = Body;
-    type ResBody = Body;
-    type Error = String;
-    type Future = Box<Future<Item = Response<Body>, Error = String> + Send>;
-
-    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
-
-        Box::new(handle_request(req).then(|result| {
-            match result {
-                Ok(res) => Ok(res),
-                Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<ApiError>() {
-                       let mut resp = Response::new(Body::from(apierr.message.clone()));
-                        *resp.status_mut() = apierr.code;
-                        Ok(resp)
-                   } else {
-                        Ok(error_response!(BAD_REQUEST, err.to_string()))
-                    }
-                }
-            }
-        }))
-    }
-}
-
-lazy_static!{
-    static ref DIR_ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
-}
-
-lazy_static!{
-    static ref ROUTER: MethodInfo = apitest::api3::router();
+    router: &'static MethodInfo,
+    aliases: &'static HashMap<String, PathBuf>,
 }
 
 fn main() {
@@ -359,8 +328,34 @@ fn main() {
     let addr = ([127, 0, 0, 1], 8007).into();
 
     let new_svc = || {
-        let service = ApiServer { basedir: "/var/www".into() };
-        future::ok::<_,String>(service)
+        service_fn(|req| {
+
+            lazy_static!{
+                static ref ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
+                static ref ROUTER: MethodInfo = apitest::api3::router();
+            }
+
+            let api_server = ApiServer {
+                basedir: "/var/www". into(),
+                router: &ROUTER,
+                aliases: &ALIASES,
+            };
+
+            handle_request(&api_server, req).then(|result| {
+                match result {
+                    Ok(res) => Ok::<_,String>(res),
+                    Err(err) => {
+                        if let Some(apierr) = err.downcast_ref::<ApiError>() {
+                            let mut resp = Response::new(Body::from(apierr.message.clone()));
+                            *resp.status_mut() = apierr.code;
+                            Ok(resp)
+                        } else {
+                            Ok(error_response!(BAD_REQUEST, err.to_string()))
+                        }
+                    }
+                }
+            })
+        })
     };
 
     let server = Server::bind(&addr)
