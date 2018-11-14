@@ -60,10 +60,9 @@ fn get_request_parameters_async<'a>(
         .fold(Vec::new(), |mut acc, chunk| {
             if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
                 acc.extend_from_slice(&*chunk);
-                future::ok(acc)
+                Ok(acc)
             }
-            //else  { ok(acc) } //FIXMEEEEE
-            else { future::err(Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Request body too large")))) }
+            else { Err(Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Request body too large")))) }
         })
         .and_then(move |body| {
 
