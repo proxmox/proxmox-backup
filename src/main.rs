@@ -96,35 +96,6 @@ fn get_request_parameters_async<'a>(
     Box::new(resp)
 }
 
-fn handle_async_api_request<'a>(
-    info: &'a ApiMethod,
-    parts: Parts,
-    req_body: Body,
-) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
-{
-    let params = get_request_parameters_async(info, parts, req_body);
-
-    let resp = params
-        .and_then(move |params| {
-
-            println!("GOT PARAMS {}", params);
-
-            /*
-            let when = Instant::now() + Duration::from_millis(3000);
-            let task = Delay::new(when).then(|_| {
-                println!("A LAZY TASK");
-                ok(())
-            });
-
-            tokio::spawn(task);
-             */
-
-            (info.async_handler)(params, info)
-        });
-
-    Box::new(resp)
-}
-
 fn handle_sync_api_request<'a>(
     info: &'a ApiMethod,
     parts: Parts,
@@ -255,7 +226,7 @@ fn handle_request(api: Arc<ApiServer>, req: Request<Body>) -> BoxFut {
 
             if let Some(api_method) = api.find_method(&components[2..], method) {
                 // fixme: handle auth
-                return handle_async_api_request(api_method, parts, body);
+                return handle_sync_api_request(api_method, parts, body);
             }
         }
     } else {
