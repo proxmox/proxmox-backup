@@ -1,19 +1,9 @@
 use std::collections::HashMap;
 use std::path::{PathBuf};
 use crate::api_info::*;
-use crate::json_schema::*;
+//use crate::json_schema::*;
 
-use futures::future::{self, Either};
-
-use tokio::fs::File;
-use tokio_codec;
-
-
-use hyper::http::request::Parts;
-use hyper::{Method, Body, Request, Response, Server, StatusCode};
-use hyper::rt::{Future, Stream};
-use hyper::service::{service_fn, NewService};
-use hyper::header;
+use hyper::{Method};
 
 pub struct ApiServer {
     basedir: PathBuf,

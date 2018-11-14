@@ -166,7 +166,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
         Jss::Null => {
             bail!("internal error - found Null schema.");
         }
-        Jss::Boolean(jss_boolean) => {
+        Jss::Boolean(_jss_boolean) => {
             let res = match value_str.to_lowercase().as_str() {
                 "1" | "on" | "yes" | "true" => true,
                 "0" | "off" | "no" | "false" => false,
@@ -219,7 +219,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
                         bail!("value is not defined in the enumeration.");
                     }
                 }
-                ApiStringFormat::Complex(ref subschema) => {
+                ApiStringFormat::Complex(ref _subschema) => {
                     bail!("implement me!");
                 }
             }
