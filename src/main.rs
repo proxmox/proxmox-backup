@@ -2,7 +2,7 @@ extern crate apitest;
 
 use failure::*;
 use std::sync::Arc;
-use std::collections::HashMap;
+//use std::collections::HashMap;
 //use std::io;
 //use std::fs;
 use std::path::{PathBuf};
@@ -13,6 +13,7 @@ use lazy_static::lazy_static;
 //use apitest::json_schema::*;
 use apitest::api_info::*;
 use apitest::json_schema::*;
+use apitest::api_server::*;
 
 //use serde_derive::{Serialize, Deserialize};
 use serde_json::{json, Value};
@@ -26,7 +27,7 @@ use tokio_codec;
 
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
-use hyper::{Method, Body, Request, Response, Server, StatusCode};
+use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper::rt::{Future, Stream};
 use hyper::service::service_fn;
 use hyper::header;
@@ -214,7 +215,7 @@ fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
     return Box::new(response);
 }
 
-fn handle_request(api: &ApiServer, req: Request<Body>) -> BoxFut {
+fn handle_request<'a>(api: &'a ApiServer, req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
 
@@ -252,38 +253,15 @@ fn handle_request(api: &ApiServer, req: Request<Body>) -> BoxFut {
                 http_error_future!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))
             }
 
-            if let Some(info) = api.router.find_method(&components[2..]) {
-                println!("FOUND INFO");
-                let api_method_opt = match method {
-                    Method::GET => &info.get,
-                    Method::PUT => &info.put,
-                    Method::POST => &info.post,
-                    Method::DELETE => &info.delete,
-                    _ => &None,
-                };
-                let api_method = match api_method_opt {
-                    Some(m) => m,
-                    _ => http_error_future!(NOT_FOUND, format!("No such method '{}'.", method)),
-                };
-
+            if let Some(api_method) = api.find_method(&components[2..], method) {
                 // fixme: handle auth
-
-                //return handle_sync_api_request(api_method, parts, body);
                 return handle_async_api_request(api_method, parts, body);
             }
         }
     } else {
         // not Auth for accessing files!
 
-        let mut prefix = String::new();
-        let mut filename = PathBuf::from("/var/www"); // fixme
-        if comp_len >= 1 {
-            prefix.push_str(components[0]);
-            if let Some(subdir) = api.aliases.get(&prefix) {
-                filename.push(subdir);
-                for i in 1..comp_len { filename.push(components[i]) }
-            }
-        }
+        let filename = api.find_alias(&components);
         return handle_static_file_download(filename);
     }
 
@@ -292,52 +270,31 @@ fn handle_request(api: &ApiServer, req: Request<Body>) -> BoxFut {
     //Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
 }
 
-// add default dirs which includes jquery and bootstrap
-// my $base = '/usr/share/libpve-http-server-perl';
-// add_dirs($self->{dirs}, '/css/' => "$base/css/");
-// add_dirs($self->{dirs}, '/js/' => "$base/js/");
-// add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
-
-
-fn initialize_directory_aliases() -> HashMap<String, PathBuf> {
-
-    let mut basedirs:  HashMap<String, PathBuf> = HashMap::new();
-
-    let mut add_directory_alias = |name, path| {
-        basedirs.insert(String::from(name), PathBuf::from(path));
-    };
-
-    add_directory_alias("novnc", "/usr/share/novnc-pve");
-    add_directory_alias("extjs", "/usr/share/javascript/extjs");
-    add_directory_alias("fontawesome", "/usr/share/fonts-font-awesome");
-    add_directory_alias("xtermjs", "/usr/share/pve-xtermjs");
-    add_directory_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
-
-    basedirs
-}
-
-struct ApiServer {
-    basedir: PathBuf,
-    router: &'static MethodInfo,
-    aliases: &'static HashMap<String, PathBuf>,
-}
-
 fn main() {
     println!("Fast Static Type Definitions 1");
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
     lazy_static!{
-        static ref ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
-        static ref ROUTER: MethodInfo = apitest::api3::router();
+       static ref ROUTER: MethodInfo = apitest::api3::router();
     }
 
-    let api_server = Arc::new(ApiServer {
-        basedir: "/var/www". into(),
-        router: &ROUTER,
-        aliases: &ALIASES,
-    });
+    let mut api_server = ApiServer::new("/var/www", &ROUTER);
 
+    // add default dirs which includes jquery and bootstrap
+    // my $base = '/usr/share/libpve-http-server-perl';
+    // add_dirs($self->{dirs}, '/css/' => "$base/css/");
+    // add_dirs($self->{dirs}, '/js/' => "$base/js/");
+    // add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
+    api_server.add_alias("novnc", "/usr/share/novnc-pve");
+    api_server.add_alias("extjs", "/usr/share/javascript/extjs");
+    api_server.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
+    api_server.add_alias("xtermjs", "/usr/share/pve-xtermjs");
+    api_server.add_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
+
+    
+    let api_server = Arc::new(api_server);
+    
     let new_svc = move || {
 
         let api = api_server.clone();

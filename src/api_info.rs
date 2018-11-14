@@ -59,7 +59,7 @@ impl MethodInfo {
         self
     }
 
-    pub fn find_method(&self, components: &[&str]) -> Option<&MethodInfo> {
+    pub fn find_route(&self, components: &[&str]) -> Option<&MethodInfo> {
 
         if components.len() == 0 { return Some(self); };
 
@@ -67,7 +67,7 @@ impl MethodInfo {
 
         if let Some(ref dirmap) = self.subdirs {
             if let Some(ref info) = dirmap.get(dir) {
-                return info.find_method(rest);
+                return info.find_route(rest);
             }
         }
 
