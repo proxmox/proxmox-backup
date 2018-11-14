@@ -215,7 +215,7 @@ fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
     return Box::new(response);
 }
 
-fn handle_request<'a>(api: &'a ApiServer, req: Request<Body>) -> BoxFut {
+fn handle_request(api: Arc<ApiServer>, req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
 
@@ -292,15 +292,14 @@ fn main() {
     api_server.add_alias("xtermjs", "/usr/share/pve-xtermjs");
     api_server.add_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
 
-    
     let api_server = Arc::new(api_server);
-    
+
     let new_svc = move || {
 
-        let api = api_server.clone();
+        let api_server = api_server.clone();
 
         service_fn(move |req| {
-            handle_request(&api, req).then(|result| {
+            handle_request(api_server.clone(), req).then(|result| {
                 match result {
                     Ok(res) => Ok::<_,String>(res),
                     Err(err) => {
