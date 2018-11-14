@@ -1,6 +1,7 @@
 extern crate apitest;
 
 use failure::*;
+use std::sync::Arc;
 use std::collections::HashMap;
 //use std::io;
 //use std::fs;
@@ -326,21 +327,23 @@ fn main() {
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
-    let new_svc = || {
-        service_fn(|req| {
+    lazy_static!{
+        static ref ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
+        static ref ROUTER: MethodInfo = apitest::api3::router();
+    }
 
-            lazy_static!{
-                static ref ALIASES: HashMap<String, PathBuf> = initialize_directory_aliases();
-                static ref ROUTER: MethodInfo = apitest::api3::router();
-            }
+    let api_server = Arc::new(ApiServer {
+        basedir: "/var/www". into(),
+        router: &ROUTER,
+        aliases: &ALIASES,
+    });
 
-            let api_server = ApiServer {
-                basedir: "/var/www". into(),
-                router: &ROUTER,
-                aliases: &ALIASES,
-            };
+    let new_svc = move || {
 
-            handle_request(&api_server, req).then(|result| {
+        let api = api_server.clone();
+
+        service_fn(move |req| {
+            handle_request(&api, req).then(|result| {
                 match result {
                     Ok(res) => Ok::<_,String>(res),
                     Err(err) => {
