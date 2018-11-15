@@ -11,15 +11,15 @@ pub struct ApiMethod {
     pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
 }
 
-pub struct MethodInfo {
+pub struct Router {
     pub get: Option<ApiMethod>,
     pub put: Option<ApiMethod>,
     pub post: Option<ApiMethod>,
     pub delete: Option<ApiMethod>,
-    pub subdirs: Option<HashMap<String, MethodInfo>>,
+    pub subdirs: Option<HashMap<String, Router>>,
 }
 
-impl MethodInfo {
+impl Router {
 
     pub fn new() -> Self {
         Self {
@@ -36,7 +36,7 @@ impl MethodInfo {
         self
     }
 
-    pub fn find_route(&self, components: &[&str]) -> Option<&MethodInfo> {
+    pub fn find_route(&self, components: &[&str]) -> Option<&Router> {
 
         if components.len() == 0 { return Some(self); };
 
@@ -56,7 +56,7 @@ impl MethodInfo {
 #[macro_export]
 macro_rules! methodinfo {
     ($($option:ident => $e:expr),*) => {{
-        let info = MethodInfo::new();
+        let info = Router::new();
 
         $(
             info.$option = Some($e);

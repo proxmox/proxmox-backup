@@ -24,9 +24,9 @@ fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error
     Ok(json!(null))
 }
 
-pub fn router() -> MethodInfo {
+pub fn router() -> Router {
 
-    let route = MethodInfo::new()
+    let route = Router::new()
         .get(ApiMethod {
             handler: test_sync_api_handler,
             description: "This is a simple test.",

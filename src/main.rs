@@ -17,7 +17,7 @@ fn main() {
     let addr = ([127, 0, 0, 1], 8007).into();
 
     lazy_static!{
-       static ref ROUTER: MethodInfo = apitest::api3::router();
+       static ref ROUTER: Router = apitest::api3::router();
     }
 
     let mut config = ApiConfig::new("/var/www", &ROUTER);

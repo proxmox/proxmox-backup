@@ -8,13 +8,13 @@ use hyper::Method;
 
 pub struct ApiConfig {
     basedir: PathBuf,
-    router: &'static MethodInfo,
+    router: &'static Router,
     aliases: HashMap<String, PathBuf>,
 }
 
 impl ApiConfig {
 
-    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static MethodInfo) -> Self {
+    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router) -> Self {
         Self {
             basedir: basedir.into(),
             router: router,
