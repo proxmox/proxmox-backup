@@ -24,9 +24,24 @@ fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error
     Ok(json!(null))
 }
 
+
+fn test_subdir_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+    println!("This is a subdir {}", param);
+
+    Ok(json!(null))
+}
+
 pub fn router() -> Router {
 
-    let route = Router::new()
+    let route3 = Router::new()
+        .get(ApiMethod {
+            handler: test_subdir_api_handler,
+            description: "Another Endpoint.",
+            parameters: parameter!{},
+            returns: Jss::Null,
+        });
+
+    let route2 = Router::new()
         .get(ApiMethod {
             handler: test_sync_api_handler,
             description: "This is a simple test.",
@@ -37,7 +52,15 @@ pub fn router() -> Router {
                 }
             },
             returns: Jss::Null,
+        })
+        .subdirs({
+            let mut map = HashMap::new();
+            map.insert("subdir3".into(), route3);
+            map
         });
+
+    let route = Router::new()
+        .match_all(route2);
 
     route
 }
