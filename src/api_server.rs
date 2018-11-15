@@ -97,11 +97,11 @@ macro_rules! http_error_future {
     }}
 }
 
-fn get_request_parameters_async<'a>(
-    info: &'a ApiMethod,
+fn get_request_parameters_async(
+    info: &'static ApiMethod,
     parts: Parts,
     req_body: Body,
-) -> Box<Future<Item = Value, Error = failure::Error> + Send + 'a>
+) -> Box<Future<Item = Value, Error = failure::Error> + Send>
 {
     let resp = req_body
         .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Promlems reading request body: {}", err))))
@@ -142,11 +142,11 @@ fn get_request_parameters_async<'a>(
     Box::new(resp)
 }
 
-fn handle_sync_api_request<'a>(
-    info: &'a ApiMethod,
+fn handle_sync_api_request(
+    info: &'static ApiMethod,
     parts: Parts,
     req_body: Body,
-) -> Box<Future<Item = Response<Body>, Error = failure::Error> + Send + 'a>
+) -> BoxFut
 {
     let params = get_request_parameters_async(info, parts, req_body);
 
