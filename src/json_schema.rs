@@ -143,6 +143,16 @@ macro_rules! ApiString {
 
 #[macro_export]
 macro_rules! parameter {
+    () => {{
+        let inner = JssObject {
+            description: "",
+            optional: false,
+            additional_properties: false,
+            properties: HashMap::<&'static str, Jss>::new(),
+        };
+
+        Jss::Object(inner)
+    }};
     ($($name:ident => $e:expr),*) => {{
         let inner = JssObject {
             description: "",
@@ -158,7 +168,7 @@ macro_rules! parameter {
         };
 
         Jss::Object(inner)
-    }}
+    }};
 }
 
 fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
