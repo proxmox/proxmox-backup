@@ -1,7 +1,6 @@
-//use apitest::json_schema::*;
-use apitest::api_info::*;
-use apitest::api_config::*;
-use apitest::api_server::*;
+use apitest::api::router::*;
+use apitest::api::config::*;
+use apitest::api::server::*;
 
 //use failure::*;
 use lazy_static::lazy_static;

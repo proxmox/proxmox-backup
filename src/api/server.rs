@@ -1,6 +1,6 @@
-use crate::json_schema::*;
-use crate::api_info::*;
-use crate::api_config::*;
+use crate::api::schema::*;
+use crate::api::router::*;
+use crate::api::config::*;
 
 use std::fmt;
 use std::path::{PathBuf};

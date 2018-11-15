@@ -1,14 +1,17 @@
 pub mod static_map;
 
 #[macro_use]
-pub mod json_schema;
+pub mod api {
 
-#[macro_use]
-pub mod api_info;
+    #[macro_use]
+    pub mod schema;
+    #[macro_use]
+    pub mod router;
+    pub mod config;
+    pub mod server;
 
-pub mod api_config;
+}
 
-pub mod api_server;
 
 pub mod api3;
 

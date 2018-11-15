@@ -2,8 +2,8 @@ use failure::*;
 use std::collections::HashMap;
 
 
-use crate::json_schema::*;
-use crate::api_info::*;
+use crate::api::schema::*;
+use crate::api::router::*;
 use serde_json::{json, Value};
 
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
