@@ -38,7 +38,7 @@ pub fn router() -> Router {
             handler: test_subdir_api_handler,
             description: "Another Endpoint.",
             parameters: parameter!{},
-            returns: Jss::Null,
+            returns: Schema::Null,
         });
 
     let route2 = Router::new()
@@ -51,7 +51,7 @@ pub fn router() -> Router {
                     description => "Test for boolean options."
                 }
             },
-            returns: Jss::Null,
+            returns: Schema::Null,
         })
         .subdirs({
             let mut map = HashMap::new();

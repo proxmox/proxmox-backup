@@ -5,7 +5,7 @@ use url::form_urlencoded;
 use regex::Regex;
 use std::fmt;
 
-pub type PropertyMap = HashMap<&'static str, Jss>;
+pub type PropertyMap = HashMap<&'static str, Schema>;
 
 #[derive(Debug, Fail)]
 pub struct ParameterError {
@@ -38,14 +38,14 @@ impl fmt::Display for ParameterError {
 }
 
 #[derive(Debug)]
-pub struct JssBoolean {
+pub struct BooleanSchema {
     pub description: &'static str,
     pub optional: bool,
     pub default: Option<bool>,
 }
 
 #[derive(Debug)]
-pub struct JssInteger {
+pub struct IntegerSchema {
     pub description: &'static str,
     pub optional: bool,
     pub minimum: Option<isize>,
@@ -54,7 +54,7 @@ pub struct JssInteger {
 }
 
 #[derive(Debug)]
-pub struct JssString {
+pub struct StringSchema {
     pub description: &'static str,
     pub optional: bool,
     pub default: Option<&'static str>,
@@ -64,31 +64,31 @@ pub struct JssString {
 }
 
 #[derive(Debug)]
-pub struct JssArray {
+pub struct ArraySchema {
     pub description: &'static str,
     pub optional: bool,
-    pub items: Box<Jss>,
+    pub items: Box<Schema>,
 }
 
 #[derive(Debug)]
-pub struct JssObject {
+pub struct ObjectSchema {
     pub description: &'static str,
     pub optional: bool,
     pub additional_properties: bool,
-    pub properties: HashMap<&'static str, Jss>,
+    pub properties: HashMap<&'static str, Schema>,
 }
 
 #[derive(Debug)]
-pub enum Jss {
+pub enum Schema {
     Null,
-    Boolean(JssBoolean),
-    Integer(JssInteger),
-    String(JssString),
-    Object(JssObject),
-    Array(JssArray),
+    Boolean(BooleanSchema),
+    Integer(IntegerSchema),
+    String(StringSchema),
+    Object(ObjectSchema),
+    Array(ArraySchema),
 }
 
-pub const DEFAULTBOOL: JssBoolean = JssBoolean {
+pub const DEFAULTBOOL: BooleanSchema = BooleanSchema {
     description: "",
     optional: false,
     default: None,
@@ -97,11 +97,11 @@ pub const DEFAULTBOOL: JssBoolean = JssBoolean {
 #[macro_export]
 macro_rules! Boolean {
     ($($name:ident => $e:expr),*) => {{
-        Jss::Boolean(JssBoolean { $($name: $e, )* ..DEFAULTBOOL})
+        Schema::Boolean(BooleanSchema { $($name: $e, )* ..DEFAULTBOOL})
     }}
 }
 
-pub const DEFAULTINTEGER: JssInteger = JssInteger {
+pub const DEFAULTINTEGER: IntegerSchema = IntegerSchema {
     description: "",
     optional: false,
     default: None,
@@ -112,11 +112,11 @@ pub const DEFAULTINTEGER: JssInteger = JssInteger {
 #[macro_export]
 macro_rules! Integer {
     ($($name:ident => $e:expr),*) => {{
-        Jss::Integer(JssInteger { $($name: $e, )* ..DEFAULTINTEGER})
+        Schema::Integer(IntegerSchema { $($name: $e, )* ..DEFAULTINTEGER})
     }}
 }
 
-pub const DEFAULTSTRING: JssString = JssString {
+pub const DEFAULTSTRING: StringSchema = StringSchema {
     description: "",
     optional: false,
     default: None,
@@ -130,13 +130,13 @@ pub enum ApiStringFormat {
     None,
     Enum(Vec<String>),
     Pattern(Box<Regex>),
-    Complex(Box<Jss>),
+    Complex(Box<Schema>),
 }
 
 #[macro_export]
 macro_rules! ApiString {
     ($($name:ident => $e:expr),*) => {{
-        Jss::String(JssString { $($name: $e, )* ..DEFAULTSTRING})
+        Schema::String(StringSchema { $($name: $e, )* ..DEFAULTSTRING})
     }}
 }
 
@@ -144,22 +144,22 @@ macro_rules! ApiString {
 #[macro_export]
 macro_rules! parameter {
     () => {{
-        let inner = JssObject {
+        let inner = ObjectSchema {
             description: "",
             optional: false,
             additional_properties: false,
-            properties: HashMap::<&'static str, Jss>::new(),
+            properties: HashMap::<&'static str, Schema>::new(),
         };
 
-        Jss::Object(inner)
+        Schema::Object(inner)
     }};
     ($($name:ident => $e:expr),*) => {{
-        let inner = JssObject {
+        let inner = ObjectSchema {
             description: "",
             optional: false,
             additional_properties: false,
             properties: {
-                let mut map = HashMap::<&'static str, Jss>::new();
+                let mut map = HashMap::<&'static str, Schema>::new();
                 $(
                     map.insert(stringify!($name), $e);
                 )*
@@ -167,17 +167,17 @@ macro_rules! parameter {
             }
         };
 
-        Jss::Object(inner)
+        Schema::Object(inner)
     }};
 }
 
-fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
+fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {
 
     let value = match schema {
-        Jss::Null => {
+        Schema::Null => {
             bail!("internal error - found Null schema.");
         }
-        Jss::Boolean(_jss_boolean) => {
+        Schema::Boolean(_jss_boolean) => {
             let res = match value_str.to_lowercase().as_str() {
                 "1" | "on" | "yes" | "true" => true,
                 "0" | "off" | "no" | "false" => false,
@@ -185,7 +185,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
             };
             Value::Bool(res)
         }
-        Jss::Integer(jss_integer) => {
+        Schema::Integer(jss_integer) => {
             let res: isize = value_str.parse()?;
 
             if let Some(minimum) = jss_integer.minimum {
@@ -202,7 +202,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
 
             Value::Number(res.into())
         }
-        Jss::String(jss_string) => {
+        Schema::String(jss_string) => {
             let res: String = value_str.into();
             let char_count = res.chars().count();
 
@@ -242,7 +242,7 @@ fn parse_simple_value(value_str: &str, schema: &Jss) -> Result<Value, Error> {
     Ok(value)
 }
 
-pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_required: bool) -> Result<Value, ParameterError> {
+pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, test_required: bool) -> Result<Value, ParameterError> {
 
     println!("QUERY Strings {:?}", data);
 
@@ -251,11 +251,11 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
     let mut errors = ParameterError::new();
 
     match schema {
-        Jss::Object(JssObject { properties, additional_properties, .. })   => {
+        Schema::Object(ObjectSchema { properties, additional_properties, .. })   => {
             for (key, value) in data {
                 if let Some(prop_schema) = properties.get::<str>(key) {
                     match prop_schema {
-                        Jss::Array(jss_array) => {
+                        Schema::Array(jss_array) => {
                             if params[key] == Value::Null {
                                 params[key] = json!([]);
                             }
@@ -307,12 +307,12 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
             if test_required && errors.len() == 0 {
                 for (name, prop_schema) in properties {
                     let optional = match prop_schema {
-                        Jss::Boolean(jss_boolean) => jss_boolean.optional,
-                        Jss::Integer(jss_integer) => jss_integer.optional,
-                        Jss::String(jss_string) => jss_string.optional,
-                        Jss::Array(jss_array) => jss_array.optional,
-                        Jss::Object(jss_object) => jss_object.optional,
-                        Jss::Null => true,
+                        Schema::Boolean(jss_boolean) => jss_boolean.optional,
+                        Schema::Integer(jss_integer) => jss_integer.optional,
+                        Schema::String(jss_string) => jss_string.optional,
+                        Schema::Array(jss_array) => jss_array.optional,
+                        Schema::Object(jss_object) => jss_object.optional,
+                        Schema::Null => true,
                     };
                     if optional == false && params[name] == Value::Null {
                         errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
@@ -331,7 +331,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Jss, test_
     }
 }
 
-pub fn parse_query_string(query: &str, schema: &Jss, test_required: bool) -> Result<Value,  ParameterError> {
+pub fn parse_query_string(query: &str, schema: &Schema, test_required: bool) -> Result<Value,  ParameterError> {
 
     let param_list: Vec<(String, String)> =
         form_urlencoded::parse(query.as_bytes()).into_owned().collect();
@@ -341,7 +341,7 @@ pub fn parse_query_string(query: &str, schema: &Jss, test_required: bool) -> Res
 
 #[test]
 fn test_shema1() {
-    let schema = Jss::Object(JssObject {
+    let schema = Schema::Object(ObjectSchema {
         description: "TEST",
         optional: false,
         additional_properties: false,
@@ -536,7 +536,7 @@ fn test_shema1() {
             description => "Test Array of simple integers.",
             items => &PVE_VMID
         },
-        myarray2 => &Jss::Array(JssArray {
+        myarray2 => &Schema::Array(ArraySchema {
             description: "Test Array of simple integers.",
             optional: Some(false),
             items: &Object!{description => "Empty Object."},
