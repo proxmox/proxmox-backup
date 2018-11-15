@@ -173,7 +173,7 @@ fn handle_sync_api_request(
             tokio::spawn(task);
              */
 
-            let res = (info.handler)(params, info)?;
+            let res = (*info.handler)(params, info)?;
 
             Ok(res)
 

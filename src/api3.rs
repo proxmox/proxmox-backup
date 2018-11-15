@@ -25,25 +25,23 @@ fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error
 }
 
 
-fn test_subdir_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
-    println!("This is a subdir {}", param);
-
-    Ok(json!(null))
-}
-
 pub fn router() -> Router {
 
     let route3 = Router::new()
         .get(ApiMethod {
-            handler: test_subdir_api_handler,
             description: "Another Endpoint.",
             parameters: parameter!{},
             returns: Schema::Null,
+            handler: Box::new(|param, _info| {
+                println!("This is a clousure handler: {}", param);
+
+                Ok(json!(null))
+           })
         });
 
     let route2 = Router::new()
         .get(ApiMethod {
-            handler: test_sync_api_handler,
+            handler: Box::new(test_sync_api_handler),
             description: "This is a simple test.",
             parameters: parameter!{
                 force => Boolean!{
