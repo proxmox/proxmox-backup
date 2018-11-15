@@ -1,10 +1,7 @@
-use std::fmt;
 use failure::*;
 
 use crate::json_schema::*;
 use serde_json::{Value};
-use hyper::{StatusCode};
-
 use std::collections::HashMap;
 
 pub struct ApiMethod {

@@ -3,7 +3,6 @@ use crate::api_info::*;
 use crate::api_config::*;
 
 use std::fmt;
-use std::collections::HashMap;
 use std::path::{PathBuf};
 use std::sync::Arc;
 
@@ -19,7 +18,7 @@ use tokio_codec;
 
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
-use hyper::{Body, Request, Method, Response, StatusCode};
+use hyper::{Body, Request, Response, StatusCode};
 use hyper::service::{Service, NewService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
@@ -106,21 +105,6 @@ macro_rules! http_err {
     }}
 }
 
-macro_rules! error_response {
-    ($status:ident, $msg:expr) => {{
-        let mut resp = Response::new(Body::from($msg));
-        *resp.status_mut() = StatusCode::$status;
-        resp
-    }}
-}
-
-macro_rules! http_error_future {
-    ($status:ident, $msg:expr) => {{
-        let resp = error_response!($status, $msg);
-        return Box::new(future::ok(resp));
-    }}
-}
-
 fn get_request_parameters_async(
     info: &'static ApiMethod,
     parts: Parts,
@@ -203,7 +187,7 @@ fn handle_sync_api_request(
                        .header(header::CONTENT_TYPE, "application/json")
                        .body(Body::from(json_str))?)
                 }
-                Err(err) => Ok(error_response!(BAD_REQUEST, err.to_string()))
+                Err(err) => Err(http_err!(BAD_REQUEST, err.to_string()))
             }
         });
 
@@ -274,7 +258,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     for name in items {
         if name.is_empty() { continue; }
         if name.starts_with(".") {
-            http_error_future!(BAD_REQUEST, "Path contains illegal components.\n");
+            return Box::new(future::err(http_err!(BAD_REQUEST, "Path contains illegal components.".to_string())));
         }
         path.push('/');
         path.push_str(name);
@@ -291,7 +275,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
         if comp_len >= 2 {
             let format = components[1];
             if format != "json" {
-                http_error_future!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))
+                return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))))
             }
 
             if let Some(api_method) = api.find_method(&components[2..], method) {
@@ -306,7 +290,6 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
         return handle_static_file_download(filename);
     }
 
-    http_error_future!(NOT_FOUND, "Path not found.")
-    //Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
+    Box::new(future::err(http_err!(NOT_FOUND, "Path not found.".to_string())))
 }
 
