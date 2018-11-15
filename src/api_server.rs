@@ -9,8 +9,6 @@ use std::sync::Arc;
 use failure::*;
 use serde_json::{json, Value};
 
-
-
 use futures::future::{self, Either};
 //use tokio::prelude::*;
 //use tokio::timer::Delay;
@@ -24,6 +22,63 @@ use hyper::{Body, Request, Method, Response, StatusCode};
 use hyper::service::{Service, NewService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
+
+pub struct RestServer {
+    pub api_config: Arc<ApiConfig>,
+}
+
+impl RestServer {
+
+    pub fn new(api_config: ApiConfig) -> Self {
+        Self { api_config: Arc::new(api_config) }
+    }
+}
+
+impl NewService for RestServer
+{
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = hyper::Error;
+    type InitError = hyper::Error;
+    type Service = ApiService;
+    type Future = Box<Future<Item = Self::Service, Error = Self::InitError> + Send>;
+    fn new_service(&self) -> Self::Future {
+        Box::new(future::ok(ApiService { api_config: self.api_config.clone() }))
+    }
+}
+
+pub struct ApiService {
+    pub api_config: Arc<ApiConfig>,
+}
+
+
+impl Service for ApiService {
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = hyper::Error;
+    type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
+
+    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+
+        Box::new(handle_request(self.api_config.clone(), req).then(|result| {
+            match result {
+                Ok(res) => Ok::<_, hyper::Error>(res),
+                Err(err) => {
+                    if let Some(apierr) = err.downcast_ref::<ApiError>() {
+                        let mut resp = Response::new(Body::from(apierr.message.clone()));
+                        *resp.status_mut() = apierr.code;
+                        Ok(resp)
+                    } else {
+                        let mut resp = Response::new(Body::from(err.to_string()));
+                        *resp.status_mut() = StatusCode::BAD_REQUEST;
+                        Ok(resp)
+                    }
+                }
+            }
+        }))
+    }
+}
+
 
 type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
@@ -231,57 +286,3 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     //Box::new(ok(Response::new(Body::from("RETURN WEB GUI\n"))))
 }
 
-pub struct RestServer {
-    pub api_config: Arc<ApiConfig>,
-}
-
-impl RestServer {
-
-    pub fn new(api_config: ApiConfig) -> Self {
-        Self { api_config: Arc::new(api_config) }
-    }
-}
-
-impl NewService for RestServer
-{
-    type ReqBody = Body;
-    type ResBody = Body;
-    type Error = hyper::Error;
-    type InitError = hyper::Error;
-    type Service = ApiService;
-    type Future = Box<Future<Item = Self::Service, Error = Self::InitError> + Send>;
-    fn new_service(&self) -> Self::Future {
-        Box::new(future::ok(ApiService { api_config: self.api_config.clone() }))
-    }
-}
-
-pub struct ApiService {
-    pub api_config: Arc<ApiConfig>,
-}
-
-impl Service for ApiService {
-    type ReqBody = Body;
-    type ResBody = Body;
-    type Error = hyper::Error;
-    type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
-
-    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
-
-        Box::new(handle_request(self.api_config.clone(), req).then(|result| {
-            match result {
-                Ok(res) => Ok::<_, hyper::Error>(res),
-                Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<ApiError>() {
-                        let mut resp = Response::new(Body::from(apierr.message.clone()));
-                        *resp.status_mut() = apierr.code;
-                        Ok(resp)
-                    } else {
-                        let mut resp = Response::new(Body::from(err.to_string()));
-                        *resp.status_mut() = StatusCode::BAD_REQUEST;
-                        Ok(resp)
-                    }
-                }
-            }
-        }))
-    }
-}
