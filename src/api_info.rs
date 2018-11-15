@@ -14,24 +14,6 @@ pub struct ApiMethod {
     pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
 }
 
-#[derive(Debug, Fail)]
-pub struct ApiError {
-    pub code: StatusCode,
-    pub message: String,
-}
-
-impl ApiError {
-    pub fn new(code: StatusCode, message: String) -> Self {
-        ApiError { code, message }
-    }
-}
-
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error {}: {}", self.code, self.message)
-    }
-}
-
 pub struct MethodInfo {
     pub get: Option<ApiMethod>,
     pub put: Option<ApiMethod>,

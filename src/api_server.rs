@@ -2,6 +2,7 @@ use crate::json_schema::*;
 use crate::api_info::*;
 use crate::api_config::*;
 
+use std::fmt;
 use std::collections::HashMap;
 use std::path::{PathBuf};
 use std::sync::Arc;
@@ -64,7 +65,7 @@ impl Service for ApiService {
             match result {
                 Ok(res) => Ok::<_, hyper::Error>(res),
                 Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<ApiError>() {
+                    if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
                         Ok(resp)
@@ -79,8 +80,31 @@ impl Service for ApiService {
     }
 }
 
-
 type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
+
+#[derive(Debug, Fail)]
+pub struct HttpError {
+    pub code: StatusCode,
+    pub message: String,
+}
+
+impl HttpError {
+    pub fn new(code: StatusCode, message: String) -> Self {
+        HttpError { code, message }
+    }
+}
+
+impl fmt::Display for HttpError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error {}: {}", self.code, self.message)
+    }
+}
+
+macro_rules! http_err {
+    ($status:ident, $msg:expr) => {{
+        Error::from(HttpError::new(StatusCode::$status, $msg))
+    }}
+}
 
 macro_rules! error_response {
     ($status:ident, $msg:expr) => {{
@@ -104,13 +128,13 @@ fn get_request_parameters_async(
 ) -> Box<Future<Item = Value, Error = failure::Error> + Send>
 {
     let resp = req_body
-        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Promlems reading request body: {}", err))))
+        .map_err(|err| http_err!(BAD_REQUEST, format!("Promlems reading request body: {}", err)))
         .fold(Vec::new(), |mut acc, chunk| {
             if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
                 acc.extend_from_slice(&*chunk);
                 Ok(acc)
             }
-            else { Err(Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("Request body too large")))) }
+            else { Err(http_err!(BAD_REQUEST, format!("Request body too large"))) }
         })
         .and_then(move |body| {
 
@@ -189,11 +213,11 @@ fn handle_sync_api_request(
 fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
 
     Box::new(File::open(filename)
-        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File open failed: {}", err))))
+        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(|file| {
             let buf: Vec<u8> = Vec::new();
             tokio::io::read_to_end(file, buf)
-                .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File read failed: {}", err))))
+                .map_err(|err| http_err!(BAD_REQUEST, format!("File read failed: {}", err)))
                 .and_then(|data| Ok(Response::new(data.1.into())))
         }))
 }
@@ -201,7 +225,7 @@ fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
 fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
 
     Box::new(File::open(filename)
-        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File open failed: {}", err))))
+        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(|file| {
             let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
                 map(|bytes| {
@@ -220,7 +244,7 @@ fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
 fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
 
     let response = tokio::fs::metadata(filename.clone())
-        .map_err(|err| Error::from(ApiError::new(StatusCode::BAD_REQUEST, format!("File access problems: {}", err))))
+        .map_err(|err| http_err!(BAD_REQUEST, format!("File access problems: {}", err)))
         .and_then(|metadata| {
             if metadata.len() < 1024*32 {
                 Either::A(simple_static_file_download(filename))
