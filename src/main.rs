@@ -1,9 +1,11 @@
+//use apitest::json_schema::*;
+use apitest::api_info::*;
+use apitest::api_config::*;
+use apitest::api_server::*;
+
 //use failure::*;
 use lazy_static::lazy_static;
 
-//use apitest::json_schema::*;
-use apitest::api_info::*;
-use apitest::api_server::*;
 
 use futures::future::Future;
 
