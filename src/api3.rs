@@ -32,16 +32,16 @@ pub fn router() -> Router {
             description: "Another Endpoint.",
             parameters: parameter!{},
             returns: Schema::Null,
-            handler: Box::new(|param, _info| {
+            handler: |param, _info| {
                 println!("This is a clousure handler: {}", param);
 
                 Ok(json!(null))
-           })
+           },
         });
 
     let route2 = Router::new()
         .get(ApiMethod {
-            handler: Box::new(test_sync_api_handler),
+            handler: test_sync_api_handler,
             description: "This is a simple test.",
             parameters: parameter!{
                 force => Boolean!{

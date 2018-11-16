@@ -8,7 +8,7 @@ pub struct ApiMethod {
     pub description: &'static str,
     pub parameters: Schema,
     pub returns: Schema,
-    pub handler: Box<Fn(Value, &ApiMethod) -> Result<Value, Error> + Send + Sync>,
+    pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
 }
 
 pub enum SubRoute {
