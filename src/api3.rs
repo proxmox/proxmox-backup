@@ -58,7 +58,7 @@ pub fn router() -> Router {
         });
 
     let route = Router::new()
-        .match_all(route2);
+        .match_all("node", route2);
 
     route
 }

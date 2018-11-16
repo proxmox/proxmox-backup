@@ -42,8 +42,8 @@ impl Router {
         self
     }
 
-    pub fn match_all(mut self, router: Router) -> Self {
-        self.subroute = SubRoute::MatchAll { router: Box::new(router), param_name: "test".into() };
+    pub fn match_all<S>(mut self, param_name: S, router: Router) -> Self where S: Into<String> {
+        self.subroute = SubRoute::MatchAll { router: Box::new(router), param_name: param_name.into() };
         self
     }
 
