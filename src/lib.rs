@@ -12,6 +12,7 @@ pub mod api {
 
 }
 
+pub mod getopts;
 
 pub mod api3;
 

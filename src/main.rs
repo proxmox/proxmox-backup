@@ -1,6 +1,13 @@
+#[macro_use]
+extern crate apitest;
+
+use std::collections::HashMap;
+
+use apitest::api::schema::*;
 use apitest::api::router::*;
 use apitest::api::config::*;
 use apitest::api::server::*;
+use apitest::getopts;
 
 //use failure::*;
 use lazy_static::lazy_static;
@@ -12,6 +19,13 @@ use hyper;
 
 fn main() {
     println!("Fast Static Type Definitions 1");
+
+    let schema = parameter!{
+        name => ApiString!{ optional => false }
+    };
+
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    getopts::parse_arguments(&args, &schema);
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
