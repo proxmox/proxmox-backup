@@ -75,17 +75,3 @@ impl Router {
         None
     }
 }
-
-// fixme: remove - not required?
-#[macro_export]
-macro_rules! methodinfo {
-    ($($option:ident => $e:expr),*) => {{
-        let info = Router::new();
-
-        $(
-            info.$option = Some($e);
-        )*
-
-        info
-    }}
-}
