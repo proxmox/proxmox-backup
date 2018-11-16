@@ -51,6 +51,21 @@ impl Router {
         self.get = Some(m);
         self
     }
+    
+    pub fn put(mut self, m: ApiMethod) -> Self {
+        self.put = Some(m);
+        self
+    }
+    
+    pub fn post(mut self, m: ApiMethod) -> Self {
+        self.post = Some(m);
+        self
+    }
+    
+    pub fn delete(mut self, m: ApiMethod) -> Self {
+        self.delete = Some(m);
+        self
+    }
 
     pub fn find_route(&self, components: &[&str]) -> Option<&Router> {
 
