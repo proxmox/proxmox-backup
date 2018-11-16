@@ -177,7 +177,7 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
         Schema::Null => {
             bail!("internal error - found Null schema.");
         }
-        Schema::Boolean(_jss_boolean) => {
+        Schema::Boolean(_boolean_schema) => {
             let res = match value_str.to_lowercase().as_str() {
                 "1" | "on" | "yes" | "true" => true,
                 "0" | "off" | "no" | "false" => false,
@@ -185,16 +185,16 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
             };
             Value::Bool(res)
         }
-        Schema::Integer(jss_integer) => {
+        Schema::Integer(integer_schema) => {
             let res: isize = value_str.parse()?;
 
-            if let Some(minimum) = jss_integer.minimum {
+            if let Some(minimum) = integer_schema.minimum {
                 if res < minimum {
                     bail!("value must have a minimum value of {}", minimum);
                 }
             }
 
-            if let Some(maximum) = jss_integer.maximum {
+            if let Some(maximum) = integer_schema.maximum {
                 if res > maximum {
                     bail!("value must have a maximum value of {}", maximum);
                 }
@@ -202,23 +202,23 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
 
             Value::Number(res.into())
         }
-        Schema::String(jss_string) => {
+        Schema::String(string_schema) => {
             let res: String = value_str.into();
             let char_count = res.chars().count();
 
-            if let Some(min_length) = jss_string.min_length {
+            if let Some(min_length) = string_schema.min_length {
                 if char_count < min_length {
                     bail!("value must be at least {} characters long", min_length);
                 }
             }
 
-            if let Some(max_length) = jss_string.max_length {
+            if let Some(max_length) = string_schema.max_length {
                 if char_count > max_length {
                     bail!("value may only be {} characters long", max_length);
                 }
             }
 
-            match jss_string.format {
+            match string_schema.format {
                 ApiStringFormat::None => { /* do nothing */ }
                 ApiStringFormat::Pattern(ref regex) => {
                     if !regex.is_match(&res) {
@@ -255,13 +255,13 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, te
             for (key, value) in data {
                 if let Some(prop_schema) = properties.get::<str>(key) {
                     match prop_schema {
-                        Schema::Array(jss_array) => {
+                        Schema::Array(array_schema) => {
                             if params[key] == Value::Null {
                                 params[key] = json!([]);
                             }
                             match params[key] {
                                 Value::Array(ref mut array) => {
-                                    match parse_simple_value(value, &jss_array.items) {
+                                    match parse_simple_value(value, &array_schema.items) {
                                         Ok(res) => array.push(res),
                                         Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                                     }
@@ -307,11 +307,11 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, te
             if test_required && errors.len() == 0 {
                 for (name, prop_schema) in properties {
                     let optional = match prop_schema {
-                        Schema::Boolean(jss_boolean) => jss_boolean.optional,
-                        Schema::Integer(jss_integer) => jss_integer.optional,
-                        Schema::String(jss_string) => jss_string.optional,
-                        Schema::Array(jss_array) => jss_array.optional,
-                        Schema::Object(jss_object) => jss_object.optional,
+                        Schema::Boolean(boolean_schema) => boolean_schema.optional,
+                        Schema::Integer(integer_schema) => integer_schema.optional,
+                        Schema::String(string_schema) => string_schema.optional,
+                        Schema::Array(array_schema) => array_schema.optional,
+                        Schema::Object(object_schema) => object_schema.optional,
                         Schema::Null => true,
                     };
                     if optional == false && params[name] == Value::Null {

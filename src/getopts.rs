@@ -68,8 +68,8 @@ pub fn parse_arguments(args: &Vec<String>, schema: &Schema) -> Value {
                                     pos += 1;
                                     data.push((name, next));
                                 } else {
-                                    if let Some(Schema::Boolean(jss_boolean)) = properties.get::<str>(&name) {
-                                        if let Some(default) = jss_boolean.default {
+                                    if let Some(Schema::Boolean(boolean_schema)) = properties.get::<str>(&name) {
+                                        if let Some(default) = boolean_schema.default {
                                             if default == false {
                                                 data.push((name, "true".to_string()));
                                             } else {
