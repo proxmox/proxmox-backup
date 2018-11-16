@@ -340,7 +340,7 @@ pub fn parse_query_string(query: &str, schema: &Schema, test_required: bool) -> 
 }
 
 #[test]
-fn test_shema1() {
+fn test_schema1() {
     let schema = Schema::Object(ObjectSchema {
         description: "TEST",
         optional: false,
