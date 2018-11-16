@@ -21,10 +21,9 @@ impl ApiConfig {
         }
     }
 
-    pub fn find_method(&self, components: &[&str], method: Method) -> Option<&'static ApiMethod> {
+    pub fn find_method(&self, components: &[&str], method: Method, uri_param: &mut HashMap<String, String>) -> Option<&'static ApiMethod> {
 
-        if let Some(info) = self.router.find_route(components) {
-            println!("FOUND INFO");
+        if let Some(info) = self.router.find_route(components, uri_param) {
             let opt_api_method = match method {
                 Method::GET => &info.get,
                 Method::PUT => &info.put,

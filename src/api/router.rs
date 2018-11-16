@@ -67,7 +67,7 @@ impl Router {
         self
     }
 
-    pub fn find_route(&self, components: &[&str]) -> Option<&Router> {
+    pub fn find_route(&self, components: &[&str], uri_param: &mut HashMap<String, String>) -> Option<&Router> {
 
         if components.len() == 0 { return Some(self); };
 
@@ -78,12 +78,13 @@ impl Router {
             SubRoute::Hash(ref dirmap) => {
                 if let Some(ref router) = dirmap.get(dir) {
                     println!("FOUND SUBDIR {}", dir);
-                    return router.find_route(rest);
+                    return router.find_route(rest, uri_param);
                 }
             }
             SubRoute::MatchAll { ref router, ref param_name } => {
                 println!("URI PARAM {} = {}", param_name, dir); // fixme: store somewhere
-                return router.find_route(rest);
+                uri_param.insert(param_name.clone(), dir.into());
+                return router.find_route(rest, uri_param);
             },
         }
 

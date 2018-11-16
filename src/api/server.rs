@@ -5,9 +5,11 @@ use crate::api::config::*;
 use std::fmt;
 use std::path::{PathBuf};
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use failure::*;
-use serde_json::{json, Value};
+use serde_json::{Value};
+use url::form_urlencoded;
 
 use futures::future::{self, Either};
 //use tokio::prelude::*;
@@ -109,6 +111,7 @@ fn get_request_parameters_async(
     info: &'static ApiMethod,
     parts: Parts,
     req_body: Body,
+    uri_param: HashMap<String, String>,
 ) -> Box<Future<Item = Value, Error = failure::Error> + Send>
 {
     let resp = req_body
@@ -126,22 +129,26 @@ fn get_request_parameters_async(
 
             println!("GOT BODY {:?}", bytes);
 
-            let mut test_required = true;
-
-            let mut params = json!({});
+            let mut param_list: Vec<(String, String)> = vec![];
 
             if bytes.len() > 0 {
-                params = parse_query_string(&bytes, &info.parameters, true)?;
-                test_required = false;
+                for (k, v) in form_urlencoded::parse(bytes.as_bytes()).into_owned() {
+                    param_list.push((k, v));
+                }
+
             }
 
             if let Some(query_str) = parts.uri.query() {
-                let query_params = parse_query_string(query_str, &info.parameters, test_required)?;
-
-                for (k, v) in query_params.as_object().unwrap() {
-                    params[k] = v.clone(); // fixme: why clone()??
+                for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
+                    param_list.push((k, v));
                 }
             }
+
+            for (k, v) in uri_param {
+                param_list.push((k.clone(), v.clone()));
+            }
+
+            let params = parse_parameter_strings(&param_list, &info.parameters, true)?;
 
             println!("GOT PARAMS {}", params);
             Ok(params)
@@ -154,9 +161,10 @@ fn handle_sync_api_request(
     info: &'static ApiMethod,
     parts: Parts,
     req_body: Body,
+    uri_param: HashMap<String, String>,
 ) -> BoxFut
 {
-    let params = get_request_parameters_async(info, parts, req_body);
+    let params = get_request_parameters_async(info, parts, req_body, uri_param);
 
     let resp = params
         .and_then(move |params| {
@@ -278,9 +286,11 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))))
             }
 
-            if let Some(api_method) = api.find_method(&components[2..], method) {
+            let mut uri_param = HashMap::new();
+
+            if let Some(api_method) = api.find_method(&components[2..], method, &mut uri_param) {
                 // fixme: handle auth
-                return handle_sync_api_request(api_method, parts, body);
+                return handle_sync_api_request(api_method, parts, body, uri_param);
             }
         }
     } else {
@@ -292,4 +302,3 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
     Box::new(future::err(http_err!(NOT_FOUND, "Path not found.".to_string())))
 }
-
