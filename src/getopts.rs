@@ -16,21 +16,24 @@ fn parse_argument(arg: &str) -> RawArgument {
 
     let length = chars.len();
 
-    if length >= 2 && chars[0] == '-' &&  chars[1] == '-' {
+    if length >= 2 {
 
         if length == 2 { return RawArgument::Separator; }
 
-        for start in 2..length  {
-            if chars[start] == '=' {
-                let name: String = chars[2..start].iter().collect();
-                let value: String = chars[start+1..length].iter().collect();
-                return RawArgument::Option { name, value: Some(value) }
+        if chars[0] == '-' {
+            let first = if chars[1] == '-' { 2 } else { 1 };
+
+            for start in first..length  {
+                if chars[start] == '=' {
+                    let name: String = chars[first..start].iter().collect();
+                    let value: String = chars[start+1..length].iter().collect();
+                    return RawArgument::Option { name, value: Some(value) }
+                }
             }
+
+            let name: String = chars[first..].iter().collect();
+            return RawArgument::Option { name: name, value: None }
         }
-
-        let name: String = chars[2..].iter().collect();
-        return RawArgument::Option { name: name, value: None }
-
     }
 
     RawArgument::Argument { value: arg.to_string() }
