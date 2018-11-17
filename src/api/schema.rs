@@ -171,6 +171,14 @@ macro_rules! parameter {
     }};
 }
 
+pub fn parse_boolean(value_str: &str) -> Result<bool, Error> {
+    match value_str.to_lowercase().as_str() {
+        "1" | "on" | "yes" | "true" => Ok(true),
+        "0" | "off" | "no" | "false" => Ok(false),
+        _ => bail!("Unable to parse boolean option."),
+    }
+}
+
 fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {
 
     let value = match schema {
@@ -178,11 +186,7 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
             bail!("internal error - found Null schema.");
         }
         Schema::Boolean(_boolean_schema) => {
-            let res = match value_str.to_lowercase().as_str() {
-                "1" | "on" | "yes" | "true" => true,
-                "0" | "off" | "no" | "false" => false,
-                _ => bail!("Unable to parse boolean option."),
-            };
+            let res = parse_boolean(value_str)?;
             Value::Bool(res)
         }
         Schema::Integer(integer_schema) => {

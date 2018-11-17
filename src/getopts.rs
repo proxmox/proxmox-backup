@@ -1,6 +1,7 @@
 use crate::api::schema::*;
 
 use failure::*;
+use std::collections::HashMap;
 use serde_json::{json, Value};
 
 #[derive(Debug)]
@@ -72,23 +73,43 @@ pub fn parse_arguments(
                 RawArgument::Option { name, value } => {
                     match value {
                         None => {
-                            if pos < args.len() {
-                                if let RawArgument::Argument { value: next } = parse_argument(&args[pos+1]) {
-                                    pos += 1;
-                                    data.push((name, next));
-                                } else {
-                                    if let Some(Schema::Boolean(boolean_schema)) = properties.get::<str>(&name) {
-                                        if let Some(default) = boolean_schema.default {
-                                            if default == false {
-                                                data.push((name, "true".to_string()));
-                                            } else {
-                                                errors.push(format_err!("parameter '{}': {}", name,
-                                                                        "boolean requires argument."));
-                                            }
-                                        } else {
-                                            data.push((name, "true".to_string()));
-                                        }
+                            let param_schema = properties.get::<str>(&name);
+                            let (want_bool, can_default) = match param_schema {
+                                Some(Schema::Boolean(boolean_schema)) => {
+                                    if let Some(default) = boolean_schema.default {
+                                        if default == true { (true, false); }
                                     }
+                                    (true, true)
+                                }
+                                _ => (false, false),
+                            };
+
+                            if want_bool {
+
+                                let mut next_is_bool = false;
+                                if (pos + 1) < args.len() {
+                                    let next = &args[pos+1];
+                                    if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
+                                }
+
+                                if next_is_bool {
+                                    pos += 1;
+                                    data.push((name, args[pos].clone()));
+                                } else if can_default {
+                                   data.push((name, "true".to_string()));
+                                } else {
+                                    errors.push(format_err!("parameter '{}': {}", name,
+                                                            "missing boolean value."));
+                                }
+
+                            } else {
+
+                                if (pos + 1) < args.len() {
+                                    pos += 1;
+                                    data.push((name, args[pos].clone()));
+                                } else {
+                                    errors.push(format_err!("parameter '{}': {}", name,
+                                                            "missing parameter value."));
                                 }
                             }
                         }
@@ -112,4 +133,31 @@ pub fn parse_arguments(
     let options = parse_parameter_strings(&data, schema, true)?;
 
     Ok((options,rest))
+}
+
+
+#[test]
+fn test_boolean_arg() {
+
+    let schema = parameter!{enable => Boolean!{ optional => false }};
+
+    let mut variants: Vec<Vec<&str>> = vec![];
+    variants.push(vec!["-enable"]);
+    variants.push(vec!["-enable=1"]);
+    variants.push(vec!["-enable", "yes"]);
+    variants.push(vec!["--enable", "1"]);
+
+    for args in variants {
+        let string_args = args.iter().map(|s| s.to_string()).collect();
+        let res = parse_arguments(&string_args, &schema);
+        println!("RES: {:?}", res);
+        assert!(res.is_ok());
+        if let Ok((options, rest)) = res {
+            assert!(options["enable"] == true);
+            assert!(rest.len() == 0);
+        }
+    }
+
+    //Ok((options, rest)) => {
+
 }
