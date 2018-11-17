@@ -36,13 +36,19 @@ fn parse_argument(arg: &str) -> RawArgument {
     RawArgument::Argument { value: arg.to_string() }
 }
 
-pub fn parse_arguments(args: &Vec<String>, schema: &Schema) -> Value {
+pub fn parse_arguments(
+    args: &Vec<String>,
+    schema: &Schema,
+) -> Result<(Value,Vec<String>), ParameterError> {
 
-    println!("ARGS {:?}", args);
+    let mut errors = ParameterError::new();
 
     let properties = match schema {
         Schema::Object(ObjectSchema { properties, .. }) => properties,
-        _ => panic!("Expected Object Schema."),
+        _ => {
+            errors.push(format_err!("parse arguments failed - got strange parameters (expected object schema)."));
+            return Err(errors);
+        },
     };
 
     let mut data: Vec<(String, String)> = vec![];
@@ -73,7 +79,8 @@ pub fn parse_arguments(args: &Vec<String>, schema: &Schema) -> Value {
                                             if default == false {
                                                 data.push((name, "true".to_string()));
                                             } else {
-                                                panic!("negative Bool requires argument");
+                                                errors.push(format_err!("parameter '{}': {}", name,
+                                                                        "boolean requires argument."));
                                             }
                                         } else {
                                             data.push((name, "true".to_string()));
@@ -97,13 +104,9 @@ pub fn parse_arguments(args: &Vec<String>, schema: &Schema) -> Value {
         if pos >= args.len() { break; }
     }
 
-    println!("Options {:?}", data);
-    println!("REST {:?}", rest);
+    if errors.len() > 0 { return Err(errors); }
 
-    match parse_parameter_strings(&data, schema, true) {
-        Ok(value) => value,
-        Err(perror) => {
-            panic!(format!("{:?}", perror));
-        }
-    }
+    let options = parse_parameter_strings(&data, schema, true)?;
+
+    Ok((options,rest))
 }

@@ -14,15 +14,15 @@ pub struct ParameterError {
 
 impl ParameterError {
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { error_list: vec![] }
     }
 
-    fn push(&mut self, value: Error) {
+    pub fn push(&mut self, value: Error) {
         self.error_list.push(value);
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.error_list.len()
     }
 }

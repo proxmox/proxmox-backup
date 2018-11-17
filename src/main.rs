@@ -18,14 +18,23 @@ use futures::future::Future;
 use hyper;
 
 fn main() {
-    println!("Fast Static Type Definitions 1");
+    println!("Proxmox REST Server example.");
 
     let schema = parameter!{
         name => ApiString!{ optional => false }
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    getopts::parse_arguments(&args, &schema);
+    match getopts::parse_arguments(&args, &schema) {
+        Ok((options, rest)) => {
+            println!("Got Options: {}", options);
+            println!("Remaining Arguments: {:?}", rest);
+        }
+        Err(err) => {
+            eprintln!("Unable to parse arguments:\n{}", err);
+            std::process::exit(-1);
+        }
+    }
 
     let addr = ([127, 0, 0, 1], 8007).into();
 
