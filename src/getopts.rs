@@ -145,6 +145,7 @@ fn test_boolean_arg() {
     variants.push(vec!["-enable"]);
     variants.push(vec!["-enable=1"]);
     variants.push(vec!["-enable", "yes"]);
+    variants.push(vec!["-enable", "Yes"]);
     variants.push(vec!["--enable", "1"]);
 
     for args in variants {
