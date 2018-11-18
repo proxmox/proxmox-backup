@@ -60,7 +60,7 @@ pub fn parse_arguments(
 
     let mut skip = false;
 
-    loop {
+    while pos < args.len() {
         if skip {
             rest.push(args[pos].clone());
         } else {
@@ -127,7 +127,6 @@ pub fn parse_arguments(
         }
 
         pos += 1;
-        if pos >= args.len() { break; }
     }
 
     for i in 0..arg_param.len() {
