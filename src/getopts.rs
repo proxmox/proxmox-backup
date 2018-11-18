@@ -78,14 +78,18 @@ pub fn parse_arguments(
                                 _ => (false, false),
                             };
 
-                            if want_bool {
+                            let mut next_is_argument = false;
+                            let mut next_is_bool = false;
 
-                                let mut next_is_bool = false;
-                                if (pos + 1) < args.len() {
-                                    let next = &args[pos+1];
+                            if (pos + 1) < args.len() {
+                                let next = &args[pos+1];
+                                if let RawArgument::Argument { value: _} = parse_argument(next) {
+                                    next_is_argument = true;
                                     if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
                                 }
+                            }
 
+                            if want_bool {
                                 if next_is_bool {
                                     pos += 1;
                                     data.push((name, args[pos].clone()));
@@ -98,7 +102,7 @@ pub fn parse_arguments(
 
                             } else {
 
-                                if (pos + 1) < args.len() {
+                                if next_is_argument {
                                     pos += 1;
                                     data.push((name, args[pos].clone()));
                                 } else {
