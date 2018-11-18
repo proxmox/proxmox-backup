@@ -25,7 +25,7 @@ fn main() {
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match getopts::parse_arguments(&args, &schema) {
+    match getopts::parse_arguments(&args, &vec![], &schema) {
         Ok((options, rest)) => {
             println!("Got Options: {}", options);
             println!("Remaining Arguments: {:?}", rest);

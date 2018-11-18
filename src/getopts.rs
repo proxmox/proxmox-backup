@@ -45,6 +45,7 @@ fn parse_argument(arg: &str) -> RawArgument {
 
 pub fn parse_arguments(
     args: &Vec<String>,
+    arg_param: &Vec<String>,
     schema: &ObjectSchema,
 ) -> Result<(Value,Vec<String>), ParameterError> {
 
@@ -129,7 +130,19 @@ pub fn parse_arguments(
         if pos >= args.len() { break; }
     }
 
+    for i in 0..arg_param.len() {
+        if rest.len() > i {
+            data.push((arg_param[i].clone(), rest[i].clone()));
+        } else {
+            errors.push(format_err!("missing argument '{}'", arg_param[i]));
+        }
+    }
+
     if errors.len() > 0 { return Err(errors); }
+
+    if arg_param.len() > 0 {
+        rest = rest[arg_param.len()..].to_vec();
+    }
 
     let options = parse_parameter_strings(&data, schema, true)?;
 
@@ -158,12 +171,30 @@ fn test_boolean_arg() {
 
     for (args, expect) in variants {
         let string_args = args.iter().map(|s| s.to_string()).collect();
-        let res = parse_arguments(&string_args, &schema);
+        let res = parse_arguments(&string_args, &vec![], &schema);
         assert!(res.is_ok());
         if let Ok((options, rest)) = res {
             assert!(options["enable"] == expect);
             assert!(rest.len() == 0);
         }
     }
+}
 
+#[test]
+fn test_argument_paramenter() {
+
+    let schema = parameter!{
+        enable => Boolean!{ optional => false },
+        storage => ApiString!{ optional => false }
+    };
+
+    let args = vec!["-enable", "local"];
+    let string_args = args.iter().map(|s| s.to_string()).collect();
+    let res = parse_arguments(&string_args, &vec!["storage".to_string()], &schema);
+    assert!(res.is_ok());
+    if let Ok((options, rest)) = res {
+        assert!(options["enable"] == true);
+        assert!(options["storage"] == "local");
+        assert!(rest.len() == 0);
+    }
 }
