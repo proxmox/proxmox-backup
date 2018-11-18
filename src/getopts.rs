@@ -19,10 +19,13 @@ fn parse_argument(arg: &str) -> RawArgument {
 
     if length >= 2 {
 
-        if length == 2 { return RawArgument::Separator; }
-
         if chars[0] == '-' {
-            let first = if chars[1] == '-' { 2 } else { 1 };
+            let mut first = 1;
+
+            if chars[1] == '-' {
+                if length == 2 { return RawArgument::Separator; }
+                first = 2;
+           }
 
             for start in first..length  {
                 if chars[start] == '=' {
@@ -83,7 +86,7 @@ pub fn parse_arguments(
 
                             if (pos + 1) < args.len() {
                                 let next = &args[pos+1];
-                                if let RawArgument::Argument { value: _} = parse_argument(next) {
+                                 if let RawArgument::Argument { value: _} = parse_argument(next) {
                                     next_is_argument = true;
                                     if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
                                 }
@@ -139,24 +142,28 @@ fn test_boolean_arg() {
 
     let schema = parameter!{enable => Boolean!{ optional => false }};
 
-    let mut variants: Vec<Vec<&str>> = vec![];
-    variants.push(vec!["-enable"]);
-    variants.push(vec!["-enable=1"]);
-    variants.push(vec!["-enable", "yes"]);
-    variants.push(vec!["-enable", "Yes"]);
-    variants.push(vec!["--enable", "1"]);
+    let mut variants: Vec<(Vec<&str>, bool)> = vec![];
+    variants.push((vec!["-enable"], true));
+    variants.push((vec!["-enable=1"], true));
+    variants.push((vec!["-enable", "yes"], true));
+    variants.push((vec!["-enable", "Yes"], true));
+    variants.push((vec!["--enable", "1"], true));
+    variants.push((vec!["--enable", "ON"], true));
+    variants.push((vec!["--enable", "true"], true));
 
-    for args in variants {
+    variants.push((vec!["--enable", "0"], false));
+    variants.push((vec!["--enable", "no"], false));
+    variants.push((vec!["--enable", "off"], false));
+    variants.push((vec!["--enable", "false"], false));
+
+    for (args, expect) in variants {
         let string_args = args.iter().map(|s| s.to_string()).collect();
         let res = parse_arguments(&string_args, &schema);
-        println!("RES: {:?}", res);
         assert!(res.is_ok());
         if let Ok((options, rest)) = res {
-            assert!(options["enable"] == true);
+            assert!(options["enable"] == expect);
             assert!(rest.len() == 0);
         }
     }
-
-    //Ok((options, rest)) => {
 
 }
