@@ -42,18 +42,12 @@ fn parse_argument(arg: &str) -> RawArgument {
 
 pub fn parse_arguments(
     args: &Vec<String>,
-    schema: &Schema,
+    schema: &ObjectSchema,
 ) -> Result<(Value,Vec<String>), ParameterError> {
 
     let mut errors = ParameterError::new();
 
-    let properties = match schema {
-        Schema::Object(ObjectSchema { properties, .. }) => properties,
-        _ => {
-            errors.push(format_err!("parse arguments failed - got strange parameters (expected object schema)."));
-            return Err(errors);
-        },
-    };
+    let properties = &schema.properties;
 
     let mut data: Vec<(String, String)> = vec![];
     let mut rest: Vec<String> = vec![];

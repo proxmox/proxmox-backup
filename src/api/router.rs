@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 pub struct ApiMethod {
     pub description: &'static str,
-    pub parameters: Schema,
+    pub parameters: ObjectSchema,
     pub returns: Schema,
     pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
 }

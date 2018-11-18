@@ -144,17 +144,15 @@ macro_rules! ApiString {
 #[macro_export]
 macro_rules! parameter {
     () => {{
-        let inner = ObjectSchema {
+        ObjectSchema {
             description: "",
             optional: false,
             additional_properties: false,
             properties: HashMap::<&'static str, Schema>::new(),
-        };
-
-        Schema::Object(inner)
+        }
     }};
     ($($name:ident => $e:expr),*) => {{
-        let inner = ObjectSchema {
+        ObjectSchema {
             description: "",
             optional: false,
             additional_properties: false,
@@ -165,9 +163,7 @@ macro_rules! parameter {
                 )*
                 map
             }
-        };
-
-        Schema::Object(inner)
+        }
     }};
 }
 
@@ -246,7 +242,7 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
     Ok(value)
 }
 
-pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, test_required: bool) -> Result<Value, ParameterError> {
+pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSchema, test_required: bool) -> Result<Value, ParameterError> {
 
     println!("QUERY Strings {:?}", data);
 
@@ -254,78 +250,74 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, te
 
     let mut errors = ParameterError::new();
 
-    match schema {
-        Schema::Object(ObjectSchema { properties, additional_properties, .. })   => {
-            for (key, value) in data {
-                if let Some(prop_schema) = properties.get::<str>(key) {
-                    match prop_schema {
-                        Schema::Array(array_schema) => {
-                            if params[key] == Value::Null {
-                                params[key] = json!([]);
-                            }
-                            match params[key] {
-                                Value::Array(ref mut array) => {
-                                    match parse_simple_value(value, &array_schema.items) {
-                                        Ok(res) => array.push(res),
-                                        Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
-                                    }
-                                }
-                                _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
-                            }
-                        }
-                        _ => {
-                            match parse_simple_value(value, prop_schema) {
-                                Ok(res) => {
-                                    if params[key] == Value::Null {
-                                        params[key] = res;
-                                    } else {
-                                         errors.push(format_err!("parameter '{}': duplicate parameter.", key));
-                                    }
-                                },
+    let properties = &schema.properties;
+    let additional_properties = schema.additional_properties;
+
+    for (key, value) in data {
+        if let Some(prop_schema) = properties.get::<str>(key) {
+            match prop_schema {
+                Schema::Array(array_schema) => {
+                    if params[key] == Value::Null {
+                        params[key] = json!([]);
+                    }
+                    match params[key] {
+                        Value::Array(ref mut array) => {
+                            match parse_simple_value(value, &array_schema.items) {
+                                Ok(res) => array.push(res),
                                 Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                             }
                         }
-
+                        _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
                     }
-                } else {
-                    if *additional_properties {
-                        match params[key] {
-                            Value::Null => {
-                                params[key] = Value::String(value.to_owned());
-                            },
-                            Value::String(ref old) => {
-                                params[key] = Value::Array(
-                                    vec![Value::String(old.to_owned()),  Value::String(value.to_owned())]);
+                }
+                _ => {
+                    match parse_simple_value(value, prop_schema) {
+                        Ok(res) => {
+                            if params[key] == Value::Null {
+                                params[key] = res;
+                            } else {
+                                errors.push(format_err!("parameter '{}': duplicate parameter.", key));
                             }
-                            Value::Array(ref mut array) => {
-                                array.push(Value::String(value.to_string()));
-                            }
-                            _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
-                        }
-                    } else {
-                        errors.push(format_err!("parameter '{}': schema does not allow additional properties.", key));
+                        },
+                        Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                     }
                 }
             }
-
-            if test_required && errors.len() == 0 {
-                for (name, prop_schema) in properties {
-                    let optional = match prop_schema {
-                        Schema::Boolean(boolean_schema) => boolean_schema.optional,
-                        Schema::Integer(integer_schema) => integer_schema.optional,
-                        Schema::String(string_schema) => string_schema.optional,
-                        Schema::Array(array_schema) => array_schema.optional,
-                        Schema::Object(object_schema) => object_schema.optional,
-                        Schema::Null => true,
-                    };
-                    if optional == false && params[name] == Value::Null {
-                        errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
+        } else {
+            if additional_properties {
+                match params[key] {
+                    Value::Null => {
+                        params[key] = Value::String(value.to_owned());
+                    },
+                    Value::String(ref old) => {
+                        params[key] = Value::Array(
+                            vec![Value::String(old.to_owned()),  Value::String(value.to_owned())]);
                     }
+                    Value::Array(ref mut array) => {
+                        array.push(Value::String(value.to_string()));
+                    }
+                    _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
                 }
+            } else {
+                errors.push(format_err!("parameter '{}': schema does not allow additional properties.", key));
             }
         }
-        _ => errors.push(format_err!("Got unexpected schema type in parse_parameter_strings.")),
+    }
 
+    if test_required && errors.len() == 0 {
+        for (name, prop_schema) in properties {
+            let optional = match prop_schema {
+                Schema::Boolean(boolean_schema) => boolean_schema.optional,
+                Schema::Integer(integer_schema) => integer_schema.optional,
+                Schema::String(string_schema) => string_schema.optional,
+                Schema::Array(array_schema) => array_schema.optional,
+                Schema::Object(object_schema) => object_schema.optional,
+                Schema::Null => true,
+            };
+            if optional == false && params[name] == Value::Null {
+                errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
+            }
+        }
     }
 
     if errors.len() > 0 {
@@ -335,7 +327,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &Schema, te
     }
 }
 
-pub fn parse_query_string(query: &str, schema: &Schema, test_required: bool) -> Result<Value,  ParameterError> {
+pub fn parse_query_string(query: &str, schema: &ObjectSchema, test_required: bool) -> Result<Value,  ParameterError> {
 
     let param_list: Vec<(String, String)> =
         form_urlencoded::parse(query.as_bytes()).into_owned().collect();
