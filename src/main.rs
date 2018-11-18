@@ -17,11 +17,65 @@ use futures::future::Future;
 
 use hyper;
 
+use std::thread;
+use std::sync::{Arc, Mutex};
+use failure::*;
+use tokio::prelude::*;
+
+struct StorageOperation {
+    state: Arc<Mutex<bool>>,
+    running: bool,
+}
+
+impl StorageOperation {
+
+    fn new() -> Self {
+        StorageOperation { state: Arc::new(Mutex::new(false)), running: false }
+    }
+
+    fn run(&mut self, task: task::Task) {
+
+        let state = self.state.clone();
+
+        thread::spawn(move || {
+            println!("state {}", state.lock().unwrap());
+            println!("Starting Asnyc worker thread");
+            thread::sleep(::std::time::Duration::from_secs(5));
+            println!("End Asnyc worker thread");
+            *state.lock().unwrap() = true;
+            task.notify();
+        });
+    }
+}
+
+impl Future for StorageOperation {
+    type Item = ();
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        if *self.state.lock().unwrap() != true {
+            println!("not ready - parking the task.");
+
+            if !self.running {
+                println!("starting storage thread");
+                self.run(task::current());
+                self.running = true;
+            }
+
+            Ok(Async::NotReady)
+        } else {
+            println!("storage thread ready - task will complete.");
+            Ok(Async::Ready(()))
+        }
+    }
+}
+
+
 fn main() {
     println!("Proxmox REST Server example.");
 
     let schema = parameter!{
-        name => ApiString!{ optional => false }
+        name => ApiString!{ optional => true }
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -60,6 +114,15 @@ fn main() {
     let server = hyper::Server::bind(&addr)
         .serve(rest_server)
         .map_err(|e| eprintln!("server error: {}", e));
+
+
+    if false {
+        let op = StorageOperation::new();
+        hyper::rt::run(op.map_err(|e| {
+            println!("Got Error: {}", e);
+            ()
+        }));
+    }
 
     // Run this server for... forever!
     hyper::rt::run(server);
