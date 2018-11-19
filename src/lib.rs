@@ -12,6 +12,11 @@ pub mod api {
 
 }
 
+pub mod storage {
+
+    pub mod futures;
+}
+
 pub mod getopts;
 
 pub mod api3;
