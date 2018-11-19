@@ -12,6 +12,8 @@ pub mod api {
 
 }
 
+pub mod section_config;
+
 pub mod storage {
 
     pub mod futures;
