@@ -1,5 +1,6 @@
 use failure::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 
 use crate::api::schema::*;
@@ -44,10 +45,10 @@ pub fn router() -> Router {
             handler: test_sync_api_handler,
             description: "This is a simple test.",
             parameters: parameter!{
-                force => Boolean!{
+                force => Arc::new(Boolean!{
                     optional => true,
                     description => "Test for boolean options."
-                }
+                })
             },
             returns: Schema::Null,
         })

@@ -2,6 +2,8 @@ use crate::api::schema::*;
 
 use failure::*;
 use std::collections::HashMap;
+use std::sync::Arc;
+
 use serde_json::{json, Value};
 
 #[derive(Debug)]
@@ -71,16 +73,18 @@ pub fn parse_arguments(
                 RawArgument::Option { name, value } => {
                     match value {
                         None => {
-                            let param_schema = properties.get::<str>(&name);
-                            let (want_bool, can_default) = match param_schema {
-                                Some(Schema::Boolean(boolean_schema)) => {
+                            let mut want_bool = false;
+                            let mut can_default = false;
+                            if let Some(param_schema) = properties.get::<str>(&name) {
+                                if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
+                                    want_bool = true;
                                     if let Some(default) = boolean_schema.default {
-                                        if default == true { (true, false); }
+                                        if default == false { can_default = true; }
+                                    } else {
+                                        can_default = true;
                                     }
-                                    (true, true)
                                 }
-                                _ => (false, false),
-                            };
+                            }
 
                             let mut next_is_argument = false;
                             let mut next_is_bool = false;
@@ -152,7 +156,7 @@ pub fn parse_arguments(
 #[test]
 fn test_boolean_arg() {
 
-    let schema = parameter!{enable => Boolean!{ optional => false }};
+    let schema = parameter!{enable => Arc::new(Boolean!{ optional => false })};
 
     let mut variants: Vec<(Vec<&str>, bool)> = vec![];
     variants.push((vec!["-enable"], true));
@@ -183,8 +187,8 @@ fn test_boolean_arg() {
 fn test_argument_paramenter() {
 
     let schema = parameter!{
-        enable => Boolean!{ optional => false },
-        storage => ApiString!{ optional => false }
+        enable => Arc::new(Boolean!{ optional => false }),
+        storage => Arc::new(ApiString!{ optional => false })
     };
 
     let args = vec!["-enable", "local"];

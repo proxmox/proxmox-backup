@@ -2,6 +2,7 @@
 extern crate apitest;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use apitest::api::schema::*;
 use apitest::api::router::*;
@@ -20,7 +21,7 @@ fn main() {
     println!("Proxmox REST Server example.");
 
     let schema = parameter!{
-        name => ApiString!{ optional => true }
+        name => Arc::new(ApiString!{ optional => true })
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();

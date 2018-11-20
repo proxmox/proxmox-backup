@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use url::form_urlencoded;
 use regex::Regex;
 use std::fmt;
+use std::sync::Arc;
 
 pub type PropertyMap = HashMap<&'static str, Schema>;
 
@@ -67,7 +68,7 @@ pub struct StringSchema {
 pub struct ArraySchema {
     pub description: &'static str,
     pub optional: bool,
-    pub items: Box<Schema>,
+    pub items: Arc<Schema>,
 }
 
 #[derive(Debug)]
@@ -75,7 +76,7 @@ pub struct ObjectSchema {
     pub description: &'static str,
     pub optional: bool,
     pub additional_properties: bool,
-    pub properties: HashMap<&'static str, Schema>,
+    pub properties: HashMap<&'static str, Arc<Schema>>,
 }
 
 #[derive(Debug)]
@@ -130,7 +131,7 @@ pub enum ApiStringFormat {
     None,
     Enum(Vec<String>),
     Pattern(Box<Regex>),
-    Complex(Box<Schema>),
+    Complex(Arc<Schema>),
 }
 
 #[macro_export]
@@ -148,7 +149,7 @@ macro_rules! parameter {
             description: "",
             optional: false,
             additional_properties: false,
-            properties: HashMap::<&'static str, Schema>::new(),
+            properties: HashMap::<&'static str, Arc<Schema>>::new(),
         }
     }};
     ($($name:ident => $e:expr),*) => {{
@@ -157,7 +158,7 @@ macro_rules! parameter {
             optional: false,
             additional_properties: false,
             properties: {
-                let mut map = HashMap::<&'static str, Schema>::new();
+                let mut map = HashMap::<&'static str, Arc<Schema>>::new();
                 $(
                     map.insert(stringify!($name), $e);
                 )*
@@ -255,7 +256,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
 
     for (key, value) in data {
         if let Some(prop_schema) = properties.get::<str>(key) {
-            match prop_schema {
+            match prop_schema.as_ref() {
                 Schema::Array(array_schema) => {
                     if params[key] == Value::Null {
                         params[key] = json!([]);
@@ -306,7 +307,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
 
     if test_required && errors.len() == 0 {
         for (name, prop_schema) in properties {
-            let optional = match prop_schema {
+            let optional = match prop_schema.as_ref() {
                 Schema::Boolean(boolean_schema) => boolean_schema.optional,
                 Schema::Integer(integer_schema) => integer_schema.optional,
                 Schema::String(string_schema) => string_schema.optional,
@@ -354,24 +355,24 @@ fn test_schema1() {
 #[test]
 fn test_query_string() {
 
-    let schema = parameter!{name => ApiString!{ optional => false }};
+    let schema = parameter!{name => Arc::new(ApiString!{ optional => false })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{name => ApiString!{ optional => true }};
+    let schema = parameter!{name => Arc::new(ApiString!{ optional => true })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
 
     // TEST min_length and max_length
 
-    let schema = parameter!{name => ApiString!{
+    let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
         min_length => Some(5),
         max_length => Some(10)
 
-    }};
+    })};
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -387,10 +388,10 @@ fn test_query_string() {
 
     // TEST regex pattern
 
-    let schema = parameter!{name => ApiString!{
+    let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
         format => ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))
-    }};
+    })};
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -398,10 +399,10 @@ fn test_query_string() {
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_ok());
 
-    let schema = parameter!{name => ApiString!{
+    let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
         format => ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))
-    }};
+    })};
 
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_err());
@@ -411,10 +412,10 @@ fn test_query_string() {
 
     // TEST string enums
 
-    let schema = parameter!{name => ApiString!{
+    let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
         format => ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])
-    }};
+    })};
 
     let res = parse_query_string("name=noenum", &schema, true);
     assert!(res.is_err());
@@ -433,16 +434,16 @@ fn test_query_string() {
 #[test]
 fn test_query_integer() {
 
-    let schema = parameter!{count => Integer!{ optional => false }};
+    let schema = parameter!{count => Arc::new(Integer!{ optional => false })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{count => Integer!{
+    let schema = parameter!{count => Arc::new(Integer!{
         optional => true,
         minimum => Some(-3),
         maximum => Some(50)
-    }};
+    })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
@@ -472,12 +473,12 @@ fn test_query_integer() {
 #[test]
 fn test_query_boolean() {
 
-    let schema = parameter!{force => Boolean!{ optional => false }};
+    let schema = parameter!{force => Arc::new(Boolean!{ optional => false })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{force => Boolean!{ optional => true }};
+    let schema = parameter!{force => Arc::new(Boolean!{ optional => true })};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
