@@ -20,8 +20,10 @@ use hyper;
 fn main() {
     println!("Proxmox REST Server example.");
 
+    let prop = Arc::new(ApiString!{ optional => true });
     let schema = parameter!{
-        name => Arc::new(ApiString!{ optional => true })
+        name1 => prop.clone(),
+        name2 => prop.clone()
     };
 
     let args: Vec<String> = std::env::args().skip(1).collect();

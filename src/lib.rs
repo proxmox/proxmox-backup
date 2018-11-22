@@ -5,6 +5,7 @@ pub mod api {
 
     #[macro_use]
     pub mod schema;
+    pub mod registry;
     #[macro_use]
     pub mod router;
     pub mod config;

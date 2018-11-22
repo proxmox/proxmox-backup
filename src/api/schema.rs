@@ -61,7 +61,7 @@ pub struct StringSchema {
     pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
-    pub format: ApiStringFormat,
+    pub format: Option<Arc<ApiStringFormat>>,
 }
 
 #[derive(Debug)]
@@ -123,15 +123,33 @@ pub const DEFAULTSTRING: StringSchema = StringSchema {
     default: None,
     min_length: None,
     max_length: None,
-    format: ApiStringFormat::None,
+    format: None,
 };
 
-#[derive(Debug)]
 pub enum ApiStringFormat {
-    None,
     Enum(Vec<String>),
     Pattern(Box<Regex>),
     Complex(Arc<Schema>),
+    VerifyFn(fn(&str) -> Result<(), Error>),
+}
+
+impl std::fmt::Debug for ApiStringFormat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ApiStringFormat::VerifyFn(fnptr) => {
+                write!(f, "VerifyFn({:p}", fnptr)
+            }
+            ApiStringFormat::Enum(strvec) => {
+                write!(f, "Enum({:?}", strvec)
+            }
+            ApiStringFormat::Pattern(regex) => {
+                write!(f, "Pattern({:?}", regex)
+            }
+            ApiStringFormat::Complex(schema) => {
+                write!(f, "Complex({:?}", schema)
+            }
+        }
+    }
 }
 
 #[macro_export]
@@ -219,20 +237,24 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
                 }
             }
 
-            match string_schema.format {
-                ApiStringFormat::None => { /* do nothing */ }
-                ApiStringFormat::Pattern(ref regex) => {
-                    if !regex.is_match(&res) {
-                        bail!("value does not match the regex pattern");
+            if let Some(ref format) = string_schema.format {
+                match format.as_ref() {
+                    ApiStringFormat::Pattern(ref regex) => {
+                        if !regex.is_match(&res) {
+                            bail!("value does not match the regex pattern");
+                        }
                     }
-                }
-                ApiStringFormat::Enum(ref stringvec) => {
-                    if stringvec.iter().find(|&e| *e == res) == None {
-                        bail!("value is not defined in the enumeration.");
+                    ApiStringFormat::Enum(ref stringvec) => {
+                        if stringvec.iter().find(|&e| *e == res) == None {
+                            bail!("value is not defined in the enumeration.");
+                        }
                     }
-                }
-                ApiStringFormat::Complex(ref _subschema) => {
-                    bail!("implement me!");
+                    ApiStringFormat::Complex(ref _subschema) => {
+                        bail!("implement me!");
+                    }
+                    ApiStringFormat::VerifyFn(verify_fn) => {
+                        verify_fn(&res)?;
+                    }
                 }
             }
 
@@ -390,7 +412,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
-        format => ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))
+        format => Some(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
     })};
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -401,7 +423,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
-        format => ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))
+        format => Some(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
     })};
 
     let res = parse_query_string("name=ateststring", &schema, true);
@@ -414,7 +436,7 @@ fn test_query_string() {
 
     let schema = parameter!{name => Arc::new(ApiString!{
         optional => false,
-        format => ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])
+        format => Some(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
     })};
 
     let res = parse_query_string("name=noenum", &schema, true);
