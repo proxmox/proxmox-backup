@@ -156,7 +156,7 @@ pub fn parse_arguments(
 #[test]
 fn test_boolean_arg() {
 
-    let schema = parameter!{enable => Arc::new(Boolean!{ optional => false })};
+    let schema = parameter!{enable => BooleanSchema::new("Enable").optional(false).arc()};
 
     let mut variants: Vec<(Vec<&str>, bool)> = vec![];
     variants.push((vec!["-enable"], true));
@@ -187,8 +187,8 @@ fn test_boolean_arg() {
 fn test_argument_paramenter() {
 
     let schema = parameter!{
-        enable => Arc::new(Boolean!{ optional => false }),
-        storage => Arc::new(ApiString!{ optional => false })
+        enable => BooleanSchema::new("Enable.").optional(false).arc(),
+        storage => StringSchema::new("Storatge:").optional(false).arc()
     };
 
     let args = vec!["-enable", "local"];

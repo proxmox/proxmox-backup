@@ -20,7 +20,9 @@ use hyper;
 fn main() {
     println!("Proxmox REST Server example.");
 
-    let prop = Arc::new(ApiString!{ optional => true });
+    let prop = StringSchema::new("This is a test").arc();
+
+    //let prop = Arc::new(ApiString!{ optional => true });
     let schema = parameter!{
         name1 => prop.clone(),
         name2 => prop.clone()

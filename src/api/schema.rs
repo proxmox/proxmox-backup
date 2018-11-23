@@ -45,6 +45,31 @@ pub struct BooleanSchema {
     pub default: Option<bool>,
 }
 
+impl BooleanSchema {
+
+    pub fn new(description: &'static str) -> Self {
+        BooleanSchema {
+            description: description,
+            optional: false,
+            default: None,
+        }
+    }
+
+    pub fn optional(mut self, optional: bool) -> Self {
+        self.optional = optional;
+        self
+    }
+
+    pub fn default(mut self, default: bool) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    pub fn arc(self) -> Arc<Schema> {
+        Arc::new(self.into())
+    }
+}
+
 #[derive(Debug)]
 pub struct IntegerSchema {
     pub description: &'static str,
@@ -54,6 +79,44 @@ pub struct IntegerSchema {
     pub default: Option<isize>,
 }
 
+impl IntegerSchema {
+
+    pub fn new(description: &'static str) -> Self {
+        IntegerSchema {
+            description: description,
+            optional: false,
+            default: None,
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn optional(mut self, optional: bool) -> Self {
+        self.optional = optional;
+        self
+    }
+
+    pub fn default(mut self, default: isize) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    pub fn minimum(mut self, minimum: isize) -> Self {
+        self.minimum = Some(minimum);
+        self
+    }
+
+    pub fn maximum(mut self, maximium: isize) -> Self {
+        self.maximum = Some(maximium);
+        self
+    }
+
+    pub fn arc(self) -> Arc<Schema> {
+        Arc::new(self.into())
+    }
+}
+
+
 #[derive(Debug)]
 pub struct StringSchema {
     pub description: &'static str,
@@ -62,6 +125,49 @@ pub struct StringSchema {
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
     pub format: Option<Arc<ApiStringFormat>>,
+}
+
+impl StringSchema {
+
+    pub fn new(description: &'static str) -> Self {
+        StringSchema {
+            description: description,
+            optional: false,
+            default: None,
+            min_length: None,
+            max_length: None,
+            format: None,
+        }
+    }
+
+    pub fn optional(mut self, optional: bool) -> Self {
+        self.optional = optional;
+        self
+    }
+
+    pub fn default(mut self, text: &'static str) -> Self {
+        self.default = Some(text);
+        self
+    }
+
+    pub fn format(mut self, format: Arc<ApiStringFormat>) -> Self {
+        self.format = Some(format);
+        self
+    }
+
+    pub fn min_length(mut self, min_length: usize) -> Self {
+        self.min_length = Some(min_length);
+        self
+    }
+
+    pub fn max_length(mut self, max_length: usize) -> Self {
+        self.max_length = Some(max_length);
+        self
+    }
+
+    pub fn arc(self) -> Arc<Schema> {
+        Arc::new(self.into())
+    }
 }
 
 #[derive(Debug)]
@@ -89,42 +195,23 @@ pub enum Schema {
     Array(ArraySchema),
 }
 
-pub const DEFAULTBOOL: BooleanSchema = BooleanSchema {
-    description: "",
-    optional: false,
-    default: None,
-};
-
-#[macro_export]
-macro_rules! Boolean {
-    ($($name:ident => $e:expr),*) => {{
-        Schema::Boolean(BooleanSchema { $($name: $e, )* ..DEFAULTBOOL})
-    }}
+impl From<StringSchema> for Schema {
+    fn from(string_schema: StringSchema) -> Self {
+        Schema::String(string_schema)
+    }
 }
 
-pub const DEFAULTINTEGER: IntegerSchema = IntegerSchema {
-    description: "",
-    optional: false,
-    default: None,
-    minimum: None,
-    maximum: None,
-};
-
-#[macro_export]
-macro_rules! Integer {
-    ($($name:ident => $e:expr),*) => {{
-        Schema::Integer(IntegerSchema { $($name: $e, )* ..DEFAULTINTEGER})
-    }}
+impl From<BooleanSchema> for Schema {
+    fn from(boolean_schema: BooleanSchema) -> Self {
+        Schema::Boolean(boolean_schema)
+    }
 }
 
-pub const DEFAULTSTRING: StringSchema = StringSchema {
-    description: "",
-    optional: false,
-    default: None,
-    min_length: None,
-    max_length: None,
-    format: None,
-};
+impl From<IntegerSchema> for Schema {
+    fn from(integer_schema: IntegerSchema) -> Self {
+        Schema::Integer(integer_schema)
+    }
+}
 
 pub enum ApiStringFormat {
     Enum(Vec<String>),
@@ -150,13 +237,6 @@ impl std::fmt::Debug for ApiStringFormat {
             }
         }
     }
-}
-
-#[macro_export]
-macro_rules! ApiString {
-    ($($name:ident => $e:expr),*) => {{
-        Schema::String(StringSchema { $($name: $e, )* ..DEFAULTSTRING})
-    }}
 }
 
 
@@ -377,24 +457,25 @@ fn test_schema1() {
 #[test]
 fn test_query_string() {
 
-    let schema = parameter!{name => Arc::new(ApiString!{ optional => false })};
+    let schema = parameter!{name => StringSchema::new("Name.").optional(false).arc()};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{name => Arc::new(ApiString!{ optional => true })};
+    let schema = parameter!{name => StringSchema::new("Name.").optional(true).arc()};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
 
     // TEST min_length and max_length
 
-    let schema = parameter!{name => Arc::new(ApiString!{
-        optional => false,
-        min_length => Some(5),
-        max_length => Some(10)
-
-    })};
+    let schema = parameter!{
+        name =>  StringSchema::new("Name.")
+            .optional(false)
+            .min_length(5)
+            .max_length(10)
+            .arc()
+    };
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -410,10 +491,12 @@ fn test_query_string() {
 
     // TEST regex pattern
 
-    let schema = parameter!{name => Arc::new(ApiString!{
-        optional => false,
-        format => Some(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
-    })};
+    let schema = parameter!{
+        name => StringSchema::new("Name.")
+            .optional(false)
+            .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
+            .arc()
+    };
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -421,10 +504,12 @@ fn test_query_string() {
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_ok());
 
-    let schema = parameter!{name => Arc::new(ApiString!{
-        optional => false,
-        format => Some(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
-    })};
+    let schema = parameter!{
+        name => StringSchema::new("Name.")
+            .optional(false)
+            .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
+            .arc()
+    };
 
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_err());
@@ -434,10 +519,12 @@ fn test_query_string() {
 
     // TEST string enums
 
-    let schema = parameter!{name => Arc::new(ApiString!{
-        optional => false,
-        format => Some(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
-    })};
+    let schema = parameter!{
+        name => StringSchema::new("Name.")
+            .optional(false)
+            .format(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
+            .arc()
+    };
 
     let res = parse_query_string("name=noenum", &schema, true);
     assert!(res.is_err());
@@ -456,16 +543,18 @@ fn test_query_string() {
 #[test]
 fn test_query_integer() {
 
-    let schema = parameter!{count => Arc::new(Integer!{ optional => false })};
+    let schema = parameter!{count => IntegerSchema::new("Count.").optional(false).arc()};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{count => Arc::new(Integer!{
-        optional => true,
-        minimum => Some(-3),
-        maximum => Some(50)
-    })};
+    let schema = parameter!{
+        count => IntegerSchema::new("Count.")
+            .optional(true)
+            .minimum(-3)
+            .maximum(50)
+            .arc()
+    };
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
@@ -495,12 +584,12 @@ fn test_query_integer() {
 #[test]
 fn test_query_boolean() {
 
-    let schema = parameter!{force => Arc::new(Boolean!{ optional => false })};
+    let schema = parameter!{force => BooleanSchema::new("Force.").optional(false).arc()};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{force => Arc::new(Boolean!{ optional => true })};
+    let schema = parameter!{force => BooleanSchema::new("Force.").optional(true).arc()};
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());

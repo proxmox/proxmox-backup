@@ -27,7 +27,7 @@ impl Registry {
 
     pub fn register_format(&mut self, name: &'static str, format: ApiStringFormat) {
 
-        if let Some(format) = self.formats.get(name) {
+        if let Some(_format) = self.formats.get(name) {
             panic!("standard format '{}' already registered.", name); // fixme: really panic?
         }
 
@@ -42,13 +42,13 @@ impl Registry {
         None
     }
 
-    pub fn register_option(&mut self, name: &'static str, schema: Schema) {
+    pub fn register_option<S: Into<Schema>>(&mut self, name: &'static str, schema: S) {
 
-        if let Some(schema) = self.options.get(name) {
+        if let Some(_schema) = self.options.get(name) {
             panic!("standard option '{}' already registered.", name); // fixme: really panic?
         }
 
-        self.options.insert(name, Arc::new(schema));
+        self.options.insert(name, Arc::new(schema.into()));
     }
 
     pub fn lookup_option(&self, name: &str) -> Option<Arc<Schema>> {
@@ -69,18 +69,16 @@ impl Registry {
 
         self.register_option(
             "pve-vmid",
-            Integer!{
-                description => "The (unique) ID of the VM.",
-                minimum => Some(1),
-                optional => false
-            });
+            IntegerSchema::new("The (unique) ID of the VM.")
+                .minimum(1)
+                .optional(false)
+            );
 
         self.register_option(
             "pve-node",
-            ApiString!{
-                description => "The cluster node name.",
-                format => self.lookup_format("pve-node")
-            });
+            StringSchema::new("The cluster node name.")
+                .format(self.lookup_format("pve-node").unwrap()) //fixme: unwrap?
+        );
      }
 
 }

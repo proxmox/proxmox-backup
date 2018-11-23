@@ -45,10 +45,9 @@ pub fn router() -> Router {
             handler: test_sync_api_handler,
             description: "This is a simple test.",
             parameters: parameter!{
-                force => Arc::new(Boolean!{
-                    optional => true,
-                    description => "Test for boolean options."
-                })
+                force => BooleanSchema::new("Test for boolean options")
+                    .optional(true)
+                    .arc()
             },
             returns: Schema::Null,
         })
