@@ -1,5 +1,7 @@
 extern crate apitest;
 
+use std::sync::Arc;
+
 use apitest::api::schema::*;
 use apitest::api::router::*;
 use apitest::api::config::*;
@@ -16,7 +18,7 @@ use hyper;
 fn main() {
     println!("Proxmox REST Server example.");
 
-    let prop = StringSchema::new("This is a test").arc();
+    let prop : Arc<Schema> = StringSchema::new("This is a test").into();
 
     //let prop = Arc::new(ApiString!{ optional => true });
     let schema = ObjectSchema::new("Parameters.")

@@ -159,7 +159,6 @@ fn test_boolean_arg() {
     let schema =  ObjectSchema::new("Parameters:")
         .required(
             "enable", BooleanSchema::new("Enable")
-                .arc()
         );
 
     let mut variants: Vec<(Vec<&str>, bool)> = vec![];
@@ -191,8 +190,8 @@ fn test_boolean_arg() {
 fn test_argument_paramenter() {
 
     let schema = ObjectSchema::new("Parameters:")
-        .required("enable", BooleanSchema::new("Enable.").arc())
-        .required("storage", StringSchema::new("Storage.").arc());
+        .required("enable", BooleanSchema::new("Enable."))
+        .required("storage", StringSchema::new("Storage."));
 
     let args = vec!["-enable", "local"];
     let string_args = args.iter().map(|s| s.to_string()).collect();

@@ -57,10 +57,6 @@ impl BooleanSchema {
         self.default = Some(default);
         self
     }
-
-    pub fn arc(self) -> Arc<Schema> {
-        Arc::new(self.into())
-    }
 }
 
 #[derive(Debug)]
@@ -95,10 +91,6 @@ impl IntegerSchema {
     pub fn maximum(mut self, maximium: isize) -> Self {
         self.maximum = Some(maximium);
         self
-    }
-
-    pub fn arc(self) -> Arc<Schema> {
-        Arc::new(self.into())
     }
 }
 
@@ -143,10 +135,6 @@ impl StringSchema {
         self.max_length = Some(max_length);
         self
     }
-
-    pub fn arc(self) -> Arc<Schema> {
-        Arc::new(self.into())
-    }
 }
 
 #[derive(Debug)]
@@ -162,10 +150,6 @@ impl ArraySchema {
             description: description,
             items: item_schema,
         }
-    }
-
-    pub fn arc(self) -> Arc<Schema> {
-        Arc::new(self.into())
     }
 }
 
@@ -192,18 +176,14 @@ impl ObjectSchema {
         self
     }
 
-    pub fn required(mut self, name: &'static str, schema: Arc<Schema>) -> Self {
-        self.properties.insert(name, (false, schema));
+    pub fn required<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
+        self.properties.insert(name, (false, schema.into()));
         self
     }
 
-    pub fn optional(mut self, name: &'static str, schema: Arc<Schema>) -> Self {
-        self.properties.insert(name, (true, schema));
+    pub fn optional<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
+        self.properties.insert(name, (true, schema.into()));
         self
-    }
-
-    pub fn arc(self) -> Arc<Schema> {
-        Arc::new(self.into())
     }
 }
 
@@ -223,15 +203,33 @@ impl From<StringSchema> for Schema {
     }
 }
 
+impl From<StringSchema> for Arc<Schema> {
+    fn from(string_schema: StringSchema) -> Self {
+        Arc::new(Schema::String(string_schema))
+    }
+}
+
 impl From<BooleanSchema> for Schema {
     fn from(boolean_schema: BooleanSchema) -> Self {
         Schema::Boolean(boolean_schema)
     }
 }
 
+impl From<BooleanSchema> for Arc<Schema> {
+    fn from(boolean_schema: BooleanSchema) -> Self {
+        Arc::new(Schema::Boolean(boolean_schema))
+    }
+}
+
 impl From<IntegerSchema> for Schema {
     fn from(integer_schema: IntegerSchema) -> Self {
         Schema::Integer(integer_schema)
+    }
+}
+
+impl From<IntegerSchema> for Arc<Schema> {
+    fn from(integer_schema: IntegerSchema) -> Self {
+        Arc::new(Schema::Integer(integer_schema))
     }
 }
 
@@ -244,6 +242,12 @@ impl From<ObjectSchema> for Schema {
 impl From<ArraySchema> for Schema {
     fn from(array_schema: ArraySchema) -> Self {
         Schema::Array(array_schema)
+    }
+}
+
+impl From<ArraySchema> for Arc<Schema> {
+    fn from(array_schema: ArraySchema) -> Self {
+        Arc::new(Schema::Array(array_schema))
     }
 }
 
@@ -456,13 +460,13 @@ fn test_schema1() {
 fn test_query_string() {
 
     let schema = ObjectSchema::new("Parameters.")
-        .required("name", StringSchema::new("Name.").arc());
+        .required("name", StringSchema::new("Name."));
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
     let schema = ObjectSchema::new("Parameters.")
-        .optional("name", StringSchema::new("Name.").arc());
+        .optional("name", StringSchema::new("Name."));
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
@@ -474,7 +478,6 @@ fn test_query_string() {
             "name", StringSchema::new("Name.")
                 .min_length(5)
                 .max_length(10)
-                .arc()
         );
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -495,7 +498,6 @@ fn test_query_string() {
         .required(
             "name", StringSchema::new("Name.")
                 .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
-                .arc()
         );
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -508,7 +510,6 @@ fn test_query_string() {
         .required(
             "name", StringSchema::new("Name.")
                 .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
-                .arc()
         );
 
     let res = parse_query_string("name=ateststring", &schema, true);
@@ -523,7 +524,6 @@ fn test_query_string() {
         .required(
             "name", StringSchema::new("Name.")
                 .format(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
-                .arc()
         );
 
     let res = parse_query_string("name=noenum", &schema, true);
@@ -546,7 +546,6 @@ fn test_query_integer() {
     let schema = ObjectSchema::new("Parameters.")
         .required(
             "count" , IntegerSchema::new("Count.")
-                .arc()
         );
 
     let res = parse_query_string("", &schema, true);
@@ -557,7 +556,6 @@ fn test_query_integer() {
             "count", IntegerSchema::new("Count.")
                 .minimum(-3)
                 .maximum(50)
-                .arc()
         );
 
     let res = parse_query_string("", &schema, true);
@@ -591,7 +589,6 @@ fn test_query_boolean() {
     let schema = ObjectSchema::new("Parameters.")
         .required(
             "force", BooleanSchema::new("Force.")
-                .arc()
         );
 
     let res = parse_query_string("", &schema, true);
@@ -600,7 +597,6 @@ fn test_query_boolean() {
     let schema = ObjectSchema::new("Parameters.")
         .optional(
             "force", BooleanSchema::new("Force.")
-                .arc()
         );
 
     let res = parse_query_string("", &schema, true);

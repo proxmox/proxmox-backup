@@ -45,11 +45,7 @@ pub fn router() -> Router {
             handler: test_sync_api_handler,
             description: "This is a simple test.",
             parameters: ObjectSchema::new("This is a simple test.")
-                .optional(
-                    "force",
-                    BooleanSchema::new("Test for boolean options")
-                        .arc()
-                ),
+                .optional("force", BooleanSchema::new("Test for boolean options")),
             returns: Schema::Null,
         })
         .subdirs({
