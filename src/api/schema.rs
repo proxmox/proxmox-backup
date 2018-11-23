@@ -155,6 +155,20 @@ pub struct ArraySchema {
     pub items: Arc<Schema>,
 }
 
+impl ArraySchema {
+
+    pub fn new(description: &'static str, item_schema: Arc<Schema>) -> Self {
+        ArraySchema {
+            description: description,
+            items: item_schema,
+        }
+    }
+
+    pub fn arc(self) -> Arc<Schema> {
+        Arc::new(self.into())
+    }
+}
+
 #[derive(Debug)]
 pub struct ObjectSchema {
     pub description: &'static str,
@@ -224,6 +238,12 @@ impl From<IntegerSchema> for Schema {
 impl From<ObjectSchema> for Schema {
     fn from(object_schema: ObjectSchema) -> Self {
         Schema::Object(object_schema)
+    }
+}
+
+impl From<ArraySchema> for Schema {
+    fn from(array_schema: ArraySchema) -> Self {
+        Schema::Array(array_schema)
     }
 }
 
