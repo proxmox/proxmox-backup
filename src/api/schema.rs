@@ -41,7 +41,6 @@ impl fmt::Display for ParameterError {
 #[derive(Debug)]
 pub struct BooleanSchema {
     pub description: &'static str,
-    pub optional: bool,
     pub default: Option<bool>,
 }
 
@@ -50,14 +49,8 @@ impl BooleanSchema {
     pub fn new(description: &'static str) -> Self {
         BooleanSchema {
             description: description,
-            optional: false,
             default: None,
         }
-    }
-
-    pub fn optional(mut self, optional: bool) -> Self {
-        self.optional = optional;
-        self
     }
 
     pub fn default(mut self, default: bool) -> Self {
@@ -73,7 +66,6 @@ impl BooleanSchema {
 #[derive(Debug)]
 pub struct IntegerSchema {
     pub description: &'static str,
-    pub optional: bool,
     pub minimum: Option<isize>,
     pub maximum: Option<isize>,
     pub default: Option<isize>,
@@ -84,16 +76,10 @@ impl IntegerSchema {
     pub fn new(description: &'static str) -> Self {
         IntegerSchema {
             description: description,
-            optional: false,
             default: None,
             minimum: None,
             maximum: None,
         }
-    }
-
-    pub fn optional(mut self, optional: bool) -> Self {
-        self.optional = optional;
-        self
     }
 
     pub fn default(mut self, default: isize) -> Self {
@@ -120,7 +106,6 @@ impl IntegerSchema {
 #[derive(Debug)]
 pub struct StringSchema {
     pub description: &'static str,
-    pub optional: bool,
     pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
@@ -132,17 +117,11 @@ impl StringSchema {
     pub fn new(description: &'static str) -> Self {
         StringSchema {
             description: description,
-            optional: false,
             default: None,
             min_length: None,
             max_length: None,
             format: None,
         }
-    }
-
-    pub fn optional(mut self, optional: bool) -> Self {
-        self.optional = optional;
-        self
     }
 
     pub fn default(mut self, text: &'static str) -> Self {
@@ -173,16 +152,45 @@ impl StringSchema {
 #[derive(Debug)]
 pub struct ArraySchema {
     pub description: &'static str,
-    pub optional: bool,
     pub items: Arc<Schema>,
 }
 
 #[derive(Debug)]
 pub struct ObjectSchema {
     pub description: &'static str,
-    pub optional: bool,
     pub additional_properties: bool,
-    pub properties: HashMap<&'static str, Arc<Schema>>,
+    pub properties: HashMap<&'static str, (bool, Arc<Schema>)>,
+}
+
+impl ObjectSchema {
+
+    pub fn new(description: &'static str) -> Self {
+        let properties = HashMap::new();
+        ObjectSchema {
+            description: description,
+            additional_properties: false,
+            properties: properties,
+        }
+    }
+
+    pub fn additional_properties(mut self, additional_properties: bool) -> Self {
+        self.additional_properties = additional_properties;
+        self
+    }
+
+    pub fn required(mut self, name: &'static str, schema: Arc<Schema>) -> Self {
+        self.properties.insert(name, (false, schema));
+        self
+    }
+
+    pub fn optional(mut self, name: &'static str, schema: Arc<Schema>) -> Self {
+        self.properties.insert(name, (true, schema));
+        self
+    }
+
+    pub fn arc(self) -> Arc<Schema> {
+        Arc::new(self.into())
+    }
 }
 
 #[derive(Debug)]
@@ -213,6 +221,12 @@ impl From<IntegerSchema> for Schema {
     }
 }
 
+impl From<ObjectSchema> for Schema {
+    fn from(object_schema: ObjectSchema) -> Self {
+        Schema::Object(object_schema)
+    }
+}
+
 pub enum ApiStringFormat {
     Enum(Vec<String>),
     Pattern(Box<Regex>),
@@ -237,33 +251,6 @@ impl std::fmt::Debug for ApiStringFormat {
             }
         }
     }
-}
-
-
-#[macro_export]
-macro_rules! parameter {
-    () => {{
-        ObjectSchema {
-            description: "",
-            optional: false,
-            additional_properties: false,
-            properties: HashMap::<&'static str, Arc<Schema>>::new(),
-        }
-    }};
-    ($($name:ident => $e:expr),*) => {{
-        ObjectSchema {
-            description: "",
-            optional: false,
-            additional_properties: false,
-            properties: {
-                let mut map = HashMap::<&'static str, Arc<Schema>>::new();
-                $(
-                    map.insert(stringify!($name), $e);
-                )*
-                map
-            }
-        }
-    }};
 }
 
 pub fn parse_boolean(value_str: &str) -> Result<bool, Error> {
@@ -357,7 +344,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
     let additional_properties = schema.additional_properties;
 
     for (key, value) in data {
-        if let Some(prop_schema) = properties.get::<str>(key) {
+        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
             match prop_schema.as_ref() {
                 Schema::Array(array_schema) => {
                     if params[key] == Value::Null {
@@ -408,16 +395,8 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
     }
 
     if test_required && errors.len() == 0 {
-        for (name, prop_schema) in properties {
-            let optional = match prop_schema.as_ref() {
-                Schema::Boolean(boolean_schema) => boolean_schema.optional,
-                Schema::Integer(integer_schema) => integer_schema.optional,
-                Schema::String(string_schema) => string_schema.optional,
-                Schema::Array(array_schema) => array_schema.optional,
-                Schema::Object(object_schema) => object_schema.optional,
-                Schema::Null => true,
-            };
-            if optional == false && params[name] == Value::Null {
+        for (name, (optional, _prop_schema)) in properties {
+            if *optional == false && params[name] == Value::Null {
                 errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
             }
         }
@@ -442,7 +421,6 @@ pub fn parse_query_string(query: &str, schema: &ObjectSchema, test_required: boo
 fn test_schema1() {
     let schema = Schema::Object(ObjectSchema {
         description: "TEST",
-        optional: false,
         additional_properties: false,
         properties: {
             let map = HashMap::new();
@@ -457,25 +435,27 @@ fn test_schema1() {
 #[test]
 fn test_query_string() {
 
-    let schema = parameter!{name => StringSchema::new("Name.").optional(false).arc()};
+    let schema = ObjectSchema::new("Parameters.")
+        .required("name", StringSchema::new("Name.").arc());
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{name => StringSchema::new("Name.").optional(true).arc()};
+    let schema = ObjectSchema::new("Parameters.")
+        .optional("name", StringSchema::new("Name.").arc());
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
 
     // TEST min_length and max_length
 
-    let schema = parameter!{
-        name =>  StringSchema::new("Name.")
-            .optional(false)
-            .min_length(5)
-            .max_length(10)
-            .arc()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "name", StringSchema::new("Name.")
+                .min_length(5)
+                .max_length(10)
+                .arc()
+        );
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -491,12 +471,12 @@ fn test_query_string() {
 
     // TEST regex pattern
 
-    let schema = parameter!{
-        name => StringSchema::new("Name.")
-            .optional(false)
-            .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
-            .arc()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "name", StringSchema::new("Name.")
+                .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
+                .arc()
+        );
 
     let res = parse_query_string("name=abcd", &schema, true);
     assert!(res.is_err());
@@ -504,12 +484,12 @@ fn test_query_string() {
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_ok());
 
-    let schema = parameter!{
-        name => StringSchema::new("Name.")
-            .optional(false)
-            .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
-            .arc()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "name", StringSchema::new("Name.")
+                .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
+                .arc()
+        );
 
     let res = parse_query_string("name=ateststring", &schema, true);
     assert!(res.is_err());
@@ -519,12 +499,12 @@ fn test_query_string() {
 
     // TEST string enums
 
-    let schema = parameter!{
-        name => StringSchema::new("Name.")
-            .optional(false)
-            .format(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
-            .arc()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "name", StringSchema::new("Name.")
+                .format(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
+                .arc()
+        );
 
     let res = parse_query_string("name=noenum", &schema, true);
     assert!(res.is_err());
@@ -543,18 +523,22 @@ fn test_query_string() {
 #[test]
 fn test_query_integer() {
 
-    let schema = parameter!{count => IntegerSchema::new("Count.").optional(false).arc()};
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "count" , IntegerSchema::new("Count.")
+                .arc()
+        );
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{
-        count => IntegerSchema::new("Count.")
-            .optional(true)
-            .minimum(-3)
-            .maximum(50)
-            .arc()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .optional(
+            "count", IntegerSchema::new("Count.")
+                .minimum(-3)
+                .maximum(50)
+                .arc()
+        );
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());
@@ -584,12 +568,20 @@ fn test_query_integer() {
 #[test]
 fn test_query_boolean() {
 
-    let schema = parameter!{force => BooleanSchema::new("Force.").optional(false).arc()};
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "force", BooleanSchema::new("Force.")
+                .arc()
+        );
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_err());
 
-    let schema = parameter!{force => BooleanSchema::new("Force.").optional(true).arc()};
+    let schema = ObjectSchema::new("Parameters.")
+        .optional(
+            "force", BooleanSchema::new("Force.")
+                .arc()
+        );
 
     let res = parse_query_string("", &schema, true);
     assert!(res.is_ok());

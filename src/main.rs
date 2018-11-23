@@ -1,8 +1,4 @@
-#[macro_use]
 extern crate apitest;
-
-use std::collections::HashMap;
-use std::sync::Arc;
 
 use apitest::api::schema::*;
 use apitest::api::router::*;
@@ -23,10 +19,9 @@ fn main() {
     let prop = StringSchema::new("This is a test").arc();
 
     //let prop = Arc::new(ApiString!{ optional => true });
-    let schema = parameter!{
-        name1 => prop.clone(),
-        name2 => prop.clone()
-    };
+    let schema = ObjectSchema::new("Parameters.")
+        .required("name1", prop.clone())
+        .required("name2", prop.clone());
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     match getopts::parse_arguments(&args, &vec![], &schema) {

@@ -31,7 +31,7 @@ pub fn router() -> Router {
     let route3 = Router::new()
         .get(ApiMethod {
             description: "Another Endpoint.",
-            parameters: parameter!{},
+            parameters: ObjectSchema::new("Another Endpoint."),
             returns: Schema::Null,
             handler: |param, _info| {
                 println!("This is a clousure handler: {}", param);
@@ -44,11 +44,12 @@ pub fn router() -> Router {
         .get(ApiMethod {
             handler: test_sync_api_handler,
             description: "This is a simple test.",
-            parameters: parameter!{
-                force => BooleanSchema::new("Test for boolean options")
-                    .optional(true)
-                    .arc()
-            },
+            parameters: ObjectSchema::new("This is a simple test.")
+                .optional(
+                    "force",
+                    BooleanSchema::new("Test for boolean options")
+                        .arc()
+                ),
             returns: Schema::Null,
         })
         .subdirs({

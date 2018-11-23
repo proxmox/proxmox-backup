@@ -71,8 +71,7 @@ impl Registry {
             "pve-vmid",
             IntegerSchema::new("The (unique) ID of the VM.")
                 .minimum(1)
-                .optional(false)
-            );
+        );
 
         self.register_option(
             "pve-node",

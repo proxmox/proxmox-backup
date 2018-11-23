@@ -75,7 +75,7 @@ pub fn parse_arguments(
                         None => {
                             let mut want_bool = false;
                             let mut can_default = false;
-                            if let Some(param_schema) = properties.get::<str>(&name) {
+                            if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
                                 if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
                                     want_bool = true;
                                     if let Some(default) = boolean_schema.default {
@@ -156,7 +156,11 @@ pub fn parse_arguments(
 #[test]
 fn test_boolean_arg() {
 
-    let schema = parameter!{enable => BooleanSchema::new("Enable").optional(false).arc()};
+    let schema =  ObjectSchema::new("Parameters:")
+        .required(
+            "enable", BooleanSchema::new("Enable")
+                .arc()
+        );
 
     let mut variants: Vec<(Vec<&str>, bool)> = vec![];
     variants.push((vec!["-enable"], true));
@@ -186,10 +190,9 @@ fn test_boolean_arg() {
 #[test]
 fn test_argument_paramenter() {
 
-    let schema = parameter!{
-        enable => BooleanSchema::new("Enable.").optional(false).arc(),
-        storage => StringSchema::new("Storatge:").optional(false).arc()
-    };
+    let schema = ObjectSchema::new("Parameters:")
+        .required("enable", BooleanSchema::new("Enable.").arc())
+        .required("storage", StringSchema::new("Storage.").arc());
 
     let args = vec!["-enable", "local"];
     let string_args = args.iter().map(|s| s.to_string()).collect();
