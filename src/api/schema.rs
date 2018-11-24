@@ -714,7 +714,7 @@ fn test_verify_function() {
 }
 
 #[test]
-fn test_verify_complex() {
+fn test_verify_complex_object() {
 
     let nic_models = Arc::new(ApiStringFormat::Enum(
         vec!["e1000".into(), "virtio".into()]));
