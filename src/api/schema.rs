@@ -141,6 +141,8 @@ impl StringSchema {
 pub struct ArraySchema {
     pub description: &'static str,
     pub items: Arc<Schema>,
+    pub min_length: Option<usize>,
+    pub max_length: Option<usize>,
 }
 
 impl ArraySchema {
@@ -149,7 +151,19 @@ impl ArraySchema {
         ArraySchema {
             description: description,
             items: item_schema,
+            min_length: None,
+            max_length: None,
         }
+    }
+
+    pub fn min_length(mut self, min_length: usize) -> Self {
+        self.min_length = Some(min_length);
+        self
+    }
+
+    pub fn max_length(mut self, max_length: usize) -> Self {
+        self.max_length = Some(max_length);
+        self
     }
 }
 
