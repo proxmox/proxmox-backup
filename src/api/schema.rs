@@ -644,3 +644,20 @@ fn test_query_boolean() {
     assert!(res.is_ok());
 }
 
+#[test]
+fn test_verify_function() {
+
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "p1", StringSchema::new("P1")
+                .format(ApiStringFormat::VerifyFn(|value| {
+                    if value == "test" { return Ok(()) };
+                    bail!("format error");
+                }).into())
+        );
+
+    let res = parse_query_string("p1=tes", &schema, true);
+    assert!(res.is_err());
+    let res = parse_query_string("p1=test", &schema, true);
+    assert!(res.is_ok());
+}
