@@ -172,6 +172,7 @@ pub struct ObjectSchema {
     pub description: &'static str,
     pub additional_properties: bool,
     pub properties: HashMap<&'static str, (bool, Arc<Schema>)>,
+    pub default_key: Option<&'static str>,
 }
 
 impl ObjectSchema {
@@ -182,11 +183,17 @@ impl ObjectSchema {
             description: description,
             additional_properties: false,
             properties: properties,
+            default_key: None,
         }
     }
 
     pub fn additional_properties(mut self, additional_properties: bool) -> Self {
         self.additional_properties = additional_properties;
+        self
+    }
+
+    pub fn default_key(mut self, key: &'static str) -> Self {
+        self.default_key = Some(key);
         self
     }
 
@@ -253,6 +260,12 @@ impl From<ObjectSchema> for Schema {
     }
 }
 
+impl From<ObjectSchema> for Arc<Schema> {
+    fn from(object_schema: ObjectSchema) -> Self {
+        Arc::new(Schema::Object(object_schema))
+    }
+}
+
 impl From<ArraySchema> for Schema {
     fn from(array_schema: ArraySchema) -> Self {
         Schema::Array(array_schema)
@@ -297,6 +310,43 @@ pub fn parse_boolean(value_str: &str) -> Result<bool, Error> {
         "0" | "off" | "no" | "false" => Ok(false),
         _ => bail!("Unable to parse boolean option."),
     }
+}
+
+fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Error> {
+
+    println!("Parse property string: {}", value_str);
+
+    let mut param_list: Vec<(String, String)> = vec![];
+
+    match schema {
+        Schema::Object(object_schema) => {
+            for key_val in value_str.split(',').filter(|s| !s.is_empty()) {
+                println!("KEYVAL: {}", key_val);
+                let kv: Vec<&str> = key_val.splitn(2, '=').collect();
+                println!("VEC: {:?}", kv);
+                if kv.len() == 2 {
+                    param_list.push((kv[0].into(), kv[1].into()));
+                } else {
+                    if let Some(key) = object_schema.default_key {
+                        param_list.push((key.into(), kv[0].into()));
+                    } else {
+                        bail!("Value without key, but schema does not define a default key.");
+                    }
+                }
+            }
+
+            return parse_parameter_strings(&param_list, &object_schema, true)
+                .map_err(Error::from);
+
+        }
+        Schema::Array(array_schema) => {
+            bail!("implement me");
+        }
+        _ => {
+            bail!("Got unexpetec schema type.")
+        }
+    }
+
 }
 
 fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {
@@ -354,8 +404,8 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
                             bail!("value is not defined in the enumeration.");
                         }
                     }
-                    ApiStringFormat::Complex(ref _subschema) => {
-                        bail!("implement me!");
+                    ApiStringFormat::Complex(ref subschema) => {
+                        parse_property_string(&res, subschema)?;
                     }
                     ApiStringFormat::VerifyFn(verify_fn) => {
                         verify_fn(&res)?;
@@ -464,7 +514,8 @@ fn test_schema1() {
             let map = HashMap::new();
 
             map
-        }
+        },
+        default_key: None,
     });
 
     println!("TEST Schema: {:?}", schema);
@@ -659,5 +710,43 @@ fn test_verify_function() {
     let res = parse_query_string("p1=tes", &schema, true);
     assert!(res.is_err());
     let res = parse_query_string("p1=test", &schema, true);
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_verify_complex() {
+
+    let nic_models = Arc::new(ApiStringFormat::Enum(
+        vec!["e1000".into(), "virtio".into()]));
+
+    let param_schema: Arc<Schema> = ObjectSchema::new("Properties.")
+        .default_key("model")
+        .required("model", StringSchema::new("Ethernet device Model.")
+                  .format(nic_models))
+        .optional("enable", BooleanSchema::new("Enable device."))
+        .into();
+
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "net0", StringSchema::new("First Network device.")
+                .format(ApiStringFormat::Complex(param_schema).into())
+        );
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("test=abc", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("net0=model=abc", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("net0=model=virtio", &schema, true);
+     assert!(res.is_ok());
+
+    let res = parse_query_string("net0=model=virtio,enable=1", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("net0=virtio,enable=no", &schema, true);
     assert!(res.is_ok());
 }
