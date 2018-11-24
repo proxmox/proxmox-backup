@@ -165,6 +165,23 @@ impl ArraySchema {
         self.max_length = Some(max_length);
         self
     }
+
+    fn check_length(&self, length: usize) -> Result<(), Error> {
+
+        if let Some(min_length) = self.min_length {
+            if length < min_length {
+                bail!("array must contain at least {} elements", min_length);
+            }
+        }
+
+        if let Some(max_length) = self.max_length {
+            if length > max_length {
+                bail!("array may only contain {} elements", max_length);
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -345,18 +362,7 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
                     Err(err) => bail!("unable to parse array element: {}", err),
                 }
             }
-
-            if let Some(min_length) = array_schema.min_length {
-                if array.len() < min_length {
-                    bail!("array must contain at least {} elements", min_length);
-                }
-            }
-
-            if let Some(max_length) = array_schema.max_length {
-                if array.len() > max_length {
-                    bail!("array may only contain {} elements", max_length);
-                }
-            }
+            array_schema.check_length(array.len())?;
 
             return Ok(array.into());
         }
@@ -459,7 +465,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
                     match params[key] {
                         Value::Array(ref mut array) => {
                             match parse_simple_value(value, &array_schema.items) {
-                                Ok(res) => array.push(res),
+                                Ok(res) => array.push(res), // fixme: check_length??
                                 Err(err) => errors.push(format_err!("parameter '{}': {}", key, err)),
                             }
                         }
