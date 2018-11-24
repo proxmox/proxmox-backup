@@ -135,6 +135,24 @@ impl StringSchema {
         self.max_length = Some(max_length);
         self
     }
+
+    fn check_length(&self, length: usize) -> Result<(), Error> {
+
+        if let Some(min_length) = self.min_length {
+            if length < min_length {
+                bail!("value must be at least {} characters long", min_length);
+            }
+        }
+
+        if let Some(max_length) = self.max_length {
+            if length > max_length {
+                bail!("value may only be {} characters long", max_length);
+            }
+        }
+
+        Ok(())
+    }
+
 }
 
 #[derive(Debug)]
@@ -402,19 +420,8 @@ fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> 
         }
         Schema::String(string_schema) => {
             let res: String = value_str.into();
-            let char_count = res.chars().count();
 
-            if let Some(min_length) = string_schema.min_length {
-                if char_count < min_length {
-                    bail!("value must be at least {} characters long", min_length);
-                }
-            }
-
-            if let Some(max_length) = string_schema.max_length {
-                if char_count > max_length {
-                    bail!("value may only be {} characters long", max_length);
-                }
-            }
+            string_schema.check_length(res.chars().count())?;
 
             if let Some(ref format) = string_schema.format {
                 match format.as_ref() {
