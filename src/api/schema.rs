@@ -321,9 +321,7 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
     match schema {
         Schema::Object(object_schema) => {
             for key_val in value_str.split(',').filter(|s| !s.is_empty()) {
-                println!("KEYVAL: {}", key_val);
                 let kv: Vec<&str> = key_val.splitn(2, '=').collect();
-                println!("VEC: {:?}", kv);
                 if kv.len() == 2 {
                     param_list.push((kv[0].into(), kv[1].into()));
                 } else {
@@ -340,7 +338,27 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
 
         }
         Schema::Array(array_schema) => {
-            bail!("implement me");
+            let mut array : Vec<Value> = vec![];
+            for value in value_str.split(',').filter(|s| !s.is_empty()) {
+                match parse_simple_value(value, &array_schema.items) {
+                    Ok(res) => array.push(res),
+                    Err(err) => bail!("unable to parse array element: {}", err),
+                }
+            }
+
+            if let Some(min_length) = array_schema.min_length {
+                if array.len() < min_length {
+                    bail!("array must contain at least {} elements", min_length);
+                }
+            }
+
+            if let Some(max_length) = array_schema.max_length {
+                if array.len() > max_length {
+                    bail!("array may only contain {} elements", max_length);
+                }
+            }
+
+            return Ok(array.into());
         }
         _ => {
             bail!("Got unexpetec schema type.")
@@ -749,4 +767,54 @@ fn test_verify_complex_object() {
 
     let res = parse_query_string("net0=virtio,enable=no", &schema, true);
     assert!(res.is_ok());
+}
+
+#[test]
+fn test_verify_complex_array() {
+
+    let param_schema: Arc<Schema> = ArraySchema::new(
+        "Integer List.", Arc::new(IntegerSchema::new("Soemething").into()))
+        .into();
+
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "list", StringSchema::new("A list on integers, comma separated.")
+                .format(ApiStringFormat::Complex(param_schema).into())
+        );
+
+    let res = parse_query_string("", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("list=", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("list=abc", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("list=1", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("list=2,3,4,5", &schema, true);
+    assert!(res.is_ok());
+
+    let param_schema: Arc<Schema> = ArraySchema::new(
+        "Integer List.", Arc::new(IntegerSchema::new("Soemething").into()))
+        .min_length(1)
+        .max_length(3)
+        .into();
+
+    let schema = ObjectSchema::new("Parameters.")
+        .required(
+            "list", StringSchema::new("A list on integers, comma separated.")
+                .format(ApiStringFormat::Complex(param_schema).into())
+        );
+
+    let res = parse_query_string("list=", &schema, true);
+    assert!(res.is_err());
+
+    let res = parse_query_string("list=1,2,3", &schema, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("list=2,3,4,5", &schema, true);
+    assert!(res.is_err());
 }
