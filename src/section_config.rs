@@ -16,9 +16,9 @@ pub struct SectionConfig {
     parse_section_header: fn(&str) ->  Option<(String, String)>,
 }
 
-enum ParseState {
+enum ParseState<'a> {
     BeforeHeader,
-    InsideSection,
+    InsideSection(&'a SectionConfigPlugin),
 }
 
 impl SectionConfig {
@@ -33,9 +33,6 @@ impl SectionConfig {
     pub fn parse(&self, filename: &str, raw: &str) -> Result<(), Error> {
 
         let mut line_no = 0;
-
-	//let error_prefix = format!("file '{}' line {}", filename, line_no);
-	const ERROR_FORMAT: &str = "file '{}' line {} - {}";
 
         let mut state = ParseState::BeforeHeader;
 
@@ -52,12 +49,17 @@ impl SectionConfig {
 
                     if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
                         println!("OKLINE: type: {} ID: {}", section_type, section_id);
-                        state = ParseState::InsideSection;
+                        if let Some(ref plugin) = self.plugins.get(&section_type) {
+                            state = ParseState::InsideSection(plugin);
+                        } else {
+                            bail!("file '{}' line {} - unknown section type '{}'",
+                                  filename, line_no, section_type);
+                       }
                     } else {
-                        println!("file '{}' line {} - {}", filename, line_no, "syntax error  - expected header");
+                        bail!("file '{}' line {} - syntax error (expected header)", filename, line_no);
                     }
                 }
-                ParseState::InsideSection => {
+                ParseState::InsideSection(plugin) => {
 
                     if line.trim().is_empty() {
                         // finish section
@@ -69,7 +71,7 @@ impl SectionConfig {
             }
         }
 
-        if let ParseState::InsideSection = state {
+        if let ParseState::InsideSection(plugin) = state {
             // finish section
         }
 
@@ -133,7 +135,7 @@ lvmthin: local-lvm
         content rootdir,images
 ";
 
-    config.parse(filename, &raw);
-
+    let res = config.parse(filename, &raw);
+    println!("RES: {:?}", res);
 
 }
