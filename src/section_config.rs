@@ -78,7 +78,7 @@ impl SectionConfig {
 
     pub fn default_parse_section_header(line: &str) -> Option<(String, String)> {
 
-        if line.len() == 0 { return None; };
+        if line.is_empty() { return None; };
 
         let first_char = line.chars().next().unwrap();
 
