@@ -100,14 +100,16 @@ impl SectionConfig {
                         bail!("file '{}' line {} - syntax error (expected header)", filename, line_no);
                     }
                 }
-                ParseState::InsideSection(plugin, ref section_id, ref mut config) => {
+                ParseState::InsideSection(plugin, ref mut section_id, ref mut config) => {
 
                     if line.trim().is_empty() {
                         // finish section
                         if let Err(err) = test_required_properties(config, &plugin.properties) {
                             bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
                         }
-                        create_section(section_id.clone(), config.clone());
+                        let mut new_id = String::new();
+                        std::mem::swap(&mut new_id, section_id);
+                        create_section(new_id, config.take());
                         state = ParseState::BeforeHeader;
                         continue;
                     }
@@ -140,12 +142,12 @@ impl SectionConfig {
             }
         }
 
-        if let ParseState::InsideSection(plugin, ref section_id, ref config) = state {
+        if let ParseState::InsideSection(plugin, section_id, config) = state {
             // finish section
-            if let Err(err) = test_required_properties(config, &plugin.properties) {
+            if let Err(err) = test_required_properties(&config, &plugin.properties) {
                 bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
             }
-            create_section(section_id.clone(), config.clone());
+            create_section(section_id, config);
         }
 
         Ok(result)
