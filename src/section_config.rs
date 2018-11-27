@@ -30,7 +30,7 @@ pub struct SectionConfig {
 
 enum ParseState<'a> {
     BeforeHeader,
-    InsideSection(&'a SectionConfigPlugin),
+    InsideSection(&'a SectionConfigPlugin, Value),
 }
 
 impl SectionConfig {
@@ -53,6 +53,15 @@ impl SectionConfig {
 
         let mut state = ParseState::BeforeHeader;
 
+        let test_required_properties = |value: &Value, schema: &ObjectSchema| -> Result<(), Error> {
+            for (name, (optional, _prop_schema)) in &schema.properties {
+                if *optional == false && value[name] == Value::Null {
+                    return Err(format_err!("property '{}' is missing and it is not optional.", name));
+                }
+            }
+            Ok(())
+        };
+
         for line in raw.lines() {
             line_no += 1;
 
@@ -67,7 +76,7 @@ impl SectionConfig {
                     if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
                         println!("OKLINE: type: {} ID: {}", section_type, section_id);
                         if let Some(ref plugin) = self.plugins.get(&section_type) {
-                            state = ParseState::InsideSection(plugin);
+                            state = ParseState::InsideSection(plugin, json!({}));
                         } else {
                             bail!("file '{}' line {} - unknown section type '{}'",
                                   filename, line_no, section_type);
@@ -76,16 +85,38 @@ impl SectionConfig {
                         bail!("file '{}' line {} - syntax error (expected header)", filename, line_no);
                     }
                 }
-                ParseState::InsideSection(plugin) => {
+                ParseState::InsideSection(plugin, ref mut config) => {
 
                     if line.trim().is_empty() {
                         // finish section
+                        if let Err(err) = test_required_properties(config, &plugin.properties) {
+                            bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
+                        }
                         state = ParseState::BeforeHeader;
                         continue;
                     }
                     println!("CONTENT: {}", line);
                     if let Some((key, value)) = (self.parse_section_content)(line) {
                         println!("CONTENT: key: {} value: {}", key, value);
+
+                        if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
+                            match parse_simple_value(&value, prop_schema) {
+                                Ok(value) => {
+                                    if config[&key] == Value::Null {
+                                        config[key] = value;
+                                    } else {
+                                        bail!("file '{}' line {} - duplicate property '{}'",
+                                              filename, line_no, key);
+                                    }
+                                }
+                                Err(err) => {
+                                    bail!("file '{}' line {} - property '{}': {}",
+                                          filename, line_no, key, err.to_string());
+                                }
+                            }
+                        } else {
+                            bail!("file '{}' line {} - unknown property '{}'", filename, line_no, key)
+                        }
                     } else {
                         bail!("file '{}' line {} - syntax error (expected section properties)", filename, line_no);
                     }
@@ -93,8 +124,11 @@ impl SectionConfig {
             }
         }
 
-        if let ParseState::InsideSection(plugin) = state {
+        if let ParseState::InsideSection(plugin, ref config) = state {
             // finish section
+            if let Err(err) = test_required_properties(config, &plugin.properties) {
+                bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
+            }
         }
 
         Ok(())
@@ -170,6 +204,7 @@ fn test_section_config1() {
         ObjectSchema::new("lvmthin properties")
             .required("thinpool", StringSchema::new("LVM thin pool name."))
             .required("vgname", StringSchema::new("LVM volume group name."))
+            .optional("content", StringSchema::new("Storage content types."))
     );
 
     let mut config = SectionConfig::new();

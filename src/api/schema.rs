@@ -391,7 +391,7 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
 
 }
 
-fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {
+pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {
 
     let value = match schema {
         Schema::Null => {
