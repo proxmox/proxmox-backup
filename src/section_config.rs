@@ -5,10 +5,21 @@ use std::io::Read;
 use std::collections::HashMap;
 use serde_json::{json, Value};
 
+use std::sync::Arc;
+use crate::api::schema::*;
+
 pub struct SectionConfigPlugin {
     type_name: String,
+    properties: ObjectSchema,
 }
 
+impl SectionConfigPlugin {
+
+    pub fn new(type_name: String, properties: ObjectSchema) -> Self {
+        Self { type_name, properties }
+    }
+
+}
 
 pub struct SectionConfig {
     plugins: HashMap<String, SectionConfigPlugin>,
@@ -28,6 +39,10 @@ impl SectionConfig {
             plugins: HashMap::new(),
             parse_section_header: SectionConfig::default_parse_section_header,
         }
+    }
+
+    pub fn register_plugin(&mut self, plugin: SectionConfigPlugin) {
+        self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
     pub fn parse(&self, filename: &str, raw: &str) -> Result<(), Error> {
@@ -124,8 +139,15 @@ fn test_section_config1() {
     //let mut contents = String::new();
     //file.read_to_string(&mut contents).unwrap();
 
-    let config = SectionConfig::new();
+    let plugin = SectionConfigPlugin::new(
+        "lvmthin".to_string(),
+        ObjectSchema::new("lvmthin properties")
+            .required("thinpool", StringSchema::new("LVM thin pool name."))
+            .required("vgname", StringSchema::new("LVM volume group name."))
+    );
 
+    let mut config = SectionConfig::new();
+    config.register_plugin(plugin);
 
     let raw = r"
 
