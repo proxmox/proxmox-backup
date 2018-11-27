@@ -25,6 +25,7 @@ pub struct SectionConfig {
     plugins: HashMap<String, SectionConfigPlugin>,
 
     parse_section_header: fn(&str) ->  Option<(String, String)>,
+    parse_section_content: fn(&str) ->  Option<(String, String)>,
 }
 
 enum ParseState<'a> {
@@ -38,6 +39,7 @@ impl SectionConfig {
         Self {
             plugins: HashMap::new(),
             parse_section_header: SectionConfig::default_parse_section_header,
+            parse_section_content: SectionConfig::default_parse_section_content,
         }
     }
 
@@ -82,6 +84,11 @@ impl SectionConfig {
                         continue;
                     }
                     println!("CONTENT: {}", line);
+                    if let Some((key, value)) = (self.parse_section_content)(line) {
+                        println!("CONTENT: key: {} value: {}", key, value);
+                    } else {
+                        bail!("file '{}' line {} - syntax error (expected section properties)", filename, line_no);
+                    }
                 }
             }
         }
@@ -92,6 +99,30 @@ impl SectionConfig {
 
         Ok(())
     }
+
+    pub fn default_parse_section_content(line: &str) -> Option<(String, String)> {
+
+        if line.is_empty() { return None; }
+        let first_char = line.chars().next().unwrap();
+
+        if !first_char.is_whitespace() { return None }
+
+        let mut kv_iter = line.trim_left().splitn(2, |c: char| c.is_whitespace());
+
+        let key = match kv_iter.next() {
+            Some(v) => v.trim(),
+            None => return None,
+        };
+
+        if key.len() == 0 { return None; }
+
+        let value = match kv_iter.next() {
+            Some(v) => v.trim(),
+            None => return None,
+        };
+
+        Some((key.into(), value.into()))
+   }
 
     pub fn default_parse_section_header(line: &str) -> Option<(String, String)> {
 
@@ -104,23 +135,18 @@ impl SectionConfig {
         let mut head_iter = line.splitn(2, ':');
 
         let section_type = match head_iter.next() {
-            Some(v) => v,
+            Some(v) => v.trim(),
             None => return None,
         };
-
-        let section_type = section_type.trim();
 
         if section_type.len() == 0 { return None; }
 
         // fixme: verify format
 
         let section_id = match head_iter.next() {
-            Some(v) => v,
+            Some(v) => v.trim(),
             None => return None,
         };
-
-        let section_id = section_id.trim();
-
 
         Some((section_type.into(), section_id.into()))
     }
