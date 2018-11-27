@@ -24,20 +24,22 @@ impl SectionConfigPlugin {
 pub struct SectionConfig {
     plugins: HashMap<String, SectionConfigPlugin>,
 
+    id_schema: Arc<Schema>,
     parse_section_header: fn(&str) ->  Option<(String, String)>,
     parse_section_content: fn(&str) ->  Option<(String, String)>,
 }
 
 enum ParseState<'a> {
     BeforeHeader,
-    InsideSection(&'a SectionConfigPlugin, Value),
+    InsideSection(&'a SectionConfigPlugin, String, Value),
 }
 
 impl SectionConfig {
 
-    pub fn new() -> Self {
+    pub fn new(id_schema: Arc<Schema>) -> Self {
         Self {
             plugins: HashMap::new(),
+            id_schema: id_schema,
             parse_section_header: SectionConfig::default_parse_section_header,
             parse_section_content: SectionConfig::default_parse_section_content,
         }
@@ -76,7 +78,11 @@ impl SectionConfig {
                     if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
                         println!("OKLINE: type: {} ID: {}", section_type, section_id);
                         if let Some(ref plugin) = self.plugins.get(&section_type) {
-                            state = ParseState::InsideSection(plugin, json!({}));
+                            if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
+                                bail!("file '{}' line {} - syntax error in section identifier: {}",
+                                      filename, line_no, err.to_string());
+                            }
+                            state = ParseState::InsideSection(plugin, section_id, json!({}));
                         } else {
                             bail!("file '{}' line {} - unknown section type '{}'",
                                   filename, line_no, section_type);
@@ -85,7 +91,7 @@ impl SectionConfig {
                         bail!("file '{}' line {} - syntax error (expected header)", filename, line_no);
                     }
                 }
-                ParseState::InsideSection(plugin, ref mut config) => {
+                ParseState::InsideSection(plugin, ref section_id, ref mut config) => {
 
                     if line.trim().is_empty() {
                         // finish section
@@ -124,7 +130,7 @@ impl SectionConfig {
             }
         }
 
-        if let ParseState::InsideSection(plugin, ref config) = state {
+        if let ParseState::InsideSection(plugin, ref section_id, ref config) = state {
             // finish section
             if let Err(err) = test_required_properties(config, &plugin.properties) {
                 bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
@@ -207,7 +213,11 @@ fn test_section_config1() {
             .optional("content", StringSchema::new("Storage content types."))
     );
 
-    let mut config = SectionConfig::new();
+    let id_schema = StringSchema::new("Storage ID schema.")
+        .min_length(3)
+        .into();
+
+    let mut config = SectionConfig::new(id_schema);
     config.register_plugin(plugin);
 
     let raw = r"
