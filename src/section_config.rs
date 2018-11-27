@@ -25,8 +25,8 @@ pub struct SectionConfig {
     plugins: HashMap<String, SectionConfigPlugin>,
 
     id_schema: Arc<Schema>,
-    parse_section_header: fn(&str) ->  Option<(String, String)>,
-    parse_section_content: fn(&str) ->  Option<(String, String)>,
+    parse_section_header: fn(&str) -> Option<(String, String)>,
+    parse_section_content: fn(&str) -> Option<(String, String)>,
 }
 
 enum ParseState<'a> {
@@ -49,7 +49,7 @@ impl SectionConfig {
         self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
-    pub fn parse(&self, filename: &str, raw: &str) -> Result<(), Error> {
+    pub fn parse(&self, filename: &str, raw: &str) -> Result<Value, Error> {
 
         let mut line_no = 0;
 
@@ -62,6 +62,15 @@ impl SectionConfig {
                 }
             }
             Ok(())
+        };
+
+        let mut result = json!({
+            "ids": {},
+            "order": {}
+        });
+
+        let mut create_section = |section_id, config| {
+            result[section_id] = config;
         };
 
         for line in raw.lines() {
@@ -98,6 +107,7 @@ impl SectionConfig {
                         if let Err(err) = test_required_properties(config, &plugin.properties) {
                             bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
                         }
+                        create_section(section_id.clone(), config.clone());
                         state = ParseState::BeforeHeader;
                         continue;
                     }
@@ -135,9 +145,10 @@ impl SectionConfig {
             if let Err(err) = test_required_properties(config, &plugin.properties) {
                 bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
             }
+            create_section(section_id.clone(), config.clone());
         }
 
-        Ok(())
+        Ok(result)
     }
 
     pub fn default_parse_section_content(line: &str) -> Option<(String, String)> {
