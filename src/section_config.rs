@@ -34,6 +34,27 @@ enum ParseState<'a> {
     InsideSection(&'a SectionConfigPlugin, String, Value),
 }
 
+#[derive(Debug)]
+pub struct SectionConfigData {
+    sections: HashMap<String, Value>,
+    order: HashMap<String, usize>,
+}
+
+impl SectionConfigData {
+
+    pub fn new() -> Self {
+        Self { sections: HashMap::new(), order: HashMap::new() }
+    }
+
+    pub fn set_data(&mut self, section_id: &str, config: Value) {
+        self.sections.insert(section_id.to_string(), config);
+    }
+
+    fn set_order(&mut self, section_id: &str, pri: usize) {
+        self.order.insert(section_id.to_string(), pri);
+    }
+}
+
 impl SectionConfig {
 
     pub fn new(id_schema: Arc<Schema>) -> Self {
@@ -49,7 +70,7 @@ impl SectionConfig {
         self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
-    pub fn parse(&self, filename: &str, raw: &str) -> Result<Value, Error> {
+    pub fn parse(&self, filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
 
         let mut line_no = 0;
 
@@ -64,13 +85,13 @@ impl SectionConfig {
             Ok(())
         };
 
-        let mut result = json!({
-            "ids": {},
-            "order": {}
-        });
+        let mut result = SectionConfigData::new();
 
-        let mut create_section = |section_id, config| {
-            result[section_id] = config;
+        let mut pri = 1;
+        let mut create_section = |section_id: &str, config| {
+            result.set_data(section_id, config);
+            result.set_order(section_id, pri);
+            pri += 1;
         };
 
         for line in raw.lines() {
@@ -107,9 +128,7 @@ impl SectionConfig {
                         if let Err(err) = test_required_properties(config, &plugin.properties) {
                             bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
                         }
-                        let mut new_id = String::new();
-                        std::mem::swap(&mut new_id, section_id);
-                        create_section(new_id, config.take());
+                        create_section(section_id, config.take());
                         state = ParseState::BeforeHeader;
                         continue;
                     }
@@ -147,7 +166,7 @@ impl SectionConfig {
             if let Err(err) = test_required_properties(&config, &plugin.properties) {
                 bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
             }
-            create_section(section_id, config);
+            create_section(&section_id, config);
         }
 
         Ok(result)
