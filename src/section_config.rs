@@ -3,6 +3,9 @@ use failure::*;
 use std::fs::File;
 use std::io::Read;
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::LinkedList;
+
 use serde_json::{json, Value};
 
 use std::sync::Arc;
@@ -27,6 +30,7 @@ pub struct SectionConfig {
     id_schema: Arc<Schema>,
     parse_section_header: fn(&str) -> Option<(String, String)>,
     parse_section_content: fn(&str) -> Option<(String, String)>,
+    format_section_header: fn(type_name: &str, section_id: &str, data: &Value) -> String,
 }
 
 enum ParseState<'a> {
@@ -36,22 +40,23 @@ enum ParseState<'a> {
 
 #[derive(Debug)]
 pub struct SectionConfigData {
-    sections: HashMap<String, Value>,
-    order: HashMap<String, usize>,
+    sections: HashMap<String, (String, Value)>,
+    order: LinkedList<String>,
 }
 
 impl SectionConfigData {
 
     pub fn new() -> Self {
-        Self { sections: HashMap::new(), order: HashMap::new() }
+        Self { sections: HashMap::new(), order: LinkedList::new() }
     }
 
-    pub fn set_data(&mut self, section_id: &str, config: Value) {
-        self.sections.insert(section_id.to_string(), config);
+    pub fn set_data(&mut self, section_id: &str, type_name: &str, config: Value) {
+        // fixme: verify section_id schema here??
+        self.sections.insert(section_id.to_string(), (type_name.to_string(), config));
     }
 
-    fn set_order(&mut self, section_id: &str, pri: usize) {
-        self.order.insert(section_id.to_string(), pri);
+    fn record_order(&mut self, section_id: &str) {
+        self.order.push_back(section_id.to_string());
     }
 }
 
@@ -63,11 +68,67 @@ impl SectionConfig {
             id_schema: id_schema,
             parse_section_header: SectionConfig::default_parse_section_header,
             parse_section_content: SectionConfig::default_parse_section_content,
+            format_section_header: SectionConfig::default_format_section_header,
         }
     }
 
     pub fn register_plugin(&mut self, plugin: SectionConfigPlugin) {
         self.plugins.insert(plugin.type_name.clone(), plugin);
+    }
+
+    pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<(), Error> {
+
+        let mut list = LinkedList::new();
+
+        let mut done = HashSet::new();
+
+        for id in &config.order {
+            if config.sections.get(id) == None { continue };
+            list.push_back(id);
+            done.insert(id);
+        }
+
+        for (id, _) in &config.sections {
+            if done.contains(id) { continue };
+            list.push_back(id);
+        }
+
+        let mut raw = String::new();
+
+        for id in list {
+            let (type_name, section_config) = config.sections.get(id).unwrap();
+            let plugin = self.plugins.get(type_name).unwrap();
+
+            // fixme: verify json data
+            println!("REAL WRITE {} {} {:?}\n", id, type_name, section_config);
+
+            let head = (self.format_section_header)(type_name, id, section_config);
+
+            if !raw.is_empty() { raw += "\n" }
+
+            raw += &head;
+
+            for (key, value) in section_config.as_object().unwrap() {
+                let text = match value {
+                    Value::Null => { continue; }, // do nothing ?
+                    Value::Bool(bv) => bv.to_string(),
+                    Value::String(str) => str.to_string(),
+                    Value::Number(num) => num.to_string(),
+                    _ => {
+                        bail!("file {}: got unsupported type in section {} key {}", filename, id, key);
+                    },
+                };
+                raw += "\t";
+                raw += &key;
+                raw += " ";
+                raw += &text;
+                raw += "\n";
+            }
+            println!("CONFIG:\n{}", raw);
+
+        }
+
+        Ok(())
     }
 
     pub fn parse(&self, filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
@@ -87,17 +148,13 @@ impl SectionConfig {
 
         let mut result = SectionConfigData::new();
 
-        let mut pri = 1;
-        let mut create_section = |section_id: &str, config| {
-            result.set_data(section_id, config);
-            result.set_order(section_id, pri);
-            pri += 1;
+        let mut create_section = |section_id: &str, type_name: &str, config| {
+            result.set_data(section_id, type_name, config);
+            result.record_order(section_id);
         };
 
         for line in raw.lines() {
             line_no += 1;
-
-            if line.trim().is_empty() { continue; }
 
             match state {
 
@@ -128,7 +185,7 @@ impl SectionConfig {
                         if let Err(err) = test_required_properties(config, &plugin.properties) {
                             bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
                         }
-                        create_section(section_id, config.take());
+                        create_section(section_id, &plugin.type_name, config.take());
                         state = ParseState::BeforeHeader;
                         continue;
                     }
@@ -163,13 +220,18 @@ impl SectionConfig {
 
         if let ParseState::InsideSection(plugin, section_id, config) = state {
             // finish section
+
             if let Err(err) = test_required_properties(&config, &plugin.properties) {
                 bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
             }
-            create_section(&section_id, config);
+            create_section(&section_id, &plugin.type_name, config);
         }
 
         Ok(result)
+    }
+
+    pub fn default_format_section_header(type_name: &str, section_id: &str, data: &Value) -> String {
+        return format!("{}: {}\n", type_name, section_id);
     }
 
     pub fn default_parse_section_content(line: &str) -> Option<(String, String)> {
@@ -258,9 +320,15 @@ lvmthin: local-lvm
         thinpool data
         vgname pve5
         content rootdir,images
+
+lvmthin: local-lvm2
+        thinpool data
+        vgname pve5
+        content rootdir,images
 ";
 
     let res = config.parse(filename, &raw);
     println!("RES: {:?}", res);
+    config.write(filename, &res.unwrap());
 
 }
