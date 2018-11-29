@@ -76,7 +76,7 @@ impl SectionConfig {
         self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
-    pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<(), Error> {
+    pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<String, Error> {
 
         let mut list = LinkedList::new();
 
@@ -128,11 +128,9 @@ impl SectionConfig {
                 raw += &text;
                 raw += "\n";
             }
-            println!("CONFIG:\n{}", raw);
-
         }
 
-        Ok(())
+        Ok(raw)
     }
 
     pub fn parse(&self, filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
@@ -288,8 +286,6 @@ impl SectionConfig {
 
         Some((section_type.into(), section_id.into()))
     }
-
-
 }
 
 
@@ -333,6 +329,8 @@ lvmthin: local-lvm2
 
     let res = config.parse(filename, &raw);
     println!("RES: {:?}", res);
-    config.write(filename, &res.unwrap());
+    let raw = config.write(filename, &res.unwrap());
+    println!("CONFIG:\n{}", raw.unwrap());
+
 
 }
