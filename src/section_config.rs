@@ -110,10 +110,10 @@ impl SectionConfig {
 
             for (key, value) in section_config.as_object().unwrap() {
                 let text = match value {
-                    Value::Null => { continue; }, // do nothing ?
-                    Value::Bool(bv) => bv.to_string(),
-                    Value::String(str) => str.to_string(),
-                    Value::Number(num) => num.to_string(),
+                    Value::Null => { continue; }, // do nothing (delete)
+                    Value::Bool(v) => v.to_string(),
+                    Value::String(v) => v.to_string(),
+                    Value::Number(v) => v.to_string(),
                     _ => {
                         bail!("file {}: got unsupported type in section {} key {}", filename, id, key);
                     },
