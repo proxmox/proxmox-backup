@@ -92,6 +92,23 @@ impl IntegerSchema {
         self.maximum = Some(maximium);
         self
     }
+
+    fn check_constraints(&self, value: isize) -> Result<(), Error> {
+
+        if let Some(minimum) = self.minimum {
+            if value < minimum {
+                bail!("value must have a minimum value of {}", minimum);
+            }
+        }
+
+        if let Some(maximum) = self.maximum {
+            if value > maximum {
+                bail!("value must have a maximum value of {}", maximum);
+            }
+        }
+
+        Ok(())
+    }
 }
 
 
@@ -147,6 +164,34 @@ impl StringSchema {
         if let Some(max_length) = self.max_length {
             if length > max_length {
                 bail!("value may only be {} characters long", max_length);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn check_constraints(&self, value: &str) -> Result<(), Error> {
+
+        self.check_length(value.chars().count())?;
+
+        if let Some(ref format) = self.format {
+            match format.as_ref() {
+                ApiStringFormat::Pattern(ref regex) => {
+                    if !regex.is_match(value) {
+                        bail!("value does not match the regex pattern");
+                    }
+                }
+                ApiStringFormat::Enum(ref stringvec) => {
+                    if stringvec.iter().find(|&e| *e == value) == None {
+                        bail!("value is not defined in the enumeration.");
+                    }
+                }
+                ApiStringFormat::Complex(ref subschema) => {
+                    parse_property_string(value, subschema)?;
+                }
+                ApiStringFormat::VerifyFn(verify_fn) => {
+                    verify_fn(value)?;
+                }
             }
         }
 
@@ -403,48 +448,12 @@ pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Err
         }
         Schema::Integer(integer_schema) => {
             let res: isize = value_str.parse()?;
-
-            if let Some(minimum) = integer_schema.minimum {
-                if res < minimum {
-                    bail!("value must have a minimum value of {}", minimum);
-                }
-            }
-
-            if let Some(maximum) = integer_schema.maximum {
-                if res > maximum {
-                    bail!("value must have a maximum value of {}", maximum);
-                }
-            }
-
+            integer_schema.check_constraints(res)?;
             Value::Number(res.into())
         }
         Schema::String(string_schema) => {
-            let res: String = value_str.into();
-
-            string_schema.check_length(res.chars().count())?;
-
-            if let Some(ref format) = string_schema.format {
-                match format.as_ref() {
-                    ApiStringFormat::Pattern(ref regex) => {
-                        if !regex.is_match(&res) {
-                            bail!("value does not match the regex pattern");
-                        }
-                    }
-                    ApiStringFormat::Enum(ref stringvec) => {
-                        if stringvec.iter().find(|&e| *e == res) == None {
-                            bail!("value is not defined in the enumeration.");
-                        }
-                    }
-                    ApiStringFormat::Complex(ref subschema) => {
-                        parse_property_string(&res, subschema)?;
-                    }
-                    ApiStringFormat::VerifyFn(verify_fn) => {
-                        verify_fn(&res)?;
-                    }
-                }
-            }
-
-            Value::String(res)
+            string_schema.check_constraints(value_str)?;
+            Value::String(value_str.into())
         }
         _ => bail!("unable to parse complex (sub) objects."),
     };
@@ -534,6 +543,106 @@ pub fn parse_query_string(query: &str, schema: &ObjectSchema, test_required: boo
         form_urlencoded::parse(query.as_bytes()).into_owned().collect();
 
     parse_parameter_strings(&param_list, schema, test_required)
+}
+
+pub fn verify_json(data: &Value, schema: &Schema) -> Result<(), Error> {
+
+    match schema {
+        Schema::Object(object_schema) => {
+            verify_json_object(data, &object_schema)?;
+        }
+        Schema::Array(array_schema) => {
+            verify_json_array(data, &array_schema)?;
+        }
+        Schema::Null => {
+            if !data.is_null() {
+                bail!("Expected Null, but value is not Null.");
+            }
+        }
+        Schema::Boolean(boolean_schema) => verify_json_boolean(data, &boolean_schema)?,
+        Schema::Integer(integer_schema) => verify_json_integer(data, &integer_schema)?,
+        Schema::String(string_schema) => verify_json_string(data, &string_schema)?,
+    }
+    Ok(())
+}
+
+pub fn verify_json_string(data: &Value, schema: &StringSchema) -> Result<(), Error> {
+    if let Some(value) = data.as_str() {
+        schema.check_constraints(value)
+    } else {
+        bail!("Expected string value.");
+    }
+}
+
+pub fn verify_json_boolean(data: &Value, schema: &BooleanSchema) -> Result<(), Error> {
+    if !data.is_boolean() {
+        bail!("Expected boolean value.");
+    }
+    Ok(())
+}
+
+pub fn verify_json_integer(data: &Value, schema: &IntegerSchema) -> Result<(), Error> {
+
+    if let Some(value) = data.as_i64() {
+        schema.check_constraints(value as isize)
+    } else {
+        bail!("Expected integer value.");
+    }
+}
+
+pub fn verify_json_array(data: &Value, schema: &ArraySchema) -> Result<(), Error> {
+
+    let list = match data {
+        Value::Array(ref list) => list,
+        Value::Object(_) => bail!("Expected array - got object."),
+        _ => bail!("Expected array - got scalar value."),
+    };
+
+    schema.check_length(list.len())?;
+
+    for item in list {
+        verify_json(item, &schema.items)?;
+    }
+
+    Ok(())
+}
+
+pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Error> {
+
+    let map = match data {
+        Value::Object(ref map) => map,
+        Value::Array(_) => bail!("Expected object - got array."),
+        _ => bail!("Expected object - got scalar value."),
+    };
+
+    let properties = &schema.properties;
+    let additional_properties = schema.additional_properties;
+
+    for (key, value) in map {
+        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
+            match prop_schema.as_ref() {
+                Schema::Object(object_schema) => {
+                    verify_json_object(value, object_schema)?;
+                }
+                Schema::Array(array_schema) => {
+                    verify_json_array(value, array_schema)?;
+                }
+                _ => verify_json(value, prop_schema)?,
+            }
+        } else {
+            if !additional_properties {
+                bail!("property '{}': schema does not allow additional properties.", key);
+            }
+        }
+    }
+
+    for (name, (optional, _prop_schema)) in properties {
+        if *optional == false && data[name] == Value::Null {
+            bail!("property '{}': property is missing and it is not optional.", name);
+        }
+    }
+
+    Ok(())
 }
 
 #[test]
