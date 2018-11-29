@@ -82,27 +82,31 @@ impl SectionConfig {
 
         let mut done = HashSet::new();
 
-        for id in &config.order {
-            if config.sections.get(id) == None { continue };
-            list.push_back(id);
-            done.insert(id);
+        for section_id in &config.order {
+            if config.sections.get(section_id) == None { continue };
+            list.push_back(section_id);
+            done.insert(section_id);
         }
 
-        for (id, _) in &config.sections {
-            if done.contains(id) { continue };
-            list.push_back(id);
+        for (section_id, _) in &config.sections {
+            if done.contains(section_id) { continue };
+            list.push_back(section_id);
         }
 
         let mut raw = String::new();
 
-        for id in list {
-            let (type_name, section_config) = config.sections.get(id).unwrap();
+        for section_id in list {
+            let (type_name, section_config) = config.sections.get(section_id).unwrap();
             let plugin = self.plugins.get(type_name).unwrap();
 
-            // fixme: verify json data
-            println!("REAL WRITE {} {} {:?}\n", id, type_name, section_config);
+            if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
+                bail!("syntax error in section identifier: {}", err.to_string());
+            }
 
-            let head = (self.format_section_header)(type_name, id, section_config);
+            verify_json_object(section_config, &plugin.properties)?;
+            println!("REAL WRITE {} {} {:?}\n", section_id, type_name, section_config);
+
+            let head = (self.format_section_header)(type_name, section_id, section_config);
 
             if !raw.is_empty() { raw += "\n" }
 
@@ -115,7 +119,7 @@ impl SectionConfig {
                     Value::String(v) => v.to_string(),
                     Value::Number(v) => v.to_string(),
                     _ => {
-                        bail!("file {}: got unsupported type in section {} key {}", filename, id, key);
+                        bail!("got unsupported type in section '{}' key '{}'", section_id, key);
                     },
                 };
                 raw += "\t";
