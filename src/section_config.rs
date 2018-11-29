@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::LinkedList;
+use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 
@@ -41,13 +41,13 @@ enum ParseState<'a> {
 #[derive(Debug)]
 pub struct SectionConfigData {
     sections: HashMap<String, (String, Value)>,
-    order: LinkedList<String>,
+    order: VecDeque<String>,
 }
 
 impl SectionConfigData {
 
     pub fn new() -> Self {
-        Self { sections: HashMap::new(), order: LinkedList::new() }
+        Self { sections: HashMap::new(), order: VecDeque::new() }
     }
 
     pub fn set_data(&mut self, section_id: &str, type_name: &str, config: Value) {
@@ -78,7 +78,7 @@ impl SectionConfig {
 
     pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<String, Error> {
 
-        let mut list = LinkedList::new();
+        let mut list = VecDeque::new();
 
         let mut done = HashSet::new();
 
