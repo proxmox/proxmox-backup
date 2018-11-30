@@ -183,7 +183,7 @@ impl StringSchema {
                 }
                 ApiStringFormat::Enum(ref stringvec) => {
                     if stringvec.iter().find(|&e| *e == value) == None {
-                        bail!("value is not defined in the enumeration.");
+                        bail!("value '{}' is not defined in the enumeration.", value);
                     }
                 }
                 ApiStringFormat::Complex(ref subschema) => {
