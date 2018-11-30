@@ -1,0 +1,13 @@
+Source: rust-api-test-server
+Section: admin
+Priority: optional
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Build-Depends: debhelper (>= 10),
+Standards-Version: 3.9.5
+Homepage: https://www.proxmox.com
+
+Package: api-test-server
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: API Test Server
+ This is experimental code used to test Rust.
