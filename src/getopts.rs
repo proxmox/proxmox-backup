@@ -45,7 +45,7 @@ fn parse_argument(arg: &str) -> RawArgument {
 
 pub fn parse_arguments(
     args: &Vec<String>,
-    arg_param: &Vec<String>,
+    arg_param: &Vec<&'static str>,
     schema: &ObjectSchema,
 ) -> Result<(Value,Vec<String>), ParameterError> {
 
@@ -133,7 +133,7 @@ pub fn parse_arguments(
 
     for i in 0..arg_param.len() {
         if rest.len() > i {
-            data.push((arg_param[i].clone(), rest[i].clone()));
+            data.push((arg_param[i].to_string(), rest[i].clone()));
         } else {
             errors.push(format_err!("missing argument '{}'", arg_param[i]));
         }

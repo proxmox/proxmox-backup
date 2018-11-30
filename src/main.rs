@@ -16,25 +16,52 @@ use futures::future::Future;
 use hyper;
 
 fn main() {
-    println!("Proxmox REST Server example.");
 
-    let prop : Arc<Schema> = StringSchema::new("This is a test").into();
+    let command : Arc<Schema> = StringSchema::new("Command.")
+        .format(Arc::new(ApiStringFormat::Enum(vec![
+            "start".into(),
+            "status".into(),
+            "stop".into()
+        ])))
+        .into();
 
-    //let prop = Arc::new(ApiString!{ optional => true });
     let schema = ObjectSchema::new("Parameters.")
-        .required("name1", prop.clone())
-        .required("name2", prop.clone());
+        .required("command", command);
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match getopts::parse_arguments(&args, &vec![], &schema) {
+
+    let options = match getopts::parse_arguments(&args, &vec!["command"], &schema) {
         Ok((options, rest)) => {
-            println!("Got Options: {}", options);
-            println!("Remaining Arguments: {:?}", rest);
+            if !rest.is_empty() {
+                eprintln!("Error: got additional arguments: {:?}", rest);
+                std::process::exit(-1);
+            }
+            options
         }
         Err(err) => {
-            eprintln!("Unable to parse arguments:\n{}", err);
+            eprintln!("Error: unable to parse arguments:\n{}", err);
             std::process::exit(-1);
         }
+    };
+
+    let command = options["command"].as_str().unwrap();
+
+    match command {
+        "start" => {
+            println!("Starting server.");
+        },
+        "stop" => {
+            println!("Stopping server.");
+            std::process::exit(0);
+        },
+        "status" => {
+            println!("Server status.");
+             std::process::exit(0);
+       },
+        _ => {
+            eprintln!("got unexpected command {}", command);
+            std::process::exit(-1);
+        },
     }
 
     let addr = ([127, 0, 0, 1], 8007).into();
