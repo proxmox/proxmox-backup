@@ -277,8 +277,6 @@ impl SectionConfig {
 
         if section_type.len() == 0 { return None; }
 
-        // fixme: verify format
-
         let section_id = match head_iter.next() {
             Some(v) => v.trim(),
             None => return None,
