@@ -2,10 +2,12 @@
 Description=Proxmox API Test Server
 ConditionPathExists=/usr/sbin/api-test-server
 After=syslog.service
+After=network.target
 
 [Service]
 ExecStart=/usr/sbin/api-test-server start
 Type=simple
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
