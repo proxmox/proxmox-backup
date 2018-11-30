@@ -19,3 +19,6 @@ deb:
 
 clean:
 	cargo clean
+	rm -rf *.deb *.buildinfo *.changes build
+	find . -name '*~' -exec rm {} ';'
+
