@@ -1,0 +1,11 @@
+[Unit]
+Description=Proxmox API Test Server
+ConditionPathExists=/usr/sbin/api-test-server
+After=syslog.service
+
+[Service]
+ExecStart=/usr/sbin/api-test-server start
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
