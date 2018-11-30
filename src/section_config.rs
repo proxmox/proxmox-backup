@@ -1,7 +1,5 @@
 use failure::*;
 
-use std::fs::File;
-use std::io::Read;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -76,7 +74,7 @@ impl SectionConfig {
         self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
-    pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<String, Error> {
+    pub fn write(&self, _filename: &str, config: &SectionConfigData) -> Result<String, Error> {
 
         let mut list = VecDeque::new();
 
@@ -232,7 +230,7 @@ impl SectionConfig {
         Ok(result)
     }
 
-    pub fn default_format_section_header(type_name: &str, section_id: &str, data: &Value) -> String {
+    pub fn default_format_section_header(type_name: &str, section_id: &str, _data: &Value) -> String {
         return format!("{}: {}\n", type_name, section_id);
     }
 

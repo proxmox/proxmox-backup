@@ -82,7 +82,8 @@ impl Registry {
 
 }
 
-fn verify_pve_node(value: &str) -> Result<(), Error> {
+fn verify_pve_node(_value: &str) -> Result<(), Error> {
 
+    // fixme: ??
     Ok(())
 }

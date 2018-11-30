@@ -3,14 +3,14 @@ use std::sync::{Arc, Mutex};
 use failure::*;
 use tokio::prelude::*;
 
-struct StorageOperation {
+pub struct StorageOperation {
     state: Arc<Mutex<bool>>,
     running: bool,
 }
 
 impl StorageOperation {
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         StorageOperation { state: Arc::new(Mutex::new(false)), running: false }
     }
 

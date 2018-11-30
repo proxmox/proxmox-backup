@@ -1,6 +1,5 @@
 use failure::*;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 
 use crate::api::schema::*;

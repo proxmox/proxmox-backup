@@ -1,10 +1,8 @@
 use crate::api::schema::*;
 
 use failure::*;
-use std::collections::HashMap;
-use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Debug)]
 enum RawArgument {

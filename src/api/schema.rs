@@ -574,7 +574,7 @@ pub fn verify_json_string(data: &Value, schema: &StringSchema) -> Result<(), Err
     }
 }
 
-pub fn verify_json_boolean(data: &Value, schema: &BooleanSchema) -> Result<(), Error> {
+pub fn verify_json_boolean(data: &Value, _schema: &BooleanSchema) -> Result<(), Error> {
     if !data.is_boolean() {
         bail!("Expected boolean value.");
     }
@@ -582,7 +582,6 @@ pub fn verify_json_boolean(data: &Value, schema: &BooleanSchema) -> Result<(), E
 }
 
 pub fn verify_json_integer(data: &Value, schema: &IntegerSchema) -> Result<(), Error> {
-
     if let Some(value) = data.as_i64() {
         schema.check_constraints(value as isize)
     } else {
