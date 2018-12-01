@@ -1,1 +1,2 @@
 target/release/api-test-server /usr/sbin
+www/pbs-index.html.tt /usr/share/javascript/proxmox-backup-server/

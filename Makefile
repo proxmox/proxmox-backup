@@ -12,7 +12,7 @@ deb:
 	rm -rf build
 	# build here to cache results
 	cargo build --release
-	rsync -a debian Cargo.lock Cargo.toml src target build
+	rsync -a debian Cargo.lock Cargo.toml src www target build
 	cd build; dpkg-buildpackage -b -us -uc
 
 
