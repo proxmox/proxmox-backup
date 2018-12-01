@@ -3,6 +3,7 @@ Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: debhelper (>= 10),
+	       dh-systemd,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
