@@ -3,12 +3,14 @@ Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: debhelper (>= 10),
-	       dh-systemd,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
 Package: api-test-server
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+	 libjs-extjs (>= 6.0.1),
+	 fonts-font-awesome,
+	 proxmox-widget-toolkit,
 Description: API Test Server
  This is experimental code used to test Rust.
