@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use failure::*;
-use serde_json::{Value};
+use serde_json::{json, Value};
 use url::form_urlencoded;
 
 use futures::future::{self, Either};
@@ -202,6 +202,57 @@ fn handle_sync_api_request(
     Box::new(resp)
 }
 
+fn get_index() ->  BoxFut {
+
+    let nodename = "unknown";
+    let username = "";
+    let token = "abc";
+
+    let setup = json!({
+        "Setup": { "auth_cookie_name": "PBSAuthCookie" },
+        "NodeName": nodename,
+        "UserName": username,
+        "CSRFPreventionToken": token
+    });
+
+    let index = format!(r###"
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Proxmox Backup Server</title>
+    <link rel="icon" sizes="128x128" href="/pve2/images/logo-128.png" />
+    <link rel="apple-touch-icon" sizes="128x128" href="/pve2/images/logo-128.png" />
+    <link rel="stylesheet" type="text/css" href="/pve2/ext6/theme-crisp/resources/theme-crisp-all.css" />
+    <link rel="stylesheet" type="text/css" href="/pve2/ext6/crisp/resources/charts-all.css" />
+    <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
+    <script type='text/javascript'> function gettext(buf) {{ return buf; }} </script>
+    <script type="text/javascript" src="/pve2/ext6/ext-all-debug.js"></script>
+    <script type="text/javascript" src="/pve2/ext6/charts-debug.js"></script>
+    <script type="text/javascript">
+      Proxmox = {};
+    </script>
+    <script type="text/javascript" src="/proxmoxlib.js"></script>
+    <script type="text/javascript" src="/pve2/ext6/locale/locale-en.js"></script>
+    <script type="text/javascript">
+      Ext.History.fieldid = 'x-history-field';
+    </script>
+    <script type="text/javascript" src="/pve2/js/pbsmanagerlib.js"></script>
+  </head>
+  <body>
+    <!-- Fields required for history management -->
+    <form id="history-form" class="x-hidden">
+      <input type="hidden" id="x-history-field"/>
+    </form>
+  </body>
+</html>
+"###, setup.to_string());
+
+    Box::new(future::ok(Response::new(index.into())))
+}
+
 fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
 
     Box::new(File::open(filename)
@@ -296,8 +347,12 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     } else {
         // not Auth for accessing files!
 
-        let filename = api.find_alias(&components);
-        return handle_static_file_download(filename);
+        if comp_len == 0 {
+            return get_index();
+        } else {
+            let filename = api.find_alias(&components);
+            return handle_static_file_download(filename);
+        }
     }
 
     Box::new(future::err(http_err!(NOT_FOUND, "Path not found.".to_string())))
