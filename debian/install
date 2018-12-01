@@ -1,1 +1,3 @@
 target/release/api-test-server /usr/sbin
+www/images/logo-128.png /usr/share/javascript/proxmox-backup-server/images/
+www/images/proxmox_logo.png /usr/share/javascript/proxmox-backup-server/images/

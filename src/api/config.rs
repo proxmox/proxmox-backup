@@ -48,6 +48,8 @@ impl ApiConfig {
             if let Some(subdir) = self.aliases.get(&prefix) {
                 filename.push(subdir);
                 for i in 1..comp_len { filename.push(components[i]) }
+            } else {
+                for i in 0..comp_len { filename.push(components[i]) }
             }
         }
         filename

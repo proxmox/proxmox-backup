@@ -223,23 +223,23 @@ fn get_index() ->  BoxFut {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Proxmox Backup Server</title>
-    <link rel="icon" sizes="128x128" href="/pve2/images/logo-128.png" />
+    <link rel="icon" sizes="128x128" href="/images/logo-128.png" />
     <link rel="apple-touch-icon" sizes="128x128" href="/pve2/images/logo-128.png" />
-    <link rel="stylesheet" type="text/css" href="/pve2/ext6/theme-crisp/resources/theme-crisp-all.css" />
-    <link rel="stylesheet" type="text/css" href="/pve2/ext6/crisp/resources/charts-all.css" />
+    <link rel="stylesheet" type="text/css" href="/extjs/theme-crisp/resources/theme-crisp-all.css" />
+    <link rel="stylesheet" type="text/css" href="/extjs/crisp/resources/charts-all.css" />
     <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
     <script type='text/javascript'> function gettext(buf) {{ return buf; }} </script>
-    <script type="text/javascript" src="/pve2/ext6/ext-all-debug.js"></script>
-    <script type="text/javascript" src="/pve2/ext6/charts-debug.js"></script>
+    <script type="text/javascript" src="/extjs/ext-all-debug.js"></script>
+    <script type="text/javascript" src="/extjs/charts-debug.js"></script>
     <script type="text/javascript">
       Proxmox = {};
     </script>
-    <script type="text/javascript" src="/proxmoxlib.js"></script>
-    <script type="text/javascript" src="/pve2/ext6/locale/locale-en.js"></script>
+    <script type="text/javascript" src="/widgettoolkit/proxmoxlib.js"></script>
+    <script type="text/javascript" src="/extjs/locale/locale-en.js"></script>
     <script type="text/javascript">
       Ext.History.fieldid = 'x-history-field';
     </script>
-    <script type="text/javascript" src="/pve2/js/pbsmanagerlib.js"></script>
+    <script type="text/javascript" src="/js/pbsmanagerlib.js"></script>
   </head>
   <body>
     <!-- Fields required for history management -->

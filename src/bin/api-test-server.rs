@@ -64,13 +64,13 @@ fn main() {
         },
     }
 
-    let addr = ([127, 0, 0, 1], 8007).into();
+    let addr = ([0, 0, 0, 0], 8007).into();
 
     lazy_static!{
        static ref ROUTER: Router = apitest::api3::router();
     }
 
-    let mut config = ApiConfig::new("/var/www", &ROUTER);
+    let mut config = ApiConfig::new("/usr/share/javascript/proxmox-backup-server", &ROUTER);
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';
