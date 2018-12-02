@@ -3,7 +3,7 @@ use crate::api::router::*;
 use crate::api::config::*;
 
 use std::fmt;
-use std::path::{PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::collections::HashMap;
 
@@ -253,32 +253,73 @@ fn get_index() ->  BoxFut {
     Box::new(future::ok(Response::new(index.into())))
 }
 
+fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
+
+    if let Some(ext) = filename.extension().and_then(|osstr| osstr.to_str()) {
+        return match ext {
+            "css" => ("text/css", false),
+            "html" => ("text/html", false),
+            "js" => ("application/javascript", false),
+            "json" => ("application/json", false),
+            "map" => ("application/json", false),
+            "png" => ("image/png", true),
+            "ico" => ("image/x-icon", true),
+            "gif" => ("image/gif", true),
+            "svg" => ("image/svg+xml", false),
+            "jar" => ("application/java-archive", true),
+            "woff" => ("application/font-woff", true),
+            "woff2" => ("application/font-woff2", true),
+            "ttf" => ("application/font-snft", true),
+            "pdf" => ("application/pdf", true),
+            "epub" => ("application/epub+zip", true),
+            "mp3" => ("audio/mpeg", true),
+            "oga" => ("audio/ogg", true),
+            "tgz" => ("application/x-compressed-tar", true),
+            _ => ("application/octet-stream", false),
+        };
+    }
+
+    ("application/octet-stream", false)
+}
+
 fn simple_static_file_download(filename: PathBuf) ->  BoxFut {
+
+    let (content_type, _nocomp) = extension_to_content_type(&filename);
 
     Box::new(File::open(filename)
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
-        .and_then(|file| {
+        .and_then(move |file| {
             let buf: Vec<u8> = Vec::new();
             tokio::io::read_to_end(file, buf)
                 .map_err(|err| http_err!(BAD_REQUEST, format!("File read failed: {}", err)))
-                .and_then(|data| Ok(Response::new(data.1.into())))
+                .and_then(move |data| {
+                    let mut response = Response::new(data.1.into());
+                    response.headers_mut().insert(
+                        header::CONTENT_TYPE,
+                        header::HeaderValue::from_static(content_type));
+                    Ok(response)
+                })
         }))
 }
 
 fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
 
+    let (content_type, _nocomp) = extension_to_content_type(&filename);
+
     Box::new(File::open(filename)
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
-        .and_then(|file| {
+        .and_then(move |file| {
             let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
                 map(|bytes| {
                     //sigh - howto avoid copy here? or the whole map() ??
                     hyper::Chunk::from(bytes.to_vec())
                 });
             let body = Body::wrap_stream(payload);
-            // fixme: set content type and other headers
+
+            // fixme: set other headers ?
             Ok(Response::builder()
                .status(StatusCode::OK)
+               .header(header::CONTENT_TYPE, content_type)
                .body(body)
                .unwrap())
         }))
