@@ -239,7 +239,7 @@ fn get_index() ->  BoxFut {
     <script type="text/javascript">
       Ext.History.fieldid = 'x-history-field';
     </script>
-    <script type="text/javascript" src="/js/pbsmanagerlib.js"></script>
+    <script type="text/javascript" src="/js/proxmox-backup-gui.js"></script>
   </head>
   <body>
     <!-- Fields required for history management -->
