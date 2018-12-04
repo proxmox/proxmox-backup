@@ -56,8 +56,7 @@ Ext.define('PBS.MainView', {
 		    xtype: 'proxmoxlogo'
 		},
 		{
-		    //xtype: 'versioninfo'
-		    html: "version"
+		    xtype: 'versioninfo'
 		},
 		{
 		    flex: 1

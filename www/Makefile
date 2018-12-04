@@ -1,5 +1,6 @@
 JSSRC=							\
 	Logo.js						\
+	VersionInfo.js					\
 	Application.js					\
 	MainView.js
 
