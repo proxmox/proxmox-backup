@@ -24,10 +24,19 @@ fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error
     Ok(json!(null))
 }
 
+fn get_version(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+
+    Ok(json!({
+        "version": "1.0",
+        "release": "1",
+        "repoid": "AAAA"
+    }))
+}
 
 pub fn router() -> Router {
 
-    let route3 = Router::new()
+    let route4 = Router::new()
         .get(ApiMethod {
             parameters: ObjectSchema::new("Another Endpoint."),
             returns: Schema::Null,
@@ -38,21 +47,42 @@ pub fn router() -> Router {
            },
         });
 
-    let route2 = Router::new()
+
+    let nodeinfo = Router::new()
         .get(ApiMethod {
             handler: test_sync_api_handler,
-             parameters: ObjectSchema::new("This is a simple test.")
+            parameters: ObjectSchema::new("This is a simple test.")
                 .optional("force", BooleanSchema::new("Test for boolean options")),
             returns: Schema::Null,
         })
         .subdirs({
             let mut map = HashMap::new();
-            map.insert("subdir3".into(), route3);
+            map.insert("subdir3".into(), route4);
             map
         });
 
-    let route = Router::new()
-        .match_all("node", route2);
+    let nodes = Router::new()
+        .match_all("node", nodeinfo);
+
+    let version = Router::new()
+        .get(ApiMethod {
+            handler: get_version,
+            parameters: ObjectSchema::new("Proxmox Backup Server API version."),
+            returns: Schema::Null,
+        });
+
+     let route = Router::new()
+        .get(ApiMethod {
+            handler: get_version,
+            parameters: ObjectSchema::new("Directory index."),
+            returns: Schema::Null,
+        })
+        .subdirs({
+            let mut map = HashMap::new();
+            map.insert("version".into(), version);
+            map.insert("nodes".into(), nodes);
+           map
+        });
 
     route
 }
