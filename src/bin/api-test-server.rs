@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apitest::api::schema::*;
 use apitest::api::router::*;
 use apitest::api::config::*;
-use apitest::api::server::*;
+use apitest::server::rest::*;
 use apitest::getopts;
 
 //use failure::*;

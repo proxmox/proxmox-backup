@@ -19,7 +19,11 @@ pub mod api {
     #[macro_use]
     pub mod router;
     pub mod config;
-    pub mod server;
+}
+
+pub mod server {
+
+    pub mod rest;
 
 }
 
