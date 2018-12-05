@@ -23,6 +23,7 @@ pub mod api {
 
 pub mod server {
 
+    pub mod formatter;
     pub mod rest;
 
 }

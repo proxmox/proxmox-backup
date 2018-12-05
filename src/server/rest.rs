@@ -1,6 +1,7 @@
 use crate::api::schema::*;
 use crate::api::router::*;
 use crate::api::config::*;
+use super::formatter::*;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -66,7 +67,7 @@ impl Service for ApiService {
             match result {
                 Ok(res) => Ok::<_, hyper::Error>(res),
                 Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<HttpError>() {
+                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
                         Ok(resp)
@@ -140,6 +141,7 @@ fn get_request_parameters_async(
 
             if let Some(query_str) = parts.uri.query() {
                 for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
+                    if k == "_dc" { continue; } // skip extjs "disable cache" parameter
                     param_list.push((k, v));
                 }
             }
@@ -159,6 +161,7 @@ fn get_request_parameters_async(
 
 fn handle_sync_api_request(
     info: &'static ApiMethod,
+    formatter: &'static OutputFormatter,
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
@@ -185,15 +188,16 @@ fn handle_sync_api_request(
 
             Ok(res)
 
-        }).then(|result| {
+        }).then(move |result| {
             match result {
                 Ok(ref value) => {
-                    let json_str = value.to_string();
+
+                    let (raw, content_type) = (formatter.format_result)(value);
 
                     Ok(Response::builder()
                        .status(StatusCode::OK)
-                       .header(header::CONTENT_TYPE, "application/json")
-                       .body(Body::from(json_str))?)
+                       .header(header::CONTENT_TYPE, content_type)
+                       .body(Body::from(raw))?)
                 }
                 Err(err) => Err(http_err!(BAD_REQUEST, err.to_string()))
             }
@@ -374,15 +378,19 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
         println!("GOT API REQUEST");
         if comp_len >= 2 {
             let format = components[1];
-            if format != "json" {
-                return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))))
-            }
+            let formatter = match format {
+                "json" => &JSON_FORMATTER,
+                "extjs" => &EXTJS_FORMATTER,
+                _ =>  {
+                    return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported output format '{}'.", format))));
+                }
+            };
 
             let mut uri_param = HashMap::new();
 
             if let Some(api_method) = api.find_method(&components[2..], method, &mut uri_param) {
                 // fixme: handle auth
-                return handle_sync_api_request(api_method, parts, body, uri_param);
+                return handle_sync_api_request(api_method, formatter, parts, body, uri_param);
             }
         }
     } else {
