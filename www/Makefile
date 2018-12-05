@@ -1,4 +1,5 @@
 JSSRC=							\
+	Utils.js					\
 	Logo.js						\
 	VersionInfo.js					\
 	Application.js					\
