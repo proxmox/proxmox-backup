@@ -171,36 +171,10 @@ fn handle_sync_api_request(
 
     let resp = params
         .and_then(move |params| {
-
-            println!("GOT PARAMS {}", params);
-
-            /*
-            let when = Instant::now() + Duration::from_millis(3000);
-            let task = Delay::new(when).then(|_| {
-                println!("A LAZY TASK");
-                ok(())
-            });
-
-            tokio::spawn(task);
-             */
-
             let res = (info.handler)(params, info)?;
-
             Ok(res)
-
         }).then(move |result| {
-            match result {
-                Ok(ref value) => {
-
-                    let (raw, content_type) = (formatter.format_result)(value);
-
-                    Ok(Response::builder()
-                       .status(StatusCode::OK)
-                       .header(header::CONTENT_TYPE, content_type)
-                       .body(Body::from(raw))?)
-                }
-                Err(err) => Err(http_err!(BAD_REQUEST, err.to_string()))
-            }
+            Ok((formatter.format_result)(result))
         });
 
     Box::new(resp)
