@@ -14,5 +14,5 @@ proxmox-backup-gui.js: ${JSSRC}
 .PHONY: clean
 clean:
 	find . -name '*~' -exec rm {} ';'	
-	rm -r proxmox-backup-gui.js
+	rm -f proxmox-backup-gui.js
 

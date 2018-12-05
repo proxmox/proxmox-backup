@@ -24,15 +24,20 @@ fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error
     Ok(json!(null))
 }
 
+const PROXMOX_PKG_VERSION: &'static str = env!("PROXMOX_PKG_VERSION");
+const PROXMOX_PKG_RELEASE: &'static str = env!("PROXMOX_PKG_RELEASE");
+const PROXMOX_PKG_REPOID: &'static str = env!("PROXMOX_PKG_REPOID");
+
+
 fn get_version(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
-
     Ok(json!({
-        "version": "1.0",
-        "release": "1",
-        "repoid": "AAAA"
+        "version": PROXMOX_PKG_VERSION,
+        "release": PROXMOX_PKG_RELEASE,
+        "repoid": PROXMOX_PKG_REPOID
     }))
 }
+
 
 pub fn router() -> Router {
 

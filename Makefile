@@ -5,15 +5,16 @@ PKGREL=1
 ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
 GITVERSION:=$(shell git rev-parse HEAD)
 
+export PROXMOX_PKG_VERSION=${PKGVER}
+export PROXMOX_PKG_RELEASE=${PKGREL}
+export PROXMOX_PKG_REPOID=${GITVERSION}
 
 DEB=${PACKAGE}_${PKGVER}-${PKGREL}_${ARCH}.deb
 
 DESTDIR=
 
-all: target/release/api-test-server
-
-target/release/api-test-server:
-	cargo build --release
+all:
+	cargo build
 
 .PHONY: deb
 deb ${DEB}:
@@ -28,6 +29,7 @@ deb ${DEB}:
 distclean: clean
 
 clean:
+	make -C www clean
 	cargo clean
 	rm -rf *.deb *.buildinfo *.changes build
 	find . -name '*~' -exec rm {} ';'
