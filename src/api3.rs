@@ -54,27 +54,20 @@ pub fn router() -> Router {
 
 
     let nodeinfo = Router::new()
-        .get(ApiMethod {
-            handler: test_sync_api_handler,
-            parameters: ObjectSchema::new("This is a simple test.")
-                .optional("force", BooleanSchema::new("Test for boolean options")),
-            returns: Schema::Null,
-        })
-        .subdirs({
-            let mut map = HashMap::new();
-            map.insert("subdir3".into(), route4);
-            map
-        });
+        .get(ApiMethod::new(
+            test_sync_api_handler,
+            ObjectSchema::new("This is a simple test.")
+                .optional("force", BooleanSchema::new("Test for boolean options")))
+        )
+        .subdir("subdir3", route4);
 
     let nodes = Router::new()
         .match_all("node", nodeinfo);
 
     let version = Router::new()
-        .get(ApiMethod {
-            handler: get_version,
-            parameters: ObjectSchema::new("Proxmox Backup Server API version."),
-            returns: Schema::Null,
-        });
+        .get(ApiMethod::new(
+            get_version,
+            ObjectSchema::new("Proxmox Backup Server API version.")));
 
      let route = Router::new()
         .get(ApiMethod {
@@ -82,12 +75,8 @@ pub fn router() -> Router {
             parameters: ObjectSchema::new("Directory index."),
             returns: Schema::Null,
         })
-        .subdirs({
-            let mut map = HashMap::new();
-            map.insert("version".into(), version);
-            map.insert("nodes".into(), nodes);
-           map
-        });
+        .subdir("version", version)
+        .subdir("nodes", nodes);
 
     route
 }

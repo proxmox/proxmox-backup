@@ -4,10 +4,24 @@ use crate::api::schema::*;
 use serde_json::{Value};
 use std::collections::HashMap;
 
+type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
+
 pub struct ApiMethod {
     pub parameters: ObjectSchema,
     pub returns: Schema,
-    pub handler: fn(Value, &ApiMethod) -> Result<Value, Error>,
+    pub handler: ApiHandlerFn,
+}
+
+impl ApiMethod {
+
+    pub fn new(handler: ApiHandlerFn, parameters: ObjectSchema) -> Self {
+        Self {
+            parameters,
+            handler,
+            returns: Schema::Null,
+        }
+    }
+
 }
 
 pub enum SubRoute {
@@ -36,13 +50,30 @@ impl Router {
         }
     }
 
+    pub fn subdir<S: Into<String>>(mut self, subdir: S, router: Router) -> Self {
+        if let SubRoute::None = self.subroute {
+            self.subroute = SubRoute::Hash(HashMap::new());
+        }
+        match self.subroute {
+            SubRoute::Hash(ref mut map) => {
+                map.insert(subdir.into(), router);
+            }
+            _ => panic!("unexpected subroute type"),
+        }
+        self
+    }
+
     pub fn subdirs(mut self, map: HashMap<String, Router>) -> Self {
         self.subroute = SubRoute::Hash(map);
         self
     }
 
-    pub fn match_all<S>(mut self, param_name: S, router: Router) -> Self where S: Into<String> {
-        self.subroute = SubRoute::MatchAll { router: Box::new(router), param_name: param_name.into() };
+    pub fn match_all<S: Into<String>>(mut self, param_name: S, router: Router) -> Self {
+        if let SubRoute::None = self.subroute {
+            self.subroute = SubRoute::MatchAll { router: Box::new(router), param_name: param_name.into() };
+        } else {
+            panic!("unexpected subroute type");
+        }
         self
     }
 
@@ -50,17 +81,17 @@ impl Router {
         self.get = Some(m);
         self
     }
-    
+
     pub fn put(mut self, m: ApiMethod) -> Self {
         self.put = Some(m);
         self
     }
-    
+
     pub fn post(mut self, m: ApiMethod) -> Self {
         self.post = Some(m);
         self
     }
-    
+
     pub fn delete(mut self, m: ApiMethod) -> Self {
         self.delete = Some(m);
         self
