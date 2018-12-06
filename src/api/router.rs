@@ -3,12 +3,13 @@ use failure::*;
 use crate::api::schema::*;
 use serde_json::{Value};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,
-    pub returns: Schema,
+    pub returns: Arc<Schema>,
     pub handler: ApiHandlerFn,
 }
 
@@ -18,8 +19,15 @@ impl ApiMethod {
         Self {
             parameters,
             handler,
-            returns: Schema::Null,
+            returns: Arc::new(Schema::Null),
         }
+    }
+
+    pub fn returns<S: Into<Arc<Schema>>>(mut self, schema: S) -> Self {
+
+        self.returns = schema.into();
+
+        self
     }
 
 }

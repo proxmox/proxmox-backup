@@ -38,19 +38,17 @@ fn get_version(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     }))
 }
 
-
 pub fn router() -> Router {
 
     let route4 = Router::new()
-        .get(ApiMethod {
-            parameters: ObjectSchema::new("Another Endpoint."),
-            returns: Schema::Null,
-            handler: |param, _info| {
+        .get(ApiMethod::new(
+            |param, _info| {
                 println!("This is a clousure handler: {}", param);
 
                 Ok(json!(null))
-           },
-        });
+            },
+            ObjectSchema::new("Another Endpoint."))
+             .returns(Schema::Null));
 
 
     let nodeinfo = Router::new()
@@ -70,11 +68,9 @@ pub fn router() -> Router {
             ObjectSchema::new("Proxmox Backup Server API version.")));
 
      let route = Router::new()
-        .get(ApiMethod {
-            handler: get_version,
-            parameters: ObjectSchema::new("Directory index."),
-            returns: Schema::Null,
-        })
+        .get(ApiMethod::new(
+            get_version,
+            ObjectSchema::new("Directory index.")))
         .subdir("version", version)
         .subdir("nodes", nodes);
 
