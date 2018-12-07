@@ -30,6 +30,11 @@ pub mod server {
 
 pub mod section_config;
 
+pub mod backup {
+
+    pub mod chunk_store;
+}
+
 pub mod storage {
 
     pub mod config;
