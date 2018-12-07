@@ -193,7 +193,7 @@ fn test_argument_paramenter() {
 
     let args = vec!["-enable", "local"];
     let string_args = args.iter().map(|s| s.to_string()).collect();
-    let res = parse_arguments(&string_args, &vec!["storage".to_string()], &schema);
+    let res = parse_arguments(&string_args, &vec!["storage"], &schema);
     assert!(res.is_ok());
     if let Ok((options, rest)) = res {
         assert!(options["enable"] == true);
