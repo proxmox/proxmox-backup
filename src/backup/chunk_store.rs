@@ -6,12 +6,16 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha512Trunc256;
 use std::sync::Mutex;
 
+use std::fs::{File, OpenOptions};
+use nix::fcntl::{flock, FlockArg};
+use std::os::unix::io::AsRawFd;
 
 pub struct ChunkStore {
     base: PathBuf,
     chunk_dir: PathBuf,
     hasher: Sha512Trunc256,
     mutex: Mutex<bool>,
+    lockfile: File,
 }
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
@@ -48,42 +52,68 @@ fn u256_to_prefix(digest: &[u8; 32]) -> PathBuf {
 
 impl ChunkStore {
 
-    fn new<P: Into<PathBuf>>(path: P) -> Self {
-        let base = path.into();
+    fn new(base: PathBuf, lockfile: File) -> Self {
         let mut chunk_dir = base.clone();
         chunk_dir.push(".chunks");
 
         let hasher = Sha512Trunc256::new();
 
-        ChunkStore { base, chunk_dir, hasher, mutex: Mutex::new(false) }
+        ChunkStore { base, chunk_dir, hasher, lockfile, mutex: Mutex::new(false) }
     }
 
     // fixme: aquire filesystem lock for directory
 
+    fn chunk_dir<P: AsRef<Path>>(path: P) -> PathBuf {
+
+        let mut chunk_dir: PathBuf = PathBuf::from(path.as_ref());
+        chunk_dir.push(".chunks");
+
+        chunk_dir
+    }
+
     pub fn create<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
 
-        let me = Self::new(path);
+        let base: PathBuf = path.into();
+        let chunk_dir = Self::chunk_dir(&base);
 
-        std::fs::create_dir(&me.base)?;
-        std::fs::create_dir(&me.chunk_dir)?;
+        std::fs::create_dir(&base)?;
+        std::fs::create_dir(&chunk_dir)?;
 
         // create 4096 subdir
         for i in 0..4096 {
-            let mut l1path = me.base.clone();
+            let mut l1path = base.clone();
             l1path.push(format!("{:03x}",i));
             std::fs::create_dir(&l1path)?;
         }
 
-        Ok(me)
+        Self::open(base)
     }
 
     pub fn open<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
 
-        let me = Self::new(path);
+        let base: PathBuf = path.into();
+        let chunk_dir = Self::chunk_dir(&base);
 
-        let metadata = std::fs::metadata(&me.chunk_dir)?;
+        let metadata = std::fs::metadata(&chunk_dir)?;
 
-        println!("{:?}", metadata.file_type());
+        let mut lockfile_path = base.clone();
+        lockfile_path.push(".lock");
+
+         let lockfile = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(lockfile_path)?;
+
+        let fd = lockfile.as_raw_fd();
+
+        // fixme: lock with timeout
+        flock(fd, FlockArg::LockExclusive)?;
+
+        println!("Got LOCK {:?}", fd);
+
+        //std::thread::sleep_ms(30000);
+
+        let me = Self::new(base, lockfile);
 
         Ok(me)
     }
