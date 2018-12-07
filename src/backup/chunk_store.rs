@@ -4,12 +4,14 @@ use std::io::Write;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha512Trunc256;
+use std::sync::Mutex;
+
 
 pub struct ChunkStore {
     base: PathBuf,
     chunk_dir: PathBuf,
     hasher: Sha512Trunc256,
-
+    mutex: Mutex<bool>,
 }
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
@@ -53,8 +55,10 @@ impl ChunkStore {
 
         let hasher = Sha512Trunc256::new();
 
-        ChunkStore { base, chunk_dir, hasher }
+        ChunkStore { base, chunk_dir, hasher, mutex: Mutex::new(false) }
     }
+
+    // fixme: aquire filesystem lock for directory
 
     pub fn create<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
 
@@ -94,21 +98,39 @@ impl ChunkStore {
         println!("DIGEST {}", u256_to_hex(&digest));
 
         let mut chunk_path = self.base.clone();
-
         let prefix = u256_to_prefix(&digest);
-        chunk_path.push(prefix);
+        chunk_path.push(&prefix);
+        let digest_str = u256_to_hex(&digest);
+        chunk_path.push(&digest_str);
 
-        if let Err(_e) = std::fs::create_dir(&chunk_path) { /* ignore */ }
+        let lock = self.mutex.lock();
 
-        println!("PATH {:?}", chunk_path);
+        if let Ok(metadata) = std::fs::metadata(&chunk_path) {
+            if metadata.is_file() {
+                 return Ok(digest);
+            } else {
+                bail!("Got unexpected file type for chunk {}", digest_str);
+            }
+        }
 
-        chunk_path.push(u256_to_hex(&digest));
-        //chunk_path.set_extension("tmp");
-        //chunk_path.set_extension("");
-        let mut f = std::fs::File::create(&chunk_path)?;
+        let mut chunk_dir = self.base.clone();
+        chunk_dir.push(&prefix);
+
+        if let Err(_) = std::fs::create_dir(&chunk_dir) { /* ignore */ }
+
+        let mut tmp_path = chunk_path.clone();
+        tmp_path.set_extension("tmp");
+        let mut f = std::fs::File::create(&tmp_path)?;
         f.write_all(chunk)?;
 
+        if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
+            if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
+            bail!("Atomic rename failed for chunk {} - {}", digest_str, err);
+        }
+
         println!("PATH {:?}", chunk_path);
+
+        drop(lock);
 
         Ok(digest)
     }
@@ -125,7 +147,8 @@ fn test_chunk_store1() {
     assert!(chunk_store.is_err());
 
     let mut chunk_store = ChunkStore::create(".testdir").unwrap();
-    chunk_store.insert_chunk(&[0u8, 1u8]);
+    chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
 
 
     let chunk_store = ChunkStore::create(".testdir");
