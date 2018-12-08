@@ -98,7 +98,7 @@ impl ChunkStore {
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
-         let lockfile = match OpenOptions::new()
+        let lockfile = match OpenOptions::new()
             .create(true)
             .append(true)
             .open(&lockfile_path) {
@@ -109,12 +109,34 @@ impl ChunkStore {
 
         let fd = lockfile.as_raw_fd();
 
-        // fixme: lock with timeout
-        flock(fd, FlockArg::LockExclusive)?;
+        let now = std::time::SystemTime::now();
+        let timeout = 10;
+        let mut print_msg = true;
+        loop {
+            match flock(fd, FlockArg::LockExclusiveNonblock) {
+                Ok(_) => break,
+                Err(_) => {
+                    if print_msg {
+                        print_msg = false;
+                        eprintln!("trying to aquire lock...");
+                    }
+                }
+            }
 
-        println!("Got LOCK {:?}", fd);
-
-        //std::thread::sleep_ms(30000);
+            match now.elapsed() {
+                Ok(elapsed) => {
+                    if elapsed.as_secs() >= timeout {
+                        bail!("unable to aquire chunk store lock {:?} - got timeout",
+                              lockfile_path);
+                    }
+                }
+                Err(err) => {
+                    bail!("unable to aquire chunk store lock {:?} - clock problems - {}",
+                          lockfile_path, err);
+                }
+            }
+            std::thread::sleep_ms(100);
+        }
 
         Ok(ChunkStore {
             base,
