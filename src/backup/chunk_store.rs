@@ -65,14 +65,21 @@ impl ChunkStore {
         let base: PathBuf = path.into();
         let chunk_dir = Self::chunk_dir(&base);
 
-        std::fs::create_dir(&base)?;
-        std::fs::create_dir(&chunk_dir)?;
+        if let Err(err) = std::fs::create_dir(&base) {
+            bail!("unable to create chunk store {:?} - {}", base, err);
+        }
+
+        if let Err(err) = std::fs::create_dir(&chunk_dir) {
+            bail!("unable to create chunk store subdir {:?} - {}", chunk_dir, err);
+        }
 
         // create 4096 subdir
         for i in 0..4096 {
             let mut l1path = base.clone();
             l1path.push(format!("{:03x}",i));
-            std::fs::create_dir(&l1path)?;
+            if let Err(err) = std::fs::create_dir(&l1path) {
+                bail!("unable to create chunk subdir {:?} - {}", l1path, err);
+            }
         }
 
         Self::open(base)
@@ -83,15 +90,22 @@ impl ChunkStore {
         let base: PathBuf = path.into();
         let chunk_dir = Self::chunk_dir(&base);
 
-        let metadata = std::fs::metadata(&chunk_dir)?;
+        let metadata = match std::fs::metadata(&chunk_dir) {
+            Ok(data) => data,
+            Err(err) => bail!("unable to open chunk store {:?} - {}", chunk_dir, err),
+        };
 
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
-         let lockfile = OpenOptions::new()
+         let lockfile = match OpenOptions::new()
             .create(true)
             .append(true)
-            .open(lockfile_path)?;
+            .open(&lockfile_path) {
+                Ok(file) => file,
+                Err(err) => bail!("unable to open chunk store lock file {:?} - {}",
+                                  lockfile_path, err),
+            };
 
         let fd = lockfile.as_raw_fd();
 
