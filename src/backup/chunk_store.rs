@@ -52,17 +52,6 @@ fn u256_to_prefix(digest: &[u8; 32]) -> PathBuf {
 
 impl ChunkStore {
 
-    fn new(base: PathBuf, lockfile: File) -> Self {
-        let mut chunk_dir = base.clone();
-        chunk_dir.push(".chunks");
-
-        let hasher = Sha512Trunc256::new();
-
-        ChunkStore { base, chunk_dir, hasher, lockfile, mutex: Mutex::new(false) }
-    }
-
-    // fixme: aquire filesystem lock for directory
-
     fn chunk_dir<P: AsRef<Path>>(path: P) -> PathBuf {
 
         let mut chunk_dir: PathBuf = PathBuf::from(path.as_ref());
@@ -113,9 +102,13 @@ impl ChunkStore {
 
         //std::thread::sleep_ms(30000);
 
-        let me = Self::new(base, lockfile);
-
-        Ok(me)
+        Ok(ChunkStore {
+            base,
+            chunk_dir,
+            hasher: Sha512Trunc256::new(),
+            lockfile,
+            mutex: Mutex::new(false)
+        })
     }
 
     pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<([u8; 32]), Error> {
