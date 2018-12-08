@@ -35,6 +35,11 @@ pub mod backup {
     pub mod chunk_store;
 }
 
+pub mod config {
+
+    pub mod data_store;
+}
+
 pub mod storage {
 
     pub mod config;
