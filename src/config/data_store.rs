@@ -1,6 +1,6 @@
 use failure::*;
 
-use std::fs::{File, OpenOptions};
+use std::fs::{OpenOptions};
 use std::io::Read;
 
 //use std::sync::Arc;
@@ -32,23 +32,23 @@ fn init() -> SectionConfig {
     config
 }
 
-const datastore_cfg: &str = "/etc/proxmox-backup/datastore.cfg";
+const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 
 fn config() -> Result<SectionConfigData, Error> {
 
     let mut file = match OpenOptions::new()
         .create(true)
         .write(true)
-        .open(datastore_cfg) {
+        .open(DATASTORE_CFG_FILENAME) {
             Ok(file) => file,
             Err(err) => bail!("Unable to open '{}' - {}",
-                              datastore_cfg, err),
+                              DATASTORE_CFG_FILENAME, err),
         };
 
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
 
-    CONFIG.parse(datastore_cfg, &contents)
+    CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
 }
 
 
