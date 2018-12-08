@@ -5,8 +5,14 @@ use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json, Value};
 
+use crate::config::datastore;
+
 fn datastore_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
+
+    let config = datastore::config().unwrap();
+    
+    
     Ok(json!({}))
 }
 

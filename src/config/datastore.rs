@@ -34,7 +34,7 @@ fn init() -> SectionConfig {
 
 const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 
-fn config() -> Result<SectionConfigData, Error> {
+pub fn config() -> Result<SectionConfigData, Error> {
 
     let mut file = match OpenOptions::new()
         .create(true)

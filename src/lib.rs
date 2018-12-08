@@ -37,7 +37,7 @@ pub mod backup {
 
 pub mod config {
 
-    pub mod data_store;
+    pub mod datastore;
 }
 
 pub mod storage {
