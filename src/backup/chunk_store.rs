@@ -87,7 +87,7 @@ fn lock_file<P: AsRef<Path>>(filename: P, timeout: usize) -> Result<File, Error>
                 bail!("unable to aquire lock {:?} - clock problems - {}", path, err);
             }
         }
-        std::thread::sleep_ms(100);
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
     Ok(lockfile)
 }
