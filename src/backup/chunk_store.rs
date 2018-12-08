@@ -151,7 +151,7 @@ impl ChunkStore {
         })
     }
 
-    pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<([u8; 32]), Error> {
+    pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
 
         self.hasher.reset();
         self.hasher.input(chunk);
@@ -170,7 +170,7 @@ impl ChunkStore {
 
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
             if metadata.is_file() {
-                 return Ok(digest);
+                 return Ok((true, digest));
             } else {
                 bail!("Got unexpected file type for chunk {}", digest_str);
             }
@@ -195,7 +195,7 @@ impl ChunkStore {
 
         drop(lock);
 
-        Ok(digest)
+        Ok((false, digest))
     }
 
 }
@@ -210,8 +210,11 @@ fn test_chunk_store1() {
     assert!(chunk_store.is_err());
 
     let mut chunk_store = ChunkStore::create(".testdir").unwrap();
-    chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
-    chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    assert!(!exists);
+
+    let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    assert!(exists);
 
 
     let chunk_store = ChunkStore::create(".testdir");
