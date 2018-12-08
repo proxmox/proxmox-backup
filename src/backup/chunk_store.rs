@@ -50,6 +50,48 @@ fn u256_to_prefix(digest: &[u8; 32]) -> PathBuf {
     path.into()
 }
 
+fn lock_file<P: AsRef<Path>>(filename: P, timeout: usize) -> Result<File, Error> {
+
+    let path = filename.as_ref();
+    let lockfile = match OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path) {
+            Ok(file) => file,
+            Err(err) => bail!("Unable to open lock {:?} - {}",
+                              path, err),
+        };
+
+    let fd = lockfile.as_raw_fd();
+
+    let now = std::time::SystemTime::now();
+    let mut print_msg = true;
+    loop {
+        match flock(fd, FlockArg::LockExclusiveNonblock) {
+            Ok(_) => break,
+            Err(_) => {
+                if print_msg {
+                    print_msg = false;
+                    eprintln!("trying to aquire lock...");
+                }
+            }
+        }
+
+        match now.elapsed() {
+            Ok(elapsed) => {
+                if elapsed.as_secs() >= (timeout as u64) {
+                    bail!("unable to aquire lock {:?} - got timeout", path);
+                }
+            }
+            Err(err) => {
+                bail!("unable to aquire lock {:?} - clock problems - {}", path, err);
+            }
+        }
+        std::thread::sleep_ms(100);
+    }
+    Ok(lockfile)
+}
+
 impl ChunkStore {
 
     fn chunk_dir<P: AsRef<Path>>(path: P) -> PathBuf {
@@ -98,45 +140,7 @@ impl ChunkStore {
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
-        let lockfile = match OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&lockfile_path) {
-                Ok(file) => file,
-                Err(err) => bail!("unable to open chunk store lock file {:?} - {}",
-                                  lockfile_path, err),
-            };
-
-        let fd = lockfile.as_raw_fd();
-
-        let now = std::time::SystemTime::now();
-        let timeout = 10;
-        let mut print_msg = true;
-        loop {
-            match flock(fd, FlockArg::LockExclusiveNonblock) {
-                Ok(_) => break,
-                Err(_) => {
-                    if print_msg {
-                        print_msg = false;
-                        eprintln!("trying to aquire lock...");
-                    }
-                }
-            }
-
-            match now.elapsed() {
-                Ok(elapsed) => {
-                    if elapsed.as_secs() >= timeout {
-                        bail!("unable to aquire chunk store lock {:?} - got timeout",
-                              lockfile_path);
-                    }
-                }
-                Err(err) => {
-                    bail!("unable to aquire chunk store lock {:?} - clock problems - {}",
-                          lockfile_path, err);
-                }
-            }
-            std::thread::sleep_ms(100);
-        }
+        let lockfile = lock_file(lockfile_path, 10)?;
 
         Ok(ChunkStore {
             base,
