@@ -4,6 +4,7 @@ use std::fs::{OpenOptions};
 use std::io::{Read, Write};
 
 //use std::sync::Arc;
+use crate::tools;
 use crate::api::schema::*;
 
 use crate::section_config::*;
@@ -71,9 +72,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
     //fixme: compute and compare digest
 
-    //fixme: impl file_set_contents() (atomic write)
-    file.set_len(0)?;
-    file.write_all(raw.as_bytes())?;
+    tools::file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
 
     Ok(())
 }

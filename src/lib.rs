@@ -10,6 +10,8 @@ pub mod static_map;
 /// hierarchy of API entries, and provides ways to find an API
 /// definition by path.
 
+pub mod tools;
+
 #[macro_use]
 pub mod api {
 
