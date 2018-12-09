@@ -6,7 +6,7 @@ use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json, Value};
 
-mod config;
+pub mod config;
 mod version;
 
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {

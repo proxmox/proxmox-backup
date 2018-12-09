@@ -5,7 +5,7 @@ use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json};
 
-mod datastore;
+pub mod datastore;
 
 pub fn router() -> Router {
 
