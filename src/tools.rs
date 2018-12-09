@@ -23,10 +23,10 @@ pub fn file_set_contents<P: AsRef<Path>>(
 
     let tmp_path = tmp_path.as_path();
 
-    let mode : stat::Mode = stat::Mode::from(
+    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from(
         stat::Mode::S_IRUSR | stat::Mode::S_IWUSR |
         stat::Mode::S_IRGRP | stat::Mode::S_IROTH
-    );
+    ));
 
     if let Err(err) = stat::fchmod(fd, mode) {
         let _ = unistd::unlink(tmp_path);
