@@ -61,9 +61,9 @@ impl SectionConfigData {
         let mut list: Vec<Value> = vec![];
 
         for (section_id, (_, data)) in &self.sections {
-            let mut entry = data.clone();
-            entry.as_object_mut().unwrap().insert(id_prop.into(), section_id.clone().into());
-            list.push(entry);
+            let mut item = data.clone();
+            item.as_object_mut().unwrap().insert(id_prop.into(), section_id.clone().into());
+            list.push(item);
         }
 
         list.into()
