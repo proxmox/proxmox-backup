@@ -72,6 +72,12 @@ fn main() {
         fixed_param: vec![],
     });
 
+    cmd_def.insert("remove".to_owned(), CliCommand {
+        info: api3::config::datastore::delete(),
+        arg_param: vec!["name"],
+        fixed_param: vec![],
+    });
+
     if let Err(err) = run_cli_command(&cmd_def) {
         eprintln!("Error: {}", err);
         print_cli_usage();

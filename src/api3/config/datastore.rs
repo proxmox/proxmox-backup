@@ -30,7 +30,6 @@ pub fn post() -> ApiMethod {
 }
 
 fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
-    println!("This is a test {}", param);
 
     // fixme: locking ?
 
@@ -53,11 +52,39 @@ fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+pub fn delete() -> ApiMethod {
+    ApiMethod::new(
+        delete_datastore,
+        ObjectSchema::new("Remove a datastore configuration.")
+            .required("name", StringSchema::new("Datastore name.")))
+}
+
+fn delete_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+    println!("This is a test {}", param);
+
+    // fixme: locking ?
+    // fixme: check digest ?
+
+    let mut config = datastore::config()?;
+
+    let name = param["name"].as_str().unwrap();
+
+    match config.sections.get(name) {
+        Some(_) => { config.sections.remove(name); },
+        None => bail!("datastore '{}' does not exist.", name),
+    }
+
+    datastore::save_config(&config)?;
+
+    Ok(Value::Null)
+}
+
 pub fn router() -> Router {
 
     let route = Router::new()
         .get(get())
-        .post(post());
+        .post(post())
+        .delete(delete());
 
 
     route
