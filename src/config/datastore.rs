@@ -1,7 +1,7 @@
 use failure::*;
 
 use std::fs::{OpenOptions};
-use std::io::Read;
+use std::io::{Read, Write};
 
 //use std::sync::Arc;
 use crate::api::schema::*;
@@ -52,4 +52,28 @@ pub fn config() -> Result<SectionConfigData, Error> {
     CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
 }
 
+pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
+    let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
+
+    let mut file = match OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(DATASTORE_CFG_FILENAME) {
+            Ok(file) => file,
+            Err(err) => bail!("Unable to open '{}' - {}",
+                              DATASTORE_CFG_FILENAME, err),
+        };
+
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    //fixme: compute and compare digest
+
+    //fixme: impl file_set_contents() (atomic write)
+    file.set_len(0)?;
+    file.write_all(raw.as_bytes())?;
+
+    Ok(())
+}

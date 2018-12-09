@@ -32,7 +32,25 @@ pub fn post() -> ApiMethod {
 fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
-    Ok(json!({}))
+    // fixme: locking ?
+
+    let mut config = datastore::config()?;
+
+    let name = param["name"].as_str().unwrap();
+
+    if let Some(_) = config.sections.get(name) {
+        bail!("datastore '{}' already exists.", name);
+    }
+
+    let datastore = json!({
+        "path": param["path"]
+    });
+
+    config.set_data(name, "datastore", datastore);
+
+    datastore::save_config(&config)?;
+
+    Ok(Value::Null)
 }
 
 pub fn router() -> Router {
