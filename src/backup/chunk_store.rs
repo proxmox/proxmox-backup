@@ -132,10 +132,9 @@ impl ChunkStore {
         let base: PathBuf = path.into();
         let chunk_dir = Self::chunk_dir(&base);
 
-        let metadata = match std::fs::metadata(&chunk_dir) {
-            Ok(data) => data,
-            Err(err) => bail!("unable to open chunk store {:?} - {}", chunk_dir, err),
-        };
+        if let Err(err) = std::fs::metadata(&chunk_dir) {
+            bail!("unable to open chunk store {:?} - {}", chunk_dir, err);
+        }
 
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
