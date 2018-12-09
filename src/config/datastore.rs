@@ -38,6 +38,7 @@ pub fn config() -> Result<SectionConfigData, Error> {
 
     let mut file = match OpenOptions::new()
         .create(true)
+        .read(true)
         .write(true)
         .open(DATASTORE_CFG_FILENAME) {
             Ok(file) => file,
@@ -46,7 +47,7 @@ pub fn config() -> Result<SectionConfigData, Error> {
         };
 
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    file.read_to_string(&mut contents)?;
 
     CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
 }
