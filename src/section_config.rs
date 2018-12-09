@@ -38,7 +38,7 @@ enum ParseState<'a> {
 
 #[derive(Debug)]
 pub struct SectionConfigData {
-    sections: HashMap<String, (String, Value)>,
+    pub sections: HashMap<String, (String, Value)>,
     order: VecDeque<String>,
 }
 
@@ -55,6 +55,18 @@ impl SectionConfigData {
 
     fn record_order(&mut self, section_id: &str) {
         self.order.push_back(section_id.to_string());
+    }
+
+    pub fn convert_to_array(&self, id_prop: &str) -> Value {
+        let mut list: Vec<Value> = vec![];
+
+        for (section_id, (_, data)) in &self.sections {
+            let mut entry = data.clone();
+            entry.as_object_mut().unwrap().insert(id_prop.into(), section_id.clone().into());
+            list.push(entry);
+        }
+
+        list.into()
     }
 }
 

@@ -10,10 +10,9 @@ use crate::config::datastore;
 fn datastore_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
-    let config = datastore::config().unwrap();
-    
-    
-    Ok(json!({}))
+    let config = datastore::config()?;
+
+    Ok(config.convert_to_array("id"))
 }
 
 pub fn router() -> Router {
