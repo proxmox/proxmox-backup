@@ -50,4 +50,10 @@ pub mod storage {
 
 pub mod getopts;
 
+pub mod cli {
+
+    pub mod command;
+}
+
+
 pub mod api3;
