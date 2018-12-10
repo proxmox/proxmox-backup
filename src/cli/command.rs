@@ -83,3 +83,15 @@ pub enum CommandLineInterface {
     Simple(CliCommand),
     Nested(HashMap<String, CommandLineInterface>),
 }
+
+impl From<CliCommand> for CommandLineInterface {
+    fn from(cli_cmd: CliCommand) -> Self {
+         CommandLineInterface::Simple(cli_cmd)
+    }
+}
+
+impl From<HashMap<String, CommandLineInterface>> for CommandLineInterface {
+    fn from(map: HashMap<String, CommandLineInterface>) -> Self {
+        CommandLineInterface::Nested(map)
+    }
+}
