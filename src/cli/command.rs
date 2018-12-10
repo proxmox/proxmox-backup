@@ -27,7 +27,7 @@ fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<(), 
     Ok(())
 }
 
-fn handle_nested_command(def: &HashMap<String, CmdDef>, mut args: Vec<String>) -> Result<(), Error> {
+fn handle_nested_command(def: &HashMap<String, CommandLineInterface>, mut args: Vec<String>) -> Result<(), Error> {
 
     if args.len() < 1 {
         let mut cmds: Vec<&String> = def.keys().collect();
@@ -52,10 +52,10 @@ fn handle_nested_command(def: &HashMap<String, CmdDef>, mut args: Vec<String>) -
     };
 
     match sub_cmd {
-        CmdDef::Simple(cli_cmd) => {
+        CommandLineInterface::Simple(cli_cmd) => {
             handle_simple_command(cli_cmd, args)?;
         }
-        CmdDef::Nested(map) => {
+        CommandLineInterface::Nested(map) => {
             handle_nested_command(map, args)?;
         }
     }
@@ -63,13 +63,13 @@ fn handle_nested_command(def: &HashMap<String, CmdDef>, mut args: Vec<String>) -
     Ok(())
 }
 
-pub fn run_cli_command(def: &CmdDef) -> Result<(), Error> {
+pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     match def {
-        CmdDef::Simple(cli_cmd) => handle_simple_command(cli_cmd, args),
-        CmdDef::Nested(map) => handle_nested_command(map, args),
+        CommandLineInterface::Simple(cli_cmd) => handle_simple_command(cli_cmd, args),
+        CommandLineInterface::Nested(map) => handle_nested_command(map, args),
     }
 }
 
@@ -79,7 +79,7 @@ pub struct CliCommand {
     pub fixed_param: Vec<&'static str>,
 }
 
-pub enum CmdDef {
+pub enum CommandLineInterface {
     Simple(CliCommand),
-    Nested(HashMap<String, CmdDef>),
+    Nested(HashMap<String, CommandLineInterface>),
 }
