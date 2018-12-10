@@ -27,6 +27,28 @@ fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<(), 
     Ok(())
 }
 
+fn find_command<'a>(def: &'a HashMap<String, CommandLineInterface>, name: &str) -> Option<&'a CommandLineInterface> {
+
+    if let Some(sub_cmd) = def.get(name) {
+        return Some(sub_cmd);
+    };
+
+    let mut matches: Vec<&str> = vec![];
+
+    for cmd in def.keys() {
+        if cmd.starts_with(name) {
+             matches.push(cmd); }
+    }
+
+    if matches.len() != 1 { return None; }
+
+    if let Some(sub_cmd) = def.get(matches[0]) {
+        return Some(sub_cmd);
+    };
+
+    None
+}
+
 fn handle_nested_command(def: &HashMap<String, CommandLineInterface>, mut args: Vec<String>) -> Result<(), Error> {
 
     if args.len() < 1 {
@@ -44,11 +66,9 @@ fn handle_nested_command(def: &HashMap<String, CommandLineInterface>, mut args: 
 
     let command = args.remove(0);
 
-    let sub_cmd = match def.get(&command) {
+    let sub_cmd = match find_command(def, &command) {
         Some(cmd) => cmd,
-        None => {
-            bail!("no such command '{}'", command);
-        }
+        None => bail!("no such command '{}'", command),
     };
 
     match sub_cmd {
