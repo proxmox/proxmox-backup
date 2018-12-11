@@ -27,32 +27,32 @@ fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<(), 
     Ok(())
 }
 
-fn find_command<'a>(def: &'a HashMap<String, CommandLineInterface>, name: &str) -> Option<&'a CommandLineInterface> {
+fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLineInterface> {
 
-    if let Some(sub_cmd) = def.get(name) {
+    if let Some(sub_cmd) = def.commands.get(name) {
         return Some(sub_cmd);
     };
 
     let mut matches: Vec<&str> = vec![];
 
-    for cmd in def.keys() {
+    for cmd in def.commands.keys() {
         if cmd.starts_with(name) {
              matches.push(cmd); }
     }
 
     if matches.len() != 1 { return None; }
 
-    if let Some(sub_cmd) = def.get(matches[0]) {
+    if let Some(sub_cmd) = def.commands.get(matches[0]) {
         return Some(sub_cmd);
     };
 
     None
 }
 
-fn handle_nested_command(def: &HashMap<String, CommandLineInterface>, mut args: Vec<String>) -> Result<(), Error> {
+fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(), Error> {
 
     if args.len() < 1 {
-        let mut cmds: Vec<&String> = def.keys().collect();
+        let mut cmds: Vec<&String> = def.commands.keys().collect();
         cmds.sort();
 
         let list = cmds.iter().fold(String::new(),|mut s,item| {
@@ -116,9 +116,25 @@ impl CliCommand {
     }
 }
 
+pub struct CliCommandMap {
+    pub commands: HashMap<String, CommandLineInterface>,
+}
+
+impl CliCommandMap {
+
+    pub fn new() -> Self {
+        Self { commands: HashMap:: new() }
+    }
+
+    pub fn insert<S: Into<String>>(mut self, name: S, cli: CommandLineInterface) -> Self {
+        self.commands.insert(name.into(), cli);
+        self
+    }
+}
+
 pub enum CommandLineInterface {
     Simple(CliCommand),
-    Nested(HashMap<String, CommandLineInterface>),
+    Nested(CliCommandMap),
 }
 
 impl From<CliCommand> for CommandLineInterface {
@@ -127,8 +143,8 @@ impl From<CliCommand> for CommandLineInterface {
     }
 }
 
-impl From<HashMap<String, CommandLineInterface>> for CommandLineInterface {
-    fn from(map: HashMap<String, CommandLineInterface>) -> Self {
-        CommandLineInterface::Nested(map)
+impl From<CliCommandMap> for CommandLineInterface {
+    fn from(list: CliCommandMap) -> Self {
+        CommandLineInterface::Nested(list)
     }
 }
