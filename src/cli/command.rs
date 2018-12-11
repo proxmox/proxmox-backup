@@ -83,12 +83,74 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(
     Ok(())
 }
 
+fn print_completion(def: &CommandLineInterface, mut args: Vec<String>) {
+
+    match def {
+        CommandLineInterface::Simple(cli_cmd) => {
+            // fixme: arg_param, fixed_param
+            if args.is_empty() {
+                //for (name, (optional, schema)) in &cli_cmd.info.parameters.properties {
+                //println!("--{}", name);
+                //}
+            }
+            return;
+        }
+        CommandLineInterface::Nested(map) => {
+            if args.is_empty() {
+                for cmd in map.commands.keys() {
+                    println!("{}", cmd);
+                }
+                return;
+            }
+            let first = args.remove(0);
+            if let Some(sub_cmd) = map.commands.get(&first) {
+                print_completion(sub_cmd, args);
+                return;
+            }
+            for cmd in map.commands.keys() {
+                if cmd.starts_with(&first) {
+                    println!("{}", cmd);
+                }
+            }
+        }
+    }
+}
+
+pub fn print_bash_completion(def: &CommandLineInterface) {
+
+    let comp_point: usize = match std::env::var("COMP_POINT") {
+        Ok(val) => {
+            match usize::from_str_radix(&val, 10) {
+                Ok(i) => i,
+                Err(e) => return,
+            }
+        }
+        Err(e) => return,
+    };
+
+    let cmdline = match std::env::var("COMP_LINE") {
+        Ok(val) => val[0..comp_point].to_owned(),
+        Err(e) => return,
+    };
+
+    let mut args = match shellwords::split(&cmdline) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    args.remove(0); //no need for program name
+
+    //eprintln!("COMP_ARGS {:?}", args);
+
+    print_completion(def, args);
+}
+
 pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     if !args.is_empty() && args[0] == "bashcomplete" {
-        //Fixme: implement bash completion
+        print_bash_completion(def);
         return Ok(());
     }
 
