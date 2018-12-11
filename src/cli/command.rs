@@ -99,6 +99,23 @@ pub struct CliCommand {
     pub fixed_param: Vec<&'static str>,
 }
 
+impl CliCommand {
+
+    pub fn new(info: ApiMethod) -> Self {
+        Self { info, arg_param: vec![], fixed_param: vec![] }
+    }
+
+    pub fn arg_param(mut self, names: Vec<&'static str>) -> Self {
+        self.arg_param = names;
+        self
+    }
+
+    pub fn fixed_param(mut self, args: Vec<&'static str>) -> Self {
+        self.fixed_param = args;
+        self
+    }
+}
+
 pub enum CommandLineInterface {
     Simple(CliCommand),
     Nested(HashMap<String, CommandLineInterface>),

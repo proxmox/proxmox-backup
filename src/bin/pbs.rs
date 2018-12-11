@@ -9,23 +9,19 @@ fn datastore_commands() -> CommandLineInterface {
 
     let mut cmd_def = HashMap::<String, CommandLineInterface>::new();
 
-    cmd_def.insert("list".to_owned(), CliCommand {
-        info: api3::config::datastore::get(),
-        arg_param: vec![],
-        fixed_param: vec![],
-    }.into());
+    use apitest::api3::config::datastore;
 
-    cmd_def.insert("create".to_owned(), CliCommand {
-        info: api3::config::datastore::post(),
-        arg_param: vec!["name", "path"],
-        fixed_param: vec![],
-    }.into());
+    cmd_def.insert("list".to_owned(), CliCommand::new(datastore::get()).into());
 
-    cmd_def.insert("remove".to_owned(), CliCommand {
-        info: api3::config::datastore::delete(),
-        arg_param: vec!["name"],
-        fixed_param: vec![],
-    }.into());
+    cmd_def.insert("create".to_owned(),
+                   CliCommand::new(datastore::post())
+                   .arg_param(vec!["name", "path"])
+                   .into());
+
+    cmd_def.insert("remove".to_owned(),
+                   CliCommand::new(api3::config::datastore::delete())
+                   .arg_param(vec!["name"])
+                   .into());
 
     cmd_def.into()
 }
