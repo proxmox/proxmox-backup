@@ -87,6 +87,11 @@ pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 
+    if !args.is_empty() && args[0] == "bashcomplete" {
+        //Fixme: implement bash completion
+        return Ok(());
+    }
+
     match def {
         CommandLineInterface::Simple(cli_cmd) => handle_simple_command(cli_cmd, args),
         CommandLineInterface::Nested(map) => handle_nested_command(map, args),

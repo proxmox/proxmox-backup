@@ -5,5 +5,5 @@
 
 
 %:
-	dh $@ --with=systemd
+	dh $@ --with=systemd --with=bash-completion
 
