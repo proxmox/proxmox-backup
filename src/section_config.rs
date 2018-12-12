@@ -175,7 +175,7 @@ impl SectionConfig {
                     if line.trim().is_empty() { continue; }
 
                     if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
-                        println!("OKLINE: type: {} ID: {}", section_type, section_id);
+                        //println!("OKLINE: type: {} ID: {}", section_type, section_id);
                         if let Some(ref plugin) = self.plugins.get(&section_type) {
                             if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
                                 bail!("file '{}' line {} - syntax error in section identifier: {}",
@@ -201,9 +201,8 @@ impl SectionConfig {
                         state = ParseState::BeforeHeader;
                         continue;
                     }
-                    println!("CONTENT: {}", line);
                     if let Some((key, value)) = (self.parse_section_content)(line) {
-                        println!("CONTENT: key: {} value: {}", key, value);
+                        //println!("CONTENT: key: {} value: {}", key, value);
 
                         if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
                             match parse_simple_value(&value, prop_schema) {
