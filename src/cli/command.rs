@@ -84,8 +84,22 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(
     Ok(())
 }
 
-fn print_property_completion(schema: &Schema, arg: &str) {
-    // fixme: implement completion functions
+fn print_property_completion(
+    schema: &Schema,
+    name: &str,
+    completion_functions: &HashMap<String, CompletionFunction>,
+    arg: &str)
+{
+    if let Some(callback) = completion_functions.get(name) {
+        let list = (callback)();
+        for value in list {
+            if value.starts_with(arg) {
+                println!("{}", value);
+            }
+        }
+        return;
+    }
+
     if let Schema::String(StringSchema { format: Some(format),  ..} ) = schema {
         if let ApiStringFormat::Enum(list) = format.as_ref() {
             for value in list {
@@ -133,9 +147,9 @@ fn print_simple_completion(
         }
         if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
             if args.is_empty() {
-                print_property_completion(schema, "");
+                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, "");
             } else {
-                print_property_completion(schema, &args[0]);
+                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0]);
             }
         }
         return;
@@ -152,7 +166,7 @@ fn print_simple_completion(
         if last.starts_with("--") && last.len() > 2 {
             let prop_name = &last[2..];
             if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
-                print_property_completion(schema, &prefix);
+                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &prefix);
             }
             return;
         }
@@ -248,16 +262,23 @@ pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
     }
 }
 
+pub type CompletionFunction = fn() -> Vec<String>;
+
 pub struct CliCommand {
     pub info: ApiMethod,
     pub arg_param: Vec<&'static str>,
     pub fixed_param: Vec<&'static str>,
+    pub completion_functions: HashMap<String, CompletionFunction>,
 }
 
 impl CliCommand {
 
     pub fn new(info: ApiMethod) -> Self {
-        Self { info, arg_param: vec![], fixed_param: vec![] }
+        Self {
+            info, arg_param: vec![],
+            fixed_param: vec![],
+            completion_functions: HashMap::new(),
+        }
     }
 
     pub fn arg_param(mut self, names: Vec<&'static str>) -> Self {
@@ -267,6 +288,11 @@ impl CliCommand {
 
     pub fn fixed_param(mut self, args: Vec<&'static str>) -> Self {
         self.fixed_param = args;
+        self
+    }
+
+    pub fn completion_cb(mut self, param_name: &str, cb:  CompletionFunction) -> Self {
+        self.completion_functions.insert(param_name.into(), cb);
         self
     }
 }

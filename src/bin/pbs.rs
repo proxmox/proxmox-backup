@@ -18,6 +18,7 @@ fn datastore_commands() -> CommandLineInterface {
         .insert("remove",
                 CliCommand::new(datastore::delete())
                 .arg_param(vec!["name"])
+                .completion_cb("name", apitest::config::datastore::complete_datastore_name)
                 .into());
 
     cmd_def.into()

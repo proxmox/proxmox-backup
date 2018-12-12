@@ -76,3 +76,21 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
     Ok(())
 }
+
+// shell completion helper
+pub fn complete_datastore_name() -> Vec<String> {
+
+    let data = match config() {
+        Ok(data) => data,
+        Err(_) => return vec![],
+    };
+
+    //let test = data.sections
+    let mut res = vec![];
+
+    for (id, _) in data.sections {
+        res.push(id);
+    }
+
+    res
+}
