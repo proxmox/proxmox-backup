@@ -116,7 +116,7 @@ fn record_done_arguments(done: &mut HashSet<String>, parameters: &ObjectSchema, 
 
 fn print_simple_completion(
     cli_cmd: &CliCommand,
-    mut done: &mut HashSet<String>,
+    done: &mut HashSet<String>,
     arg_param: &[&str],
     mut args: Vec<String>,
 ) {
@@ -142,7 +142,7 @@ fn print_simple_completion(
     }
     if args.is_empty() { return; }
 
-    record_done_arguments(&mut done, &cli_cmd.info.parameters, &args);
+    record_done_arguments(done, &cli_cmd.info.parameters, &args);
 
     let prefix = args.pop().unwrap(); // match on last arg
 
@@ -150,8 +150,8 @@ fn print_simple_completion(
     if !prefix.starts_with("-") && args.len() > 0 {
         let last = &args[args.len()-1];
         if last.starts_with("--") && last.len() > 2 {
-            let prop_name = last[2..].to_owned();
-            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get::<str>(&prop_name) {
+            let prop_name = &last[2..];
+            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
                 print_property_completion(schema, &prefix);
             }
             return;
