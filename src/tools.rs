@@ -14,6 +14,8 @@ pub fn file_set_contents<P: AsRef<Path>>(
 
     let path = path.as_ref();
 
+    // Note: we use mkstemp heŕe, because this worka with different
+    // processes, threads, and even tokio tasks.
     let mut template = path.to_owned();
     template.set_extension("tmp_XXXXXX");
     let (fd, tmp_path) = match unistd::mkstemp(&template) {
