@@ -85,7 +85,17 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(
 }
 
 fn print_property_completion(schema: &Schema, arg: &str) {
-    // fixme
+    // fixme: implement completion functions
+    if let Schema::String(StringSchema { format: Some(format),  ..} ) = schema {
+        if let ApiStringFormat::Enum(list) = format.as_ref() {
+            for value in list {
+                if value.starts_with(arg) {
+                    println!("{}", value);
+                }
+            }
+            return;
+        }
+    }
     println!("");
 }
 
