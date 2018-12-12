@@ -1,5 +1,6 @@
 use failure::*;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::api::schema::*;
 use crate::api::router::*;
@@ -83,16 +84,75 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(
     Ok(())
 }
 
-fn print_completion(def: &CommandLineInterface, mut args: Vec<String>) {
+fn print_property_completion(schema: &Schema, arg: &str) {
+    // fixme
+    println!("");
+}
+
+fn record_done_arguments(done: &mut HashSet<String>, parameters: &ObjectSchema, list: &[String]) {
+
+    for arg in list {
+        if arg.starts_with("--") && arg.len() > 2 {
+            let prop_name = arg[2..].to_owned();
+            if let Some((_, schema)) = parameters.properties.get::<str>(&prop_name) {
+                match schema.as_ref() {
+                    Schema::Array(_) => { /* do nothing */ }
+                    _ => { done.insert(prop_name); }
+                }
+            }
+        }
+    }
+}
+
+fn print_simple_completion(
+    cli_cmd: &CliCommand,
+    mut done: &mut HashSet<String>,
+    arg_param: &[&str],
+    mut args: Vec<String>,
+) {
+    // fixme: arg_param, fixed_param
+    //eprintln!("COMPL: {:?} {:?} {}", arg_param, args, args.len());
+
+    if !arg_param.is_empty() {
+        let prop_name = arg_param[0];
+        done.insert(prop_name.into());
+        if args.len() > 1 {
+            args.remove(0);
+            print_simple_completion(cli_cmd, done, &arg_param[1..], args);
+            return;
+        }
+        if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
+            if args.is_empty() {
+                print_property_completion(schema, "");
+            } else {
+                print_property_completion(schema, &args[0]);
+            }
+        }
+        return;
+    }
+    if args.is_empty() { return; }
+
+    let prefix = args.pop().unwrap(); // match on last arg
+
+    record_done_arguments(&mut done, &cli_cmd.info.parameters, &args);
+
+    for (name, (optional, schema)) in &cli_cmd.info.parameters.properties {
+        if done.contains(*name) { continue; }
+        let test = String::from("--") + name;
+        if test.starts_with(&prefix) {
+            println!("{}", test);
+        }
+    }
+}
+
+fn print_nested_completion(def: &CommandLineInterface, mut args: Vec<String>) {
 
     match def {
         CommandLineInterface::Simple(cli_cmd) => {
-            // fixme: arg_param, fixed_param
-            if args.is_empty() {
-                //for (name, (optional, schema)) in &cli_cmd.info.parameters.properties {
-                //println!("--{}", name);
-                //}
-            }
+            let mut done = HashSet::new();
+            let fixed: Vec<String> = cli_cmd.fixed_param.iter().map(|s| s.to_string()).collect();
+            record_done_arguments(&mut done, &cli_cmd.info.parameters, &fixed);
+            print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, args);
             return;
         }
         CommandLineInterface::Nested(map) => {
@@ -104,7 +164,7 @@ fn print_completion(def: &CommandLineInterface, mut args: Vec<String>) {
             }
             let first = args.remove(0);
             if let Some(sub_cmd) = map.commands.get(&first) {
-                print_completion(sub_cmd, args);
+                print_nested_completion(sub_cmd, args);
                 return;
             }
             for cmd in map.commands.keys() {
@@ -133,6 +193,7 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
         Err(e) => return,
     };
 
+
     let mut args = match shellwords::split(&cmdline) {
         Ok(v) => v,
         Err(_) => return,
@@ -140,9 +201,14 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
 
     args.remove(0); //no need for program name
 
+    if cmdline.ends_with(char::is_whitespace) {
+        //eprintln!("CMDLINE {:?}", cmdline);
+        args.push("".into());
+    }
+
     //eprintln!("COMP_ARGS {:?}", args);
 
-    print_completion(def, args);
+    print_nested_completion(def, args);
 }
 
 pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
