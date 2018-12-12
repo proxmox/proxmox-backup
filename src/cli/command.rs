@@ -132,15 +132,27 @@ fn print_simple_completion(
     }
     if args.is_empty() { return; }
 
+    record_done_arguments(&mut done, &cli_cmd.info.parameters, &args);
+
     let prefix = args.pop().unwrap(); // match on last arg
 
-    record_done_arguments(&mut done, &cli_cmd.info.parameters, &args);
+    // complete option-name or option-value ?
+    if !prefix.starts_with("-") && args.len() > 0 {
+        let last = &args[args.len()-1];
+        if last.starts_with("--") && last.len() > 2 {
+            let prop_name = last[2..].to_owned();
+            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get::<str>(&prop_name) {
+                print_property_completion(schema, &prefix);
+            }
+            return;
+        }
+    }
 
     for (name, (optional, schema)) in &cli_cmd.info.parameters.properties {
         if done.contains(*name) { continue; }
-        let test = String::from("--") + name;
-        if test.starts_with(&prefix) {
-            println!("{}", test);
+        let option = String::from("--") + name;
+        if option.starts_with(&prefix) {
+            println!("{}", option);
         }
     }
 }
