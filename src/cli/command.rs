@@ -144,11 +144,8 @@ fn print_simple_completion(
             args.remove(0);
             print_simple_completion(cli_cmd, done, &arg_param[1..], args);
             return;
-        }
-        if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
-            if args.is_empty() {
-                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, "");
-            } else {
+        } else if args.len() == 1 {
+            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
                 print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0]);
             }
         }
