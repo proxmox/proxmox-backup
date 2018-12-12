@@ -5,4 +5,4 @@
 # this modifies global var, but I found no better way
 COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
-complete -o default -C 'pbs bashcomplete' pbs
+complete -C 'pbs bashcomplete' pbs
