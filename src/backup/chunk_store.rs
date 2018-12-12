@@ -139,6 +139,7 @@ impl ChunkStore {
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
+        // make sure only one process/thread/task can use it
         let lockfile = lock_file(lockfile_path, 10)?;
 
         Ok(ChunkStore {
