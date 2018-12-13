@@ -3,7 +3,9 @@ use failure::*;
 
 use crate::api::schema::*;
 use crate::api::router::*;
+use crate::backup::chunk_store::*;
 use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 
 use crate::config::datastore;
 
@@ -40,6 +42,9 @@ fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     if let Some(_) = config.sections.get(name) {
         bail!("datastore '{}' already exists.", name);
     }
+
+    let path: PathBuf = param["path"].as_str().unwrap().into();
+    let _store = ChunkStore::create(path)?;
 
     let datastore = json!({
         "path": param["path"]
