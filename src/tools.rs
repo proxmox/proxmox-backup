@@ -5,6 +5,8 @@ use nix::sys::stat;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::io::Read;
+use std::io::ErrorKind;
 
 pub fn file_set_contents<P: AsRef<Path>>(
     path: P,
@@ -49,4 +51,69 @@ pub fn file_set_contents<P: AsRef<Path>>(
     }
 
     Ok(())
+}
+
+// Note: We cannot implement an Iterator, because Iterators cannot
+// return a borrowed buffer ref (we want zero-copy)
+pub fn file_chunker<C, R>(
+    mut file: R,
+    chunk_size: usize,
+    chunk_cb: C
+) -> Result<(), Error>
+    where C: Fn(usize, &[u8]) -> Result<bool, Error>,
+          R: Read,
+{
+
+    const READ_BUFFER_SIZE: usize = 4*1024*1024; // 4M
+
+    if chunk_size > READ_BUFFER_SIZE { bail!("chunk size too large!"); }
+
+    let mut buf = vec![0u8; READ_BUFFER_SIZE];
+
+    let mut pos = 0;
+    let mut file_pos = 0;
+    loop {
+        let mut eof = false;
+        let mut tmp = &mut buf[..];
+       // try to read large portions, at least chunk_size
+        while pos < chunk_size {
+            match file.read(tmp) {
+                Ok(0) => { eof = true; break; },
+                Ok(n) => {
+                    pos += n;
+                    if pos > chunk_size { break; }
+                    tmp = &mut tmp[n..];
+                }
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => { /* try again */ }
+                Err(e) => bail!("read error - {}", e.to_string()),
+            }
+        }
+        println!("READ {} {}", pos, eof);
+
+        let mut start = 0;
+        while start + chunk_size <= pos {
+            if !(chunk_cb)(file_pos, &buf[start..start+chunk_size])? { break; }
+            file_pos += chunk_size;
+            start += chunk_size;
+        }
+        if eof {
+            if start < pos {
+                (chunk_cb)(file_pos, &buf[start..pos])?;
+                //file_pos += pos - start;
+            }
+            break;
+        } else {
+            let rest = pos - start;
+            if rest > 0 {
+                let ptr = buf.as_mut_ptr();
+                unsafe { std::ptr::copy_nonoverlapping(ptr.add(start), ptr, rest); }
+                pos = rest;
+            } else {
+                pos = 0;
+            }
+        }
+    }
+
+    Ok(())
+
 }
