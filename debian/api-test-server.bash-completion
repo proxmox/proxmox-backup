@@ -1,1 +1,2 @@
 debian/pbs.bash-completion pbs
+debian/backup-client.bash-completion backup-client
