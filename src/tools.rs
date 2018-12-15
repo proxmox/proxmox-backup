@@ -85,11 +85,9 @@ pub fn file_chunker<C, R>(
                     tmp = &mut tmp[n..];
                 }
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => { /* try again */ }
-                Err(e) => bail!("read error - {}", e.to_string()),
+                Err(e) => bail!("read chunk failed - {}", e.to_string()),
             }
         }
-        println!("READ {} {}", pos, eof);
-
         let mut start = 0;
         while start + chunk_size <= pos {
             if !(chunk_cb)(file_pos, &buf[start..start+chunk_size])? { break; }
