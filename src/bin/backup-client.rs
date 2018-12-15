@@ -23,16 +23,21 @@ fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
 }
 
 
+// Note: We cannot implement an Iterator, because Iterators cannot
+// return a borrowed buffer ref (we want zero-copy)
 fn file_chunker<C>(
     mut file: File,
+    chunk_size: usize,
     chunk_cb: C
 ) -> Result<(), Error>
     where C: Fn(usize, &[u8]) -> Result<bool, Error>
 {
 
-    let chunk_size = 64*1024;
+    const read_buffer_size: usize = 4*1024*1024; // 4M
 
-    let mut buf = vec![0u8; 4*1024*1024];
+    if chunk_size > read_buffer_size { bail!("chunk size too large!"); }
+
+    let mut buf = vec![0u8; read_buffer_size];
 
     let mut pos = 0;
     let mut file_pos = 0;
@@ -99,7 +104,7 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let file = std::fs::File::open(filename)?;
 
-    file_chunker(file, |pos, chunk| {
+    file_chunker(file, 64*1024, |pos, chunk| {
         println!("CHUNK {} {}", pos, chunk.len());
         Ok(true)
     })?;
