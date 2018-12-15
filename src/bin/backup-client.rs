@@ -25,12 +25,13 @@ fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
 
 // Note: We cannot implement an Iterator, because Iterators cannot
 // return a borrowed buffer ref (we want zero-copy)
-fn file_chunker<C>(
-    mut file: File,
+fn file_chunker<C, R>(
+    mut file: R,
     chunk_size: usize,
     chunk_cb: C
 ) -> Result<(), Error>
-    where C: Fn(usize, &[u8]) -> Result<bool, Error>
+    where C: Fn(usize, &[u8]) -> Result<bool, Error>,
+          R: Read,
 {
 
     const read_buffer_size: usize = 4*1024*1024; // 4M
