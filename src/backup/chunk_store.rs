@@ -20,7 +20,7 @@ pub struct ChunkStore {
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
 
-fn u256_to_hex(digest: &[u8; 32]) -> String {
+pub fn u256_to_hex(digest: &[u8; 32]) -> String {
 
     let mut buf = Vec::<u8>::with_capacity(64);
 
@@ -158,7 +158,7 @@ impl ChunkStore {
 
         let mut digest = [0u8; 32];
         self.hasher.result(&mut digest);
-        println!("DIGEST {}", u256_to_hex(&digest));
+        //println!("DIGEST {}", u256_to_hex(&digest));
 
         let mut chunk_path = self.base.clone();
         let prefix = u256_to_prefix(&digest);
@@ -196,6 +196,13 @@ impl ChunkStore {
         drop(lock);
 
         Ok((false, digest))
+    }
+
+    pub fn relative_path(&self, path: &Path) -> PathBuf {
+
+        let mut full_path = self.base.clone();
+        full_path.push(path);
+        full_path
     }
 
 }

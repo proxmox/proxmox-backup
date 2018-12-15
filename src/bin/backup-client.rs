@@ -1,12 +1,14 @@
 extern crate apitest;
 
 use failure::*;
+use std::os::unix::io::AsRawFd;
 
 use apitest::tools;
 use apitest::cli::command::*;
 use apitest::api::schema::*;
 use apitest::api::router::*;
 use apitest::backup::chunk_store::*;
+use apitest::backup::image_index::*;
 use serde_json::{Value};
 
 use apitest::config::datastore;
@@ -27,14 +29,19 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let path = store_config["path"].as_str().unwrap();
 
-    let _store = ChunkStore::open(path)?;
+    let mut chunk_store = ChunkStore::open(path)?;
 
     println!("Backup file '{}' to '{}'", filename, store);
 
     let file = std::fs::File::open(filename)?;
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+    if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
+    let size = stat.st_size as usize;
+
+    let mut index = ImageIndex::create(&mut chunk_store, "test1.idx".as_ref(), size)?;
 
     tools::file_chunker(file, 64*1024, |pos, chunk| {
-        println!("CHUNK {} {}", pos, chunk.len());
+        index.add_chunk(pos, chunk)?;
         Ok(true)
     })?;
 

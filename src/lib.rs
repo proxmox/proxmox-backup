@@ -35,6 +35,7 @@ pub mod section_config;
 pub mod backup {
 
     pub mod chunk_store;
+    pub mod image_index;
 }
 
 pub mod config {

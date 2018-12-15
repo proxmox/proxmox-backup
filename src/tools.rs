@@ -58,9 +58,9 @@ pub fn file_set_contents<P: AsRef<Path>>(
 pub fn file_chunker<C, R>(
     mut file: R,
     chunk_size: usize,
-    chunk_cb: C
+    mut chunk_cb: C
 ) -> Result<(), Error>
-    where C: Fn(usize, &[u8]) -> Result<bool, Error>,
+    where C: FnMut(usize, &[u8]) -> Result<bool, Error>,
           R: Read,
 {
 
