@@ -27,3 +27,5 @@ regex = "1.0.6"
 rust-crypto = "0.2.36"
 nix = "0.12.0"
 shellwords = "1.0.0"
+uuid = { version = "0.7", features = ["v4"] }
+
