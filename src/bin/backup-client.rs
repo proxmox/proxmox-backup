@@ -51,7 +51,9 @@ fn main() {
                 .required("filename", StringSchema::new("Source file name."))
                 .required("store", StringSchema::new("Datastore name."))
         ))
-        .arg_param(vec!["filename"]);
+        .arg_param(vec!["filename"])
+        .completion_cb("store", apitest::config::datastore::complete_datastore_name);
+
 
     if let Err(err) = run_cli_command(&cmd_def.into()) {
         eprintln!("Error: {}", err);
