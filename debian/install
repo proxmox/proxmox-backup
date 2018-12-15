@@ -1,5 +1,7 @@
 target/release/api-test-server /usr/sbin
 target/release/pbs /usr/sbin
+target/release/backup-client /usr/sbin
 www/images/logo-128.png /usr/share/javascript/proxmox-backup-server/images/
 www/images/proxmox_logo.png /usr/share/javascript/proxmox-backup-server/images/
 www/proxmox-backup-gui.js /usr/share/javascript/proxmox-backup-server/js/
+
