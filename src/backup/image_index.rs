@@ -35,7 +35,7 @@ impl <'a> Drop for ImageIndexWriter<'a> {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
         if let Err(err) = self.unmap() {
-            eprintln!("Unable to unmap file {:?}", self.tmp_filename);
+            eprintln!("Unable to unmap file {:?} - {}", self.tmp_filename, err);
         }
     }
 }
@@ -66,7 +66,7 @@ impl <'a> ImageIndexWriter<'a> {
 
         let uuid = Uuid::new_v4();
 
-        let mut buffer = vec![0u8; header_size];
+        let buffer = vec![0u8; header_size];
         let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
 
         header.magic = *b"PROXMOX-IIDX";
@@ -108,7 +108,7 @@ impl <'a> ImageIndexWriter<'a> {
         let index_size = ((self.size + self.chunk_size - 1)/self.chunk_size)*32;
 
         if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
-            bail!("unmap file {:?} failed", self.tmp_filename);
+            bail!("unmap file {:?} failed - {}", self.tmp_filename, err);
         }
 
         self.index = std::ptr::null_mut();
