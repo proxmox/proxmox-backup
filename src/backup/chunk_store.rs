@@ -117,7 +117,7 @@ impl ChunkStore {
 
         // create 4096 subdir
         for i in 0..4096 {
-            let mut l1path = base.clone();
+            let mut l1path = chunk_dir.clone();
             l1path.push(format!("{:03x}",i));
             if let Err(err) = std::fs::create_dir(&l1path) {
                 bail!("unable to create chunk subdir {:?} - {}", l1path, err);
@@ -160,7 +160,7 @@ impl ChunkStore {
         self.hasher.result(&mut digest);
         //println!("DIGEST {}", u256_to_hex(&digest));
 
-        let mut chunk_path = self.base.clone();
+        let mut chunk_path = self.chunk_dir.clone();
         let prefix = u256_to_prefix(&digest);
         chunk_path.push(&prefix);
         let digest_str = u256_to_hex(&digest);
@@ -176,7 +176,7 @@ impl ChunkStore {
             }
         }
 
-        let mut chunk_dir = self.base.clone();
+        let mut chunk_dir = self.chunk_dir.clone();
         chunk_dir.push(&prefix);
 
         if let Err(_) = std::fs::create_dir(&chunk_dir) { /* ignore */ }
