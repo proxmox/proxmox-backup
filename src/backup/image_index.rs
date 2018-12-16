@@ -12,7 +12,7 @@ pub struct ImageIndexHeader {
     pub magic: [u8; 12],
     pub version: u32,
     pub uuid: [u8; 16],
-    pub ctime: i64,
+    pub ctime: u64,
     pub size: u64,
     reserved: [u8; 4048], // oversall size is one page (4096 bytes)
 }
@@ -25,7 +25,7 @@ pub struct ImageIndex<'a> {
     size: usize,
     index: *mut u8,
     uuid: [u8; 16],
-    ctime: i64,
+    ctime: u64,
 }
 
 impl <'a> ImageIndex<'a> {
@@ -36,7 +36,6 @@ impl <'a> ImageIndex<'a> {
         println!("FULLPATH: {:?} {}", full_path, size);
 
         let mut file = std::fs::OpenOptions::new()
-        //FIXME: use .create_new(true)
             .create(true).truncate(true)
             .read(true)
             .write(true)
@@ -50,20 +49,20 @@ impl <'a> ImageIndex<'a> {
         if header_size != 4096 { panic!("got unexpected header size"); }
 
         let ctime = std::time::SystemTime::now().duration_since(
-            std::time::SystemTime::UNIX_EPOCH)?.as_secs() as i64;
+            std::time::SystemTime::UNIX_EPOCH)?.as_secs();
 
         let uuid = Uuid::new_v4();
 
         let mut buffer = vec![0u8; header_size];
         let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
 
-        header.magic = *b"PROXMOX-BIDX";
+        header.magic = *b"PROXMOX-IIDX";
         header.version = u32::to_be(1);
-        header.ctime = i64::to_be(ctime);
+        header.ctime = u64::to_be(ctime);
         header.size = u64::to_be(size as u64);
         header.uuid = *uuid.as_bytes();
 
-        file.write_all(&buffer);
+        file.write_all(&buffer)?;
 
         let index_size = ((size + chunk_size - 1)/chunk_size)*32;
         nix::unistd::ftruncate(file.as_raw_fd(), (header_size + index_size) as i64)?;
