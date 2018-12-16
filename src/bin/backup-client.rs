@@ -38,7 +38,7 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
     let size = stat.st_size as usize;
 
-    let mut index = ImageIndex::create(&mut chunk_store, "test1.idx".as_ref(), size)?;
+    let mut index = ImageIndexWriter::create(&mut chunk_store, "test1.idx".as_ref(), size)?;
 
     tools::file_chunker(file, 64*1024, |pos, chunk| {
         index.add_chunk(pos, chunk)?;

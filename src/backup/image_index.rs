@@ -19,7 +19,7 @@ pub struct ImageIndexHeader {
 
 // split image into fixed size chunks
 
-pub struct ImageIndex<'a> {
+pub struct ImageIndexWriter<'a> {
     store: &'a mut ChunkStore,
     chunk_size: usize,
     size: usize,
@@ -28,7 +28,7 @@ pub struct ImageIndex<'a> {
     ctime: u64,
 }
 
-impl <'a> ImageIndex<'a> {
+impl <'a> ImageIndexWriter<'a> {
 
     pub fn create(store: &'a mut ChunkStore, path: &Path, size: usize) -> Result<Self, Error> {
 
