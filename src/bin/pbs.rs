@@ -1,8 +1,6 @@
 extern crate apitest;
 
-use std::collections::HashMap;
-
-use apitest::api3;
+//use apitest::api3;
 use apitest::cli::command::*;
 
 fn datastore_commands() -> CommandLineInterface {

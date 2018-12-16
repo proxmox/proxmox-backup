@@ -1,7 +1,7 @@
 use failure::*;
 
 use std::fs::{OpenOptions};
-use std::io::{Read, Write};
+use std::io::Read;
 
 //use std::sync::Arc;
 use crate::tools;

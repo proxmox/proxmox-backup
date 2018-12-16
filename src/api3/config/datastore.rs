@@ -5,7 +5,7 @@ use crate::api::schema::*;
 use crate::api::router::*;
 use crate::backup::chunk_store::*;
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::config::datastore;
 
@@ -15,7 +15,7 @@ pub fn get() -> ApiMethod {
         ObjectSchema::new("Directory index."))
 }
 
-fn get_datastore_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let config = datastore::config()?;
 

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::api::schema::*;
 use crate::api::router::*;
-use crate::api::config::*;
+//use crate::api::config::*;
 use crate::getopts;
 
 pub fn print_cli_usage() {
@@ -169,7 +169,7 @@ fn print_simple_completion(
         }
     }
 
-    for (name, (optional, schema)) in &cli_cmd.info.parameters.properties {
+    for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
         if done.contains(*name) { continue; }
         let option = String::from("--") + name;
         if option.starts_with(&prefix) {
@@ -215,15 +215,15 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
         Ok(val) => {
             match usize::from_str_radix(&val, 10) {
                 Ok(i) => i,
-                Err(e) => return,
+                Err(_) => return,
             }
         }
-        Err(e) => return,
+        Err(_) => return,
     };
 
     let cmdline = match std::env::var("COMP_LINE") {
         Ok(val) => val[0..comp_point].to_owned(),
-        Err(e) => return,
+        Err(_) => return,
     };
 
 
