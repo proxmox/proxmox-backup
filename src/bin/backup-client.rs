@@ -33,19 +33,26 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     println!("Backup file '{}' to '{}'", filename, store);
 
-    let file = std::fs::File::open(filename)?;
-    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
-    if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
-    let size = stat.st_size as usize;
+    let target = "test1.idx";
 
-    let mut index = ImageIndexWriter::create(&mut chunk_store, "test1.idx".as_ref(), size)?;
+    {
+        let file = std::fs::File::open(filename)?;
+        let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+        if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
+        let size = stat.st_size as usize;
 
-    tools::file_chunker(file, 64*1024, |pos, chunk| {
-        index.add_chunk(pos, chunk)?;
-        Ok(true)
-    })?;
+        let mut index = ImageIndexWriter::create(&mut chunk_store, target.as_ref(), size)?;
 
-    index.close()?; // commit changes
+        tools::file_chunker(file, 64*1024, |pos, chunk| {
+            index.add_chunk(pos, chunk)?;
+            Ok(true)
+        })?;
+
+        index.close()?; // commit changes
+    }
+
+    let idx = ImageIndexReader::open(&mut chunk_store, target.as_ref())?;
+    idx.print_info();
 
     Ok(Value::Null)
 }
