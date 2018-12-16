@@ -21,6 +21,8 @@ pub struct ImageIndexHeader {
 
 pub struct ImageIndexWriter<'a> {
     store: &'a mut ChunkStore,
+    filename: PathBuf,
+    tmp_filename: PathBuf,
     chunk_size: usize,
     size: usize,
     index: *mut u8,
@@ -28,18 +30,29 @@ pub struct ImageIndexWriter<'a> {
     ctime: u64,
 }
 
+impl <'a> Drop for ImageIndexWriter<'a> {
+
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
+        if let Err(err) = self.unmap() {
+            eprintln!("Unable to unmap file {:?}", self.tmp_filename);
+        }
+    }
+}
+
 impl <'a> ImageIndexWriter<'a> {
 
     pub fn create(store: &'a mut ChunkStore, path: &Path, size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
-        println!("FULLPATH: {:?} {}", full_path, size);
+        let mut tmp_path = full_path.clone();
+        tmp_path.set_extension("tmp_iidx");
 
         let mut file = std::fs::OpenOptions::new()
             .create(true).truncate(true)
             .read(true)
             .write(true)
-            .open(&full_path)?;
+            .open(&tmp_path)?;
 
         let chunk_size = 64*1024;
 
@@ -67,8 +80,6 @@ impl <'a> ImageIndexWriter<'a> {
         let index_size = ((size + chunk_size - 1)/chunk_size)*32;
         nix::unistd::ftruncate(file.as_raw_fd(), (header_size + index_size) as i64)?;
 
-        println!("SIZES: {} {}", index_size, header_size);
-
         let data = unsafe { nix::sys::mman::mmap(
             std::ptr::null_mut(),
             index_size,
@@ -80,6 +91,8 @@ impl <'a> ImageIndexWriter<'a> {
 
         Ok(Self {
             store,
+            filename: full_path,
+            tmp_filename: tmp_path,
             chunk_size,
             size,
             index: data,
@@ -88,8 +101,38 @@ impl <'a> ImageIndexWriter<'a> {
         })
     }
 
+    fn unmap(&mut self) -> Result<(), Error> {
+
+        if self.index == std::ptr::null_mut() { return Ok(()); }
+
+        let index_size = ((self.size + self.chunk_size - 1)/self.chunk_size)*32;
+
+        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
+            bail!("unmap file {:?} failed", self.tmp_filename);
+        }
+
+        self.index = std::ptr::null_mut();
+
+        Ok(())
+    }
+
+    pub fn close(&mut self)  -> Result<(), Error> {
+
+        if self.index == std::ptr::null_mut() { bail!("cannot close already closed index file."); }
+
+        self.unmap()?;
+
+        if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
+            bail!("Atomic rename file {:?} failed - {}", self.filename, err);
+        }
+
+        Ok(())
+    }
+
     // Note: We want to add data out of order, so do not assume and order here.
     pub fn add_chunk(&mut self, pos: usize, chunk: &[u8]) -> Result<(), Error> {
+
+        if self.index == std::ptr::null_mut() { bail!("cannot write to closed index file."); }
 
         let end = pos + chunk.len();
 

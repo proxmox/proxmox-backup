@@ -45,6 +45,8 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         Ok(true)
     })?;
 
+    index.close()?; // commit changes
+
     Ok(Value::Null)
 }
 
