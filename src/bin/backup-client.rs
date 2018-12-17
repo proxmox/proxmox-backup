@@ -9,6 +9,7 @@ use apitest::api::schema::*;
 use apitest::api::router::*;
 use apitest::backup::chunk_store::*;
 use apitest::backup::image_index::*;
+use apitest::backup::datastore::*;
 use serde_json::{Value};
 
 use apitest::config::datastore;
@@ -23,13 +24,7 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     let filename = required_string_param(&param, "filename");
     let store = required_string_param(&param, "store");
 
-    let config = datastore::config()?;
-    let (_, store_config) = config.sections.get(store)
-        .ok_or(format_err!("no such datastore '{}'", store))?;
-
-    let path = store_config["path"].as_str().unwrap();
-
-    let mut chunk_store = ChunkStore::open(path)?;
+    let mut datastore = DataStore::open(store)?;
 
     println!("Backup file '{}' to '{}'", filename, store);
 
@@ -41,7 +36,7 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let size = stat.st_size as usize;
 
-        let mut index = ImageIndexWriter::create(&mut chunk_store, target.as_ref(), size)?;
+        let mut index = datastore.create_image_writer(target, size)?;
 
         tools::file_chunker(file, 64*1024, |pos, chunk| {
             index.add_chunk(pos, chunk)?;
@@ -51,7 +46,7 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         index.close()?; // commit changes
     }
 
-    let idx = ImageIndexReader::open(&mut chunk_store, target.as_ref())?;
+    let idx = datastore.open_image_reader(target)?;
     idx.print_info();
 
     Ok(Value::Null)

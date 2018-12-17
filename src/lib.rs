@@ -36,6 +36,7 @@ pub mod backup {
 
     pub mod chunk_store;
     pub mod image_index;
+    pub mod datastore;
 }
 
 pub mod config {
