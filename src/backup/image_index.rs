@@ -100,6 +100,24 @@ impl <'a> ImageIndexReader<'a> {
         Ok(())
     }
 
+    pub fn mark_used_chunks(&mut self) -> Result<(), Error> {
+
+        if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
+
+        let index_count = (self.size + self.chunk_size - 1)/self.chunk_size;
+
+        for pos in 0..index_count {
+
+            let digest = unsafe { std::slice::from_raw_parts_mut(self.index.add(pos*32), 32) };
+            if let Err(err) = self.store.touch_chunk(digest) {
+                bail!("unable to access chunk {}, required by {:?} - {}",
+                      u256_to_hex(digest), self.filename, err);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn print_info(&self) {
         println!("Filename: {:?}", self.filename);
         println!("Size: {}", self.size);

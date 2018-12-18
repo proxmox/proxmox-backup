@@ -1,6 +1,6 @@
 use failure::*;
 
-use std::path::Path;
+use std::path::{PathBuf, Path};
 
 use crate::config::datastore;
 use super::chunk_store::*;
@@ -39,5 +39,50 @@ impl DataStore {
         let index = ImageIndexReader::open(&mut self.chunk_store, filename.as_ref())?;
 
         Ok(index)
+    }
+
+    pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
+        let base = self.chunk_store.base_path();
+
+        let mut list = vec![];
+
+        for entry in std::fs::read_dir(base)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "idx" {
+                        list.push(path);
+                    }
+                }
+            }
+        }
+
+        Ok(list)
+    }
+
+    fn sweep_used_chunks(&mut self) -> Result<(), Error> {
+
+        Ok(())
+    }
+
+    fn mark_used_chunks(&mut self) -> Result<(), Error> {
+
+        let image_list = self.list_images()?;
+
+        for path in image_list {
+            let mut index = self.open_image_reader(path)?;
+            index.mark_used_chunks();
+        }
+
+        Ok(())
+   }
+
+    pub fn garbage_collection(&mut self) -> Result<(), Error> {
+
+        self.mark_used_chunks()?;
+        self.sweep_used_chunks()?;
+
+        Ok(())
     }
 }

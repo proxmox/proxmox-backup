@@ -46,6 +46,8 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         index.close()?; // commit changes
     }
 
+    datastore.garbage_collection()?;
+
     let idx = datastore.open_image_reader(target)?;
     idx.print_info();
 

@@ -20,11 +20,11 @@ pub struct ChunkStore {
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
 
-pub fn u256_to_hex(digest: &[u8; 32]) -> String {
+pub fn u256_to_hex(digest: &[u8]) -> String {
 
-    let mut buf = Vec::<u8>::with_capacity(64);
+    let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
 
-    for i in 0..32 {
+    for i in 0..digest.len() {
         buf.push(HEX_CHARS[(digest[i] >> 4) as usize]);
         buf.push(HEX_CHARS[(digest[i] & 0xf) as usize]);
     }
@@ -32,7 +32,7 @@ pub fn u256_to_hex(digest: &[u8; 32]) -> String {
     unsafe { String::from_utf8_unchecked(buf) }
 }
 
-fn u256_to_prefix(digest: &[u8; 32]) -> PathBuf {
+fn u256_to_prefix(digest: &[u8]) -> PathBuf {
 
     let mut buf = Vec::<u8>::with_capacity(3+1+2+1);
 
@@ -151,6 +151,18 @@ impl ChunkStore {
         })
     }
 
+    pub fn touch_chunk(&mut self, digest:&[u8]) ->  Result<(), Error> {
+
+        let mut chunk_path = self.chunk_dir.clone();
+        let prefix = u256_to_prefix(&digest);
+        chunk_path.push(&prefix);
+        let digest_str = u256_to_hex(&digest);
+        chunk_path.push(&digest_str);
+
+        std::fs::metadata(&chunk_path)?;
+        Ok(())
+    }
+
     pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
 
         self.hasher.reset();
@@ -203,6 +215,10 @@ impl ChunkStore {
         let mut full_path = self.base.clone();
         full_path.push(path);
         full_path
+    }
+
+    pub fn base_path(&self) -> PathBuf {
+        self.base.clone()
     }
 
 }
