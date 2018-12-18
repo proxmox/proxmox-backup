@@ -163,6 +163,11 @@ impl ChunkStore {
         Ok(())
     }
 
+    pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
+
+        Ok(())
+    }
+
     pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
 
         self.hasher.reset();

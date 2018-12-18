@@ -61,11 +61,6 @@ impl DataStore {
         Ok(list)
     }
 
-    fn sweep_used_chunks(&mut self) -> Result<(), Error> {
-
-        Ok(())
-    }
-
     fn mark_used_chunks(&mut self) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
@@ -81,7 +76,8 @@ impl DataStore {
     pub fn garbage_collection(&mut self) -> Result<(), Error> {
 
         self.mark_used_chunks()?;
-        self.sweep_used_chunks()?;
+
+        self.chunk_store.sweep_used_chunks()?;
 
         Ok(())
     }
