@@ -11,6 +11,8 @@ use std::io::ErrorKind;
 
 use std::os::unix::io::AsRawFd;
 
+pub mod timer;
+
 pub fn file_set_contents<P: AsRef<Path>>(
     path: P,
     data: &[u8],
