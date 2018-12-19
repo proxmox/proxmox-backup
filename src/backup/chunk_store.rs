@@ -182,29 +182,29 @@ impl ChunkStore {
             let l1_fd = l1_handle.as_raw_fd();
 
             for l1_entry in l1_handle.iter() {
-                match l1_entry {
-                    Ok(l1_entry) => {
-                        if let Some(file_type) = l1_entry.file_type() {
-                            if file_type == nix::dir::Type::Directory {
-                                let l2name = l1_entry.file_name();
-                                if l2name.to_bytes_with_nul()[0] == b'.' { continue; }
-                                let mut l2_handle = match Dir::openat(
-                                    l1_fd, l2name, OFlag::O_RDONLY, Mode::empty()) {
-                                    Ok(h) => h,
-                                    Err(err) => bail!(
-                                        "unable to open l2 chunk dir {:?}/{:?}/{:?} - {}",
-                                        self.chunk_dir, l1name, l2name, err),
-                                };
+                let l1_entry = match l1_entry {
+                    Ok(l1_entry) => l1_entry,
+                    Err(_) => continue /* ignore errors? */,
+                };
+                let file_type = match l1_entry.file_type() {
+                    Some(file_type) => file_type,
+                    None => bail!("unsupported file system type on {:?}/{:?}", self.chunk_dir, l1name),
+                };
+                if file_type != nix::dir::Type::Directory { continue; }
 
-                                self.sweep_old_files(&mut l2_handle);
-                            }
-                        }
-                    }
-                    Err(_) => { /* ignore */ }
-                }
+                let l2name = l1_entry.file_name();
+                if l2name.to_bytes_with_nul()[0] == b'.' { continue; }
+
+                let mut l2_handle = match Dir::openat(
+                    l1_fd, l2name, OFlag::O_RDONLY, Mode::empty()) {
+                    Ok(h) => h,
+                    Err(err) => bail!(
+                        "unable to open l2 chunk dir {:?}/{:?}/{:?} - {}",
+                        self.chunk_dir, l1name, l2name, err),
+                };
+                self.sweep_old_files(&mut l2_handle);
             }
         }
-
         Ok(())
     }
 
