@@ -126,13 +126,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    fn sweep_old_files(&self, dir: &Path) {
-
-        let mut handle = match nix::dir::Dir::open(
-            dir, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
-            Ok(h) => h,
-            Err(_) => return,
-        };
+    fn sweep_old_files(&self, handle: &mut nix::dir::Dir) {
 
         let rawfd = handle.as_raw_fd();
 
@@ -165,13 +159,43 @@ impl ChunkStore {
 
     pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
 
+        let mut base_handle = match nix::dir::Dir::open(
+            &self.chunk_dir, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+            Ok(h) => h,
+            Err(err) => bail!("unable to open base chunk dir {:?} - {}", self.chunk_dir, err),
+        };
+
+        let base_fd = base_handle.as_raw_fd();
+
         for i in 0..4096 {
-            let mut l1path = self.chunk_dir.clone();
-            l1path.push(format!("{:03x}", i));
-            for j in 0..256 {
-                let mut l2path = l1path.clone();
-                l2path.push(format!("{:02x}", j));
-                self.sweep_old_files(&l2path);
+            let l1name = PathBuf::from(format!("{:03x}", i));
+            let mut l1_handle = match nix::dir::Dir::openat(
+                base_fd, &l1name, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+                Ok(h) => h,
+                Err(err) => bail!("unable to open l1 chunk dir {:?}/{:?} - {}", self.chunk_dir, l1name, err),
+            };
+
+            let l1_fd = l1_handle.as_raw_fd();
+
+            for l1_entry in l1_handle.iter() {
+                match l1_entry {
+                    Ok(l1_entry) => {
+                        if let Some(file_type) = l1_entry.file_type() {
+                            if file_type == nix::dir::Type::Directory {
+                                let l2name = l1_entry.file_name();
+                                if l2name.to_bytes_with_nul()[0] == b'.' { continue; }
+                                let mut l2_handle = match nix::dir::Dir::openat(
+                                    l1_fd, l2name, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+                                    Ok(h) => h,
+                                    Err(err) => bail!("unable to open l2 chunk dir {:?}/{:?}/{:?} - {}", self.chunk_dir, l1name, l2name, err),
+                                };
+
+                                self.sweep_old_files(&mut l2_handle);
+                            }
+                        }
+                    }
+                    Err(_) => { /* ignore */ }
+                }
             }
         }
 
