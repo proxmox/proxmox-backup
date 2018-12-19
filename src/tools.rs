@@ -1,15 +1,15 @@
 use failure::*;
 use nix::unistd;
 use nix::sys::stat;
-use nix::fcntl::{flock, FlockArg};
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use std::io::Read;
 use std::io::ErrorKind;
+use std::time::Duration;
 
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{RawFd, AsRawFd};
 
 pub mod timer;
 
@@ -58,49 +58,59 @@ pub fn file_set_contents<P: AsRef<Path>>(
     Ok(())
 }
 
-pub fn lock_file<P: AsRef<Path>>(
-    filename: P,
-    timeout: usize
-) -> Result<File, Error> {
+pub fn lock_file<F: AsRawFd>(
+    file: &mut F,
+    exclusive: bool,
+    timeout: Option<Duration>,
+    ) -> Result<(), Error>
+{
+    let lockarg =
+        if exclusive {
+            nix::fcntl::FlockArg::LockExclusive
+        } else {
+            nix::fcntl::FlockArg::LockShared
+        };
 
-    let path = filename.as_ref();
-    let lockfile = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path) {
+    let timeout = match timeout {
+        None => {
+            nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+            return Ok(());
+        }
+        Some(t) => t,
+    };
+
+    // unblock the timeout signal temporarily
+    let _sigblock_guard = timer::unblock_timeout_signal();
+
+    // setup a timeout timer
+    let mut timer = timer::Timer::create(
+        timer::Clock::Realtime,
+        timer::TimerEvent::ThisThreadSignal(timer::SIGTIMEOUT))?;
+
+    timer.arm(timer::TimerSpec::new()
+        .value(Some(timeout))
+        .interval(Some(Duration::from_millis(10))))?;
+
+    nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+    Ok(())
+}
+
+pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration)
+    -> Result<File, Error>
+{
+    let path = path.as_ref();
+    let mut file =
+        match OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
             Ok(file) => file,
             Err(err) => bail!("Unable to open lock {:?} - {}",
                               path, err),
         };
-
-    let fd = lockfile.as_raw_fd();
-
-    let now = std::time::SystemTime::now();
-    let mut print_msg = true;
-    loop {
-        match flock(fd, FlockArg::LockExclusiveNonblock) {
-            Ok(_) => break,
-            Err(_) => {
-                if print_msg {
-                    print_msg = false;
-                    eprintln!("trying to aquire lock...");
-                }
-            }
-        }
-
-        match now.elapsed() {
-            Ok(elapsed) => {
-                if elapsed.as_secs() >= (timeout as u64) {
-                    bail!("unable to aquire lock {:?} - got timeout", path);
-                }
-            }
-            Err(err) => {
-                bail!("unable to aquire lock {:?} - clock problems - {}", path, err);
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    Ok(lockfile)
+    lock_file(&mut file, true, Some(timeout))?;
+    Ok(file)
 }
 
 // Note: We cannot implement an Iterator, because Iterators cannot

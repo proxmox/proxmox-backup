@@ -1,6 +1,7 @@
 use failure::*;
 use std::path::{Path, PathBuf};
 use std::io::Write;
+use std::time::Duration;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha512Trunc256;
@@ -100,7 +101,8 @@ impl ChunkStore {
         lockfile_path.push(".lock");
 
         // make sure only one process/thread/task can use it
-        let lockfile = tools::lock_file(lockfile_path, 10)?;
+        let lockfile = tools::open_file_locked(
+            lockfile_path, Duration::from_secs(10))?;
 
         Ok(ChunkStore {
             base,
