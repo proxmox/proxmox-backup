@@ -111,7 +111,7 @@ impl <'a> ImageIndexReader<'a> {
             let digest = unsafe { std::slice::from_raw_parts_mut(self.index.add(pos*32), 32) };
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
-                      u256_to_hex(digest), self.filename, err);
+                      digest_to_hex(digest), self.filename, err);
             }
         }
 
@@ -262,7 +262,7 @@ impl <'a> ImageIndexWriter<'a> {
 
         let (is_duplicate, digest) = self.store.insert_chunk(chunk)?;
 
-        println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate,  u256_to_hex(&digest));
+        println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate,  digest_to_hex(&digest));
 
         let index_pos = (pos/self.chunk_size)*32;
         unsafe {

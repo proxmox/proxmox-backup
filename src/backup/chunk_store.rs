@@ -20,7 +20,7 @@ pub struct ChunkStore {
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
 
-pub fn u256_to_hex(digest: &[u8]) -> String {
+pub fn digest_to_hex(digest: &[u8]) -> String {
 
     let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
 
@@ -32,7 +32,7 @@ pub fn u256_to_hex(digest: &[u8]) -> String {
     unsafe { String::from_utf8_unchecked(buf) }
 }
 
-fn u256_to_prefix(digest: &[u8]) -> PathBuf {
+fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
     let mut buf = Vec::<u8>::with_capacity(3+1+2+1);
 
@@ -153,17 +153,65 @@ impl ChunkStore {
 
     pub fn touch_chunk(&mut self, digest:&[u8]) ->  Result<(), Error> {
 
+        // fixme:  nix::sys::stat::utimensat
         let mut chunk_path = self.chunk_dir.clone();
-        let prefix = u256_to_prefix(&digest);
+        let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = u256_to_hex(&digest);
+        let digest_str = digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         std::fs::metadata(&chunk_path)?;
         Ok(())
     }
 
+    fn sweep_old_files(&self, dir: &Path) {
+
+        let mut handle = match nix::dir::Dir::open(
+            dir, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+            Ok(h) => h,
+            Err(_) => return,
+        };
+
+        let rawfd = handle.as_raw_fd();
+
+        let now = unsafe { libc::time(std::ptr::null_mut()) };
+
+        for entry in handle.iter() {
+             match entry {
+                Ok(entry) => {
+                    if let Some(file_type) = entry.file_type() {
+                        if file_type == nix::dir::Type::File {
+                            let filename = entry.file_name();
+                            if let Ok(stat) = nix::sys::stat::fstatat(rawfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                                let age = now - stat.st_atime;
+                                println!("FOUND {}  {:?}", age/(3600*24), filename);
+                                if age/(3600*24) >= 2 {
+                                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
+                                    unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0); }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    // fixme ??
+                }
+             }
+         }
+
+    }
+
     pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
+
+        for i in 0..4096 {
+            let mut l1path = self.chunk_dir.clone();
+            l1path.push(format!("{:03x}", i));
+            for j in 0..256 {
+                let mut l2path = l1path.clone();
+                l2path.push(format!("{:02x}", j));
+                self.sweep_old_files(&l2path);
+            }
+        }
 
         Ok(())
     }
@@ -175,12 +223,12 @@ impl ChunkStore {
 
         let mut digest = [0u8; 32];
         self.hasher.result(&mut digest);
-        //println!("DIGEST {}", u256_to_hex(&digest));
+        //println!("DIGEST {}", digest_to_hex(&digest));
 
         let mut chunk_path = self.chunk_dir.clone();
-        let prefix = u256_to_prefix(&digest);
+        let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = u256_to_hex(&digest);
+        let digest_str = digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         let lock = self.mutex.lock();
