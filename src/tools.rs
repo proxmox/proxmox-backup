@@ -9,7 +9,7 @@ use std::io::Read;
 use std::io::ErrorKind;
 use std::time::Duration;
 
-use std::os::unix::io::{RawFd, AsRawFd};
+use std::os::unix::io::AsRawFd;
 
 pub mod timer;
 
@@ -173,5 +173,4 @@ pub fn file_chunker<C, R>(
     }
 
     Ok(())
-
 }

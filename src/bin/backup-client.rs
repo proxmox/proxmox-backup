@@ -7,12 +7,12 @@ use apitest::tools;
 use apitest::cli::command::*;
 use apitest::api::schema::*;
 use apitest::api::router::*;
-use apitest::backup::chunk_store::*;
-use apitest::backup::image_index::*;
+//use apitest::backup::chunk_store::*;
+//use apitest::backup::image_index::*;
+//use apitest::config::datastore;
 use apitest::backup::datastore::*;
 use serde_json::{Value};
 
-use apitest::config::datastore;
 
 fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))

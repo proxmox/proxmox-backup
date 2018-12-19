@@ -17,7 +17,7 @@ pub struct ChunkStore {
     chunk_dir: PathBuf,
     hasher: Sha512Trunc256,
     mutex: Mutex<bool>,
-    lockfile: File,
+    _lockfile: File,
 }
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
@@ -108,7 +108,7 @@ impl ChunkStore {
             base,
             chunk_dir,
             hasher: Sha512Trunc256::new(),
-            lockfile,
+            _lockfile: lockfile,
             mutex: Mutex::new(false)
         })
     }
@@ -133,28 +133,26 @@ impl ChunkStore {
         let now = unsafe { libc::time(std::ptr::null_mut()) };
 
         for entry in handle.iter() {
-             match entry {
-                Ok(entry) => {
-                    if let Some(file_type) = entry.file_type() {
-                        if file_type == nix::dir::Type::File {
-                            let filename = entry.file_name();
-                            if let Ok(stat) = nix::sys::stat::fstatat(rawfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                                let age = now - stat.st_atime;
-                                println!("FOUND {}  {:?}", age/(3600*24), filename);
-                                if age/(3600*24) >= 2 {
-                                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
-                                    unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0); }
-                                }
-                            }
-                        }
-                    }
-                }
-                Err(_) => {
-                    // fixme ??
-                }
-             }
-         }
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => continue /* ignore */,
+            };
+            let file_type = match entry.file_type() {
+                Some(file_type) => file_type,
+                None => continue,
+            };
+            if file_type != nix::dir::Type::File { continue; }
 
+            let filename = entry.file_name();
+            if let Ok(stat) = nix::sys::stat::fstatat(rawfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                let age = now - stat.st_atime;
+                println!("FOUND {}  {:?}", age/(3600*24), filename);
+                if age/(3600*24) >= 2 {
+                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
+                    unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0); }
+                }
+            }
+        }
     }
 
     pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
@@ -163,7 +161,7 @@ impl ChunkStore {
         use nix::sys::stat::Mode;
         use nix::dir::Dir;
 
-        let mut base_handle = match Dir::open(
+        let base_handle = match Dir::open(
             &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
             Ok(h) => h,
             Err(err) => bail!("unable to open base chunk dir {:?} - {}", self.chunk_dir, err),
