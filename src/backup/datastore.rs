@@ -20,7 +20,7 @@ impl DataStore {
 
         let path = store_config["path"].as_str().unwrap();
 
-        let chunk_store = ChunkStore::open(path)?;
+        let chunk_store = ChunkStore::open(store_name, path)?;
 
         Ok(Self {
             chunk_store: chunk_store,

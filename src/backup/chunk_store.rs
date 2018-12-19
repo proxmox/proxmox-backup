@@ -13,6 +13,7 @@ use std::os::unix::io::AsRawFd;
 use crate::tools;
 
 pub struct ChunkStore {
+    name: String, // used for error reporting
     base: PathBuf,
     chunk_dir: PathBuf,
     hasher: Sha512Trunc256,
@@ -63,17 +64,17 @@ impl ChunkStore {
         chunk_dir
     }
 
-    pub fn create<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
+    pub fn create<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
 
         let base: PathBuf = path.into();
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::create_dir(&base) {
-            bail!("unable to create chunk store {:?} - {}", base, err);
+            bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err);
         }
 
         if let Err(err) = std::fs::create_dir(&chunk_dir) {
-            bail!("unable to create chunk store subdir {:?} - {}", chunk_dir, err);
+            bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
         // create 4096 subdir
@@ -81,20 +82,20 @@ impl ChunkStore {
             let mut l1path = chunk_dir.clone();
             l1path.push(format!("{:03x}",i));
             if let Err(err) = std::fs::create_dir(&l1path) {
-                bail!("unable to create chunk subdir {:?} - {}", l1path, err);
+                bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l1path, err);
             }
         }
 
-        Self::open(base)
+        Self::open(name, base)
     }
 
-    pub fn open<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
+    pub fn open<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
 
         let base: PathBuf = path.into();
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::metadata(&chunk_dir) {
-            bail!("unable to open chunk store {:?} - {}", chunk_dir, err);
+            bail!("unable to open chunk store '{}' at {:?} - {}", name, chunk_dir, err);
         }
 
         let mut lockfile_path = base.clone();
@@ -105,6 +106,7 @@ impl ChunkStore {
             lockfile_path, Duration::from_secs(10))?;
 
         Ok(ChunkStore {
+            name: name.to_owned(),
             base,
             chunk_dir,
             hasher: Sha512Trunc256::new(),
@@ -126,7 +128,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    fn sweep_old_files(&self, handle: &mut nix::dir::Dir) {
+    fn sweep_old_files(&self, handle: &mut nix::dir::Dir) -> Result<(), Error> {
 
         let rawfd = handle.as_raw_fd();
 
@@ -139,7 +141,7 @@ impl ChunkStore {
             };
             let file_type = match entry.file_type() {
                 Some(file_type) => file_type,
-                None => continue,
+                None => bail!("unsupported file system type on chunk store '{}'", self.name),
             };
             if file_type != nix::dir::Type::File { continue; }
 
@@ -149,10 +151,15 @@ impl ChunkStore {
                 println!("FOUND {}  {:?}", age/(3600*24), filename);
                 if age/(3600*24) >= 2 {
                     println!("UNLINK {}  {:?}", age/(3600*24), filename);
-                    unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0); }
+                    let res = unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0) };
+                    if res != 0 {
+                        let err = nix::Error::last();
+                        bail!("unlink chunk {:?} failed on store '{}' - {}", filename, self.name, err);
+                    }
                 }
             }
         }
+        Ok(())
     }
 
     pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
@@ -164,7 +171,8 @@ impl ChunkStore {
         let base_handle = match Dir::open(
             &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
             Ok(h) => h,
-            Err(err) => bail!("unable to open base chunk dir {:?} - {}", self.chunk_dir, err),
+            Err(err) => bail!("unable to open store '{}' chunk dir {:?} - {}",
+                              self.name, self.chunk_dir, err),
         };
 
         let base_fd = base_handle.as_raw_fd();
@@ -174,7 +182,8 @@ impl ChunkStore {
             let mut l1_handle = match nix::dir::Dir::openat(
                 base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
                 Ok(h) => h,
-                Err(err) => bail!("unable to open l1 chunk dir {:?}/{:?} - {}", self.chunk_dir, l1name, err),
+                Err(err) => bail!("unable to open store '{}' dir {:?}/{:?} - {}",
+                                  self.name, self.chunk_dir, l1name, err),
             };
 
             let l1_fd = l1_handle.as_raw_fd();
@@ -186,7 +195,7 @@ impl ChunkStore {
                 };
                 let file_type = match l1_entry.file_type() {
                     Some(file_type) => file_type,
-                    None => bail!("unsupported file system type on {:?}/{:?}", self.chunk_dir, l1name),
+                    None => bail!("unsupported file system type on chunk store '{}'", self.name),
                 };
                 if file_type != nix::dir::Type::Directory { continue; }
 
@@ -197,10 +206,10 @@ impl ChunkStore {
                     l1_fd, l2name, OFlag::O_RDONLY, Mode::empty()) {
                     Ok(h) => h,
                     Err(err) => bail!(
-                        "unable to open l2 chunk dir {:?}/{:?}/{:?} - {}",
-                        self.chunk_dir, l1name, l2name, err),
+                        "unable to open store '{}' dir {:?}/{:?}/{:?} - {}",
+                        self.name, self.chunk_dir, l1name, l2name, err),
                 };
-                self.sweep_old_files(&mut l2_handle);
+                self.sweep_old_files(&mut l2_handle)?;
             }
         }
         Ok(())

@@ -44,7 +44,7 @@ fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     }
 
     let path: PathBuf = param["path"].as_str().unwrap().into();
-    let _store = ChunkStore::create(path)?;
+    let _store = ChunkStore::create(name, path)?;
 
     let datastore = json!({
         "path": param["path"]
