@@ -236,7 +236,7 @@ impl ChunkStore {
             if metadata.is_file() {
                  return Ok((true, digest));
             } else {
-                bail!("Got unexpected file type for chunk {}", digest_str);
+                bail!("Got unexpected file type on store '{}' for chunk {}", self.name, digest_str);
             }
         }
 
@@ -252,7 +252,7 @@ impl ChunkStore {
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
-            bail!("Atomic rename failed for chunk {} - {}", digest_str, err);
+            bail!("Atomic rename on store '{}' failed for chunk {} - {}", self.name, digest_str, err);
         }
 
         println!("PATH {:?}", chunk_path);
@@ -281,10 +281,10 @@ fn test_chunk_store1() {
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
 
-    let chunk_store = ChunkStore::open(".testdir");
+    let chunk_store = ChunkStore::open("test", ".testdir");
     assert!(chunk_store.is_err());
 
-    let mut chunk_store = ChunkStore::create(".testdir").unwrap();
+    let mut chunk_store = ChunkStore::create("test", ".testdir").unwrap();
     let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
     assert!(!exists);
 
@@ -292,7 +292,7 @@ fn test_chunk_store1() {
     assert!(exists);
 
 
-    let chunk_store = ChunkStore::create(".testdir");
+    let chunk_store = ChunkStore::create("test", ".testdir");
     assert!(chunk_store.is_err());
 
 

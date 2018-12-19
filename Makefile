@@ -16,6 +16,9 @@ DESTDIR=
 all:
 	cargo build
 
+test:
+	cargo test
+
 .PHONY: deb
 deb ${DEB}:
 	rm -rf build
