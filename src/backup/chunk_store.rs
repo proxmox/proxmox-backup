@@ -159,8 +159,12 @@ impl ChunkStore {
 
     pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
 
-        let mut base_handle = match nix::dir::Dir::open(
-            &self.chunk_dir, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+        use nix::fcntl::OFlag;
+        use nix::sys::stat::Mode;
+        use nix::dir::Dir;
+
+        let mut base_handle = match Dir::open(
+            &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
             Ok(h) => h,
             Err(err) => bail!("unable to open base chunk dir {:?} - {}", self.chunk_dir, err),
         };
@@ -170,7 +174,7 @@ impl ChunkStore {
         for i in 0..4096 {
             let l1name = PathBuf::from(format!("{:03x}", i));
             let mut l1_handle = match nix::dir::Dir::openat(
-                base_fd, &l1name, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+                base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
                 Ok(h) => h,
                 Err(err) => bail!("unable to open l1 chunk dir {:?}/{:?} - {}", self.chunk_dir, l1name, err),
             };
@@ -184,10 +188,12 @@ impl ChunkStore {
                             if file_type == nix::dir::Type::Directory {
                                 let l2name = l1_entry.file_name();
                                 if l2name.to_bytes_with_nul()[0] == b'.' { continue; }
-                                let mut l2_handle = match nix::dir::Dir::openat(
-                                    l1_fd, l2name, nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+                                let mut l2_handle = match Dir::openat(
+                                    l1_fd, l2name, OFlag::O_RDONLY, Mode::empty()) {
                                     Ok(h) => h,
-                                    Err(err) => bail!("unable to open l2 chunk dir {:?}/{:?}/{:?} - {}", self.chunk_dir, l1name, l2name, err),
+                                    Err(err) => bail!(
+                                        "unable to open l2 chunk dir {:?}/{:?}/{:?} - {}",
+                                        self.chunk_dir, l1name, l2name, err),
                                 };
 
                                 self.sweep_old_files(&mut l2_handle);
