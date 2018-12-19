@@ -67,7 +67,7 @@ impl DataStore {
 
         for path in image_list {
             let mut index = self.open_image_reader(path)?;
-            index.mark_used_chunks();
+            index.mark_used_chunks()?;
         }
 
         Ok(())

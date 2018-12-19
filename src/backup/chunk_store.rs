@@ -6,9 +6,10 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha512Trunc256;
 use std::sync::Mutex;
 
-use std::fs::{File, OpenOptions};
-use nix::fcntl::{flock, FlockArg};
+use std::fs::File;
 use std::os::unix::io::AsRawFd;
+
+use crate::tools;
 
 pub struct ChunkStore {
     base: PathBuf,
@@ -50,47 +51,6 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
     path.into()
 }
 
-fn lock_file<P: AsRef<Path>>(filename: P, timeout: usize) -> Result<File, Error> {
-
-    let path = filename.as_ref();
-    let lockfile = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path) {
-            Ok(file) => file,
-            Err(err) => bail!("Unable to open lock {:?} - {}",
-                              path, err),
-        };
-
-    let fd = lockfile.as_raw_fd();
-
-    let now = std::time::SystemTime::now();
-    let mut print_msg = true;
-    loop {
-        match flock(fd, FlockArg::LockExclusiveNonblock) {
-            Ok(_) => break,
-            Err(_) => {
-                if print_msg {
-                    print_msg = false;
-                    eprintln!("trying to aquire lock...");
-                }
-            }
-        }
-
-        match now.elapsed() {
-            Ok(elapsed) => {
-                if elapsed.as_secs() >= (timeout as u64) {
-                    bail!("unable to aquire lock {:?} - got timeout", path);
-                }
-            }
-            Err(err) => {
-                bail!("unable to aquire lock {:?} - clock problems - {}", path, err);
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    Ok(lockfile)
-}
 
 impl ChunkStore {
 
@@ -140,7 +100,7 @@ impl ChunkStore {
         lockfile_path.push(".lock");
 
         // make sure only one process/thread/task can use it
-        let lockfile = lock_file(lockfile_path, 10)?;
+        let lockfile = tools::lock_file(lockfile_path, 10)?;
 
         Ok(ChunkStore {
             base,
