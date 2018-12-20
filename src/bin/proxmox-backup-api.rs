@@ -1,12 +1,12 @@
-extern crate apitest;
+extern crate proxmox_backup;
 
 use std::sync::Arc;
 
-use apitest::api::schema::*;
-use apitest::api::router::*;
-use apitest::api::config::*;
-use apitest::server::rest::*;
-use apitest::getopts;
+use proxmox_backup::api::schema::*;
+use proxmox_backup::api::router::*;
+use proxmox_backup::api::config::*;
+use proxmox_backup::server::rest::*;
+use proxmox_backup::getopts;
 
 //use failure::*;
 use lazy_static::lazy_static;
@@ -67,10 +67,10 @@ fn main() {
     let addr = ([0, 0, 0, 0], 8007).into();
 
     lazy_static!{
-       static ref ROUTER: Router = apitest::api3::router();
+       static ref ROUTER: Router = proxmox_backup::api3::router();
     }
 
-    let mut config = ApiConfig::new("/usr/share/javascript/proxmox-backup-server", &ROUTER);
+    let mut config = ApiConfig::new("/usr/share/javascript/proxmox-backup", &ROUTER);
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';

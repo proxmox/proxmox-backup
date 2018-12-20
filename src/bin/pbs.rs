@@ -1,11 +1,11 @@
-extern crate apitest;
+extern crate proxmox_backup;
 
-//use apitest::api3;
-use apitest::cli::command::*;
+//use proxmox_backup::api3;
+use proxmox_backup::cli::command::*;
 
 fn datastore_commands() -> CommandLineInterface {
 
-    use apitest::api3::config::datastore;
+    use proxmox_backup::api3::config::datastore;
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(datastore::get()).into())
@@ -16,7 +16,7 @@ fn datastore_commands() -> CommandLineInterface {
         .insert("remove",
                 CliCommand::new(datastore::delete())
                 .arg_param(vec!["name"])
-                .completion_cb("name", apitest::config::datastore::complete_datastore_name)
+                .completion_cb("name", proxmox_backup::config::datastore::complete_datastore_name)
                 .into());
 
     cmd_def.into()

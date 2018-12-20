@@ -1,4 +1,4 @@
-PACKAGE=api-test-server
+PACKAGE=proxmox-backup
 PKGVER=0.1
 PKGREL=1
 

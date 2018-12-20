@@ -1,11 +1,11 @@
 [package]
-name = "apitest"
+name = "proxmox-backup"
 version = "0.1.0"
 authors = ["Dietmar Maurer <dietmar@proxmox.com>"]
 edition = "2018"
 
 [lib]
-name = "apitest"
+name = "proxmox_backup"
 path = "src/lib.rs"
 version = "0.1.0"
 authors = ["Dietmar Maurer <dietmar@proxmox.com>"]

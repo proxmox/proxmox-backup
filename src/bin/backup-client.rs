@@ -1,18 +1,17 @@
-extern crate apitest;
+extern crate proxmox_backup;
 
 use failure::*;
 use std::os::unix::io::AsRawFd;
 
-use apitest::tools;
-use apitest::cli::command::*;
-use apitest::api::schema::*;
-use apitest::api::router::*;
-//use apitest::backup::chunk_store::*;
-//use apitest::backup::image_index::*;
-//use apitest::config::datastore;
-use apitest::backup::datastore::*;
+use proxmox_backup::tools;
+use proxmox_backup::cli::command::*;
+use proxmox_backup::api::schema::*;
+use proxmox_backup::api::router::*;
+//use proxmox_backup::backup::chunk_store::*;
+//use proxmox_backup::backup::image_index::*;
+//use proxmox_backup::config::datastore;
+use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
-
 
 fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))
@@ -65,7 +64,7 @@ fn main() {
                 .required("store", StringSchema::new("Datastore name."))
         ))
         .arg_param(vec!["filename"])
-        .completion_cb("store", apitest::config::datastore::complete_datastore_name);
+        .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
 
 
     if let Err(err) = run_cli_command(&cmd_def.into()) {

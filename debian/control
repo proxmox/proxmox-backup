@@ -1,4 +1,4 @@
-Source: rust-api-test-server
+Source: proxmox-backup
 Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
@@ -6,11 +6,11 @@ Build-Depends: debhelper (>= 10),
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
-Package: api-test-server
+Package: proxmox-backup
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 	 libjs-extjs (>= 6.0.1),
 	 fonts-font-awesome,
 	 proxmox-widget-toolkit,
-Description: API Test Server
+Description: Proxmox Backup Server
  This is experimental code used to test Rust.
