@@ -150,7 +150,7 @@ impl <'a> Drop for ImageIndexWriter<'a> {
 
 impl <'a> ImageIndexWriter<'a> {
 
-    pub fn create(store: &'a mut ChunkStore, path: &Path, size: usize) -> Result<Self, Error> {
+    pub fn create(store: &'a mut ChunkStore, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
@@ -161,8 +161,6 @@ impl <'a> ImageIndexWriter<'a> {
             .read(true)
             .write(true)
             .open(&tmp_path)?;
-
-        let chunk_size = 64*1024; // fixed size for now??
 
         let header_size = std::mem::size_of::<ImageIndexHeader>();
 

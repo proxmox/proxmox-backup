@@ -43,9 +43,11 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let size = stat.st_size as usize;
 
-        let mut index = datastore.create_image_writer(&target, size)?;
+        let chunk_size = 1024*1024;
 
-        tools::file_chunker(file, 64*1024, |pos, chunk| {
+        let mut index = datastore.create_image_writer(&target, size, chunk_size)?;
+
+        tools::file_chunker(file, chunk_size, |pos, chunk| {
             index.add_chunk(pos, chunk)?;
             Ok(true)
         })?;

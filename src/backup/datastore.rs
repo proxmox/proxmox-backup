@@ -27,9 +27,9 @@ impl DataStore {
         })
     }
 
-    pub fn create_image_writer<P: AsRef<Path>>(&mut self, filename: P, size: usize) -> Result<ImageIndexWriter, Error> {
+    pub fn create_image_writer<P: AsRef<Path>>(&mut self, filename: P, size: usize, chunk_size: usize) -> Result<ImageIndexWriter, Error> {
 
-        let index = ImageIndexWriter::create(&mut self.chunk_store, filename.as_ref(), size)?;
+        let index = ImageIndexWriter::create(&mut self.chunk_store, filename.as_ref(), size, chunk_size)?;
 
         Ok(index)
     }
