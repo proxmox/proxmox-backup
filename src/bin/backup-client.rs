@@ -17,12 +17,23 @@ fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))
 }
 
-
 fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let filename = required_string_param(&param, "filename");
     let store = required_string_param(&param, "store");
     let target = required_string_param(&param, "target");
+
+    let mut chunk_size = 4*1024*1024;
+
+    if let Some(size) = param["chunk-size"].as_u64() {
+        static SIZES: [u64; 7] = [64, 128, 256, 512, 1024, 2048, 4096];
+
+        if SIZES.contains(&size) {
+            chunk_size = (size as usize) * 1024;
+        } else {
+            bail!("Got unsupported chunk size '{}'", size);
+        }
+    }
 
     let mut datastore = DataStore::open(store)?;
 
@@ -42,8 +53,6 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let size = stat.st_size as usize;
-
-        let chunk_size = 1024*1024;
 
         let mut index = datastore.create_image_writer(&target, size, chunk_size)?;
 
@@ -73,6 +82,13 @@ fn main() {
                 .required("filename", StringSchema::new("Source file name."))
                 .required("store", StringSchema::new("Datastore name."))
                 .required("target", StringSchema::new("Target name."))
+                .optional(
+                    "chunk-size",
+                    IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
+                        .minimum(64)
+                        .maximum(4096)
+                        .default(4096)
+                )
         ))
         .arg_param(vec!["filename", "target"])
         .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
