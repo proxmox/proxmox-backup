@@ -1,49 +1,12 @@
 use failure::*;
 
-use std::collections::HashMap;
-use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
-
 use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json, Value};
 
 pub mod config;
 mod version;
-
-use crate::backup::datastore::*;
-
-lazy_static!{
-    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
-}
-
-fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
-
-    let mut map = datastore_map.lock().unwrap();
-
-    if let Some(datastore) = map.get(name) {
-        return Ok(datastore.clone());
-    }
-
-    if let Ok(datastore) = DataStore::open(name)  {
-        let datastore = Arc::new(datastore);
-        map.insert(name.to_string(), datastore.clone());
-        return Ok(datastore);
-    }
-
-    bail!("store not found");
-}
-
-// this is just a test for mutability/mutex handling  - will remove later
-fn test_sync_api_handler2(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
-    println!("This is a test {}", param);
-
-    let datastore = lookup_datastore("store1")?;
-
-    datastore.garbage_collection()?;
-
-    Ok(json!(null))
-}
+mod datastore;
 
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
@@ -91,11 +54,13 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             |_,_| Ok(json!([
                 {"subdir": "config"},
+                {"subdir": "datastore"},
                 {"subdir": "version"},
                 {"subdir": "nodes"}
             ])),
             ObjectSchema::new("Directory index.")))
         .subdir("config", config::router())
+        .subdir("datastore", datastore::router())
         .subdir("version", version::router())
         .subdir("nodes", nodes);
 
