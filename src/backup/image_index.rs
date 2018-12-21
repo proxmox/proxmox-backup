@@ -22,7 +22,7 @@ pub struct ImageIndexHeader {
 // split image into fixed size chunks
 
 pub struct ImageIndexReader<'a> {
-    store: &'a mut ChunkStore,
+    store: &'a ChunkStore,
     filename: PathBuf,
     chunk_size: usize,
     size: usize,
@@ -42,7 +42,7 @@ impl <'a> Drop for ImageIndexReader<'a> {
 
 impl <'a> ImageIndexReader<'a> {
 
-    pub fn open(store: &'a mut ChunkStore, path: &Path) -> Result<Self, Error> {
+    pub fn open(store: &'a ChunkStore, path: &Path) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
 
@@ -100,7 +100,7 @@ impl <'a> ImageIndexReader<'a> {
         Ok(())
     }
 
-    pub fn mark_used_chunks(&mut self) -> Result<(), Error> {
+    pub fn mark_used_chunks(&self) -> Result<(), Error> {
 
         if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
 

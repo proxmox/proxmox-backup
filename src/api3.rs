@@ -34,6 +34,17 @@ fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
     bail!("store not found");
 }
 
+// this is just a test for mutability/mutex handling  - will remove later
+fn test_sync_api_handler2(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+    println!("This is a test {}", param);
+
+    let datastore = lookup_datastore("store1")?;
+
+    datastore.garbage_collection();
+
+    Ok(json!(null))
+}
+
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
 

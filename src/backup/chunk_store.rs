@@ -16,7 +16,6 @@ pub struct ChunkStore {
     name: String, // used for error reporting
     base: PathBuf,
     chunk_dir: PathBuf,
-    hasher: Sha512Trunc256,
     mutex: Mutex<bool>,
     _lockfile: File,
 }
@@ -109,13 +108,12 @@ impl ChunkStore {
             name: name.to_owned(),
             base,
             chunk_dir,
-            hasher: Sha512Trunc256::new(),
-            _lockfile: lockfile,
+             _lockfile: lockfile,
             mutex: Mutex::new(false)
         })
     }
 
-    pub fn touch_chunk(&mut self, digest:&[u8]) ->  Result<(), Error> {
+    pub fn touch_chunk(&self, digest:&[u8]) ->  Result<(), Error> {
 
         // fixme:  nix::sys::stat::utimensat
         let mut chunk_path = self.chunk_dir.clone();
@@ -162,7 +160,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn sweep_used_chunks(&mut self) -> Result<(), Error> {
+    pub fn sweep_used_chunks(&self) -> Result<(), Error> {
 
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
@@ -215,13 +213,12 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn insert_chunk(&mut self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
-
-        self.hasher.reset();
-        self.hasher.input(chunk);
+    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
+        let mut hasher = Sha512Trunc256::new();
+        hasher.input(chunk);
 
         let mut digest = [0u8; 32];
-        self.hasher.result(&mut digest);
+        hasher.result(&mut digest);
         //println!("DIGEST {}", digest_to_hex(&digest));
 
         let mut chunk_path = self.chunk_dir.clone();
@@ -284,7 +281,7 @@ fn test_chunk_store1() {
     let chunk_store = ChunkStore::open("test", ".testdir");
     assert!(chunk_store.is_err());
 
-    let mut chunk_store = ChunkStore::create("test", ".testdir").unwrap();
+    let chunk_store = ChunkStore::create("test", ".testdir").unwrap();
     let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
     assert!(!exists);
 

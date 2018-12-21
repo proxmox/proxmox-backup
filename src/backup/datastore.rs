@@ -34,9 +34,9 @@ impl DataStore {
         Ok(index)
     }
 
-    pub fn open_image_reader<P: AsRef<Path>>(&mut self, filename: P) -> Result<ImageIndexReader, Error> {
+    pub fn open_image_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ImageIndexReader, Error> {
 
-        let index = ImageIndexReader::open(&mut self.chunk_store, filename.as_ref())?;
+        let index = ImageIndexReader::open(&self.chunk_store, filename.as_ref())?;
 
         Ok(index)
     }
@@ -61,19 +61,19 @@ impl DataStore {
         Ok(list)
     }
 
-    fn mark_used_chunks(&mut self) -> Result<(), Error> {
+    fn mark_used_chunks(&self) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
 
         for path in image_list {
-            let mut index = self.open_image_reader(path)?;
+            let index = self.open_image_reader(path)?;
             index.mark_used_chunks()?;
         }
 
         Ok(())
    }
 
-    pub fn garbage_collection(&mut self) -> Result<(), Error> {
+    pub fn garbage_collection(&self) -> Result<(), Error> {
 
         self.mark_used_chunks()?;
 
