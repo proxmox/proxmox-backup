@@ -40,7 +40,7 @@ fn test_sync_api_handler2(param: Value, _info: &ApiMethod) -> Result<Value, Erro
 
     let datastore = lookup_datastore("store1")?;
 
-    datastore.garbage_collection();
+    datastore.garbage_collection()?;
 
     Ok(json!(null))
 }
