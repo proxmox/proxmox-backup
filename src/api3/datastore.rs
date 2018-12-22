@@ -1,9 +1,5 @@
 use failure::*;
 
-use std::collections::HashMap;
-use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
-
 use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json, Value};
@@ -12,33 +8,12 @@ use crate::config::datastore;
 
 use crate::backup::datastore::*;
 
-lazy_static!{
-    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
-}
-
-fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
-
-    let mut map = datastore_map.lock().unwrap();
-
-    if let Some(datastore) = map.get(name) {
-        return Ok(datastore.clone());
-    }
-
-    if let Ok(datastore) = DataStore::open(name)  {
-        let datastore = Arc::new(datastore);
-        map.insert(name.to_string(), datastore.clone());
-        return Ok(datastore);
-    }
-
-    bail!("store not found");
-}
-
 // this is just a test for mutability/mutex handling  - will remove later
 fn start_garbage_collection(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let name = param["name"].as_str().unwrap();
 
-    let datastore = lookup_datastore(name)?;
+    let datastore = DataStore::lookup_datastore(name)?;
 
     println!("Starting garbage collection on store {}", name);
 

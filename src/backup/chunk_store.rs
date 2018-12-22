@@ -31,7 +31,7 @@ impl Default for GarbageCollectionStatus {
 
 pub struct ChunkStore {
     name: String, // used for error reporting
-    base: PathBuf,
+    pub (crate) base: PathBuf,
     chunk_dir: PathBuf,
     mutex: Mutex<bool>,
     _lockfile: File,

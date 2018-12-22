@@ -1,7 +1,9 @@
 use failure::*;
 
 use std::path::{PathBuf, Path};
-use std::sync::Mutex;
+use std::collections::HashMap;
+use lazy_static::lazy_static;
+use std::sync::{Mutex, Arc};
 
 use crate::config::datastore;
 use super::chunk_store::*;
@@ -12,7 +14,37 @@ pub struct DataStore {
     gc_mutex: Mutex<bool>,
 }
 
+lazy_static!{
+    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
+}
+
 impl DataStore {
+
+    pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
+
+        let config = datastore::config()?;
+        let (_, store_config) = config.sections.get(name)
+            .ok_or(format_err!("no such datastore '{}'", name))?;
+
+        let path = store_config["path"].as_str().unwrap();
+
+        let mut map = datastore_map.lock().unwrap();
+
+        if let Some(datastore) = map.get(name) {
+            // Compare Config - if changed, create new Datastore object!
+            if (datastore.chunk_store.base == PathBuf::from(path)) {
+                return Ok(datastore.clone());
+            }
+        }
+
+        if let Ok(datastore) = DataStore::open(name)  {
+            let datastore = Arc::new(datastore);
+            map.insert(name.to_string(), datastore.clone());
+            return Ok(datastore);
+        }
+
+        bail!("store not found");
+    }
 
     pub fn open(store_name: &str) -> Result<Self, Error> {
 
