@@ -21,6 +21,8 @@ pub struct ChunkStore {
 
 const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
 
+// TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
+
 pub fn digest_to_hex(digest: &[u8]) -> String {
 
     let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
@@ -187,6 +189,8 @@ impl ChunkStore {
 
         let base_fd = base_handle.as_raw_fd();
 
+        let mut last_percentage = 0;
+
         for i in 0..256 {
             let l1name = PathBuf::from(format!("{:02x}", i));
             let mut l1_handle = match nix::dir::Dir::openat(
@@ -201,7 +205,12 @@ impl ChunkStore {
             for j in 0..256 {
                 let l2name = PathBuf::from(format!("{:02x}", j));
 
-                println!("SCAN {:?} {:?}", l1name, l2name);
+                let percentage = ((i*256+j)*100)/(256*256);
+                if percentage != last_percentage {
+                    eprintln!("Percentage done: {}", percentage);
+                    last_percentage = percentage;
+                }
+                //println!("SCAN {:?} {:?}", l1name, l2name);
 
                 let mut l2_handle = match Dir::openat(
                     l1_fd, &l2name, OFlag::O_RDONLY, Mode::empty()) {
