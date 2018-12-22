@@ -100,11 +100,14 @@ impl <'a> ImageIndexReader<'a> {
         Ok(())
     }
 
-    pub fn mark_used_chunks(&self) -> Result<(), Error> {
+    pub fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
 
         let index_count = (self.size + self.chunk_size - 1)/self.chunk_size;
+
+        status.used_bytes += index_count * self.chunk_size;
+        status.used_chunks += index_count;
 
         for pos in 0..index_count {
 

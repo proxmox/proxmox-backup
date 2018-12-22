@@ -11,6 +11,24 @@ use std::os::unix::io::AsRawFd;
 
 use crate::tools;
 
+pub struct GarbageCollectionStatus {
+    pub used_bytes: usize,
+    pub used_chunks: usize,
+    pub disk_bytes: usize,
+    pub disk_chunks: usize,
+}
+
+impl Default for GarbageCollectionStatus {
+    fn default() -> Self {
+        GarbageCollectionStatus {
+            used_bytes: 0,
+            used_chunks: 0,
+            disk_bytes: 0,
+            disk_chunks: 0,
+        }
+    }
+}
+
 pub struct ChunkStore {
     name: String, // used for error reporting
     base: PathBuf,
@@ -140,7 +158,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    fn sweep_old_files(&self, handle: &mut nix::dir::Dir) -> Result<(), Error> {
+    fn sweep_old_files(&self, handle: &mut nix::dir::Dir, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         let rawfd = handle.as_raw_fd();
 
@@ -168,13 +186,17 @@ impl ChunkStore {
                         let err = nix::Error::last();
                         bail!("unlink chunk {:?} failed on store '{}' - {}", filename, self.name, err);
                     }
+                } else {
+                    status.disk_chunks += 1;
+                    status.disk_bytes += stat.st_size as usize;
+
                 }
             }
         }
         Ok(())
     }
 
-    pub fn sweep_used_chunks(&self) -> Result<(), Error> {
+    pub fn sweep_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
@@ -219,7 +241,7 @@ impl ChunkStore {
                         "unable to open store '{}' dir {:?}/{:?}/{:?} - {}",
                         self.name, self.chunk_dir, l1name, l2name, err),
                 };
-                self.sweep_old_files(&mut l2_handle)?;
+                self.sweep_old_files(&mut l2_handle, status)?;
             }
         }
         Ok(())

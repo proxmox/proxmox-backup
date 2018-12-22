@@ -1,6 +1,7 @@
 use failure::*;
 
 use std::path::{PathBuf, Path};
+use std::sync::Mutex;
 
 use crate::config::datastore;
 use super::chunk_store::*;
@@ -8,6 +9,7 @@ use super::image_index::*;
 
 pub struct DataStore {
     chunk_store: ChunkStore,
+    gc_mutex: Mutex<bool>,
 }
 
 impl DataStore {
@@ -24,6 +26,7 @@ impl DataStore {
 
         Ok(Self {
             chunk_store: chunk_store,
+            gc_mutex: Mutex::new(false),
         })
     }
 
@@ -51,7 +54,7 @@ impl DataStore {
             if entry.file_type()?.is_file() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
-                    if ext == "idx" {
+                    if ext == "iidx" {
                         list.push(path);
                     }
                 }
@@ -61,13 +64,13 @@ impl DataStore {
         Ok(list)
     }
 
-    fn mark_used_chunks(&self) -> Result<(), Error> {
+    fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
 
         for path in image_list {
             let index = self.open_image_reader(path)?;
-            index.mark_used_chunks()?;
+            index.mark_used_chunks(status)?;
         }
 
         Ok(())
@@ -75,12 +78,26 @@ impl DataStore {
 
     pub fn garbage_collection(&self) -> Result<(), Error> {
 
-        println!("Start GC phase1 (mark chunks)");
+        if let Ok(ref mut mutex) = self.gc_mutex.try_lock() {
 
-        self.mark_used_chunks()?;
+            let mut gc_status = GarbageCollectionStatus::default();
+            gc_status.used_bytes = 0;
 
-        println!("Start GC phase2 (sweep unused chunks)");
-        self.chunk_store.sweep_used_chunks()?;
+            println!("Start GC phase1 (mark chunks)");
+
+            self.mark_used_chunks(&mut gc_status)?;
+
+            println!("Start GC phase2 (sweep unused chunks)");
+            self.chunk_store.sweep_used_chunks(&mut gc_status)?;
+
+            println!("Used bytes: {}", gc_status.used_bytes);
+            println!("Used chunks: {}", gc_status.used_chunks);
+            println!("Disk bytes: {}", gc_status.disk_bytes);
+            println!("Disk chunks: {}", gc_status.disk_chunks);
+
+        } else {
+            println!("Start GC failed - (already running/locked)");
+        }
 
         Ok(())
     }
