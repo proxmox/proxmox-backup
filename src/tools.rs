@@ -109,8 +109,11 @@ pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration)
             Err(err) => bail!("Unable to open lock {:?} - {}",
                               path, err),
         };
-    lock_file(&mut file, true, Some(timeout))?;
-    Ok(file)
+    match lock_file(&mut file, true, Some(timeout)) {
+        Ok(_) => Ok(file),
+        Err(err) => bail!("Unable to aquire lock {:?} - {}",
+                          path, err),
+    }
 }
 
 // Note: We cannot implement an Iterator, because Iterators cannot
