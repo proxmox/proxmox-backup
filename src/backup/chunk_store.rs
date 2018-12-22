@@ -36,15 +36,14 @@ pub fn digest_to_hex(digest: &[u8]) -> String {
 
 fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
-    let mut buf = Vec::<u8>::with_capacity(3+1+2+1);
+    let mut buf = Vec::<u8>::with_capacity(2+1+2+1);
 
     buf.push(HEX_CHARS[(digest[0] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
-    buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push('/' as u8);
 
+    buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[1] as usize) & 0xf]);
-    buf.push(HEX_CHARS[(digest[2] as usize) >> 4]);
     buf.push('/' as u8);
 
     let path = unsafe { String::from_utf8_unchecked(buf)};
@@ -76,12 +75,26 @@ impl ChunkStore {
             bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
-        // create 4096 subdir
-        for i in 0..4096 {
+        // create 256*256 subdirs
+        let mut last_percentage = 0;
+
+        for i in 0..256 {
             let mut l1path = chunk_dir.clone();
-            l1path.push(format!("{:03x}",i));
+            l1path.push(format!("{:02x}",i));
             if let Err(err) = std::fs::create_dir(&l1path) {
                 bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l1path, err);
+            }
+            for j in 0..256 {
+                let mut l2path = l1path.clone();
+                l2path.push(format!("{:02x}",j));
+                if let Err(err) = std::fs::create_dir(&l2path) {
+                    bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l2path, err);
+                }
+                let percentage = ((i*256+j)*100)/(256*256);
+                if percentage != last_percentage {
+                    eprintln!("Percentage done: {}", percentage);
+                    last_percentage = percentage;
+                }
             }
         }
 
@@ -146,7 +159,7 @@ impl ChunkStore {
             let filename = entry.file_name();
             if let Ok(stat) = nix::sys::stat::fstatat(rawfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 let age = now - stat.st_atime;
-                println!("FOUND {}  {:?}", age/(3600*24), filename);
+                //println!("FOUND {}  {:?}", age/(3600*24), filename);
                 if age/(3600*24) >= 2 {
                     println!("UNLINK {}  {:?}", age/(3600*24), filename);
                     let res = unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0) };
@@ -175,8 +188,8 @@ impl ChunkStore {
 
         let base_fd = base_handle.as_raw_fd();
 
-        for i in 0..4096 {
-            let l1name = PathBuf::from(format!("{:03x}", i));
+        for i in 0..256 {
+            let l1name = PathBuf::from(format!("{:02x}", i));
             let mut l1_handle = match nix::dir::Dir::openat(
                 base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
                 Ok(h) => h,
@@ -186,22 +199,13 @@ impl ChunkStore {
 
             let l1_fd = l1_handle.as_raw_fd();
 
-            for l1_entry in l1_handle.iter() {
-                let l1_entry = match l1_entry {
-                    Ok(l1_entry) => l1_entry,
-                    Err(_) => continue /* ignore errors? */,
-                };
-                let file_type = match l1_entry.file_type() {
-                    Some(file_type) => file_type,
-                    None => bail!("unsupported file system type on chunk store '{}'", self.name),
-                };
-                if file_type != nix::dir::Type::Directory { continue; }
+            for j in 0..256 {
+                let l2name = PathBuf::from(format!("{:02x}", j));
 
-                let l2name = l1_entry.file_name();
-                if l2name.to_bytes_with_nul()[0] == b'.' { continue; }
+                println!("SCAN {:?} {:?}", l1name, l2name);
 
                 let mut l2_handle = match Dir::openat(
-                    l1_fd, l2name, OFlag::O_RDONLY, Mode::empty()) {
+                    l1_fd, &l2name, OFlag::O_RDONLY, Mode::empty()) {
                     Ok(h) => h,
                     Err(err) => bail!(
                         "unable to open store '{}' dir {:?}/{:?}/{:?} - {}",
@@ -237,11 +241,6 @@ impl ChunkStore {
             }
         }
 
-        let mut chunk_dir = self.chunk_dir.clone();
-        chunk_dir.push(&prefix);
-
-        if let Err(_) = std::fs::create_dir(&chunk_dir) { /* ignore */ }
-
         let mut tmp_path = chunk_path.clone();
         tmp_path.set_extension("tmp");
         let mut f = std::fs::File::create(&tmp_path)?;
@@ -269,7 +268,6 @@ impl ChunkStore {
     pub fn base_path(&self) -> PathBuf {
         self.base.clone()
     }
-
 }
 
 

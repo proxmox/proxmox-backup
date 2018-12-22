@@ -75,8 +75,11 @@ impl DataStore {
 
     pub fn garbage_collection(&self) -> Result<(), Error> {
 
+        println!("Start GC phase1 (mark chunks)");
+
         self.mark_used_chunks()?;
 
+        println!("Start GC phase2 (sweep unused chunks)");
         self.chunk_store.sweep_used_chunks()?;
 
         Ok(())
