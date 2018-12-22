@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 use std::io::Write;
 use std::time::Duration;
 
-use crypto::digest::Digest;
-use crypto::sha2::Sha512Trunc256;
+use openssl::sha;
 use std::sync::Mutex;
 
 use std::fs::File;
@@ -218,11 +217,13 @@ impl ChunkStore {
     }
 
     pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
-        let mut hasher = Sha512Trunc256::new();
-        hasher.input(chunk);
 
-        let mut digest = [0u8; 32];
-        hasher.result(&mut digest);
+        // fixme: use Sha512/256 when available
+        let mut hasher = sha::Sha256::new();
+        hasher.update(chunk);
+
+        let digest = hasher.finish();
+
         //println!("DIGEST {}", digest_to_hex(&digest));
 
         let mut chunk_path = self.chunk_dir.clone();
