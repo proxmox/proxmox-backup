@@ -32,7 +32,7 @@ impl DataStore {
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
-            if (datastore.chunk_store.base == PathBuf::from(path)) {
+            if datastore.chunk_store.base == PathBuf::from(path) {
                 return Ok(datastore.clone());
             }
         }
@@ -110,7 +110,7 @@ impl DataStore {
 
     pub fn garbage_collection(&self) -> Result<(), Error> {
 
-        if let Ok(ref mut mutex) = self.gc_mutex.try_lock() {
+        if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.used_bytes = 0;

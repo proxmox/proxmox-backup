@@ -147,7 +147,7 @@ impl ChunkStore {
 
     pub fn touch_chunk(&self, digest:&[u8]) ->  Result<(), Error> {
 
-         let mut chunk_path = self.chunk_dir.clone();
+        let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
         let digest_str = digest_to_hex(&digest);
@@ -156,7 +156,7 @@ impl ChunkStore {
         const UTIME_NOW: i64 = ((1 << 30) - 1);
         const UTIME_OMIT: i64 = ((1 << 30) - 2);
 
-        let mut times: [libc::timespec; 2] = [
+        let times: [libc::timespec; 2] = [
             libc::timespec { tv_sec: 0, tv_nsec: UTIME_NOW },
             libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT }
         ];
@@ -231,7 +231,7 @@ impl ChunkStore {
 
         for i in 0..256 {
             let l1name = PathBuf::from(format!("{:02x}", i));
-            let mut l1_handle = match nix::dir::Dir::openat(
+            let l1_handle = match nix::dir::Dir::openat(
                 base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
                 Ok(h) => h,
                 Err(err) => bail!("unable to open store '{}' dir {:?}/{:?} - {}",
