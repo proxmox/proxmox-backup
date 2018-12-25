@@ -154,7 +154,24 @@ impl ChunkStore {
         let digest_str = digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
-        std::fs::metadata(&chunk_path)?;
+        const UTIME_NOW: i64 = ((1 << 30) - 1);
+        const UTIME_OMIT: i64 = ((1 << 30) - 2);
+
+        let mut times: [libc::timespec; 2] = [
+            libc::timespec { tv_sec: 0, tv_nsec: UTIME_NOW },
+            libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT }
+        ];
+
+        use nix::NixPath;
+
+        let res = chunk_path.with_nix_path(|cstr| unsafe {
+            libc::utimensat(-1, cstr.as_ptr(), &times[0], libc::AT_SYMLINK_NOFOLLOW)
+        })?;
+
+        if let Err(err) = nix::errno::Errno::result(res) {
+            bail!("updata atime failed for chunk {:?} - {}", chunk_path, err);
+        }
+
         Ok(())
     }
 
