@@ -147,8 +147,7 @@ impl ChunkStore {
 
     pub fn touch_chunk(&self, digest:&[u8]) ->  Result<(), Error> {
 
-        // fixme:  nix::sys::stat::utimensat
-        let mut chunk_path = self.chunk_dir.clone();
+         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
         let digest_str = digest_to_hex(&digest);
