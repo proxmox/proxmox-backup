@@ -30,6 +30,11 @@ pub mod server {
 
 }
 
+pub mod catar {
+
+    pub mod format_definition;
+}
+
 pub mod section_config;
 
 pub mod backup {
