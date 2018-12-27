@@ -13,6 +13,21 @@ use std::os::unix::io::AsRawFd;
 
 pub mod timer;
 
+fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
+    if buffer.len() < ::std::mem::size_of::<T>() {
+        bail!("unable to map struct - buffer too small");
+    }
+    return Ok(unsafe { & * (buffer.as_ptr() as *const T) });
+}
+
+fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
+    if buffer.len() < ::std::mem::size_of::<T>() {
+        bail!("unable to map struct - buffer too small");
+    }
+    return Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) });
+}
+
+
 pub fn file_set_contents<P: AsRef<Path>>(
     path: P,
     data: &[u8],
