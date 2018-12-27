@@ -10,6 +10,7 @@ use proxmox_backup::api::router::*;
 //use proxmox_backup::backup::chunk_store::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
+use proxmox_backup::catar::encoder::*;
 use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
 
@@ -17,7 +18,13 @@ fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))
 }
 
-fn backup_dir(datastore: &DataStore, file: &std::fs::File, target: &str, chunk_size: usize) -> Result<(), Error> {
+fn backup_dir(
+    datastore: &DataStore,
+    path: &str,
+    dir: &mut nix::dir::Dir,
+    target: &str,
+    chunk_size: usize,
+) -> Result<(), Error> {
 
     let mut target = std::path::PathBuf::from(target);
 
@@ -29,7 +36,12 @@ fn backup_dir(datastore: &DataStore, file: &std::fs::File, target: &str, chunk_s
         target.set_extension("aidx");
     }
 
-    bail!("not implemented");
+    // fixme: implement chunked writer
+    let writer = std::fs::File::create("mytest.catar")?;
+
+    let path = std::path::PathBuf::from(path);
+
+    CaTarEncoder::encode(path, dir, writer)?;
 
     Ok(())
 }
@@ -79,12 +91,15 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     let datastore = DataStore::open(store)?;
 
     let file = std::fs::File::open(filename)?;
-    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+    let rawfd = file.as_raw_fd();
+    let stat = nix::sys::stat::fstat(rawfd)?;
 
     if (stat.st_mode & libc::S_IFDIR) != 0 {
         println!("Backup directory '{}' to '{}'", filename, store);
 
-        backup_dir(&datastore, &file, &target, chunk_size)?;
+        let mut dir = nix::dir::Dir::from_fd(rawfd)?;
+
+        backup_dir(&datastore, &filename, &mut dir, &target, chunk_size)?;
 
     } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
         println!("Backup file '{}' to '{}'", filename, store);
