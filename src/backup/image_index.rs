@@ -131,7 +131,7 @@ impl <'a> ImageIndexReader<'a> {
 }
 
 pub struct ImageIndexWriter<'a> {
-    store: &'a mut ChunkStore,
+    store: &'a ChunkStore,
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
@@ -153,7 +153,7 @@ impl <'a> Drop for ImageIndexWriter<'a> {
 
 impl <'a> ImageIndexWriter<'a> {
 
-    pub fn create(store: &'a mut ChunkStore, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
+    pub fn create(store: &'a ChunkStore, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();

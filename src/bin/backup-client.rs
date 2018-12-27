@@ -17,7 +17,48 @@ fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))
 }
 
-fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn backup_dir(datastore: &DataStore, file: &std::fs::File, target: &str, chunk_size: usize) -> Result<(), Error> {
+
+    let mut target = std::path::PathBuf::from(target);
+
+    if let Some(ext) = target.extension() {
+        if ext != "aidx" {
+            bail!("got wrong file extension - expected '.aidx'");
+        }
+    } else {
+        target.set_extension("aidx");
+    }
+
+    bail!("not implemented");
+
+    Ok(())
+}
+
+fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target: &str, chunk_size: usize) -> Result<(), Error> {
+
+    let mut target = std::path::PathBuf::from(target);
+
+    if let Some(ext) = target.extension() {
+        if ext != "iidx" {
+            bail!("got wrong file extension - expected '.iidx'");
+        }
+    } else {
+        target.set_extension("iidx");
+    }
+
+    let mut index = datastore.create_image_writer(&target, size, chunk_size)?;
+
+    tools::file_chunker(file, chunk_size, |pos, chunk| {
+        index.add_chunk(pos, chunk)?;
+        Ok(true)
+    })?;
+
+    index.close()?; // commit changes
+
+    Ok(())
+}
+
+fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let filename = required_string_param(&param, "filename");
     let store = required_string_param(&param, "store");
@@ -35,39 +76,32 @@ fn backup_file(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         }
     }
 
-    let mut datastore = DataStore::open(store)?;
+    let datastore = DataStore::open(store)?;
 
-    println!("Backup file '{}' to '{}'", filename, store);
+    let file = std::fs::File::open(filename)?;
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
 
-    let mut target = std::path::PathBuf::from(target);
-    if let Some(ext) = target.extension() {
-        if ext != "iidx" {
-            bail!("got wrong file extension - expected '.iidx'");
-        }
-    } else {
-        target.set_extension("iidx");
-    }
+    if (stat.st_mode & libc::S_IFDIR) != 0 {
+        println!("Backup directory '{}' to '{}'", filename, store);
 
-    {
-        let file = std::fs::File::open(filename)?;
-        let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+        backup_dir(&datastore, &file, &target, chunk_size)?;
+
+    } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
+        println!("Backup file '{}' to '{}'", filename, store);
+
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let size = stat.st_size as usize;
 
-        let mut index = datastore.create_image_writer(&target, size, chunk_size)?;
+        backup_image(&datastore, &file, size, &target, chunk_size)?;
 
-        tools::file_chunker(file, chunk_size, |pos, chunk| {
-            index.add_chunk(pos, chunk)?;
-            Ok(true)
-        })?;
+        let idx = datastore.open_image_reader(target)?;
+        idx.print_info();
 
-        index.close()?; // commit changes
+    } else {
+        bail!("unsupported file type (expected a directory, file or block device)");
     }
 
     //datastore.garbage_collection()?;
-
-    let idx = datastore.open_image_reader(target)?;
-    idx.print_info();
 
     Ok(Value::Null)
 }
@@ -77,9 +111,9 @@ fn main() {
 
     let cmd_def = CliCommand::new(
         ApiMethod::new(
-            backup_file,
-            ObjectSchema::new("Create backup from file.")
-                .required("filename", StringSchema::new("Source file name."))
+            create_backup,
+            ObjectSchema::new("Create backup.")
+                .required("filename", StringSchema::new("Source name (file or directory name)"))
                 .required("store", StringSchema::new("Datastore name."))
                 .required("target", StringSchema::new("Target name."))
                 .optional(
