@@ -269,7 +269,7 @@ static SETUP_TIMEOUT_HANDLER: std::sync::Once = std::sync::Once::new();
 /// Setup our timeout-signal workflow. This establishes the signal handler for
 /// our `SIGTIMEOUT` and should be called once during initialization.
 #[inline]
-pub fn setup_timeout_handler() -> io::Result<()> {
+pub fn setup_timeout_handler() {
     SETUP_TIMEOUT_HANDLER.call_once(|| {
         // We unwrap here.
         // If setting up this handler fails you have other problems already,
@@ -277,7 +277,6 @@ pub fn setup_timeout_handler() -> io::Result<()> {
         // goes to die.
         do_setup_timeout_handler().unwrap();
     });
-    Ok(())
 }
 
 /// This guards the state of the timeout signal: We want it blocked usually.
