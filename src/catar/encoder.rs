@@ -5,6 +5,10 @@ use super::format_definition::*;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::RawFd;
+
+// PATH_MAX on Linux is 4096 (NUL byte already included)
+const PATH_MAX: usize = 4096;
 
 pub struct CaTarEncoder<W: Write> {
     current_path: std::path::PathBuf, // used for error reporting
@@ -46,7 +50,7 @@ impl <W: Write> CaTarEncoder<W> {
                 Ok(entry) => entry,
                 Err(err) => bail!("readir failed - {}", err),
             };
-            let mut filename = entry.file_name().to_owned();
+            let filename = entry.file_name().to_owned();
 
             let name = filename.to_bytes_with_nul();
             let name_len = name.len();
@@ -65,17 +69,42 @@ impl <W: Write> CaTarEncoder<W> {
 
         for (filename, stat) in name_list {
             //println!("SORTED {:?}", filename);
+            self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
-            if (stat.st_mode & libc::S_IFDIR) != 0 {
+            if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
 
                 let mut dir = nix::dir::Dir::openat(
                     rawfd, filename.as_ref(), nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
 
-                self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
                 self.encode_dir(&mut dir)?;
-                self.current_path.pop();
+            } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
+                let filefd = nix::fcntl::openat(rawfd, filename.as_ref(), nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
+                self.encode_file(filefd);
+                nix::unistd::close(filefd);
+            } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+                let mut buffer = [0u8; PATH_MAX];
+                let target = nix::fcntl::readlinkat(rawfd, filename.as_ref(), &mut buffer)?;
+                self.encode_symlink(&target)?;
+            } else {
+                bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
             }
-        }
+
+            self.current_path.pop();
+         }
+
+        Ok(())
+    }
+
+    fn encode_file(&mut self, filefd: RawFd)  -> Result<(), Error> {
+
+        println!("encode_file: {:?}", self.current_path);
+
+        Ok(())
+    }
+
+    fn encode_symlink(&mut self, target: &std::ffi::OsStr)  -> Result<(), Error> {
+
+        println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
         Ok(())
     }
