@@ -12,35 +12,44 @@ enum RawArgument {
 }
 
 fn parse_argument(arg: &str) -> RawArgument {
+    let bytes = arg.as_bytes();
 
-    let chars: Vec<char> = arg.chars().collect();
+    let length = bytes.len();
 
-    let length = chars.len();
+    if length < 2 || bytes[0] != b'-' {
+        return RawArgument::Argument {
+            value: arg.to_string(),
+        };
+    }
 
-    if length >= 2 {
+    let mut first = 1;
 
-        if chars[0] == '-' {
-            let mut first = 1;
+    if bytes[1] == b'-' {
+        if length == 2 {
+            return RawArgument::Separator;
+        }
+        first = 2;
+    }
 
-            if chars[1] == '-' {
-                if length == 2 { return RawArgument::Separator; }
-                first = 2;
-           }
-
-            for start in first..length  {
-                if chars[start] == '=' {
-                    let name: String = chars[first..start].iter().collect();
-                    let value: String = chars[start+1..length].iter().collect();
-                    return RawArgument::Option { name, value: Some(value) }
-                }
-            }
-
-            let name: String = chars[first..].iter().collect();
-            return RawArgument::Option { name: name, value: None }
+    for start in first..length {
+        if bytes[start] == b'=' {
+            // Since we take a &str, we know the contents of it are valid utf8.
+            // Since bytes[start] == b'=', we know the byte beginning at start is a single-byte
+            // code pointer. We also know that 'first' points exactly after a single-byte code
+            // point as it points to the first byte after a hyphen.
+            // Therefore we know arg[first..start] is valid utf-8, therefore it is safe to use
+            // get_unchecked() to speed things up.
+            return RawArgument::Option {
+                name: unsafe { arg.get_unchecked(first..start).to_string() },
+                value: Some(unsafe { arg.get_unchecked((start + 1)..).to_string() }),
+            };
         }
     }
 
-    RawArgument::Argument { value: arg.to_string() }
+    return RawArgument::Option {
+        name: unsafe { arg.get_unchecked(first..).to_string() },
+        value: None,
+    };
 }
 
 pub fn parse_arguments(
