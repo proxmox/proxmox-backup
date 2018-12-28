@@ -126,7 +126,7 @@ pub fn parse_arguments<T: AsRef<str>>(
                 Some(v) => {
                     data.push((name, v));
                 }
-            }
+            },
             RawArgument::Argument { value } => {
                 rest.push(value);
             }
