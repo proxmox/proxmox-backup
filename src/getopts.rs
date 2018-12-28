@@ -56,8 +56,7 @@ pub fn parse_arguments<T: AsRef<str>>(
     args: &[T],
     arg_param: &Vec<&'static str>,
     schema: &ObjectSchema,
-) -> Result<(Value,Vec<String>), ParameterError> {
-
+) -> Result<(Value, Vec<String>), ParameterError> {
     let mut errors = ParameterError::new();
 
     let properties = &schema.properties;
@@ -91,8 +90,8 @@ pub fn parse_arguments<T: AsRef<str>>(
                     let mut next_is_bool = false;
 
                     if (pos + 1) < args.len() {
-                        let next = args[pos+1].as_ref();
-                         if let RawArgument::Argument { value: _} = parse_argument(next) {
+                        let next = args[pos + 1].as_ref();
+                        if let RawArgument::Argument { value: _ } = parse_argument(next) {
                             next_is_argument = true;
                             if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
                         }
@@ -103,7 +102,7 @@ pub fn parse_arguments<T: AsRef<str>>(
                             pos += 1;
                             data.push((name, args[pos].as_ref().to_string()));
                         } else if can_default {
-                           data.push((name, "true".to_string()));
+                            data.push((name, "true".to_string()));
                         } else {
                             errors.push(format_err!("parameter '{}': {}", name,
                                                     "missing boolean value."));
@@ -153,13 +152,11 @@ pub fn parse_arguments<T: AsRef<str>>(
 
     let options = parse_parameter_strings(&data, schema, true)?;
 
-    Ok((options,rest))
+    Ok((options, rest))
 }
-
 
 #[test]
 fn test_boolean_arg() {
-
     let schema =  ObjectSchema::new("Parameters:")
         .required(
             "enable", BooleanSchema::new("Enable")
@@ -191,7 +188,6 @@ fn test_boolean_arg() {
 
 #[test]
 fn test_argument_paramenter() {
-
     let schema = ObjectSchema::new("Parameters:")
         .required("enable", BooleanSchema::new("Enable."))
         .required("storage", StringSchema::new("Storage."));
