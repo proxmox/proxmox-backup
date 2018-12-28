@@ -187,11 +187,14 @@ impl <W: Write> CaTarEncoder<W> {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
 
                 let res = filename.with_nix_path(|cstr| {
-                    unsafe { libc::readlink(cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()) }
+                    unsafe { libc::readlinkat(rawfd, cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()-1) }
                 })?;
 
                 match Errno::result(res) {
-                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat)?,
+                    Ok(len) => {
+                        buffer[len as usize] = 0u8; // add Nul byte
+                        self.encode_symlink(&buffer[..((len+1) as usize)], &stat)?
+                    }
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
