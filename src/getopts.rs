@@ -72,68 +72,70 @@ pub fn parse_arguments(
     while pos < args.len() {
         if skip {
             rest.push(args[pos].clone());
-        } else {
-            match parse_argument(&args[pos]) {
-                RawArgument::Separator => {
-                    skip = true;
-                }
-                RawArgument::Option { name, value } => {
-                    match value {
-                        None => {
-                            let mut want_bool = false;
-                            let mut can_default = false;
-                            if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
-                                if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
-                                    want_bool = true;
-                                    if let Some(default) = boolean_schema.default {
-                                        if default == false { can_default = true; }
-                                    } else {
-                                        can_default = true;
-                                    }
-                                }
-                            }
+            pos += 1;
+            continue;
+        }
 
-                            let mut next_is_argument = false;
-                            let mut next_is_bool = false;
-
-                            if (pos + 1) < args.len() {
-                                let next = &args[pos+1];
-                                 if let RawArgument::Argument { value: _} = parse_argument(next) {
-                                    next_is_argument = true;
-                                    if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
-                                }
-                            }
-
-                            if want_bool {
-                                if next_is_bool {
-                                    pos += 1;
-                                    data.push((name, args[pos].clone()));
-                                } else if can_default {
-                                   data.push((name, "true".to_string()));
+        match parse_argument(&args[pos]) {
+            RawArgument::Separator => {
+                skip = true;
+            }
+            RawArgument::Option { name, value } => {
+                match value {
+                    None => {
+                        let mut want_bool = false;
+                        let mut can_default = false;
+                        if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
+                            if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
+                                want_bool = true;
+                                if let Some(default) = boolean_schema.default {
+                                    if default == false { can_default = true; }
                                 } else {
-                                    errors.push(format_err!("parameter '{}': {}", name,
-                                                            "missing boolean value."));
-                                }
-
-                            } else {
-
-                                if next_is_argument {
-                                    pos += 1;
-                                    data.push((name, args[pos].clone()));
-                                } else {
-                                    errors.push(format_err!("parameter '{}': {}", name,
-                                                            "missing parameter value."));
+                                    can_default = true;
                                 }
                             }
                         }
-                        Some(v) => {
-                            data.push((name, v));
+
+                        let mut next_is_argument = false;
+                        let mut next_is_bool = false;
+
+                        if (pos + 1) < args.len() {
+                            let next = &args[pos+1];
+                             if let RawArgument::Argument { value: _} = parse_argument(next) {
+                                next_is_argument = true;
+                                if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
+                            }
+                        }
+
+                        if want_bool {
+                            if next_is_bool {
+                                pos += 1;
+                                data.push((name, args[pos].clone()));
+                            } else if can_default {
+                               data.push((name, "true".to_string()));
+                            } else {
+                                errors.push(format_err!("parameter '{}': {}", name,
+                                                        "missing boolean value."));
+                            }
+
+                        } else {
+
+                            if next_is_argument {
+                                pos += 1;
+                                data.push((name, args[pos].clone()));
+                            } else {
+                                errors.push(format_err!("parameter '{}': {}", name,
+                                                        "missing parameter value."));
+                            }
                         }
                     }
+                    Some(v) => {
+                        data.push((name, v));
+                    }
                 }
-                RawArgument::Argument { value } => {
-                    rest.push(value);
-                }
+            }
+            RawArgument::Argument { value } => {
+                rest.push(value);
             }
         }
 
