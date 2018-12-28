@@ -72,58 +72,56 @@ pub fn parse_arguments<T: AsRef<str>>(
             RawArgument::Separator => {
                 break;
             }
-            RawArgument::Option { name, value } => {
-                match value {
-                    None => {
-                        let mut want_bool = false;
-                        let mut can_default = false;
-                        if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
-                            if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
-                                want_bool = true;
-                                if let Some(default) = boolean_schema.default {
-                                    if default == false { can_default = true; }
-                                } else {
-                                    can_default = true;
-                                }
-                            }
-                        }
-
-                        let mut next_is_argument = false;
-                        let mut next_is_bool = false;
-
-                        if (pos + 1) < args.len() {
-                            let next = args[pos+1].as_ref();
-                             if let RawArgument::Argument { value: _} = parse_argument(next) {
-                                next_is_argument = true;
-                                if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
-                            }
-                        }
-
-                        if want_bool {
-                            if next_is_bool {
-                                pos += 1;
-                                data.push((name, args[pos].as_ref().to_string()));
-                            } else if can_default {
-                               data.push((name, "true".to_string()));
+            RawArgument::Option { name, value } => match value {
+                None => {
+                    let mut want_bool = false;
+                    let mut can_default = false;
+                    if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
+                        if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
+                            want_bool = true;
+                            if let Some(default) = boolean_schema.default {
+                                if default == false { can_default = true; }
                             } else {
-                                errors.push(format_err!("parameter '{}': {}", name,
-                                                        "missing boolean value."));
+                                can_default = true;
                             }
+                        }
+                    }
 
+                    let mut next_is_argument = false;
+                    let mut next_is_bool = false;
+
+                    if (pos + 1) < args.len() {
+                        let next = args[pos+1].as_ref();
+                         if let RawArgument::Argument { value: _} = parse_argument(next) {
+                            next_is_argument = true;
+                            if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
+                        }
+                    }
+
+                    if want_bool {
+                        if next_is_bool {
+                            pos += 1;
+                            data.push((name, args[pos].as_ref().to_string()));
+                        } else if can_default {
+                           data.push((name, "true".to_string()));
                         } else {
+                            errors.push(format_err!("parameter '{}': {}", name,
+                                                    "missing boolean value."));
+                        }
 
-                            if next_is_argument {
-                                pos += 1;
-                                data.push((name, args[pos].as_ref().to_string()));
-                            } else {
-                                errors.push(format_err!("parameter '{}': {}", name,
-                                                        "missing parameter value."));
-                            }
+                    } else {
+
+                        if next_is_argument {
+                            pos += 1;
+                            data.push((name, args[pos].as_ref().to_string()));
+                        } else {
+                            errors.push(format_err!("parameter '{}': {}", name,
+                                                    "missing parameter value."));
                         }
                     }
-                    Some(v) => {
-                        data.push((name, v));
-                    }
+                }
+                Some(v) => {
+                    data.push((name, v));
                 }
             }
             RawArgument::Argument { value } => {
