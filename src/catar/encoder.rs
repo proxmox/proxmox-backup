@@ -8,7 +8,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 use nix::NixPath;
 use nix::fcntl::OFlag;
@@ -26,6 +26,7 @@ pub struct CaTarEncoder<W: Write> {
     file_copy_buffer: Vec<u8>,
 }
 
+
 impl <W: Write> CaTarEncoder<W> {
 
     pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
@@ -41,11 +42,8 @@ impl <W: Write> CaTarEncoder<W> {
             file_copy_buffer,
         };
 
-
         // todo: use scandirat??
-
-        let name = CString::new(".")?;
-        me.encode_dir(dir, &name)?;
+        me.encode_dir(dir)?;
 
         Ok(())
     }
@@ -57,7 +55,7 @@ impl <W: Write> CaTarEncoder<W> {
     }
 
     fn flush_copy_buffer(&mut self, size: usize) -> Result<(), Error> {
-        self.writer.write(&self.file_copy_buffer)?;
+        self.writer.write(&self.file_copy_buffer[..size])?;
         self.writer_pos += size;
         Ok(())
     }
@@ -67,7 +65,7 @@ impl <W: Write> CaTarEncoder<W> {
         let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>()];
         let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
         header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() as u64) + size);
-        header.htype = htype;
+        header.htype = u64::to_le(htype);
 
         self.write(&buffer)?;
 
@@ -88,11 +86,11 @@ impl <W: Write> CaTarEncoder<W> {
         let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()];
         let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
         header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()) as u64);
-        header.htype = CA_FORMAT_ENTRY;
+        header.htype = u64::to_le(CA_FORMAT_ENTRY);
 
         let mut entry = crate::tools::map_struct_mut::<CaFormatEntry>(&mut buffer[std::mem::size_of::<CaFormatHeader>()..])?;
 
-        entry.feature_flags = 0; // fixme ??
+        entry.feature_flags = u64::to_le(CA_FORMAT_FEATURE_FLAGS_MAX);
 
         if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
             entry.mode = u64::to_le((libc::S_IFLNK | 0o777) as u64);
@@ -114,7 +112,7 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, name: &CStr)  -> Result<(), Error> {
+    fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
 
         println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
 
@@ -131,9 +129,9 @@ impl <W: Write> CaTarEncoder<W> {
             bail!("got unexpected file type {:?} (not a directory)", self.current_path);
         }
 
-        self.write_entry(&dir_stat)?;
+        let dir_start_pos = self.writer_pos;
 
-        self.write_filename(name)?;
+        self.write_entry(&dir_stat)?;
 
         for entry in dir.iter() {
             let entry = match entry {
@@ -158,12 +156,19 @@ impl <W: Write> CaTarEncoder<W> {
 
         name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
+        let mut goodby_items = vec![];
+
         for (filename, stat) in &name_list {
             self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
+            let start_pos = self.writer_pos;
+
+            self.write_filename(&filename)?;
+
             if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
+
                 match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(mut dir) => self.encode_dir(&mut dir, &filename)?,
+                    Ok(mut dir) => self.encode_dir(&mut dir)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
                 }
@@ -171,7 +176,7 @@ impl <W: Write> CaTarEncoder<W> {
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
                 match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => {
-                        let res = self.encode_file(filefd, &filename);
+                        let res = self.encode_file(filefd);
                         let _ = nix::unistd::close(filefd); // ignore close errors
                         res?;
                     }
@@ -186,7 +191,7 @@ impl <W: Write> CaTarEncoder<W> {
                 })?;
 
                 match Errno::result(res) {
-                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat, &filename)?,
+                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
@@ -194,17 +199,60 @@ impl <W: Write> CaTarEncoder<W> {
                 bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
             }
 
+            let end_pos = self.writer_pos;
+
+            goodby_items.push(CaFormatGoodbyeItem {
+                offset: start_pos as u64,
+                size: (end_pos - start_pos) as u64,
+                hash: compute_goodby_hash(&filename),
+            });
+
             self.current_path.pop();
         }
 
-        let entry_count = name_list.len();
-
         println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
 
+        let goodby_start = self.writer_pos as u64;
+        let goodby_table_size = (goodby_items.len() + 1)*std::mem::size_of::<CaFormatGoodbyeItem>();
+
+        for item in &mut goodby_items {
+            item.offset = goodby_start - item.offset;
+        }
+
+        // fixme: sort goodby_items (BST)
+
+        let goodby_offset = self.writer_pos - dir_start_pos;
+
+        // append CaFormatGoodbyeTail as last item
+        goodby_items.push(CaFormatGoodbyeItem {
+            offset: goodby_offset as u64,
+            size: (goodby_table_size + std::mem::size_of::<CaFormatHeader>()) as u64,
+            hash: CA_FORMAT_GOODBYE_TAIL_MARKER,
+        });
+
+        self.write_header(CA_FORMAT_GOODBYE, goodby_table_size as u64)?;
+
+        if goodby_table_size > FILE_COPY_BUFFER_SIZE {
+            bail!("goodby table too large ({} > {})", goodby_table_size, FILE_COPY_BUFFER_SIZE);
+        }
+
+        let buffer = &mut self.file_copy_buffer;
+        let buffer_ptr = buffer.as_ptr();
+        for (i, item) in goodby_items.iter().enumerate() {
+            unsafe {
+                *(buffer_ptr.add(i*std::mem::size_of::<CaFormatGoodbyeItem>()) as *mut u64) = u64::to_le(item.offset);
+                *(buffer_ptr.add(i*std::mem::size_of::<CaFormatGoodbyeItem>()+8) as *mut u64) = u64::to_le(item.size);
+                *(buffer_ptr.add(i*std::mem::size_of::<CaFormatGoodbyeItem>()+16) as *mut u64) = u64::to_le(item.hash);
+            }
+        }
+
+        self.flush_copy_buffer(goodby_table_size)?;
+
+        println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
         Ok(())
     }
 
-    fn encode_file(&mut self, filefd: RawFd, name: &CStr)  -> Result<(), Error> {
+    fn encode_file(&mut self, filefd: RawFd)  -> Result<(), Error> {
 
         println!("encode_file: {:?}", self.current_path);
 
@@ -218,8 +266,6 @@ impl <W: Write> CaTarEncoder<W> {
         }
 
         self.write_entry(&stat)?;
-
-        self.write_filename(name)?;
 
         let size = stat.st_size as u64;
 
@@ -256,13 +302,11 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
-    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat, name: &CStr)  -> Result<(), Error> {
+    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
 
         println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
         self.write_entry(stat)?;
-
-        self.write_filename(name)?;
 
         self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
         self.write(target)?;
@@ -278,5 +322,12 @@ impl <W: Write> CaTarEncoder<W> {
 
         Ok(())
     }
+}
 
+fn compute_goodby_hash(name: &CStr) -> u64 {
+
+    use std::hash::Hasher;
+    let mut hasher = std::hash::SipHasher::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
+    hasher.write(name.to_bytes());
+    hasher.finish()
 }

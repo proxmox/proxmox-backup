@@ -9,6 +9,8 @@ pub const CA_FORMAT_GOODBYE: u64 = 0xdfd35c5e8327c403;
 /* The end marker used in the GOODBYE object */
 pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
+pub const CA_FORMAT_FEATURE_FLAGS_MAX: u64 = 0xb000_0001_ffef_fe26; // fixme: ?
+
 #[repr(C)]
 pub struct CaFormatHeader {
     pub size: u64,

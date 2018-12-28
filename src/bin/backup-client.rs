@@ -37,7 +37,11 @@ fn backup_dir(
     }
 
     // fixme: implement chunked writer
-    let writer = std::fs::File::create("mytest.catar")?;
+    let writer = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("mytest.catar")?;
 
     let path = std::path::PathBuf::from(path);
 
