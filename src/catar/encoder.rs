@@ -8,35 +8,57 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
+use std::ffi::{CStr, CString};
+
 use nix::NixPath;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::sys::stat::FileStat;
 
-const FILE_COPY_BUFFER_SIZE: usize = 512*1024;
+const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
 
 pub struct CaTarEncoder<W: Write> {
     current_path: PathBuf, // used for error reporting
     writer: W,
+    writer_pos: usize,
     size: usize,
-    file_copy_buffer: [u8; FILE_COPY_BUFFER_SIZE],
+    file_copy_buffer: Vec<u8>,
 }
 
 impl <W: Write> CaTarEncoder<W> {
 
     pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
+
+        let mut file_copy_buffer = Vec::with_capacity(FILE_COPY_BUFFER_SIZE);
+        unsafe { file_copy_buffer.set_len(FILE_COPY_BUFFER_SIZE); }
+
         let mut me = Self {
             current_path: path,
             writer: writer,
+            writer_pos: 0,
             size: 0,
-            file_copy_buffer: [0u8; FILE_COPY_BUFFER_SIZE],
+            file_copy_buffer,
         };
+
 
         // todo: use scandirat??
 
-        me.encode_dir(dir)?;
+        let name = CString::new(".")?;
+        me.encode_dir(dir, &name)?;
 
+        Ok(())
+    }
+
+    fn write(&mut self,  buf: &[u8]) -> Result<(), Error> {
+        self.writer.write(buf)?;
+        self.writer_pos += buf.len();
+        Ok(())
+    }
+
+    fn flush_copy_buffer(&mut self, size: usize) -> Result<(), Error> {
+        self.writer.write(&self.file_copy_buffer)?;
+        self.writer_pos += size;
         Ok(())
     }
 
@@ -47,10 +69,19 @@ impl <W: Write> CaTarEncoder<W> {
         header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() as u64) + size);
         header.htype = htype;
 
-        self.writer.write(&buffer)?;
+        self.write(&buffer)?;
 
         Ok(())
-  }
+    }
+
+    fn write_filename(&mut self, name: &CStr) -> Result<(), Error> {
+
+        let buffer = name.to_bytes_with_nul();
+        self.write_header(CA_FORMAT_FILENAME, buffer.len() as u64)?;
+        self.write(buffer)?;
+
+        Ok(())
+    }
 
     fn write_entry(&mut self, stat: &FileStat) -> Result<(), Error> {
 
@@ -78,14 +109,14 @@ impl <W: Write> CaTarEncoder<W> {
         let mtime = stat.st_mtime * 1_000_000_000 + stat.st_mtime_nsec;
         if mtime > 0 { entry.mtime = mtime as u64 };
 
-        self.writer.write(&buffer)?;
+        self.write(&buffer)?;
 
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
+    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, name: &CStr)  -> Result<(), Error> {
 
-        println!("encode_dir: {:?}", self.current_path);
+        println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
 
         let mut name_list = vec![];
 
@@ -101,6 +132,8 @@ impl <W: Write> CaTarEncoder<W> {
         }
 
         self.write_entry(&dir_stat)?;
+
+        self.write_filename(name)?;
 
         for entry in dir.iter() {
             let entry = match entry {
@@ -125,12 +158,12 @@ impl <W: Write> CaTarEncoder<W> {
 
         name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-        for (filename, stat) in name_list {
+        for (filename, stat) in &name_list {
             self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
             if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
                 match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(mut dir) => self.encode_dir(&mut dir)?,
+                    Ok(mut dir) => self.encode_dir(&mut dir, &filename)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
                 }
@@ -138,7 +171,7 @@ impl <W: Write> CaTarEncoder<W> {
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
                 match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => {
-                        let res = self.encode_file(filefd);
+                        let res = self.encode_file(filefd, &filename);
                         let _ = nix::unistd::close(filefd); // ignore close errors
                         res?;
                     }
@@ -153,7 +186,7 @@ impl <W: Write> CaTarEncoder<W> {
                 })?;
 
                 match Errno::result(res) {
-                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat)?,
+                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat, &filename)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
@@ -162,12 +195,16 @@ impl <W: Write> CaTarEncoder<W> {
             }
 
             self.current_path.pop();
-         }
+        }
+
+        let entry_count = name_list.len();
+
+        println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
 
         Ok(())
     }
 
-    fn encode_file(&mut self, filefd: RawFd)  -> Result<(), Error> {
+    fn encode_file(&mut self, filefd: RawFd, name: &CStr)  -> Result<(), Error> {
 
         println!("encode_file: {:?}", self.current_path);
 
@@ -181,6 +218,8 @@ impl <W: Write> CaTarEncoder<W> {
         }
 
         self.write_entry(&stat)?;
+
+        self.write_filename(name)?;
 
         let size = stat.st_size as u64;
 
@@ -207,7 +246,7 @@ impl <W: Write> CaTarEncoder<W> {
 
             let count = (next - pos) as usize;
 
-            self.writer.write(&self.file_copy_buffer[..count])?;
+            self.flush_copy_buffer(count)?;
 
             pos += next;
 
@@ -217,14 +256,16 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
-    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
+    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat, name: &CStr)  -> Result<(), Error> {
 
         println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
         self.write_entry(stat)?;
 
+        self.write_filename(name)?;
+
         self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
-        self.writer.write(target)?;
+        self.write(target)?;
 
         Ok(())
     }
