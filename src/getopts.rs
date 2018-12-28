@@ -79,7 +79,9 @@ pub fn parse_arguments<T: AsRef<str>>(
                         if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
                             want_bool = true;
                             if let Some(default) = boolean_schema.default {
-                                if default == false { can_default = true; }
+                                if default == false {
+                                    can_default = true;
+                                }
                             } else {
                                 can_default = true;
                             }
@@ -93,7 +95,9 @@ pub fn parse_arguments<T: AsRef<str>>(
                         let next = args[pos + 1].as_ref();
                         if let RawArgument::Argument { value: _ } = parse_argument(next) {
                             next_is_argument = true;
-                            if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
+                            if let Ok(_) = parse_boolean(next) {
+                                next_is_bool = true;
+                            }
                         }
                     }
 
@@ -144,7 +148,9 @@ pub fn parse_arguments<T: AsRef<str>>(
         }
     }
 
-    if errors.len() > 0 { return Err(errors); }
+    if errors.len() > 0 {
+        return Err(errors);
+    }
 
     if arg_param.len() > 0 {
         rest = rest[arg_param.len()..].to_vec();
