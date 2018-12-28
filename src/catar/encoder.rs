@@ -297,7 +297,7 @@ impl <W: Write> CaTarEncoder<W> {
 
             self.flush_copy_buffer(count)?;
 
-            pos += next;
+            pos = next;
 
             if pos >= size { break; }
         }
