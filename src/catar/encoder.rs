@@ -7,8 +7,8 @@ use std::os::unix::io::AsRawFd;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 
-// PATH_MAX on Linux is 4096 (NUL byte already included)
-const PATH_MAX: usize = 4096;
+use nix::fcntl::OFlag;
+use nix::sys::stat::Mode;
 
 pub struct CaTarEncoder<W: Write> {
     current_path: std::path::PathBuf, // used for error reporting
@@ -18,7 +18,7 @@ pub struct CaTarEncoder<W: Write> {
 
 impl <W: Write> CaTarEncoder<W> {
 
-    pub fn encode(mut path: std::path::PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
+    pub fn encode(path: std::path::PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
         let mut me = Self {
             current_path: path,
             writer: writer,
@@ -42,7 +42,7 @@ impl <W: Write> CaTarEncoder<W> {
 
         let dir_stat = match nix::sys::stat::fstat(rawfd) {
             Ok(stat) => stat,
-            Err(err) => bail!("fstat failed - {}", err),
+            Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
         };
 
         for entry in dir.iter() {
@@ -74,15 +74,15 @@ impl <W: Write> CaTarEncoder<W> {
             if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
 
                 let mut dir = nix::dir::Dir::openat(
-                    rawfd, filename.as_ref(), nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
+                    rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty())?;
 
                 self.encode_dir(&mut dir)?;
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
-                let filefd = nix::fcntl::openat(rawfd, filename.as_ref(), nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
-                self.encode_file(filefd);
-                nix::unistd::close(filefd);
+                let filefd = nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty())?;
+                self.encode_file(filefd)?;
+                let _ = nix::unistd::close(filefd); // ignore close errors
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
-                let mut buffer = [0u8; PATH_MAX];
+                let mut buffer = [0u8; libc::PATH_MAX as usize];
                 let target = nix::fcntl::readlinkat(rawfd, filename.as_ref(), &mut buffer)?;
                 self.encode_symlink(&target)?;
             } else {
