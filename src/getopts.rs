@@ -52,8 +52,8 @@ fn parse_argument(arg: &str) -> RawArgument {
     };
 }
 
-pub fn parse_arguments(
-    args: &Vec<String>,
+pub fn parse_arguments<T: AsRef<str>>(
+    args: &[T],
     arg_param: &Vec<&'static str>,
     schema: &ObjectSchema,
 ) -> Result<(Value,Vec<String>), ParameterError> {
@@ -68,7 +68,7 @@ pub fn parse_arguments(
     let mut pos = 0;
 
     while pos < args.len() {
-        match parse_argument(&args[pos]) {
+        match parse_argument(args[pos].as_ref()) {
             RawArgument::Separator => {
                 break;
             }
@@ -92,7 +92,7 @@ pub fn parse_arguments(
                         let mut next_is_bool = false;
 
                         if (pos + 1) < args.len() {
-                            let next = &args[pos+1];
+                            let next = args[pos+1].as_ref();
                              if let RawArgument::Argument { value: _} = parse_argument(next) {
                                 next_is_argument = true;
                                 if let Ok(_) = parse_boolean(next) { next_is_bool = true; }
@@ -102,7 +102,7 @@ pub fn parse_arguments(
                         if want_bool {
                             if next_is_bool {
                                 pos += 1;
-                                data.push((name, args[pos].clone()));
+                                data.push((name, args[pos].as_ref().to_string()));
                             } else if can_default {
                                data.push((name, "true".to_string()));
                             } else {
@@ -114,7 +114,7 @@ pub fn parse_arguments(
 
                             if next_is_argument {
                                 pos += 1;
-                                data.push((name, args[pos].clone()));
+                                data.push((name, args[pos].as_ref().to_string()));
                             } else {
                                 errors.push(format_err!("parameter '{}': {}", name,
                                                         "missing parameter value."));
@@ -134,7 +134,10 @@ pub fn parse_arguments(
         pos += 1;
     }
 
-    rest.extend_from_slice(&args[pos..]);
+    rest.reserve(args.len() - pos);
+    for i in &args[pos..] {
+        rest.push(i.as_ref().to_string());
+    }
 
     for i in 0..arg_param.len() {
         if rest.len() > i {
@@ -179,8 +182,7 @@ fn test_boolean_arg() {
     variants.push((vec!["--enable", "false"], false));
 
     for (args, expect) in variants {
-        let string_args = args.iter().map(|s| s.to_string()).collect();
-        let res = parse_arguments(&string_args, &vec![], &schema);
+        let res = parse_arguments(&args, &vec![], &schema);
         assert!(res.is_ok());
         if let Ok((options, rest)) = res {
             assert!(options["enable"] == expect);
@@ -197,8 +199,7 @@ fn test_argument_paramenter() {
         .required("storage", StringSchema::new("Storage."));
 
     let args = vec!["-enable", "local"];
-    let string_args = args.iter().map(|s| s.to_string()).collect();
-    let res = parse_arguments(&string_args, &vec!["storage"], &schema);
+    let res = parse_arguments(&args, &vec!["storage"], &schema);
     assert!(res.is_ok());
     if let Ok((options, rest)) = res {
         assert!(options["enable"] == true);
