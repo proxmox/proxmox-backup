@@ -3,7 +3,8 @@ use failure::*;
 pub const CA_FORMAT_ENTRY: u64 = 0x1396fabcea5bbb51;
 pub const CA_FORMAT_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
 pub const CA_FORMAT_SYMLINK: u64 = 0x664a6fb6830e0d6c;
- 
+pub const CA_FORMAT_PAYLOAD: u64 = 0x8b9e1d93d6dcffc9;
+
 pub const CA_FORMAT_GOODBYE: u64 = 0xdfd35c5e8327c403;
 /* The end marker used in the GOODBYE object */
 pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;

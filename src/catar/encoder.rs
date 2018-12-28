@@ -8,15 +8,19 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
+use nix::NixPath;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::sys::stat::FileStat;
 
+const FILE_COPY_BUFFER_SIZE: usize = 512*1024;
+
 pub struct CaTarEncoder<W: Write> {
     current_path: PathBuf, // used for error reporting
     writer: W,
     size: usize,
+    file_copy_buffer: [u8; FILE_COPY_BUFFER_SIZE],
 }
 
 impl <W: Write> CaTarEncoder<W> {
@@ -26,6 +30,7 @@ impl <W: Write> CaTarEncoder<W> {
             current_path: path,
             writer: writer,
             size: 0,
+            file_copy_buffer: [0u8; FILE_COPY_BUFFER_SIZE],
         };
 
         // todo: use scandirat??
@@ -91,6 +96,10 @@ impl <W: Write> CaTarEncoder<W> {
             Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
         };
 
+        if (dir_stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
+            bail!("got unexpected file type {:?} (not a directory)", self.current_path);
+        }
+
         self.write_entry(&dir_stat)?;
 
         for entry in dir.iter() {
@@ -139,7 +148,6 @@ impl <W: Write> CaTarEncoder<W> {
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
 
-                use nix::NixPath;
                 let res = filename.with_nix_path(|cstr| {
                     unsafe { libc::readlink(cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()) }
                 })?;
@@ -163,7 +171,48 @@ impl <W: Write> CaTarEncoder<W> {
 
         println!("encode_file: {:?}", self.current_path);
 
-        self.write_entry(stat)?;
+        let stat = match nix::sys::stat::fstat(filefd) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
+        };
+
+        if (stat.st_mode & libc::S_IFMT) != libc::S_IFREG {
+            bail!("got unexpected file type {:?} (not a regular file)", self.current_path);
+        }
+
+        self.write_entry(&stat)?;
+
+        let size = stat.st_size as u64;
+
+        self.write_header(CA_FORMAT_PAYLOAD, size)?;
+
+        let mut pos: u64 = 0;
+        loop {
+            let n = match nix::unistd::read(filefd, &mut self.file_copy_buffer) {
+                Ok(n) => n,
+                Err(nix::Error::Sys(Errno::EINTR)) => continue /* try again */,
+                Err(err) =>  bail!("read {:?} failed - {}", self.current_path, err),
+            };
+            if n == 0 { // EOF
+                if pos != size {
+                    // Note:: casync format cannot handle that
+                    bail!("detected shrinked file {:?} ({} < {})", self.current_path, pos, size);
+                }
+                break;
+            }
+
+            let mut next = pos + (n as u64);
+
+            if next > size { next = size; }
+
+            let count = (next - pos) as usize;
+
+            self.writer.write(&self.file_copy_buffer[..count])?;
+
+            pos += next;
+
+            if pos >= size { break; }
+        }
 
         Ok(())
     }
@@ -174,7 +223,7 @@ impl <W: Write> CaTarEncoder<W> {
 
         self.write_entry(stat)?;
 
-        self.write_header(CA_FORMAT_SYMLINK, target.len() as u64);
+        self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
         self.writer.write(target)?;
 
         Ok(())
