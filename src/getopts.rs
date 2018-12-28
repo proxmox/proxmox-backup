@@ -67,18 +67,10 @@ pub fn parse_arguments(
 
     let mut pos = 0;
 
-    let mut skip = false;
-
     while pos < args.len() {
-        if skip {
-            rest.push(args[pos].clone());
-            pos += 1;
-            continue;
-        }
-
         match parse_argument(&args[pos]) {
             RawArgument::Separator => {
-                skip = true;
+                break;
             }
             RawArgument::Option { name, value } => {
                 match value {
@@ -141,6 +133,8 @@ pub fn parse_arguments(
 
         pos += 1;
     }
+
+    rest.extend_from_slice(&args[pos..]);
 
     for i in 0..arg_param.len() {
         if rest.len() > i {
