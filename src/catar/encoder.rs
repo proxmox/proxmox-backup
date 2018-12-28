@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::errno::Errno;
+use nix::sys::stat::FileStat;
 
 pub struct CaTarEncoder<W: Write> {
     current_path: PathBuf, // used for error reporting
@@ -34,7 +35,48 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
-    //fn report_vanished
+    fn write_header(&mut self, htype: u64, size: u64) -> Result<(), Error> {
+
+        let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>()];
+        let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
+        header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() as u64) + size);
+        header.htype = htype;
+
+        self.writer.write(&buffer)?;
+
+        Ok(())
+  }
+
+    fn write_entry(&mut self, stat: &FileStat) -> Result<(), Error> {
+
+        let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()];
+        let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
+        header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()) as u64);
+        header.htype = CA_FORMAT_ENTRY;
+
+        let mut entry = crate::tools::map_struct_mut::<CaFormatEntry>(&mut buffer[std::mem::size_of::<CaFormatHeader>()..])?;
+
+        entry.feature_flags = 0; // fixme ??
+
+        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+            entry.mode = u64::to_le((libc::S_IFLNK | 0o777) as u64);
+        } else {
+            let mode = stat.st_mode & (libc::S_IFMT | 0o7777);
+            entry.mode = u64::to_le(mode as u64);
+        }
+
+        entry.flags = 0; // todo: CHATTR, FAT_ATTRS, subvolume?
+
+        entry.uid = u64::to_le(stat.st_uid as u64);
+        entry.gid = u64::to_le(stat.st_gid as u64);
+
+        let mtime = stat.st_mtime * 1_000_000_000 + stat.st_mtime_nsec;
+        if mtime > 0 { entry.mtime = mtime as u64 };
+
+        self.writer.write(&buffer)?;
+
+        Ok(())
+    }
 
     fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
 
@@ -48,6 +90,8 @@ impl <W: Write> CaTarEncoder<W> {
             Ok(stat) => stat,
             Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
         };
+
+        self.write_entry(&dir_stat)?;
 
         for entry in dir.iter() {
             let entry = match entry {
@@ -81,7 +125,7 @@ impl <W: Write> CaTarEncoder<W> {
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
                 }
-                
+
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
                 match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => {
@@ -94,8 +138,14 @@ impl <W: Write> CaTarEncoder<W> {
                 }
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
-                match nix::fcntl::readlinkat(rawfd, filename.as_ref(), &mut buffer) {
-                    Ok(target) => self.encode_symlink(&target)?,
+
+                use nix::NixPath;
+                let res = filename.with_nix_path(|cstr| {
+                    unsafe { libc::readlink(cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()) }
+                })?;
+
+                match Errno::result(res) {
+                    Ok(len) => self.encode_symlink(&buffer[..(len as usize)], &stat)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
@@ -113,18 +163,25 @@ impl <W: Write> CaTarEncoder<W> {
 
         println!("encode_file: {:?}", self.current_path);
 
+        self.write_entry(stat)?;
+
         Ok(())
     }
 
-    fn encode_symlink(&mut self, target: &std::ffi::OsStr)  -> Result<(), Error> {
+    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
 
         println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
+
+        self.write_entry(stat)?;
+
+        self.write_header(CA_FORMAT_SYMLINK, target.len() as u64);
+        self.writer.write(target)?;
 
         Ok(())
     }
 
     // the report_XXX method may raise and error - depending on encoder configuration
-    
+
     fn report_vanished_file(&self, path: &Path) -> Result<(), Error> {
 
         eprintln!("WARNING: detected vanished file {:?}", path);
