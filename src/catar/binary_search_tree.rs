@@ -19,14 +19,16 @@
 /// with strictly monotonically increasing indexes.
 ///
 /// Algorithm is from casync (camakebst.c), simplified and optimized
-/// for rust. Permutation function originally by L. Bressel, 2017.
-///
+/// for rust. Permutation function originally by L. Bressel, 2017. We
+/// pass permutation info to user provided callback, which actually
+/// implements the data copy.
 ///
 
 fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     copy_func: &mut F,
+    // we work on input array input[o..o+n]
     n: usize,
-    o: usize, // Note: virtual offset for input array
+    o: usize,
     e: usize,
     i: usize,
 ) {
