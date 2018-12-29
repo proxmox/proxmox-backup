@@ -24,6 +24,14 @@
 /// implements the data copy.
 ///
 
+// NOTES:
+//
+// https://en.wikipedia.org/wiki/Binary_heap
+// https://en.wikipedia.org/wiki/Heapsort
+//
+// ==> Maype it is possible to build a sorted array from unsorted
+// array inplace, using heapsort?
+
 fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     copy_func: &mut F,
     // we work on input array input[o..o+n]
