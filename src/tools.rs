@@ -17,14 +17,14 @@ pub fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
     }
-    return Ok(unsafe { & * (buffer.as_ptr() as *const T) });
+    Ok(unsafe { & * (buffer.as_ptr() as *const T) })
 }
 
 pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
     }
-    return Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) });
+    Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
 }
 
 

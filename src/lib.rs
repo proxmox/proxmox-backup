@@ -32,6 +32,7 @@ pub mod server {
 
 pub mod catar {
 
+    pub mod binary_search_tree;
     pub mod format_definition;
     pub mod encoder;
 }
