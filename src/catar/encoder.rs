@@ -115,6 +115,42 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
+    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &[CaFormatGoodbyeItem]) -> Result<(), Error> {
+
+        let item_count = goodbye_items.len();
+
+        let goodbye_table_size = (item_count + 1)*std::mem::size_of::<CaFormatGoodbyeItem>();
+
+        self.write_header(CA_FORMAT_GOODBYE, goodbye_table_size as u64)?;
+
+        if goodbye_table_size > FILE_COPY_BUFFER_SIZE {
+            bail!("goodby table too large ({} > {})", goodbye_table_size, FILE_COPY_BUFFER_SIZE);
+        }
+
+        let buffer = &mut self.file_copy_buffer;
+        let buffer_ptr = buffer.as_ptr();
+
+        copy_binary_search_tree(item_count, |s, d| {
+            let item = &goodbye_items[s];
+            let offset = d*std::mem::size_of::<CaFormatGoodbyeItem>();
+            let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
+            dest.offset = u64::to_le(item.offset);
+            dest.size = u64::to_le(item.size);
+            dest.hash = u64::to_le(item.hash);
+        });
+
+        // append CaFormatGoodbyeTail as last item
+        let offset = item_count*std::mem::size_of::<CaFormatGoodbyeItem>();
+        let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
+        dest.offset = u64::to_le(goodbye_offset as u64);
+        dest.size = u64::to_le((goodbye_table_size + std::mem::size_of::<CaFormatHeader>()) as u64);
+        dest.hash = u64::to_le(CA_FORMAT_GOODBYE_TAIL_MARKER);
+
+        self.flush_copy_buffer(goodbye_table_size)?;
+
+        Ok(())
+    }
+
     fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
 
         println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
@@ -159,7 +195,7 @@ impl <W: Write> CaTarEncoder<W> {
 
         name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-        let mut goodby_items = vec![];
+        let mut goodbye_items = vec![];
 
         for (filename, stat) in &name_list {
             self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
@@ -207,10 +243,10 @@ impl <W: Write> CaTarEncoder<W> {
 
             let end_pos = self.writer_pos;
 
-            goodby_items.push(CaFormatGoodbyeItem {
+            goodbye_items.push(CaFormatGoodbyeItem {
                 offset: start_pos as u64,
                 size: (end_pos - start_pos) as u64,
-                hash: compute_goodby_hash(&filename),
+                hash: compute_goodbye_hash(&filename),
             });
 
             self.current_path.pop();
@@ -218,45 +254,15 @@ impl <W: Write> CaTarEncoder<W> {
 
         println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
 
-        let goodby_start = self.writer_pos as u64;
-
-        let item_count = goodby_items.len();
-        let goodby_table_size = (item_count + 1)*std::mem::size_of::<CaFormatGoodbyeItem>();
-
-        for item in &mut goodby_items {
-            item.offset = goodby_start - item.offset;
+        // fixup goodby item offsets
+        let goodbye_start = self.writer_pos as u64;
+        for item in &mut goodbye_items {
+            item.offset = goodbye_start - item.offset;
         }
 
-        // fixme: sort goodby_items (BST)
+        let goodbye_offset = self.writer_pos - dir_start_pos;
 
-        let goodby_offset = self.writer_pos - dir_start_pos;
-
-        self.write_header(CA_FORMAT_GOODBYE, goodby_table_size as u64)?;
-
-        if goodby_table_size > FILE_COPY_BUFFER_SIZE {
-            bail!("goodby table too large ({} > {})", goodby_table_size, FILE_COPY_BUFFER_SIZE);
-        }
-
-        let buffer = &mut self.file_copy_buffer;
-        let buffer_ptr = buffer.as_ptr();
-
-        copy_binary_search_tree(item_count, |s, d| {
-            let item = &goodby_items[s];
-            let offset = d*std::mem::size_of::<CaFormatGoodbyeItem>();
-            let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
-            dest.offset = u64::to_le(item.offset);
-            dest.size = u64::to_le(item.size);
-            dest.hash = u64::to_le(item.hash);
-        });
-
-        // append CaFormatGoodbyeTail as last item
-        let offset = item_count*std::mem::size_of::<CaFormatGoodbyeItem>();
-        let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
-        dest.offset = u64::to_le(goodby_offset as u64);
-        dest.size = u64::to_le((goodby_table_size + std::mem::size_of::<CaFormatHeader>()) as u64);
-        dest.hash = u64::to_le(CA_FORMAT_GOODBYE_TAIL_MARKER);
-
-        self.flush_copy_buffer(goodby_table_size)?;
+        self.write_goodbye_table(goodbye_offset, &goodbye_items)?;
 
         println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
         Ok(())
@@ -334,7 +340,7 @@ impl <W: Write> CaTarEncoder<W> {
     }
 }
 
-fn compute_goodby_hash(name: &CStr) -> u64 {
+fn compute_goodbye_hash(name: &CStr) -> u64 {
 
     use std::hash::Hasher;
     let mut hasher = SipHasher24::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
