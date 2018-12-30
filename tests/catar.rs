@@ -1,0 +1,59 @@
+use failure::*;
+
+use std::process::Command;
+use proxmox_backup::catar::encoder::*;
+
+fn run_test(dir_name: &str) -> Result<(), Error> {
+
+    println!("run catar test {}", dir_name);
+
+    Command::new("casync")
+        .arg("make")
+        .arg("test-casync.catar")
+        .arg(dir_name)
+        .status()
+        .expect("failed to execute casync");
+
+    let writer = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("test-proxmox.catar")?;
+
+    let mut dir = nix::dir::Dir::open(
+        dir_name, nix::fcntl::OFlag::O_NOFOLLOW,
+        nix::sys::stat::Mode::empty())?;
+
+    let path = std::path::PathBuf::from(dir_name);
+
+    CaTarEncoder::encode(path, &mut dir, writer)?;
+
+    Command::new("cmp")
+        .arg("--verbose")
+        .arg("test-casync.catar")
+        .arg("test-proxmox.catar")
+        .status()
+        .expect("test failed - archives are different");
+
+    Ok(())
+}
+
+fn run_all_tests() -> Result<(), Error> {
+
+    run_test("tests/catar_data/test_file")?;
+
+    run_test("tests/catar_data/test_symlink")?;
+
+    run_test("tests/catar_data/test_subdir")?;
+
+    Ok(())
+}
+
+#[test]
+fn catar_simple_file() {
+
+    if let Err(err) = run_all_tests() {
+        eprintln!("Error: {}", err);
+        std::process::exit(1);
+    }
+}
