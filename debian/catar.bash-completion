@@ -1,0 +1,3 @@
+# catar bash completion
+
+complete -C 'catar bashcomplete' catar
