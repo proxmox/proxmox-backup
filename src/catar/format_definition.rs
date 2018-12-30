@@ -1,3 +1,10 @@
+//! *catar* binary format definition
+//!
+//! Please note the all values are stored in little endian ordering.
+//!
+//! The Archive contains a list of items. Each item starts with a
+//! `CaFormatHeader`, followed by the item data.
+
 use failure::*;
 
 pub const CA_FORMAT_ENTRY: u64 = 0x1396fabcea5bbb51;
@@ -13,7 +20,9 @@ pub const CA_FORMAT_FEATURE_FLAGS_MAX: u64 = 0xb000_0001_ffef_fe26; // fixme: ?
 
 #[repr(C)]
 pub struct CaFormatHeader {
+    /// The size of the item, including the size of `CaFormatHeader`.
     pub size: u64,
+    /// The item type (see `CA_FORMAT_` constants).
     pub htype: u64,
 }
 
@@ -29,8 +38,16 @@ pub struct CaFormatEntry {
 
 #[repr(C)]
 pub struct CaFormatGoodbyeItem {
+    /// The offset from the start of the GOODBYE object to the start
+    /// of the matching directory item (point to a FILENAME). The last
+    /// GOODBYE item points to the start of the matching ENTRY
+    /// object. repeats the `size`
     pub offset: u64,
+    /// The overall size of the directory item. The last GOODBYE item
+    /// repeats the size of the GOODBYE item.
     pub size: u64,
+    /// SipHash24 of the directory item name. The last GOODBYE item
+    /// uses the special hash value `CA_FORMAT_GOODBYE_TAIL_MARKER`.
     pub hash: u64,
 }
 

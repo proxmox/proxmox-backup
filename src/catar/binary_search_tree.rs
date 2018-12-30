@@ -1,36 +1,31 @@
-/// Helpers to generate a binary search tree stored in an array from a
-/// sorted array.
-///
-/// Specifically, for any given sorted * array 'input' permute the
-/// array so that the following rule holds:
-///
-/// For each array item with index i, the item at 2*i+1 is smaller and
-/// the item 2*i+2 is larger.
-///
-/// This structure permits efficient (meaning: O(log(n)) binary
-/// searches: start with item i=0 (i.e. the root of the BST), compare
-/// the value with the searched item, if smaller proceed at item
-/// i*2+1, if larger proceed at item i*2+2, and repeat, until either
-/// the item is found, or the indexes grow beyond the array size,
-/// which means the entry does not exist.
-///
-/// Effectively this implements bisection, but instead of jumping
-/// around wildly in the array during a single search we only search
-/// with strictly monotonically increasing indexes.
-///
-/// Algorithm is from casync (camakebst.c), simplified and optimized
-/// for rust. Permutation function originally by L. Bressel, 2017. We
-/// pass permutation info to user provided callback, which actually
-/// implements the data copy.
-///
-
-// NOTES:
-//
-// https://en.wikipedia.org/wiki/Binary_heap
-// https://en.wikipedia.org/wiki/Heapsort
-//
-// ==> Maype it is possible to build a sorted array from unsorted
-// array inplace, using heapsort?
+//! Helpers to generate a binary search tree stored in an array from a
+//! sorted array.
+//!
+//! Specifically, for any given sorted array 'input' permute the
+//! array so that the following rule holds:
+//!
+//! For each array item with index i, the item at 2i+1 is smaller and
+//! the item 2i+2 is larger.
+//!
+//! This structure permits efficient (meaning: O(log(n)) binary
+//! searches: start with item i=0 (i.e. the root of the BST), compare
+//! the value with the searched item, if smaller proceed at item
+//! 2i+1, if larger proceed at item 2i+2, and repeat, until either
+//! the item is found, or the indexes grow beyond the array size,
+//! which means the entry does not exist.
+//!
+//! Effectively this implements bisection, but instead of jumping
+//! around wildly in the array during a single search we only search
+//! with strictly monotonically increasing indexes.
+//!
+//! Algorithm is from casync (camakebst.c), simplified and optimized
+//! for rust. Permutation function originally by L. Bressel, 2017. We
+//! pass permutation info to user provided callback, which actually
+//! implements the data copy.
+//!
+//! The Wikipedia Artikel for [Binary
+//! Heap](https://en.wikipedia.org/wiki/Binary_heap) gives a short
+//! intro howto store binary trees using an array.
 
 fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     copy_func: &mut F,
@@ -63,6 +58,26 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     }
 }
 
+/// This function calls the provided `copy_func()` with the permutaion
+/// info.
+///
+/// ```
+/// # use proxmox_backup::catar::binary_search_tree::copy_binary_search_tree;
+/// copy_binary_search_tree(5, |src, dest| {
+///    println!("Copy {} to {}", src, dest);
+/// });
+/// ```
+///
+/// This will produce the folowing output:
+///
+///     Copy 3 to 0
+///     Copy 1 to 1
+///     Copy 0 to 3
+///     Copy 2 to 4
+///     Copy 4 to 2
+///
+/// So this generates the following permuation: `[3,1,4,0,2]`.
+
 pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
     n: usize,
     mut copy_func: F,
@@ -71,7 +86,6 @@ pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
     let e = (64 - n.leading_zeros() - 1) as usize; // fast log2(n)
     copy_binary_search_tree_inner(&mut copy_func, n, 0, e, 0);
 }
-
 
 #[test]
 fn test_binary_search_tree() {

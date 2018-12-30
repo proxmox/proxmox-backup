@@ -1,3 +1,7 @@
+//! *catar* format encoder.
+//!
+//! This module contain the code to generate *catar* archive files.
+
 use failure::*;
 
 use super::format_definition::*;
