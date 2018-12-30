@@ -1,3 +1,3 @@
-///! *catar* format decoder.
+//! *catar* format decoder.
 
 
