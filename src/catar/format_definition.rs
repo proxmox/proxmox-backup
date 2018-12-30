@@ -7,6 +7,8 @@
 
 use failure::*;
 
+use siphasher::sip::SipHasher24;
+
 pub const CA_FORMAT_ENTRY: u64 = 0x1396fabcea5bbb51;
 pub const CA_FORMAT_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
 pub const CA_FORMAT_SYMLINK: u64 = 0x664a6fb6830e0d6c;
@@ -51,7 +53,9 @@ pub struct CaFormatGoodbyeItem {
     pub hash: u64,
 }
 
-fn read_os_string(buffer: &[u8]) -> std::ffi::OsString {
+
+/// Helper function to extract file names from binary archive.
+pub fn read_os_string(buffer: &[u8]) -> std::ffi::OsString {
     let len = buffer.len();
 
     use std::os::unix::ffi::OsStrExt;
@@ -63,4 +67,14 @@ fn read_os_string(buffer: &[u8]) -> std::ffi::OsString {
     };
 
     name.into()
+}
+
+/// Create SipHash values for goodby tables.
+//pub fn compute_goodbye_hash(name: &std::ffi::CStr) -> u64 {
+pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
+
+    use std::hash::Hasher;
+    let mut hasher = SipHasher24::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
+    hasher.write(name);
+    hasher.finish()
 }

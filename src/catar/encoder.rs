@@ -21,8 +21,6 @@ use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::sys::stat::FileStat;
 
-use siphasher::sip::SipHasher24;
-
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit
 /// maximum memory usage.
@@ -264,7 +262,7 @@ impl <W: Write> CaTarEncoder<W> {
             goodbye_items.push(CaFormatGoodbyeItem {
                 offset: start_pos as u64,
                 size: (end_pos - start_pos) as u64,
-                hash: compute_goodbye_hash(&filename),
+                hash: compute_goodbye_hash(filename.to_bytes()),
             });
 
             self.current_path.pop();
@@ -356,12 +354,4 @@ impl <W: Write> CaTarEncoder<W> {
 
         Ok(())
     }
-}
-
-fn compute_goodbye_hash(name: &CStr) -> u64 {
-
-    use std::hash::Hasher;
-    let mut hasher = SipHasher24::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
-    hasher.write(name.to_bytes());
-    hasher.finish()
 }

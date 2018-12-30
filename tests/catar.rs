@@ -46,6 +46,8 @@ fn run_all_tests() -> Result<(), Error> {
 
     run_test("tests/catar_data/test_subdir")?;
 
+    run_test("tests/catar_data/test1")?;
+
     Ok(())
 }
 

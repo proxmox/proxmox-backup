@@ -40,4 +40,5 @@
 pub mod binary_search_tree;
 pub mod format_definition;
 pub mod encoder;
+pub mod decoder;
 

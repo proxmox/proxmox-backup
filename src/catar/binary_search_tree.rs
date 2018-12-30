@@ -86,6 +86,7 @@ pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
 ) {
     if n == 0 { return };
     let e = (64 - n.leading_zeros() - 1) as usize; // fast log2(n)
+
     copy_binary_search_tree_inner(&mut copy_func, n, 0, e, 0);
 }
 
