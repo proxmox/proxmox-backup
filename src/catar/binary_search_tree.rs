@@ -70,11 +70,13 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
 ///
 /// This will produce the folowing output:
 ///
-///     Copy 3 to 0
-///     Copy 1 to 1
-///     Copy 0 to 3
-///     Copy 2 to 4
-///     Copy 4 to 2
+/// ```no-compile
+/// Copy 3 to 0
+/// Copy 1 to 1
+/// Copy 0 to 3
+/// Copy 2 to 4
+/// Copy 4 to 2
+/// ```
 ///
 /// So this generates the following permuation: `[3,1,4,0,2]`.
 
