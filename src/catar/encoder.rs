@@ -23,7 +23,10 @@ use nix::sys::stat::FileStat;
 
 use siphasher::sip::SipHasher24;
 
-const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
+/// The format requires to build sorted directory lookup tables in
+/// memory, so we restrict the number of allowed entries to limit
+/// maximum memory usage.
+pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
 
 pub struct CaTarEncoder<W: Write> {
     current_path: PathBuf, // used for error reporting
@@ -37,6 +40,8 @@ pub struct CaTarEncoder<W: Write> {
 impl <W: Write> CaTarEncoder<W> {
 
     pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
+
+        const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
 
         let mut file_copy_buffer = Vec::with_capacity(FILE_COPY_BUFFER_SIZE);
         unsafe { file_copy_buffer.set_len(FILE_COPY_BUFFER_SIZE); }
@@ -127,12 +132,13 @@ impl <W: Write> CaTarEncoder<W> {
 
         self.write_header(CA_FORMAT_GOODBYE, goodbye_table_size as u64)?;
 
-        if goodbye_table_size > FILE_COPY_BUFFER_SIZE {
-            bail!("goodby table too large ({} > {})", goodbye_table_size, FILE_COPY_BUFFER_SIZE);
+        if self.file_copy_buffer.capacity() < goodbye_table_size {
+            let need = goodbye_table_size - self.file_copy_buffer.capacity();
+            self.file_copy_buffer.reserve(need);
+            unsafe { self.file_copy_buffer.set_len(self.file_copy_buffer.capacity()); }
         }
 
         let buffer = &mut self.file_copy_buffer;
-        let buffer_ptr = buffer.as_ptr();
 
         copy_binary_search_tree(item_count, |s, d| {
             let item = &goodbye_items[s];
@@ -176,7 +182,15 @@ impl <W: Write> CaTarEncoder<W> {
 
         self.write_entry(&dir_stat)?;
 
+        let mut dir_count = 0;
+
         for entry in dir.iter() {
+            dir_count += 1;
+            if dir_count > MAX_DIRECTORY_ENTRIES {
+                bail!("too many directory items in {:?} (> {})",
+                      self.current_path, MAX_DIRECTORY_ENTRIES);
+            }
+
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(err) => bail!("readir {:?} failed - {}", self.current_path, err),
