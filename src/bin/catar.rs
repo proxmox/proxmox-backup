@@ -2,7 +2,6 @@ extern crate proxmox_backup;
 
 use failure::*;
 
-use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
@@ -10,10 +9,6 @@ use proxmox_backup::api::router::*;
 use serde_json::{Value};
 
 use std::io::Read;
-use std::fs::File;
-use std::os::unix::ffi::OsStrExt;
-
-use nix::sys::stat::SFlag;
 
 use proxmox_backup::catar::format_definition::*;
 use proxmox_backup::tools::*;
@@ -32,7 +27,7 @@ fn print_goodby_entries(buffer: &[u8]) -> Result<(), Error> {
 
     let mut pos = 0;
 
-    while (pos < buffer.len()) {
+    while pos < buffer.len() {
 
         let item = map_struct::<CaFormatGoodbyeItem>(&buffer[pos..pos+entry_size])?;
 
