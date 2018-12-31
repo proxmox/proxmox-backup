@@ -1,6 +1,12 @@
-//! Slinding window chunker
+//! Slinding window chunker (Buzhash)
 //!
-//! This is a rewrite of *casync* chunker (cachunker.h) in rust
+//! This is a rewrite of *casync* chunker (cachunker.h) in rust.
+//!
+//! Hashing by cyclic polynomial (also called Buzhash) has the benefit
+//! of avoiding multiplications, using barrel shifts instead. For more
+//! information please take a look at the [Rolling
+//! Hash](https://en.wikipedia.org/wiki/Rolling_hash) artikel from
+//! wikipedia.
 
 use std::io::Write;
 
@@ -92,6 +98,9 @@ const BUZHASH_TABLE: [u32; 256] = [
 
 impl Chunker {
 
+    /// Create a new Chunker instance, which produces and average chunk
+    /// size of `chunk_size_avg`. We allow variation from
+    /// `chunk_size_avg/4` up to a maximum of `chunk_size_avg*4`.
     pub fn new(chunk_size_avg: usize) -> Self {
         // The chunk cut discriminator. In order to get an average
         // chunk size of avg, we cut whenever for a hash value "h" at
@@ -118,10 +127,10 @@ impl Chunker {
         }
     }
 
-    // Scans the specified data for a chunk border. Returns 0 if none
-    // was found (and the function should be called with more data
-    // later on), or another value indicating the position of a
-    // border.
+    /// Scans the specified data for a chunk border. Returns 0 if none
+    /// was found (and the function should be called with more data
+    /// later on), or another value indicating the position of a
+    /// border.
     pub fn scan(&mut self, data: &[u8]) -> usize {
 
         let window_len = self.window.len();
@@ -160,6 +169,7 @@ impl Chunker {
                 BUZHASH_TABLE[enter as usize];
 
             self.chunk_size += 1;
+
             pos += 1;
             if self.shall_break() {
                 self.h = 0;
@@ -172,6 +182,7 @@ impl Chunker {
         0
     }
 
+    #[inline(always)]
     fn shall_break(&self) -> bool {
 
         if self.chunk_size >= self.chunk_size_max { return true; }
