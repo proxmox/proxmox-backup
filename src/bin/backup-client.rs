@@ -11,6 +11,7 @@ use proxmox_backup::api::router::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 use proxmox_backup::catar::encoder::*;
+use proxmox_backup::catar::chunker::*;
 use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
 
@@ -37,11 +38,13 @@ fn backup_dir(
     }
 
     // fixme: implement chunked writer
-    let writer = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open("mytest.catar")?;
+    // let writer = std::fs::OpenOptions::new()
+    //    .create(true)
+    //    .write(true)
+    //    .truncate(true)
+    //    .open("mytest.catar")?;
+
+    let writer = Chunker::new(chunk_size);
 
     let path = std::path::PathBuf::from(path);
 
