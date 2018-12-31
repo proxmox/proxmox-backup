@@ -46,13 +46,13 @@ fn run_all_tests() -> Result<(), Error> {
 
     run_test("tests/catar_data/test_subdir")?;
 
-    run_test("tests/catar_data/test1")?;
+    run_test("tests/catar_data/test_goodbye_sort_order")?;
 
     Ok(())
 }
 
 #[test]
-fn catar_simple_file() {
+fn catar_simple() {
 
     if let Err(err) = run_all_tests() {
         eprintln!("Error: {}", err);
