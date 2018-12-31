@@ -48,6 +48,8 @@ fn run_all_tests() -> Result<(), Error> {
 
     run_test("tests/catar_data/test_goodbye_sort_order")?;
 
+    run_test("tests/catar_data/test_files_and_subdirs")?;
+
     Ok(())
 }
 
