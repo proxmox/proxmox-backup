@@ -55,6 +55,8 @@ impl <W: Write> CaTarEncoder<W> {
         // todo: use scandirat??
         me.encode_dir(dir)?;
 
+        me.writer.flush()?;
+
         Ok(())
     }
 

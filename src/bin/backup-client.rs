@@ -11,7 +11,6 @@ use proxmox_backup::api::router::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 use proxmox_backup::catar::encoder::*;
-use proxmox_backup::backup::chunker::*;
 use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
 
@@ -44,7 +43,7 @@ fn backup_dir(
     //    .truncate(true)
     //    .open("mytest.catar")?;
 
-    let mut index = datastore.create_archive_writer(&target, chunk_size)?;
+    let index = datastore.create_archive_writer(&target, chunk_size)?;
 
     let path = std::path::PathBuf::from(path);
 

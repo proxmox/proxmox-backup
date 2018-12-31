@@ -128,6 +128,23 @@ impl <'a> Write for ArchiveIndexWriter<'a> {
 
     fn flush(&mut self) -> std::result::Result<(), std::io::Error> {
 
-        Ok(())
+        use std::io::{Error, ErrorKind};
+
+        let chunk_size = self.chunk_buffer.len();
+
+        if chunk_size == 0 { return Ok(()); }
+
+        // fixme: finalize index, disable further writes
+        match self.store.insert_chunk(&self.chunk_buffer) {
+            Ok((is_duplicate, digest)) => {
+                println!("ADD LAST CHUNK {} {} {} {}", self.last_chunk, chunk_size, is_duplicate,  digest_to_hex(&digest));
+                self.chunk_buffer.truncate(0);
+                Ok(())
+            }
+            Err(err) => {
+                self.chunk_buffer.truncate(0);
+                Err(Error::new(ErrorKind::Other, err.to_string()))
+            }
+        }
     }
 }
