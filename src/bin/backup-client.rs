@@ -11,7 +11,7 @@ use proxmox_backup::api::router::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 use proxmox_backup::catar::encoder::*;
-use proxmox_backup::catar::chunker::*;
+use proxmox_backup::backup::chunker::*;
 use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
 

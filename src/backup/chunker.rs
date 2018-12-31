@@ -134,7 +134,7 @@ impl Chunker {
             let copy_len = if need < data_len { need } else { data_len };
             unsafe {
                 let src_ptr = data.as_ptr().add(pos);
-                let mut dest_ptr = self.window.as_mut_ptr().add(self.window_size);
+                let dest_ptr = self.window.as_mut_ptr().add(self.window_size);
                 std::ptr::copy_nonoverlapping(src_ptr, dest_ptr, copy_len);
             }
             pos += copy_len;
@@ -178,10 +178,7 @@ impl Chunker {
 
         if self.chunk_size < self.chunk_size_min { return false; }
 
-        if ((self.h % self.discriminator) == (self.discriminator - 1)) {
-            return true;
-        }
-        false
+        (self.h % self.discriminator) == (self.discriminator - 1)
     }
 
     fn start(&mut self) {
