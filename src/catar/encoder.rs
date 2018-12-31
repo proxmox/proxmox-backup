@@ -122,7 +122,9 @@ impl <W: Write> CaTarEncoder<W> {
         Ok(())
     }
 
-    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &[CaFormatGoodbyeItem]) -> Result<(), Error> {
+    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &mut [CaFormatGoodbyeItem]) -> Result<(), Error> {
+
+        goodbye_items.sort_unstable_by(|a, b| a.hash.cmp(&b.hash));
 
         let item_count = goodbye_items.len();
 
@@ -278,7 +280,7 @@ impl <W: Write> CaTarEncoder<W> {
 
         let goodbye_offset = self.writer_pos - dir_start_pos;
 
-        self.write_goodbye_table(goodbye_offset, &goodbye_items)?;
+        self.write_goodbye_table(goodbye_offset, &mut goodbye_items)?;
 
         println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
         Ok(())
