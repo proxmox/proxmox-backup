@@ -205,26 +205,3 @@ impl Chunker {
         self.h ^= BUZHASH_TABLE[(byte as usize)];
     }
 }
-
-impl Write for Chunker {
-
-    fn write(&mut self, data: &[u8]) -> std::result::Result<usize, std::io::Error> {
-
-        let pos = self.scan(data);
-
-        if pos > 0 {
-            self.offset += pos;
-            println!("BOUND {} size {}", self.offset, self.offset - self.last_offset);
-            self.last_offset = self.offset;
-            return Ok(pos);
-        } else {
-            self.offset += data.len();
-            return Ok(data.len());
-        }
-    }
-
-    fn flush(&mut self) -> std::result::Result<(), std::io::Error> {
-
-        Ok(())
-    }
-}

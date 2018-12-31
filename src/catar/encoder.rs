@@ -163,7 +163,7 @@ impl <W: Write> CaTarEncoder<W> {
 
     fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
 
-        println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
 
         let mut name_list = vec![];
 
@@ -270,7 +270,7 @@ impl <W: Write> CaTarEncoder<W> {
             self.current_path.pop();
         }
 
-        println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
 
         // fixup goodby item offsets
         let goodbye_start = self.writer_pos as u64;
@@ -282,13 +282,13 @@ impl <W: Write> CaTarEncoder<W> {
 
         self.write_goodbye_table(goodbye_offset, &mut goodbye_items)?;
 
-        println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
         Ok(())
     }
 
     fn encode_file(&mut self, filefd: RawFd)  -> Result<(), Error> {
 
-        println!("encode_file: {:?}", self.current_path);
+        //println!("encode_file: {:?}", self.current_path);
 
         let stat = match nix::sys::stat::fstat(filefd) {
             Ok(stat) => stat,
@@ -338,7 +338,7 @@ impl <W: Write> CaTarEncoder<W> {
 
     fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
 
-        println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
+        //println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
         self.write_entry(stat)?;
 

@@ -3,4 +3,5 @@
 pub mod chunker;
 pub mod chunk_store;
 pub mod image_index;
+pub mod archive_index;
 pub mod datastore;

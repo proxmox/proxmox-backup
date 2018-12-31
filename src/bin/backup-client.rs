@@ -44,11 +44,11 @@ fn backup_dir(
     //    .truncate(true)
     //    .open("mytest.catar")?;
 
-    let writer = Chunker::new(chunk_size);
+    let mut index = datastore.create_archive_writer(&target, chunk_size)?;
 
     let path = std::path::PathBuf::from(path);
 
-    CaTarEncoder::encode(path, dir, writer)?;
+    CaTarEncoder::encode(path, dir, index)?;
 
     Ok(())
 }

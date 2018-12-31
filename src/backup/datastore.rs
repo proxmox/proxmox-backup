@@ -8,6 +8,7 @@ use std::sync::{Mutex, Arc};
 use crate::config::datastore;
 use super::chunk_store::*;
 use super::image_index::*;
+use super::archive_index::*;
 
 pub struct DataStore {
     chunk_store: ChunkStore,
@@ -72,6 +73,16 @@ impl DataStore {
     pub fn open_image_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ImageIndexReader, Error> {
 
         let index = ImageIndexReader::open(&self.chunk_store, filename.as_ref())?;
+
+        Ok(index)
+    }
+
+    pub fn create_archive_writer<P: AsRef<Path>>(
+        &self, filename: P,
+        chunk_size: usize
+    ) -> Result<ArchiveIndexWriter, Error> {
+
+        let index = ArchiveIndexWriter::create(&self.chunk_store, filename.as_ref(), chunk_size)?;
 
         Ok(index)
     }
