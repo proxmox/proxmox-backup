@@ -51,12 +51,21 @@ impl <'a> ImageIndexReader<'a> {
         let header_size = std::mem::size_of::<ImageIndexHeader>();
 
         // todo: use static assertion when available in rust
-        if header_size != 4096 { panic!("got unexpected header size"); }
+        if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
 
         let mut buffer = vec![0u8; header_size];
         file.read_exact(&mut buffer)?;
 
         let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
+
+        if header.magic != *b"PROXMOX-IIDX" {
+            bail!("got unknown magic number for {:?}", path);
+        }
+
+        let version = u32::from_be(header.version);
+        if  version != 1 {
+            bail!("got unsupported version number ({})", version);
+        }
 
         let size = u64::from_be(header.size) as usize;
         let ctime = u64::from_be(header.ctime);
