@@ -19,6 +19,120 @@ pub struct ArchiveIndexHeader {
     reserved: [u8; 4056], // overall size is one page (4096 bytes)
 }
 
+
+pub struct ArchiveIndexReader<'a> {
+    store: &'a ChunkStore,
+    file: File,
+    size: usize,
+    filename: PathBuf,
+    index: *const u8,
+    index_entries: usize,
+    uuid: [u8; 16],
+    ctime: u64,
+}
+
+impl <'a> Drop for ArchiveIndexReader<'a> {
+
+    fn drop(&mut self) {
+        if let Err(err) = self.unmap() {
+            eprintln!("Unable to unmap file {:?} - {}", self.filename, err);
+        }
+    }
+}
+
+impl <'a> ArchiveIndexReader<'a> {
+
+    pub fn open(store: &'a ChunkStore, path: &Path) -> Result<Self, Error> {
+
+        let full_path = store.relative_path(path);
+
+        let mut file = std::fs::File::open(&full_path)?;
+
+        let header_size = std::mem::size_of::<ArchiveIndexHeader>();
+
+        // todo: use static assertion when available in rust
+        if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
+
+        let mut buffer = vec![0u8; header_size];
+        file.read_exact(&mut buffer)?;
+
+        let header = unsafe { &mut * (buffer.as_ptr() as *mut ArchiveIndexHeader) };
+
+        if header.magic != *b"PROXMOX-AIDX" {
+            bail!("got unknown magic number for {:?}", path);
+        }
+
+        let version = u32::from_le(header.version);
+        if  version != 1 {
+            bail!("got unsupported version number ({}) for {:?}", version, path);
+        }
+
+        let ctime = u64::from_le(header.ctime);
+
+        let rawfd = file.as_raw_fd();
+
+        let stat = match nix::sys::stat::fstat(rawfd) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat {:?} failed - {}", path, err),
+        };
+
+        let size = stat.st_size as usize;
+
+        let index_size = (size - header_size);
+        if (index_size % 40) != 0 {
+            bail!("got unexpected file size for {:?}", path);
+        }
+
+        let data = unsafe { nix::sys::mman::mmap(
+            std::ptr::null_mut(),
+            index_size,
+            nix::sys::mman::ProtFlags::PROT_READ,
+            nix::sys::mman::MapFlags::MAP_PRIVATE,
+            rawfd,
+            header_size as i64) }? as *const u8;
+
+
+        Ok(Self {
+            store,
+            filename: full_path,
+            file,
+            size,
+            index: data,
+            index_entries: index_size/40,
+            ctime,
+            uuid: header.uuid,
+        })
+    }
+
+    fn unmap(&mut self) -> Result<(), Error> {
+
+        if self.index == std::ptr::null_mut() { return Ok(()); }
+
+        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, self.size) } {
+            bail!("unmap file {:?} failed - {}", self.filename, err);
+        }
+
+        self.index = std::ptr::null_mut();
+
+        Ok(())
+    }
+
+    pub fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
+
+        for pos in 0..self.index_entries {
+            let offset = unsafe { *(self.index.add(pos*40) as *const u64) };
+            let digest = unsafe { std::slice::from_raw_parts(self.index.add(pos*40+8), 32) };
+
+            if let Err(err) = self.store.touch_chunk(digest) {
+                bail!("unable to access chunk {}, required by {:?} - {}",
+                      digest_to_hex(digest), self.filename, err);
+            }
+        }
+        Ok(())
+    }
+}
+
+
 pub struct ArchiveIndexWriter<'a> {
     store: &'a ChunkStore,
     chunker: Chunker,
@@ -126,7 +240,7 @@ impl <'a> ArchiveIndexWriter<'a> {
 
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest)) => {
-                println!("ADD CHUNK {} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
+                println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
                 self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
                 self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);

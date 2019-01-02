@@ -87,6 +87,13 @@ impl DataStore {
         Ok(index)
     }
 
+    pub fn open_archive_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ArchiveIndexReader, Error> {
+
+        let index = ArchiveIndexReader::open(&self.chunk_store, filename.as_ref())?;
+
+        Ok(index)
+    }
+
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
         let base = self.chunk_store.base_path();
 
@@ -98,6 +105,8 @@ impl DataStore {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "iidx" {
+                        list.push(path);
+                    } else if ext == "aidx" {
                         list.push(path);
                     }
                 }
@@ -112,8 +121,16 @@ impl DataStore {
         let image_list = self.list_images()?;
 
         for path in image_list {
-            let index = self.open_image_reader(path)?;
-            index.mark_used_chunks(status)?;
+            if let Some(ext) = path.extension() {
+                if ext == "iidx" {
+                    let index = self.open_image_reader(path)?;
+                    index.mark_used_chunks(status)?;
+                } else if ext == "aidx" {
+                    let index = self.open_archive_reader(path)?;
+                    index.mark_used_chunks(status)?;
+                }
+            }
+
         }
 
         Ok(())
@@ -131,7 +148,7 @@ impl DataStore {
             self.mark_used_chunks(&mut gc_status)?;
 
             println!("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_used_chunks(&mut gc_status)?;
+            self.chunk_store.sweep_unused_chunks(&mut gc_status)?;
 
             println!("Used bytes: {}", gc_status.used_bytes);
             println!("Used chunks: {}", gc_status.used_chunks);

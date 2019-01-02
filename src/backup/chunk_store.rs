@@ -212,7 +212,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn sweep_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
+    pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
@@ -299,7 +299,7 @@ impl ChunkStore {
             bail!("Atomic rename on store '{}' failed for chunk {} - {}", self.name, digest_str, err);
         }
 
-        println!("PATH {:?}", chunk_path);
+        //println!("PATH {:?}", chunk_path);
 
         drop(lock);
 
