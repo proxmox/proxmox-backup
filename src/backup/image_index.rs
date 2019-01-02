@@ -135,6 +135,7 @@ pub struct ImageIndexWriter<'a> {
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
+    duplicate_chunks: usize,
     size: usize,
     index: *mut u8,
     uuid: [u8; 16],
@@ -204,6 +205,7 @@ impl <'a> ImageIndexWriter<'a> {
             filename: full_path,
             tmp_filename: tmp_path,
             chunk_size,
+            duplicate_chunks: 0,
             size,
             index: data,
             ctime,
@@ -222,6 +224,9 @@ impl <'a> ImageIndexWriter<'a> {
         }
 
         self.index = std::ptr::null_mut();
+
+        println!("Original size: {} Compressed size: {} Deduplicated size: {}",
+                self.size, self.size, self.size - (self.duplicate_chunks*self.chunk_size));
 
         Ok(())
     }
@@ -265,6 +270,8 @@ impl <'a> ImageIndexWriter<'a> {
 
         println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate,  digest_to_hex(&digest));
 
+        if is_duplicate { self.duplicate_chunks += 1; }
+        
         let index_pos = (pos/self.chunk_size)*32;
         unsafe {
             let dst = self.index.add(index_pos);
