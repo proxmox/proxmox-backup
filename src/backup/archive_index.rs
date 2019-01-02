@@ -3,7 +3,7 @@ use failure::*;
 use super::chunk_store::*;
 use super::chunker::*;
 
-use std::io::{Read, Write};
+use std::io::{Read, Write, BufWriter};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
@@ -22,7 +22,7 @@ pub struct ArchiveIndexHeader {
 pub struct ArchiveIndexWriter<'a> {
     store: &'a ChunkStore,
     chunker: Chunker,
-    file: File,
+    writer: BufWriter<File>,
     closed: bool,
     filename: PathBuf,
     tmp_filename: PathBuf,
@@ -48,6 +48,8 @@ impl <'a> ArchiveIndexWriter<'a> {
             .write(true)
             .open(&tmp_path)?;
 
+        let mut writer = BufWriter::with_capacity(1024*1024, file);
+
         let header_size = std::mem::size_of::<ArchiveIndexHeader>();
 
         // todo: use static assertion when available in rust
@@ -66,12 +68,12 @@ impl <'a> ArchiveIndexWriter<'a> {
         header.ctime = u64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
 
-        file.write_all(&buffer)?;
+        writer.write_all(&buffer)?;
 
         Ok(Self {
             store,
             chunker: Chunker::new(chunk_size),
-            file: file,
+            writer: writer,
             closed: false,
             filename: full_path,
             tmp_filename: tmp_path,
@@ -94,7 +96,7 @@ impl <'a> ArchiveIndexWriter<'a> {
 
         self.write_chunk_buffer()?;
 
-        self.file.sync_all()?;
+        self.writer.flush()?;
 
         // fixme:
 
@@ -125,6 +127,8 @@ impl <'a> ArchiveIndexWriter<'a> {
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest)) => {
                 println!("ADD CHUNK {} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
+                self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
+                self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);
                 return Ok(());
             }
