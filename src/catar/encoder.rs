@@ -26,18 +26,17 @@ use nix::sys::stat::FileStat;
 /// maximum memory usage.
 pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
 
-pub struct CaTarEncoder<W: Write> {
+pub struct CaTarEncoder<'a, W: Write> {
     current_path: PathBuf, // used for error reporting
-    writer: W,
+    writer: &'a mut W,
     writer_pos: usize,
     size: usize,
     file_copy_buffer: Vec<u8>,
 }
 
+impl <'a, W: Write> CaTarEncoder<'a, W> {
 
-impl <W: Write> CaTarEncoder<W> {
-
-    pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: W) -> Result<(), Error> {
+    pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: &'a mut W) -> Result<(), Error> {
 
         const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
 
@@ -54,8 +53,6 @@ impl <W: Write> CaTarEncoder<W> {
 
         // todo: use scandirat??
         me.encode_dir(dir)?;
-
-        me.writer.flush()?;
 
         Ok(())
     }

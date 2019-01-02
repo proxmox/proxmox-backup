@@ -14,7 +14,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         .status()
         .expect("failed to execute casync");
 
-    let writer = std::fs::OpenOptions::new()
+    let mut writer = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(true)
@@ -26,7 +26,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    CaTarEncoder::encode(path, &mut dir, writer)?;
+    CaTarEncoder::encode(path, &mut dir, &mut writer)?;
 
     Command::new("cmp")
         .arg("--verbose")

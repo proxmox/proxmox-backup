@@ -36,18 +36,13 @@ fn backup_dir(
         target.set_extension("aidx");
     }
 
-    // fixme: implement chunked writer
-    // let writer = std::fs::OpenOptions::new()
-    //    .create(true)
-    //    .write(true)
-    //    .truncate(true)
-    //    .open("mytest.catar")?;
-
-    let index = datastore.create_archive_writer(&target, chunk_size)?;
+    let mut index = datastore.create_archive_writer(&target, chunk_size)?;
 
     let path = std::path::PathBuf::from(path);
 
-    CaTarEncoder::encode(path, dir, index)?;
+    CaTarEncoder::encode(path, dir, &mut index)?;
+
+    index.close()?; // commit changes
 
     Ok(())
 }

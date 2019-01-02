@@ -24,9 +24,6 @@ pub struct Chunker {
     discriminator: u32,
 
     window: [u8; CA_CHUNKER_WINDOW_SIZE],
-
-    offset: usize, // only used for debug
-    last_offset: usize, // only used for debug
 }
 
 const BUZHASH_TABLE: [u32; 256] = [
@@ -122,8 +119,6 @@ impl Chunker {
             chunk_size_avg: chunk_size_avg,
             discriminator:  discriminator,
             window: [0u8; CA_CHUNKER_WINDOW_SIZE],
-            offset: 0,
-            last_offset: 0,
         }
     }
 
