@@ -73,7 +73,18 @@ impl <'a> ImageIndexReader<'a> {
 
         let index_size = ((size + chunk_size - 1)/chunk_size)*32;
 
-        // fixme: verify file size ?
+        let rawfd = file.as_raw_fd();
+
+        let stat = match nix::sys::stat::fstat(rawfd) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat {:?} failed - {}", path, err),
+        };
+
+        let expected_index_size = ((stat.st_size as usize) - header_size);
+        if index_size != expected_index_size {
+            bail!("got unexpected file size for {:?} ({} != {})",
+                  path, index_size, expected_index_size);
+        }
 
         let data = unsafe { nix::sys::mman::mmap(
             std::ptr::null_mut(),
