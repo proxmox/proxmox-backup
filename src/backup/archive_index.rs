@@ -16,7 +16,7 @@ pub struct ArchiveIndexHeader {
     pub version: u32,
     pub uuid: [u8; 16],
     pub ctime: u64,
-    reserved: [u8; 4056], // oversall size is one page (4096 bytes)
+    reserved: [u8; 4056], // overall size is one page (4096 bytes)
 }
 
 pub struct ArchiveIndexWriter<'a> {

@@ -16,7 +16,7 @@ pub struct ImageIndexHeader {
     pub ctime: u64,
     pub size: u64,
     pub chunk_size: u64,
-    reserved: [u8; 4040], // oversall size is one page (4096 bytes)
+    reserved: [u8; 4040], // overall size is one page (4096 bytes)
 }
 
 // split image into fixed size chunks
