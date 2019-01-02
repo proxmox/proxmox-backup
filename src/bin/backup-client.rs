@@ -110,8 +110,8 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
         backup_image(&datastore, &file, size, &target, chunk_size)?;
 
-        let idx = datastore.open_image_reader(target)?;
-        idx.print_info();
+       // let idx = datastore.open_image_reader(target)?;
+       // idx.print_info();
 
     } else {
         bail!("unsupported file type (expected a directory, file or block device)");
