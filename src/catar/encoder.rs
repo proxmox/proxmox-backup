@@ -58,13 +58,13 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
     }
 
     fn write(&mut self,  buf: &[u8]) -> Result<(), Error> {
-        self.writer.write(buf)?;
+        self.writer.write_all(buf)?;
         self.writer_pos += buf.len();
         Ok(())
     }
 
     fn flush_copy_buffer(&mut self, size: usize) -> Result<(), Error> {
-        self.writer.write(&self.file_copy_buffer[..size])?;
+        self.writer.write_all(&self.file_copy_buffer[..size])?;
         self.writer_pos += size;
         Ok(())
     }
