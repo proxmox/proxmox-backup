@@ -97,9 +97,10 @@ const BUZHASH_TABLE: [u32; 256] = [
 
 impl Chunker {
 
-    /// Create a new Chunker instance, which produces and average chunk
-    /// size of `chunk_size_avg`. We allow variation from
-    /// `chunk_size_avg/4` up to a maximum of `chunk_size_avg*4`.
+    /// Create a new Chunker instance, which produces and average
+    /// chunk size of `chunk_size_avg` (need to be a power of two). We
+    /// allow variation from `chunk_size_avg/4` up to a maximum of
+    /// `chunk_size_avg*4`.
     pub fn new(chunk_size_avg: usize) -> Self {
         // The chunk cut discriminator. In order to get an average
         // chunk size of avg, we cut whenever for a hash value "h" at
@@ -112,9 +113,11 @@ impl Chunker {
         let avg = chunk_size_avg as f64;
         let discriminator = (avg / (-1.42888852e-7 * avg + 1.33237515)) as u32;
 
-        let break_test_value = (chunk_size_avg*2 -1) as u32;
+        if chunk_size_avg.count_ones() != 1 {
+            panic!("got unexpected chunk size - not a power of two.");
+        }
 
-        println!("DISCRIMINATOR: {} {}", discriminator, avg/1.33);
+        let break_test_value = (chunk_size_avg*2 -1) as u32;
 
         Self {
             h: 0,
