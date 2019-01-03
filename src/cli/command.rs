@@ -2,6 +2,8 @@ use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use serde_json::Value;
+
 use crate::api::schema::*;
 use crate::api::router::*;
 //use crate::api::config::*;
@@ -12,7 +14,13 @@ pub fn print_cli_usage() {
     eprintln!("Usage: TODO");
 }
 
-fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<(), Error> {
+#[derive(Debug, Fail)]
+#[fail(display = "Usage error: {}", _0)]
+pub struct UsageError(Error);
+
+pub struct Invocation<'a>(&'a CliCommand, Value);
+
+fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<Invocation, Error> {
 
     let (params, rest) = getopts::parse_arguments(
         &args, &cli_cmd.arg_param, &cli_cmd.info.parameters)?;
@@ -21,11 +29,7 @@ fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<(), 
         bail!("got additional arguments: {:?}", rest);
     }
 
-    let res = (cli_cmd.info.handler)(params,  &cli_cmd.info)?;
-
-    println!("Result: {}", serde_json::to_string_pretty(&res).unwrap());
-
-    Ok(())
+    Ok(Invocation(cli_cmd, params))
 }
 
 fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLineInterface> {
@@ -50,7 +54,7 @@ fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLin
     None
 }
 
-fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(), Error> {
+fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<Invocation, Error> {
 
     if args.len() < 1 {
         let mut cmds: Vec<&String> = def.commands.keys().collect();
@@ -74,14 +78,12 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<(
 
     match sub_cmd {
         CommandLineInterface::Simple(cli_cmd) => {
-            handle_simple_command(cli_cmd, args)?;
+            handle_simple_command(cli_cmd, args)
         }
         CommandLineInterface::Nested(map) => {
-            handle_nested_command(map, args)?;
+            handle_nested_command(map, args)
         }
     }
-
-    Ok(())
 }
 
 fn print_property_completion(
@@ -253,10 +255,20 @@ pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
         return Ok(());
     }
 
-    match def {
+    let invocation = match def {
         CommandLineInterface::Simple(cli_cmd) => handle_simple_command(cli_cmd, args),
         CommandLineInterface::Nested(map) => handle_nested_command(map, args),
-    }
+    };
+
+
+    let res = match invocation {
+        Err(e) => return Err(UsageError(e).into()),
+        Ok(invocation) => (invocation.0.info.handler)(invocation.1, &invocation.0.info)?,
+    };
+
+    println!("Result: {}", serde_json::to_string_pretty(&res).unwrap());
+
+    Ok(())
 }
 
 pub type CompletionFunction = fn() -> Vec<String>;
