@@ -23,6 +23,8 @@ pub struct Chunker {
 
     discriminator: u32,
 
+    break_test_value: u32,
+
     window: [u8; CA_CHUNKER_WINDOW_SIZE],
 }
 
@@ -110,6 +112,10 @@ impl Chunker {
         let avg = chunk_size_avg as f64;
         let discriminator = (avg / (-1.42888852e-7 * avg + 1.33237515)) as u32;
 
+        let break_test_value = (chunk_size_avg*2 -1) as u32;
+
+        println!("DISCRIMINATOR: {} {}", discriminator, avg/1.33);
+
         Self {
             h: 0,
             window_size: 0,
@@ -118,6 +124,7 @@ impl Chunker {
             chunk_size_max: chunk_size_avg<<2,
             chunk_size_avg: chunk_size_avg,
             discriminator:  discriminator,
+            break_test_value: break_test_value,
             window: [0u8; CA_CHUNKER_WINDOW_SIZE],
         }
     }
@@ -177,8 +184,22 @@ impl Chunker {
         0
     }
 
+    // fast implementation avoiding modulo
     #[inline(always)]
     fn shall_break(&self) -> bool {
+
+        if self.chunk_size >= self.chunk_size_max { return true; }
+
+        if self.chunk_size < self.chunk_size_min { return false; }
+
+        (self.h & self.break_test_value) <= 2
+
+        //(self.h & 0x1ffff) <= 2 //THIS IS SLOW!!!
+   }
+
+    // This is the original implementation from casync
+    #[inline(always)]
+    fn shall_break_orig(&self) -> bool {
 
         if self.chunk_size >= self.chunk_size_max { return true; }
 
