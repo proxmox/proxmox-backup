@@ -129,6 +129,21 @@ impl <'a> ArchiveIndexReader<'a> {
         }
         Ok(())
     }
+
+    pub fn dump_catar(&self, mut writer: Box<Write>) -> Result<(), Error> {
+
+        for pos in 0..self.index_entries {
+            let offset = unsafe { *(self.index.add(pos*40) as *const u64) };
+            let digest = unsafe { std::slice::from_raw_parts(self.index.add(pos*40+8), 32) };
+
+            let chunk = self.store.read_chunk(digest)?;
+            println!("Dump {:08x} {}", offset, chunk.len());
+            writer.write_all(&chunk)?;
+
+        }
+
+        Ok(())
+    }
 }
 
 
@@ -240,6 +255,7 @@ impl <'a> ArchiveIndexWriter<'a> {
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest)) => {
                 println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
+                let chunk_end =
                 self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
                 self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);

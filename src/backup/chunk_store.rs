@@ -165,6 +165,24 @@ impl ChunkStore {
         Ok(())
     }
 
+    pub fn read_chunk(&self, digest:&[u8]) ->  Result<Vec<u8>, Error> {
+
+        let mut chunk_path = self.chunk_dir.clone();
+        let prefix = digest_to_prefix(&digest);
+        chunk_path.push(&prefix);
+        let digest_str = digest_to_hex(&digest);
+        chunk_path.push(&digest_str);
+
+        let mut f = std::fs::File::open(&chunk_path)?;
+        let mut chunk = Vec::with_capacity(64*1024);
+
+        use std::io::Read;
+
+        f.read_to_end(&mut chunk)?;
+
+        Ok(chunk)
+    }
+
     fn sweep_old_files(&self, handle: &mut nix::dir::Dir, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         let rawfd = handle.as_raw_fd();
