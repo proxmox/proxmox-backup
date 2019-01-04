@@ -131,8 +131,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.write_header(CA_FORMAT_GOODBYE, goodbye_table_size as u64)?;
 
-        if self.file_copy_buffer.capacity() < goodbye_table_size {
-            let need = goodbye_table_size - self.file_copy_buffer.capacity();
+        if self.file_copy_buffer.len() < goodbye_table_size {
+            let need = goodbye_table_size - self.file_copy_buffer.len();
             self.file_copy_buffer.reserve(need);
             unsafe { self.file_copy_buffer.set_len(self.file_copy_buffer.capacity()); }
         }
