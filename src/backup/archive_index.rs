@@ -132,13 +132,15 @@ impl <'a> ArchiveIndexReader<'a> {
 
     pub fn dump_catar(&self, mut writer: Box<Write>) -> Result<(), Error> {
 
+        let mut buffer = Vec::with_capacity(1024*1024);
+
         for pos in 0..self.index_entries {
             let offset = unsafe { *(self.index.add(pos*40) as *const u64) };
             let digest = unsafe { std::slice::from_raw_parts(self.index.add(pos*40+8), 32) };
 
-            let chunk = self.store.read_chunk(digest)?;
-            println!("Dump {:08x} {}", offset, chunk.len());
-            writer.write_all(&chunk)?;
+            self.store.read_chunk(digest, &mut buffer)?;
+            println!("Dump {:08x} {}", offset, buffer.len(), );
+            writer.write_all(&buffer)?;
 
         }
 
