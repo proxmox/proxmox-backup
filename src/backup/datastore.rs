@@ -123,14 +123,13 @@ impl DataStore {
         for path in image_list {
             if let Some(ext) = path.extension() {
                 if ext == "iidx" {
-                    let index = self.open_image_reader(path)?;
+                    let index = self.open_image_reader(&path)?;
                     index.mark_used_chunks(status)?;
                 } else if ext == "aidx" {
-                    let index = self.open_archive_reader(path)?;
+                    let index = self.open_archive_reader(&path)?;
                     index.mark_used_chunks(status)?;
                 }
             }
-
         }
 
         Ok(())

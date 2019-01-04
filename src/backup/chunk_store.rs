@@ -59,8 +59,6 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
     buf.push(HEX_CHARS[(digest[0] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
-    buf.push('/' as u8);
-
     buf.push(HEX_CHARS[(digest[1] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[1] as usize) & 0xf]);
     buf.push('/' as u8);
@@ -94,26 +92,19 @@ impl ChunkStore {
             bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
-        // create 256*256 subdirs
+        // create 64*1024 subdirs
         let mut last_percentage = 0;
 
-        for i in 0..256 {
+        for i in 0..64*1024 {
             let mut l1path = chunk_dir.clone();
-            l1path.push(format!("{:02x}",i));
+            l1path.push(format!("{:04x}", i));
             if let Err(err) = std::fs::create_dir(&l1path) {
                 bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l1path, err);
             }
-            for j in 0..256 {
-                let mut l2path = l1path.clone();
-                l2path.push(format!("{:02x}",j));
-                if let Err(err) = std::fs::create_dir(&l2path) {
-                    bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l2path, err);
-                }
-                let percentage = ((i*256+j)*100)/(256*256);
-                if percentage != last_percentage {
-                    eprintln!("Percentage done: {}", percentage);
-                    last_percentage = percentage;
-                }
+            let percentage = (i*100)/(64*1024);
+            if percentage != last_percentage {
+                eprintln!("Percentage done: {}", percentage);
+                last_percentage = percentage;
             }
         }
 
@@ -140,7 +131,7 @@ impl ChunkStore {
             name: name.to_owned(),
             base,
             chunk_dir,
-             _lockfile: lockfile,
+            _lockfile: lockfile,
             mutex: Mutex::new(false)
         })
     }
@@ -229,36 +220,23 @@ impl ChunkStore {
 
         let mut last_percentage = 0;
 
-        for i in 0..256 {
-            let l1name = PathBuf::from(format!("{:02x}", i));
-            let l1_handle = match nix::dir::Dir::openat(
-                base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
-                Ok(h) => h,
+        for i in 0..64*1024 {
+
+            let percentage = (i*100)/(64*1024);
+            if percentage != last_percentage {
+                eprintln!("Percentage done: {}", percentage);
+                last_percentage = percentage;
+            }
+
+            let l1name = PathBuf::from(format!("{:04x}", i));
+            match nix::dir::Dir::openat(base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
+                Ok(mut h) => {
+                    //println!("SCAN {:?} {:?}", l1name);
+                   self.sweep_old_files(&mut h, status)?;
+                }
                 Err(err) => bail!("unable to open store '{}' dir {:?}/{:?} - {}",
                                   self.name, self.chunk_dir, l1name, err),
             };
-
-            let l1_fd = l1_handle.as_raw_fd();
-
-            for j in 0..256 {
-                let l2name = PathBuf::from(format!("{:02x}", j));
-
-                let percentage = ((i*256+j)*100)/(256*256);
-                if percentage != last_percentage {
-                    eprintln!("Percentage done: {}", percentage);
-                    last_percentage = percentage;
-                }
-                //println!("SCAN {:?} {:?}", l1name, l2name);
-
-                let mut l2_handle = match Dir::openat(
-                    l1_fd, &l2name, OFlag::O_RDONLY, Mode::empty()) {
-                    Ok(h) => h,
-                    Err(err) => bail!(
-                        "unable to open store '{}' dir {:?}/{:?}/{:?} - {}",
-                        self.name, self.chunk_dir, l1name, l2name, err),
-                };
-                self.sweep_old_files(&mut l2_handle, status)?;
-            }
         }
         Ok(())
     }
