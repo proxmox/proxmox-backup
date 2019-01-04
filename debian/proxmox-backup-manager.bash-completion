@@ -1,8 +1,8 @@
-# backup-client bash completion
+# proxmox-backup-manager bash completion
 
 # see http://tiswww.case.edu/php/chet/bash/FAQ
 # and __ltrim_colon_completions() in /usr/share/bash-completion/bash_completion
 # this modifies global var, but I found no better way
 COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
-complete -C 'backup-client bashcomplete' backup-client
+complete -C 'proxmox-backup-manager bashcomplete' proxmox-backup-manager

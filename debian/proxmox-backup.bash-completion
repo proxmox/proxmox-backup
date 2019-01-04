@@ -1,3 +1,3 @@
-debian/pbs.bash-completion pbs
-debian/backup-client.bash-completion backup-client
+debian/proxmox-backup-manager.bash-completion proxmox-backup-manager
+debian/proxmox-backup-client.bash-completion proxmox-backup-client
 debian/catar.bash-completion catar
