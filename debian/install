@@ -1,6 +1,6 @@
 target/release/proxmox-backup-api /usr/sbin
 target/release/proxmox-backup-manager /usr/sbin
-target/release/backup-client /usr/sbin
+target/release/proxmox-backup-client /usr/sbin
 target/release/catar /usr/sbin
 www/images/logo-128.png /usr/share/javascript/proxmox-backup/images/
 www/images/proxmox_logo.png /usr/share/javascript/proxmox-backup/images/
