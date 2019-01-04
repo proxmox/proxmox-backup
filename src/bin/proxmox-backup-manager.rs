@@ -5,18 +5,19 @@ use proxmox_backup::cli::command::*;
 
 fn datastore_commands() -> CommandLineInterface {
 
-    use proxmox_backup::api3::config::datastore;
+    use proxmox_backup::config;
+    use proxmox_backup::api3;
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(datastore::get()).into())
+        .insert("list", CliCommand::new(api3::config::datastore::get()).into())
         .insert("create",
-                CliCommand::new(datastore::post())
+                CliCommand::new(api3::config::datastore::post())
                 .arg_param(vec!["name", "path"])
                 .into())
         .insert("remove",
-                CliCommand::new(datastore::delete())
+                CliCommand::new(api3::config::datastore::delete())
                 .arg_param(vec!["name"])
-                .completion_cb("name", proxmox_backup::config::datastore::complete_datastore_name)
+                .completion_cb("name", config::datastore::complete_datastore_name)
                 .into());
 
     cmd_def.into()
