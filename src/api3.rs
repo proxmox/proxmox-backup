@@ -5,8 +5,8 @@ use crate::api::router::*;
 use serde_json::{json, Value};
 
 pub mod config;
+pub mod admin;
 mod version;
-mod datastore;
 
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);
@@ -54,13 +54,13 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             |_,_| Ok(json!([
                 {"subdir": "config"},
-                {"subdir": "datastore"},
+                {"subdir": "admin"},
                 {"subdir": "version"},
                 {"subdir": "nodes"}
             ])),
             ObjectSchema::new("Directory index.")))
+        .subdir("admin", admin::router())
         .subdir("config", config::router())
-        .subdir("datastore", datastore::router())
         .subdir("version", version::router())
         .subdir("nodes", nodes);
 
