@@ -62,14 +62,14 @@ impl <'a> ImageIndexReader<'a> {
             bail!("got unknown magic number for {:?}", path);
         }
 
-        let version = u32::from_be(header.version);
+        let version = u32::from_le(header.version);
         if  version != 1 {
             bail!("got unsupported version number ({})", version);
         }
 
-        let size = u64::from_be(header.size) as usize;
-        let ctime = u64::from_be(header.ctime);
-        let chunk_size = u64::from_be(header.chunk_size) as usize;
+        let size = u64::from_le(header.size) as usize;
+        let ctime = u64::from_le(header.ctime);
+        let chunk_size = u64::from_le(header.chunk_size) as usize;
 
         let index_size = ((size + chunk_size - 1)/chunk_size)*32;
 
@@ -200,10 +200,10 @@ impl <'a> ImageIndexWriter<'a> {
         let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
 
         header.magic = *b"PROXMOX-IIDX";
-        header.version = u32::to_be(1);
-        header.ctime = u64::to_be(ctime);
-        header.size = u64::to_be(size as u64);
-        header.chunk_size = u64::to_be(chunk_size as u64);
+        header.version = u32::to_le(1);
+        header.ctime = u64::to_le(ctime);
+        header.size = u64::to_le(size as u64);
+        header.chunk_size = u64::to_le(chunk_size as u64);
         header.uuid = *uuid.as_bytes();
 
         file.write_all(&buffer)?;
