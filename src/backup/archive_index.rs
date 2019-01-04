@@ -91,7 +91,6 @@ impl <'a> ArchiveIndexReader<'a> {
             rawfd,
             header_size as i64) }? as *const u8;
 
-
         Ok(Self {
             store,
             filename: full_path,
@@ -108,7 +107,7 @@ impl <'a> ArchiveIndexReader<'a> {
 
         if self.index == std::ptr::null_mut() { return Ok(()); }
 
-        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, self.size) } {
+        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, self.index_entries*40) } {
             bail!("unmap file {:?} failed - {}", self.filename, err);
         }
 
