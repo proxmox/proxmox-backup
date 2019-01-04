@@ -22,12 +22,39 @@ fn start_garbage_collection(param: Value, _info: &ApiMethod) -> Result<Value, Er
     Ok(json!(null))
 }
 
+pub fn api_method_start_garbage_collection() -> ApiMethod {
+    ApiMethod::new(
+        start_garbage_collection,
+        ObjectSchema::new("Start garbage collection.")
+            .required("name", StringSchema::new("Datastore name."))
+    )
+}
+
+fn garbage_collection_status(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+    let name = param["name"].as_str().unwrap();
+
+    println!("Garbage collection status on store {}", name);
+
+    Ok(json!(null))
+
+}
+
+pub fn api_method_garbage_collection_status() -> ApiMethod {
+    ApiMethod::new(
+        garbage_collection_status,
+        ObjectSchema::new("Garbage collection status.")
+            .required("name", StringSchema::new("Datastore name."))
+    )
+}
+
 fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let config = datastore::config()?;
 
     Ok(config.convert_to_array("name"))
 }
+
 
 pub fn router() -> Router {
 
@@ -43,12 +70,8 @@ pub fn router() -> Router {
         .subdir(
             "gc",
             Router::new()
-                .post(ApiMethod::new(
-                    start_garbage_collection,
-                    ObjectSchema::new("Start garbage collection.")
-                        .required("name", StringSchema::new("Datastore name."))
-                )
-                ));
+                .get(api_method_garbage_collection_status())
+                .post(api_method_start_garbage_collection()));
                
 
 

@@ -23,10 +23,33 @@ fn datastore_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+
+
+fn garbage_collection_commands() -> CommandLineInterface {
+
+    use proxmox_backup::config;
+    use proxmox_backup::api3;
+
+    let cmd_def = CliCommandMap::new()
+        .insert("status",
+                CliCommand::new(api3::admin::datastore::api_method_garbage_collection_status())
+                .arg_param(vec!["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+                .into())
+        .insert("start",
+                CliCommand::new(api3::admin::datastore::api_method_start_garbage_collection())
+                .arg_param(vec!["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+                .into());
+
+    cmd_def.into()
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
-        .insert("datastore".to_owned(), datastore_commands());
+        .insert("datastore".to_owned(), datastore_commands())
+        .insert("garbage-collection".to_owned(), garbage_collection_commands());
 
     if let Err(err) = run_cli_command(&cmd_def.into()) {
         eprintln!("Error: {}", err);
