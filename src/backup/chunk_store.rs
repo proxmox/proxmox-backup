@@ -136,7 +136,7 @@ impl ChunkStore {
         })
     }
 
-    pub fn touch_chunk(&self, digest:&[u8]) ->  Result<(), Error> {
+    pub fn touch_chunk(&self, digest:&[u8]) -> Result<(), Error> {
 
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
@@ -165,7 +165,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn read_chunk(&self, digest:&[u8]) ->  Result<Vec<u8>, Error> {
+    pub fn read_chunk(&self, digest:&[u8]) -> Result<Vec<u8>, Error> {
 
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
