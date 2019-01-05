@@ -178,10 +178,11 @@ impl ChunkStore {
         let stat = nix::sys::stat::fstat(f.as_raw_fd())?;
         let size = stat.st_size as usize;
 
-        unsafe { buffer.set_len(buffer.capacity()); }
-        if buffer.len() < size {
-            let additional = size - buffer.len();
-            buffer.reserve(additional);
+        if buffer.capacity() < size {
+            let mut newsize =  buffer.capacity();
+            while newsize < size { newsize = newsize << 1; }
+            let additional = newsize - buffer.len();
+            buffer.reserve_exact(additional);
         }
         unsafe { buffer.set_len(size); }
 
