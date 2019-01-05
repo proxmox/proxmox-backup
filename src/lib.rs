@@ -1,5 +1,3 @@
-pub mod static_map;
-
 pub mod tools;
 
 /// API definition helper
