@@ -213,7 +213,23 @@ impl <'a>  BufferedArchiveReader<'a> {
 
     pub fn archive_size(&self) -> u64 { self.archive_size }
 
-    pub fn read(&mut self, offset: u64) -> Result<&[u8], Error> {
+    fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
+
+        let index = self.index;
+        let end = index.chunk_end(idx);
+        let digest = index.chunk_digest(idx);
+        index.store.read_chunk(digest, &mut self.read_buffer)?;
+
+        self.buffered_chunk_idx = idx;
+        self.buffered_chunk_start = end - (self.read_buffer.len() as u64);
+        //println!("BUFFER {} {}",  self.buffered_chunk_start, end);
+        Ok(())
+    }
+}
+
+impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
+
+    fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
 
         let buffer_len = self.read_buffer.len();
         let index = self.index;
@@ -246,18 +262,6 @@ impl <'a>  BufferedArchiveReader<'a> {
         Ok(&self.read_buffer[buffer_offset..])
     }
 
-    fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
-
-        let index = self.index;
-        let end = index.chunk_end(idx);
-        let digest = index.chunk_digest(idx);
-        index.store.read_chunk(digest, &mut self.read_buffer)?;
-
-        self.buffered_chunk_idx = idx;
-        self.buffered_chunk_start = end - (self.read_buffer.len() as u64);
-        //println!("BUFFER {} {}",  self.buffered_chunk_start, end);
-        Ok(())
-    }
 }
 
 pub struct ArchiveIndexWriter<'a> {

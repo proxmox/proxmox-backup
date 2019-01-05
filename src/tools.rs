@@ -17,6 +17,15 @@ use std::os::unix::io::AsRawFd;
 
 pub mod timer;
 
+/// The `BufferedReader` trait provides a single function
+/// `buffered_read`. It returns a reference to an internal buffer. The
+/// purpose of this traid is to avoid unnecessary data copies.
+pub trait BufferedReader {
+    /// This functions tries to fill the internal buffers, then returns
+    /// a reference to the available data.
+    fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error>;
+}
+
 /// Directly map a type into a binary buffer. This is mostly useful
 /// for reading structured data from a byte stream (file). You need to
 /// make sure that the buffer location does not change, so please
