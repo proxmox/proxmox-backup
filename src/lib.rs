@@ -1,5 +1,7 @@
 pub mod static_map;
 
+pub mod tools;
+
 /// API definition helper
 ///
 /// This module contains helper classes to define REST APIs. Method
@@ -9,8 +11,6 @@ pub mod static_map;
 /// The [Router](router/struct.Router.html) is used to define a
 /// hierarchy of API entries, and provides ways to find an API
 /// definition by path.
-
-pub mod tools;
 
 #[macro_use]
 pub mod api {

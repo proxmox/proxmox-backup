@@ -1,3 +1,7 @@
+//! Tools and utilities
+//!
+//! This is a collection of small and useful tools.
+
 use failure::*;
 use nix::unistd;
 use nix::sys::stat;
@@ -13,6 +17,12 @@ use std::os::unix::io::AsRawFd;
 
 pub mod timer;
 
+/// Directly map a type into a binary buffer. This is mostly useful
+/// for reading structured data from a byte stream (file). You need to
+/// make sure that the buffer location does not change, so please
+/// avoid vec resize while you use such map.
+///
+/// This function panics if the buffer is not large enough.
 pub fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
@@ -20,6 +30,12 @@ pub fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
     Ok(unsafe { & * (buffer.as_ptr() as *const T) })
 }
 
+/// Directly map a type into a mutable binary buffer. This is mostly
+/// useful for writing structured data into a byte stream (file). You
+/// need to make sure that the buffer location does not change, so
+/// please avoid vec resize while you use such map.
+///
+/// This function panics if the buffer is not large enough.
 pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
@@ -27,7 +43,8 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
 }
 
-
+/// Atomically write a file. We first create a temporary file, which
+/// is then renamed.
 pub fn file_set_contents<P: AsRef<Path>>(
     path: P,
     data: &[u8],
@@ -73,6 +90,8 @@ pub fn file_set_contents<P: AsRef<Path>>(
     Ok(())
 }
 
+/// Create a file lock using fntl. This function allows you to specify
+/// a timeout if you want to avoid infinite blocking.
 pub fn lock_file<F: AsRawFd>(
     file: &mut F,
     exclusive: bool,
@@ -110,6 +129,8 @@ pub fn lock_file<F: AsRawFd>(
     Ok(())
 }
 
+/// Open or create a lock file (append mode). Then try to
+/// aquire a lock using `lock_file()`.
 pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration)
     -> Result<File, Error>
 {
@@ -131,8 +152,9 @@ pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration)
     }
 }
 
-// Note: We cannot implement an Iterator, because Iterators cannot
-// return a borrowed buffer ref (we want zero-copy)
+/// Split a file into equal sized chunks. The last chunk may be
+/// smaller. Note: We cannot implement an `Iterator`, because iterators
+/// cannot return a borrowed buffer ref (we want zero-copy)
 pub fn file_chunker<C, R>(
     mut file: R,
     chunk_size: usize,
