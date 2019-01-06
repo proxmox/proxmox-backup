@@ -231,6 +231,8 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
 
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
 
+        if offset == self.archive_size { return Ok(&self.read_buffer[0..0]); }
+
         let buffer_len = self.read_buffer.len();
         let index = self.index;
 

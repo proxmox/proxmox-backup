@@ -21,8 +21,9 @@ pub mod timer;
 /// `buffered_read`. It returns a reference to an internal buffer. The
 /// purpose of this traid is to avoid unnecessary data copies.
 pub trait BufferedReader {
-    /// This functions tries to fill the internal buffers, then returns
-    /// a reference to the available data.
+    /// This functions tries to fill the internal buffers, then
+    /// returns a reference to the available data. It returns an empty
+    /// buffer if `offset` points to the end of the file.
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error>;
 }
 
