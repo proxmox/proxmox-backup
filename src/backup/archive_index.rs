@@ -266,6 +266,28 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
 
 }
 
+impl <'a> std::io::Read for  BufferedArchiveReader<'a> {
+
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+
+        use std::io::{Error, ErrorKind};
+        use crate::tools::BufferedReader;
+
+        let data = match self.buffered_read(self.read_offset) {
+            Ok(v) => v,
+            Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
+        };
+
+        let n = if data.len() > buf.len() { buf.len() } else { data.len() };
+
+        unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), buf.as_mut_ptr(), n); }
+
+        self.read_offset += n as u64;
+
+        return Ok(n);
+    }
+}
+
 impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
 
     fn seek(&mut self, pos: std::io::SeekFrom) -> Result<u64, std::io::Error> {
