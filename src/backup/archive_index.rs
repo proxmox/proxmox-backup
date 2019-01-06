@@ -266,6 +266,29 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
 
 }
 
+impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
+
+    fn seek(&mut self, pos: std::io::SeekFrom) -> Result<u64, std::io::Error> {
+
+        use std::io::{SeekFrom, Error, ErrorKind};
+
+        let new_offset = match pos {
+            SeekFrom::Start(start_offset) =>  start_offset as i64,
+            SeekFrom::End(end_offset) => (self.archive_size as i64)+ end_offset,
+            SeekFrom::Current(offset) => (self.read_offset as i64) + offset,
+        };
+
+        if (new_offset < 0) || (new_offset > (self.archive_size as i64)) {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("seek is out of range {} ([0..{}])", new_offset, self.archive_size)));
+        }
+        self.read_offset = new_offset as u64;
+
+        Ok(self.read_offset)
+    }
+}
+
 pub struct ArchiveIndexWriter<'a> {
     store: &'a ChunkStore,
     chunker: Chunker,
