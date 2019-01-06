@@ -43,7 +43,7 @@ pub struct CaFormatGoodbyeItem {
     /// The offset from the start of the GOODBYE object to the start
     /// of the matching directory item (point to a FILENAME). The last
     /// GOODBYE item points to the start of the matching ENTRY
-    /// object. repeats the `size`
+    /// object.
     pub offset: u64,
     /// The overall size of the directory item. The last GOODBYE item
     /// repeats the size of the GOODBYE item.
