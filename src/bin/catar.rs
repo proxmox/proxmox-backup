@@ -9,8 +9,11 @@ use proxmox_backup::api::router::*;
 use serde_json::{Value};
 
 use std::io::Read;
+use std::path::PathBuf;
 
 use proxmox_backup::catar::format_definition::*;
+use proxmox_backup::catar::decoder::*;
+
 use proxmox_backup::tools::*;
 
 fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
@@ -46,6 +49,25 @@ fn print_goodby_entries(buffer: &[u8]) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn print_filenames(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+    let archive = required_string_param(&param, "archive");
+    let file = std::fs::File::open(archive)?;
+
+    let mut reader = std::io::BufReader::new(file);
+
+    let mut decoder = CaTarDecoder::new(&mut reader)?;
+
+    let root = decoder.root();
+
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+
+    decoder.print_filenames(&mut out, &mut PathBuf::from("."), &root)?;
+
+    Ok(Value::Null)
 }
 
 fn dump_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
@@ -113,6 +135,15 @@ fn main() {
                     .required("source", StringSchema::new("Source directory."))
             ))
             .arg_param(vec!["archive", "source"])
+            .into()
+        )
+        .insert("list", CliCommand::new(
+            ApiMethod::new(
+                print_filenames,
+                ObjectSchema::new("List the contents of an archive.")
+                    .required("archive", StringSchema::new("Archive name."))
+            ))
+            .arg_param(vec!["archive"])
             .into()
         )
         .insert("dump", CliCommand::new(
