@@ -142,30 +142,44 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
-        let is_dir = ((entry.mode as u32) & libc::S_IFMT) == libc::S_IFDIR;
+        let mode = entry.mode as u32; //fixme: upper 32bits?
+
+        let is_dir = (mode & libc::S_IFMT) == libc::S_IFDIR;
 
         loop {
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
                 CA_FORMAT_SYMLINK => {
+                    if ((mode & libc::S_IFMT) != libc::S_IFLNK) {
+                        bail!("detected unexpected symlink item.");
+                    }
                     let target = self.read_symlink(head.size)?;
                     println!("TARGET: {:?}", target);
+                    return Ok(());
                 }
                 CA_FORMAT_FILENAME => {
-                    if !is_dir { bail!("onyl directoriy entries may contain file names."); }
+                    if !is_dir {
+                        bail!("onyl directoriy entries may contain file names.");
+                    }
                     let name = self.read_filename(head.size)?;
                     path.push(name);
                     println!("NAME: {:?}", path);
                     self.restore_sequential(path, callback)?;
                     path.pop();
-               }
+                }
                 CA_FORMAT_PAYLOAD => {
+                    if ((mode & libc::S_IFMT) != libc::S_IFREG) {
+                        bail!("detected enexpected paylod item.");
+                    }
                     println!("Skip Payload");
                     if head.size < HEADER_SIZE { bail!("detected short payload"); }
                     self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
-                     return Ok(());
-               }
+                    return Ok(());
+                }
                 CA_FORMAT_GOODBYE => {
+                    if !is_dir {
+                        bail!("onyl directoriy entries may contain goodbye tables.");
+                    }
                     println!("Skip Goodbye");
                     if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
                     self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
