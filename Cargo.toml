@@ -31,4 +31,5 @@ uuid = { version = "0.7", features = ["v4"] }
 chrono = "0.4.6" # Date and time library for Rust
 openssl = "0.10.16"
 siphasher = "0.3"
+endian_trait = "0.6.0"
 
