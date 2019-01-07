@@ -6,6 +6,7 @@
 //! `CaFormatHeader`, followed by the item data.
 
 use failure::*;
+use endian_trait::Endian;
 
 use siphasher::sip::SipHasher24;
 
@@ -20,6 +21,7 @@ pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
 pub const CA_FORMAT_FEATURE_FLAGS_MAX: u64 = 0xb000_0001_ffef_fe26; // fixme: ?
 
+#[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatHeader {
     /// The size of the item, including the size of `CaFormatHeader`.
@@ -28,6 +30,7 @@ pub struct CaFormatHeader {
     pub htype: u64,
 }
 
+#[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatEntry {
     pub feature_flags: u64,
@@ -38,6 +41,7 @@ pub struct CaFormatEntry {
     pub mtime: u64,
 }
 
+#[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatGoodbyeItem {
     /// The offset from the start of the GOODBYE object to the start
@@ -77,4 +81,15 @@ pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
     let mut hasher = SipHasher24::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
     hasher.write(name);
     hasher.finish()
+}
+
+pub fn check_ca_header<T>(head: &CaFormatHeader, htype: u64) -> Result<(), Error> {
+    if head.htype != htype {
+        bail!("got wrong header type ({:016x} != {:016x}", head.htype, htype);
+    }
+    if head.size != (std::mem::size_of::<T>() + std::mem::size_of::<CaFormatHeader>()) as u64 {
+        bail!("got wrong header size for type {:016x}", htype);
+    }
+
+    Ok(())
 }
