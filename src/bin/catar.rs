@@ -8,10 +8,11 @@ use proxmox_backup::api::router::*;
 
 use serde_json::{Value};
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use proxmox_backup::catar::format_definition::*;
+use proxmox_backup::catar::encoder::*;
 use proxmox_backup::catar::decoder::*;
 
 use proxmox_backup::tools::*;
@@ -115,11 +116,26 @@ fn dump_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn create_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
-    let _archive = required_string_param(&param, "archive");
-    let _source = required_string_param(&param, "source");
+    let archive = required_string_param(&param, "archive");
+    let source = required_string_param(&param, "source");
 
+    let source = std::path::PathBuf::from(source);
+
+    let mut dir = nix::dir::Dir::open(
+        &source, nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
+
+    let file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(archive)?;
+
+    let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
+
+    CaTarEncoder::encode(source, &mut dir, &mut writer)?;
+
+    writer.flush()?;
 
     Ok(Value::Null)
 }
@@ -129,7 +145,7 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("create", CliCommand::new(
             ApiMethod::new(
-                create_backup,
+                create_archive,
                 ObjectSchema::new("Create new catar archive.")
                     .required("archive", StringSchema::new("Archive name"))
                     .required("source", StringSchema::new("Source directory."))
