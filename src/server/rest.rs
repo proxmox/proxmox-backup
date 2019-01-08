@@ -126,14 +126,14 @@ fn get_request_parameters_async(
         })
         .and_then(move |body| {
 
-            let bytes = std::str::from_utf8(&body)?;
+            let utf8 = std::str::from_utf8(&body)?;
 
-            println!("GOT BODY {:?}", bytes);
+            println!("GOT BODY {:?}", utf8);
 
             let mut param_list: Vec<(String, String)> = vec![];
 
-            if bytes.len() > 0 {
-                for (k, v) in form_urlencoded::parse(bytes.as_bytes()).into_owned() {
+            if utf8.len() > 0 {
+                for (k, v) in form_urlencoded::parse(utf8.as_bytes()).into_owned() {
                     param_list.push((k, v));
                 }
 
