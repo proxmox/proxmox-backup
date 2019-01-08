@@ -8,11 +8,19 @@ use endian_trait::Endian;
 use super::format_definition::*;
 use crate::tools;
 
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::RawFd;
+use std::os::unix::io::FromRawFd;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::ffi::{OsStr, OsString};
+
+use nix::fcntl::OFlag;
+use nix::sys::stat::Mode;
+use nix::errno::Errno;
+use nix::NixPath;
 
 pub struct CaDirectoryEntry {
     start: u64,
@@ -112,6 +120,8 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             bail!("filename entry not nul terminated.");
         }
 
+        // fixme: check filename is relative (not starting with /)
+
         Ok(std::ffi::OsString::from_vec(buffer))
     }
 
@@ -125,18 +135,32 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         self.reader.seek(SeekFrom::Start(start))?;
 
-        let mut path = PathBuf::from(".");
+        let base = ".";
 
-        self.restore_sequential(&mut path, &callback)?;
+        let mut path = PathBuf::from(base);
+
+        let dir = match nix::dir::Dir::open(&path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty()) {
+            Ok(dir) => dir,
+            Err(err) => bail!("unable to open base directory - {}", err),
+        };
+
+        let restore_dir = "restoretest";
+        path.push(restore_dir);
+
+        self.restore_sequential(&mut path, &OsString::from(restore_dir), &dir, &callback)?;
 
         Ok(())
     }
 
     pub fn restore_sequential<F: Fn(&Path) -> Result<(), Error>>(
         &mut self,
-        path: &mut PathBuf,
+        path: &mut PathBuf, // user for error reporting
+        filename: &OsStr,  // repeats path last component
+        parent: &nix::dir::Dir,
         callback: &F,
     ) -> Result<(), Error> {
+
+        let parent_fd = parent.as_raw_fd();
 
         // read ENTRY first
         let head: CaFormatHeader = self.read_item()?;
@@ -145,11 +169,40 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         let mode = entry.mode as u32; //fixme: upper 32bits?
 
-        let is_dir = (mode & libc::S_IFMT) == libc::S_IFDIR;
+        if (mode & libc::S_IFMT) == libc::S_IFDIR {
+            let dir = match dir_mkdirat(parent_fd, filename) {
+                Ok(dir) => dir,
+                Err(err) => bail!("unable to open directory {:?} - {}", path, err),
+            };
 
-        let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
+            //fixme: restore permission, acls, xattr, ...
 
-        loop {
+            loop {
+                let head: CaFormatHeader = self.read_item()?;
+                match head.htype {
+                    CA_FORMAT_FILENAME => {
+                        let name = self.read_filename(head.size)?;
+                        path.push(&name);
+                        println!("NAME: {:?}", path);
+                        self.restore_sequential(path, &name, &dir, callback)?;
+                        path.pop();
+                    }
+                    CA_FORMAT_GOODBYE => {
+                        println!("Skip Goodbye");
+                        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+                        self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
+                        return Ok(());
+                    }
+                    _ => {
+                        bail!("got unknown header type inside directory entry {:016x}", head.htype);
+                    }
+                }
+            }
+        }
+
+        if (mode & libc::S_IFMT) == libc::S_IFLNK {
+            // fixme: create symlink
+            //fixme: restore permission, acls, xattr, ...
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
                 CA_FORMAT_SYMLINK => {
@@ -158,24 +211,35 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                     }
                     let target = self.read_symlink(head.size)?;
                     println!("TARGET: {:?}", target);
-                    return Ok(());
-                }
-                CA_FORMAT_FILENAME => {
-                    if !is_dir {
-                        bail!("onyl directoriy entries may contain file names.");
+                    if let Err(err) = symlinkat(&target, parent_fd, filename) {
+                        bail!("create symlink {:?} failed - {}", path, err);
                     }
-                    let name = self.read_filename(head.size)?;
-                    path.push(name);
-                    println!("NAME: {:?}", path);
-                    self.restore_sequential(path, callback)?;
-                    path.pop();
                 }
+                 _ => {
+                     bail!("got unknown header type inside symlink entry {:016x}", head.htype);
+                 }
+            }
+            return Ok(());
+        }
+
+        if (mode & libc::S_IFMT) == libc::S_IFREG {
+
+            let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
+
+            let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
+            let open_mode =  Mode::from_bits_truncate(0o0600 | mode);
+
+            let mut file = match file_openat(parent_fd, filename, flags, open_mode) {
+                Ok(file) => file,
+                Err(err) => bail!("open file {:?} failed - {}", path, err),
+            };
+
+            //fixme: restore permission, acls, xattr, ...
+
+            let head: CaFormatHeader = self.read_item()?;
+            match head.htype {
                 CA_FORMAT_PAYLOAD => {
-                    if ((mode & libc::S_IFMT) != libc::S_IFREG) {
-                        bail!("detected enexpected paylod item.");
-                    }
-                    println!("Skip Payload");
-                    if head.size < HEADER_SIZE {
+                     if head.size < HEADER_SIZE {
                         bail!("detected short payload");
                     }
                     let need = (head.size - HEADER_SIZE) as usize;
@@ -187,26 +251,18 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                     while (done < need)  {
                         let todo = need - done;
                         let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
-                        self.reader.read_exact(&mut read_buffer[..n])?;
-                        // fixme: restore read_buffer[..n]
+                        let data = &mut read_buffer[..n];
+                        self.reader.read_exact(data)?;
+                        file.write_all(data)?;
                         done += n;
                     }
-
-                    return Ok(());
-                }
-                CA_FORMAT_GOODBYE => {
-                    if !is_dir {
-                        bail!("onyl directoriy entries may contain goodbye tables.");
-                    }
-                    println!("Skip Goodbye");
-                    if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
-                    self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
-                    return Ok(());
                 }
                 _ => {
-                    bail!("got unknown header type {:016x}", head.htype);
+                    bail!("got unknown header type for file entry {:016x}", head.htype);
                 }
             }
+
+            return Ok(());
         }
 
         Ok(())
@@ -369,4 +425,39 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         Ok(())
     }
+}
+
+fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {
+
+    let fd = filename.with_nix_path(|cstr| unsafe {
+        nix::fcntl::openat(parent, cstr.as_ref(), flags, mode)
+    })??;
+
+    let file = unsafe { std::fs::File::from_raw_fd(fd) };
+
+    Ok(file)
+}
+
+fn dir_mkdirat(parent: RawFd, filename: &OsStr) -> Result<nix::dir::Dir, Error> {
+
+    // call mkdirat first
+    let res = filename.with_nix_path(|cstr| unsafe {
+        libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU)
+    })?;
+    Errno::result(res)?;
+
+    let dir = nix::dir::Dir::openat(parent, filename, OFlag::O_DIRECTORY,  Mode::empty())?;
+
+    Ok(dir)
+}
+
+fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error> {
+
+    target.with_nix_path(|target| {
+        linkname.with_nix_path(|linkname| {
+            let res = unsafe { libc::symlinkat(target.as_ptr(), parent, linkname.as_ptr()) };
+            Errno::result(res)?;
+            Ok(())
+        })?
+    })?
 }
