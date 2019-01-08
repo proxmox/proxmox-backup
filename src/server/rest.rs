@@ -126,7 +126,7 @@ fn get_request_parameters_async(
         })
         .and_then(move |body| {
 
-            let bytes = String::from_utf8(body.to_vec())?; // why copy??
+            let bytes = std::str::from_utf8(&body)?;
 
             println!("GOT BODY {:?}", bytes);
 
