@@ -52,7 +52,7 @@ pub enum TimerEvent {
     ThreadSignal(Tid, Signal),
 
     /// Convenience value to send a signal to the current thread. This is
-    /// equivalent to using ThreadSignal(gettid(), signal).
+    /// equivalent to using `ThreadSignal(gettid(), signal)`.
     ThisThreadSignal(Signal),
 }
 
