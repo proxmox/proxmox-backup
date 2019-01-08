@@ -122,13 +122,14 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
     ) -> Result<(), Error> {
 
         let start = dir.start;
-        let end = dir.end;
 
         self.reader.seek(SeekFrom::Start(start))?;
 
         let mut path = PathBuf::from(".");
 
-        self.restore_sequential(&mut path, &callback)
+        self.restore_sequential(&mut path, &callback)?;
+
+        Ok(())
     }
 
     pub fn restore_sequential<F: Fn(&Path) -> Result<(), Error>>(
@@ -145,6 +146,8 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
         let mode = entry.mode as u32; //fixme: upper 32bits?
 
         let is_dir = (mode & libc::S_IFMT) == libc::S_IFDIR;
+
+        let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
 
         loop {
             let head: CaFormatHeader = self.read_item()?;
@@ -172,8 +175,23 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                         bail!("detected enexpected paylod item.");
                     }
                     println!("Skip Payload");
-                    if head.size < HEADER_SIZE { bail!("detected short payload"); }
-                    self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
+                    if head.size < HEADER_SIZE {
+                        bail!("detected short payload");
+                    }
+                    let need = (head.size - HEADER_SIZE) as usize;
+                    //self.reader.seek(SeekFrom::Current(need as i64))?;
+
+                    // fixme:: create file
+
+                    let mut done = 0;
+                    while (done < need)  {
+                        let todo = need - done;
+                        let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
+                        self.reader.read_exact(&mut read_buffer[..n])?;
+                        // fixme: restore read_buffer[..n]
+                        done += n;
+                    }
+
                     return Ok(());
                 }
                 CA_FORMAT_GOODBYE => {
