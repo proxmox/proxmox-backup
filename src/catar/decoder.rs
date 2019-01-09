@@ -120,7 +120,9 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             bail!("filename entry not nul terminated.");
         }
 
-        // fixme: check filename is relative (not starting with /)
+        if buffer.iter().find(|b| (**b == b'/') || (**b == b'\\')).is_some() {
+            bail!("found invalid filename with slashes.");
+        }
 
         Ok(std::ffi::OsString::from_vec(buffer))
     }
@@ -169,7 +171,9 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         let mode = entry.mode as u32; //fixme: upper 32bits?
 
-        if (mode & libc::S_IFMT) == libc::S_IFDIR {
+        let ifmt = mode & libc::S_IFMT;
+
+        if ifmt == libc::S_IFDIR {
             let dir = match dir_mkdirat(parent_fd, filename) {
                 Ok(dir) => dir,
                 Err(err) => bail!("unable to open directory {:?} - {}", path, err),
@@ -200,7 +204,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             }
         }
 
-        if (mode & libc::S_IFMT) == libc::S_IFLNK {
+        if ifmt == libc::S_IFLNK {
             // fixme: create symlink
             //fixme: restore permission, acls, xattr, ...
             let head: CaFormatHeader = self.read_item()?;
@@ -222,7 +226,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             return Ok(());
         }
 
-        if (mode & libc::S_IFMT) == libc::S_IFREG {
+        if ifmt == libc::S_IFREG {
 
             let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
 
