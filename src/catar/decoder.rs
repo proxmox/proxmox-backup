@@ -154,6 +154,80 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
         Ok(())
     }
 
+    fn restore_attributes(&mut self, entry: &CaFormatEntry) -> Result<CaFormatHeader, Error> {
+
+        loop {
+            let head: CaFormatHeader = self.read_item()?;
+            match head.htype {
+                _ => return Ok(head),
+            }
+        }
+    }
+
+    fn restore_mode(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+
+        let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
+
+        nix::sys::stat::fchmod(fd, mode)?;
+
+        Ok(())
+    }
+
+    fn restore_mode_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+
+        let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
+
+        nix::sys::stat::fchmodat(Some(dirfd), filename, mode, nix::sys::stat::FchmodatFlags::NoFollowSymlink)?;
+
+        Ok(())
+    }
+
+    fn restore_ugid(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+
+        let uid = entry.uid as u32;
+        let gid = entry.gid as u32;
+
+        let res = unsafe { libc::fchown(fd, uid, gid) };
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
+    fn restore_ugid_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd,  filename: &OsStr) -> Result<(), Error> {
+
+        let uid = entry.uid as u32;
+        let gid = entry.gid as u32;
+
+        let res = filename.with_nix_path(|cstr| unsafe {
+            libc::fchownat(dirfd, cstr.as_ptr(), uid, gid, libc::AT_SYMLINK_NOFOLLOW)
+        })?;
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
+    fn restore_mtime(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+
+        let times = nsec_to_update_timespec(entry.mtime);
+
+        let res = unsafe { libc::futimens(fd, &times[0]) };
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
+    fn restore_mtime_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+
+        let times = nsec_to_update_timespec(entry.mtime);
+
+        let res =  filename.with_nix_path(|cstr| unsafe {
+            libc::utimensat(dirfd, cstr.as_ptr(), &times[0],  libc::AT_SYMLINK_NOFOLLOW)
+        })?;
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
     pub fn restore_sequential<F: Fn(&Path) -> Result<(), Error>>(
         &mut self,
         path: &mut PathBuf, // user for error reporting
@@ -179,34 +253,37 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                 Err(err) => bail!("unable to open directory {:?} - {}", path, err),
             };
 
-            //fixme: restore permission, acls, xattr, ...
+            let mut head = self.restore_attributes(&entry)?;
 
-            loop {
-                let head: CaFormatHeader = self.read_item()?;
-                match head.htype {
-                    CA_FORMAT_FILENAME => {
-                        let name = self.read_filename(head.size)?;
-                        path.push(&name);
-                        println!("NAME: {:?}", path);
-                        self.restore_sequential(path, &name, &dir, callback)?;
-                        path.pop();
-                    }
-                    CA_FORMAT_GOODBYE => {
-                        println!("Skip Goodbye");
-                        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
-                        self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
-                        return Ok(());
-                    }
-                    _ => {
-                        bail!("got unknown header type inside directory entry {:016x}", head.htype);
-                    }
-                }
+            while head.htype == CA_FORMAT_FILENAME {
+                let name = self.read_filename(head.size)?;
+                path.push(&name);
+                println!("NAME: {:?}", path);
+                self.restore_sequential(path, &name, &dir, callback)?;
+                path.pop();
+
+                head = self.read_item()?;
             }
+
+            if head.htype != CA_FORMAT_GOODBYE {
+                bail!("got unknown header type inside directory entry {:016x}", head.htype);
+            }
+
+            println!("Skip Goodbye");
+            if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+            self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
+
+            self.restore_mode(&entry, dir.as_raw_fd())?;
+            self.restore_mtime(&entry, dir.as_raw_fd())?;
+            self.restore_ugid(&entry, dir.as_raw_fd())?;
+
+            return Ok(());
         }
 
         if ifmt == libc::S_IFLNK {
             // fixme: create symlink
             //fixme: restore permission, acls, xattr, ...
+
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
                 CA_FORMAT_SYMLINK => {
@@ -223,6 +300,11 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                      bail!("got unknown header type inside symlink entry {:016x}", head.htype);
                  }
             }
+
+            // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
+            self.restore_ugid_at(&entry, parent_fd, filename)?;
+            self.restore_mtime_at(&entry,  parent_fd, filename)?;
+
             return Ok(());
         }
 
@@ -238,33 +320,31 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                 Err(err) => bail!("open file {:?} failed - {}", path, err),
             };
 
-            //fixme: restore permission, acls, xattr, ...
+            let mut head = self.restore_attributes(&entry)?;
 
-            let head: CaFormatHeader = self.read_item()?;
-            match head.htype {
-                CA_FORMAT_PAYLOAD => {
-                     if head.size < HEADER_SIZE {
-                        bail!("detected short payload");
-                    }
-                    let need = (head.size - HEADER_SIZE) as usize;
-                    //self.reader.seek(SeekFrom::Current(need as i64))?;
-
-                    // fixme:: create file
-
-                    let mut done = 0;
-                    while (done < need)  {
-                        let todo = need - done;
-                        let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
-                        let data = &mut read_buffer[..n];
-                        self.reader.read_exact(data)?;
-                        file.write_all(data)?;
-                        done += n;
-                    }
-                }
-                _ => {
-                    bail!("got unknown header type for file entry {:016x}", head.htype);
-                }
+            if head.htype != CA_FORMAT_PAYLOAD {
+                  bail!("got unknown header type for file entry {:016x}", head.htype);
             }
+
+            if head.size < HEADER_SIZE {
+                bail!("detected short payload");
+            }
+            let need = (head.size - HEADER_SIZE) as usize;
+            //self.reader.seek(SeekFrom::Current(need as i64))?;
+
+            let mut done = 0;
+            while (done < need)  {
+                let todo = need - done;
+                let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
+                let data = &mut read_buffer[..n];
+                self.reader.read_exact(data)?;
+                file.write_all(data)?;
+                done += n;
+            }
+
+            self.restore_mode(&entry, file.as_raw_fd())?;
+            self.restore_mtime(&entry, file.as_raw_fd())?;
+            self.restore_ugid(&entry, file.as_raw_fd())?;
 
             return Ok(());
         }
@@ -464,4 +544,21 @@ fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error
             Ok(())
         })?
     })?
+}
+
+fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
+
+    // restore mtime
+    const UTIME_OMIT: i64 = ((1 << 30) - 2);
+    const NANOS_PER_SEC: i64 = 1_000_000_000;
+
+    let sec = (mtime_nsec as i64) / NANOS_PER_SEC;
+    let nsec = (mtime_nsec as i64) % NANOS_PER_SEC;
+
+    let times: [libc::timespec; 2] = [
+        libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT },
+        libc::timespec { tv_sec: sec, tv_nsec: nsec },
+    ];
+
+    times
 }
