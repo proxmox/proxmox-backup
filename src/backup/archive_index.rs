@@ -244,7 +244,7 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
             let next_idx = self.buffered_chunk_idx + 1;
             let next_end = index.chunk_end(next_idx);
             if offset < next_end {
-                self.buffer_chunk(next_idx);
+                self.buffer_chunk(next_idx)?;
                 let buffer_offset = (offset - self.buffered_chunk_start) as usize;
                 return Ok(&self.read_buffer[buffer_offset..]);
             }
@@ -257,7 +257,7 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
             let end_idx = index.index_entries - 1;
             let end = index.chunk_end(end_idx);
             let idx = index.binary_search(0, 0, end_idx, end, offset)?;
-            self.buffer_chunk(idx);
+            self.buffer_chunk(idx)?;
          }
 
         let buffer_offset = (offset - self.buffered_chunk_start) as usize;
