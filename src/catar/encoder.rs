@@ -284,7 +284,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
             if ifmt == libc::S_IFDIR {
 
-                match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(mut dir) => self.encode_dir(&mut dir, &stat)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
