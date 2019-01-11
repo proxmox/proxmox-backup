@@ -3,6 +3,7 @@
 //! This module contain the code to generate *catar* archive files.
 
 use failure::*;
+use endian_trait::Endian;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
@@ -52,7 +53,17 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         };
 
         // todo: use scandirat??
-        me.encode_dir(dir)?;
+
+        let stat = match nix::sys::stat::fstat(dir.as_raw_fd()) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat {:?} failed - {}", me.current_path, err),
+        };
+
+        if (stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
+            bail!("got unexpected file type {:?} (not a directory)", me.current_path);
+        }
+
+        me.encode_dir(dir, &stat)?;
 
         Ok(())
     }
@@ -60,6 +71,22 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
     fn write(&mut self,  buf: &[u8]) -> Result<(), Error> {
         self.writer.write_all(buf)?;
         self.writer_pos += buf.len();
+        Ok(())
+    }
+
+    fn write_item<T: Endian + Clone>(&mut self, item: &T) ->  Result<(), Error> {
+
+        let mut data: T = unsafe { std::mem::uninitialized() };
+
+        data = (*item).clone().to_le();
+
+        let buffer = unsafe { std::slice::from_raw_parts(
+            &data as *const T as *const u8,
+            std::mem::size_of::<T>()
+        )};
+
+        self.write(buffer)?;
+
         Ok(())
     }
 
@@ -71,12 +98,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
     fn write_header(&mut self, htype: u64, size: u64) -> Result<(), Error> {
 
-        let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>()];
-        let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
-        header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() as u64) + size);
-        header.htype = u64::to_le(htype);
-
-        self.write(&buffer)?;
+        let size = size + (std::mem::size_of::<CaFormatHeader>() as u64);
+        self.write_item(&CaFormatHeader { size, htype })?;
 
         Ok(())
     }
@@ -90,33 +113,46 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn write_entry(&mut self, stat: &FileStat) -> Result<(), Error> {
+    fn create_entry(&self, stat: &FileStat) -> Result<CaFormatEntry, Error> {
 
-        let mut buffer = [0u8; std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()];
-        let mut header = crate::tools::map_struct_mut::<CaFormatHeader>(&mut buffer)?;
-        header.size = u64::to_le((std::mem::size_of::<CaFormatHeader>() + std::mem::size_of::<CaFormatEntry>()) as u64);
-        header.htype = u64::to_le(CA_FORMAT_ENTRY);
-
-        let mut entry = crate::tools::map_struct_mut::<CaFormatEntry>(&mut buffer[std::mem::size_of::<CaFormatHeader>()..])?;
-
-        entry.feature_flags = u64::to_le(CA_FORMAT_FEATURE_FLAGS_MAX);
-
-        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
-            entry.mode = u64::to_le((libc::S_IFLNK | 0o777) as u64);
+        let mode = if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+            (libc::S_IFLNK | 0o777) as u64
         } else {
-            let mode = stat.st_mode & (libc::S_IFMT | 0o7777);
-            entry.mode = u64::to_le(mode as u64);
-        }
-
-        entry.flags = 0; // todo: CHATTR, FAT_ATTRS, subvolume?
-
-        entry.uid = u64::to_le(stat.st_uid as u64);
-        entry.gid = u64::to_le(stat.st_gid as u64);
+            (stat.st_mode & (libc::S_IFMT | 0o7777)) as u64
+        };
 
         let mtime = stat.st_mtime * 1_000_000_000 + stat.st_mtime_nsec;
-        if mtime > 0 { entry.mtime = mtime as u64 };
+        if mtime < 0 {
+            bail!("got strange mtime ({}) from fstat for {:?}.", mtime, self.current_path);
+        }
 
-        self.write(&buffer)?;
+
+        let entry = CaFormatEntry {
+            feature_flags: CA_FORMAT_FEATURE_FLAGS_MAX, // fixme: ??
+            mode: mode,
+            flags: 0,
+            uid: stat.st_uid as u64,
+            gid: stat.st_gid as u64,
+            mtime: mtime as u64,
+        };
+
+        Ok(entry)
+    }
+
+    fn read_chattr(&self, fd: RawFd, entry: &mut CaFormatEntry) -> Result<(), Error> {
+
+        if let Some(fs_attr) = read_chattr(fd)? {
+            let flags = ca_feature_flags_from_chattr(fs_attr);
+            entry.flags = entry.flags | flags;
+        }
+
+        Ok(())
+    }
+
+    fn write_entry(&mut self, entry: &CaFormatEntry) -> Result<(), Error> {
+
+        self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
+        self.write_item(entry)?;
 
         Ok(())
     }
@@ -160,7 +196,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir)  -> Result<(), Error> {
+    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat)  -> Result<(), Error> {
 
         //println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
 
@@ -168,18 +204,13 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         let rawfd = dir.as_raw_fd();
 
-        let dir_stat = match nix::sys::stat::fstat(rawfd) {
-            Ok(stat) => stat,
-            Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
-        };
-
-        if (dir_stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
-            bail!("got unexpected file type {:?} (not a directory)", self.current_path);
-        }
-
         let dir_start_pos = self.writer_pos;
 
-        self.write_entry(&dir_stat)?;
+        let mut dir_entry = self.create_entry(&dir_stat)?;
+
+        self.read_chattr(rawfd, &mut dir_entry)?;
+
+        self.write_entry(&dir_entry)?;
 
         let mut dir_count = 0;
 
@@ -201,21 +232,24 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             if name_len == 2 && name[0] == b'.' && name[1] == 0u8 { continue; }
             if name_len == 3 && name[0] == b'.' && name[1] == b'.' && name[2] == 0u8 { continue; }
 
-            match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                Ok(stat) => {
-                    name_list.push((filename, stat));
-                }
-                Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
-                Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
-            }
+            name_list.push(filename);
         }
 
-        name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        name_list.sort_unstable_by(|a, b| a.cmp(&b));
 
         let mut goodbye_items = vec![];
 
-        for (filename, stat) in &name_list {
+        for filename in &name_list {
             self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
+
+            let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                Ok(stat) => stat,
+                Err(nix::Error::Sys(Errno::ENOENT)) => {
+                    self.report_vanished_file(&self.current_path)?;
+                    continue;
+                }
+                Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
+            };
 
             let start_pos = self.writer_pos;
 
@@ -224,7 +258,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
 
                 match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(mut dir) => self.encode_dir(&mut dir)?,
+                    Ok(mut dir) => self.encode_dir(&mut dir, &stat)?,
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
                 }
@@ -232,7 +266,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
                 match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => {
-                        let res = self.encode_file(filefd);
+                        let res = self.encode_file(filefd, &stat);
                         let _ = nix::unistd::close(filefd); // ignore close errors
                         res?;
                     }
@@ -285,20 +319,15 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn encode_file(&mut self, filefd: RawFd)  -> Result<(), Error> {
+    fn encode_file(&mut self, filefd: RawFd, stat: &FileStat)  -> Result<(), Error> {
 
         //println!("encode_file: {:?}", self.current_path);
 
-        let stat = match nix::sys::stat::fstat(filefd) {
-            Ok(stat) => stat,
-            Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
-        };
+        let mut entry = self.create_entry(&stat)?;
 
-        if (stat.st_mode & libc::S_IFMT) != libc::S_IFREG {
-            bail!("got unexpected file type {:?} (not a regular file)", self.current_path);
-        }
+        self.read_chattr(filefd, &mut entry)?;
 
-        self.write_entry(&stat)?;
+        self.write_entry(&entry)?;
 
         let size = stat.st_size as u64;
 
@@ -339,7 +368,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         //println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
-        self.write_entry(stat)?;
+        let entry = self.create_entry(&stat)?;
+        self.write_entry(&entry)?;
 
         self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
         self.write(target)?;
@@ -355,4 +385,34 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         Ok(())
     }
+}
+
+fn errno_is_unsupported(errno: Errno) -> bool {
+
+    match errno {
+        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => {
+            true
+        }
+        _ => false,
+    }
+}
+
+use nix::{convert_ioctl_res, request_code_read, ioc};
+// /usr/include/linux/fs.h: #define FS_IOC_GETFLAGS _IOR('f', 1, long)
+/// read Linux file system attributes (see man chattr)
+nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
+
+fn read_chattr(rawfd: RawFd) -> Result<Option<u32>, Error> {
+
+    let mut attr: usize = 0;
+
+    let res = unsafe { read_attr_fd(rawfd, &mut attr)};
+    if let Err(err) = res {
+        if let nix::Error::Sys(errno) = err {
+            if errno_is_unsupported(errno) { return Ok(None) };
+        }
+        bail!("read_attr_fd failed - {}", err);
+    }
+
+    Ok(Some(attr as u32))
 }

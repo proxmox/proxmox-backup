@@ -19,9 +19,29 @@ pub const CA_FORMAT_GOODBYE: u64 = 0xdfd35c5e8327c403;
 /* The end marker used in the GOODBYE object */
 pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
+
+// Feature flags
+
+// DOS file flags
+pub const CA_FORMAT_WITH_FLAG_HIDDEN: u64      = 0x2000;
+pub const CA_FORMAT_WITH_FLAG_SYSTEM: u64      = 0x4000;
+pub const CA_FORMAT_WITH_FLAG_ARCHIVE: u64     = 0x8000;
+
+// chattr() flags
+pub const CA_FORMAT_WITH_FLAG_APPEND: u64      = 0x10000;
+pub const CA_FORMAT_WITH_FLAG_NOATIME: u64     = 0x20000;
+pub const CA_FORMAT_WITH_FLAG_COMPR: u64       = 0x40000;
+pub const CA_FORMAT_WITH_FLAG_NOCOW: u64       = 0x80000;
+pub const CA_FORMAT_WITH_FLAG_NODUMP: u64      = 0x100000;
+pub const CA_FORMAT_WITH_FLAG_DIRSYNC: u64     = 0x200000;
+pub const CA_FORMAT_WITH_FLAG_IMMUTABLE: u64   = 0x400000;
+pub const CA_FORMAT_WITH_FLAG_SYNC: u64        = 0x800000;
+pub const CA_FORMAT_WITH_FLAG_NOCOMP: u64      = 0x1000000;
+pub const CA_FORMAT_WITH_FLAG_PROJINHERIT: u64 = 0x2000000;
+
 pub const CA_FORMAT_FEATURE_FLAGS_MAX: u64 = 0xb000_0001_ffef_fe26; // fixme: ?
 
-#[derive(Endian)]
+#[derive(Endian,Clone)]
 #[repr(C)]
 pub struct CaFormatHeader {
     /// The size of the item, including the size of `CaFormatHeader`.
@@ -30,7 +50,7 @@ pub struct CaFormatHeader {
     pub htype: u64,
 }
 
-#[derive(Endian)]
+#[derive(Endian,Clone)]
 #[repr(C)]
 pub struct CaFormatEntry {
     pub feature_flags: u64,
@@ -92,4 +112,41 @@ pub fn check_ca_header<T>(head: &CaFormatHeader, htype: u64) -> Result<(), Error
     }
 
     Ok(())
+}
+
+// form /usr/include/linux/fs.h
+const FS_APPEND_FL: u32 =      0x00000020;
+const FS_NOATIME_FL: u32 =     0x00000080;
+const FS_COMPR_FL: u32 =       0x00000004;
+const FS_NOCOW_FL: u32 =       0x00800000;
+const FS_NODUMP_FL: u32 =      0x00000040;
+const FS_DIRSYNC_FL: u32 =     0x00010000;
+const FS_IMMUTABLE_FL: u32 =   0x00000010;
+const FS_SYNC_FL: u32 =        0x00000008;
+const FS_NOCOMP_FL: u32 =      0x00000400;
+const FS_PROJINHERIT_FL: u32 = 0x20000000;
+
+static CHATTR_MAP: [(u64, u32); 10] = [
+    ( CA_FORMAT_WITH_FLAG_APPEND,      FS_APPEND_FL      ),
+    ( CA_FORMAT_WITH_FLAG_NOATIME,     FS_NOATIME_FL     ),
+    ( CA_FORMAT_WITH_FLAG_COMPR,       FS_COMPR_FL       ),
+    ( CA_FORMAT_WITH_FLAG_NOCOW,       FS_NOCOW_FL       ),
+    ( CA_FORMAT_WITH_FLAG_NODUMP,      FS_NODUMP_FL      ),
+    ( CA_FORMAT_WITH_FLAG_DIRSYNC,     FS_DIRSYNC_FL     ),
+    ( CA_FORMAT_WITH_FLAG_IMMUTABLE,   FS_IMMUTABLE_FL   ),
+    ( CA_FORMAT_WITH_FLAG_SYNC,        FS_SYNC_FL        ),
+    ( CA_FORMAT_WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
+    ( CA_FORMAT_WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
+];
+
+pub fn ca_feature_flags_from_chattr(attr: u32) -> u64 {
+
+    let mut flags = 0u64;
+
+    for (ca_flag, fs_flag) in &CHATTR_MAP {
+        if (attr & fs_flag) != 0 { flags = flags | ca_flag; }
+    }
+
+
+    flags
 }
