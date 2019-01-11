@@ -317,6 +317,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                 }
             } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) {
                 self.encode_device(&stat)?;
+            } else if (ifmt == libc::S_IFIFO) || (ifmt == libc::S_IFSOCK) {
+                // nothing do do - entry already contains all information
             } else {
                 bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
             }

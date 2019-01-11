@@ -243,6 +243,28 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
         Ok(())
     }
 
+    fn restore_socket_at(&mut self, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+
+        let mode = libc::S_IFSOCK | 0o0600;
+        let res =  filename.with_nix_path(|cstr| unsafe {
+            libc::mknodat(dirfd, cstr.as_ptr(), mode, 0)
+        })?;
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
+    fn restore_fifo_at(&mut self, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+
+        let mode = libc::S_IFIFO | 0o0600;
+        let res =  filename.with_nix_path(|cstr| unsafe {
+            libc::mkfifoat(dirfd, cstr.as_ptr(), mode)
+        })?;
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
     pub fn restore_sequential<F: Fn(&Path) -> Result<(), Error>>(
         &mut self,
         path: &mut PathBuf, // user for error reporting
@@ -315,7 +337,29 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
             // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
             self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry,  parent_fd, filename)?;
+            self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+            return Ok(());
+        }
+
+        if ifmt == libc::S_IFSOCK  {
+
+            self.restore_socket_at(parent_fd, filename)?;
+
+            self.restore_mode_at(&entry, parent_fd, filename)?;
+            self.restore_ugid_at(&entry, parent_fd, filename)?;
+            self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+            return Ok(());
+        }
+
+        if ifmt == libc::S_IFIFO  {
+
+            self.restore_fifo_at(parent_fd, filename)?;
+
+            self.restore_mode_at(&entry, parent_fd, filename)?;
+            self.restore_ugid_at(&entry, parent_fd, filename)?;
+            self.restore_mtime_at(&entry, parent_fd, filename)?;
 
             return Ok(());
         }
@@ -335,7 +379,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
             self.restore_mode_at(&entry, parent_fd, filename)?;
             self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry,  parent_fd, filename)?;
+            self.restore_mtime_at(&entry, parent_fd, filename)?;
 
             return Ok(());
         }
