@@ -22,26 +22,38 @@ pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
 // Feature flags
 
-// DOS file flags
+/// DOS file flag `HIDDEN`
 pub const CA_FORMAT_WITH_FLAG_HIDDEN: u64      = 0x2000;
+/// DOS file flag `SYSTEM`
 pub const CA_FORMAT_WITH_FLAG_SYSTEM: u64      = 0x4000;
+/// DOS file flag `ARCHIVE`
 pub const CA_FORMAT_WITH_FLAG_ARCHIVE: u64     = 0x8000;
 
-// chattr() flags
+// chattr() flags#
+/// Linux file attribute `APPEND`
 pub const CA_FORMAT_WITH_FLAG_APPEND: u64      = 0x10000;
+/// Linux file attribute `NOATIME`
 pub const CA_FORMAT_WITH_FLAG_NOATIME: u64     = 0x20000;
+/// Linux file attribute `COMPR`
 pub const CA_FORMAT_WITH_FLAG_COMPR: u64       = 0x40000;
+/// Linux file attribute `NOCOW`
 pub const CA_FORMAT_WITH_FLAG_NOCOW: u64       = 0x80000;
+/// Linux file attribute `NODUMP`
 pub const CA_FORMAT_WITH_FLAG_NODUMP: u64      = 0x100000;
+/// Linux file attribute `DIRSYNC`
 pub const CA_FORMAT_WITH_FLAG_DIRSYNC: u64     = 0x200000;
+/// Linux file attribute `IMMUTABLE`
 pub const CA_FORMAT_WITH_FLAG_IMMUTABLE: u64   = 0x400000;
+/// Linux file attribute `SYNC`
 pub const CA_FORMAT_WITH_FLAG_SYNC: u64        = 0x800000;
+/// Linux file attribute `NOCOMP`
 pub const CA_FORMAT_WITH_FLAG_NOCOMP: u64      = 0x1000000;
+/// Linux file attribute `PROJINHERIT`
 pub const CA_FORMAT_WITH_FLAG_PROJINHERIT: u64 = 0x2000000;
 
 pub const CA_FORMAT_FEATURE_FLAGS_MAX: u64 = 0xb000_0001_ffef_fe26; // fixme: ?
 
-#[derive(Endian,Clone)]
+#[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatHeader {
     /// The size of the item, including the size of `CaFormatHeader`.
@@ -50,7 +62,7 @@ pub struct CaFormatHeader {
     pub htype: u64,
 }
 
-#[derive(Endian,Clone)]
+#[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatEntry {
     pub feature_flags: u64,
@@ -146,7 +158,6 @@ pub fn ca_feature_flags_from_chattr(attr: u32) -> u64 {
     for (ca_flag, fs_flag) in &CHATTR_MAP {
         if (attr & fs_flag) != 0 { flags = flags | ca_flag; }
     }
-
 
     flags
 }

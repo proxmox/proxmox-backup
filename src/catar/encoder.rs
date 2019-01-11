@@ -74,11 +74,9 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn write_item<T: Endian + Clone>(&mut self, item: &T) ->  Result<(), Error> {
+    fn write_item<T: Endian>(&mut self, item: T) ->  Result<(), Error> {
 
-        let mut data: T = unsafe { std::mem::uninitialized() };
-
-        data = (*item).clone().to_le();
+        let data = item.to_le();
 
         let buffer = unsafe { std::slice::from_raw_parts(
             &data as *const T as *const u8,
@@ -99,7 +97,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
     fn write_header(&mut self, htype: u64, size: u64) -> Result<(), Error> {
 
         let size = size + (std::mem::size_of::<CaFormatHeader>() as u64);
-        self.write_item(&CaFormatHeader { size, htype })?;
+        self.write_item(CaFormatHeader { size, htype })?;
 
         Ok(())
     }
@@ -149,7 +147,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn write_entry(&mut self, entry: &CaFormatEntry) -> Result<(), Error> {
+    fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
 
         self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
         self.write_item(entry)?;
@@ -210,7 +208,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.read_chattr(rawfd, &mut dir_entry)?;
 
-        self.write_entry(&dir_entry)?;
+        self.write_entry(dir_entry)?;
 
         let mut dir_count = 0;
 
@@ -327,7 +325,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.read_chattr(filefd, &mut entry)?;
 
-        self.write_entry(&entry)?;
+        self.write_entry(entry)?;
 
         let size = stat.st_size as u64;
 
@@ -369,7 +367,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         //println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
 
         let entry = self.create_entry(&stat)?;
-        self.write_entry(&entry)?;
+        self.write_entry(entry)?;
 
         self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
         self.write(target)?;
@@ -398,6 +396,7 @@ fn errno_is_unsupported(errno: Errno) -> bool {
 }
 
 use nix::{convert_ioctl_res, request_code_read, ioc};
+
 // /usr/include/linux/fs.h: #define FS_IOC_GETFLAGS _IOR('f', 1, long)
 /// read Linux file system attributes (see man chattr)
 nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
