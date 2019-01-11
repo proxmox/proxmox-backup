@@ -139,10 +139,36 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
     fn read_chattr(&self, fd: RawFd, entry: &mut CaFormatEntry) -> Result<(), Error> {
 
-        if let Some(fs_attr) = read_chattr(fd)? {
-            let flags = ca_feature_flags_from_chattr(fs_attr);
-            entry.flags = entry.flags | flags;
+        let mut attr: usize = 0;
+
+        let res = unsafe { read_attr_fd(fd, &mut attr)};
+        if let Err(err) = res {
+            if let nix::Error::Sys(errno) = err {
+                if errno_is_unsupported(errno) { return Ok(()) };
+            }
+            bail!("read_attr_fd failed for {:?} - {}", self.current_path, err);
         }
+
+        let flags = ca_feature_flags_from_chattr(attr as u32);
+        entry.flags = entry.flags | flags;
+
+        Ok(())
+    }
+
+    fn read_fat_attr(&self, fd: RawFd, entry: &mut CaFormatEntry) -> Result<(), Error> {
+
+        let mut attr: u32 = 0;
+
+        let res = unsafe { read_fat_attr_fd(fd, &mut attr)};
+        if let Err(err) = res {
+            if let nix::Error::Sys(errno) = err {
+                if errno_is_unsupported(errno) { return Ok(()) };
+            }
+            bail!("read_fat_attr_fd failed for {:?} - {}", self.current_path, err);
+        }
+
+        let flags = ca_feature_flags_from_fat_attr(attr);
+        entry.flags = entry.flags | flags;
 
         Ok(())
     }
@@ -207,6 +233,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let mut dir_entry = self.create_entry(&dir_stat)?;
 
         self.read_chattr(rawfd, &mut dir_entry)?;
+        self.read_fat_attr(rawfd, &mut dir_entry)?;
 
         self.write_entry(dir_entry)?;
 
@@ -324,6 +351,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let mut entry = self.create_entry(&stat)?;
 
         self.read_chattr(filefd, &mut entry)?;
+        self.read_fat_attr(filefd, &mut entry)?;
 
         self.write_entry(entry)?;
 
@@ -401,17 +429,6 @@ use nix::{convert_ioctl_res, request_code_read, ioc};
 /// read Linux file system attributes (see man chattr)
 nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
 
-fn read_chattr(rawfd: RawFd) -> Result<Option<u32>, Error> {
-
-    let mut attr: usize = 0;
-
-    let res = unsafe { read_attr_fd(rawfd, &mut attr)};
-    if let Err(err) = res {
-        if let nix::Error::Sys(errno) = err {
-            if errno_is_unsupported(errno) { return Ok(None) };
-        }
-        bail!("read_attr_fd failed - {}", err);
-    }
-
-    Ok(Some(attr as u32))
-}
+// /usr/include/linux/msdos_fs.h: #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, __u32)
+// read FAT file system attributes
+nix::ioctl_read!(read_fat_attr_fd, b'r', 0x10, u32);

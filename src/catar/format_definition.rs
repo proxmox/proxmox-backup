@@ -161,3 +161,27 @@ pub fn ca_feature_flags_from_chattr(attr: u32) -> u64 {
 
     flags
 }
+
+
+
+// from /usr/include/linux/msdos_fs.h
+const ATTR_HIDDEN: u32 =      2;
+const ATTR_SYS: u32 =         4;
+const ATTR_ARCH: u32 =       32;
+
+static FAT_ATTR_MAP: [(u64, u32); 3] = [
+    ( CA_FORMAT_WITH_FLAG_HIDDEN, ATTR_HIDDEN ),
+    ( CA_FORMAT_WITH_FLAG_SYSTEM, ATTR_SYS ),
+    ( CA_FORMAT_WITH_FLAG_ARCHIVE,  ATTR_ARCH ),
+];
+
+pub fn ca_feature_flags_from_fat_attr(attr: u32) -> u64 {
+
+    let mut flags = 0u64;
+
+    for (ca_flag, fs_flag) in &FAT_ATTR_MAP {
+        if (attr & fs_flag) != 0 { flags = flags | ca_flag; }
+    }
+
+    flags
+}
