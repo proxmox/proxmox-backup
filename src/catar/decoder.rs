@@ -120,7 +120,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             bail!("filename entry not nul terminated.");
         }
 
-        if buffer.iter().find(|b| (**b == b'/') || (**b == b'\\')).is_some() {
+        if buffer.iter().find(|b| (**b == b'/')).is_some() {
             bail!("found invalid filename with slashes.");
         }
 
@@ -178,7 +178,9 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
 
-        nix::sys::stat::fchmodat(Some(dirfd), filename, mode, nix::sys::stat::FchmodatFlags::NoFollowSymlink)?;
+        // NOTE: we want :FchmodatFlags::NoFollowSymlink, but fchmodat does not support that
+        // on linux (see man fchmodat). Fortunately, we can simply avoid calling this on symlinks.
+        nix::sys::stat::fchmodat(Some(dirfd), filename, mode, nix::sys::stat::FchmodatFlags::FollowSymlink)?;
 
         Ok(())
     }
@@ -223,6 +225,17 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
         let res =  filename.with_nix_path(|cstr| unsafe {
             libc::utimensat(dirfd, cstr.as_ptr(), &times[0],  libc::AT_SYMLINK_NOFOLLOW)
+        })?;
+        Errno::result(res)?;
+
+        Ok(())
+    }
+
+    fn restore_device_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr, device: &CaFormatDevice) -> Result<(), Error> {
+
+        let rdev = nix::sys::stat::makedev(device.major, device.minor);
+        let res =  filename.with_nix_path(|cstr| unsafe {
+            libc::mknodat(dirfd, cstr.as_ptr(), 0o0600, rdev)
         })?;
         Errno::result(res)?;
 
@@ -300,6 +313,26 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             }
 
             // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
+            self.restore_ugid_at(&entry, parent_fd, filename)?;
+            self.restore_mtime_at(&entry,  parent_fd, filename)?;
+
+            return Ok(());
+        }
+
+        if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR)  {
+
+            let head: CaFormatHeader = self.read_item()?;
+            match head.htype {
+                CA_FORMAT_DEVICE => {
+                    let device: CaFormatDevice = self.read_item()?;
+                    self.restore_device_at(&entry, parent_fd, filename, &device)?;
+                }
+                _ => {
+                    bail!("got unknown header type inside device entry {:016x}", head.htype);
+                }
+            }
+
+            self.restore_mode_at(&entry, parent_fd, filename)?;
             self.restore_ugid_at(&entry, parent_fd, filename)?;
             self.restore_mtime_at(&entry,  parent_fd, filename)?;
 
@@ -490,14 +523,18 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
             let mode = item.entry.mode as u32;
 
+            let ifmt = mode & libc::S_IFMT;
+
             let osstr: &OsStr =  prefix.as_ref();
             output.write(osstr.as_bytes())?;
             output.write(b"\n")?;
 
-            if (mode & libc::S_IFMT) == libc::S_IFDIR {
+            if ifmt == libc::S_IFDIR {
                 self.print_filenames(output, prefix, item)?;
-            } else if (mode & libc::S_IFMT) == libc::S_IFREG {
-            } else if (mode & libc::S_IFMT) == libc::S_IFLNK {
+            } else if ifmt == libc::S_IFREG {
+            } else if ifmt == libc::S_IFLNK {
+            } else if ifmt == libc::S_IFBLK {
+            } else if ifmt == libc::S_IFCHR {
             } else {
                 bail!("unknown item mode/type for {:?}", prefix);
             }

@@ -280,7 +280,9 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
             self.write_filename(&filename)?;
 
-            if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
+            let ifmt = stat.st_mode & libc::S_IFMT;
+
+            if ifmt == libc::S_IFDIR {
 
                 match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(mut dir) => self.encode_dir(&mut dir, &stat)?,
@@ -288,7 +290,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
                 }
 
-            } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFREG {
+            } else if ifmt == libc::S_IFREG {
                 match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => {
                         let res = self.encode_file(filefd, &stat);
@@ -298,7 +300,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("open file {:?} failed - {}", self.current_path, err),
                 }
-            } else if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+            } else if ifmt == libc::S_IFLNK {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
 
                 let res = filename.with_nix_path(|cstr| {
@@ -313,6 +315,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                     Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
+            } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) {
+                self.encode_device(&stat)?;
             } else {
                 bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
             }
@@ -386,6 +390,23 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
             if pos >= size { break; }
         }
+
+        Ok(())
+    }
+
+    fn encode_device(&mut self, stat: &FileStat)  -> Result<(), Error> {
+
+        let mut entry = self.create_entry(&stat)?;
+
+        self.write_entry(entry)?;
+
+        let major = unsafe { libc::major(stat.st_rdev) } as u64;
+        let minor = unsafe { libc::minor(stat.st_rdev) } as u64;
+
+        println!("encode_device: {:?} {} {} {}", self.current_path, stat.st_rdev, major, minor);
+
+        self.write_header(CA_FORMAT_DEVICE, std::mem::size_of::<CaFormatDevice>() as u64)?;
+        self.write_item(CaFormatDevice { major, minor })?;
 
         Ok(())
     }
