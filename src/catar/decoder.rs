@@ -154,11 +154,12 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
         Ok(())
     }
 
-    fn restore_attributes(&mut self, entry: &CaFormatEntry) -> Result<CaFormatHeader, Error> {
+    fn restore_attributes(&mut self, _entry: &CaFormatEntry) -> Result<CaFormatHeader, Error> {
 
         loop {
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
+                // fimxe: impl ...
                 _ => return Ok(head),
             }
         }
@@ -287,9 +288,6 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
                 CA_FORMAT_SYMLINK => {
-                    if ((mode & libc::S_IFMT) != libc::S_IFLNK) {
-                        bail!("detected unexpected symlink item.");
-                    }
                     let target = self.read_symlink(head.size)?;
                     println!("TARGET: {:?}", target);
                     if let Err(err) = symlinkat(&target, parent_fd, filename) {
@@ -320,7 +318,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                 Err(err) => bail!("open file {:?} failed - {}", path, err),
             };
 
-            let mut head = self.restore_attributes(&entry)?;
+            let head = self.restore_attributes(&entry)?;
 
             if head.htype != CA_FORMAT_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
@@ -333,7 +331,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             //self.reader.seek(SeekFrom::Current(need as i64))?;
 
             let mut done = 0;
-            while (done < need)  {
+            while done < need  {
                 let todo = need - done;
                 let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
                 let data = &mut read_buffer[..n];
@@ -363,7 +361,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
             bail!("wrong filename header type for object [{}..{}]", start, end);
         }
 
-        let mut name_len = u64::from_le(head.size);
+        let name_len = u64::from_le(head.size);
 
         let entry_start = start + name_len;
 
@@ -454,7 +452,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
                       i, start, end, item_offset, goodbye_start, start);
             }
             let item_start = goodbye_start - item_offset;
-            let item_hash = u64::from_le(item.hash);
+            let _item_hash = u64::from_le(item.hash);
             let item_end = item_start + u64::from_le(item.size);
             if item_end > goodbye_start {
                 bail!("goodbye entry {} end out of range [{}..{}]",
@@ -513,7 +511,7 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
 
 fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {
 
-    let fd = filename.with_nix_path(|cstr| unsafe {
+    let fd = filename.with_nix_path(|cstr| {
         nix::fcntl::openat(parent, cstr.as_ref(), flags, mode)
     })??;
 

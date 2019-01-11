@@ -8,7 +8,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
-use chrono::{Local, TimeZone};
+//use chrono::{Local, TimeZone};
 
 #[repr(C)]
 pub struct ArchiveIndexHeader {
@@ -78,7 +78,7 @@ impl <'a> ArchiveIndexReader<'a> {
 
         let size = stat.st_size as usize;
 
-        let index_size = (size - header_size);
+        let index_size = size - header_size;
         if (index_size % 40) != 0 {
             bail!("got unexpected file size for {:?}", path);
         }
@@ -132,7 +132,7 @@ impl <'a> ArchiveIndexReader<'a> {
         unsafe {  std::slice::from_raw_parts(self.index.add(pos*40+8), 32) }
     }
 
-    pub fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
+    pub fn mark_used_chunks(&self, _status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         for pos in 0..self.index_entries {
             let digest = self.chunk_digest(pos);
@@ -149,7 +149,7 @@ impl <'a> ArchiveIndexReader<'a> {
         let mut buffer = Vec::with_capacity(1024*1024);
 
         for pos in 0..self.index_entries {
-            let end = self.chunk_end(pos);
+            let _end = self.chunk_end(pos);
             let digest = self.chunk_digest(pos);
             //println!("Dump {:08x}", end );
             self.store.read_chunk(digest, &mut buffer)?;
@@ -292,7 +292,7 @@ impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
 
     fn seek(&mut self, pos: std::io::SeekFrom) -> Result<u64, std::io::Error> {
 
-        use std::io::{SeekFrom, Error, ErrorKind};
+        use std::io::{SeekFrom};
 
         let new_offset = match pos {
             SeekFrom::Start(start_offset) =>  start_offset as i64,
@@ -300,6 +300,7 @@ impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
             SeekFrom::Current(offset) => (self.read_offset as i64) + offset,
         };
 
+        use std::io::{Error, ErrorKind};
         if (new_offset < 0) || (new_offset > (self.archive_size as i64)) {
             return Err(Error::new(
                 ErrorKind::Other,
@@ -334,7 +335,7 @@ impl <'a> ArchiveIndexWriter<'a> {
         let mut tmp_path = full_path.clone();
         tmp_path.set_extension("tmp_aidx");
 
-        let mut file = std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .create(true).truncate(true)
             .read(true)
             .write(true)
@@ -419,7 +420,6 @@ impl <'a> ArchiveIndexWriter<'a> {
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest)) => {
                 println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
-                let chunk_end =
                 self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
                 self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);
@@ -430,16 +430,12 @@ impl <'a> ArchiveIndexWriter<'a> {
                 return Err(Error::new(ErrorKind::Other, err.to_string()));
             }
         }
-
-        Ok(())
     }
 }
 
 impl <'a> Write for ArchiveIndexWriter<'a> {
 
     fn write(&mut self, data: &[u8]) -> std::result::Result<usize, std::io::Error> {
-
-        use std::io::{Error, ErrorKind};
 
         let chunker = &mut self.chunker;
 

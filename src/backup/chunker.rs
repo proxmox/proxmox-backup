@@ -8,8 +8,6 @@
 //! Hash](https://en.wikipedia.org/wiki/Rolling_hash) artikel from
 //! wikipedia.
 
-use std::io::Write;
-
 const CA_CHUNKER_WINDOW_SIZE: usize = 48;
 
 pub struct Chunker {

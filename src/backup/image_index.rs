@@ -80,7 +80,7 @@ impl <'a> ImageIndexReader<'a> {
             Err(err) => bail!("fstat {:?} failed - {}", path, err),
         };
 
-        let expected_index_size = ((stat.st_size as usize) - header_size);
+        let expected_index_size = (stat.st_size as usize) - header_size;
         if index_size != expected_index_size {
             bail!("got unexpected file size for {:?} ({} != {})",
                   path, index_size, expected_index_size);
