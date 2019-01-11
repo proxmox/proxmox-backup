@@ -22,6 +22,28 @@ pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
 // Feature flags
 
+/// restrict UIDs toö 16 bit
+pub const CA_FORMAT_WITH_16BIT_UIDS: u64       = 0x1;
+/// assume UIDs are 32 bit
+pub const CA_FORMAT_WITH_32BIT_UIDS: u64       = 0x2;
+/// include user and group name
+pub const CA_FORMAT_WITH_USER_NAMES: u64       = 0x4;
+pub const CA_FORMAT_WITH_SEC_TIME: u64         = 0x8;
+pub const CA_FORMAT_WITH_USEC_TIME: u64        = 0x10;
+pub const CA_FORMAT_WITH_NSEC_TIME: u64        = 0x20;
+/// FAT-style 2s time granularity
+pub const CA_FORMAT_WITH_2SEC_TIME: u64        = 0x40;
+pub const CA_FORMAT_WITH_READ_ONLY: u64        = 0x80;
+pub const CA_FORMAT_WITH_PERMISSIONS: u64      = 0x100;
+/// include symbolik links
+pub const CA_FORMAT_WITH_SYMLINKS: u64         = 0x200;
+/// include device nodes
+pub const CA_FORMAT_WITH_DEVICE_NODES: u64     = 0x400;
+/// include FIFOs
+pub const CA_FORMAT_WITH_FIFOS: u64            = 0x800;
+/// include Sockets
+pub const CA_FORMAT_WITH_SOCKETS: u64          = 0x1000;
+
 /// DOS file flag `HIDDEN`
 pub const CA_FORMAT_WITH_FLAG_HIDDEN: u64      = 0x2000;
 /// DOS file flag `SYSTEM`
