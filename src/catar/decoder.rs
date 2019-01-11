@@ -234,8 +234,9 @@ impl <'a, R: Read + Seek> CaTarDecoder<'a, R> {
     fn restore_device_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr, device: &CaFormatDevice) -> Result<(), Error> {
 
         let rdev = nix::sys::stat::makedev(device.major, device.minor);
+        let mode = ((entry.mode as u32) & libc::S_IFMT) | 0o0600;
         let res =  filename.with_nix_path(|cstr| unsafe {
-            libc::mknodat(dirfd, cstr.as_ptr(), 0o0600, rdev)
+            libc::mknodat(dirfd, cstr.as_ptr(), mode, rdev)
         })?;
         Errno::result(res)?;
 
