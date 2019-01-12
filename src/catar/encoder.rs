@@ -148,7 +148,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
 
         let entry = CaFormatEntry {
-            feature_flags: CA_FORMAT_FEATURE_FLAGS_MAX, // fixme: ??
+            feature_flags: CA_FORMAT_DEFAULT, // fixme: ??
             mode: mode,
             flags: 0,
             uid: stat.st_uid as u64,
