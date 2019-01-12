@@ -66,6 +66,10 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         let magic = detect_fs_type(dir_fd)?;
 
+        if is_virtual_file_system(magic) {
+            bail!("backup virtual file systems is disabled!");
+        }
+
         me.encode_dir(dir, &stat, magic)?;
 
         Ok(())
