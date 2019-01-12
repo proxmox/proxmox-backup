@@ -495,3 +495,57 @@ nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
 // /usr/include/linux/msdos_fs.h: #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, __u32)
 // read FAT file system attributes
 nix::ioctl_read!(read_fat_attr_fd, b'r', 0x10, u32);
+
+
+// from /usr/include/linux/magic.h
+// and from casync util.h
+const BINFMTFS_MAGIC: i64 =        0x42494e4d;
+const CGROUP2_SUPER_MAGIC: i64 =   0x63677270;
+const CGROUP_SUPER_MAGIC: i64 =    0x0027e0eb;
+const CONFIGFS_MAGIC: i64 =        0x62656570;
+const DEBUGFS_MAGIC: i64 =         0x64626720;
+const DEVPTS_SUPER_MAGIC: i64 =    0x00001cd1;
+const EFIVARFS_MAGIC: i64 =        0xde5e81e4;
+const FUSE_CTL_SUPER_MAGIC: i64 =  0x65735543;
+const HUGETLBFS_MAGIC: i64 =       0x958458f6;
+const MQUEUE_MAGIC: i64 =          0x19800202;
+const NFSD_MAGIC: i64 =            0x6e667364;
+const PROC_SUPER_MAGIC: i64 =      0x00009fa0;
+const PSTOREFS_MAGIC: i64 =        0x6165676C;
+const RPCAUTH_GSSMAGIC: i64 =      0x67596969;
+const SECURITYFS_MAGIC: i64 =      0x73636673;
+const SELINUX_MAGIC: i64 =         0xf97cff8c;
+const SMACK_MAGIC: i64 =           0x43415d53;
+const RAMFS_MAGIC: i64 =           0x858458f6;
+const TMPFS_MAGIC: i64 =           0x01021994;
+const SYSFS_MAGIC: i64 =           0x62656572;
+
+#[inline(always)]
+fn is_temporary_file_system(magic: i64) -> bool {
+    magic == RAMFS_MAGIC || magic == TMPFS_MAGIC
+}
+
+fn is_virtual_file_system(magic: i64) -> bool {
+
+    match magic {
+        BINFMTFS_MAGIC |
+        CGROUP2_SUPER_MAGIC |
+        CGROUP_SUPER_MAGIC |
+        CONFIGFS_MAGIC |
+        DEBUGFS_MAGIC |
+        DEVPTS_SUPER_MAGIC |
+        EFIVARFS_MAGIC |
+        FUSE_CTL_SUPER_MAGIC |
+        HUGETLBFS_MAGIC |
+        MQUEUE_MAGIC |
+        NFSD_MAGIC |
+        PROC_SUPER_MAGIC |
+        PSTOREFS_MAGIC |
+        RPCAUTH_GSSMAGIC |
+        SECURITYFS_MAGIC |
+        SELINUX_MAGIC |
+        SMACK_MAGIC |
+        SYSFS_MAGIC => true,
+        _ => false
+    }
+}
