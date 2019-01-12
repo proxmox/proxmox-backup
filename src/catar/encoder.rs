@@ -158,7 +158,9 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn read_fat_attr(&self, fd: RawFd, entry: &mut CaFormatEntry) -> Result<(), Error> {
+    fn read_fat_attr(&self, fd: RawFd, magic: i64, entry: &mut CaFormatEntry) -> Result<(), Error> {
+
+        if magic != MSDOS_SUPER_MAGIC && magic != FUSE_SUPER_MAGIC { return Ok(()); }
 
         let mut attr: u32 = 0;
 
@@ -236,7 +238,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let mut dir_entry = self.create_entry(&dir_stat)?;
 
         self.read_chattr(rawfd, &mut dir_entry)?;
-        self.read_fat_attr(rawfd, &mut dir_entry)?;
+        self.read_fat_attr(rawfd, magic, &mut dir_entry)?;
 
         self.write_entry(dir_entry)?;
 
@@ -389,7 +391,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let mut entry = self.create_entry(&stat)?;
 
         self.read_chattr(filefd, &mut entry)?;
-        self.read_fat_attr(filefd, &mut entry)?;
+        self.read_fat_attr(filefd, magic, &mut entry)?;
 
         self.write_entry(entry)?;
 
@@ -534,6 +536,9 @@ const SMACK_MAGIC: i64 =           0x43415d53;
 const RAMFS_MAGIC: i64 =           0x858458f6;
 const TMPFS_MAGIC: i64 =           0x01021994;
 const SYSFS_MAGIC: i64 =           0x62656572;
+const MSDOS_SUPER_MAGIC: i64 =     0x00004d44;
+const FUSE_SUPER_MAGIC: i64 =      0x65735546;
+
 
 #[inline(always)]
 fn is_temporary_file_system(magic: i64) -> bool {
