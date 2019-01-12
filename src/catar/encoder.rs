@@ -4,6 +4,7 @@
 
 use failure::*;
 use endian_trait::Endian;
+use std::collections::HashSet;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
@@ -33,11 +34,17 @@ pub struct CaTarEncoder<'a, W: Write> {
     writer_pos: usize,
     size: usize,
     file_copy_buffer: Vec<u8>,
+    devices: Option<HashSet<u64>>,
 }
 
 impl <'a, W: Write> CaTarEncoder<'a, W> {
 
-    pub fn encode(path: PathBuf, dir: &mut nix::dir::Dir, writer: &'a mut W) -> Result<(), Error> {
+    pub fn encode(
+        path: PathBuf,
+        dir: &mut nix::dir::Dir,
+        device_list: Option<Vec<u64>>,
+        writer: &'a mut W
+    ) -> Result<(), Error> {
 
         const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
 
@@ -50,6 +57,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             writer_pos: 0,
             size: 0,
             file_copy_buffer,
+            devices: None,
         };
 
         // todo: use scandirat??
@@ -68,6 +76,13 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         if is_virtual_file_system(magic) {
             bail!("backup virtual file systems is disabled!");
+        }
+
+        if let Some(list) = device_list {
+            let mut devices = HashSet::new();
+            devices.insert(stat.st_dev); // always include archive root device
+            for dev in list { devices.insert(dev); }
+            me.devices = Some(devices);
         }
 
         me.encode_dir(dir, &stat, magic)?;
@@ -248,7 +263,16 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         let mut dir_count = 0;
 
-        if !is_virtual_file_system(magic) {
+        let mut include_children = true;
+        if is_virtual_file_system(magic) {
+            include_children = false;
+        } else {
+            if let Some(ref set) = self.devices {
+                include_children = set.contains(&dir_stat.st_dev);
+            }
+        }
+
+        if include_children {
             for entry in dir.iter() {
                 dir_count += 1;
                 if dir_count > MAX_DIRECTORY_ENTRIES {
@@ -399,7 +423,16 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.write_entry(entry)?;
 
+        let mut include_payload = true;
         if is_virtual_file_system(magic) {
+            include_payload = false;
+        } else {
+            if let Some(ref set) = self.devices {
+                include_payload = set.contains(&stat.st_dev);
+            }
+        }
+
+        if !include_payload {
             self.write_header(CA_FORMAT_PAYLOAD, 0)?;
             return Ok(());
         }

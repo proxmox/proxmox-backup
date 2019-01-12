@@ -133,7 +133,7 @@ fn create_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    CaTarEncoder::encode(source, &mut dir, &mut writer)?;
+    CaTarEncoder::encode(source, &mut dir, None, &mut writer)?;
 
     writer.flush()?;
 

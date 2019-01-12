@@ -40,7 +40,7 @@ fn backup_dir(
 
     let path = std::path::PathBuf::from(path);
 
-    CaTarEncoder::encode(path, dir, &mut index)?;
+    CaTarEncoder::encode(path, dir, None, &mut index)?;
 
     index.close()?; // commit changes
 
