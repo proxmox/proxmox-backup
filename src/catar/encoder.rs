@@ -63,7 +63,9 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             bail!("got unexpected file type {:?} (not a directory)", me.current_path);
         }
 
-        me.encode_dir(dir, &stat)?;
+        let magic = detect_fs_type(dir)?;
+
+        me.encode_dir(dir, &stat, magic)?;
 
         Ok(())
     }
@@ -220,7 +222,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat)  -> Result<(), Error> {
+    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat, magic: i64)  -> Result<(), Error> {
 
         //println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
 
@@ -278,28 +280,43 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
             let start_pos = self.writer_pos;
 
-            self.write_filename(&filename)?;
-
             let ifmt = stat.st_mode & libc::S_IFMT;
 
             if ifmt == libc::S_IFDIR {
 
-                match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(mut dir) => self.encode_dir(&mut dir, &stat)?,
-                    Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
+                let mut dir = match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
+                    Ok(dir) => dir,
+                    Err(nix::Error::Sys(Errno::ENOENT)) => {
+                        self.report_vanished_file(&self.current_path)?;
+                        continue; // fixme!!
+                    },
                     Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
-                }
+                };
+
+                let child_magic = if dir_stat.st_dev != stat.st_dev {
+                    detect_fs_type(&dir)?
+                } else {
+                    magic
+                };
+
+                self.write_filename(&filename)?;
+                self.encode_dir(&mut dir, &stat, child_magic)?;
 
             } else if ifmt == libc::S_IFREG {
-                match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(filefd) => {
-                        let res = self.encode_file(filefd, &stat);
-                        let _ = nix::unistd::close(filefd); // ignore close errors
-                        res?;
-                    }
-                    Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
+                let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                    Ok(filefd) => filefd,
+                    Err(nix::Error::Sys(Errno::ENOENT)) => {
+                        self.report_vanished_file(&self.current_path)?;
+                        continue;
+                    },
                     Err(err) => bail!("open file {:?} failed - {}", self.current_path, err),
-                }
+                };
+
+                self.write_filename(&filename)?;
+                let res = self.encode_file(filefd, &stat);
+                let _ = nix::unistd::close(filefd); // ignore close errors
+                res?;
+
             } else if ifmt == libc::S_IFLNK {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
 
@@ -310,15 +327,21 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                 match Errno::result(res) {
                     Ok(len) => {
                         buffer[len as usize] = 0u8; // add Nul byte
+                        self.write_filename(&filename)?;
                         self.encode_symlink(&buffer[..((len+1) as usize)], &stat)?
                     }
-                    Err(nix::Error::Sys(Errno::ENOENT)) => self.report_vanished_file(&self.current_path)?,
+                    Err(nix::Error::Sys(Errno::ENOENT)) => {
+                        self.report_vanished_file(&self.current_path)?;
+                        continue;
+                    }
                     Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
                 }
             } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) {
+                self.write_filename(&filename)?;
                 self.encode_device(&stat)?;
             } else if (ifmt == libc::S_IFIFO) || (ifmt == libc::S_IFSOCK) {
-                // nothing do do - entry already contains all information
+                self.write_filename(&filename)?;
+                self.encode_special(&stat)?;
             } else {
                 bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
             }
@@ -398,7 +421,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
     fn encode_device(&mut self, stat: &FileStat)  -> Result<(), Error> {
 
-        let mut entry = self.create_entry(&stat)?;
+        let entry = self.create_entry(&stat)?;
 
         self.write_entry(entry)?;
 
@@ -409,6 +432,16 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.write_header(CA_FORMAT_DEVICE, std::mem::size_of::<CaFormatDevice>() as u64)?;
         self.write_item(CaFormatDevice { major, minor })?;
+
+        Ok(())
+    }
+
+    // FIFO or Socket
+    fn encode_special(&mut self, stat: &FileStat)  -> Result<(), Error> {
+
+        let entry = self.create_entry(&stat)?;
+
+        self.write_entry(entry)?;
 
         Ok(())
     }
@@ -444,6 +477,13 @@ fn errno_is_unsupported(errno: Errno) -> bool {
         }
         _ => false,
     }
+}
+
+fn detect_fs_type<T: AsRawFd>(fd: &T) -> Result<i64, Error> {
+    let mut fs_stat: libc::statfs = unsafe { std::mem::uninitialized() };
+    nix::sys::statfs::fstatfs(fd, &mut fs_stat)?;
+
+    Ok(fs_stat.f_type)
 }
 
 use nix::{convert_ioctl_res, request_code_read, ioc};
