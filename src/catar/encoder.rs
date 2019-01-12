@@ -54,7 +54,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         // todo: use scandirat??
 
-        let stat = match nix::sys::stat::fstat(dir.as_raw_fd()) {
+        let dir_fd = dir.as_raw_fd();
+        let stat = match nix::sys::stat::fstat(dir_fd) {
             Ok(stat) => stat,
             Err(err) => bail!("fstat {:?} failed - {}", me.current_path, err),
         };
@@ -63,7 +64,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             bail!("got unexpected file type {:?} (not a directory)", me.current_path);
         }
 
-        let magic = detect_fs_type(dir)?;
+        let magic = detect_fs_type(dir_fd)?;
 
         me.encode_dir(dir, &stat, magic)?;
 
@@ -241,25 +242,27 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         let mut dir_count = 0;
 
-        for entry in dir.iter() {
-            dir_count += 1;
-            if dir_count > MAX_DIRECTORY_ENTRIES {
-                bail!("too many directory items in {:?} (> {})",
-                      self.current_path, MAX_DIRECTORY_ENTRIES);
+        if !is_virtual_file_system(magic) {
+            for entry in dir.iter() {
+                dir_count += 1;
+                if dir_count > MAX_DIRECTORY_ENTRIES {
+                    bail!("too many directory items in {:?} (> {})",
+                          self.current_path, MAX_DIRECTORY_ENTRIES);
+                }
+
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(err) => bail!("readir {:?} failed - {}", self.current_path, err),
+                };
+                let filename = entry.file_name().to_owned();
+
+                let name = filename.to_bytes_with_nul();
+                let name_len = name.len();
+                if name_len == 2 && name[0] == b'.' && name[1] == 0u8 { continue; }
+                if name_len == 3 && name[0] == b'.' && name[1] == b'.' && name[2] == 0u8 { continue; }
+
+                name_list.push(filename);
             }
-
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(err) => bail!("readir {:?} failed - {}", self.current_path, err),
-            };
-            let filename = entry.file_name().to_owned();
-
-            let name = filename.to_bytes_with_nul();
-            let name_len = name.len();
-            if name_len == 2 && name[0] == b'.' && name[1] == 0u8 { continue; }
-            if name_len == 3 && name[0] == b'.' && name[1] == b'.' && name[2] == 0u8 { continue; }
-
-            name_list.push(filename);
         }
 
         name_list.sort_unstable_by(|a, b| a.cmp(&b));
@@ -294,7 +297,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                 };
 
                 let child_magic = if dir_stat.st_dev != stat.st_dev {
-                    detect_fs_type(&dir)?
+                    detect_fs_type(dir.as_raw_fd())?
                 } else {
                     magic
                 };
@@ -312,8 +315,14 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
                     Err(err) => bail!("open file {:?} failed - {}", self.current_path, err),
                 };
 
+                let child_magic = if dir_stat.st_dev != stat.st_dev {
+                    detect_fs_type(filefd)?
+                } else {
+                    magic
+                };
+
                 self.write_filename(&filename)?;
-                let res = self.encode_file(filefd, &stat);
+                let res = self.encode_file(filefd, &stat, child_magic);
                 let _ = nix::unistd::close(filefd); // ignore close errors
                 res?;
 
@@ -373,7 +382,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         Ok(())
     }
 
-    fn encode_file(&mut self, filefd: RawFd, stat: &FileStat)  -> Result<(), Error> {
+    fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64)  -> Result<(), Error> {
 
         //println!("encode_file: {:?}", self.current_path);
 
@@ -383,6 +392,11 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         self.read_fat_attr(filefd, &mut entry)?;
 
         self.write_entry(entry)?;
+
+        if is_virtual_file_system(magic) {
+            self.write_header(CA_FORMAT_PAYLOAD, 0)?;
+            return Ok(());
+        }
 
         let size = stat.st_size as u64;
 
@@ -479,9 +493,10 @@ fn errno_is_unsupported(errno: Errno) -> bool {
     }
 }
 
-fn detect_fs_type<T: AsRawFd>(fd: &T) -> Result<i64, Error> {
+fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
     let mut fs_stat: libc::statfs = unsafe { std::mem::uninitialized() };
-    nix::sys::statfs::fstatfs(fd, &mut fs_stat)?;
+    let res = unsafe { libc::fstatfs(fd, &mut fs_stat) };
+    Errno::result(res)?;
 
     Ok(fs_stat.f_type)
 }
