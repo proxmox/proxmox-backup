@@ -5,7 +5,14 @@ use serde_json::{Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use hyper::{Body, Response};
+use hyper::rt::Future;
+
+pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
+
 type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
+
+type ApiUploadHandlerFn = fn(hyper::Body, Value, &ApiUploadMethod) -> BoxFut;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,
@@ -29,7 +36,30 @@ impl ApiMethod {
 
         self
     }
+}
 
+pub struct ApiUploadMethod {
+    pub parameters: ObjectSchema,
+    pub returns: Arc<Schema>,
+    pub handler: ApiUploadHandlerFn,
+}
+
+impl ApiUploadMethod {
+
+    pub fn new(handler: ApiUploadHandlerFn, parameters: ObjectSchema) -> Self {
+        Self {
+            parameters,
+            handler,
+            returns: Arc::new(Schema::Null),
+        }
+    }
+
+    pub fn returns<S: Into<Arc<Schema>>>(mut self, schema: S) -> Self {
+
+        self.returns = schema.into();
+
+        self
+    }
 }
 
 pub enum SubRoute {
@@ -38,11 +68,17 @@ pub enum SubRoute {
     MatchAll { router: Box<Router>, param_name: String },
 }
 
+pub enum MethodDefinition {
+    None,
+    Simple(ApiMethod),
+    Upload(ApiUploadMethod),
+}
+
 pub struct Router {
-    pub get: Option<ApiMethod>,
-    pub put: Option<ApiMethod>,
-    pub post: Option<ApiMethod>,
-    pub delete: Option<ApiMethod>,
+    pub get: MethodDefinition,
+    pub put: MethodDefinition,
+    pub post: MethodDefinition,
+    pub delete: MethodDefinition,
     pub subroute: SubRoute,
 }
 
@@ -50,10 +86,10 @@ impl Router {
 
     pub fn new() -> Self {
         Self {
-            get: None,
-            put: None,
-            post: None,
-            delete: None,
+            get: MethodDefinition::None,
+            put: MethodDefinition::None,
+            post: MethodDefinition::None,
+            delete: MethodDefinition::None,
             subroute: SubRoute::None
         }
     }
@@ -86,22 +122,27 @@ impl Router {
     }
 
     pub fn get(mut self, m: ApiMethod) -> Self {
-        self.get = Some(m);
+        self.get = MethodDefinition::Simple(m);
         self
     }
 
     pub fn put(mut self, m: ApiMethod) -> Self {
-        self.put = Some(m);
+        self.put = MethodDefinition::Simple(m);
         self
     }
 
     pub fn post(mut self, m: ApiMethod) -> Self {
-        self.post = Some(m);
+        self.post = MethodDefinition::Simple(m);
+        self
+    }
+
+    pub fn upload(mut self, m: ApiUploadMethod) -> Self {
+        self.post = MethodDefinition::Upload(m);
         self
     }
 
     pub fn delete(mut self, m: ApiMethod) -> Self {
-        self.delete = Some(m);
+        self.delete = MethodDefinition::Simple(m);
         self
     }
 

@@ -21,9 +21,11 @@ pub mod api {
     pub mod config;
 }
 
+#[macro_use]
 pub mod server {
 
     pub mod formatter;
+    #[macro_use]
     pub mod rest;
 
 }

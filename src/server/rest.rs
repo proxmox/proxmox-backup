@@ -82,8 +82,6 @@ impl Service for ApiService {
     }
 }
 
-type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
-
 #[derive(Debug, Fail)]
 pub struct HttpError {
     pub code: StatusCode,
@@ -178,6 +176,31 @@ fn handle_sync_api_request(
         });
 
     Box::new(resp)
+}
+
+fn handle_upload_api_request(
+    info: &'static ApiUploadMethod,
+    formatter: &'static OutputFormatter,
+    parts: Parts,
+    req_body: Body,
+    uri_param: HashMap<String, String>,
+) -> BoxFut
+{
+    // fixme: convert parameters to Json
+    let mut param_list: Vec<(String, String)> = vec![];
+
+    for (k, v) in uri_param {
+        param_list.push((k.clone(), v.clone()));
+    }
+
+    let params = match parse_parameter_strings(&param_list, &info.parameters, true) {
+        Ok(v) => v,
+        Err(err) => {
+            return Box::new(future::err(err.into()));
+        }
+    };
+
+    (info.handler)(req_body, params, info)
 }
 
 fn get_index() ->  BoxFut {
@@ -362,9 +385,15 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
             let mut uri_param = HashMap::new();
 
-            if let Some(api_method) = api.find_method(&components[2..], method, &mut uri_param) {
-                // fixme: handle auth
-                return handle_sync_api_request(api_method, formatter, parts, body, uri_param);
+            // fixme: handle auth
+            match api.find_method(&components[2..], method, &mut uri_param) {
+                MethodDefinition::None => {}
+                MethodDefinition::Simple(api_method) => {
+                    return handle_sync_api_request(api_method, formatter, parts, body, uri_param);
+                }
+                MethodDefinition::Upload(upload_method) => {
+                    return handle_upload_api_request(upload_method, formatter, parts, body, uri_param);
+                }
             }
         }
     } else {

@@ -21,21 +21,18 @@ impl ApiConfig {
         }
     }
 
-    pub fn find_method(&self, components: &[&str], method: Method, uri_param: &mut HashMap<String, String>) -> Option<&'static ApiMethod> {
+    pub fn find_method(&self, components: &[&str], method: Method, uri_param: &mut HashMap<String, String>) -> &'static MethodDefinition {
 
         if let Some(info) = self.router.find_route(components, uri_param) {
-            let opt_api_method = match method {
+            return match method {
                 Method::GET => &info.get,
                 Method::PUT => &info.put,
                 Method::POST => &info.post,
                 Method::DELETE => &info.delete,
-                _ => &None,
+                _ => &MethodDefinition::None,
             };
-            if let Some(api_method) = opt_api_method {
-                return Some(&api_method);
-            }
         }
-        None
+        &MethodDefinition::None
     }
 
     pub fn find_alias(&self, components: &[&str]) -> PathBuf {
