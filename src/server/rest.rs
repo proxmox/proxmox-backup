@@ -180,8 +180,8 @@ fn handle_sync_api_request(
 
 fn handle_upload_api_request(
     info: &'static ApiUploadMethod,
-    formatter: &'static OutputFormatter,
-    parts: Parts,
+    _formatter: &'static OutputFormatter,
+    _parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
 ) -> BoxFut

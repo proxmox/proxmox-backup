@@ -3,6 +3,7 @@ use failure::*;
 use super::chunk_store::*;
 use super::chunker::*;
 
+use std::sync::Arc;
 use std::io::{Read, Write, BufWriter};
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -312,8 +313,8 @@ impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
     }
 }
 
-pub struct ArchiveIndexWriter<'a> {
-    store: &'a ChunkStore,
+pub struct ArchiveIndexWriter {
+    store: Arc<ChunkStore>,
     chunker: Chunker,
     writer: BufWriter<File>,
     closed: bool,
@@ -327,9 +328,16 @@ pub struct ArchiveIndexWriter<'a> {
     chunk_buffer: Vec<u8>,
 }
 
-impl <'a> ArchiveIndexWriter<'a> {
+impl Drop for ArchiveIndexWriter {
 
-    pub fn create(store: &'a ChunkStore, path: &Path, chunk_size: usize) -> Result<Self, Error> {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
+    }
+}
+
+impl ArchiveIndexWriter {
+
+    pub fn create(store: Arc<ChunkStore>, path: &Path, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
@@ -433,7 +441,7 @@ impl <'a> ArchiveIndexWriter<'a> {
     }
 }
 
-impl <'a> Write for ArchiveIndexWriter<'a> {
+impl Write for ArchiveIndexWriter {
 
     fn write(&mut self, data: &[u8]) -> std::result::Result<usize, std::io::Error> {
 

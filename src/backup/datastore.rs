@@ -11,7 +11,7 @@ use super::image_index::*;
 use super::archive_index::*;
 
 pub struct DataStore {
-    chunk_store: ChunkStore,
+    chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
 }
 
@@ -58,7 +58,7 @@ impl DataStore {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         Ok(Self {
-            chunk_store: chunk_store,
+            chunk_store: Arc::new(chunk_store),
             gc_mutex: Mutex::new(false),
         })
     }
@@ -82,11 +82,12 @@ impl DataStore {
         chunk_size: usize
     ) -> Result<ArchiveIndexWriter, Error> {
 
-        let index = ArchiveIndexWriter::create(&self.chunk_store, filename.as_ref(), chunk_size)?;
+        let index = ArchiveIndexWriter::create(
+            self.chunk_store.clone(), filename.as_ref(), chunk_size)?;
 
         Ok(index)
     }
-
+ 
     pub fn open_archive_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ArchiveIndexReader, Error> {
 
         let index = ArchiveIndexReader::open(&self.chunk_store, filename.as_ref())?;
