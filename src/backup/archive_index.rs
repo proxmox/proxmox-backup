@@ -21,8 +21,8 @@ pub struct ArchiveIndexHeader {
 }
 
 
-pub struct ArchiveIndexReader<'a> {
-    store: &'a ChunkStore,
+pub struct ArchiveIndexReader {
+    store: Arc<ChunkStore>,
     file: File,
     size: usize,
     filename: PathBuf,
@@ -32,7 +32,7 @@ pub struct ArchiveIndexReader<'a> {
     ctime: u64,
 }
 
-impl <'a> Drop for ArchiveIndexReader<'a> {
+impl Drop for ArchiveIndexReader {
 
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
@@ -41,9 +41,9 @@ impl <'a> Drop for ArchiveIndexReader<'a> {
     }
 }
 
-impl <'a> ArchiveIndexReader<'a> {
+impl ArchiveIndexReader {
 
-    pub fn open(store: &'a ChunkStore, path: &Path) -> Result<Self, Error> {
+    pub fn open(store: Arc<ChunkStore>, path: &Path) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
 
@@ -189,7 +189,7 @@ impl <'a> ArchiveIndexReader<'a> {
 }
 
 pub struct BufferedArchiveReader<'a> {
-    index: &'a ArchiveIndexReader<'a>,
+    index: &'a ArchiveIndexReader,
     archive_size: u64,
     read_buffer: Vec<u8>,
     buffered_chunk_idx: usize,

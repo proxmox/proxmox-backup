@@ -65,14 +65,14 @@ impl DataStore {
 
     pub fn create_image_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<ImageIndexWriter, Error> {
 
-        let index = ImageIndexWriter::create(&self.chunk_store, filename.as_ref(), size, chunk_size)?;
+        let index = ImageIndexWriter::create(self.chunk_store.clone(), filename.as_ref(), size, chunk_size)?;
 
         Ok(index)
     }
 
     pub fn open_image_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ImageIndexReader, Error> {
 
-        let index = ImageIndexReader::open(&self.chunk_store, filename.as_ref())?;
+        let index = ImageIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }
@@ -90,7 +90,7 @@ impl DataStore {
  
     pub fn open_archive_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ArchiveIndexReader, Error> {
 
-        let index = ArchiveIndexReader::open(&self.chunk_store, filename.as_ref())?;
+        let index = ArchiveIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }

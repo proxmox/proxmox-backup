@@ -2,6 +2,7 @@ use failure::*;
 
 use super::chunk_store::*;
 
+use std::sync::Arc;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
@@ -21,8 +22,8 @@ pub struct ImageIndexHeader {
 
 // split image into fixed size chunks
 
-pub struct ImageIndexReader<'a> {
-    store: &'a ChunkStore,
+pub struct ImageIndexReader {
+    store: Arc<ChunkStore>,
     filename: PathBuf,
     chunk_size: usize,
     size: usize,
@@ -31,7 +32,7 @@ pub struct ImageIndexReader<'a> {
     ctime: u64,
 }
 
-impl <'a> Drop for ImageIndexReader<'a> {
+impl Drop for ImageIndexReader {
 
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
@@ -40,9 +41,9 @@ impl <'a> Drop for ImageIndexReader<'a> {
     }
 }
 
-impl <'a> ImageIndexReader<'a> {
+impl ImageIndexReader {
 
-    pub fn open(store: &'a ChunkStore, path: &Path) -> Result<Self, Error> {
+    pub fn open(store: Arc<ChunkStore>, path: &Path) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
 
@@ -150,8 +151,8 @@ impl <'a> ImageIndexReader<'a> {
     }
 }
 
-pub struct ImageIndexWriter<'a> {
-    store: &'a ChunkStore,
+pub struct ImageIndexWriter {
+    store: Arc<ChunkStore>,
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
@@ -162,7 +163,7 @@ pub struct ImageIndexWriter<'a> {
     ctime: u64,
 }
 
-impl <'a> Drop for ImageIndexWriter<'a> {
+impl Drop for ImageIndexWriter {
 
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
@@ -172,9 +173,9 @@ impl <'a> Drop for ImageIndexWriter<'a> {
     }
 }
 
-impl <'a> ImageIndexWriter<'a> {
+impl ImageIndexWriter {
 
-    pub fn create(store: &'a ChunkStore, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
+    pub fn create(store: Arc<ChunkStore>, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
