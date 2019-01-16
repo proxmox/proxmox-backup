@@ -180,14 +180,21 @@ fn handle_sync_api_request(
 
 fn handle_upload_api_request(
     info: &'static ApiUploadMethod,
-    _formatter: &'static OutputFormatter,
-    _parts: Parts,
+    formatter: &'static OutputFormatter,
+    parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
 ) -> BoxFut
 {
     // fixme: convert parameters to Json
     let mut param_list: Vec<(String, String)> = vec![];
+
+    if let Some(query_str) = parts.uri.query() {
+        for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
+            if k == "_dc" { continue; } // skip extjs "disable cache" parameter
+            param_list.push((k, v));
+        }
+    }
 
     for (k, v) in uri_param {
         param_list.push((k.clone(), v.clone()));
@@ -196,7 +203,8 @@ fn handle_upload_api_request(
     let params = match parse_parameter_strings(&param_list, &info.parameters, true) {
         Ok(v) => v,
         Err(err) => {
-            return Box::new(future::err(err.into()));
+            let resp = (formatter.format_result)(Err(Error::from(err)));
+            return Box::new(future::ok(resp));
         }
     };
 

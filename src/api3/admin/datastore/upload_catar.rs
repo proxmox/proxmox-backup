@@ -9,6 +9,7 @@ use crate::api::router::*;
 use serde_json::Value;
 use std::io::Write;
 use futures::*;
+use std::path::PathBuf;
 
 pub struct UploadCaTar {
     stream: hyper::Body,
@@ -42,13 +43,17 @@ impl Future for UploadCaTar {
 fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) -> BoxFut {
 
     let store = param["name"].as_str().unwrap();
+    let archive_name = param["archive_name"].as_str().unwrap();
 
-    println!("Upload .catar to {}", store);
+    println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
 
     let chunk_size = 4*1024*1024;
     let datastore = DataStore::lookup_datastore(store).unwrap().clone();
 
-    let index = datastore.create_archive_writer("upload.aidx", chunk_size).unwrap();
+    let mut full_archive_name = PathBuf::from(archive_name);
+    full_archive_name.set_extension("aidx");
+
+    let index = datastore.create_archive_writer(&full_archive_name, chunk_size).unwrap();
 
     let upload = UploadCaTar { stream: req_body, index, count: 0};
 
@@ -70,5 +75,6 @@ pub fn api_method_upload_catar() -> ApiUploadMethod {
         upload_catar,
         ObjectSchema::new("Upload .catar backup file.")
             .required("name", StringSchema::new("Datastore name."))
+            .required("archive_name", StringSchema::new("Backup archive name."))
     )
 }
