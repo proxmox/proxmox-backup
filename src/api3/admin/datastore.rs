@@ -2,11 +2,11 @@ use failure::*;
 
 use crate::api::schema::*;
 use crate::api::router::*;
-use crate::server::rest::*;
+//use crate::server::rest::*;
 use serde_json::{json, Value};
 
-use hyper::StatusCode;
-use hyper::rt::{Future, Stream};
+//use hyper::StatusCode;
+//use hyper::rt::{Future, Stream};
 
 use crate::config::datastore;
 
