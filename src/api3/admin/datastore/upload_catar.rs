@@ -29,7 +29,6 @@ impl Future for UploadCaTar {
                     if let Err(err) = self.index.write(&chunk) {
                         bail!("writing chunk failed - {}", err);
                     }
-                    return Ok(Async::NotReady);
                 }
                 None => {
                     self.index.close()?;
