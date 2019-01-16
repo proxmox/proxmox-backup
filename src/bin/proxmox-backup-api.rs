@@ -1,7 +1,6 @@
 extern crate proxmox_backup;
 
 use std::sync::Arc;
-use std::net::{Ipv6Addr, SocketAddrV6};
 
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
@@ -65,7 +64,7 @@ fn main() {
         },
     }
 
-    let addr = SocketAddrV6::new(Ipv6Addr::new(0,0,0,0,0,0,0,0), 8007, 0, 0).into();
+    let addr = ([0,0,0,0,0,0,0,0], 8007).into();
 
     lazy_static!{
        static ref ROUTER: Router = proxmox_backup::api3::router();
