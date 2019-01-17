@@ -19,11 +19,6 @@ use serde_json::{Value};
 use hyper::Body;
 
 
-fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
-    param[name].as_str().expect(&format!("missing parameter '{}'", name))
-}
-
-
 fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), Error> {
 
     let client = HttpClient::new("localhost");
@@ -63,9 +58,9 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
 
 fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
-    let filename = required_string_param(&param, "filename");
-    let store = required_string_param(&param, "store");
-    let target = required_string_param(&param, "target");
+    let filename = tools::required_string_param(&param, "filename")?;
+    let store = tools::required_string_param(&param, "store")?;
+    let target = tools::required_string_param(&param, "target")?;
 
     let mut chunk_size = 4*1024*1024;
 

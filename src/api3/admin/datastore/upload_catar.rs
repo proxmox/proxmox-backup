@@ -1,5 +1,6 @@
 use failure::*;
 
+use crate::tools;
 use crate::backup::datastore::*;
 use crate::backup::archive_index::*;
 //use crate::server::rest::*;
@@ -41,8 +42,8 @@ impl Future for UploadCaTar {
 
 fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
 
-    let store = param["name"].as_str().unwrap();
-    let archive_name = param["archive_name"].as_str().unwrap();
+    let store = tools::required_string_param(&param, "name")?;
+    let archive_name = tools::required_string_param(&param, "archive_name")?;
 
     println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
 

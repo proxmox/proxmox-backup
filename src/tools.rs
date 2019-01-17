@@ -15,6 +15,8 @@ use std::time::Duration;
 
 use std::os::unix::io::AsRawFd;
 
+use serde_json::Value;
+
 pub mod timer;
 
 /// The `BufferedReader` trait provides a single function
@@ -223,4 +225,11 @@ pub fn file_chunker<C, R>(
     }
 
     Ok(())
+}
+
+pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
+    match param[name].as_str()   {
+        Some(s) => Ok(s),
+        None => bail!("missing parameter '{}'", name),
+    }
 }
