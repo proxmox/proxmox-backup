@@ -59,5 +59,6 @@ pub mod api3;
 
 pub mod client {
 
+    pub mod http_client;
     pub mod catar_backup_stream;
 }
