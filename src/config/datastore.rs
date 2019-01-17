@@ -78,7 +78,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 }
 
 // shell completion helper
-pub fn complete_datastore_name() -> Vec<String> {
+pub fn complete_datastore_name(arg: &str) -> Vec<String> {
     match config() {
         Ok(data) => data.sections.iter().map(|(id,_)| id.to_string()).collect(),
         Err(_) => return vec![],

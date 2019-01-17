@@ -93,7 +93,7 @@ fn print_property_completion(
     arg: &str)
 {
     if let Some(callback) = completion_functions.get(name) {
-        let list = (callback)();
+        let list = (callback)(arg);
         for value in list {
             if value.starts_with(arg) {
                 println!("{}", value);
@@ -271,7 +271,7 @@ pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
     Ok(())
 }
 
-pub type CompletionFunction = fn() -> Vec<String>;
+pub type CompletionFunction = fn(&str) -> Vec<String>;
 
 pub struct CliCommand {
     pub info: ApiMethod,
