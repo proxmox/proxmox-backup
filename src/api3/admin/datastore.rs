@@ -74,7 +74,10 @@ pub fn router() -> Router {
             ObjectSchema::new("Directory index.")
                 .required("name", StringSchema::new("Datastore name.")))
         )
-        .upload(upload_catar::api_method_upload_catar())
+        .subdir(
+            "upload_catar",
+            Router::new()
+                .upload(upload_catar::api_method_upload_catar()))
         .subdir(
             "gc",
             Router::new()
