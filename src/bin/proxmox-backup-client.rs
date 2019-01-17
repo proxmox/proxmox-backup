@@ -25,7 +25,7 @@ fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), E
 
     let path = format!("api3/json/admin/datastore/{}/upload_catar?archive_name={}", store, archive_name);
 
-    client.upload(body, &path)?;
+    client.upload("application/x-proxmox-backup-catar", body, &path)?;
 
     Ok(())
 }

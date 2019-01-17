@@ -7,12 +7,13 @@ use std::sync::Arc;
 
 use hyper::{Body, Response};
 use hyper::rt::Future;
+use hyper::http::request::Parts;
 
 pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
 type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
 
-type ApiUploadHandlerFn = fn(hyper::Body, Value, &ApiUploadMethod) -> Result<BoxFut, Error>;
+type ApiUploadHandlerFn = fn(Parts, Body, Value, &ApiUploadMethod) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,

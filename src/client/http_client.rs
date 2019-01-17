@@ -17,7 +17,7 @@ impl HttpClient {
         }
     }
 
-    pub fn upload(&self, body: Body, path: &str) -> Result<(), Error> {
+    pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<(), Error> {
 
         let client = Client::new();
 
@@ -30,6 +30,7 @@ impl HttpClient {
             .method("POST")
             .uri(url)
             .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Content-Type", content_type)
             .body(body)?;
 
         let future = client

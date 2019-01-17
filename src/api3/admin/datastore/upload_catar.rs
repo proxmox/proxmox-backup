@@ -12,8 +12,11 @@ use std::io::Write;
 use futures::*;
 use std::path::PathBuf;
 
+use hyper::Body;
+use hyper::http::request::Parts;
+
 pub struct UploadCaTar {
-    stream: hyper::Body,
+    stream: Body,
     index: ArchiveIndexWriter,
     count: usize,
 }
@@ -40,12 +43,19 @@ impl Future for UploadCaTar {
     }
 }
 
-fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
+fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "name")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
 
     println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
+
+    let content_type = parts.headers.get(http::header::CONTENT_TYPE)
+        .ok_or(format_err!("missing content-type header"))?;
+
+    if content_type != "application/x-proxmox-backup-catar" {
+        bail!("got wrong content-type for catar archive upload");
+    }
 
     let chunk_size = 4*1024*1024;
 

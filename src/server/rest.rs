@@ -208,7 +208,7 @@ fn handle_upload_api_request(
         }
     };
 
-    match (info.handler)(req_body, params, info) {
+    match (info.handler)(parts, req_body, params, info) {
         Ok(future) => future,
         Err(err) => {
             let resp = (formatter.format_result)(Err(Error::from(err)));
