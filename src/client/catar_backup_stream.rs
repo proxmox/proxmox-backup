@@ -22,10 +22,8 @@ pub struct CaTarBackupStream {
 impl Drop for CaTarBackupStream {
 
     fn drop(&mut self) {
-        println!("START DROP");
         drop(self.pipe.take());
         self.child.take().unwrap().join().unwrap();
-        println!("END DROP");
     }
 }
 
