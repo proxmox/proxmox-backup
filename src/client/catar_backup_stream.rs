@@ -2,12 +2,14 @@ use failure::*;
 
 use std::thread;
 use std::os::unix::io::FromRawFd;
+use std::path::PathBuf;
 
 use futures::{Async, Poll};
 use futures::stream::Stream;
 
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
+use nix::dir::Dir;
 
 use crate::catar::encoder::*;
 
@@ -20,21 +22,20 @@ pub struct CaTarBackupStream {
 impl Drop for CaTarBackupStream {
 
     fn drop(&mut self) {
+        println!("START DROP");
         drop(self.pipe.take());
         self.child.take().unwrap().join().unwrap();
+        println!("END DROP");
     }
 }
 
 impl CaTarBackupStream {
 
-    pub fn new(dirname: &str) -> Result<Self, Error> {
+    pub fn new(mut dir: Dir, path: PathBuf) -> Result<Self, Error> {
         let mut buffer = Vec::with_capacity(4096);
         unsafe { buffer.set_len(buffer.capacity()); }
 
         let (rx, tx) = nix::unistd::pipe()?;
-
-        let mut dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
-        let path = std::path::PathBuf::from(dirname);
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
@@ -46,6 +47,14 @@ impl CaTarBackupStream {
         let pipe = unsafe { std::fs::File::from_raw_fd(rx) };
 
         Ok(Self { pipe: Some(pipe), buffer, child: Some(child) })
+    }
+
+    pub fn open(dirname: &str) -> Result<Self, Error> {
+
+        let mut dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
+        let path = std::path::PathBuf::from(dirname);
+
+        Self::new(dir, path)
     }
 }
 
@@ -60,7 +69,7 @@ impl Stream for CaTarBackupStream {
 
         use std::io::Read;
 
-         loop {
+        loop {
             let pipe = match self.pipe {
                 Some(ref mut pipe) => pipe,
                 None => unreachable!(),

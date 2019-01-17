@@ -7,49 +7,38 @@ use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
+use proxmox_backup::client::http_client::*;
+use proxmox_backup::client::catar_backup_stream::*;
 //use proxmox_backup::backup::chunk_store::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
-use proxmox_backup::catar::encoder::*;
+//use proxmox_backup::catar::encoder::*;
 use proxmox_backup::backup::datastore::*;
+
 use serde_json::{Value};
+use hyper::Body;
+
 
 fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
     param[name].as_str().expect(&format!("missing parameter '{}'", name))
 }
 
-fn backup_dir(
-    datastore: &DataStore,
-    path: &str,
-    dir: &mut nix::dir::Dir,
-    target: &str,
-    chunk_size: usize,
-) -> Result<(), Error> {
 
-    let mut target = std::path::PathBuf::from(target);
+fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), Error> {
 
-    if let Some(ext) = target.extension() {
-        if ext != "aidx" {
-            bail!("got wrong file extension - expected '.aidx'");
-        }
-    } else {
-        target.set_extension("aidx");
-    }
+    let client = HttpClient::new("localhost");
 
-    let mut index = datastore.create_archive_writer(&target, chunk_size)?;
+    let path = format!("api3/json/admin/datastore/{}/upload_catar?archive_name={}", store, archive_name);
 
-    let path = std::path::PathBuf::from(path);
-
-    CaTarEncoder::encode(path, dir, None, &mut index)?;
-
-    index.close()?; // commit changes
+    client.upload(body, &path)?;
 
     Ok(())
 }
 
+/****
 fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target: &str, chunk_size: usize) -> Result<(), Error> {
 
-    let mut target = std::path::PathBuf::from(target);
+    let mut target = PathBuf::from(target);
 
     if let Some(ext) = target.extension() {
         if ext != "iidx" {
@@ -70,6 +59,7 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
 
     Ok(())
 }
+*/
 
 fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
@@ -89,26 +79,29 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         }
     }
 
-    let datastore = DataStore::open(store)?;
-
-    let file = std::fs::File::open(filename)?;
-    let rawfd = file.as_raw_fd();
-    let stat = nix::sys::stat::fstat(rawfd)?;
+    let stat = match nix::sys::stat::stat(filename) {
+        Ok(s) => s,
+        Err(err) => bail!("unable to access '{}' - {}", filename, err),
+    };
 
     if (stat.st_mode & libc::S_IFDIR) != 0 {
         println!("Backup directory '{}' to '{}'", filename, store);
 
-        let mut dir = nix::dir::Dir::from_fd(rawfd)?;
+        let stream = CaTarBackupStream::open(filename)?;
 
-        backup_dir(&datastore, &filename, &mut dir, &target, chunk_size)?;
+        let body = Body::wrap_stream(stream);
+
+        backup_directory(body, store, target)?;
 
     } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
-        println!("Backup file '{}' to '{}'", filename, store);
+        println!("Backup image '{}' to '{}'", filename, store);
 
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let size = stat.st_size as usize;
 
-        backup_image(&datastore, &file, size, &target, chunk_size)?;
+        panic!("implement me");
+
+        //backup_image(&datastore, &file, size, &target, chunk_size)?;
 
        // let idx = datastore.open_image_reader(target)?;
        // idx.print_info();
