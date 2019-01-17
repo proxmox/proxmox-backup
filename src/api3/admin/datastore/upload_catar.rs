@@ -39,7 +39,7 @@ impl Future for UploadCaTar {
     }
 }
 
-fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) -> BoxFut {
+fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
 
     let store = param["name"].as_str().unwrap();
     let archive_name = param["archive_name"].as_str().unwrap();
@@ -47,7 +47,8 @@ fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) ->
     println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
 
     let chunk_size = 4*1024*1024;
-    let datastore = DataStore::lookup_datastore(store).unwrap().clone();
+
+    let datastore = DataStore::lookup_datastore(store)?;
 
     let mut full_archive_name = PathBuf::from(archive_name);
     full_archive_name.set_extension("aidx");
@@ -66,7 +67,7 @@ fn upload_catar(req_body: hyper::Body, param: Value, _info: &ApiUploadMethod) ->
         Ok(response)
     });
 
-    Box::new(resp)
+    Ok(Box::new(resp))
 }
 
 pub fn api_method_upload_catar() -> ApiUploadMethod {

@@ -208,7 +208,13 @@ fn handle_upload_api_request(
         }
     };
 
-    (info.handler)(req_body, params, info)
+    match (info.handler)(req_body, params, info) {
+        Ok(future) => future,
+        Err(err) => {
+            let resp = (formatter.format_result)(Err(Error::from(err)));
+            Box::new(future::ok(resp))
+        }
+    }
 }
 
 fn get_index() ->  BoxFut {

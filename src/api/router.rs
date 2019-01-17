@@ -12,7 +12,7 @@ pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Se
 
 type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
 
-type ApiUploadHandlerFn = fn(hyper::Body, Value, &ApiUploadMethod) -> BoxFut;
+type ApiUploadHandlerFn = fn(hyper::Body, Value, &ApiUploadMethod) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,
