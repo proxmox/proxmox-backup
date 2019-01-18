@@ -1,7 +1,7 @@
 extern crate proxmox_backup;
 
 use failure::*;
-use std::os::unix::io::AsRawFd;
+//use std::os::unix::io::AsRawFd;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
@@ -13,7 +13,7 @@ use proxmox_backup::client::catar_backup_stream::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 //use proxmox_backup::catar::encoder::*;
-use proxmox_backup::backup::datastore::*;
+//use proxmox_backup::backup::datastore::*;
 
 use serde_json::{Value};
 use hyper::Body;
@@ -71,13 +71,13 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     let store = tools::required_string_param(&param, "store")?;
     let target = tools::required_string_param(&param, "target")?;
 
-    let mut chunk_size = 4*1024*1024;
+    let mut _chunk_size = 4*1024*1024;
 
     if let Some(size) = param["chunk-size"].as_u64() {
         static SIZES: [u64; 7] = [64, 128, 256, 512, 1024, 2048, 4096];
 
         if SIZES.contains(&size) {
-            chunk_size = (size as usize) * 1024;
+            _chunk_size = (size as usize) * 1024;
         } else {
             bail!("Got unsupported chunk size '{}'", size);
         }
@@ -101,7 +101,7 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         println!("Backup image '{}' to '{}'", filename, store);
 
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
-        let size = stat.st_size as usize;
+        let _size = stat.st_size as usize;
 
         panic!("implement me");
 

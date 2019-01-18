@@ -23,7 +23,7 @@ pub struct ArchiveIndexHeader {
 
 pub struct ArchiveIndexReader {
     store: Arc<ChunkStore>,
-    file: File,
+    _file: File,
     size: usize,
     filename: PathBuf,
     index: *const u8,
@@ -95,7 +95,7 @@ impl ArchiveIndexReader {
         Ok(Self {
             store,
             filename: full_path,
-            file,
+            _file: file,
             size,
             index: data,
             index_entries: index_size/40,

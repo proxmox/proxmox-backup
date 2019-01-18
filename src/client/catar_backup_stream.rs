@@ -49,7 +49,7 @@ impl CaTarBackupStream {
 
     pub fn open(dirname: &str) -> Result<Self, Error> {
 
-        let mut dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
+        let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
         Self::new(dir, path)
