@@ -134,17 +134,25 @@ impl DataStore {
 
         let mut list = vec![];
 
-        // fixme: walk into subdirs ...
-        for entry in std::fs::read_dir(base)? {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if ext == "iidx" {
-                        list.push(path);
-                    } else if ext == "aidx" {
-                        list.push(path);
-                    }
+        use walkdir::WalkDir;
+
+        let walker = WalkDir::new(&base).same_file_system(true).into_iter();
+
+        // make sure we skip .chunks (and other hidden files to keep it simple)
+        fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+            entry.file_name()
+                .to_str()
+                .map(|s| s.starts_with("."))
+                .unwrap_or(false)
+        }
+
+        for entry in walker.filter_entry(|e| !is_hidden(e)) {
+            let path = entry?.into_path();
+            if let Some(ext) = path.extension() {
+                if ext == "iidx" {
+                    list.push(path);
+                } else if ext == "aidx" {
+                    list.push(path);
                 }
             }
         }
