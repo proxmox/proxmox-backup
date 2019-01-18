@@ -26,7 +26,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    CaTarEncoder::encode(path, &mut dir, &mut writer)?;
+    CaTarEncoder::encode(path, &mut dir, None, &mut writer)?;
 
     Command::new("cmp")
         .arg("--verbose")
