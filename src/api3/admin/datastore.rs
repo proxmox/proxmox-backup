@@ -17,11 +17,11 @@ mod upload_catar;
 // this is just a test for mutability/mutex handling  - will remove later
 fn start_garbage_collection(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
-    let name = param["name"].as_str().unwrap();
+    let store = param["store"].as_str().unwrap();
 
-    let datastore = DataStore::lookup_datastore(name)?;
+    let datastore = DataStore::lookup_datastore(store)?;
 
-    println!("Starting garbage collection on store {}", name);
+    println!("Starting garbage collection on store {}", store);
 
     datastore.garbage_collection()?;
 
@@ -32,15 +32,15 @@ pub fn api_method_start_garbage_collection() -> ApiMethod {
     ApiMethod::new(
         start_garbage_collection,
         ObjectSchema::new("Start garbage collection.")
-            .required("name", StringSchema::new("Datastore name."))
+            .required("store", StringSchema::new("Datastore name."))
     )
 }
 
 fn garbage_collection_status(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
-    let name = param["name"].as_str().unwrap();
+    let store = param["store"].as_str().unwrap();
 
-    println!("Garbage collection status on store {}", name);
+    println!("Garbage collection status on store {}", store);
 
     Ok(json!(null))
 
@@ -50,7 +50,7 @@ pub fn api_method_garbage_collection_status() -> ApiMethod {
     ApiMethod::new(
         garbage_collection_status,
         ObjectSchema::new("Garbage collection status.")
-            .required("name", StringSchema::new("Datastore name."))
+            .required("store", StringSchema::new("Datastore name."))
     )
 }
 
@@ -59,7 +59,7 @@ fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> 
 
     let config = datastore::config()?;
 
-    Ok(config.convert_to_array("name"))
+    Ok(config.convert_to_array("store"))
 }
 
 
@@ -72,7 +72,7 @@ pub fn router() -> Router {
                 {"subdir": "gc" }
             ])),
             ObjectSchema::new("Directory index.")
-                .required("name", StringSchema::new("Datastore name.")))
+                .required("store", StringSchema::new("Datastore name.")))
         )
         .subdir(
             "upload_catar",
@@ -90,7 +90,7 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             get_datastore_list,
             ObjectSchema::new("Directory index.")))
-        .match_all("name", datastore_info);
+        .match_all("store", datastore_info);
 
 
 

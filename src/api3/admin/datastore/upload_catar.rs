@@ -45,7 +45,7 @@ impl Future for UploadCaTar {
 
 fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
 
-    let store = tools::required_string_param(&param, "name")?;
+    let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
 
     println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
@@ -85,7 +85,7 @@ pub fn api_method_upload_catar() -> ApiUploadMethod {
     ApiUploadMethod::new(
         upload_catar,
         ObjectSchema::new("Upload .catar backup file.")
-            .required("name", StringSchema::new("Datastore name."))
+            .required("store", StringSchema::new("Datastore name."))
             .required("archive_name", StringSchema::new("Backup archive name."))
     )
 }
