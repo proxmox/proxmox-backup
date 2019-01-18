@@ -6,6 +6,8 @@ use failure::*;
 use nix::unistd;
 use nix::sys::stat;
 
+use lazy_static::lazy_static;
+
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -225,6 +227,23 @@ pub fn file_chunker<C, R>(
     }
 
     Ok(())
+}
+
+pub fn nodename() -> &'static str {
+
+    lazy_static!{
+        static ref NODENAME: String = {
+
+            let utsname = nix::sys::utsname::uname();
+            let nodename = utsname.nodename();
+
+            let parts: Vec<&str> = nodename.split('.').collect();
+
+            parts[0].to_owned()
+        };
+    }
+
+    &NODENAME
 }
 
 pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
