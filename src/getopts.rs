@@ -75,7 +75,7 @@ pub fn parse_arguments<T: AsRef<str>>(
                 None => {
                     let mut want_bool = false;
                     let mut can_default = false;
-                    if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
+                    if let Some(param_schema) = properties.get::<str>(&name) {
                         if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
                             want_bool = true;
                             if let Some(default) = boolean_schema.default {

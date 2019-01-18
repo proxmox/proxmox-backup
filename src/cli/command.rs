@@ -120,7 +120,7 @@ fn record_done_arguments(done: &mut HashSet<String>, parameters: &ObjectSchema, 
     for arg in list {
         if arg.starts_with("--") && arg.len() > 2 {
             let prop_name = arg[2..].to_owned();
-            if let Some((_, schema)) = parameters.properties.get::<str>(&prop_name) {
+            if let Some(schema) = parameters.properties.get::<str>(&prop_name) {
                 match schema.as_ref() {
                     Schema::Array(_) => { /* do nothing */ }
                     _ => { done.insert(prop_name); }
@@ -147,7 +147,7 @@ fn print_simple_completion(
             print_simple_completion(cli_cmd, done, &arg_param[1..], args);
             return;
         } else if args.len() == 1 {
-            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
+            if let Some(schema) = cli_cmd.info.parameters.properties.get(prop_name) {
                 print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0]);
             }
         }
@@ -164,14 +164,14 @@ fn print_simple_completion(
         let last = &args[args.len()-1];
         if last.starts_with("--") && last.len() > 2 {
             let prop_name = &last[2..];
-            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
+            if let Some(schema) = cli_cmd.info.parameters.properties.get(prop_name) {
                 print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &prefix);
             }
             return;
         }
     }
 
-    for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
+    for (name, _schema) in &cli_cmd.info.parameters.properties {
         if done.contains(*name) { continue; }
         let option = String::from("--") + name;
         if option.starts_with(&prefix) {

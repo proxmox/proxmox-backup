@@ -150,9 +150,14 @@ impl SectionConfig {
         let mut state = ParseState::BeforeHeader;
 
         let test_required_properties = |value: &Value, schema: &ObjectSchema| -> Result<(), Error> {
-            for (name, (optional, _prop_schema)) in &schema.properties {
-                if *optional == false && value[name] == Value::Null {
-                    return Err(format_err!("property '{}' is missing and it is not optional.", name));
+            for (name, prop_schema) in &schema.properties {
+                match prop_schema.as_ref() {
+                    Schema::Option(_) => {},
+                    _ => {
+                        if value[name] == Value::Null {
+                            return Err(format_err!("property '{}' is missing and it is not optional.", name));
+                        }
+                    }
                 }
             }
             Ok(())
@@ -204,7 +209,7 @@ impl SectionConfig {
                     if let Some((key, value)) = (self.parse_section_content)(line) {
                         //println!("CONTENT: key: {} value: {}", key, value);
 
-                        if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
+                        if let Some(prop_schema) = plugin.properties.properties.get::<str>(&key) {
                             match parse_simple_value(&value, prop_schema) {
                                 Ok(value) => {
                                     if config[&key] == Value::Null {

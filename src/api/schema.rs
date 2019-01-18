@@ -251,7 +251,7 @@ impl ArraySchema {
 pub struct ObjectSchema {
     pub description: &'static str,
     pub additional_properties: bool,
-    pub properties: HashMap<&'static str, (bool, Arc<Schema>)>,
+    pub properties: HashMap<&'static str, Arc<Schema>>,
     pub default_key: Option<&'static str>,
 }
 
@@ -278,12 +278,12 @@ impl ObjectSchema {
     }
 
     pub fn required<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
-        self.properties.insert(name, (false, schema.into()));
+        self.properties.insert(name, schema.into());
         self
     }
 
     pub fn optional<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
-        self.properties.insert(name, (true, schema.into()));
+        self.properties.insert(name, Arc::new(Schema::Option(schema.into())));
         self
     }
 }
@@ -296,6 +296,7 @@ pub enum Schema {
     String(StringSchema),
     Object(ObjectSchema),
     Array(ArraySchema),
+    Option(Arc<Schema>),
 }
 
 impl From<StringSchema> for Schema {
@@ -455,6 +456,9 @@ pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Err
             string_schema.check_constraints(value_str)?;
             Value::String(value_str.into())
         }
+        Schema::Option(option_schema) => {
+            parse_simple_value(value_str, option_schema)?
+        }
         _ => bail!("unable to parse complex (sub) objects."),
     };
     Ok(value)
@@ -472,7 +476,7 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
     let additional_properties = schema.additional_properties;
 
     for (key, value) in data {
-        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
+        if let Some(prop_schema) = properties.get::<str>(key) {
             match prop_schema.as_ref() {
                 Schema::Array(array_schema) => {
                     if params[key] == Value::Null {
@@ -523,9 +527,14 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
     }
 
     if test_required && errors.len() == 0 {
-        for (name, (optional, _prop_schema)) in properties {
-            if *optional == false && params[name] == Value::Null {
-                errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
+        for (name, prop_schema) in properties {
+            match prop_schema.as_ref() {
+                Schema::Option(_) => {},
+                _ => {
+                    if params[name] == Value::Null {
+                        errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
+                    }
+                }
             }
         }
     }
@@ -553,6 +562,11 @@ pub fn verify_json(data: &Value, schema: &Schema) -> Result<(), Error> {
         }
         Schema::Array(array_schema) => {
             verify_json_array(data, &array_schema)?;
+        }
+        Schema::Option(option_schema) => {
+            if !data.is_null() {
+                verify_json(data, option_schema)?;
+            }
         }
         Schema::Null => {
             if !data.is_null() {
@@ -618,7 +632,7 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
     let additional_properties = schema.additional_properties;
 
     for (key, value) in map {
-        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
+        if let Some(prop_schema) = properties.get::<str>(key) {
             match prop_schema.as_ref() {
                 Schema::Object(object_schema) => {
                     verify_json_object(value, object_schema)?;
@@ -635,9 +649,14 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
         }
     }
 
-    for (name, (optional, _prop_schema)) in properties {
-        if *optional == false && data[name] == Value::Null {
-            bail!("property '{}': property is missing and it is not optional.", name);
+    for (name, prop_schema) in properties {
+        match prop_schema.as_ref() {
+            Schema::Option(_) => {},
+            _ => {
+                if data[name] == Value::Null {
+                    bail!("property '{}': property is missing and it is not optional.", name);
+                }
+            }
         }
     }
 
