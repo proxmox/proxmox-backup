@@ -234,12 +234,12 @@ pub fn nodename() -> &'static str {
     lazy_static!{
         static ref NODENAME: String = {
 
-            let utsname = nix::sys::utsname::uname();
-            let nodename = utsname.nodename();
-
-            let parts: Vec<&str> = nodename.split('.').collect();
-
-            parts[0].to_owned()
+            nix::sys::utsname::uname()
+                .nodename()
+                .split('.')
+                .next()
+                .unwrap()
+                .to_owned()
         };
     }
 
@@ -248,6 +248,13 @@ pub fn nodename() -> &'static str {
 
 pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
     match param[name].as_str()   {
+        Some(s) => Ok(s),
+        None => bail!("missing parameter '{}'", name),
+    }
+}
+
+pub fn required_integer_param<'a>(param: &'a Value, name: &str) -> Result<i64, Error> {
+    match param[name].as_i64()   {
         Some(s) => Ok(s),
         None => bail!("missing parameter '{}'", name),
     }
