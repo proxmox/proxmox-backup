@@ -130,9 +130,12 @@ pub fn complete_file_name(arg: &str) -> Vec<String> {
 
     let mut dirname = std::path::PathBuf::from(arg);
 
-    if let Ok(stat) = nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
+    let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
+        Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
+        Err(_) => false,
+    };
 
-    } else {
+    if !is_dir {
         if let Some(parent) = dirname.parent() {
             dirname = parent.to_owned();
         }
