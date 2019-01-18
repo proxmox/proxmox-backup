@@ -18,12 +18,21 @@ use proxmox_backup::backup::datastore::*;
 use serde_json::{Value};
 use hyper::Body;
 
-
 fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), Error> {
 
     let client = HttpClient::new("localhost");
 
-    let path = format!("api3/json/admin/datastore/{}/upload_catar?archive_name={}", store, archive_name);
+    let epoch = std::time::SystemTime::now().duration_since(
+        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("archive_name", archive_name)
+        .append_pair("type", "host")
+        .append_pair("id", &tools::nodename())
+        .append_pair("time", &epoch.to_string())
+        .finish();
+
+    let path = format!("api3/json/admin/datastore/{}/upload_catar?{}", store, query);
 
     client.upload("application/x-proxmox-backup-catar", body, &path)?;
 

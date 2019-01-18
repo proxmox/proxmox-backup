@@ -10,6 +10,8 @@ use super::chunk_store::*;
 use super::image_index::*;
 use super::archive_index::*;
 
+use chrono::{Utc, TimeZone};
+
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
@@ -87,7 +89,7 @@ impl DataStore {
 
         Ok(index)
     }
- 
+
     pub fn open_archive_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ArchiveIndexReader, Error> {
 
         let index = ArchiveIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
@@ -95,11 +97,44 @@ impl DataStore {
         Ok(index)
     }
 
+    pub fn base_path(&self) -> PathBuf {
+        self.chunk_store.base_path()
+    }
+
+    pub fn create_backup_dir(
+        &self,
+        backup_type: &str,
+        backup_id: &str,
+        backup_time: i64,
+    ) ->  Result<PathBuf, Error> {
+        let mut relative_path = PathBuf::new();
+
+        relative_path.push(backup_type);
+
+        relative_path.push(backup_id);
+
+        let dt = Utc.timestamp(backup_time, 0);
+        let date_str = dt.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+        println!("date: {}", date_str);
+
+        relative_path.push(&date_str);
+
+
+        let mut full_path = self.base_path();
+        full_path.push(&relative_path);
+
+        std::fs::create_dir_all(&full_path)?;
+
+        Ok(relative_path)
+    }
+
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
-        let base = self.chunk_store.base_path();
+        let base = self.base_path();
 
         let mut list = vec![];
 
+        // fixme: walk into subdirs ...
         for entry in std::fs::read_dir(base)? {
             let entry = entry?;
             if entry.file_type()?.is_file() {

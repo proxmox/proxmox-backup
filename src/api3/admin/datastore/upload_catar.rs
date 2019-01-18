@@ -11,6 +11,7 @@ use serde_json::Value;
 use std::io::Write;
 use futures::*;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use hyper::Body;
 use hyper::http::request::Parts;
@@ -48,7 +49,12 @@ fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMet
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
 
-    println!("Upload {}.catar to {} ({}.aidx)", archive_name, store, archive_name);
+    let backup_type = tools::required_string_param(&param, "type")?;
+    let backup_id = tools::required_string_param(&param, "id")?;
+    let backup_time = tools::required_integer_param(&param, "time")?;
+
+    println!("Upload {}.catar to {} ({}/{}/{}/{}.aidx)", archive_name, store,
+             backup_type, backup_id, backup_time, archive_name);
 
     let content_type = parts.headers.get(http::header::CONTENT_TYPE)
         .ok_or(format_err!("missing content-type header"))?;
@@ -61,10 +67,14 @@ fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMet
 
     let datastore = DataStore::lookup_datastore(store)?;
 
+    let mut path = datastore.create_backup_dir(backup_type, backup_id, backup_time)?;
+
     let mut full_archive_name = PathBuf::from(archive_name);
     full_archive_name.set_extension("aidx");
 
-    let index = datastore.create_archive_writer(&full_archive_name, chunk_size).unwrap();
+    path.push(full_archive_name);
+
+    let index = datastore.create_archive_writer(path, chunk_size).unwrap();
 
     let upload = UploadCaTar { stream: req_body, index, count: 0};
 
@@ -87,5 +97,11 @@ pub fn api_method_upload_catar() -> ApiUploadMethod {
         ObjectSchema::new("Upload .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
             .required("archive_name", StringSchema::new("Backup archive name."))
+            .required("type", StringSchema::new("Backup type.")
+                      .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
+            .required("id", StringSchema::new("Backup ID."))
+            .required("time", IntegerSchema::new("Backup time (Unix epoch.)")
+                      .minimum(1547797308))
+
     )
 }
