@@ -119,62 +119,6 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-
-pub fn complete_file_name(arg: &str) -> Vec<String> {
-
-    let mut result = vec![];
-
-    use nix::fcntl::OFlag;
-    use nix::sys::stat::Mode;
-    use nix::fcntl::AtFlags;
-
-    let mut dirname = std::path::PathBuf::from(arg);
-
-    let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
-        Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
-        Err(_) => false,
-    };
-
-    if !is_dir {
-        if let Some(parent) = dirname.parent() {
-            dirname = parent.to_owned();
-        }
-    }
-
-    let mut dir = match nix::dir::Dir::openat(libc::AT_FDCWD, &dirname, OFlag::O_DIRECTORY, Mode::empty()) {
-        Ok(d) => d,
-        Err(err) => {
-            return result;
-        }
-    };
-
-    for item in dir.iter() {
-        if let Ok(entry) = item {
-            if let Ok(name) = entry.file_name().to_str() {
-                if name == "." || name == ".." { continue; }
-                let mut newpath = dirname.clone();
-                newpath.push(name);
-
-                if let Ok(stat) = nix::sys::stat::fstatat(libc::AT_FDCWD, &newpath, AtFlags::empty()) {
-                    if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
-                        newpath.push("");
-                        if let Some(newpath) = newpath.to_str() {
-                            result.push(newpath.to_owned());
-                        }
-                        continue;
-                     }
-                }
-                if let Some(newpath) = newpath.to_str() {
-                    result.push(newpath.to_owned());
-                }
-
-             }
-        }
-    }
-
-    result
-}
-
 fn main() {
 
     let cmd_def = CliCommand::new(
@@ -193,7 +137,7 @@ fn main() {
                 )
         ))
         .arg_param(vec!["filename", "target"])
-        .completion_cb("filename", complete_file_name)
+        .completion_cb("filename", tools::complete_file_name)
         .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
 
 
