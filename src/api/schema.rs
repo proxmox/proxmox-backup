@@ -283,7 +283,17 @@ impl ObjectSchema {
     }
 
     pub fn optional<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
-        self.properties.insert(name, Arc::new(Schema::Option(schema.into())));
+        let schema = schema.into();
+        let is_option = match schema.as_ref() {
+            Schema::Option(_) => true,
+            _ => false,
+        };
+        if is_option {
+            self.properties.insert(name, schema);
+        } else {
+            self.properties.insert(name, Arc::new(Schema::Option(schema)));
+        }
+
         self
     }
 }
