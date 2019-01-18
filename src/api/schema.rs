@@ -6,8 +6,6 @@ use regex::Regex;
 use std::fmt;
 use std::sync::Arc;
 
-pub type PropertyMap = HashMap<&'static str, Schema>;
-
 #[derive(Debug, Fail)]
 pub struct ParameterError {
     error_list: Vec<Error>,
