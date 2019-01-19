@@ -12,7 +12,7 @@ use crate::config::datastore;
 
 use crate::backup::datastore::*;
 
-mod upload_catar;
+mod catar;
 
 // this is just a test for mutability/mutex handling  - will remove later
 fn start_garbage_collection(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
@@ -75,9 +75,10 @@ pub fn router() -> Router {
                 .required("store", StringSchema::new("Datastore name.")))
         )
         .subdir(
-            "upload_catar",
+            "catar",
             Router::new()
-                .upload(upload_catar::api_method_upload_catar()))
+                .download(catar::api_method_download_catar())
+                .upload(catar::api_method_upload_catar()))
         .subdir(
             "gc",
             Router::new()

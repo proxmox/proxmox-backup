@@ -178,8 +178,8 @@ fn handle_sync_api_request(
     Box::new(resp)
 }
 
-fn handle_upload_api_request(
-    info: &'static ApiUploadMethod,
+fn handle_async_api_request(
+    info: &'static ApiAsyncMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
     req_body: Body,
@@ -405,8 +405,8 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 MethodDefinition::Simple(api_method) => {
                     return handle_sync_api_request(api_method, formatter, parts, body, uri_param);
                 }
-                MethodDefinition::Upload(upload_method) => {
-                    return handle_upload_api_request(upload_method, formatter, parts, body, uri_param);
+                MethodDefinition::Async(async_method) => {
+                    return handle_async_api_request(async_method, formatter, parts, body, uri_param);
                 }
             }
         }

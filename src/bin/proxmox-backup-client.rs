@@ -32,7 +32,7 @@ fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), E
         .append_pair("time", &epoch.to_string())
         .finish();
 
-    let path = format!("api3/json/admin/datastore/{}/upload_catar?{}", store, query);
+    let path = format!("api3/json/admin/datastore/{}/catar?{}", store, query);
 
     client.upload("application/x-proxmox-backup-catar", body, &path)?;
 

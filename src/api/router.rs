@@ -13,7 +13,7 @@ pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Se
 
 type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
 
-type ApiUploadHandlerFn = fn(Parts, Body, Value, &ApiUploadMethod) -> Result<BoxFut, Error>;
+type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,
@@ -39,15 +39,15 @@ impl ApiMethod {
     }
 }
 
-pub struct ApiUploadMethod {
+pub struct ApiAsyncMethod {
     pub parameters: ObjectSchema,
     pub returns: Arc<Schema>,
-    pub handler: ApiUploadHandlerFn,
+    pub handler: ApiAsyncHandlerFn,
 }
 
-impl ApiUploadMethod {
+impl ApiAsyncMethod {
 
-    pub fn new(handler: ApiUploadHandlerFn, parameters: ObjectSchema) -> Self {
+    pub fn new(handler: ApiAsyncHandlerFn, parameters: ObjectSchema) -> Self {
         Self {
             parameters,
             handler,
@@ -72,7 +72,7 @@ pub enum SubRoute {
 pub enum MethodDefinition {
     None,
     Simple(ApiMethod),
-    Upload(ApiUploadMethod),
+    Async(ApiAsyncMethod),
 }
 
 pub struct Router {
@@ -137,10 +137,16 @@ impl Router {
         self
     }
 
-    pub fn upload(mut self, m: ApiUploadMethod) -> Self {
-        self.post = MethodDefinition::Upload(m);
+    pub fn upload(mut self, m: ApiAsyncMethod) -> Self {
+        self.post = MethodDefinition::Async(m);
         self
     }
+
+    pub fn download(mut self, m: ApiAsyncMethod) -> Self {
+        self.get = MethodDefinition::Async(m);
+        self
+    }
+
 
     pub fn delete(mut self, m: ApiMethod) -> Self {
         self.delete = MethodDefinition::Simple(m);

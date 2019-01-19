@@ -44,7 +44,7 @@ impl Future for UploadCaTar {
     }
 }
 
-fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMethod) -> Result<BoxFut, Error> {
+fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
@@ -91,8 +91,8 @@ fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiUploadMet
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_catar() -> ApiUploadMethod {
-    ApiUploadMethod::new(
+pub fn api_method_upload_catar() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
         upload_catar,
         ObjectSchema::new("Upload .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
@@ -105,3 +105,24 @@ pub fn api_method_upload_catar() -> ApiUploadMethod {
 
     )
 }
+
+fn download_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
+
+    bail!("not implemeneted");
+}
+
+pub fn api_method_download_catar() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        download_catar,
+        ObjectSchema::new("Download .catar backup file.")
+            .required("store", StringSchema::new("Datastore name."))
+            .required("archive_name", StringSchema::new("Backup archive name."))
+            .required("type", StringSchema::new("Backup type.")
+                      .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
+            .required("id", StringSchema::new("Backup ID."))
+            .required("time", IntegerSchema::new("Backup time (Unix epoch.)")
+                      .minimum(1547797308))
+
+    )
+}
+
