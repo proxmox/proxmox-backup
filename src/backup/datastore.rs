@@ -101,6 +101,27 @@ impl DataStore {
         self.chunk_store.base_path()
     }
 
+    pub fn get_backup_dir(
+        &self,
+        backup_type: &str,
+        backup_id: &str,
+        backup_time: i64,
+    ) ->  PathBuf  {
+
+        let mut relative_path = PathBuf::new();
+
+        relative_path.push(backup_type);
+
+        relative_path.push(backup_id);
+
+        let dt = Utc.timestamp(backup_time, 0);
+        let date_str = dt.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+        relative_path.push(&date_str);
+
+        relative_path
+    }
+
     pub fn create_backup_dir(
         &self,
         backup_type: &str,

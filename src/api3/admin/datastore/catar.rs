@@ -74,7 +74,7 @@ fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMeth
 
     path.push(full_archive_name);
 
-    let index = datastore.create_archive_writer(path, chunk_size).unwrap();
+    let index = datastore.create_archive_writer(path, chunk_size)?;
 
     let upload = UploadCaTar { stream: req_body, index, count: 0};
 
@@ -107,6 +107,27 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
 }
 
 fn download_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+    let archive_name = tools::required_string_param(&param, "archive_name")?;
+
+    let backup_type = tools::required_string_param(&param, "type")?;
+    let backup_id = tools::required_string_param(&param, "id")?;
+    let backup_time = tools::required_integer_param(&param, "time")?;
+
+    println!("Download {}.catar from {} ({}/{}/{}/{}.aidx)", archive_name, store,
+             backup_type, backup_id, backup_time, archive_name);
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let mut path = datastore.get_backup_dir(backup_type, backup_id, backup_time);
+
+    let mut full_archive_name = PathBuf::from(archive_name);
+    full_archive_name.set_extension("aidx");
+
+    path.push(full_archive_name);
+
+    let index = datastore.open_archive_reader(path)?;
 
     bail!("not implemeneted");
 }
