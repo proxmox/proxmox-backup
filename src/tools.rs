@@ -20,6 +20,7 @@ use std::os::unix::io::AsRawFd;
 use serde_json::Value;
 
 pub mod timer;
+pub mod wrapped_reader_stream;
 
 /// The `BufferedReader` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
