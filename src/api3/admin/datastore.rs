@@ -68,6 +68,7 @@ pub fn router() -> Router {
     let datastore_info = Router::new()
         .get(ApiMethod::new(
             |_,_| Ok(json!([
+                {"subdir": "catar" },
                 {"subdir": "status"},
                 {"subdir": "gc" }
             ])),
