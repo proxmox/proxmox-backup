@@ -1,10 +1,15 @@
 use failure::*;
 
+use chrono::prelude::*;
+
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use std::sync::{Mutex, Arc};
 
+use std::os::unix::io::AsRawFd;
+
+use crate::tools;
 use crate::config::datastore;
 use super::chunk_store::*;
 use super::image_index::*;
@@ -15,6 +20,13 @@ use chrono::{Utc, TimeZone};
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
+}
+
+#[derive(Debug)]
+pub struct BackupInfo {
+    pub backup_type: String,
+    pub backup_id: String,
+    pub backup_time: i64,
 }
 
 lazy_static!{
@@ -148,6 +160,45 @@ impl DataStore {
         std::fs::create_dir_all(&full_path)?;
 
         Ok(relative_path)
+    }
+
+    pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
+        let path = self.base_path();
+
+        let mut list = vec![];
+
+        lazy_static! {
+            static ref BACKUP_TYPE_REGEX: regex::Regex = regex::Regex::new("^(host|vm|ct)$").unwrap();
+        }
+        lazy_static! {
+            static ref BACKUP_ID_REGEX: regex::Regex = regex::Regex::new("^[A-Za-z][A-Za-z0-9_-]+$").unwrap();
+        }
+        lazy_static! {
+             static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
+                 "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$").unwrap();
+        }
+
+        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
+            if file_type != nix::dir::Type::Directory { return Ok(()); }
+            tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |l1_fd, backup_id, file_type| {
+                if file_type != nix::dir::Type::Directory { return Ok(()); }
+                tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |_, backup_time, file_type| {
+                    if file_type != nix::dir::Type::Directory { return Ok(()); }
+
+                    let dt = Utc.datetime_from_str(backup_time, "%Y-%m-%dT%H:%M:%S")?;
+
+                    list.push(BackupInfo {
+                        backup_type: backup_type.to_owned(),
+                        backup_id: backup_id.to_owned(),
+                        backup_time: dt.timestamp(),
+                    });
+
+                    Ok(())
+                })
+            })
+        })?;
+
+        Ok(list)
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
