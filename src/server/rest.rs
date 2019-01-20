@@ -16,7 +16,6 @@ use futures::future::{self, Either};
 //use tokio::prelude::*;
 //use tokio::timer::Delay;
 use tokio::fs::File;
-use tokio_codec;
 //use bytes::{BytesMut, BufMut};
 
 //use hyper::body::Payload;
@@ -324,7 +323,7 @@ fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
     Box::new(File::open(filename)
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(move |file| {
-            let payload = tokio_codec::FramedRead::new(file, tokio_codec::BytesCodec::new()).
+            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
                 map(|bytes| {
                     //sigh - howto avoid copy here? or the whole map() ??
                     hyper::Chunk::from(bytes.to_vec())
