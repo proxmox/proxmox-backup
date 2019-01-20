@@ -326,9 +326,9 @@ pub fn scandir<P, F>(
     dirfd: RawFd,
     path: P,
     regex: &regex::Regex,
-    callback: F
+    mut callback: F
 ) -> Result<(), Error>
-    where F: Fn(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
+    where F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
           P: AsRef<Path>
 {
     use nix::fcntl::OFlag;
