@@ -6,12 +6,15 @@ use futures::stream::Stream;
 
 pub struct WrappedReaderStream<R: Read> {
     reader: R,
+    buffer: Vec<u8>,
 }
 
 impl <R: Read> WrappedReaderStream<R> {
 
     pub fn new(reader: R) -> Self {
-        Self { reader   }
+        let mut buffer = Vec::with_capacity(64*1024);
+        unsafe { buffer.set_len(buffer.capacity()); }
+        Self { reader, buffer }
     }
 }
 
@@ -27,13 +30,12 @@ impl <R: Read> Stream for WrappedReaderStream<R> {
     type Error = std::io::Error;
 
     fn poll(&mut self) -> Result<Async<Option<Vec<u8>>>, std::io::Error> {
-        let mut buf = [0u8;64*1024];
-        match tokio_threadpool::blocking(|| self.reader.read(&mut buf)) {
+        match tokio_threadpool::blocking(|| self.reader.read(&mut self.buffer)) {
             Ok(Async::Ready(Ok(n))) => {
                  if n == 0 { // EOF
                     Ok(Async::Ready(None))
                 } else {
-                    Ok(Async::Ready(Some(buf[..n].to_vec())))
+                    Ok(Async::Ready(Some(self.buffer[..n].to_vec())))
                 }
             },
             Ok(Async::Ready(Err(err))) => Err(err),
