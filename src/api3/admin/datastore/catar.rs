@@ -1,6 +1,7 @@
 use failure::*;
 
 use crate::tools;
+use crate::tools::wrapped_reader_stream::*;
 use crate::backup::datastore::*;
 use crate::backup::archive_index::*;
 //use crate::server::rest::*;
@@ -106,7 +107,7 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
     )
 }
 
-fn download_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
+fn download_catar(_parts: Parts, _req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
@@ -128,8 +129,15 @@ fn download_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMe
     path.push(full_archive_name);
 
     let index = datastore.open_archive_reader(path)?;
+    let reader = BufferedArchiveReader::new(index);
+    let stream = WrappedReaderStream::new(reader);
 
-    bail!("not implemeneted");
+    // fixme: set size, content type?
+    let response = http::Response::builder()
+        .status(200)
+        .body(Body::wrap_stream(stream))?;
+
+    Ok(Box::new(future::ok(response)))
 }
 
 pub fn api_method_download_catar() -> ApiAsyncMethod {

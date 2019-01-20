@@ -32,6 +32,9 @@ pub struct ArchiveIndexReader {
     ctime: u64,
 }
 
+// fixme: ???!!!
+unsafe impl Send for ArchiveIndexReader {}
+
 impl Drop for ArchiveIndexReader {
 
     fn drop(&mut self) {
@@ -188,8 +191,8 @@ impl ArchiveIndexReader {
     }
 }
 
-pub struct BufferedArchiveReader<'a> {
-    index: &'a ArchiveIndexReader,
+pub struct BufferedArchiveReader {
+    index: ArchiveIndexReader,
     archive_size: u64,
     read_buffer: Vec<u8>,
     buffered_chunk_idx: usize,
@@ -197,9 +200,9 @@ pub struct BufferedArchiveReader<'a> {
     read_offset: u64,
 }
 
-impl <'a>  BufferedArchiveReader<'a> {
+impl BufferedArchiveReader {
 
-    pub fn new(index: &'a ArchiveIndexReader) -> Self {
+    pub fn new(index: ArchiveIndexReader) -> Self {
 
         let archive_size = index.chunk_end(index.index_entries - 1);
         Self {
@@ -216,7 +219,7 @@ impl <'a>  BufferedArchiveReader<'a> {
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
 
-        let index = self.index;
+        let index = &self.index;
         let end = index.chunk_end(idx);
         let digest = index.chunk_digest(idx);
         index.store.read_chunk(digest, &mut self.read_buffer)?;
@@ -228,14 +231,14 @@ impl <'a>  BufferedArchiveReader<'a> {
     }
 }
 
-impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
+impl crate::tools::BufferedReader for  BufferedArchiveReader {
 
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
 
         if offset == self.archive_size { return Ok(&self.read_buffer[0..0]); }
 
         let buffer_len = self.read_buffer.len();
-        let index = self.index;
+        let index = &self.index;
 
         // optimization for sequential read
         if buffer_len > 0 &&
@@ -267,7 +270,7 @@ impl <'a> crate::tools::BufferedReader for  BufferedArchiveReader<'a> {
 
 }
 
-impl <'a> std::io::Read for  BufferedArchiveReader<'a> {
+impl std::io::Read for  BufferedArchiveReader {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
 
@@ -289,7 +292,7 @@ impl <'a> std::io::Read for  BufferedArchiveReader<'a> {
     }
 }
 
-impl <'a> std::io::Seek for  BufferedArchiveReader<'a> {
+impl std::io::Seek for  BufferedArchiveReader {
 
     fn seek(&mut self, pos: std::io::SeekFrom) -> Result<u64, std::io::Error> {
 
