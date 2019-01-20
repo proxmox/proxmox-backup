@@ -2,6 +2,7 @@ extern crate proxmox_backup;
 
 use failure::*;
 
+use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
@@ -151,7 +152,9 @@ fn main() {
                     .required("source", StringSchema::new("Source directory."))
             ))
             .arg_param(vec!["archive", "source"])
-            .into()
+            .completion_cb("archive", tools::complete_file_name)
+            .completion_cb("source", tools::complete_file_name)
+           .into()
         )
         .insert("list", CliCommand::new(
             ApiMethod::new(
@@ -160,6 +163,7 @@ fn main() {
                     .required("archive", StringSchema::new("Archive name."))
             ))
             .arg_param(vec!["archive"])
+            .completion_cb("archive", tools::complete_file_name)
             .into()
         )
         .insert("dump", CliCommand::new(
@@ -169,6 +173,7 @@ fn main() {
                     .required("archive", StringSchema::new("Archive name."))
             ))
             .arg_param(vec!["archive"])
+            .completion_cb("archive", tools::complete_file_name)
             .into()
         );
 
