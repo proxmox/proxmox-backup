@@ -1,8 +1,10 @@
 use failure::*;
+use tokio_threadpool;
 use tokio::io::{AsyncRead};
 use std::io::Read;
 use futures::Async;
 use futures::stream::Stream;
+use std::io::ErrorKind::{Other, WouldBlock};
 
 pub struct WrappedReaderStream<R: Read> {
     reader: R,
@@ -19,7 +21,12 @@ impl <R: Read> Read for WrappedReaderStream<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         //tokio::io::would_block(|| self.reader.read(buf))
         // fixme: howto??
-        self.reader.read(buf)
+        match tokio_threadpool::blocking(|| self.reader.read(buf)) {
+            Ok(Async::Ready(res)) => res,
+            Ok(Async::NotReady) =>  Err(WouldBlock.into()),
+            Err(err) => Err(std::io::Error::new(Other, "`blocking` annotated I/O must be called \
+                                                from the context of the Tokio runtime.")),
+        }
     }
 }
 
