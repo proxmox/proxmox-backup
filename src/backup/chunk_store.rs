@@ -82,6 +82,11 @@ impl ChunkStore {
     pub fn create<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
 
         let base: PathBuf = path.into();
+
+        if !base.is_absolute() {
+            bail!("expected absolute path - got {:?}", base);
+        }
+
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::create_dir(&base) {
@@ -114,6 +119,11 @@ impl ChunkStore {
     pub fn open<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
 
         let base: PathBuf = path.into();
+
+        if !base.is_absolute() {
+            bail!("expected absolute path - got {:?}", base);
+        }
+
         let chunk_dir = Self::chunk_dir(&base);
 
         if let Err(err) = std::fs::metadata(&chunk_dir) {
