@@ -65,6 +65,19 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
 }
 */
 
+fn list_backups(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+
+    let client = HttpClient::new("localhost");
+
+    let path = format!("api3/json/admin/datastore/{}/backups", store);
+
+    let result = client.get(&path)?;
+
+    Ok(result)
+}
+
 fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let filename = tools::required_string_param(&param, "filename")?;
@@ -121,7 +134,7 @@ fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
 fn main() {
 
-    let cmd_def = CliCommand::new(
+    let create_cmd_def = CliCommand::new(
         ApiMethod::new(
             create_backup,
             ObjectSchema::new("Create backup.")
@@ -140,6 +153,19 @@ fn main() {
         .completion_cb("filename", tools::complete_file_name)
         .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
 
+    let list_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            list_backups,
+            ObjectSchema::new("List backups.")
+                .required("store", StringSchema::new("Datastore name."))
+        ))
+        .arg_param(vec!["store"])
+        .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
+
+
+    let cmd_def = CliCommandMap::new()
+        .insert("create".to_owned(), create_cmd_def.into())
+        .insert("list".to_owned(), list_cmd_def.into());
 
     if let Err(err) = run_cli_command(&cmd_def.into()) {
         eprintln!("Error: {}", err);
