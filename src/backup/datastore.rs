@@ -26,7 +26,7 @@ pub struct DataStore {
 pub struct BackupInfo {
     pub backup_type: String,
     pub backup_id: String,
-    pub backup_time: i64,
+    pub backup_time: DateTime<Utc>,
 }
 
 lazy_static!{
@@ -117,7 +117,7 @@ impl DataStore {
         &self,
         backup_type: &str,
         backup_id: &str,
-        backup_time: i64,
+        backup_time: DateTime<Utc>,
     ) ->  PathBuf  {
 
         let mut relative_path = PathBuf::new();
@@ -126,8 +126,7 @@ impl DataStore {
 
         relative_path.push(backup_id);
 
-        let dt = Utc.timestamp(backup_time, 0);
-        let date_str = dt.format("%Y-%m-%dT%H:%M:%S").to_string();
+        let date_str = backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
 
         relative_path.push(&date_str);
 
@@ -190,7 +189,7 @@ impl DataStore {
                     list.push(BackupInfo {
                         backup_type: backup_type.to_owned(),
                         backup_id: backup_id.to_owned(),
-                        backup_time: dt.timestamp(),
+                        backup_time: dt,
                     });
 
                     Ok(())

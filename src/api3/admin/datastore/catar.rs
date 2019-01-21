@@ -8,6 +8,8 @@ use crate::backup::archive_index::*;
 use crate::api::schema::*;
 use crate::api::router::*;
 
+use chrono::{Utc, TimeZone};
+
 use serde_json::Value;
 use std::io::Write;
 use futures::*;
@@ -115,6 +117,7 @@ fn download_catar(_parts: Parts, _req_body: Body, param: Value, _info: &ApiAsync
     let backup_type = tools::required_string_param(&param, "type")?;
     let backup_id = tools::required_string_param(&param, "id")?;
     let backup_time = tools::required_integer_param(&param, "time")?;
+    let backup_time = Utc.timestamp(backup_time, 0);
 
     println!("Download {}.catar from {} ({}/{}/{}/{}.aidx)", archive_name, store,
              backup_type, backup_id, backup_time, archive_name);
@@ -154,4 +157,3 @@ pub fn api_method_download_catar() -> ApiAsyncMethod {
 
     )
 }
-
