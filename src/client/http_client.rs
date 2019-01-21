@@ -5,6 +5,11 @@ use hyper::Body;
 use hyper::client::Client;
 use hyper::rt::{self, Future};
 
+use http::Request;
+use futures::stream::Stream;
+
+use serde_json::{Value};
+
 pub struct HttpClient {
     server: String,
 }
@@ -17,7 +22,68 @@ impl HttpClient {
         }
     }
 
-    pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<(), Error> {
+    fn run_request(request: Request<Body>) -> Result<Value, Error> {
+        let client = Client::new();
+
+        use std::sync::{Arc, Mutex};
+
+        let mutex = Arc::new(Mutex::new(Err(format_err!("no data"))));
+        let mutex_c1 = mutex.clone();
+        let mutex_c2 = mutex.clone();
+
+        let future = client
+            .request(request)
+            .map_err(|e| Error::from(e))
+            .and_then(|resp| {
+
+                let status = resp.status();
+
+                resp.into_body().concat2().map_err(|e| Error::from(e))
+                    .and_then(move |data| {
+
+                        let text = String::from_utf8(data.to_vec()).unwrap();
+                        if status.is_success() {
+                            if text.len() > 0 {
+                                let value: Value = serde_json::from_str(&text)?;
+                                Ok(value)
+                            } else {
+                                Ok(Value::Null)
+                            }
+                        } else {
+                            bail!("HTTP Error {}: {}", status, text);
+                        }
+                    })
+            })
+            .map(move |res| {
+                *mutex_c1.lock().unwrap() = Ok(res);
+             })
+            .map_err(move |err| {
+                *mutex_c2.lock().unwrap() = Err(err);
+            });
+
+        // drop client, else client keeps connectioon open (keep-alive feature)
+        drop(client);
+
+        rt::run(future);
+
+        Arc::try_unwrap(mutex).unwrap()
+            .into_inner().unwrap()
+    }
+
+    pub fn get(&self, path: &str) -> Result<Value, Error> {
+
+        let url: Uri = format!("http://{}:8007/{}", self.server, path).parse()?;
+
+        let request = Request::builder()
+            .method("GET")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .body(Body::empty())?;
+
+        Self::run_request(request)
+    }
+
+    pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
         let client = Client::new();
 
@@ -33,34 +99,6 @@ impl HttpClient {
             .header("Content-Type", content_type)
             .body(body)?;
 
-        let future = client
-            .request(request)
-            .map_err(|e| Error::from(e))
-            .and_then(|resp| {
-
-                let status = resp.status();
-
-                resp.into_body().concat2().map_err(|e| Error::from(e))
-                    .and_then(move |data| {
-
-                        let text = String::from_utf8(data.to_vec()).unwrap();
-                        if status.is_success() {
-                            println!("Result {} {}", status, text);
-                        } else {
-                            eprintln!("HTTP Error {}: {}", status, text);
-                        }
-                        Ok(())
-                    })
-            })
-            .map_err(|err| {
-                eprintln!("Error: {}", err);
-            });
-
-        // drop client, else client keeps connectioon open (keep-alive feature)
-        drop(client);
-
-        rt::run(future);
-
-        Ok(())
+        Self::run_request(request)
     }
 }
