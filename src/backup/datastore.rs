@@ -174,8 +174,8 @@ impl DataStore {
             static ref BACKUP_ID_REGEX: regex::Regex = regex::Regex::new("^[A-Za-z][A-Za-z0-9_-]+$").unwrap();
         }
         lazy_static! {
-             static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
-                 "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$").unwrap();
+            static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
+                "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$").unwrap();
         }
 
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
