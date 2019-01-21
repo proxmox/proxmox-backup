@@ -54,6 +54,28 @@ pub fn api_method_garbage_collection_status() -> ApiMethod {
     )
 }
 
+fn get_backup_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+    let config = datastore::config()?;
+
+    let store = param["store"].as_str().unwrap();
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let mut list = vec![];
+
+    for info in datastore.list_backups()? {
+        list.push(json!({
+            "backup_type": info.backup_type,
+            "backup_id": info.backup_id,
+            "backup_time": info.backup_time.timestamp(),
+        }));
+    }
+
+    let result = json!(list);
+
+    Ok(result)
+}
 
 fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
@@ -68,6 +90,7 @@ pub fn router() -> Router {
     let datastore_info = Router::new()
         .get(ApiMethod::new(
             |_,_| Ok(json!([
+                {"subdir": "backups" },
                 {"subdir": "catar" },
                 {"subdir": "status"},
                 {"subdir": "gc" }
@@ -75,6 +98,13 @@ pub fn router() -> Router {
             ObjectSchema::new("Directory index.")
                 .required("store", StringSchema::new("Datastore name.")))
         )
+        .subdir(
+            "backups",
+            Router::new()
+                .get(ApiMethod::new(
+                    get_backup_list,
+                    ObjectSchema::new("List backups.")
+                        .required("store", StringSchema::new("Datastore name.")))))
         .subdir(
             "catar",
             Router::new()
