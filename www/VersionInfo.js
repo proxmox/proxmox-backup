@@ -21,7 +21,7 @@ Ext.define('PBS.view.main.VersionInfo',{
 	me.callParent();
 
 	if (me.makeApiCall) {
-	    PBS.Utils.API3Request({
+	    Proxmox.Utils.API2Request({
 		url: '/version',
 		method: 'GET',
 		success: function(response) {

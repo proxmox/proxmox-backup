@@ -67,7 +67,7 @@ fn main() {
     let addr = ([0,0,0,0,0,0,0,0], 8007).into();
 
     lazy_static!{
-       static ref ROUTER: Router = proxmox_backup::api3::router();
+       static ref ROUTER: Router = proxmox_backup::api2::router();
     }
 
     let mut config = ApiConfig::new("/usr/share/javascript/proxmox-backup", &ROUTER);

@@ -1,21 +1,21 @@
 extern crate proxmox_backup;
 
-//use proxmox_backup::api3;
+//use proxmox_backup::api2;
 use proxmox_backup::cli::command::*;
 
 fn datastore_commands() -> CommandLineInterface {
 
     use proxmox_backup::config;
-    use proxmox_backup::api3;
+    use proxmox_backup::api2;
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(api3::config::datastore::get()).into())
+        .insert("list", CliCommand::new(api2::config::datastore::get()).into())
         .insert("create",
-                CliCommand::new(api3::config::datastore::post())
+                CliCommand::new(api2::config::datastore::post())
                 .arg_param(vec!["name", "path"])
                 .into())
         .insert("remove",
-                CliCommand::new(api3::config::datastore::delete())
+                CliCommand::new(api2::config::datastore::delete())
                 .arg_param(vec!["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
                 .into());
@@ -28,16 +28,16 @@ fn datastore_commands() -> CommandLineInterface {
 fn garbage_collection_commands() -> CommandLineInterface {
 
     use proxmox_backup::config;
-    use proxmox_backup::api3;
+    use proxmox_backup::api2;
 
     let cmd_def = CliCommandMap::new()
         .insert("status",
-                CliCommand::new(api3::admin::datastore::api_method_garbage_collection_status())
+                CliCommand::new(api2::admin::datastore::api_method_garbage_collection_status())
                 .arg_param(vec!["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
                 .into())
         .insert("start",
-                CliCommand::new(api3::admin::datastore::api_method_start_garbage_collection())
+                CliCommand::new(api2::admin::datastore::api_method_start_garbage_collection())
                 .arg_param(vec!["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
                 .into());

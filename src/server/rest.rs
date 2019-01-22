@@ -384,7 +384,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
 
-    if comp_len >= 1 && components[0] == "api3" {
+    if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
         if comp_len >= 2 {
             let format = components[1];

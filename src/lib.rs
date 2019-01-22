@@ -55,7 +55,7 @@ pub mod cli {
 }
 
 
-pub mod api3;
+pub mod api2;
 
 pub mod client {
 

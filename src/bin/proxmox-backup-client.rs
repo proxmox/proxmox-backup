@@ -32,7 +32,7 @@ fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), E
         .append_pair("time", &epoch.to_string())
         .finish();
 
-    let path = format!("api3/json/admin/datastore/{}/catar?{}", store, query);
+    let path = format!("api2/json/admin/datastore/{}/catar?{}", store, query);
 
     client.upload("application/x-proxmox-backup-catar", body, &path)?;
 
@@ -71,7 +71,7 @@ fn list_backups(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     let client = HttpClient::new("localhost");
 
-    let path = format!("api3/json/admin/datastore/{}/backups", store);
+    let path = format!("api2/json/admin/datastore/{}/backups", store);
 
     let result = client.get(&path)?;
 
