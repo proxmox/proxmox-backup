@@ -355,3 +355,16 @@ pub fn scandir<P, F>(
     }
     Ok(())
 }
+
+pub fn get_hardware_address() -> Result<String, Error> {
+
+    static FILENAME: &str = "/etc/ssh/assh_host_rsa_key.pub";
+
+    let mut file = File::open(FILENAME)?;
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents)?;
+
+    let digest = md5::compute(contents);
+
+    Ok(format!("{:0x}", digest))
+}

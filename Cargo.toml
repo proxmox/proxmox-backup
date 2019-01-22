@@ -30,4 +30,5 @@ openssl = "0.10"
 siphasher = "0.3"
 endian_trait = "0.6"
 walkdir = "2"
+md5 = "0.6"
 
