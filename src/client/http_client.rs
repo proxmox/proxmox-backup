@@ -25,11 +25,7 @@ impl HttpClient {
     fn run_request(request: Request<Body>) -> Result<Value, Error> {
         let client = Client::new();
 
-        use std::sync::{Arc, Mutex};
-
-        let mutex = Arc::new(Mutex::new(Err(format_err!("no data"))));
-        let mutex_c1 = mutex.clone();
-        let mutex_c2 = mutex.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
 
         let future = client
             .request(request)
@@ -54,11 +50,9 @@ impl HttpClient {
                         }
                     })
             })
-            .map(move |res| {
-                *mutex_c1.lock().unwrap() = Ok(res);
-             })
-            .map_err(move |err| {
-                *mutex_c2.lock().unwrap() = Err(err);
+            .then(move |res| {
+                tx.send(res).unwrap();
+                Ok(())
             });
 
         // drop client, else client keeps connectioon open (keep-alive feature)
@@ -66,8 +60,7 @@ impl HttpClient {
 
         rt::run(future);
 
-        Arc::try_unwrap(mutex).unwrap()
-            .into_inner().unwrap()
+        rx.recv().unwrap()
     }
 
     pub fn get(&self, path: &str) -> Result<Value, Error> {
