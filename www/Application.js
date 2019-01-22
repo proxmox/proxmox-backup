@@ -6,7 +6,7 @@ Ext.define('PBS.Application', {
     appProperty: 'app',
 
     stores: [
-	// 'NavigationStore'
+	'NavigationStore'
     ],
 
     layout: 'fit',

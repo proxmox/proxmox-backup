@@ -20,14 +20,70 @@ Ext.define('PBS.MainView', {
 	beforeChangePath: function(path, subpath, action) {
 	    var me = this;
 
+	    if (!Ext.ClassManager.getByAlias('widget.'+ path)) {
+		console.warn('xtype "'+path+'" not found');
+		action.stop();
+		return;
+	    }
+
+	    var lastpanel = me.lookupReference('contentpanel').getLayout().getActiveItem();
+	    if (lastpanel && lastpanel.xtype === path) {
+		// we have the right component already,
+		// we just need to select the correct tab
+		// default to the first
+		subpath = subpath || 0;
+		if (lastpanel.getActiveTab) {
+		    // we assume lastpanel is a tabpanel
+		    if (lastpanel.getActiveTab().getItemId() !== subpath) {
+			// set the active tab
+			lastpanel.setActiveTab(subpath);
+		    }
+		    // else we are already there
+		}
+		action.stop();
+		return;
+	    }
+
 	    action.resume();
 	},
 	
-       	changePath: function(path,subpath) {
+	changePath: function(path,subpath) {
 	    var me = this;
 	    var contentpanel = me.lookupReference('contentpanel');
 	    var lastpanel = contentpanel.getLayout().getActiveItem();
 
+	    var obj = contentpanel.add({ xtype: path });
+	    var treelist = me.lookupReference('navtree');
+
+	    treelist.suspendEvents();
+	    treelist.select(path);
+	    treelist.resumeEvents();
+
+	    if (Ext.isFunction(obj.setActiveTab)) {
+		obj.setActiveTab(subpath || 0);
+		obj.addListener('tabchange', function(tabpanel, newc, oldc) {
+		    var newpath = path;
+
+		    // only add the subpath part for the
+		    // non-default tabs
+		    if (tabpanel.items.findIndex('id', newc.id) !== 0) {
+			newpath += ":" + newc.getItemId();
+		    }
+
+		    me.redirectTo(newpath);
+		});
+	    }
+
+	    contentpanel.setActiveItem(obj);
+
+	    if (lastpanel) {
+		contentpanel.remove(lastpanel, { destroy: true });
+	    }
+
+	},
+
+	navigate: function(treelist, item) {
+	    this.redirectTo(item.get('path'));
 	},
 
 	init: function(view) {
@@ -84,7 +140,21 @@ Ext.define('PBS.MainView', {
 		type: 'vbox',
 		align: 'stretch'
 	    },
-	    items: [{ html: "test" }]
+	    items: [{
+		xtype: 'navigationtree',
+		minWidth: 180,
+		reference: 'navtree',
+		// we have to define it here until extjs 6.2
+		// because of a bug where a viewcontroller does not detect
+		// the selectionchange event of a treelist
+		listeners: {
+		    selectionchange: 'navigate'
+		}
+	    }, {
+		xtype: 'box',
+		cls: 'x-treelist-nav',
+		flex: 1
+	    }]
 	},
 	{
 	    xtype: 'panel',

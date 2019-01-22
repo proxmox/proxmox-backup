@@ -2,6 +2,9 @@ JSSRC=							\
 	Utils.js					\
 	Logo.js						\
 	VersionInfo.js					\
+	SystemConfiguration.js				\
+	Subscription.js					\
+	NavigationTree.js				\
 	Application.js					\
 	MainView.js
 
