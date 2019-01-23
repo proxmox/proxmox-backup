@@ -31,23 +31,24 @@ Ext.define('PBS.SystemConfiguration', {
 		    title: gettext('Interfaces'),
 		    xtype: 'proxmoxNodeNetworkView',
 		    types: ['bond'],
-		    nodename: Proxmox.NodeName
+		    nodename: 'localhost'
 		},
 		{
 		    title: gettext('DNS'),
 		    xtype: 'proxmoxNodeDNSView',
-		    nodename: Proxmox.NodeName
+		    nodename: 'localhost'
 		},
 		{
 		    title: gettext('Time'),
 		    xtype: 'proxmoxNodeTimeView',
-		    nodename: Proxmox.NodeName
+		    nodename: 'localhost'
 		}
 	    ]
 //	},
 //	{
 //	    itemId: 'options',
-//            title: gettext('Options'),
+//          title: gettext('Options'),
+//	    html: "TESWT"
 //	    xtype: 'pbsSystemOptions'
 	}
     ],

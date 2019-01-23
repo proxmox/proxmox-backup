@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 
 pub mod config;
 pub mod admin;
+pub mod node;
 mod version;
 mod subscription;
 
@@ -48,7 +49,7 @@ pub fn router() -> Router {
         .subdir("subdir3", route4);
 
     let nodes = Router::new()
-        .match_all("node", nodeinfo);
+        .subdir("localhost", node::router());
 
 
     let route = Router::new()
