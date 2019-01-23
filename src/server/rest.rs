@@ -1,3 +1,4 @@
+use crate::tools;
 use crate::api::schema::*;
 use crate::api::router::*;
 use crate::api::config::*;
@@ -218,15 +219,15 @@ fn handle_async_api_request(
 
 fn get_index() ->  BoxFut {
 
-    let nodename = "unknown";
-    let username = "";
+    let nodename = tools::nodename();
+    let username = "fakelogin"; // todo: implement real auth
     let token = "abc";
 
     let setup = json!({
         "Setup": { "auth_cookie_name": "PBSAuthCookie" },
         "NodeName": nodename,
         "UserName": username,
-        "CSRFPreventionToken": token
+        "CSRFPreventionToken": token,
     });
 
     let index = format!(r###"
@@ -264,7 +265,15 @@ fn get_index() ->  BoxFut {
 </html>
 "###, setup.to_string());
 
-    Box::new(future::ok(Response::new(index.into())))
+    let resp = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html")
+        // emulate succssful login, so that Proxmox:Utils.authOk() returns true
+        .header(header::SET_COOKIE, "PBSAuthCookie=\"XXX\"") // fixme: remove
+        .body(index.into())
+        .unwrap();
+
+    Box::new(future::ok(resp))
 }
 
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
