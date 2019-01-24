@@ -59,6 +59,23 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
 }
 
+pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
+
+    let path = path.as_ref();
+
+    let file = std::fs::File::open(path)?;
+
+    use std::io::{BufRead, BufReader};
+
+    let mut reader = BufReader::new(file);
+
+    let mut line = String::new();
+
+    let _ = reader.read_line(&mut line)?;
+
+    Ok(line)
+}
+
 /// Atomically write a file. We first create a temporary file, which
 /// is then renamed.
 pub fn file_set_contents<P: AsRef<Path>>(

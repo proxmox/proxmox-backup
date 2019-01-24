@@ -9,15 +9,7 @@ use chrono::prelude::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
 
-    let file = std::fs::File::open("/etc/timezone")?;
-
-    use std::io::{BufRead, BufReader};
-
-    let mut reader = BufReader::new(file);
-
-    let mut line = String::new();
-
-    let _ = reader.read_line(&mut line)?;
+    let line = tools::file_read_firstline("/etc/timezone")?;
 
     Ok(line.trim().to_owned())
 }
