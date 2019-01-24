@@ -1,7 +1,6 @@
 //! Tools and utilities
 //!
 //! This is a collection of small and useful tools.
-
 use failure::*;
 use nix::unistd;
 use nix::sys::stat;
@@ -22,6 +21,8 @@ use serde_json::Value;
 
 pub mod timer;
 pub mod wrapped_reader_stream;
+#[macro_use]
+pub mod common_regex;
 
 /// The `BufferedReader` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
