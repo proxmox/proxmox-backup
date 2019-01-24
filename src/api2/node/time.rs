@@ -31,9 +31,19 @@ fn get_time(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 pub fn router() -> Router {
 
     let route = Router::new()
-        .get(ApiMethod::new(
-            get_time,
-            ObjectSchema::new("Read server time and time zone settings.")));
+        .get(
+            ApiMethod::new(
+                get_time, ObjectSchema::new("Read server time and time zone settings."))
+                .returns(
+                    ObjectSchema::new("Returns server time and timezone.")
+                        .required("timezone", StringSchema::new("Time zone"))
+                        .required("time", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
+                                  .minimum(1297163644))
+                        .required("localtime", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC. (local time)")
+                                  .minimum(1297163644))
+                )
+        );
+
 
     route
 }
