@@ -10,6 +10,7 @@ use lazy_static::lazy_static;
 
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
+use openssl::sha;
 
 use serde_json::{json, Value};
 
@@ -21,10 +22,11 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let mut nscount = 0;
 
-    let file = std::fs::File::open(RESOLV_CONF_FN)?;
-    let reader = BufReader::new(file);
+    let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
 
-    let test = IPRE!();
+    result["digest"] = Value::from(tools::digest_to_hex(&sha::sha256(&raw)));
+
+    let data = String::from_utf8(raw)?;
 
     lazy_static! {
         static ref DOMAIN_REGEX: regex::Regex = regex::Regex::new(r"^\s*(?:search|domain)\s+(\S+)\s*").unwrap();
@@ -32,8 +34,7 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
             concat!(r"^\s*nameserver\s+(", IPRE!(),  r")\s*")).unwrap();
     }
 
-    for line in reader.lines() {
-        let line = line?;
+    for line in data.lines() {
 
         if let Some(caps) = DOMAIN_REGEX.captures(&line) {
             result["search"] = Value::from(&caps[1]);
