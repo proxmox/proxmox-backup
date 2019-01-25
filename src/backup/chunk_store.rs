@@ -338,12 +338,15 @@ impl ChunkStore {
 #[test]
 fn test_chunk_store1() {
 
+    let mut path = std::fs::canonicalize(".").unwrap(); // we need absulute path
+    path.push(".testdir");
+
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
 
-    let chunk_store = ChunkStore::open("test", ".testdir");
+    let chunk_store = ChunkStore::open("test", &path);
     assert!(chunk_store.is_err());
 
-    let chunk_store = ChunkStore::create("test", ".testdir").unwrap();
+    let chunk_store = ChunkStore::create("test", &path).unwrap();
     let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
     assert!(!exists);
 
@@ -351,7 +354,7 @@ fn test_chunk_store1() {
     assert!(exists);
 
 
-    let chunk_store = ChunkStore::create("test", ".testdir");
+    let chunk_store = ChunkStore::create("test", &path);
     assert!(chunk_store.is_err());
 
 
