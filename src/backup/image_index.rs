@@ -1,5 +1,6 @@
 use failure::*;
 
+use crate::tools;
 use super::chunk_store::*;
 
 use std::sync::Arc;
@@ -135,7 +136,7 @@ impl ImageIndexReader {
             let digest = unsafe { std::slice::from_raw_parts_mut(self.index.add(pos*32), 32) };
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
-                      digest_to_hex(digest), self.filename, err);
+                      tools::digest_to_hex(digest), self.filename, err);
             }
         }
 
@@ -289,7 +290,7 @@ impl ImageIndexWriter {
 
         let (is_duplicate, digest) = self.store.insert_chunk(chunk)?;
 
-        println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate,  digest_to_hex(&digest));
+        println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate, tools::digest_to_hex(&digest));
 
         if is_duplicate { self.duplicate_chunks += 1; }
         

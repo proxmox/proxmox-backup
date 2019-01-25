@@ -1,5 +1,6 @@
 use failure::*;
 
+use crate::tools;
 use super::chunk_store::*;
 use super::chunker::*;
 
@@ -142,7 +143,7 @@ impl ArchiveIndexReader {
             let digest = self.chunk_digest(pos);
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
-                      digest_to_hex(digest), self.filename, err);
+                      tools::digest_to_hex(digest), self.filename, err);
             }
         }
         Ok(())
@@ -430,7 +431,7 @@ impl ArchiveIndexWriter {
 
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest)) => {
-                println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  digest_to_hex(&digest));
+                println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  tools::digest_to_hex(&digest));
                 self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
                 self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);

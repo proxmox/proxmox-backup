@@ -37,25 +37,13 @@ pub struct ChunkStore {
     _lockfile: File,
 }
 
-const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
-
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
-
-pub fn digest_to_hex(digest: &[u8]) -> String {
-
-    let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
-
-    for i in 0..digest.len() {
-        buf.push(HEX_CHARS[(digest[i] >> 4) as usize]);
-        buf.push(HEX_CHARS[(digest[i] & 0xf) as usize]);
-    }
-
-    unsafe { String::from_utf8_unchecked(buf) }
-}
 
 fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
     let mut buf = Vec::<u8>::with_capacity(2+1+2+1);
+
+    const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
 
     buf.push(HEX_CHARS[(digest[0] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);
@@ -151,7 +139,7 @@ impl ChunkStore {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = digest_to_hex(&digest);
+        let digest_str = tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         const UTIME_NOW: i64 = ((1 << 30) - 1);
@@ -180,7 +168,7 @@ impl ChunkStore {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = digest_to_hex(&digest);
+        let digest_str = tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         let mut f = std::fs::File::open(&chunk_path)?;
@@ -287,12 +275,12 @@ impl ChunkStore {
 
         let digest = hasher.finish();
 
-        //println!("DIGEST {}", digest_to_hex(&digest));
+        //println!("DIGEST {}", tools::digest_to_hex(&digest));
 
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = digest_to_hex(&digest);
+        let digest_str = tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         let lock = self.mutex.lock();

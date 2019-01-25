@@ -397,3 +397,18 @@ pub fn get_hardware_address() -> Result<String, Error> {
 
     Ok(format!("{:0x}", digest))
 }
+
+pub fn digest_to_hex(digest: &[u8]) -> String {
+
+    const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
+
+    let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
+
+    for i in 0..digest.len() {
+        buf.push(HEX_CHARS[(digest[i] >> 4) as usize]);
+        buf.push(HEX_CHARS[(digest[i] & 0xf) as usize]);
+    }
+
+    unsafe { String::from_utf8_unchecked(buf) }
+}
+
