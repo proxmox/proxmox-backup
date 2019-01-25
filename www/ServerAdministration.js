@@ -31,7 +31,7 @@ Ext.define('PBS.ServerAdministration', {
 		pmgproxy: true,
 		pmgdaemon: true
 	    },
-	    nodename: Proxmox.NodeName
+	    nodename: 'localhost'
 	},
 	{
 	    xtype: 'proxmoxNodeAPT',
@@ -42,17 +42,17 @@ Ext.define('PBS.ServerAdministration', {
 		disabled: true,
 		text: gettext('Upgrade'),
 		handler: function() {
-		    Proxmox.Utils.openXtermJsViewer('upgrade', 0, Proxmox.NodeName);
+		    Proxmox.Utils.openXtermJsViewer('upgrade', 0, 'localhost');
 		}
 	    },
 	    itemId: 'updates',
-	    nodename: Proxmox.NodeName
+	    nodename: 'localhost'
 	},
 	{
 	    xtype: 'proxmoxLogView',
 	    itemId: 'logs',
 	    title: gettext('Syslog'),
-	    url: "/api2/extjs/nodes/" + Proxmox.NodeName + "/syslog",
+	    url: "/api2/extjs/nodes/localhost/syslog",
 	    log_select_timespan: 1
 	},
 	{
@@ -60,7 +60,7 @@ Ext.define('PBS.ServerAdministration', {
 	    itemId: 'tasks',
 	    title: gettext('Tasks'),
 	    height: 'auto',
-	    nodename: Proxmox.NodeName
+	    nodename: 'localhost'
 	}
     ]
 });
