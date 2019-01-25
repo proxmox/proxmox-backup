@@ -9,8 +9,9 @@ use crate::api2::*;
 use lazy_static::lazy_static;
 
 use std::io::{BufRead, BufReader};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use openssl::sha;
+use regex::Regex;
 
 use serde_json::{json, Value};
 
@@ -29,8 +30,8 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
     let data = String::from_utf8(raw)?;
 
     lazy_static! {
-        static ref DOMAIN_REGEX: regex::Regex = regex::Regex::new(r"^\s*(?:search|domain)\s+(\S+)\s*").unwrap();
-        static ref SERVER_REGEX: regex::Regex = regex::Regex::new(
+        static ref DOMAIN_REGEX: Regex = Regex::new(r"^\s*(?:search|domain)\s+(\S+)\s*").unwrap();
+        static ref SERVER_REGEX: Regex = Regex::new(
             concat!(r"^\s*nameserver\s+(", IPRE!(),  r")\s*")).unwrap();
     }
 
@@ -52,7 +53,22 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
 
 fn update_dns(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
+    lazy_static! {
+        static ref MUTEX: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    }
+
+    let guard = MUTEX.lock();
+
     let search = tools::required_string_param(&param, "search")?;
+
+    let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
+    let old_digest = tools::digest_to_hex(&sha::sha256(&raw));
+
+    if let Some(digest) = param["digest"].as_str() {
+        tools::assert_if_modified(&old_digest, &digest)?;
+    }
+
+    let old_data = String::from_utf8(raw)?;
 
     let mut data = format!("search {}\n", search);
 
@@ -60,6 +76,16 @@ fn update_dns(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         if let Some(server) = param[opt].as_str() {
             data.push_str(&format!("nameserver {}\n", server));
         }
+    }
+
+    // append other data
+    lazy_static! {
+        static ref SKIP_REGEX: Regex = Regex::new(r"^(search|domain|nameserver)\s+").unwrap();
+    }
+    for line in old_data.lines() {
+        if SKIP_REGEX.is_match(line) { continue; }
+        data.push_str(line);
+        data.push('\n');
     }
 
     tools::file_set_contents(RESOLV_CONF_FN, data.as_bytes(), None)?;
@@ -98,6 +124,7 @@ pub fn router() -> Router {
                 ObjectSchema::new("Read DNS settings.")
             ).returns(
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
+                    .required("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
                     .optional("search", SEARCH_DOMAIN_SCHEMA.clone())
                     .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
                     .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
@@ -112,6 +139,7 @@ pub fn router() -> Router {
                     .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
                     .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
                     .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
+                    .optional("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
              )
         );
 

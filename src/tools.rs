@@ -412,3 +412,9 @@ pub fn digest_to_hex(digest: &[u8]) -> String {
     unsafe { String::from_utf8_unchecked(buf) }
 }
 
+pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
+    if digest1 != digest2 {
+	bail!("detected modified configuration - file changed by other user? Try again.");
+    }
+    Ok(())
+}

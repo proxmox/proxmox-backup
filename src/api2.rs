@@ -19,6 +19,12 @@ use crate::tools::common_regex;
 lazy_static! {
     pub static ref IP_FORMAT: Arc<ApiStringFormat> = ApiStringFormat::Pattern(&common_regex::IP_REGEX).into();
 
+    pub static ref PVE_CONFIG_DIGEST_FORMAT: Arc<ApiStringFormat> =
+        ApiStringFormat::Pattern(&common_regex::SHA256_HEX_REGEX).into();
+
+    pub static ref PVE_CONFIG_DIGEST_SCHEMA: Arc<Schema> =
+        StringSchema::new("Prevent changes if current configuration file has different SHA256 digest. This can be used to prevent concurrent modifications.")
+        .format(PVE_CONFIG_DIGEST_FORMAT.clone()).into();
 
 }
 
