@@ -5,6 +5,7 @@ JSSRC=							\
 	SystemConfiguration.js				\
 	Subscription.js					\
 	DataStoreConfig.js				\
+	ServerAdministration.js				\
 	NavigationTree.js				\
 	Application.js					\
 	MainView.js
