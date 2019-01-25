@@ -35,5 +35,11 @@ macro_rules! IPRE { () => (concat!(r"(?:", IPV4RE!(), "|", IPV6RE!(), ")")) }
 lazy_static! {
     pub static ref IP_REGEX: Regex = Regex::new(IPRE!()).unwrap();
 
-    pub static ref SHA256_HEX_REGEX: Regex = Regex::new("^[a-f0-9]{64}$").unwrap();
+    pub static ref SHA256_HEX_REGEX: Regex =
+        Regex::new(r"^[a-f0-9]{64}$")
+        .unwrap();
+
+    pub static ref SYSTEMD_DATETIME_REGEX: Regex =
+        Regex::new(r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$")
+        .unwrap();
 }
