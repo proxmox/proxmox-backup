@@ -10,8 +10,8 @@ JSSRC=							\
 
 all: proxmox-backup-gui.js
 
-proxmox-backup-gui.js: ${JSSRC}
-	cat ${JSSRC} >$@.tmp
+proxmox-backup-gui.js: OnlineHelpInfo.js ${JSSRC}
+	cat OnlineHelpInfo.js ${JSSRC} >$@.tmp
 	mv $@.tmp $@
 
 .PHONY: clean
