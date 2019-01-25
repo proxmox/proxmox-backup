@@ -4,6 +4,7 @@ JSSRC=							\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
+	DataStoreConfig.js				\
 	NavigationTree.js				\
 	Application.js					\
 	MainView.js

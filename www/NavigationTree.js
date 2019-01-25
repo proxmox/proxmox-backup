@@ -15,7 +15,7 @@ Ext.define('PBS.store.NavigationStore', {
 		    {
 			text: gettext('Data Store'),
 			iconCls: 'fa fa-envelope-o',
-			path: 'pbsDataStoreConfiguration',
+			path: 'pbsDataStoreConfig',
 			leaf: true
 		    },
 		    {
