@@ -2,14 +2,14 @@ use failure::*;
 
 
 use crate::tools;
-use crate::tools::common_regex;
-
-use crate::api::schema::*;
-use crate::api::router::*;
+use crate::api2::*;
+//use crate::api::schema::*;
+//use crate::api::router::*;
 
 use lazy_static::lazy_static;
 
 use std::io::{BufRead, BufReader};
+use std::sync::Arc;
 
 use serde_json::{json, Value};
 
@@ -22,7 +22,7 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
     let mut nscount = 0;
 
     let file = std::fs::File::open(RESOLV_CONF_FN)?;
-    let mut reader = BufReader::new(file);
+    let reader = BufReader::new(file);
 
     let test = IPRE!();
 
@@ -35,24 +35,57 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
     for line in reader.lines() {
         let line = line?;
 
-        if let Some(m) = DOMAIN_REGEX.find(&line) {
-            let domain = m.as_str();
-            result["search"] = Value::from(domain);
-        } else if let Some(m) = SERVER_REGEX.find(&line) {
+        if let Some(caps) = DOMAIN_REGEX.captures(&line) {
+            result["search"] = Value::from(&caps[1]);
+        } else if let Some(caps) = SERVER_REGEX.captures(&line) {
             nscount += 1;
             if nscount > 3 { continue };
-            let nameserver = m.as_str();
+            let nameserver = &caps[1];
             let id = format!("dns{}", nscount);
-            result[id] = Value::from(m.as_str());
+            result[id] = Value::from(nameserver);
         }
     }
 
     Ok(result)
 }
 
+fn update_dns(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+
+    let search = tools::required_string_param(&param, "search")?;
+
+    let mut data = format!("search {}\n", search);
+
+    for opt in &["dns1", "dns2", "dns3"] {
+        if let Some(server) = param[opt].as_str() {
+            data.push_str(&format!("nameserver {}\n", server));
+        }
+    }
+
+    tools::file_set_contents(RESOLV_CONF_FN, data.as_bytes(), None)?;
+
+    Ok(Value::Null)
+}
+
 fn get_dns(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
 
     read_etc_resolv_conf()
+}
+
+lazy_static! {
+    pub static ref SEARCH_DOMAIN_SCHEMA: Arc<Schema> =
+        StringSchema::new("Search domain for host-name lookup.").into();
+
+    pub static ref FIRST_DNS_SERVER_SCHEMA: Arc<Schema> =
+        StringSchema::new("First name server IP address.")
+        .format(IP_FORMAT.clone()).into();
+
+    pub static ref SECOND_DNS_SERVER_SCHEMA: Arc<Schema> =
+        StringSchema::new("Second name server IP address.")
+        .format(IP_FORMAT.clone()).into();
+
+    pub static ref THIRD_DNS_SERVER_SCHEMA: Arc<Schema> =
+        StringSchema::new("Third name server IP address.")
+        .format(IP_FORMAT.clone()).into();
 }
 
 pub fn router() -> Router {
@@ -64,11 +97,21 @@ pub fn router() -> Router {
                 ObjectSchema::new("Read DNS settings.")
             ).returns(
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
-                    .optional("search", StringSchema::new("Search domain for host-name lookup."))
-                    .optional("dns1", StringSchema::new("First name server IP address."))
-                    .optional("dns2", StringSchema::new("Second name server IP address."))
-                    .optional("dns3", StringSchema::new("Third name server IP address."))
+                    .optional("search", SEARCH_DOMAIN_SCHEMA.clone())
+                    .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
+                    .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
+                    .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
             )
+        )
+        .put(
+            ApiMethod::new(
+                update_dns,
+                ObjectSchema::new("Returns DNS server IPs and sreach domain.")
+                    .required("search", SEARCH_DOMAIN_SCHEMA.clone())
+                    .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
+                    .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
+                    .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
+             )
         );
 
     route

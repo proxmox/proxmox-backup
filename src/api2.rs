@@ -3,12 +3,26 @@ use failure::*;
 use crate::api::schema::*;
 use crate::api::router::*;
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 pub mod config;
 pub mod admin;
 pub mod node;
 mod version;
 mod subscription;
+
+use lazy_static::lazy_static;
+use crate::tools::common_regex;
+
+// common schema definitions
+
+lazy_static! {
+    pub static ref IP_FORMAT: Arc<ApiStringFormat> = ApiStringFormat::Pattern(&common_regex::IP_REGEX).into();
+
+
+}
+
+
 
 fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     println!("This is a test {}", param);

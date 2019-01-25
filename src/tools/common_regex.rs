@@ -3,6 +3,7 @@
 //! This is a collection of useful regular expressions
 
 use lazy_static::lazy_static;
+use regex::Regex;
 
 #[macro_export]
 macro_rules! IPV4OCTET { () => (r"(?:25[0-5]|(?:2[0-4]|1[0-9]|[1-9])?[0-9])") }
@@ -30,3 +31,7 @@ macro_rules! IPV6RE { () => (concat!(r"(?:",
 
 #[macro_export]
 macro_rules! IPRE { () => (concat!(r"(?:", IPV4RE!(), "|", IPV6RE!(), ")")) }
+
+lazy_static! {
+    pub static ref IP_REGEX: Regex = Regex::new(IPRE!()).unwrap();
+}

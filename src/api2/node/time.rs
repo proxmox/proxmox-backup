@@ -42,7 +42,7 @@ fn set_timezone(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         bail!("No such timezone.");
     }
 
-    tools::file_set_contents("/etc/timezone", timezone.as_bytes(), None);
+    tools::file_set_contents("/etc/timezone", timezone.as_bytes(), None)?;
 
     let _ = std::fs::remove_file("/etc/localtime");
 

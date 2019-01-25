@@ -2,6 +2,7 @@ use failure::*;
 use std::collections::HashMap;
 use serde_json::{json, Value};
 use url::form_urlencoded;
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::fmt;
 use std::sync::Arc;
@@ -358,7 +359,7 @@ impl From<ArraySchema> for Arc<Schema> {
 
 pub enum ApiStringFormat {
     Enum(Vec<String>),
-    Pattern(Box<Regex>),
+    Pattern(&'static Regex),
     Complex(Arc<Schema>),
     VerifyFn(fn(&str) -> Result<(), Error>),
 }
@@ -695,11 +696,15 @@ fn test_query_string() {
     assert!(res.is_ok());
 
     // TEST regex pattern
+    lazy_static! {
+        static ref TEST_REGEX: Regex = Regex::new("test").unwrap();
+        static ref TEST2_REGEX: Regex = Regex::new("^test$").unwrap();
+    }
 
     let schema = ObjectSchema::new("Parameters.")
         .required(
             "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("test").unwrap()))))
+                .format(Arc::new(ApiStringFormat::Pattern(&TEST_REGEX)))
         );
 
     let res = parse_query_string("name=abcd", &schema, true);
@@ -711,7 +716,7 @@ fn test_query_string() {
     let schema = ObjectSchema::new("Parameters.")
         .required(
             "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Pattern(Box::new(Regex::new("^test$").unwrap()))))
+                .format(Arc::new(ApiStringFormat::Pattern(&TEST2_REGEX)))
         );
 
     let res = parse_query_string("name=ateststring", &schema, true);
