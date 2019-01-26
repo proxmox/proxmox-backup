@@ -72,7 +72,11 @@ fn dump_journal(
     Ok((count, lines))
 }
 
-fn get_syslog(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_syslog(
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (count, lines) = dump_journal(
         param["start"].as_u64(),
@@ -81,7 +85,7 @@ fn get_syslog(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         param["until"].as_str(),
         param["service"].as_str())?;
 
-    //fixme: $restenv->set_result_attrib('total', $count);
+    rpcenv.set_result_attrib("total", Value::from(count));
 
     Ok(json!(lines))
 }

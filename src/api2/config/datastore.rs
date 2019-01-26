@@ -15,7 +15,11 @@ pub fn get() -> ApiMethod {
         ObjectSchema::new("Directory index."))
 }
 
-fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_datastore_list(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let config = datastore::config()?;
 
@@ -31,7 +35,11 @@ pub fn post() -> ApiMethod {
     )
 }
 
-fn create_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn create_datastore(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     // fixme: locking ?
 
@@ -64,7 +72,11 @@ pub fn delete() -> ApiMethod {
             .required("name", StringSchema::new("Datastore name.")))
 }
 
-fn delete_datastore(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn delete_datastore(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
     // fixme: locking ?

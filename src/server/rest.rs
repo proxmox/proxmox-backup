@@ -26,6 +26,27 @@ use hyper::service::{Service, NewService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
 
+struct RestEnvironment {
+    result_attributes: HashMap<String, Value>,
+}
+
+impl RestEnvironment {
+    fn new() -> Self {
+        Self {  result_attributes: HashMap::new() }
+    }
+}
+
+impl RpcEnvironment for RestEnvironment {
+
+    fn set_result_attrib(&mut self, name: &str, value: Value) {
+        self.result_attributes.insert(name.into(), value);
+    }
+
+    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
+        self.result_attributes.get(name)
+    }
+}
+
 pub struct RestServer {
     pub api_config: Arc<ApiConfig>,
 }
@@ -169,10 +190,12 @@ fn handle_sync_api_request(
 
     let resp = params
         .and_then(move |params| {
-            let res = (info.handler)(params, info)?;
-            Ok(res)
-        }).then(move |result| {
-            Ok((formatter.format_result)(result))
+            let mut rpcenv = RestEnvironment::new();
+            let resp = match (info.handler)(params, info, &mut rpcenv) {
+                Ok(data) => (formatter.format_result)(data, &rpcenv),
+                Err(err) =>  (formatter.format_error)(err),
+            };
+            Ok(resp)
         });
 
     Box::new(resp)
@@ -203,7 +226,7 @@ fn handle_async_api_request(
     let params = match parse_parameter_strings(&param_list, &info.parameters, true) {
         Ok(v) => v,
         Err(err) => {
-            let resp = (formatter.format_result)(Err(Error::from(err)));
+            let resp = (formatter.format_error)(Error::from(err));
             return Box::new(future::ok(resp));
         }
     };
@@ -211,7 +234,7 @@ fn handle_async_api_request(
     match (info.handler)(parts, req_body, params, info) {
         Ok(future) => future,
         Err(err) => {
-            let resp = (formatter.format_result)(Err(Error::from(err)));
+            let resp = (formatter.format_error)(Error::from(err));
             Box::new(future::ok(resp))
         }
     }

@@ -18,10 +18,6 @@ use proxmox_backup::catar::decoder::*;
 
 use proxmox_backup::tools::*;
 
-fn required_string_param<'a>(param: &'a Value, name: &str) -> &'a str {
-    param[name].as_str().expect(&format!("missing parameter '{}'", name))
-}
-
 fn print_goodby_entries(buffer: &[u8]) -> Result<(), Error> {
     println!("GOODBY START: {}", buffer.len());
 
@@ -53,9 +49,13 @@ fn print_goodby_entries(buffer: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-fn print_filenames(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn print_filenames(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
-    let archive = required_string_param(&param, "archive");
+    let archive = tools::required_string_param(&param, "archive")?;
     let file = std::fs::File::open(archive)?;
 
     let mut reader = std::io::BufReader::new(file);
@@ -72,9 +72,13 @@ fn print_filenames(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn dump_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn dump_archive(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
-    let archive = required_string_param(&param, "archive");
+    let archive = tools::required_string_param(&param, "archive")?;
     let mut file = std::fs::File::open(archive)?;
 
     println!("CATAR {}", archive);
@@ -117,10 +121,14 @@ fn dump_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn create_archive(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn create_archive(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
-    let archive = required_string_param(&param, "archive");
-    let source = required_string_param(&param, "source");
+    let archive = tools::required_string_param(&param, "archive")?;
+    let source = tools::required_string_param(&param, "source")?;
 
     let source = std::path::PathBuf::from(source);
 

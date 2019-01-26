@@ -6,7 +6,11 @@ use crate::api::router::*;
 use serde_json::{json, Value};
 
 
-fn get_subscription(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_subscription(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let url = "https://www.proxmox.com/en/proxmox-backup-server/pricing";
     Ok(json!({

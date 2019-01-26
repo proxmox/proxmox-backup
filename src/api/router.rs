@@ -11,7 +11,14 @@ use hyper::http::request::Parts;
 
 pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
-type ApiHandlerFn = fn(Value, &ApiMethod) -> Result<Value, Error>;
+pub trait RpcEnvironment {
+
+    fn set_result_attrib(&mut self, name: &str, value: Value);
+
+    fn get_result_attrib(&self, name: &str) -> Option<&Value>;
+}
+
+type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Value, Error>;
 
 type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod) -> Result<BoxFut, Error>;
 

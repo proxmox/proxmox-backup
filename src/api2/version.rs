@@ -8,7 +8,11 @@ const PROXMOX_PKG_VERSION: &'static str = env!("PROXMOX_PKG_VERSION");
 const PROXMOX_PKG_RELEASE: &'static str = env!("PROXMOX_PKG_RELEASE");
 const PROXMOX_PKG_REPOID: &'static str = env!("PROXMOX_PKG_REPOID");
 
-fn get_version(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_version(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     Ok(json!({
         "version": PROXMOX_PKG_VERSION,

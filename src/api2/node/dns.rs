@@ -51,7 +51,11 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
     Ok(result)
 }
 
-fn update_dns(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn update_dns(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     lazy_static! {
         static ref MUTEX: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
@@ -93,7 +97,11 @@ fn update_dns(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn get_dns(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_dns(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     read_etc_resolv_conf()
 }

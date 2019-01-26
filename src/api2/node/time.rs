@@ -14,7 +14,11 @@ fn read_etc_localtime() -> Result<String, Error> {
     Ok(line.trim().to_owned())
 }
 
-fn get_time(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_time(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let datetime = Local::now();
     let offset = datetime.offset();
@@ -32,7 +36,11 @@ extern "C"  { fn tzset(); }
 
 // Note:: this needs root rights ??
 
-fn set_timezone(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn set_timezone(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let timezone = tools::required_string_param(&param, "timezone")?;
 

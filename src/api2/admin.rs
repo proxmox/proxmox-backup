@@ -8,7 +8,7 @@ pub fn router() -> Router {
 
     let route = Router::new()
         .get(ApiMethod::new(
-            |_,_| Ok(json!([
+            |_,_,_| Ok(json!([
                 {"subdir": "datastore"}
             ])),
             ObjectSchema::new("Directory index.")))

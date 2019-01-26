@@ -9,6 +9,28 @@ use crate::api::router::*;
 //use crate::api::config::*;
 use crate::getopts;
 
+struct CliEnvironment {
+    result_attributes: HashMap<String, Value>,
+}
+
+impl CliEnvironment {
+    fn new() -> Self {
+        Self {  result_attributes: HashMap::new() }
+    }
+}
+
+impl RpcEnvironment for CliEnvironment {
+
+    fn set_result_attrib(&mut self, name: &str, value: Value) {
+        self.result_attributes.insert(name.into(), value);
+    }
+
+    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
+        self.result_attributes.get(name)
+    }
+}
+
+
 pub fn print_cli_usage() {
 
     eprintln!("Usage: TODO");
@@ -260,10 +282,11 @@ pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
         CommandLineInterface::Nested(map) => handle_nested_command(map, args),
     };
 
+    let mut rpcenv = CliEnvironment::new();
 
     let res = match invocation {
         Err(e) => return Err(UsageError(e).into()),
-        Ok(invocation) => (invocation.0.info.handler)(invocation.1, &invocation.0.info)?,
+        Ok(invocation) => (invocation.0.info.handler)(invocation.1, &invocation.0.info, &mut rpcenv)?,
     };
 
     println!("Result: {}", serde_json::to_string_pretty(&res).unwrap());

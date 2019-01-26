@@ -30,7 +30,11 @@ lazy_static! {
 
 
 
-fn test_sync_api_handler(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn test_sync_api_handler(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
     println!("This is a test {}", param);
 
    // let force: Option<bool> = Some(false);
@@ -51,7 +55,7 @@ pub fn router() -> Router {
 
     let route4 = Router::new()
         .get(ApiMethod::new(
-            |param, _info| {
+            |param, _info, _rpcenv| {
                 println!("This is a clousure handler: {}", param);
 
                 Ok(json!(null))
@@ -74,7 +78,7 @@ pub fn router() -> Router {
 
     let route = Router::new()
         .get(ApiMethod::new(
-            |_,_| Ok(json!([
+            |_,_,_| Ok(json!([
                 {"subdir": "config"},
                 {"subdir": "admin"},
                 {"subdir": "nodes"},

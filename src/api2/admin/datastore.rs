@@ -15,7 +15,11 @@ use crate::backup::datastore::*;
 mod catar;
 
 // this is just a test for mutability/mutex handling  - will remove later
-fn start_garbage_collection(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn start_garbage_collection(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap();
 
@@ -36,7 +40,11 @@ pub fn api_method_start_garbage_collection() -> ApiMethod {
     )
 }
 
-fn garbage_collection_status(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn garbage_collection_status(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap();
 
@@ -54,7 +62,11 @@ pub fn api_method_garbage_collection_status() -> ApiMethod {
     )
 }
 
-fn get_backup_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_backup_list(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let config = datastore::config()?;
 
@@ -77,7 +89,11 @@ fn get_backup_list(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(result)
 }
 
-fn get_datastore_list(_param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn get_datastore_list(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let config = datastore::config()?;
 
@@ -89,7 +105,7 @@ pub fn router() -> Router {
 
     let datastore_info = Router::new()
         .get(ApiMethod::new(
-            |_,_| Ok(json!([
+            |_,_,_| Ok(json!([
                 {"subdir": "backups" },
                 {"subdir": "catar" },
                 {"subdir": "status"},

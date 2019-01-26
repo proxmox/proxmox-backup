@@ -65,7 +65,11 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
 }
 */
 
-fn list_backups(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn list_backups(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
@@ -78,7 +82,11 @@ fn list_backups(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
     Ok(result)
 }
 
-fn create_backup(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
+fn create_backup(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
 
     let filename = tools::required_string_param(&param, "filename")?;
     let store = tools::required_string_param(&param, "store")?;
