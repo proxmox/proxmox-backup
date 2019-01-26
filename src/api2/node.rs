@@ -6,6 +6,7 @@ mod time;
 mod network;
 mod dns;
 mod syslog;
+mod services;
 
 pub fn router() -> Router {
 
@@ -19,6 +20,7 @@ pub fn router() -> Router {
             ObjectSchema::new("Directory index.")))
         .subdir("dns", dns::router())
         .subdir("network", network::router())
+        .subdir("services", services::router())
         .subdir("syslog", syslog::router())
         .subdir("time", time::router());
 
