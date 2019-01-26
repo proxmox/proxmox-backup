@@ -18,11 +18,11 @@ fn dump_journal(
     service: Option<&str>,
 ) -> Result<(u64, Vec<Value>), Error> {
 
-    let mut args = vec!["-o", "short", "--no-pager"];
+    let mut args = vec!["-o", "short", "--no-pagera"];
 
-    if let Some(service) = service { args.push("--unit"); args.push(service); }
-    if let Some(since) = since { args.push("--since"); args.push(since); }
-    if let Some(until) = until { args.push("--until"); args.push(until); }
+    if let Some(service) = service { args.extend(&["--unit", service]); }
+    if let Some(since) = since { args.extend(&["--since", since]); }
+    if let Some(until) = until { args.extend(&["--until", until]); }
 
     let mut lines: Vec<Value> = vec![];
     let mut limit = limit.unwrap_or(50);
@@ -38,18 +38,29 @@ fn dump_journal(
 
     if let Some(ref mut stdout) = child.stdout {
         for line in BufReader::new(stdout).lines() {
-            count += 1;
-            if count < start { continue };
-	    if limit <= 0 { continue };
+            match line {
+                Ok(line) => {
+                    count += 1;
+                    if count < start { continue };
+	            if limit <= 0 { continue };
 
-            let line = line?; // fixme: nom utf8??
-            lines.push(json!({ "n": count, "t": line }));
+                    lines.push(json!({ "n": count, "t": line }));
 
-            limit -= 1;
+                    limit -= 1;
+                }
+                Err(err) => {
+                    eprintln!("reading journal failed: {}", err);
+                    let _ = child.kill();
+                    break;
+                }
+            }
         }
     }
 
-    let status = child.wait()?; // fixme: check status
+    let status = child.wait().unwrap();
+    if !status.success() {
+        eprintln!("journalctl failed with {}", status);
+    }
 
     // HACK: ExtJS store.guaranteeRange() does not like empty array
     // so we add a line
@@ -68,7 +79,7 @@ fn get_syslog(param: Value, _info: &ApiMethod) -> Result<Value, Error> {
         param["limit"].as_u64(),
         param["since"].as_str(),
         param["until"].as_str(),
-        param["service"].as_str());
+        param["service"].as_str())?;
 
     //fixme: $restenv->set_result_attrib('total', $count);
 
