@@ -13,7 +13,7 @@ pub struct OutputFormatter {
     pub format_error: fn(err: Error) -> Response<Body>,
 }
 
-static json_content_type: &str = "application/json;charset=UTF-8";
+static JSON_CONTENT_TYPE: &str = "application/json;charset=UTF-8";
 
 
 fn json_response(result: Value) -> Response<Body> {
@@ -25,7 +25,7 @@ fn json_response(result: Value) -> Response<Body> {
     let mut response = Response::new(raw.into());
     response.headers_mut().insert(
         header::CONTENT_TYPE,
-        header::HeaderValue::from_static(json_content_type));
+        header::HeaderValue::from_static(JSON_CONTENT_TYPE));
 
     response
 }
@@ -52,7 +52,7 @@ fn json_format_error(err: Error) -> Response<Body> {
     let mut response = Response::new(Body::from(err.to_string()));
     response.headers_mut().insert(
         header::CONTENT_TYPE,
-        header::HeaderValue::from_static(json_content_type));
+        header::HeaderValue::from_static(JSON_CONTENT_TYPE));
     *response.status_mut() = StatusCode::BAD_REQUEST;
 
     response

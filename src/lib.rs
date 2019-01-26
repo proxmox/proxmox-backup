@@ -25,6 +25,7 @@ pub mod api {
 #[macro_use]
 pub mod server {
 
+    pub mod environment;
     pub mod formatter;
     #[macro_use]
     pub mod rest;
@@ -52,6 +53,7 @@ pub mod getopts;
 
 pub mod cli {
 
+    pub mod environment;
     pub mod command;
 }
 

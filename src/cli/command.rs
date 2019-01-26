@@ -7,29 +7,9 @@ use serde_json::Value;
 use crate::api::schema::*;
 use crate::api::router::*;
 //use crate::api::config::*;
+use super::environment::CliEnvironment;
+
 use crate::getopts;
-
-struct CliEnvironment {
-    result_attributes: HashMap<String, Value>,
-}
-
-impl CliEnvironment {
-    fn new() -> Self {
-        Self {  result_attributes: HashMap::new() }
-    }
-}
-
-impl RpcEnvironment for CliEnvironment {
-
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
-    }
-
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
-    }
-}
-
 
 pub fn print_cli_usage() {
 

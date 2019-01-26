@@ -2,6 +2,7 @@ use crate::tools;
 use crate::api::schema::*;
 use crate::api::router::*;
 use crate::api::config::*;
+use super::environment::RestEnvironment;
 use super::formatter::*;
 
 use std::fmt;
@@ -25,27 +26,6 @@ use hyper::{Body, Request, Response, StatusCode};
 use hyper::service::{Service, NewService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
-
-struct RestEnvironment {
-    result_attributes: HashMap<String, Value>,
-}
-
-impl RestEnvironment {
-    fn new() -> Self {
-        Self {  result_attributes: HashMap::new() }
-    }
-}
-
-impl RpcEnvironment for RestEnvironment {
-
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
-    }
-
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
-    }
-}
 
 pub struct RestServer {
     pub api_config: Arc<ApiConfig>,
