@@ -18,7 +18,7 @@ fn dump_journal(
     service: Option<&str>,
 ) -> Result<(u64, Vec<Value>), Error> {
 
-    let mut args = vec!["-o", "short", "--no-pagera"];
+    let mut args = vec!["-o", "short", "--no-pager"];
 
     if let Some(service) = service { args.extend(&["--unit", service]); }
     if let Some(since) = since { args.extend(&["--since", since]); }
@@ -49,7 +49,7 @@ fn dump_journal(
                     limit -= 1;
                 }
                 Err(err) => {
-                    eprintln!("reading journal failed: {}", err);
+                    log::error!("reading journal failed: {}", err);
                     let _ = child.kill();
                     break;
                 }
@@ -59,7 +59,7 @@ fn dump_journal(
 
     let status = child.wait().unwrap();
     if !status.success() {
-        eprintln!("journalctl failed with {}", status);
+        log::error!("journalctl failed with {}", status);
     }
 
     // HACK: ExtJS store.guaranteeRange() does not like empty array

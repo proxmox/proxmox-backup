@@ -17,6 +17,14 @@ use hyper;
 
 fn main() {
 
+    if let Err(err) = syslog::init(
+        syslog::Facility::LOG_DAEMON,
+        log::LevelFilter::Info,
+        Some("proxmox-backup-api")) {
+        eprintln!("unable to inititialize syslog: {}", err);
+        std::process::exit(-1);
+    }
+
     let command : Arc<Schema> = StringSchema::new("Command.")
         .format(Arc::new(ApiStringFormat::Enum(vec![
             "start".into(),
