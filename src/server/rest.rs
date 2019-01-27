@@ -397,7 +397,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
 
-    let mut rpcenv = RestEnvironment::new();
+    let rpcenv = RestEnvironment::new(RpcEnvironmentType::PRIVILEDGED);
 
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");

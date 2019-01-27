@@ -4,12 +4,16 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 pub struct RestEnvironment {
+    env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
 }
 
 impl RestEnvironment {
-    pub fn new() -> Self {
-        Self {  result_attributes: HashMap::new() }
+    pub fn new(env_type: RpcEnvironmentType) -> Self {
+        Self {
+            result_attributes: HashMap::new(),
+            env_type,
+        }
     }
 }
 
@@ -21,5 +25,9 @@ impl RpcEnvironment for RestEnvironment {
 
     fn get_result_attrib(&self, name: &str) -> Option<&Value> {
         self.result_attributes.get(name)
+    }
+
+    fn env_type(&self) -> RpcEnvironmentType {
+        self.env_type
     }
 }

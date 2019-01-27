@@ -16,6 +16,18 @@ pub trait RpcEnvironment {
     fn set_result_attrib(&mut self, name: &str, value: Value);
 
     fn get_result_attrib(&self, name: &str) -> Option<&Value>;
+
+    fn env_type(&self) -> RpcEnvironmentType;
+}
+
+#[derive(Copy, Clone)]
+pub enum RpcEnvironmentType {
+    ///  command started from command line
+    CLI,
+    /// access from public acessable server
+    PUBLIC,
+    /// ... access from priviledged server (run as root)
+    PRIVILEDGED,
 }
 
 type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Value, Error>;

@@ -22,4 +22,9 @@ impl RpcEnvironment for CliEnvironment {
     fn get_result_attrib(&self, name: &str) -> Option<&Value> {
         self.result_attributes.get(name)
     }
+
+    fn env_type(&self) -> RpcEnvironmentType {
+        RpcEnvironmentType::CLI
+    }
+
 }
