@@ -20,7 +20,7 @@ pub trait RpcEnvironment {
 
 type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Value, Error>;
 
-type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod) -> Result<BoxFut, Error>;
+type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
     pub parameters: ObjectSchema,

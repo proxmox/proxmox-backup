@@ -159,6 +159,7 @@ fn get_request_parameters_async(
 }
 
 fn handle_sync_api_request(
+    mut rpcenv: RestEnvironment,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
@@ -170,7 +171,6 @@ fn handle_sync_api_request(
 
     let resp = params
         .and_then(move |params| {
-            let mut rpcenv = RestEnvironment::new();
             let resp = match (info.handler)(params, info, &mut rpcenv) {
                 Ok(data) => (formatter.format_result)(data, &rpcenv),
                 Err(err) =>  (formatter.format_error)(err),
@@ -182,6 +182,7 @@ fn handle_sync_api_request(
 }
 
 fn handle_async_api_request(
+    mut rpcenv: RestEnvironment,
     info: &'static ApiAsyncMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
@@ -211,7 +212,7 @@ fn handle_async_api_request(
         }
     };
 
-    match (info.handler)(parts, req_body, params, info) {
+    match (info.handler)(parts, req_body, params, info, &mut rpcenv) {
         Ok(future) => future,
         Err(err) => {
             let resp = (formatter.format_error)(Error::from(err));
@@ -396,6 +397,8 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
 
+    let mut rpcenv = RestEnvironment::new();
+
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
         if comp_len >= 2 {
@@ -414,10 +417,10 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             match api.find_method(&components[2..], method, &mut uri_param) {
                 MethodDefinition::None => {}
                 MethodDefinition::Simple(api_method) => {
-                    return handle_sync_api_request(api_method, formatter, parts, body, uri_param);
+                    return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
                 }
                 MethodDefinition::Async(async_method) => {
-                    return handle_async_api_request(async_method, formatter, parts, body, uri_param);
+                    return handle_async_api_request(rpcenv, async_method, formatter, parts, body, uri_param);
                 }
             }
         }

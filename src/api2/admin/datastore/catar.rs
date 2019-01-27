@@ -47,7 +47,13 @@ impl Future for UploadCaTar {
     }
 }
 
-fn upload_catar(parts: Parts, req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
+fn upload_catar(
+    parts: Parts,
+    req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
@@ -109,7 +115,13 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
     )
 }
 
-fn download_catar(_parts: Parts, _req_body: Body, param: Value, _info: &ApiAsyncMethod) -> Result<BoxFut, Error> {
+fn download_catar(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive_name")?;
