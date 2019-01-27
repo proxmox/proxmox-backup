@@ -397,7 +397,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
 
-    let rpcenv = RestEnvironment::new(RpcEnvironmentType::PRIVILEDGED);
+    let mut rpcenv = RestEnvironment::new(RpcEnvironmentType::PRIVILEDGED);
 
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
@@ -414,6 +414,8 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             let mut uri_param = HashMap::new();
 
             // fixme: handle auth
+            rpcenv.set_user(Some(String::from("root@pam")));
+
             match api.find_method(&components[2..], method, &mut uri_param) {
                 MethodDefinition::None => {}
                 MethodDefinition::Simple(api_method) => {

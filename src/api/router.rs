@@ -18,6 +18,10 @@ pub trait RpcEnvironment {
     fn get_result_attrib(&self, name: &str) -> Option<&Value>;
 
     fn env_type(&self) -> RpcEnvironmentType;
+
+    fn set_user(&mut self, user: Option<String>);
+
+    fn get_user(&self) -> Option<String>;
 }
 
 #[derive(Copy, Clone)]

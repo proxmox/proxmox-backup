@@ -6,12 +6,14 @@ use serde_json::Value;
 pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
+    user: Option<String>,
 }
 
 impl RestEnvironment {
     pub fn new(env_type: RpcEnvironmentType) -> Self {
         Self {
             result_attributes: HashMap::new(),
+            user: None,
             env_type,
         }
     }
@@ -29,5 +31,13 @@ impl RpcEnvironment for RestEnvironment {
 
     fn env_type(&self) -> RpcEnvironmentType {
         self.env_type
+    }
+
+    fn set_user(&mut self, user: Option<String>) {
+        self.user = user;
+    }
+
+    fn get_user(&self) -> Option<String> {
+        self.user.clone()
     }
 }
