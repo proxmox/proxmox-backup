@@ -158,13 +158,9 @@ fn get_request_parameters_async(
     Box::new(resp)
 }
 
-fn proxy_sync_api_request(
-    rpcenv: RestEnvironment,
-    info: &'static ApiMethod,
-    formatter: &'static OutputFormatter,
+fn proxy_protected_request(
     mut parts: Parts,
     req_body: Body,
-    uri_param: HashMap<String, String>,
 ) -> BoxFut
 {
 
@@ -448,7 +444,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 MethodDefinition::None => {}
                 MethodDefinition::Simple(api_method) => {
                     if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
-                        return proxy_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                        return proxy_protected_request(parts, body);
                     } else {
                         return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
                     }
