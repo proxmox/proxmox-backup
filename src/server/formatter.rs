@@ -85,9 +85,12 @@ fn extjs_format_result(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
 fn extjs_format_error(err: Error) -> Response<Body> {
 
     let mut errors = vec![];
-    errors.push(err.to_string());
+
+    let message = err.to_string();
+    errors.push(&message);
 
     let result = json!({
+        "message": message,
         "errors": errors,
         "success": false
     });
