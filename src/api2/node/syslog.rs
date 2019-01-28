@@ -131,7 +131,7 @@ pub fn router() -> Router {
                 ObjectSchema::new("Returns a list of syslog entries.")
                     .required("n", IntegerSchema::new("Line number."))
                     .required("t", StringSchema::new("Line text."))
-            )
+            ).protected(true)
         );
 
     route

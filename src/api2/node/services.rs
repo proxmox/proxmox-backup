@@ -242,37 +242,45 @@ pub fn router() -> Router {
         .subdir(
             "start",
             Router::new()
-                .post(ApiMethod::new(
-                    start_service,
-                    ObjectSchema::new("Start service.")
-                        .required("service", service_id_schema.clone()))
+                .post(
+                    ApiMethod::new(
+                        start_service,
+                        ObjectSchema::new("Start service.")
+                            .required("service", service_id_schema.clone())
+                    ).protected(true)
                 )
         )
         .subdir(
             "stop",
             Router::new()
-                .post(ApiMethod::new(
-                    stop_service,
-                    ObjectSchema::new("Stop service.")
-                        .required("service", service_id_schema.clone()))
+                .post(
+                    ApiMethod::new(
+                        stop_service,
+                        ObjectSchema::new("Stop service.")
+                            .required("service", service_id_schema.clone())
+                    ).protected(true)
                 )
         )
         .subdir(
             "restart",
             Router::new()
-                .post(ApiMethod::new(
-                    restart_service,
-                    ObjectSchema::new("Restart service.")
-                        .required("service", service_id_schema.clone()))
+                .post(
+                    ApiMethod::new(
+                        restart_service,
+                        ObjectSchema::new("Restart service.")
+                            .required("service", service_id_schema.clone())
+                    ).protected(true)
                 )
         )
         .subdir(
             "reload",
             Router::new()
-                .post(ApiMethod::new(
-                    reload_service,
-                    ObjectSchema::new("Reload service.")
-                        .required("service", service_id_schema.clone()))
+                .post(
+                    ApiMethod::new(
+                        reload_service,
+                        ObjectSchema::new("Reload service.")
+                            .required("service", service_id_schema.clone())
+                    ).protected(true)
                 )
         )
         ;

@@ -83,7 +83,7 @@ pub fn router() -> Router {
                 set_timezone,
                 ObjectSchema::new("Set time zone.")
                     .required("timezone", StringSchema::new("Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
-            )
+            ).protected(true)
         );
 
 
