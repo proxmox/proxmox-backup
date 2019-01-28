@@ -9,15 +9,17 @@ pub struct ApiConfig {
     basedir: PathBuf,
     router: &'static Router,
     aliases: HashMap<String, PathBuf>,
+    env_type: RpcEnvironmentType,
 }
 
 impl ApiConfig {
 
-    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router) -> Self {
+    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Self {
         Self {
             basedir: basedir.into(),
             router: router,
             aliases: HashMap::new(),
+            env_type,
         }
     }
 
@@ -57,5 +59,9 @@ impl ApiConfig {
               P: Into<PathBuf>,
     {
         self.aliases.insert(alias.into(), path.into());
+    }
+
+    pub fn env_type(&self) -> RpcEnvironmentType {
+        self.env_type
     }
 }

@@ -1,0 +1,16 @@
+[Unit]
+Description=Proxmox API Proxy Server
+ConditionPathExists=/usr/bin/proxmox-backup-proxy
+Wants=proxmox-backup.service
+After=syslog.service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+ExecStart=/usr/bin/proxmox-backup-proxy start
+Type=simple
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,5 @@
 target/release/proxmox-backup-api /usr/sbin
+target/release/proxmox-backup-proxy /usr/bin
 target/release/proxmox-backup-manager /usr/sbin
 target/release/proxmox-backup-client /usr/sbin
 target/release/catar /usr/sbin

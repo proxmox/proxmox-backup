@@ -7,3 +7,7 @@
 %:
 	dh $@ --with=systemd --with=bash-completion
 
+
+override_dh_installinit:
+	dh_installinit
+	dh_installinit --name proxmox-backup-proxy
