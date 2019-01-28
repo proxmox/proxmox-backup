@@ -159,16 +159,30 @@ fn get_request_parameters_async(
 }
 
 fn proxy_sync_api_request(
-    mut rpcenv: RestEnvironment,
+    rpcenv: RestEnvironment,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
-    parts: Parts,
+    mut parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
 ) -> BoxFut
 {
 
-    return Box::new(future::err(http_err!(BAD_REQUEST, String::from("implement proxy"))));
+    let mut uri_parts = parts.uri.clone().into_parts();
+
+    uri_parts.scheme = Some(http::uri::Scheme::HTTP);
+    uri_parts.authority = Some(http::uri::Authority::from_static("127.0.0.1:82"));
+    let new_uri = http::Uri::from_parts(uri_parts).unwrap();
+
+    parts.uri = new_uri;
+
+    let request = Request::from_parts(parts, req_body);
+
+    let resp = hyper::client::Client::new()
+        .request(request)
+        .map_err(|e| Error::from(e));
+
+    return Box::new(resp);
 }
 
 fn handle_sync_api_request(
