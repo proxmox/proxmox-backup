@@ -24,7 +24,7 @@ pub trait RpcEnvironment {
     fn get_user(&self) -> Option<String>;
 }
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum RpcEnvironmentType {
     ///  command started from command line
     CLI,

@@ -158,6 +158,19 @@ fn get_request_parameters_async(
     Box::new(resp)
 }
 
+fn proxy_sync_api_request(
+    mut rpcenv: RestEnvironment,
+    info: &'static ApiMethod,
+    formatter: &'static OutputFormatter,
+    parts: Parts,
+    req_body: Body,
+    uri_param: HashMap<String, String>,
+) -> BoxFut
+{
+
+    return Box::new(future::err(http_err!(BAD_REQUEST, String::from("implement proxy"))));
+}
+
 fn handle_sync_api_request(
     mut rpcenv: RestEnvironment,
     info: &'static ApiMethod,
@@ -397,7 +410,8 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     println!("REQUEST {} {}", method, path);
     println!("COMPO {:?}", components);
 
-    let mut rpcenv = RestEnvironment::new(api.env_type());
+    let env_type = api.env_type();
+    let mut rpcenv = RestEnvironment::new(env_type);
 
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
@@ -419,7 +433,11 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             match api.find_method(&components[2..], method, &mut uri_param) {
                 MethodDefinition::None => {}
                 MethodDefinition::Simple(api_method) => {
-                    return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                    if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
+                        return proxy_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                    } else {
+                        return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                    }
                 }
                 MethodDefinition::Async(async_method) => {
                     return handle_async_api_request(rpcenv, async_method, formatter, parts, body, uri_param);

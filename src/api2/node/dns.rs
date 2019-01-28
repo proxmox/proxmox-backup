@@ -148,7 +148,7 @@ pub fn router() -> Router {
                     .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
                     .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
                     .optional("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
-             )
+            ).protected(true)
         );
 
     route
