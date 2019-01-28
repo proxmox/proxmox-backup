@@ -39,6 +39,7 @@ type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Val
 type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
+    pub protected: bool,
     pub parameters: ObjectSchema,
     pub returns: Arc<Schema>,
     pub handler: ApiHandlerFn,
@@ -51,12 +52,20 @@ impl ApiMethod {
             parameters,
             handler,
             returns: Arc::new(Schema::Null),
+            protected: false,
         }
     }
 
     pub fn returns<S: Into<Arc<Schema>>>(mut self, schema: S) -> Self {
 
         self.returns = schema.into();
+
+        self
+    }
+
+    pub fn protected(mut self, protected: bool) -> Self {
+
+        self.protected = protected;
 
         self
     }
