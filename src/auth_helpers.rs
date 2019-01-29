@@ -5,8 +5,28 @@ use lazy_static::lazy_static;
 
 use openssl::rsa::{Rsa};
 use openssl::pkey::{PKey, Public, Private};
+use openssl::sha;
 
 use std::path::PathBuf;
+
+pub fn assemble_csrf_prevention_token(
+    secret: &[u8],
+    username: &str,
+) -> String {
+
+    let epoch = std::time::SystemTime::now().duration_since(
+        std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs();
+
+    let stamp = format!("{:08X}:{}:", epoch, username);
+
+    let mut hasher = sha::Sha256::new();
+    hasher.update(stamp.as_bytes());
+    hasher.update(secret);
+
+    let digest = hasher.finish();
+
+    base64::encode_config(&digest, base64::STANDARD_NO_PAD)
+}
 
 pub fn generate_csrf_key() -> Result<(), Error> {
 
