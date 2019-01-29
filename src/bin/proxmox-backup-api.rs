@@ -18,7 +18,27 @@ use futures::future::Future;
 
 use hyper;
 
-pub fn gen_auth_key() -> Result<(), Error> {
+pub fn generate_csrf_key() -> Result<(), Error> {
+
+    let path = PathBuf::from("/etc/proxmox-backup/csrf.key");
+
+    if path.exists() { return Ok(()); }
+
+    let rsa = Rsa::generate(2048).unwrap();
+
+    let pem = rsa.private_key_to_pem()?;
+
+    use nix::sys::stat::Mode;
+
+    tools::file_set_contents(
+        &path, &pem, Some(Mode::from_bits_truncate(0o0640)))?;
+
+    nix::unistd::chown(&path, Some(nix::unistd::ROOT), Some(nix::unistd::Gid::from_raw(33)))?;
+
+    Ok(())
+}
+
+pub fn generate_auth_key() -> Result<(), Error> {
 
     let priv_path = PathBuf::from("/etc/proxmox-backup/authkey.key");
 
@@ -54,8 +74,13 @@ fn main() {
         std::process::exit(-1);
     }
 
-    if let Err(err) = gen_auth_key() {
+    if let Err(err) = generate_auth_key() {
         eprintln!("unable to generate auth key: {}", err);
+        std::process::exit(-1);
+    }
+
+    if let Err(err) = generate_csrf_key() {
+        eprintln!("unable to generate csrf key: {}", err);
         std::process::exit(-1);
     }
 
