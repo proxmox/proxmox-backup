@@ -49,8 +49,6 @@ pub mod storage {
     pub mod futures;
 }
 
-pub mod getopts;
-
 pub mod cli {
 
     pub mod environment;
@@ -65,3 +63,6 @@ pub mod client {
     pub mod http_client;
     pub mod catar_backup_stream;
 }
+
+pub mod getopts;
+pub mod auth_helpers;
