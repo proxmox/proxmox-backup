@@ -17,15 +17,16 @@ pub fn assemble_csrf_prevention_token(
     let epoch = std::time::SystemTime::now().duration_since(
         std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
-    let stamp = format!("{:08X}:{}:", epoch, username);
+    let timestamp = format!("{:08X}", epoch);
 
     let mut hasher = sha::Sha256::new();
-    hasher.update(stamp.as_bytes());
+    let data = format!("{:08X}:{}:", epoch, username);
+    hasher.update(data.as_bytes());
     hasher.update(secret);
 
-    let digest = hasher.finish();
+    let digest = base64::encode_config(&hasher.finish(), base64::STANDARD_NO_PAD);
 
-    base64::encode_config(&digest, base64::STANDARD_NO_PAD)
+    format!("{:08X}:{}", epoch, digest)
 }
 
 pub fn generate_csrf_key() -> Result<(), Error> {
