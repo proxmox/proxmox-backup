@@ -114,10 +114,5 @@ pub fn verify_rsa_ticket(
         bail!("invalid ticket - timestamp too old.");
     }
 
-
-    println!("TEST: {:?}", parts);
-    println!("TEST1: {:?}", full);
-    println!("TEST2: {} {}", timestamp, age);
-
     Ok((age, data))
 }
