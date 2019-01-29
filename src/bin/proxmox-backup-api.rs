@@ -2,18 +2,47 @@ extern crate proxmox_backup;
 
 use std::sync::Arc;
 
+use proxmox_backup::tools;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
 use proxmox_backup::api::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::getopts;
 
-//use failure::*;
+use failure::*;
 use lazy_static::lazy_static;
+use openssl::rsa::{Rsa};
+use std::path::PathBuf;
 
 use futures::future::Future;
 
 use hyper;
+
+pub fn gen_auth_key() -> Result<(), Error> {
+
+    let priv_path = PathBuf::from("/etc/proxmox-backup/authkey.key");
+
+    let mut public_path = priv_path.clone();
+    public_path.set_extension("pub");
+
+    if priv_path.exists() && public_path.exists() { return Ok(()); }
+
+    let rsa = Rsa::generate(4096).unwrap();
+
+    let priv_pem = rsa.private_key_to_pem()?;
+
+    use nix::sys::stat::Mode;
+
+    tools::file_set_contents(
+        &priv_path, &priv_pem, Some(Mode::from_bits_truncate(0o0600)))?;
+
+
+    let public_pem = rsa.public_key_to_pem()?;
+
+    tools::file_set_contents(&public_path, &public_pem, None)?;
+
+    Ok(())
+}
 
 fn main() {
 
@@ -22,6 +51,11 @@ fn main() {
         log::LevelFilter::Info,
         Some("proxmox-backup-api")) {
         eprintln!("unable to inititialize syslog: {}", err);
+        std::process::exit(-1);
+    }
+
+    if let Err(err) = gen_auth_key() {
+        eprintln!("unable to generate auth key: {}", err);
         std::process::exit(-1);
     }
 
