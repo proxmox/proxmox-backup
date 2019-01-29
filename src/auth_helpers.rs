@@ -1,8 +1,11 @@
 use crate::tools;
 
 use failure::*;
+use lazy_static::lazy_static;
 
 use openssl::rsa::{Rsa};
+use openssl::pkey::{PKey, Public, Private};
+
 use std::path::PathBuf;
 
 pub fn generate_csrf_key() -> Result<(), Error> {
@@ -49,4 +52,50 @@ pub fn generate_auth_key() -> Result<(), Error> {
     tools::file_set_contents(&public_path, &public_pem, None)?;
 
     Ok(())
+}
+
+pub fn csrf_secret() -> &'static [u8] {
+
+    lazy_static! {
+        static ref SECRET: Vec<u8> =
+            tools::file_get_contents("/etc/proxmox-backup/csrf.key").unwrap();
+    }
+
+    &SECRET
+}
+
+fn load_private_auth_key() -> Result<PKey<Private>, Error> {
+
+    let pem = tools::file_get_contents("/etc/proxmox-backup/authkey.key")?;
+    let rsa = Rsa::private_key_from_pem(&pem)?;
+    let key = PKey::from_rsa(rsa)?;
+
+    Ok(key)
+}
+
+pub fn private_auth_key() -> &'static PKey<Private> {
+
+    lazy_static! {
+        static ref KEY: PKey<Private> = load_private_auth_key().unwrap();
+    }
+
+    &KEY
+}
+
+fn load_public_auth_key() -> Result<PKey<Public>, Error> {
+
+    let pem = tools::file_get_contents("/etc/proxmox-backup/authkey.pub")?;
+    let rsa = Rsa::public_key_from_pem(&pem)?;
+    let key = PKey::from_rsa(rsa)?;
+
+    Ok(key)
+}
+
+pub fn public_auth_key() -> &'static PKey<Public> {
+
+    lazy_static! {
+        static ref KEY: PKey<Public> = load_public_auth_key().unwrap();
+    }
+
+    &KEY
 }

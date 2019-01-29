@@ -2,7 +2,7 @@ extern crate proxmox_backup;
 
 use std::sync::Arc;
 
-use proxmox_backup::tools;
+//use proxmox_backup::tools;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
 use proxmox_backup::api::config::*;
@@ -30,11 +30,13 @@ fn main() {
         eprintln!("unable to generate auth key: {}", err);
         std::process::exit(-1);
     }
+    let _ = private_auth_key(); // load with lazy_static
 
     if let Err(err) = generate_csrf_key() {
         eprintln!("unable to generate csrf key: {}", err);
         std::process::exit(-1);
     }
+    let _ = csrf_secret(); // load with lazy_static
 
     let command : Arc<Schema> = StringSchema::new("Command.")
         .format(Arc::new(ApiStringFormat::Enum(vec![

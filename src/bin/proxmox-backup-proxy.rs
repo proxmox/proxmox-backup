@@ -7,6 +7,7 @@ use proxmox_backup::api::router::*;
 use proxmox_backup::api::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::getopts;
+use proxmox_backup::auth_helpers::*;
 
 //use failure::*;
 use lazy_static::lazy_static;
@@ -24,6 +25,9 @@ fn main() {
         eprintln!("unable to inititialize syslog: {}", err);
         std::process::exit(-1);
     }
+
+    let _ = public_auth_key(); // load with lazy_static
+    let _ = csrf_secret(); // load with lazy_static
 
     let command : Arc<Schema> = StringSchema::new("Command.")
         .format(Arc::new(ApiStringFormat::Enum(vec![
