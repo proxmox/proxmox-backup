@@ -70,7 +70,7 @@ extern "C" {
         evp: *mut libc::sigevent,
         timer: *mut TimerT,
         ) -> c_int;
-    fn timer_delete(timer: *const TimerT) -> c_int;
+    fn timer_delete(timer: TimerT) -> c_int;
     fn timer_settime(
         timerid: TimerT,
         flags: c_int,
@@ -208,7 +208,7 @@ impl Timer {
 impl Drop for Timer {
     fn drop(&mut self) {
         unsafe {
-            timer_delete(&self.timer);
+            timer_delete(self.timer);
         }
     }
 }
