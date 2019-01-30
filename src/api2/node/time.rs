@@ -8,10 +8,26 @@ use serde_json::{json, Value};
 use chrono::prelude::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
+    // use /etc/timezone
+    if let Ok(line) = tools::file_read_firstline("/etc/timezone") {
+        return Ok(line.trim().to_owned());
+    }
 
-    let line = tools::file_read_firstline("/etc/timezone")?;
-
-    Ok(line.trim().to_owned())
+    // otherwise guess from the /etc/localtime symlink
+    let mut buf: [u8; 64] = unsafe { std::mem::uninitialized() };
+    let len = unsafe {
+        libc::readlink("/etc/localtime".as_ptr() as *const _, buf.as_mut_ptr() as *mut _, buf.len())
+    };
+    if len <= 0 {
+        bail!("failed to guess timezone");
+    }
+    let len = len as usize;
+    buf[len] = 0;
+    let link = std::str::from_utf8(&buf[..len])?;
+    match link.rfind("/zoneinfo/") {
+        Some(pos) => Ok(link[(pos + 10)..].to_string()),
+        None => Ok(link.to_string()),
+    }
 }
 
 fn get_time(
