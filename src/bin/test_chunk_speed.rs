@@ -23,14 +23,14 @@ fn main() {
     
     for _i in 0..count {
         let mut pos = 0;
-        let mut last = 0;
+        let mut _last = 0;
         while pos < buffer.len() {
             let k = chunker.scan(&buffer[pos..]);
             if k == 0 {
                 //println!("LAST {}", pos);
                 break;
             } else {
-                last = pos;
+                _last = pos;
                 pos += k;
                 chunk_count += 1;
                 //println!("CHUNK {} {}", pos, pos-last);

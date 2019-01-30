@@ -2,7 +2,6 @@ use failure::*;
 use std::collections::HashMap;
 use serde_json::{json, Value};
 use url::form_urlencoded;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::fmt;
 use std::sync::Arc;

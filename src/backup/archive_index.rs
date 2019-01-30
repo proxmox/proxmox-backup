@@ -25,12 +25,12 @@ pub struct ArchiveIndexHeader {
 pub struct ArchiveIndexReader {
     store: Arc<ChunkStore>,
     _file: File,
-    size: usize,
+    pub size: usize,
     filename: PathBuf,
     index: *const u8,
     index_entries: usize,
-    uuid: [u8; 16],
-    ctime: u64,
+    pub uuid: [u8; 16],
+    pub ctime: u64,
 }
 
 // fixme: ???!!!
@@ -324,8 +324,8 @@ pub struct ArchiveIndexWriter {
     closed: bool,
     filename: PathBuf,
     tmp_filename: PathBuf,
-    uuid: [u8; 16],
-    ctime: u64,
+    pub uuid: [u8; 16],
+    pub ctime: u64,
 
     chunk_offset: usize,
     last_chunk: usize,

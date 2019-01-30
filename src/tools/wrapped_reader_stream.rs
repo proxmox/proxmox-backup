@@ -1,4 +1,4 @@
-use failure::*;
+//use failure::*;
 use tokio_threadpool;
 use std::io::Read;
 use futures::Async;
@@ -40,7 +40,7 @@ impl <R: Read> Stream for WrappedReaderStream<R> {
             },
             Ok(Async::Ready(Err(err))) => Err(err),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(err) => Err(blocking_err()),
+            Err(_) => Err(blocking_err()),
         }
     }
 }

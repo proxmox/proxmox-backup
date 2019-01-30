@@ -17,8 +17,6 @@ pub fn assemble_csrf_prevention_token(
     let epoch = std::time::SystemTime::now().duration_since(
         std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
-    let timestamp = format!("{:08X}", epoch);
-
     let mut hasher = sha::Sha256::new();
     let data = format!("{:08X}:{}:", epoch, username);
     hasher.update(data.as_bytes());

@@ -6,8 +6,6 @@ use crate::api::router::*;
 use serde_json::{json, Value};
 
 use std::sync::Arc;
-use lazy_static::lazy_static;
-use crate::tools::common_regex;
 use std::process::{Command, Stdio};
 
 static SERVICE_NAME_LIST: [&str; 6] = [
@@ -91,9 +89,9 @@ fn json_service_state(service: &str, status: Value) -> Value {
 
 
 fn list_services(
-    param: Value,
+    _param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let mut list = vec![];
@@ -116,7 +114,7 @@ fn list_services(
 fn get_service_state(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -161,7 +159,7 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
 fn start_service(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -174,7 +172,7 @@ fn start_service(
 fn stop_service(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -187,7 +185,7 @@ fn stop_service(
 fn restart_service(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -200,7 +198,7 @@ fn restart_service(
 fn reload_service(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;

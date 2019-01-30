@@ -78,12 +78,7 @@ impl HttpClient {
 
     pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
-        let client = Client::new();
-
         let url: Uri = format!("http://{}:8007/{}", self.server, path).parse()?;
-
-        use http::Request;
-        use futures::stream::Stream;
 
         let request = Request::builder()
             .method("POST")

@@ -68,7 +68,7 @@ fn get_backup_list(
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let config = datastore::config()?;
+    //let config = datastore::config()?;
 
     let store = param["store"].as_str().unwrap();
 

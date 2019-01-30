@@ -1,12 +1,8 @@
 //! Generate and verify Authentification tickets
 
-use crate::tools;
-
 use failure::*;
-use std::path::PathBuf;
 use base64;
 
-use openssl::rsa::{Rsa};
 use openssl::pkey::{PKey, Public, Private};
 use openssl::sign::{Signer, Verifier};
 use openssl::hash::MessageDigest;

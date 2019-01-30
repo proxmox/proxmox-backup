@@ -17,9 +17,9 @@ pub struct Chunker {
 
     chunk_size_min: usize,
     chunk_size_max: usize,
-    chunk_size_avg: usize,
+    _chunk_size_avg: usize,
 
-    discriminator: u32,
+    _discriminator: u32,
 
     break_test_value: u32,
 
@@ -123,8 +123,8 @@ impl Chunker {
             chunk_size: 0,
             chunk_size_min: chunk_size_avg>>2,
             chunk_size_max: chunk_size_avg<<2,
-            chunk_size_avg: chunk_size_avg,
-            discriminator:  discriminator,
+            _chunk_size_avg: chunk_size_avg,
+            _discriminator:  discriminator,
             break_test_value: break_test_value,
             window: [0u8; CA_CHUNKER_WINDOW_SIZE],
         }
@@ -199,6 +199,7 @@ impl Chunker {
    }
 
     // This is the original implementation from casync
+    /*
     #[inline(always)]
     fn shall_break_orig(&self) -> bool {
 
@@ -208,7 +209,8 @@ impl Chunker {
 
         (self.h % self.discriminator) == (self.discriminator - 1)
     }
-
+     */
+    
     fn start(&mut self) {
 
         let window_len = self.window.len();

@@ -27,10 +27,10 @@ pub struct ImageIndexReader {
     store: Arc<ChunkStore>,
     filename: PathBuf,
     chunk_size: usize,
-    size: usize,
+    pub size: usize,
     index: *mut u8,
-    uuid: [u8; 16],
-    ctime: u64,
+    pub uuid: [u8; 16],
+    pub ctime: u64,
 }
 
 impl Drop for ImageIndexReader {
@@ -160,8 +160,8 @@ pub struct ImageIndexWriter {
     duplicate_chunks: usize,
     size: usize,
     index: *mut u8,
-    uuid: [u8; 16],
-    ctime: u64,
+    pub uuid: [u8; 16],
+    pub ctime: u64,
 }
 
 impl Drop for ImageIndexWriter {

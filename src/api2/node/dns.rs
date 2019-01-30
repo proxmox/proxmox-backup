@@ -8,7 +8,6 @@ use crate::api2::*;
 
 use lazy_static::lazy_static;
 
-use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use openssl::sha;
 use regex::Regex;
@@ -61,7 +60,7 @@ fn update_dns(
         static ref MUTEX: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
     }
 
-    let guard = MUTEX.lock();
+    let _guard = MUTEX.lock();
 
     let search = tools::required_string_param(&param, "search")?;
 

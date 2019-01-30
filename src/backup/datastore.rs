@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 use std::sync::{Mutex, Arc};
 
-use std::os::unix::io::AsRawFd;
-
 use crate::tools;
 use crate::config::datastore;
 use super::chunk_store::*;
