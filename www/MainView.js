@@ -82,8 +82,18 @@ Ext.define('PBS.MainView', {
 
 	},
 
+	logout: function() {
+	    PBS.app.logout();
+	},
+
 	navigate: function(treelist, item) {
 	    this.redirectTo(item.get('path'));
+	},
+
+	control: {
+	    'button[reference=logoutButton]': {
+		click: 'logout'
+	    }
 	},
 
 	init: function(view) {

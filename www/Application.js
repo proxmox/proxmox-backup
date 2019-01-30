@@ -20,14 +20,29 @@ Ext.define('PBS.Application', {
 
     logout: function() {
 	var me = this;
-	//Proxmox.Utils.authClear();
-	//me.changeView('loginview', true);
+	Proxmox.Utils.authClear();
+	me.changeView('loginview', true);
     },
 
     changeView: function(view, skipCheck) {
 	var me = this;
-	//?
+	PBS.view = view;
+	me.view = view;
+
+	if (me.currentView != undefined) {
+	    me.currentView.destroy();
+	}
+
+	me.currentView = Ext.create({
+	    xtype: view,
+	});
+	if (skipCheck !== true) {
+	    // fixme:
+	    // Proxmox.Utils.checked_command(function() {}); // display subscription status
+	}
     },
+
+    view: 'loginview',
 
     launch: function() {
 	var me = this;
@@ -36,11 +51,13 @@ Ext.define('PBS.Application', {
 	var provider = new Ext.state.LocalStorageProvider({ prefix: 'ext-pbs-' });
 	Ext.state.Manager.setProvider(provider);
 
-	// fixme: show login window if not loggedin
-
-	me.currentView = Ext.create({
-	    xtype: 'mainview'
-	});
+	// show login window if not loggedin
+	var loggedin = Proxmox.Utils.authOK();
+	if (!loggedin) {
+	    me.changeView('loginview', true);
+	} else {
+	    me.changeView('mainview', true);
+	}
     }
 });
 

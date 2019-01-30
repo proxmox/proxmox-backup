@@ -10,6 +10,7 @@ pub mod admin;
 pub mod node;
 mod version;
 mod subscription;
+mod access;
 
 use lazy_static::lazy_static;
 use crate::tools::common_regex;
@@ -79,13 +80,15 @@ pub fn router() -> Router {
     let route = Router::new()
         .get(ApiMethod::new(
             |_,_,_| Ok(json!([
-                {"subdir": "config"},
+                {"subdir": "access"},
                 {"subdir": "admin"},
+                {"subdir": "config"},
                 {"subdir": "nodes"},
                 {"subdir": "subscription"},
                 {"subdir": "version"},
             ])),
             ObjectSchema::new("Directory index.")))
+        .subdir("access", access::router())
         .subdir("admin", admin::router())
         .subdir("config", config::router())
         .subdir("nodes", nodes)

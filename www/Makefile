@@ -1,6 +1,7 @@
 JSSRC=							\
 	Utils.js					\
 	Logo.js						\
+	LoginView.js					\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\

@@ -247,8 +247,8 @@ fn handle_async_api_request(
 fn get_index() ->  BoxFut {
 
     let nodename = tools::nodename();
-    let username = "fakelogin"; // todo: implement real auth
-    let token = "abc";
+    let username = ""; // fixme: implement real auth
+    let token = "";
 
     let setup = json!({
         "Setup": { "auth_cookie_name": "PBSAuthCookie" },
