@@ -11,14 +11,16 @@ JSSRC=							\
 	Application.js					\
 	MainView.js
 
-all: proxmox-backup-gui.js
+all: js/proxmox-backup-gui.js
 
-proxmox-backup-gui.js: OnlineHelpInfo.js ${JSSRC}
+js:
+	mkdir js
+
+js/proxmox-backup-gui.js: js OnlineHelpInfo.js ${JSSRC}
 	cat OnlineHelpInfo.js ${JSSRC} >$@.tmp
 	mv $@.tmp $@
 
 .PHONY: clean
 clean:
 	find . -name '*~' -exec rm {} ';'	
-	rm -f proxmox-backup-gui.js
-
+	rm -rf js
