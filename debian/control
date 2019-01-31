@@ -2,7 +2,9 @@ Source: proxmox-backup
 Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Build-Depends: debhelper (>= 10), libpam0g-dev
+Build-Depends: debhelper (>= 10),
+               libpam0g-dev,
+               pkg-config,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
