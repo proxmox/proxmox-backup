@@ -45,7 +45,7 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 
 test:
-	cargo test
+	cargo test $(CARGO_BUILD_ARGS)
 
 # always re-create this dir
 .PHONY: build
