@@ -295,8 +295,6 @@ fn get_index() ->  BoxFut {
     let resp = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html")
-        // emulate succssful login, so that Proxmox:Utils.authOk() returns true
-        .header(header::SET_COOKIE, "PBSAuthCookie=\"XXX\"") // fixme: remove
         .body(index.into())
         .unwrap();
 
