@@ -2,6 +2,7 @@ use crate::tools;
 use crate::api::schema::*;
 use crate::api::router::*;
 use crate::api::config::*;
+use crate::auth_helpers::*;
 use super::environment::RestEnvironment;
 use super::formatter::*;
 
@@ -421,6 +422,20 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     let env_type = api.env_type();
     let mut rpcenv = RestEnvironment::new(env_type);
 
+    let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+
+    if let Some(raw_cookie) = parts.headers.get("COOKIE") {
+        if let Ok(cookie) = raw_cookie.to_str() {
+            if let Some(ticket) = tools::extract_auth_cookie(cookie, "PBSAuthCookie") {
+                if let Ok((_, Some(username))) = tools::ticket::verify_rsa_ticket(
+                    public_auth_key(), "PBS", &ticket, None, -300, 3600*2) {
+                    rpcenv.set_user(Some(username));
+                }
+            }
+        }
+    }
+
+
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
         if comp_len >= 2 {
@@ -435,8 +450,21 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
             let mut uri_param = HashMap::new();
 
-            // fixme: handle auth
-            rpcenv.set_user(Some(String::from("root@pam")));
+            if comp_len == 4 && components[2] == "access" && components[3] == "ticket" {
+                // explicitly allow those calls without auth
+            } else {
+                if let Some(_username) = rpcenv.get_user() {
+                    // fixme: check permissions
+                } else {
+                    // always delay unauthorized calls by 3 seconds (from start of request)
+                    let resp = (formatter.format_error)(http_err!(UNAUTHORIZED, "permission check failed.".into()));
+                    let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
+                        .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
+                        .and_then(|_| Ok(resp));
+
+                    return Box::new(delayed_response);
+                }
+            }
 
             match api.find_method(&components[2..], method, &mut uri_param) {
                 MethodDefinition::None => {}

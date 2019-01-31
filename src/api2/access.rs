@@ -29,7 +29,7 @@ fn create_ticket(
     match authenticate_user(username, password) {
         Ok(_) => {
 
-            let ticket = assemble_rsa_ticket( private_auth_key(), "PBS", None, None)?;
+            let ticket = assemble_rsa_ticket( private_auth_key(), "PBS", Some(username), None)?;
 
             let token = assemble_csrf_prevention_token(csrf_secret(), username);
 
