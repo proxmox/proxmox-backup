@@ -3,6 +3,8 @@ include defines.mk
 ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
 GITVERSION:=$(shell git rev-parse HEAD)
 
+SUBDIRS := etc www
+
 # Binaries usable by users
 USR_BIN := \
 	proxmox-backup-client \
@@ -16,7 +18,13 @@ SERVICE_BIN := \
 	proxmox-backup-api \
 	proxmox-backup-proxy
 
+ifeq ($(BUILD_MODE), release)
+CARGO_BUILD_ARGS += --release
 COMPILEDIR := target/release
+else
+COMPILEDIR := target/debug
+endif
+
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 
@@ -30,21 +38,25 @@ DEB=${PACKAGE}_${PKGVER}-${PKGREL}_${ARCH}.deb
 
 DESTDIR=
 
-all:
-	cargo build
+all: cargo-build $(SUBDIRS)
+
+.PHONY: $(SUBDIRS)
+$(SUBDIRS):
+	$(MAKE) -C $@
 
 test:
 	cargo test
 
-.PHONY: deb
-deb ${DEB}:
+# always re-create this dir
+.PHONY: build
+build:
 	rm -rf build
-	# build here to cache results
-	cargo build --release
-	$(MAKE) -C www
-	rsync -a debian Cargo.toml src www etc target build
-	cd build; dpkg-buildpackage -b -us -uc
+	rsync -a debian Makefile defines.mk Cargo.toml src $(SUBDIRS) build/
 
+.PHONY: deb
+deb: $(DEB)
+$(DEB): build
+	cd build; dpkg-buildpackage -b -us -uc
 
 distclean: clean
 
@@ -58,11 +70,11 @@ clean:
 dinstall: ${DEB}
 	dpkg -i ${DEB}
 
-.PHONY: build-release
-build-release:
-	cargo build --release
+.PHONY: cargo-build
+cargo-build:
+	cargo build $(CARGO_BUILD_ARGS)
 
-$(COMPILED_BINS): build-release
+$(COMPILED_BINS): cargo-build
 
 install: $(COMPILED_BINS)
 	install -dm755 $(DESTDIR)$(BINDIR)
