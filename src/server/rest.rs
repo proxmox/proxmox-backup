@@ -168,13 +168,30 @@ fn handle_sync_api_request(
 {
     let params = get_request_parameters_async(info, parts, req_body, uri_param);
 
+    let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+
     let resp = params
         .and_then(move |params| {
+            let mut delay = false;
             let resp = match (info.handler)(params, info, &mut rpcenv) {
                 Ok(data) => (formatter.format_result)(data, &rpcenv),
-                Err(err) =>  (formatter.format_error)(err),
+                Err(err) => {
+                    if let Some(httperr) = err.downcast_ref::<HttpError>() {
+                        if httperr.code == StatusCode::UNAUTHORIZED { delay = true; }
+                    }
+                    (formatter.format_error)(err)
+                }
             };
-            Ok(resp)
+
+            if delay {
+                let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
+                    .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
+                    .and_then(|_| Ok(resp));
+
+                Either::A(delayed_response)
+            } else {
+                Either::B(future::ok(resp))
+            }
         });
 
     Box::new(resp)

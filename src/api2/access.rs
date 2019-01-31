@@ -6,6 +6,8 @@ use crate::api::router::*;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
 
+use hyper::StatusCode;
+
 use serde_json::{json, Value};
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
@@ -44,7 +46,7 @@ fn create_ticket(
         Err(err) => {
 	    let client_ip = "unknown"; // $rpcenv->get_client_ip() || '';
             log::error!("authentication failure; rhost={} user={} msg={}", client_ip, username, err.to_string());
-            bail!("authentication failure");
+            return Err(http_err!(UNAUTHORIZED, "permission check failed.".into()));
         }
     }
 }
