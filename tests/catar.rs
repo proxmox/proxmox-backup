@@ -53,7 +53,7 @@ fn run_all_tests() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
+#[test] #[ignore]
 fn catar_simple() {
 
     if let Err(err) = run_all_tests() {
