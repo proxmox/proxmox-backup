@@ -1,13 +1,9 @@
 extern crate proxmox_backup;
 
-use std::sync::Arc;
-
 //use proxmox_backup::tools;
-use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
 use proxmox_backup::api::config::*;
 use proxmox_backup::server::rest::*;
-use proxmox_backup::getopts;
 use proxmox_backup::auth_helpers::*;
 
 use lazy_static::lazy_static;
@@ -37,53 +33,6 @@ fn main() {
         std::process::exit(-1);
     }
     let _ = csrf_secret(); // load with lazy_static
-
-    let command : Arc<Schema> = StringSchema::new("Command.")
-        .format(Arc::new(ApiStringFormat::Enum(vec![
-            "start".into(),
-            "status".into(),
-            "stop".into()
-        ])))
-        .into();
-
-    let schema = ObjectSchema::new("Parameters.")
-        .required("command", command);
-
-    let args: Vec<String> = std::env::args().skip(1).collect();
-
-    let options = match getopts::parse_arguments(&args, &vec!["command"], &schema) {
-        Ok((options, rest)) => {
-            if !rest.is_empty() {
-                eprintln!("Error: got additional arguments: {:?}", rest);
-                std::process::exit(-1);
-            }
-            options
-        }
-        Err(err) => {
-            eprintln!("Error: unable to parse arguments:\n{}", err);
-            std::process::exit(-1);
-        }
-    };
-
-    let command = options["command"].as_str().unwrap();
-
-    match command {
-        "start" => {
-            println!("Starting server.");
-        },
-        "stop" => {
-            println!("Stopping server.");
-            std::process::exit(0);
-        },
-        "status" => {
-            println!("Server status.");
-             std::process::exit(0);
-       },
-        _ => {
-            eprintln!("got unexpected command {}", command);
-            std::process::exit(-1);
-        },
-    }
 
     let addr = ([127,0,0,1], 82).into();
 
