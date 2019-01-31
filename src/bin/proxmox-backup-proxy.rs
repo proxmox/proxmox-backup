@@ -32,7 +32,7 @@ fn main() {
     }
 
     let mut config = ApiConfig::new(
-        "/usr/share/javascript/proxmox-backup", &ROUTER, RpcEnvironmentType::PUBLIC);
+        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PUBLIC);
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';

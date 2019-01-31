@@ -1,0 +1,12 @@
+[Unit]
+Description=Proxmox Backup API Server
+Wants=network-online.target
+After=network.target syslog.target
+
+[Service]
+Type=simple
+ExecStart=%LIBDIR%/proxmox-backup/proxmox-backup-api
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

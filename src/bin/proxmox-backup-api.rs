@@ -41,7 +41,7 @@ fn main() {
     }
 
     let config = ApiConfig::new(
-        "/usr/share/javascript/proxmox-backup", &ROUTER, RpcEnvironmentType::PRIVILEDGED);
+        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PRIVILEDGED);
 
     let rest_server = RestServer::new(config);
 

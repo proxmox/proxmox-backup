@@ -1,3 +1,9 @@
+include ../defines.mk
+
+IMAGES := \
+	images/logo-128.png \
+	images/proxmox_logo.png
+
 JSSRC=							\
 	Utils.js					\
 	Logo.js						\
@@ -24,3 +30,11 @@ js/proxmox-backup-gui.js: js OnlineHelpInfo.js ${JSSRC}
 clean:
 	find . -name '*~' -exec rm {} ';'	
 	rm -rf js
+
+install: js/proxmox-backup-gui.js
+	install -dm755 $(DESTDIR)$(JSDIR)
+	install -dm755 $(DESTDIR)$(JSDIR)/js
+	install -m644 js/proxmox-backup-gui.js $(DESTDIR)$(JSDIR)/js/
+	install -dm755 $(DESTDIR)$(JSDIR)/images
+	$(foreach i,$(IMAGES), \
+	    install -m644 $(i) $(DESTDIR)$(JSDIR)/images/ ;)
