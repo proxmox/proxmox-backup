@@ -6,7 +6,6 @@ use crate::auth_helpers::*;
 use super::environment::RestEnvironment;
 use super::formatter::*;
 
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -82,30 +81,6 @@ impl Service for ApiService {
             }
         }))
     }
-}
-
-#[derive(Debug, Fail)]
-pub struct HttpError {
-    pub code: StatusCode,
-    pub message: String,
-}
-
-impl HttpError {
-    pub fn new(code: StatusCode, message: String) -> Self {
-        HttpError { code, message }
-    }
-}
-
-impl fmt::Display for HttpError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error {}: {}", self.code, self.message)
-    }
-}
-
-macro_rules! http_err {
-    ($status:ident, $msg:expr) => {{
-        Error::from(HttpError::new(StatusCode::$status, $msg))
-    }}
 }
 
 fn get_request_parameters_async(

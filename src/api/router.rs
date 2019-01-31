@@ -4,8 +4,9 @@ use crate::api::schema::*;
 use serde_json::{Value};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::fmt;
 
-use hyper::{Body, Response};
+use hyper::{Body, Response, StatusCode};
 use hyper::rt::Future;
 use hyper::http::request::Parts;
 
@@ -32,6 +33,30 @@ pub enum RpcEnvironmentType {
     PUBLIC,
     /// ... access from priviledged server (run as root)
     PRIVILEDGED,
+}
+
+#[derive(Debug, Fail)]
+pub struct HttpError {
+    pub code: StatusCode,
+    pub message: String,
+}
+
+impl HttpError {
+    pub fn new(code: StatusCode, message: String) -> Self {
+        HttpError { code, message }
+    }
+}
+
+impl fmt::Display for HttpError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error {}: {}", self.code, self.message)
+    }
+}
+
+macro_rules! http_err {
+    ($status:ident, $msg:expr) => {{
+        Error::from(HttpError::new(StatusCode::$status, $msg))
+    }}
 }
 
 type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Value, Error>;
