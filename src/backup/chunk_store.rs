@@ -345,5 +345,5 @@ fn test_chunk_store1() {
     let chunk_store = ChunkStore::create("test", &path);
     assert!(chunk_store.is_err());
 
-
+    if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
 }
