@@ -695,6 +695,8 @@ fn test_query_string() {
     assert!(res.is_ok());
 
     // TEST regex pattern
+
+    use lazy_static::lazy_static;
     lazy_static! {
         static ref TEST_REGEX: Regex = Regex::new("test").unwrap();
         static ref TEST2_REGEX: Regex = Regex::new("^test$").unwrap();
