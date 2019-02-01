@@ -12,7 +12,10 @@ use serde_json::{json, Value};
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
-    if username == "root@pam" && password == "test" {
+    if username == "root@pam" {
+        let mut auth = pam_auth::Authenticator::new("common-auth").unwrap();
+        auth.set_credentials("root", password);
+        auth.authenticate()?;
         return Ok(());
     }
 
