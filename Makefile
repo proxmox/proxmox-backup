@@ -73,7 +73,7 @@ distclean: clean
 clean:
 	$(MAKE) -C www clean
 	cargo clean
-	rm -rf *.deb *.buildinfo *.changes build
+	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes build
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
