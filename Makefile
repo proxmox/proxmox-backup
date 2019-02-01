@@ -49,10 +49,12 @@ test:
 	cargo test $(CARGO_BUILD_ARGS)
 
 # always re-create this dir
+# but also copy the local target/ dir as a build-cache
 .PHONY: build
 build:
 	rm -rf build
 	rsync -a debian Makefile defines.mk Cargo.toml src $(SUBDIRS) build/
+	test -d target && rsync -a target build/ || true
 
 .PHONY: deb
 deb: $(DEB)
