@@ -1,7 +1,7 @@
 [Unit]
 Description=Proxmox Backup API Server
 Wants=network-online.target
-After=network.target syslog.target
+After=network.target
 
 [Service]
 Type=simple

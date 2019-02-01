@@ -1,7 +1,7 @@
 [Unit]
 Description=Proxmox Backup API Proxy Server
 Wants=network-online.target
-After=network.target syslog.service
+After=network.target
 Requires=proxmox-backup.service
 
 [Service]
