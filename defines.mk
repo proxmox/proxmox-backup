@@ -6,6 +6,7 @@ PREFIX := /usr
 BINDIR := $(PREFIX)/bin
 SBINDIR := $(PREFIX)/sbin
 LIBDIR := $(PREFIX)/lib
+LIBEXECDIR := $(LIBDIR)
 DATAROOTDIR := $(PREFIX)/share
 JSDIR := $(DATAROOTDIR)/javascript/proxmox-backup
 

@@ -6,7 +6,7 @@ Requires=proxmox-backup.service
 
 [Service]
 Type=simple
-ExecStart=%LIBDIR%/proxmox-backup/proxmox-backup-proxy
+ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-proxy
 Restart=on-failure
 User=%PROXY_USER%
 Group=%PROXY_USER%

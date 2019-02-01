@@ -83,7 +83,7 @@ install: $(COMPILED_BINS)
 	install -dm755 $(DESTDIR)$(SBINDIR)
 	$(foreach i,$(USR_SBIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ;)
-	install -dm755 $(DESTDIR)$(LIBDIR)/proxmox-backup
+	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup
 	$(foreach i,$(SERVICE_BIN), \
-	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBDIR)/proxmox-backup/ ;)
+	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install

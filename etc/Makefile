@@ -12,7 +12,7 @@ clean:
 .SUFFIXES: .service.in .service
 .service.in.service:
 	sed \
-	    -e 's!%LIBDIR%!$(LIBDIR)!g' \
+	    -e 's!%LIBEXECDIR%!$(LIBEXECDIR)!g' \
 	    -e 's!%PROXY_USER%!$(PROXY_USER)!g' \
 	    $< >$@.tmp
 	mv $@.tmp $@

@@ -5,7 +5,7 @@ After=network.target syslog.target
 
 [Service]
 Type=simple
-ExecStart=%LIBDIR%/proxmox-backup/proxmox-backup-api
+ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-api
 Restart=on-failure
 
 [Install]
