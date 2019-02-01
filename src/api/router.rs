@@ -64,7 +64,12 @@ type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Val
 type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>;
 
 pub struct ApiMethod {
+    /// The protected flag indicates that the provides function should be forwarded
+    /// to the deaemon running in priviledged mode.
     pub protected: bool,
+    /// This flag indicates that the provided method may change the local timezone, so the server
+    /// should do a tzset afterwards
+    pub reload_timezone: bool,
     pub parameters: ObjectSchema,
     pub returns: Arc<Schema>,
     pub handler: ApiHandlerFn,
@@ -78,6 +83,7 @@ impl ApiMethod {
             handler,
             returns: Arc::new(Schema::Null),
             protected: false,
+            reload_timezone: false,
         }
     }
 
@@ -91,6 +97,13 @@ impl ApiMethod {
     pub fn protected(mut self, protected: bool) -> Self {
 
         self.protected = protected;
+
+        self
+    }
+
+    pub fn reload_timezone(mut self, reload_timezone: bool) -> Self {
+
+        self.reload_timezone = reload_timezone;
 
         self
     }

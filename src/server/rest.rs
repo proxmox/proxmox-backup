@@ -27,6 +27,8 @@ use hyper::service::{Service, NewService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
 
+extern "C"  { fn tzset(); }
+
 pub struct RestServer {
     pub api_config: Arc<ApiConfig>,
 }
@@ -135,6 +137,7 @@ fn get_request_parameters_async(
 }
 
 fn proxy_protected_request(
+    info: &'static ApiMethod,
     mut parts: Parts,
     req_body: Body,
 ) -> BoxFut
@@ -153,6 +156,12 @@ fn proxy_protected_request(
     let resp = hyper::client::Client::new()
         .request(request)
         .map_err(|e| Error::from(e));
+
+    let resp = if info.reload_timezone {
+        Either::A(resp.then(|resp| {unsafe { tzset() }; resp }))
+    } else {
+        Either::B(resp)
+    };
 
     return Box::new(resp);
 }
@@ -182,6 +191,10 @@ fn handle_sync_api_request(
                     (formatter.format_error)(err)
                 }
             };
+
+            if info.reload_timezone {
+                unsafe { tzset() };
+            }
 
             if delay {
                 let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
@@ -462,7 +475,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 MethodDefinition::None => {}
                 MethodDefinition::Simple(api_method) => {
                     if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
-                        return proxy_protected_request(parts, body);
+                        return proxy_protected_request(api_method, parts, body);
                     } else {
                         return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
                     }
