@@ -55,6 +55,8 @@ build:
 	rm -rf build
 	rsync -a debian Makefile defines.mk Cargo.toml src $(SUBDIRS) build/
 	test -d target && rsync -a target build/ || true
+	$(foreach i,$(SUBDIRS), \
+	    $(MAKE) -C build/$(i) clean ;)
 
 .PHONY: deb
 deb: $(DEB)
@@ -71,7 +73,8 @@ $(DSC): build
 distclean: clean
 
 clean:
-	$(MAKE) -C www clean
+	$(foreach i,$(SUBDIRS), \
+	    $(MAKE) -C $(i) clean ;)
 	cargo clean
 	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes build
 	find . -name '*~' -exec rm {} ';'
