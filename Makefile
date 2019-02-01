@@ -35,6 +35,7 @@ export PROXMOX_PKG_REPOID=${GITVERSION}
 export PROXMOX_JSDIR := $(JSDIR)
 
 DEB=${PACKAGE}_${PKGVER}-${PKGREL}_${ARCH}.deb
+DSC=${PACKAGE}_${PKGVER}-${PKGREL}.dsc
 
 DESTDIR=
 
@@ -57,6 +58,13 @@ build:
 deb: $(DEB)
 $(DEB): build
 	cd build; dpkg-buildpackage -b -us -uc
+	lintian $(DEB)
+
+.PHONY: dsc
+dsc: $(DSC)
+$(DSC): build
+	cd build; dpkg-buildpackage -S -us -uc -d -nc
+	lintian $(DSC)
 
 distclean: clean
 
