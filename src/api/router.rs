@@ -63,6 +63,7 @@ type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Val
 
 type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>;
 
+/// This struct defines synchronous API call which returns the restulkt as json `Value`
 pub struct ApiMethod {
     /// The protected flag indicates that the provides function should be forwarded
     /// to the deaemon running in priviledged mode.
@@ -70,8 +71,11 @@ pub struct ApiMethod {
     /// This flag indicates that the provided method may change the local timezone, so the server
     /// should do a tzset afterwards
     pub reload_timezone: bool,
+    /// Parameter type Schema
     pub parameters: ObjectSchema,
+    /// Return type Schema
     pub returns: Arc<Schema>,
+    /// Handler function
     pub handler: ApiHandlerFn,
 }
 
