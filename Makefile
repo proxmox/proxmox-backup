@@ -59,7 +59,7 @@ build:
 .PHONY: deb
 deb: $(DEB)
 $(DEB): build
-	cd build; dpkg-buildpackage -b -us -uc
+	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
 	lintian $(DEB)
 
 .PHONY: dsc
