@@ -1,4 +1,7 @@
 #[macro_use]
+pub mod buildcfg;
+
+#[macro_use]
 pub mod tools;
 
 /// API definition helper

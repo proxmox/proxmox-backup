@@ -29,7 +29,7 @@ pub fn assemble_csrf_prevention_token(
 
 pub fn generate_csrf_key() -> Result<(), Error> {
 
-    let path = PathBuf::from("/etc/proxmox-backup/csrf.key");
+    let path = PathBuf::from(configdir!("/csrf.key"));
 
     if path.exists() { return Ok(()); }
 
@@ -49,7 +49,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
 pub fn generate_auth_key() -> Result<(), Error> {
 
-    let priv_path = PathBuf::from("/etc/proxmox-backup/authkey.key");
+    let priv_path = PathBuf::from(configdir!("/authkey.key"));
 
     let mut public_path = priv_path.clone();
     public_path.set_extension("pub");
@@ -77,7 +77,7 @@ pub fn csrf_secret() -> &'static [u8] {
 
     lazy_static! {
         static ref SECRET: Vec<u8> =
-            tools::file_get_contents("/etc/proxmox-backup/csrf.key").unwrap();
+            tools::file_get_contents(configdir!("/csrf.key")).unwrap();
     }
 
     &SECRET
@@ -85,7 +85,7 @@ pub fn csrf_secret() -> &'static [u8] {
 
 fn load_private_auth_key() -> Result<PKey<Private>, Error> {
 
-    let pem = tools::file_get_contents("/etc/proxmox-backup/authkey.key")?;
+    let pem = tools::file_get_contents(configdir!("/authkey.key"))?;
     let rsa = Rsa::private_key_from_pem(&pem)?;
     let key = PKey::from_rsa(rsa)?;
 
@@ -103,7 +103,7 @@ pub fn private_auth_key() -> &'static PKey<Private> {
 
 fn load_public_auth_key() -> Result<PKey<Public>, Error> {
 
-    let pem = tools::file_get_contents("/etc/proxmox-backup/authkey.pub")?;
+    let pem = tools::file_get_contents(configdir!("/authkey.pub"))?;
     let rsa = Rsa::public_key_from_pem(&pem)?;
     let key = PKey::from_rsa(rsa)?;
 
