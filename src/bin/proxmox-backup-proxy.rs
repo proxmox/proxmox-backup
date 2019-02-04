@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate proxmox_backup;
 
 use proxmox_backup::api::router::*;
@@ -48,7 +49,7 @@ fn main() {
 
     let identity =
         native_tls::Identity::from_pkcs12(
-            &std::fs::read("server.pfx").unwrap(),
+            &std::fs::read(configdir!("/proxy.pfx")).unwrap(),
             "",
         ).unwrap();
 
