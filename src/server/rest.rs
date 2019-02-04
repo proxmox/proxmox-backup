@@ -105,8 +105,6 @@ fn get_request_parameters_async(
 
             let utf8 = std::str::from_utf8(&body)?;
 
-            println!("GOT BODY {:?}", utf8);
-
             let mut param_list: Vec<(String, String)> = vec![];
 
             if utf8.len() > 0 {
@@ -129,7 +127,6 @@ fn get_request_parameters_async(
 
             let params = parse_parameter_strings(&param_list, &info.parameters, true)?;
 
-            println!("GOT PARAMS {}", params);
             Ok(params)
         });
 

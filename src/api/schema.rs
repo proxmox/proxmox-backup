@@ -460,8 +460,6 @@ pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Err
 
 pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSchema, test_required: bool) -> Result<Value, ParameterError> {
 
-    println!("QUERY Strings {:?}", data);
-
     let mut params = json!({});
 
     let mut errors = ParameterError::new();
