@@ -5,10 +5,11 @@ use proxmox_backup::api::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::auth_helpers::*;
 
-//use failure::*;
+use failure::*;
 use lazy_static::lazy_static;
 
 use futures::future::Future;
+use futures::stream::Stream;
 
 use hyper;
 
@@ -24,8 +25,6 @@ fn main() {
 
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
-
-    let addr = ([0,0,0,0,0,0,0,0], 8007).into();
 
     lazy_static!{
        static ref ROUTER: Router = proxmox_backup::api2::router();
@@ -47,7 +46,33 @@ fn main() {
 
     let rest_server = RestServer::new(config);
 
-    let server = hyper::Server::bind(&addr)
+    let identity =
+        native_tls::Identity::from_pkcs12(
+            &std::fs::read("server.pfx").unwrap(),
+            "",
+        ).unwrap();
+
+    let addr = ([0,0,0,0,0,0,0,0], 8007).into();
+    let listener = tokio::net::TcpListener::bind(&addr).unwrap();
+    let acceptor = native_tls::TlsAcceptor::new(identity).unwrap();
+    let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
+    let connections = listener
+        .incoming()
+        .map_err(|e| Error::from(e))
+        .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
+        .then(|r| match r {
+            // accept()s can fail here with an Err() when eg. the client rejects
+            // the cert and closes the connection, so we follow up with mapping
+            // it to an option and then filtering None with filter_map
+            Ok(c) => Ok::<_, Error>(Some(c)),
+            Err(_) => Ok(None),
+        })
+        .filter_map(|r| {
+            // Filter out the Nones
+            r
+        });
+
+    let server = hyper::Server::builder(connections)
         .serve(rest_server)
         .map_err(|e| eprintln!("server error: {}", e));
 
