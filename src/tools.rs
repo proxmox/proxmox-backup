@@ -79,14 +79,7 @@ pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, std::io::E
 }
 
 pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, std::io::Error> {
-
-    let mut file = std::fs::File::open(path)?;
-
-    let mut buffer = Vec::new();
-
-    file.read_to_end(&mut buffer)?;
-
-    Ok(buffer)
+    std::fs::read(path)
 }
 
 /// Atomically write a file. We first create a temporary file, which
