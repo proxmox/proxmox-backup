@@ -1,3 +1,5 @@
 Cargo.lock
 /target
 **/*.rs.bk
+/etc/proxmox-backup.service
+/etc/proxmox-backup-proxy.service
