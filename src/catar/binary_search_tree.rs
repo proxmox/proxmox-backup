@@ -97,7 +97,7 @@ fn test_binary_search_tree() {
 
         const MARKER: usize = 0xfffffff;
         let mut output = vec![];
-        for i in 0..len { output.push(MARKER); }
+        for _i in 0..len { output.push(MARKER); }
         copy_binary_search_tree(len, |s, d| {
             assert!(output[d] == MARKER);
             output[d] = s;
