@@ -286,9 +286,10 @@ impl ChunkStore {
 
     pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
+        use nix::dir::Dir;
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
-        use nix::dir::Dir;
+        use nix::sys::stat::fstatat;
 
         let base_handle = match Dir::open(
             &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
@@ -323,7 +324,7 @@ impl ChunkStore {
             };
 
             let filename = entry.file_name();
-            if let Ok(stat) = nix::sys::stat::fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+            if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 let age = now - stat.st_atime;
                 //println!("FOUND {}  {:?}", age/(3600*24), filename);
                 if age/(3600*24) >= 2 {
@@ -331,7 +332,12 @@ impl ChunkStore {
                     let res = unsafe { libc::unlinkat(dirfd, filename.as_ptr(), 0) };
                     if res != 0 {
                         let err = nix::Error::last();
-                        bail!("unlink chunk {:?} failed on store '{}' - {}", filename, self.name, err);
+                        bail!(
+                            "unlink chunk {:?} failed on store '{}' - {}",
+                            filename,
+                            self.name,
+                            err,
+                        );
                     }
                 } else {
                     status.disk_chunks += 1;
@@ -376,7 +382,12 @@ impl ChunkStore {
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
-            bail!("Atomic rename on store '{}' failed for chunk {} - {}", self.name, digest_str, err);
+            bail!(
+                "Atomic rename on store '{}' failed for chunk {} - {}",
+                self.name,
+                digest_str,
+                err,
+            );
         }
 
         //println!("PATH {:?}", chunk_path);
