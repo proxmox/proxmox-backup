@@ -11,7 +11,7 @@ use uuid::Uuid;
 use chrono::{Local, TimeZone};
 
 #[repr(C)]
-pub struct ImageIndexHeader {
+pub struct FixedIndexHeader {
     pub magic: [u8; 12],
     pub version: u32,
     pub uuid: [u8; 16],
@@ -23,7 +23,7 @@ pub struct ImageIndexHeader {
 
 // split image into fixed size chunks
 
-pub struct ImageIndexReader {
+pub struct FixedIndexReader {
     store: Arc<ChunkStore>,
     filename: PathBuf,
     chunk_size: usize,
@@ -33,7 +33,7 @@ pub struct ImageIndexReader {
     pub ctime: u64,
 }
 
-impl Drop for ImageIndexReader {
+impl Drop for FixedIndexReader {
 
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
@@ -42,7 +42,7 @@ impl Drop for ImageIndexReader {
     }
 }
 
-impl ImageIndexReader {
+impl FixedIndexReader {
 
     pub fn open(store: Arc<ChunkStore>, path: &Path) -> Result<Self, Error> {
 
@@ -50,7 +50,7 @@ impl ImageIndexReader {
 
         let mut file = std::fs::File::open(&full_path)?;
 
-        let header_size = std::mem::size_of::<ImageIndexHeader>();
+        let header_size = std::mem::size_of::<FixedIndexHeader>();
 
         // todo: use static assertion when available in rust
         if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
@@ -58,9 +58,9 @@ impl ImageIndexReader {
         let mut buffer = vec![0u8; header_size];
         file.read_exact(&mut buffer)?;
 
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
+        let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
 
-        if header.magic != *b"PROXMOX-IIDX" {
+        if header.magic != *b"PROXMOX-FIDX" {
             bail!("got unknown magic number for {:?}", path);
         }
 
@@ -152,7 +152,7 @@ impl ImageIndexReader {
     }
 }
 
-pub struct ImageIndexWriter {
+pub struct FixedIndexWriter {
     store: Arc<ChunkStore>,
     filename: PathBuf,
     tmp_filename: PathBuf,
@@ -164,7 +164,7 @@ pub struct ImageIndexWriter {
     pub ctime: u64,
 }
 
-impl Drop for ImageIndexWriter {
+impl Drop for FixedIndexWriter {
 
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
@@ -174,13 +174,13 @@ impl Drop for ImageIndexWriter {
     }
 }
 
-impl ImageIndexWriter {
+impl FixedIndexWriter {
 
     pub fn create(store: Arc<ChunkStore>, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
-        tmp_path.set_extension("tmp_iidx");
+        tmp_path.set_extension("tmp_fidx");
 
         let mut file = std::fs::OpenOptions::new()
             .create(true).truncate(true)
@@ -188,7 +188,7 @@ impl ImageIndexWriter {
             .write(true)
             .open(&tmp_path)?;
 
-        let header_size = std::mem::size_of::<ImageIndexHeader>();
+        let header_size = std::mem::size_of::<FixedIndexHeader>();
 
         // todo: use static assertion when available in rust
         if header_size != 4096 { panic!("got unexpected header size"); }
@@ -199,9 +199,9 @@ impl ImageIndexWriter {
         let uuid = Uuid::new_v4();
 
         let buffer = vec![0u8; header_size];
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut ImageIndexHeader) };
+        let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
 
-        header.magic = *b"PROXMOX-IIDX";
+        header.magic = *b"PROXMOX-FIDX";
         header.version = u32::to_le(1);
         header.ctime = u64::to_le(ctime);
         header.size = u64::to_le(size as u64);

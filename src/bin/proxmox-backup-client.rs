@@ -45,11 +45,11 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
     let mut target = PathBuf::from(target);
 
     if let Some(ext) = target.extension() {
-        if ext != "iidx" {
-            bail!("got wrong file extension - expected '.iidx'");
+        if ext != "fidx" {
+            bail!("got wrong file extension - expected '.fidx'");
         }
     } else {
-        target.set_extension("iidx");
+        target.set_extension("fidx");
     }
 
     let mut index = datastore.create_image_writer(&target, size, chunk_size)?;

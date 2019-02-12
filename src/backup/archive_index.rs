@@ -13,6 +13,7 @@ use uuid::Uuid;
 //use chrono::{Local, TimeZone};
 
 #[repr(C)]
+//pub struct DynamicIndexHeader {
 pub struct ArchiveIndexHeader {
     pub magic: [u8; 12],
     pub version: u32,

@@ -10,7 +10,7 @@ use std::sync::{Mutex, Arc};
 use crate::tools;
 use crate::config::datastore;
 use super::chunk_store::*;
-use super::image_index::*;
+use super::fixed_index::*;
 use super::archive_index::*;
 
 use chrono::{Utc, TimeZone};
@@ -75,16 +75,16 @@ impl DataStore {
         })
     }
 
-    pub fn create_image_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<ImageIndexWriter, Error> {
+    pub fn create_fixed_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<FixedIndexWriter, Error> {
 
-        let index = ImageIndexWriter::create(self.chunk_store.clone(), filename.as_ref(), size, chunk_size)?;
+        let index = FixedIndexWriter::create(self.chunk_store.clone(), filename.as_ref(), size, chunk_size)?;
 
         Ok(index)
     }
 
-    pub fn open_image_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ImageIndexReader, Error> {
+    pub fn open_fixed_reader<P: AsRef<Path>>(&self, filename: P) -> Result<FixedIndexReader, Error> {
 
-        let index = ImageIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
+        let index = FixedIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }
@@ -214,7 +214,7 @@ impl DataStore {
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let path = entry?.into_path();
             if let Some(ext) = path.extension() {
-                if ext == "iidx" {
+                if ext == "fidx" {
                     list.push(path);
                 } else if ext == "aidx" {
                     list.push(path);
@@ -231,8 +231,8 @@ impl DataStore {
 
         for path in image_list {
             if let Some(ext) = path.extension() {
-                if ext == "iidx" {
-                    let index = self.open_image_reader(&path)?;
+                if ext == "fidx" {
+                    let index = self.open_fixed_reader(&path)?;
                     index.mark_used_chunks(status)?;
                 } else if ext == "aidx" {
                     let index = self.open_archive_reader(&path)?;
