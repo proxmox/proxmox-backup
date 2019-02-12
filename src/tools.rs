@@ -349,34 +349,21 @@ pub fn complete_file_name(arg: &str) -> Vec<String> {
 /// names. This function simply skips non-UTF8 encoded names.
 pub fn scandir<P, F>(
     dirfd: RawFd,
-    path: P,
+    path: &P,
     regex: &regex::Regex,
     mut callback: F
 ) -> Result<(), Error>
     where F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
-          P: AsRef<Path>
+          P: ?Sized + nix::NixPath,
 {
-    use nix::fcntl::OFlag;
-    use nix::sys::stat::Mode;
-
-    let mut subdir = nix::dir::Dir::openat(dirfd, path.as_ref(), OFlag::O_RDONLY, Mode::empty())?;
-    let subdir_fd = subdir.as_raw_fd();
-
-    for entry in subdir.iter() {
+    for entry in self::fs::scan_subdir(dirfd, path, regex)? {
         let entry = entry?;
         let file_type = match entry.file_type() {
             Some(file_type) => file_type,
             None => bail!("unable to detect file type"),
         };
-        let filename = entry.file_name();
-        let filename_str = match filename.to_str() {
-            Ok(name) => name,
-            Err(_) => continue /* ignore non utf8 entries*/,
-        };
 
-        if !regex.is_match(filename_str) { continue; }
-
-        (callback)(subdir_fd, filename_str, file_type)?;
+        callback(entry.parent_fd(), unsafe { entry.file_name_utf8_unchecked() }, file_type)?;
     }
     Ok(())
 }
