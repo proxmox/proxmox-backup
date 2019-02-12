@@ -49,6 +49,9 @@ $(SUBDIRS):
 test:
 	cargo test $(CARGO_BUILD_ARGS)
 
+doc:
+	cargo doc $(CARGO_BUILD_ARGS)
+
 # always re-create this dir
 # but also copy the local target/ dir as a build-cache
 .PHONY: build
