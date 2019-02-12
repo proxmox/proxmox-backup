@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 #[repr(C)]
 //pub struct DynamicIndexHeader {
-pub struct ArchiveIndexHeader {
+pub struct DynamicIndexHeader {
     pub magic: [u8; 12],
     pub version: u32,
     pub uuid: [u8; 16],
@@ -23,7 +23,7 @@ pub struct ArchiveIndexHeader {
 }
 
 
-pub struct ArchiveIndexReader {
+pub struct DynamicIndexReader {
     store: Arc<ChunkStore>,
     _file: File,
     pub size: usize,
@@ -35,9 +35,9 @@ pub struct ArchiveIndexReader {
 }
 
 // fixme: ???!!!
-unsafe impl Send for ArchiveIndexReader {}
+unsafe impl Send for DynamicIndexReader {}
 
-impl Drop for ArchiveIndexReader {
+impl Drop for DynamicIndexReader {
 
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
@@ -46,7 +46,7 @@ impl Drop for ArchiveIndexReader {
     }
 }
 
-impl ArchiveIndexReader {
+impl DynamicIndexReader {
 
     pub fn open(store: Arc<ChunkStore>, path: &Path) -> Result<Self, Error> {
 
@@ -54,7 +54,7 @@ impl ArchiveIndexReader {
 
         let mut file = std::fs::File::open(&full_path)?;
 
-        let header_size = std::mem::size_of::<ArchiveIndexHeader>();
+        let header_size = std::mem::size_of::<DynamicIndexHeader>();
 
         // todo: use static assertion when available in rust
         if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
@@ -62,9 +62,9 @@ impl ArchiveIndexReader {
         let mut buffer = vec![0u8; header_size];
         file.read_exact(&mut buffer)?;
 
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut ArchiveIndexHeader) };
+        let header = unsafe { &mut * (buffer.as_ptr() as *mut DynamicIndexHeader) };
 
-        if header.magic != *b"PROXMOX-AIDX" {
+        if header.magic != *b"PROXMOX-DIDX" {
             bail!("got unknown magic number for {:?}", path);
         }
 
@@ -193,8 +193,8 @@ impl ArchiveIndexReader {
     }
 }
 
-pub struct BufferedArchiveReader {
-    index: ArchiveIndexReader,
+pub struct BufferedDynamicReader {
+    index: DynamicIndexReader,
     archive_size: u64,
     read_buffer: Vec<u8>,
     buffered_chunk_idx: usize,
@@ -202,9 +202,9 @@ pub struct BufferedArchiveReader {
     read_offset: u64,
 }
 
-impl BufferedArchiveReader {
+impl BufferedDynamicReader {
 
-    pub fn new(index: ArchiveIndexReader) -> Self {
+    pub fn new(index: DynamicIndexReader) -> Self {
 
         let archive_size = index.chunk_end(index.index_entries - 1);
         Self {
@@ -233,7 +233,7 @@ impl BufferedArchiveReader {
     }
 }
 
-impl crate::tools::BufferedReader for  BufferedArchiveReader {
+impl crate::tools::BufferedReader for  BufferedDynamicReader {
 
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
 
@@ -272,7 +272,7 @@ impl crate::tools::BufferedReader for  BufferedArchiveReader {
 
 }
 
-impl std::io::Read for  BufferedArchiveReader {
+impl std::io::Read for  BufferedDynamicReader {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
 
@@ -294,7 +294,7 @@ impl std::io::Read for  BufferedArchiveReader {
     }
 }
 
-impl std::io::Seek for  BufferedArchiveReader {
+impl std::io::Seek for  BufferedDynamicReader {
 
     fn seek(&mut self, pos: std::io::SeekFrom) -> Result<u64, std::io::Error> {
 
@@ -318,7 +318,7 @@ impl std::io::Seek for  BufferedArchiveReader {
     }
 }
 
-pub struct ArchiveIndexWriter {
+pub struct DynamicIndexWriter {
     store: Arc<ChunkStore>,
     chunker: Chunker,
     writer: BufWriter<File>,
@@ -333,20 +333,20 @@ pub struct ArchiveIndexWriter {
     chunk_buffer: Vec<u8>,
 }
 
-impl Drop for ArchiveIndexWriter {
+impl Drop for DynamicIndexWriter {
 
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
     }
 }
 
-impl ArchiveIndexWriter {
+impl DynamicIndexWriter {
 
     pub fn create(store: Arc<ChunkStore>, path: &Path, chunk_size: usize) -> Result<Self, Error> {
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
-        tmp_path.set_extension("tmp_aidx");
+        tmp_path.set_extension("tmp_didx");
 
         let file = std::fs::OpenOptions::new()
             .create(true).truncate(true)
@@ -356,7 +356,7 @@ impl ArchiveIndexWriter {
 
         let mut writer = BufWriter::with_capacity(1024*1024, file);
 
-        let header_size = std::mem::size_of::<ArchiveIndexHeader>();
+        let header_size = std::mem::size_of::<DynamicIndexHeader>();
 
         // todo: use static assertion when available in rust
         if header_size != 4096 { panic!("got unexpected header size"); }
@@ -367,9 +367,9 @@ impl ArchiveIndexWriter {
         let uuid = Uuid::new_v4();
 
         let mut buffer = vec![0u8; header_size];
-        let header = crate::tools::map_struct_mut::<ArchiveIndexHeader>(&mut buffer)?;
+        let header = crate::tools::map_struct_mut::<DynamicIndexHeader>(&mut buffer)?;
 
-        header.magic = *b"PROXMOX-AIDX";
+        header.magic = *b"PROXMOX-DIDX";
         header.version = u32::to_le(1);
         header.ctime = u64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
@@ -446,7 +446,7 @@ impl ArchiveIndexWriter {
     }
 }
 
-impl Write for ArchiveIndexWriter {
+impl Write for DynamicIndexWriter {
 
     fn write(&mut self, data: &[u8]) -> std::result::Result<usize, std::io::Error> {
 

@@ -3,7 +3,7 @@ use failure::*;
 use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
 use crate::backup::datastore::*;
-use crate::backup::archive_index::*;
+use crate::backup::dynamic_index::*;
 //use crate::server::rest::*;
 use crate::api::schema::*;
 use crate::api::router::*;
@@ -21,7 +21,7 @@ use hyper::http::request::Parts;
 
 pub struct UploadCaTar {
     stream: Body,
-    index: ArchiveIndexWriter,
+    index: DynamicIndexWriter,
     count: usize,
 }
 
@@ -62,7 +62,7 @@ fn upload_catar(
     let backup_id = tools::required_string_param(&param, "id")?;
     let backup_time = tools::required_integer_param(&param, "time")?;
 
-    println!("Upload {}.catar to {} ({}/{}/{}/{}.aidx)", archive_name, store,
+    println!("Upload {}.catar to {} ({}/{}/{}/{}.didx)", archive_name, store,
              backup_type, backup_id, backup_time, archive_name);
 
     let content_type = parts.headers.get(http::header::CONTENT_TYPE)
@@ -79,11 +79,11 @@ fn upload_catar(
     let mut path = datastore.create_backup_dir(backup_type, backup_id, backup_time)?;
 
     let mut full_archive_name = PathBuf::from(archive_name);
-    full_archive_name.set_extension("aidx");
+    full_archive_name.set_extension("didx");
 
     path.push(full_archive_name);
 
-    let index = datastore.create_archive_writer(path, chunk_size)?;
+    let index = datastore.create_dynamic_writer(path, chunk_size)?;
 
     let upload = UploadCaTar { stream: req_body, index, count: 0};
 
@@ -131,7 +131,7 @@ fn download_catar(
     let backup_time = tools::required_integer_param(&param, "time")?;
     let backup_time = Utc.timestamp(backup_time, 0);
 
-    println!("Download {}.catar from {} ({}/{}/{}/{}.aidx)", archive_name, store,
+    println!("Download {}.catar from {} ({}/{}/{}/{}.didx)", archive_name, store,
              backup_type, backup_id, backup_time, archive_name);
 
     let datastore = DataStore::lookup_datastore(store)?;
@@ -139,12 +139,12 @@ fn download_catar(
     let mut path = datastore.get_backup_dir(backup_type, backup_id, backup_time);
 
     let mut full_archive_name = PathBuf::from(archive_name);
-    full_archive_name.set_extension("aidx");
+    full_archive_name.set_extension("didx");
 
     path.push(full_archive_name);
 
-    let index = datastore.open_archive_reader(path)?;
-    let reader = BufferedArchiveReader::new(index);
+    let index = datastore.open_dynamic_reader(path)?;
+    let reader = BufferedDynamicReader::new(index);
     let stream = WrappedReaderStream::new(reader);
 
     // fixme: set size, content type?

@@ -11,7 +11,7 @@ use crate::tools;
 use crate::config::datastore;
 use super::chunk_store::*;
 use super::fixed_index::*;
-use super::archive_index::*;
+use super::dynamic_index::*;
 
 use chrono::{Utc, TimeZone};
 
@@ -89,20 +89,20 @@ impl DataStore {
         Ok(index)
     }
 
-    pub fn create_archive_writer<P: AsRef<Path>>(
+    pub fn create_dynamic_writer<P: AsRef<Path>>(
         &self, filename: P,
         chunk_size: usize
-    ) -> Result<ArchiveIndexWriter, Error> {
+    ) -> Result<DynamicIndexWriter, Error> {
 
-        let index = ArchiveIndexWriter::create(
+        let index = DynamicIndexWriter::create(
             self.chunk_store.clone(), filename.as_ref(), chunk_size)?;
 
         Ok(index)
     }
 
-    pub fn open_archive_reader<P: AsRef<Path>>(&self, filename: P) -> Result<ArchiveIndexReader, Error> {
+    pub fn open_dynamic_reader<P: AsRef<Path>>(&self, filename: P) -> Result<DynamicIndexReader, Error> {
 
-        let index = ArchiveIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
+        let index = DynamicIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }
@@ -216,7 +216,7 @@ impl DataStore {
             if let Some(ext) = path.extension() {
                 if ext == "fidx" {
                     list.push(path);
-                } else if ext == "aidx" {
+                } else if ext == "didx" {
                     list.push(path);
                 }
             }
@@ -234,8 +234,8 @@ impl DataStore {
                 if ext == "fidx" {
                     let index = self.open_fixed_reader(&path)?;
                     index.mark_used_chunks(status)?;
-                } else if ext == "aidx" {
-                    let index = self.open_archive_reader(&path)?;
+                } else if ext == "didx" {
+                    let index = self.open_dynamic_reader(&path)?;
                     index.mark_used_chunks(status)?;
                 }
             }
