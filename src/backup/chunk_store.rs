@@ -284,44 +284,6 @@ impl ChunkStore {
         Ok(())
     }
 
-    fn sweep_old_files(&self, handle: &mut nix::dir::Dir, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
-
-        let rawfd = handle.as_raw_fd();
-
-        let now = unsafe { libc::time(std::ptr::null_mut()) };
-
-        for entry in handle.iter() {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(_) => continue /* ignore */,
-            };
-            let file_type = match entry.file_type() {
-                Some(file_type) => file_type,
-                None => bail!("unsupported file system type on chunk store '{}'", self.name),
-            };
-            if file_type != nix::dir::Type::File { continue; }
-
-            let filename = entry.file_name();
-            if let Ok(stat) = nix::sys::stat::fstatat(rawfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                let age = now - stat.st_atime;
-                //println!("FOUND {}  {:?}", age/(3600*24), filename);
-                if age/(3600*24) >= 2 {
-                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
-                    let res = unsafe { libc::unlinkat(rawfd, filename.as_ptr(), 0) };
-                    if res != 0 {
-                        let err = nix::Error::last();
-                        bail!("unlink chunk {:?} failed on store '{}' - {}", filename, self.name, err);
-                    }
-                } else {
-                    status.disk_chunks += 1;
-                    status.disk_bytes += stat.st_size as usize;
-
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         use nix::fcntl::OFlag;
@@ -335,27 +297,48 @@ impl ChunkStore {
                               self.name, self.chunk_dir, err),
         };
 
-        let base_fd = base_handle.as_raw_fd();
-
+        let mut verbose = true;
+        let now = unsafe { libc::time(std::ptr::null_mut()) };
         let mut last_percentage = 0;
-
-        for i in 0..64*1024 {
-
-            let percentage = (i*100)/(64*1024);
-            if percentage != last_percentage {
-                eprintln!("Percentage done: {}", percentage);
-                last_percentage = percentage;
-            }
-
-            let l1name = PathBuf::from(format!("{:04x}", i));
-            match nix::dir::Dir::openat(base_fd, &l1name, OFlag::O_RDONLY, Mode::empty()) {
-                Ok(mut h) => {
-                    //println!("SCAN {:?} {:?}", l1name);
-                   self.sweep_old_files(&mut h, status)?;
+        let mut progress = 0;
+        let iter = ChunkIterator::with_progress(
+            base_handle,
+            |p| eprintln!("percentage done: {}", p),
+        );
+        for entry in iter {
+            let (dirfd, entry) = match entry {
+                Ok(entry) => entry,
+                Err(e) => {
+                    if verbose {
+                        eprintln!("Error iterating through chunks: {}", e);
+                        verbose = false;
+                    }
+                    continue; // ignore
                 }
-                Err(err) => bail!("unable to open store '{}' dir {:?}/{:?} - {}",
-                                  self.name, self.chunk_dir, l1name, err),
             };
+
+            let file_type = match entry.file_type() {
+                Some(file_type) => file_type,
+                None => bail!("unsupported file system type on chunk store '{}'", self.name),
+            };
+
+            let filename = entry.file_name();
+            if let Ok(stat) = nix::sys::stat::fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                let age = now - stat.st_atime;
+                //println!("FOUND {}  {:?}", age/(3600*24), filename);
+                if age/(3600*24) >= 2 {
+                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
+                    let res = unsafe { libc::unlinkat(dirfd, filename.as_ptr(), 0) };
+                    if res != 0 {
+                        let err = nix::Error::last();
+                        bail!("unlink chunk {:?} failed on store '{}' - {}", filename, self.name, err);
+                    }
+                } else {
+                    status.disk_chunks += 1;
+                    status.disk_bytes += stat.st_size as usize;
+
+                }
+            }
         }
         Ok(())
     }
