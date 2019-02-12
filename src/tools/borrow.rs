@@ -43,3 +43,17 @@ impl<T, U: ?Sized> AsMut<U> for Tied<T, U> {
         self.1.as_mut().unwrap()
     }
 }
+
+impl<T, U: ?Sized> std::ops::Deref for Tied<T, U> {
+    type Target = U;
+
+    fn deref(&self) -> &U {
+        self.as_ref()
+    }
+}
+
+impl<T, U: ?Sized> std::ops::DerefMut for Tied<T, U> {
+    fn deref_mut(&mut self) -> &mut U {
+        self.as_mut()
+    }
+}
