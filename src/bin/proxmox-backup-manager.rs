@@ -33,13 +33,13 @@ fn garbage_collection_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("status",
                 CliCommand::new(api2::admin::datastore::api_method_garbage_collection_status())
-                .arg_param(vec!["name"])
-                .completion_cb("name", config::datastore::complete_datastore_name)
+                .arg_param(vec!["store"])
+                .completion_cb("store", config::datastore::complete_datastore_name)
                 .into())
         .insert("start",
                 CliCommand::new(api2::admin::datastore::api_method_start_garbage_collection())
-                .arg_param(vec!["name"])
-                .completion_cb("name", config::datastore::complete_datastore_name)
+                .arg_param(vec!["store"])
+                .completion_cb("store", config::datastore::complete_datastore_name)
                 .into());
 
     cmd_def.into()
