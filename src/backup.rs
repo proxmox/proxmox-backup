@@ -11,8 +11,17 @@
 //! whereas the `FixedIndex*` format is an optimization to store a
 //! list of equal sized chunks.
 
-pub mod chunker;
-pub mod chunk_store;
-pub mod fixed_index;
-pub mod dynamic_index;
-pub mod datastore;
+mod chunker;
+pub use chunker::*;
+
+mod chunk_store;
+pub use chunk_store::*;
+
+mod fixed_index;
+pub use fixed_index::*;
+
+mod dynamic_index;
+pub use dynamic_index::*;
+
+mod datastore;
+pub use datastore::*;

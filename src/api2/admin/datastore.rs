@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::config::datastore;
 
-use crate::backup::datastore::*;
+use crate::backup::*;
 
 mod catar;
 

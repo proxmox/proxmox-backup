@@ -15,15 +15,23 @@ use super::dynamic_index::*;
 
 use chrono::{Utc, TimeZone};
 
+/// Datastore Management
+///
+/// A Datastore can store severals backups, and provides the
+/// management interface for backup.
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
 }
 
+/// Detailed Backup Information
 #[derive(Debug)]
 pub struct BackupInfo {
+    /// Type of backup
     pub backup_type: String,
+    /// Unique (for this type) ID
     pub backup_id: String,
+    /// Backup timestamp
     pub backup_time: DateTime<Utc>,
 }
 

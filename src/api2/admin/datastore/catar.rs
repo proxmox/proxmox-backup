@@ -2,8 +2,7 @@ use failure::*;
 
 use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
-use crate::backup::datastore::*;
-use crate::backup::dynamic_index::*;
+use crate::backup::*;
 //use crate::server::rest::*;
 use crate::api::schema::*;
 use crate::api::router::*;

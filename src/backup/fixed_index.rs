@@ -10,8 +10,10 @@ use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 use chrono::{Local, TimeZone};
 
+/// Header format definition for fixed index files (`.fixd`)
 #[repr(C)]
 pub struct FixedIndexHeader {
+    /// The string `PROXMOX-FIDX`
     pub magic: [u8; 12],
     pub version: u32,
     pub uuid: [u8; 16],

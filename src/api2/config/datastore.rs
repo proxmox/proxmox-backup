@@ -3,7 +3,7 @@ use failure::*;
 
 use crate::api::schema::*;
 use crate::api::router::*;
-use crate::backup::chunk_store::*;
+use crate::backup::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 

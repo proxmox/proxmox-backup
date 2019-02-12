@@ -1,14 +1,15 @@
-//! Slinding window chunker (Buzhash)
-//!
-//! This is a rewrite of *casync* chunker (cachunker.h) in rust.
-//!
-//! Hashing by cyclic polynomial (also called Buzhash) has the benefit
-//! of avoiding multiplications, using barrel shifts instead. For more
-//! information please take a look at the [Rolling
-//! Hash](https://en.wikipedia.org/wiki/Rolling_hash) artikel from
-//! wikipedia.
 
 const CA_CHUNKER_WINDOW_SIZE: usize = 48;
+
+/// Slinding window chunker (Buzhash)
+///
+/// This is a rewrite of *casync* chunker (cachunker.h) in rust.
+///
+/// Hashing by cyclic polynomial (also called Buzhash) has the benefit
+/// of avoiding multiplications, using barrel shifts instead. For more
+/// information please take a look at the [Rolling
+/// Hash](https://en.wikipedia.org/wiki/Rolling_hash) artikel from
+/// wikipedia.
 
 pub struct Chunker {
     h: u32,

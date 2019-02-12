@@ -12,9 +12,10 @@ use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 //use chrono::{Local, TimeZone};
 
+/// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
-//pub struct DynamicIndexHeader {
 pub struct DynamicIndexHeader {
+    /// The string `PROXMOX-DIDX`
     pub magic: [u8; 12],
     pub version: u32,
     pub uuid: [u8; 16],

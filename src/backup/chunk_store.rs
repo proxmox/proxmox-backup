@@ -30,6 +30,7 @@ impl Default for GarbageCollectionStatus {
     }
 }
 
+/// File system based chunk store
 pub struct ChunkStore {
     name: String, // used for error reporting
     pub (crate) base: PathBuf,
