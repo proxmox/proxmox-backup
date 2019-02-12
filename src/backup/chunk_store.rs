@@ -65,6 +65,7 @@ pub struct ChunkIterator {
         Tied<nix::dir::Dir, Iterator<Item = nix::Result<nix::dir::Entry>>>
         >,
     subdir_fd: RawFd,
+    progress: Option<fn(u8)>,
 }
 
 impl ChunkIterator {
@@ -74,7 +75,14 @@ impl ChunkIterator {
             index: 0,
             subdir: None,
             subdir_fd: 0,
+            progress: None,
         }
+    }
+
+    fn with_progress(base_dir: nix::dir::Dir, progress: fn(u8)) -> Self {
+        let mut me = Self::new(base_dir);
+        me.progress = Some(progress);
+        me
     }
 
     fn next_subdir(&mut self) -> Result<bool, Error> {
@@ -84,6 +92,13 @@ impl ChunkIterator {
 
         let l1name = PathBuf::from(format!("{:04x}", self.index));
         self.index += 1;
+        if let Some(cb) = self.progress {
+            let prev = ((self.index-1) * 100) / 0x10000;
+            let now = (self.index * 100) / 0x10000;
+            if prev != now {
+                cb(now as u8);
+            }
+        }
 
         use nix::dir::{Dir, Entry};
         use nix::fcntl::OFlag;
