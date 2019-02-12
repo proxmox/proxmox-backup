@@ -300,8 +300,6 @@ impl ChunkStore {
 
         let mut verbose = true;
         let now = unsafe { libc::time(std::ptr::null_mut()) };
-        let mut last_percentage = 0;
-        let mut progress = 0;
         let iter = ChunkIterator::with_progress(
             base_handle,
             |p| eprintln!("percentage done: {}", p),
@@ -322,6 +320,9 @@ impl ChunkStore {
                 Some(file_type) => file_type,
                 None => bail!("unsupported file system type on chunk store '{}'", self.name),
             };
+            if file_type != nix::dir::Type::File {
+                continue;
+            }
 
             let filename = entry.file_name();
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
