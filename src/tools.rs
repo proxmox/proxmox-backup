@@ -25,6 +25,7 @@ pub mod wrapped_reader_stream;
 pub mod common_regex;
 pub mod ticket;
 pub mod borrow;
+pub mod fs;
 
 /// The `BufferedReader` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
