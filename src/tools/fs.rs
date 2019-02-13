@@ -66,6 +66,10 @@ impl ReadDirEntry {
     pub fn parent_fd(&self) -> RawFd {
         self.parent_fd
     }
+
+    pub unsafe fn file_name_utf8_unchecked(&self) -> &str {
+        std::str::from_utf8_unchecked(self.file_name().to_bytes())
+    }
 }
 
 // Since Tied<T, U> implements Deref to U, a Tied<Dir, Iterator> already implements Iterator.
