@@ -4,7 +4,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use failure::Error;
+use failure::*;
 use nix::dir;
 use nix::dir::Dir;
 
@@ -125,3 +125,65 @@ pub fn scan_subdir<'a, P: ?Sized + nix::NixPath>(
         }
     }))
 }
+
+/// Helper trait to provide a combinators for directory entry iterators.
+pub trait FileIterOps<T, E>
+where
+    Self: Sized + Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+    E: Into<Error> + Send + Sync,
+{
+    /// Filter by file type. This is more convenient than using the `filter` method alone as this
+    /// also includes error handling and handling of files without a type (via an error).
+    fn filter_file_type(self, ty: dir::Type) -> FileTypeFilter<Self, T, E> {
+        FileTypeFilter { inner: self, ty }
+    }
+}
+
+impl<I, T, E> FileIterOps<T, E> for I
+where
+    I: Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+    E: Into<Error> + Send + Sync,
+{
+}
+
+/// This filters files from its inner iterator by a file type. Files with no type produce an error.
+pub struct FileTypeFilter<I, T, E>
+where
+    I: Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+    E: Into<Error> + Send + Sync,
+{
+    inner: I,
+    ty: nix::dir::Type,
+}
+
+impl<I, T, E> Iterator for FileTypeFilter<I, T, E>
+where
+    I: Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+    E: Into<Error> + Send + Sync,
+{
+    type Item = Result<T, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.inner.next()?.map_err(|e| e.into());
+            match item {
+                Ok(ref entry) => match entry.borrow().file_type() {
+                    Some(ty) => {
+                        if ty == self.ty {
+                            return Some(item);
+                        } else {
+                            continue;
+                        }
+                    }
+                    None => return Some(Err(format_err!("unable to detect file type"))),
+                },
+                Err(_) => return Some(item),
+            }
+        }
+    }
+}
+
