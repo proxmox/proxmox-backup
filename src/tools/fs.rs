@@ -107,24 +107,8 @@ pub fn scan_subdir<'a, P: ?Sized + nix::NixPath>(
     dirfd: RawFd,
     path: &P,
     regex: &'a regex::Regex,
-) -> Result<impl Iterator<Item = Result<nix::dir::Entry, Error>> + 'a, Error> {
-    Ok(read_subdir(dirfd, path)?.filter_map(move |entry| {
-        match entry {
-            Ok(entry) => match entry.file_name().to_str() {
-                Ok(name) => {
-                    if regex.is_match(name) {
-                        Some(Ok(entry))
-                    } else {
-                        None // Skip values not matching the regex
-                    }
-                }
-                // Skip values which aren't valid utf-8
-                Err(_) => None,
-            },
-            // Propagate errors through
-            Err(e) => Some(Err(Error::from(e))),
-        }
-    }))
+) -> Result<impl Iterator<Item = Result<ReadDirEntry, Error>> + 'a, Error> {
+    Ok(read_subdir(dirfd, path)?.filter_file_name_regex(regex))
 }
 
 /// Helper trait to provide a combinators for directory entry iterators.
