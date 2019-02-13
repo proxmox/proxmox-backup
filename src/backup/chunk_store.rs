@@ -7,10 +7,9 @@ use openssl::sha;
 use std::sync::Mutex;
 
 use std::fs::File;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 
 use crate::tools;
-use crate::tools::borrow::Tied;
 
 pub struct GarbageCollectionStatus {
     pub used_bytes: usize,
@@ -56,99 +55,6 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
     let path = unsafe { String::from_utf8_unchecked(buf)};
 
     path.into()
-}
-
-// This is one thing which would actually get nicer with futures & tokio-fs...
-pub struct ChunkIterator {
-    base_dir: nix::dir::Dir,
-    index: usize,
-    subdir: Option<
-        Tied<nix::dir::Dir, Iterator<Item = nix::Result<nix::dir::Entry>>>
-        >,
-    subdir_fd: RawFd,
-    progress: Option<fn(u8)>,
-}
-
-impl ChunkIterator {
-    fn new(base_dir: nix::dir::Dir) -> Self {
-        ChunkIterator {
-            base_dir,
-            index: 0,
-            subdir: None,
-            subdir_fd: 0,
-            progress: None,
-        }
-    }
-
-    fn with_progress(base_dir: nix::dir::Dir, progress: fn(u8)) -> Self {
-        let mut me = Self::new(base_dir);
-        me.progress = Some(progress);
-        me
-    }
-
-    fn next_subdir(&mut self) -> Result<bool, Error> {
-        if self.index == 0x10000 {
-            return Ok(false);
-        }
-
-        let l1name = PathBuf::from(format!("{:04x}", self.index));
-        self.index += 1;
-        if let Some(cb) = self.progress {
-            let prev = ((self.index-1) * 100) / 0x10000;
-            let now = (self.index * 100) / 0x10000;
-            if prev != now {
-                cb(now as u8);
-            }
-        }
-
-        use nix::dir::{Dir, Entry};
-        use nix::fcntl::OFlag;
-        use nix::sys::stat::Mode;
-        match Dir::openat(self.base_dir.as_raw_fd(), &l1name, OFlag::O_RDONLY, Mode::empty()) {
-            Ok(dir) => {
-                self.subdir_fd = dir.as_raw_fd();
-                self.subdir = Some(Tied::new(dir, |dir| {
-                    Box::new(unsafe { (*dir).iter() })
-                    as Box<Iterator<Item = nix::Result<Entry>>>
-                }));
-                return Ok(true);
-            }
-            Err(err) => {
-                self.index = 0x10000;
-                bail!("unable to open chunk dir {:?}: {}", l1name, err);
-            }
-        }
-    }
-}
-
-impl Iterator for ChunkIterator {
-    type Item = Result<(RawFd, nix::dir::Entry), Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.subdir {
-                None => {
-                    match self.next_subdir() {
-                        Ok(true) => continue, // Enter the Some case
-                        Ok(false) => return None,
-                        Err(e) => return Some(Err(e)),
-                    }
-                }
-                Some(ref mut dir) => {
-                    let dir = dir.as_mut();
-                    match dir.next() {
-                        Some(Ok(entry)) => return Some(Ok((self.subdir_fd, entry))),
-                        Some(Err(e)) => return Some(Err(e.into())),
-                        None => {
-                            // Go to the next directory
-                            self.subdir = None;
-                            continue;
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 impl ChunkStore {
@@ -285,6 +191,33 @@ impl ChunkStore {
         Ok(())
     }
 
+    pub fn get_chunk_iterator<'a>(
+        base_handle: &'a nix::dir::Dir,
+    ) -> impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>> + 'a {
+        let mut verbose = true;
+        let mut last_percentage = 0;
+
+        (0..0x10000).filter_map(move |index| {
+            let percentage = (index * 100) / 0x10000;
+            if last_percentage != percentage {
+                last_percentage = percentage;
+                eprintln!("percentage done: {}", percentage);
+            }
+            let subdir: &str = &format!("{:04x}", index);
+            match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
+                Err(e) => {
+                    if verbose {
+                        eprintln!("Error iterating through chunks: {}", e);
+                        verbose = false;
+                    }
+                    None
+                }
+                Ok(iter) => Some(iter),
+            }
+        })
+        .flatten()
+    }
+
     pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         use nix::dir::Dir;
@@ -299,22 +232,12 @@ impl ChunkStore {
                               self.name, self.chunk_dir, err),
         };
 
-        let mut verbose = true;
         let now = unsafe { libc::time(std::ptr::null_mut()) };
-        let iter = ChunkIterator::with_progress(
-            base_handle,
-            |p| eprintln!("percentage done: {}", p),
-        );
-        for entry in iter {
+
+        for entry in Self::get_chunk_iterator(&base_handle) {
             let (dirfd, entry) = match entry {
-                Ok(entry) => entry,
-                Err(e) => {
-                    if verbose {
-                        eprintln!("Error iterating through chunks: {}", e);
-                        verbose = false;
-                    }
-                    continue; // ignore
-                }
+                Ok(entry) => (entry.parent_fd(), entry),
+                Err(_) => continue, // ignore errors
             };
 
             let file_type = match entry.file_type() {
