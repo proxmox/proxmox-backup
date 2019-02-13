@@ -55,7 +55,13 @@ fn upload_catar(
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
-    let archive_name = tools::required_string_param(&param, "archive_name")?;
+    let mut archive_name = String::from(tools::required_string_param(&param, "archive_name")?);
+
+    if !archive_name.ends_with(".catar") {
+        bail!("got wront file extension (expected '.catar')");
+    }
+
+    archive_name.push_str(".didx");
 
     let backup_type = tools::required_string_param(&param, "type")?;
     let backup_id = tools::required_string_param(&param, "id")?;
@@ -77,10 +83,7 @@ fn upload_catar(
 
     let mut path = datastore.create_backup_dir(backup_type, backup_id, backup_time)?;
 
-    let mut full_archive_name = PathBuf::from(archive_name);
-    full_archive_name.set_extension("didx");
-
-    path.push(full_archive_name);
+    path.push(archive_name);
 
     let index = datastore.create_dynamic_writer(path, chunk_size)?;
 
