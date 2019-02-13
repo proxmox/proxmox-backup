@@ -1,5 +1,7 @@
 //! File system helper utilities.
 
+use std::borrow::{Borrow, BorrowMut};
+use std::ops::{Deref, DerefMut};
 use std::os::unix::io::RawFd;
 
 use failure::Error;
@@ -7,6 +9,63 @@ use nix::dir;
 use nix::dir::Dir;
 
 use crate::tools::borrow::Tied;
+
+/// This wraps nix::dir::Entry with the parent directory's file descriptor.
+pub struct ReadDirEntry {
+    entry: dir::Entry,
+    parent_fd: RawFd,
+}
+
+impl Into<dir::Entry> for ReadDirEntry {
+    fn into(self) -> dir::Entry {
+        self.entry
+    }
+}
+
+impl Deref for ReadDirEntry {
+    type Target = dir::Entry;
+
+    fn deref(&self) -> &Self::Target {
+        &self.entry
+    }
+}
+
+impl DerefMut for ReadDirEntry {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.entry
+    }
+}
+
+impl AsRef<dir::Entry> for ReadDirEntry {
+    fn as_ref(&self) -> &dir::Entry {
+        &self.entry
+    }
+}
+
+impl AsMut<dir::Entry> for ReadDirEntry {
+    fn as_mut(&mut self) -> &mut dir::Entry {
+        &mut self.entry
+    }
+}
+
+impl Borrow<dir::Entry> for ReadDirEntry {
+    fn borrow(&self) -> &dir::Entry {
+        &self.entry
+    }
+}
+
+impl BorrowMut<dir::Entry> for ReadDirEntry {
+    fn borrow_mut(&mut self) -> &mut dir::Entry {
+        &mut self.entry
+    }
+}
+
+impl ReadDirEntry {
+    #[inline]
+    pub fn parent_fd(&self) -> RawFd {
+        self.parent_fd
+    }
+}
 
 // Since Tied<T, U> implements Deref to U, a Tied<Dir, Iterator> already implements Iterator.
 // This is simply a wrapper with a shorter type name mapping nix::Error to failure::Error.
