@@ -2,7 +2,7 @@
 
 use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
-use std::os::unix::io::RawFd;
+use std::os::unix::io::{AsRawFd, RawFd};
 
 use failure::Error;
 use nix::dir;
@@ -72,13 +72,17 @@ impl ReadDirEntry {
 /// Wrapper over a pair of `nix::dir::Dir` and `nix::dir::Iter`, returned by `read_subdir()`.
 pub struct ReadDir {
     iter: Tied<Dir, Iterator<Item = nix::Result<dir::Entry>>>,
+    dir_fd: RawFd,
 }
 
 impl Iterator for ReadDir {
-    type Item = Result<dir::Entry, Error>;
+    type Item = Result<ReadDirEntry, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|res| res.map_err(|e| Error::from(e)))
+        self.iter.next().map(|res| {
+            res.map(|entry| ReadDirEntry { entry, parent_fd: self.dir_fd })
+                .map_err(|e| Error::from(e))
+        })
     }
 }
 
@@ -89,10 +93,11 @@ pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> Result<R
     use nix::sys::stat::Mode;
 
     let dir = Dir::openat(dirfd, path, OFlag::O_RDONLY, Mode::empty())?;
+    let fd = dir.as_raw_fd();
     let iter = Tied::new(dir, |dir| {
         Box::new(unsafe { (*dir).iter() }) as Box<Iterator<Item = nix::Result<dir::Entry>>>
     });
-    Ok(ReadDir { iter })
+    Ok(ReadDir { iter, dir_fd: fd })
 }
 
 /// Scan through a directory with a regular expression. This is simply a shortcut filtering the
