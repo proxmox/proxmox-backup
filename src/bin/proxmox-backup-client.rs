@@ -17,10 +17,43 @@ use proxmox_backup::client::catar_backup_stream::*;
 
 use serde_json::{Value};
 use hyper::Body;
+use std::sync::Arc;
+use lazy_static::lazy_static;
+use regex::Regex;
 
-fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), Error> {
+lazy_static! {
+    // user@host:datastore
+    pub static ref BACKUP_REPO_URL_REGEX: Regex = Regex::new(r"^(?:(?:([\w@]+)@)?(\w+):)?(\w+)$").unwrap();
 
-    let client = HttpClient::new("localhost");
+    pub static ref BACKUP_REPO_URL: Arc<ApiStringFormat> =
+        ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX).into();
+}
+
+#[derive(Debug)]
+pub struct BackupRepository {
+    pub user: String,
+    pub host: String,
+    pub store: String,
+}
+
+impl BackupRepository {
+
+    pub fn parse(url: &str) -> Result<Self, Error> {
+
+        let cap = BACKUP_REPO_URL_REGEX.captures(url)
+            .ok_or_else(|| format_err!("unable to parse reepository url '{}'", url))?;
+
+        Ok(BackupRepository {
+            user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
+            host: cap.get(2).map_or("localhost", |m| m.as_str()).to_owned(),
+            store: cap[3].to_owned(),
+        })
+    }
+}
+
+fn backup_directory(repo: &BackupRepository, body: Body, archive_name: &str) -> Result<(), Error> {
+
+    let client = HttpClient::new(&repo.host);
 
     let epoch = std::time::SystemTime::now().duration_since(
         std::time::SystemTime::UNIX_EPOCH)?.as_secs();
@@ -32,7 +65,7 @@ fn backup_directory(body: Body, store: &str, archive_name: &str) -> Result<(), E
         .append_pair("time", &epoch.to_string())
         .finish();
 
-    let path = format!("api2/json/admin/datastore/{}/catar?{}", store, query);
+    let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
     client.upload("application/x-proxmox-backup-catar", body, &path)?;
 
@@ -71,16 +104,18 @@ fn list_backups(
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let store = tools::required_string_param(&param, "store")?;
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
 
-    let client = HttpClient::new("localhost");
+    let client = HttpClient::new(&repo.host);
 
-    let path = format!("api2/json/admin/datastore/{}/backups", store);
+    let path = format!("api2/json/admin/datastore/{}/backups", repo.store);
 
     let result = client.get(&path)?;
 
     Ok(result)
 }
+
 
 fn create_backup(
     param: Value,
@@ -89,8 +124,10 @@ fn create_backup(
 ) -> Result<Value, Error> {
 
     let filename = tools::required_string_param(&param, "filename")?;
-    let store = tools::required_string_param(&param, "store")?;
+    let repo_url = tools::required_string_param(&param, "repository")?;
     let target = tools::required_string_param(&param, "target")?;
+
+    let repo = BackupRepository::parse(repo_url)?;
 
     let mut _chunk_size = 4*1024*1024;
 
@@ -110,16 +147,16 @@ fn create_backup(
     };
 
     if (stat.st_mode & libc::S_IFDIR) != 0 {
-        println!("Backup directory '{}' to '{}'", filename, store);
+        println!("Backup directory '{}' to '{:?}'", filename, repo);
 
         let stream = CaTarBackupStream::open(filename)?;
 
         let body = Body::wrap_stream(stream);
 
-        backup_directory(body, store, target)?;
+        backup_directory(&repo, body, target)?;
 
     } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
-        println!("Backup image '{}' to '{}'", filename, store);
+        println!("Backup image '{}' to '{:?}'", filename, repo);
 
         if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
         let _size = stat.st_size as usize;
@@ -142,12 +179,19 @@ fn create_backup(
 
 fn main() {
 
+    let repo_url_schema: Arc<Schema> = Arc::new(
+        StringSchema::new("Repository URL.")
+            .format(BACKUP_REPO_URL.clone())
+            .max_length(256)
+            .into()
+    );
+
     let create_cmd_def = CliCommand::new(
         ApiMethod::new(
             create_backup,
             ObjectSchema::new("Create backup.")
+                .required("repository", repo_url_schema.clone())
                 .required("filename", StringSchema::new("Source name (file or directory name)"))
-                .required("store", StringSchema::new("Datastore name."))
                 .required("target", StringSchema::new("Target name."))
                 .optional(
                     "chunk-size",
@@ -157,19 +201,16 @@ fn main() {
                         .default(4096)
                 )
         ))
-        .arg_param(vec!["filename", "target"])
-        .completion_cb("filename", tools::complete_file_name)
-        .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
+        .arg_param(vec!["repository", "filename", "target"])
+        .completion_cb("filename", tools::complete_file_name);
 
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
             list_backups,
             ObjectSchema::new("List backups.")
-                .required("store", StringSchema::new("Datastore name."))
+                .required("repository", repo_url_schema.clone())
         ))
-        .arg_param(vec!["store"])
-        .completion_cb("store", proxmox_backup::config::datastore::complete_datastore_name);
-
+        .arg_param(vec!["repository"]);
 
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), create_cmd_def.into())
