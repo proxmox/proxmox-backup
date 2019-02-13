@@ -22,8 +22,18 @@ impl HttpClient {
         }
     }
 
-    fn run_request(request: Request<Body>) -> Result<Value, Error> {
-        let client = Client::new();
+    fn run_request(
+        request: Request<Body>,
+    ) -> Result<Value, Error> {
+        let mut builder = native_tls::TlsConnector::builder();
+        // FIXME: We need a CLI option for this!
+        builder.danger_accept_invalid_certs(true);
+        let tlsconnector = builder.build()?;
+        let mut httpc = hyper::client::HttpConnector::new(1);
+        httpc.enforce_http(false); // we want https...
+        let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
+        https.https_only(true); // force it!
+        let client = Client::builder().build::<_, Body>(https);
 
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -65,7 +75,7 @@ impl HttpClient {
 
     pub fn get(&self, path: &str) -> Result<Value, Error> {
 
-        let url: Uri = format!("http://{}:8007/{}", self.server, path).parse()?;
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
         let request = Request::builder()
             .method("GET")
@@ -78,7 +88,7 @@ impl HttpClient {
 
     pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
-        let url: Uri = format!("http://{}:8007/{}", self.server, path).parse()?;
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
         let request = Request::builder()
             .method("POST")
