@@ -7,6 +7,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use failure::*;
 use nix::dir;
 use nix::dir::Dir;
+use regex::Regex;
 
 use crate::tools::borrow::Tied;
 
@@ -138,6 +139,12 @@ where
     fn filter_file_type(self, ty: dir::Type) -> FileTypeFilter<Self, T, E> {
         FileTypeFilter { inner: self, ty }
     }
+
+    /// Filter by file name. Note that file names which aren't valid utf-8 will be treated as if
+    /// they do not match the pattern.
+    fn filter_file_name_regex<'a>(self, regex: &'a Regex) -> FileNameRegexFilter<'a, Self, T, E> {
+        FileNameRegexFilter { inner: self, regex }
+    }
 }
 
 impl<I, T, E> FileIterOps<T, E> for I
@@ -187,3 +194,39 @@ where
     }
 }
 
+/// This filters files by name via a Regex. Files whose file name aren't valid utf-8 are skipped
+/// silently.
+pub struct FileNameRegexFilter<'a, I, T, E>
+where
+    I: Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+{
+    inner: I,
+    regex: &'a Regex,
+}
+
+impl<I, T, E> Iterator for FileNameRegexFilter<'_, I, T, E>
+where
+    I: Iterator<Item = Result<T, E>>,
+    T: Borrow<dir::Entry>,
+{
+    type Item = Result<T, E>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.inner.next()?;
+            match item {
+                Ok(ref entry) => {
+                    if let Ok(name) = entry.borrow().file_name().to_str() {
+                        if self.regex.is_match(name) {
+                            return Some(item);
+                        }
+                    }
+                    // file did not match regex or isn't valid utf-8
+                    continue;
+                },
+                Err(_) => return Some(item),
+            }
+        }
+    }
+}
