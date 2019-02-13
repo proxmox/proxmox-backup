@@ -53,7 +53,7 @@ impl BackupRepository {
 
 fn backup_directory(repo: &BackupRepository, body: Body, archive_name: &str) -> Result<(), Error> {
 
-    let client = HttpClient::new(&repo.host);
+    let client = HttpClient::new(&repo.host, &repo.user);
 
     let epoch = std::time::SystemTime::now().duration_since(
         std::time::SystemTime::UNIX_EPOCH)?.as_secs();
@@ -107,7 +107,7 @@ fn list_backups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let client = HttpClient::new(&repo.host);
+    let client = HttpClient::new(&repo.host, &repo.user);
 
     let path = format!("api2/json/admin/datastore/{}/backups", repo.store);
 

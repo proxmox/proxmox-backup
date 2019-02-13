@@ -70,7 +70,7 @@ impl Service for ApiService {
             match result {
                 Ok(res) => Ok::<_, hyper::Error>(res),
                 Err(err) => {
-                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
+                    if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
                         Ok(resp)
@@ -458,6 +458,8 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 if let Some(_username) = rpcenv.get_user() {
                     // fixme: check permissions
                 } else {
+                    println!("Abort UNAUTHORIZED API REQUEST");
+
                     // always delay unauthorized calls by 3 seconds (from start of request)
                     let resp = (formatter.format_error)(http_err!(UNAUTHORIZED, "permission check failed.".into()));
                     let delayed_response = tokio::timer::Delay::new(delay_unauth_time)

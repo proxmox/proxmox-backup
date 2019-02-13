@@ -9,16 +9,19 @@ use http::Request;
 use futures::stream::Stream;
 
 use serde_json::{Value};
+use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
 pub struct HttpClient {
+    username: String,
     server: String,
 }
 
 impl HttpClient {
 
-    pub fn new(server: &str) -> Self {
+    pub fn new(server: &str, username: &str) -> Self {
         Self {
             server: String::from(server),
+            username: String::from(username),
         }
     }
 
@@ -77,23 +80,64 @@ impl HttpClient {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
+        let ticket = self.login()?;
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
         let request = Request::builder()
             .method("GET")
             .uri(url)
             .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
             .body(Body::empty())?;
 
         Self::run_request(request)
+    }
+
+    fn login(&self) ->  Result<String, Error> {
+
+        let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
+
+        let password = match std::env::var("PBS_PASSWORD") {
+            Ok(p) => p,
+            Err(err) => bail!("missing passphrase - {}", err),
+        };
+
+        let query = url::form_urlencoded::Serializer::new(String::new())
+            .append_pair("username", &self.username)
+            .append_pair("password", &password)
+            .finish();
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(Body::from(query))?;
+
+        let auth_res = Self::run_request(request)?;
+
+        let ticket = match auth_res["data"]["ticket"].as_str() {
+            Some(t) => t,
+            None => bail!("got unexpected respose for login request."),
+        };
+
+        Ok(ticket.to_owned())
     }
 
     pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
+        let ticket = self.login()?;
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
         let request = Request::builder()
             .method("POST")
             .uri(url)
             .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
             .header("Content-Type", content_type)
             .body(body)?;
 
