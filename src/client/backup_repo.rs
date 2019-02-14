@@ -7,9 +7,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
-    // user@host:datastore
+    /// Regular expression to parse repository URLs
     pub static ref BACKUP_REPO_URL_REGEX: Regex = Regex::new(r"^(?:(?:([\w@]+)@)?(\w+):)?(\w+)$").unwrap();
 
+    /// API schema format definition for repository URLs
     pub static ref BACKUP_REPO_URL: Arc<ApiStringFormat> =
         ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX).into();
 }
@@ -29,7 +30,7 @@ pub struct BackupRepository {
 
 impl BackupRepository {
 
-    /// Parse a repository string.
+    /// Parse a repository URL.
     ///
     /// This parses strings like `user@host:datastore`. The `user` and
     /// `host` parts are optional, where `host` defaults to the local
