@@ -67,7 +67,7 @@ impl DataStore {
         bail!("store not found");
     }
 
-    fn open(store_name: &str) -> Result<Self, Error> {
+    pub fn open(store_name: &str) -> Result<Self, Error> {
 
         let config = datastore::config()?;
         let (_, store_config) = config.sections.get(store_name)
