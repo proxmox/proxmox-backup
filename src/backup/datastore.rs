@@ -84,6 +84,15 @@ impl DataStore {
         })
     }
 
+    pub fn get_chunk_iterator(
+        &self,
+    ) -> Result<
+        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
+        Error
+    > {
+        self.chunk_store.get_chunk_iterator()
+    }
+
     pub fn create_fixed_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<FixedIndexWriter, Error> {
 
         let index = FixedIndexWriter::create(self.chunk_store.clone(), filename.as_ref(), size, chunk_size)?;
