@@ -229,7 +229,24 @@ impl ChunkStore {
                 Ok(iter) => Some(iter),
             }
         })
-        .flatten())
+        .flatten()
+        .filter(|entry| {
+            // Check that the file name is actually a hash! (64 hex digits)
+            let entry = match entry {
+                Err(_) => return true, // pass errors onwards
+                Ok(ref entry) => entry,
+            };
+            let bytes = entry.file_name().to_bytes();
+            if bytes.len() != 64 {
+                return false;
+            }
+            for b in bytes {
+                if !b.is_ascii_hexdigit() {
+                    return false;
+                }
+            }
+            true
+        }))
     }
 
     pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
