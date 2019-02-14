@@ -60,7 +60,7 @@ pub struct ApiService {
 impl ApiService {
     fn log_response(path: &str, resp: &Response<Body>) {
 
-        if resp.headers().contains_key("PBS_PROXIED") { return; }
+        if resp.extensions().get::<NoLogExtension>().is_some() { return; };
 
         let status = resp.status();
 
@@ -154,6 +154,8 @@ fn get_request_parameters_async(
     Box::new(resp)
 }
 
+struct NoLogExtension();
+
 fn proxy_protected_request(
     info: &'static ApiMethod,
     mut parts: Parts,
@@ -175,7 +177,7 @@ fn proxy_protected_request(
         .request(request)
         .map_err(|e| Error::from(e))
         .map(|mut resp| {
-            resp.headers_mut().insert("PBS_PROXIED",  header::HeaderValue::from_static("1"));
+            resp.extensions_mut().insert(NoLogExtension);
             resp
         });
 
