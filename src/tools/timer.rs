@@ -1,3 +1,8 @@
+//! POSIX per-process timer interface.
+//!
+//! This module provides a wrapper around POSIX timers (see `timer_create(2)`) and utilities to
+//! setup thread-targeted signaling and signal masks.
+
 use std::{io, mem};
 use std::time::Duration;
 
