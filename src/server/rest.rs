@@ -57,6 +57,18 @@ pub struct ApiService {
     pub api_config: Arc<ApiConfig>,
 }
 
+impl ApiService {
+    fn log_response(path: &str, resp: &Response<Body>) {
+        let status = resp.status();
+        if !status.is_success() {
+            let reason = status.canonical_reason().unwrap_or("unknown reason");
+            let client = "unknown"; // fixme: howto get peer_addr ?
+            let message = "request failed";
+
+            log::error!("{}: {} {}: [client {}] {}", path, status.as_str(), reason, client, message);
+        }
+    }
+}
 
 impl Service for ApiService {
     type ReqBody = Body;
@@ -65,18 +77,23 @@ impl Service for ApiService {
     type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
-
-        Box::new(handle_request(self.api_config.clone(), req).then(|result| {
+        let path = req.uri().path().to_owned();
+        Box::new(handle_request(self.api_config.clone(), req).then(move |result| {
             match result {
-                Ok(res) => Ok::<_, hyper::Error>(res),
+                Ok(res) => {
+                    Self::log_response(&path, &res);
+                    Ok::<_, hyper::Error>(res)
+                }
                 Err(err) => {
                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
+                        Self::log_response(&path, &resp);
                         Ok(resp)
                     } else {
                         let mut resp = Response::new(Body::from(err.to_string()));
                         *resp.status_mut() = StatusCode::BAD_REQUEST;
+                        Self::log_response(&path, &resp);
                         Ok(resp)
                     }
                 }
@@ -458,8 +475,6 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 if let Some(_username) = rpcenv.get_user() {
                     // fixme: check permissions
                 } else {
-                    println!("Abort UNAUTHORIZED API REQUEST");
-
                     // always delay unauthorized calls by 3 seconds (from start of request)
                     let resp = (formatter.format_error)(http_err!(UNAUTHORIZED, "permission check failed.".into()));
                     let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
