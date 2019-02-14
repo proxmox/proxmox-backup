@@ -13,6 +13,13 @@ use nix::dir::Dir;
 
 use crate::catar::encoder::*;
 
+/// Stream implementation to encode and upload .catar archives.
+///
+/// The hyper client needs an async Stream for file upload, so we
+/// spawn an extra thread to encode the .catar data and pipe it to the
+/// consumer.
+///
+/// Note: The currect implementation is not fully ansync and can block.
 pub struct CaTarBackupStream {
     pipe: Option<std::fs::File>,
     buffer: Vec<u8>,

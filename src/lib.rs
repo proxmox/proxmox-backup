@@ -61,11 +61,7 @@ pub mod cli {
 
 pub mod api2;
 
-pub mod client {
-
-    pub mod http_client;
-    pub mod catar_backup_stream;
-}
+pub mod client;
 
 pub mod getopts;
 pub mod auth_helpers;

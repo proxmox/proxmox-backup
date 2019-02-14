@@ -11,6 +11,7 @@ use futures::stream::Stream;
 use serde_json::{Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
+/// HTTP(S) API client
 pub struct HttpClient {
     username: String,
     server: String,

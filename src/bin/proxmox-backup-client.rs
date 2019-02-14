@@ -7,8 +7,7 @@ use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
 use proxmox_backup::api::schema::*;
 use proxmox_backup::api::router::*;
-use proxmox_backup::client::http_client::*;
-use proxmox_backup::client::catar_backup_stream::*;
+use proxmox_backup::client::*;
 //use proxmox_backup::backup::chunk_store::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
@@ -18,38 +17,6 @@ use proxmox_backup::client::catar_backup_stream::*;
 use serde_json::{Value};
 use hyper::Body;
 use std::sync::Arc;
-use lazy_static::lazy_static;
-use regex::Regex;
-
-lazy_static! {
-    // user@host:datastore
-    pub static ref BACKUP_REPO_URL_REGEX: Regex = Regex::new(r"^(?:(?:([\w@]+)@)?(\w+):)?(\w+)$").unwrap();
-
-    pub static ref BACKUP_REPO_URL: Arc<ApiStringFormat> =
-        ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX).into();
-}
-
-#[derive(Debug)]
-pub struct BackupRepository {
-    pub user: String,
-    pub host: String,
-    pub store: String,
-}
-
-impl BackupRepository {
-
-    pub fn parse(url: &str) -> Result<Self, Error> {
-
-        let cap = BACKUP_REPO_URL_REGEX.captures(url)
-            .ok_or_else(|| format_err!("unable to parse reepository url '{}'", url))?;
-
-        Ok(BackupRepository {
-            user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
-            host: cap.get(2).map_or("localhost", |m| m.as_str()).to_owned(),
-            store: cap[3].to_owned(),
-        })
-    }
-}
 
 fn backup_directory(repo: &BackupRepository, body: Body, archive_name: &str) -> Result<(), Error> {
 
