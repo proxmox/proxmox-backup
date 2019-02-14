@@ -76,7 +76,7 @@ impl ReadDirEntry {
 // This is simply a wrapper with a shorter type name mapping nix::Error to failure::Error.
 /// Wrapper over a pair of `nix::dir::Dir` and `nix::dir::Iter`, returned by `read_subdir()`.
 pub struct ReadDir {
-    iter: Tied<Dir, Iterator<Item = nix::Result<dir::Entry>>>,
+    iter: Tied<Dir, Iterator<Item = nix::Result<dir::Entry>> + Send>,
     dir_fd: RawFd,
 }
 
@@ -100,7 +100,7 @@ pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> Result<R
     let dir = Dir::openat(dirfd, path, OFlag::O_RDONLY, Mode::empty())?;
     let fd = dir.as_raw_fd();
     let iter = Tied::new(dir, |dir| {
-        Box::new(unsafe { (*dir).iter() }) as Box<Iterator<Item = nix::Result<dir::Entry>>>
+        Box::new(unsafe { (*dir).iter() }) as Box<Iterator<Item = nix::Result<dir::Entry>> + Send>
     });
     Ok(ReadDir { iter, dir_fd: fd })
 }
