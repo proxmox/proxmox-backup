@@ -59,7 +59,11 @@ pub struct ApiService {
 
 impl ApiService {
     fn log_response(path: &str, resp: &Response<Body>) {
+
+        if resp.headers().contains_key("PBS_PROXIED") { return; }
+
         let status = resp.status();
+
         if !status.is_success() {
             let reason = status.canonical_reason().unwrap_or("unknown reason");
             let client = "unknown"; // fixme: howto get peer_addr ?
@@ -169,7 +173,11 @@ fn proxy_protected_request(
 
     let resp = hyper::client::Client::new()
         .request(request)
-        .map_err(|e| Error::from(e));
+        .map_err(|e| Error::from(e))
+        .map(|mut resp| {
+            resp.headers_mut().insert("PBS_PROXIED",  header::HeaderValue::from_static("1"));
+            resp
+        });
 
     let resp = if info.reload_timezone {
         Either::A(resp.then(|resp| {unsafe { tzset() }; resp }))
