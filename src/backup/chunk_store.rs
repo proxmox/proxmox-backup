@@ -191,13 +191,27 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn get_chunk_iterator<'a>(
-        base_handle: &'a nix::dir::Dir,
-    ) -> impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>> + 'a {
+    pub fn get_chunk_iterator(
+        &self,
+    ) -> Result<
+        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
+        Error
+    > {
+        use nix::dir::Dir;
+        use nix::fcntl::OFlag;
+        use nix::sys::stat::Mode;
+
+        let base_handle = match Dir::open(
+            &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
+            Ok(h) => h,
+            Err(err) => bail!("unable to open store '{}' chunk dir {:?} - {}",
+                              self.name, self.chunk_dir, err),
+        };
+
         let mut verbose = true;
         let mut last_percentage = 0;
 
-        (0..0x10000).filter_map(move |index| {
+        Ok((0..0x10000).filter_map(move |index| {
             let percentage = (index * 100) / 0x10000;
             if last_percentage != percentage {
                 last_percentage = percentage;
@@ -215,26 +229,15 @@ impl ChunkStore {
                 Ok(iter) => Some(iter),
             }
         })
-        .flatten()
+        .flatten())
     }
 
     pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
-
-        use nix::dir::Dir;
-        use nix::fcntl::OFlag;
-        use nix::sys::stat::Mode;
         use nix::sys::stat::fstatat;
-
-        let base_handle = match Dir::open(
-            &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
-            Ok(h) => h,
-            Err(err) => bail!("unable to open store '{}' chunk dir {:?} - {}",
-                              self.name, self.chunk_dir, err),
-        };
 
         let now = unsafe { libc::time(std::ptr::null_mut()) };
 
-        for entry in Self::get_chunk_iterator(&base_handle) {
+        for entry in self.get_chunk_iterator()? {
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
                 Err(_) => continue, // ignore errors
