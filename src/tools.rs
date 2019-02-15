@@ -27,6 +27,11 @@ pub mod ticket;
 pub mod borrow;
 pub mod fs;
 
+#[macro_export]
+macro_rules! try_block {
+    { $($token:tt)* } => {{ (|| -> Result<_,_> { $($token)* })() }}
+}
+
 /// The `BufferedReader` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
 /// purpose of this traid is to avoid unnecessary data copies.
