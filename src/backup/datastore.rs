@@ -58,13 +58,12 @@ impl DataStore {
             }
         }
 
-        if let Ok(datastore) = DataStore::open(name)  {
-            let datastore = Arc::new(datastore);
-            map.insert(name.to_string(), datastore.clone());
-            return Ok(datastore);
-        }
+        let datastore = DataStore::open(name)?;
 
-        bail!("store not found");
+        let datastore = Arc::new(datastore);
+        map.insert(name.to_string(), datastore.clone());
+
+        Ok(datastore)
     }
 
     pub fn open(store_name: &str) -> Result<Self, Error> {
