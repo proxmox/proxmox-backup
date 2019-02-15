@@ -13,8 +13,8 @@ use serde_json::{json, Value};
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
     if username == "root@pam" {
-        let mut auth = pam_auth::Authenticator::new("proxmox-backup-auth").unwrap();
-        auth.set_credentials("root", password);
+        let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
+        auth.get_handler().set_credentials("root", password);
         auth.authenticate()?;
         return Ok(());
     }
