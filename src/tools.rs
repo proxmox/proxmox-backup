@@ -27,6 +27,19 @@ pub mod ticket;
 pub mod borrow;
 pub mod fs;
 
+/// Macro to write error-handling blocks (like perl eval {})
+///
+/// #### Example:
+/// ```
+/// let result = try_block!({
+///     if (some_condition) {
+///         bail!("some error");
+///     }
+///     Ok(())
+/// })
+/// .map_err(|e| format_err!("my try block returned an error - {}", e));
+/// ```
+
 #[macro_export]
 macro_rules! try_block {
     { $($token:tt)* } => {{ (|| -> Result<_,_> { $($token)* })() }}
