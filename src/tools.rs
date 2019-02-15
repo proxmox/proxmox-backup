@@ -31,6 +31,9 @@ pub mod fs;
 ///
 /// #### Example:
 /// ```
+/// # #[macro_use] extern crate proxmox_backup;
+/// # use failure::*;
+/// # let some_condition = false;
 /// let result = try_block!({
 ///     if (some_condition) {
 ///         bail!("some error");
