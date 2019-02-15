@@ -193,7 +193,7 @@ impl ChunkStore {
         &self,
         print_percentage: bool,
     ) -> Result<
-        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
+        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>> + std::iter::FusedIterator,
         Error
     > {
         use nix::dir::Dir;
