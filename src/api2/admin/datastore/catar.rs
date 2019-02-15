@@ -67,8 +67,7 @@ fn upload_catar(
     let backup_id = tools::required_string_param(&param, "id")?;
     let backup_time = tools::required_integer_param(&param, "time")?;
 
-    println!("Upload {}.catar to {} ({}/{}/{}/{}.didx)", archive_name, store,
-             backup_type, backup_id, backup_time, archive_name);
+    println!("Upload {}/{}/{}/{}/{}", store, backup_type, backup_id, backup_time, archive_name);
 
     let content_type = parts.headers.get(http::header::CONTENT_TYPE)
         .ok_or(format_err!("missing content-type header"))?;
