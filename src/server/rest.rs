@@ -57,24 +57,22 @@ pub struct ApiService {
     pub api_config: Arc<ApiConfig>,
 }
 
-impl ApiService {
-    fn log_response(path: &str, resp: &Response<Body>) {
+fn log_response(method: hyper::Method, path: &str, resp: &Response<Body>) {
 
-        if resp.extensions().get::<NoLogExtension>().is_some() { return; };
+    if resp.extensions().get::<NoLogExtension>().is_some() { return; };
 
-        let status = resp.status();
+    let status = resp.status();
 
-        if !status.is_success() {
-            let reason = status.canonical_reason().unwrap_or("unknown reason");
-            let client = "unknown"; // fixme: howto get peer_addr ?
+    if !status.is_success() {
+        let reason = status.canonical_reason().unwrap_or("unknown reason");
+        let client = "unknown"; // fixme: howto get peer_addr ?
 
-            let mut message = "request failed";
-            if let Some(data) = resp.extensions().get::<ErrorMessageExtension>() {
-                message = &data.0;
-            }
-
-            log::error!("{}: {} {}: [client {}] {}", path, status.as_str(), reason, client, message);
+        let mut message = "request failed";
+        if let Some(data) = resp.extensions().get::<ErrorMessageExtension>() {
+            message = &data.0;
         }
+
+        log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, client, message);
     }
 }
 
@@ -86,22 +84,24 @@ impl Service for ApiService {
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         let path = req.uri().path().to_owned();
+        let method = req.method().clone();
+
         Box::new(handle_request(self.api_config.clone(), req).then(move |result| {
             match result {
                 Ok(res) => {
-                    Self::log_response(&path, &res);
+                    log_response(method, &path, &res);
                     Ok::<_, hyper::Error>(res)
                 }
                 Err(err) => {
                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
-                        Self::log_response(&path, &resp);
+                        log_response(method, &path, &resp);
                         Ok(resp)
                     } else {
                         let mut resp = Response::new(Body::from(err.to_string()));
                         *resp.status_mut() = StatusCode::BAD_REQUEST;
-                        Self::log_response(&path, &resp);
+                        log_response(method, &path, &resp);
                         Ok(resp)
                     }
                 }
