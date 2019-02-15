@@ -191,6 +191,7 @@ impl ChunkStore {
 
     pub fn get_chunk_iterator(
         &self,
+        print_percentage: bool,
     ) -> Result<
         impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
         Error
@@ -210,10 +211,12 @@ impl ChunkStore {
         let mut last_percentage = 0;
 
         Ok((0..0x10000).filter_map(move |index| {
-            let percentage = (index * 100) / 0x10000;
-            if last_percentage != percentage {
-                last_percentage = percentage;
-                eprintln!("percentage done: {}", percentage);
+            if print_percentage {
+                let percentage = (index * 100) / 0x10000;
+                if last_percentage != percentage {
+                    last_percentage = percentage;
+                    eprintln!("percentage done: {}", percentage);
+                }
             }
             let subdir: &str = &format!("{:04x}", index);
             match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
@@ -252,7 +255,7 @@ impl ChunkStore {
 
         let now = unsafe { libc::time(std::ptr::null_mut()) };
 
-        for entry in self.get_chunk_iterator()? {
+        for entry in self.get_chunk_iterator(true)? {
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
                 Err(_) => continue, // ignore errors

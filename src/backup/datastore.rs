@@ -86,11 +86,12 @@ impl DataStore {
 
     pub fn get_chunk_iterator(
         &self,
+        print_percentage: bool,
     ) -> Result<
         impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
         Error
     > {
-        self.chunk_store.get_chunk_iterator()
+        self.chunk_store.get_chunk_iterator(print_percentage)
     }
 
     pub fn create_fixed_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<FixedIndexWriter, Error> {
