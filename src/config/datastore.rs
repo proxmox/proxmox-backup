@@ -37,18 +37,12 @@ const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 
 pub fn config() -> Result<SectionConfigData, Error> {
 
-    let mut file = match OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .open(DATASTORE_CFG_FILENAME) {
-            Ok(file) => file,
-            Err(err) => bail!("Unable to open '{}' - {}",
-                              DATASTORE_CFG_FILENAME, err),
-        };
-
     let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
+
+    try_block!({
+        let mut file = std::fs::File::open(DATASTORE_CFG_FILENAME)?;
+        file.read_to_string(&mut contents)
+    }).map_err(|e| format_err!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, e))?;
 
     CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
 }

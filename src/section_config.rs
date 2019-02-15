@@ -145,8 +145,6 @@ impl SectionConfig {
 
     pub fn parse(&self, filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
 
-        let mut line_no = 0;
-
         let mut state = ParseState::BeforeHeader;
 
         let test_required_properties = |value: &Value, schema: &ObjectSchema| -> Result<(), Error> {
@@ -158,87 +156,89 @@ impl SectionConfig {
             Ok(())
         };
 
-        let mut result = SectionConfigData::new();
+        let mut line_no = 0;
 
-        let mut create_section = |section_id: &str, type_name: &str, config| {
-            result.set_data(section_id, type_name, config);
-            result.record_order(section_id);
-        };
+        try_block!({
 
-        for line in raw.lines() {
-            line_no += 1;
+            let mut result = SectionConfigData::new();
 
-            match state {
+            let mut create_section = |section_id: &str, type_name: &str, config| {
+                result.set_data(section_id, type_name, config);
+                result.record_order(section_id);
+            };
 
-                ParseState::BeforeHeader => {
+            try_block!({
+                for line in raw.lines() {
+                    line_no += 1;
 
-                    if line.trim().is_empty() { continue; }
+                    match state {
 
-                    if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
-                        //println!("OKLINE: type: {} ID: {}", section_type, section_id);
-                        if let Some(ref plugin) = self.plugins.get(&section_type) {
-                            if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
-                                bail!("file '{}' line {} - syntax error in section identifier: {}",
-                                      filename, line_no, err.to_string());
-                            }
-                            state = ParseState::InsideSection(plugin, section_id, json!({}));
-                        } else {
-                            bail!("file '{}' line {} - unknown section type '{}'",
-                                  filename, line_no, section_type);
-                       }
-                    } else {
-                        bail!("file '{}' line {} - syntax error (expected header)", filename, line_no);
-                    }
-                }
-                ParseState::InsideSection(plugin, ref mut section_id, ref mut config) => {
+                        ParseState::BeforeHeader => {
 
-                    if line.trim().is_empty() {
-                        // finish section
-                        if let Err(err) = test_required_properties(config, &plugin.properties) {
-                            bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
-                        }
-                        create_section(section_id, &plugin.type_name, config.take());
-                        state = ParseState::BeforeHeader;
-                        continue;
-                    }
-                    if let Some((key, value)) = (self.parse_section_content)(line) {
-                        //println!("CONTENT: key: {} value: {}", key, value);
+                            if line.trim().is_empty() { continue; }
 
-                        if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
-                            match parse_simple_value(&value, prop_schema) {
-                                Ok(value) => {
-                                    if config[&key] == Value::Null {
-                                        config[key] = value;
-                                    } else {
-                                        bail!("file '{}' line {} - duplicate property '{}'",
-                                              filename, line_no, key);
+                            if let Some((section_type, section_id)) = (self.parse_section_header)(line) {
+                                //println!("OKLINE: type: {} ID: {}", section_type, section_id);
+                                if let Some(ref plugin) = self.plugins.get(&section_type) {
+                                    if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
+                                        bail!("syntax error in section identifier: {}", err.to_string());
                                     }
+                                    state = ParseState::InsideSection(plugin, section_id, json!({}));
+                                } else {
+                                    bail!("unknown section type '{}'", section_type);
                                 }
-                                Err(err) => {
-                                    bail!("file '{}' line {} - property '{}': {}",
-                                          filename, line_no, key, err.to_string());
-                                }
+                            } else {
+                                bail!("syntax error (expected header)");
                             }
-                        } else {
-                            bail!("file '{}' line {} - unknown property '{}'", filename, line_no, key)
                         }
-                    } else {
-                        bail!("file '{}' line {} - syntax error (expected section properties)", filename, line_no);
+                        ParseState::InsideSection(plugin, ref mut section_id, ref mut config) => {
+
+                            if line.trim().is_empty() {
+                                // finish section
+                                test_required_properties(config, &plugin.properties)?;
+                                create_section(section_id, &plugin.type_name, config.take());
+                                state = ParseState::BeforeHeader;
+                                continue;
+                            }
+                            if let Some((key, value)) = (self.parse_section_content)(line) {
+                                //println!("CONTENT: key: {} value: {}", key, value);
+
+                                if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
+                                    match parse_simple_value(&value, prop_schema) {
+                                        Ok(value) => {
+                                            if config[&key] == Value::Null {
+                                                config[key] = value;
+                                            } else {
+                                                bail!("duplicate property '{}'", key);
+                                            }
+                                        }
+                                        Err(err) => {
+                                            bail!("property '{}': {}", key, err.to_string());
+                                        }
+                                    }
+                                } else {
+                                    bail!("unknown property '{}'", key)
+                                }
+                            } else {
+                                bail!("syntax error (expected section properties)");
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        if let ParseState::InsideSection(plugin, section_id, config) = state {
-            // finish section
+                if let ParseState::InsideSection(plugin, section_id, config) = state {
+                    // finish section
+                    test_required_properties(&config, &plugin.properties)?;
+                    create_section(&section_id, &plugin.type_name, config);
+                }
 
-            if let Err(err) = test_required_properties(&config, &plugin.properties) {
-                bail!("file '{}' line {} - {}", filename, line_no, err.to_string());
-            }
-            create_section(&section_id, &plugin.type_name, config);
-        }
+                Ok(())
 
-        Ok(result)
+            }).map_err(|e| format_err!("line {} - {}", line_no, e))?;
+
+            Ok(result)
+
+        }).map_err(|e: Error| format_err!("parsing '{}' failed: {}", filename, e))
     }
 
     pub fn default_format_section_header(type_name: &str, section_id: &str, _data: &Value) -> String {
