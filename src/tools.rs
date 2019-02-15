@@ -48,6 +48,7 @@ macro_rules! try_block {
     { $($token:tt)* } => {{ (|| -> Result<_,_> { $($token)* })() }}
 }
 
+
 /// The `BufferedReader` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
 /// purpose of this traid is to avoid unnecessary data copies.
@@ -277,7 +278,19 @@ pub fn file_chunker<C, R>(
     Ok(())
 }
 
-/// Returns the hosts node name (UTS node name)
+// Returns the Unix uid/gid for the sepcified system user.
+pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error> {
+    let info = unsafe { libc::getpwnam(std::ffi::CString::new(username).unwrap().as_ptr()) };
+    if info == std::ptr::null_mut() {
+        bail!("getwpnam '{}' failed", username);
+    }
+
+    let info = unsafe { *info };
+
+    Ok((info.pw_uid, info.pw_gid))
+}
+
+// Returns the hosts node name (UTS node name)
 pub fn nodename() -> &'static str {
 
     lazy_static!{
