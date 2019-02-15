@@ -67,7 +67,11 @@ impl ApiService {
         if !status.is_success() {
             let reason = status.canonical_reason().unwrap_or("unknown reason");
             let client = "unknown"; // fixme: howto get peer_addr ?
-            let message = "request failed";
+
+            let mut message = "request failed";
+            if let Some(data) = resp.extensions().get::<ErrorMessageExtension>() {
+                message = &data.0;
+            }
 
             log::error!("{}: {} {}: [client {}] {}", path, status.as_str(), reason, client, message);
         }

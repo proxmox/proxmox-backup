@@ -6,6 +6,9 @@ use crate::api::router::RpcEnvironment;
 use hyper::{Body, Response, StatusCode};
 use hyper::header;
 
+/// Extension to set error message for server side logging
+pub struct ErrorMessageExtension(pub String);
+
 pub struct OutputFormatter {
 
     pub format_result: fn(data: Value, rpcenv: &RpcEnvironment) -> Response<Body>,
@@ -55,6 +58,8 @@ fn json_format_error(err: Error) -> Response<Body> {
         header::HeaderValue::from_static(JSON_CONTENT_TYPE));
     *response.status_mut() = StatusCode::BAD_REQUEST;
 
+    response.extensions_mut().insert(ErrorMessageExtension(err.to_string()));
+
     response
 }
 
@@ -95,7 +100,11 @@ fn extjs_format_error(err: Error) -> Response<Body> {
         "success": false
     });
 
-    json_response(result)
+    let mut response = json_response(result);
+
+    response.extensions_mut().insert(ErrorMessageExtension(message));
+
+    response
 }
 
 pub static EXTJS_FORMATTER: OutputFormatter = OutputFormatter {
