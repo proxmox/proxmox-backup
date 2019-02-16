@@ -12,6 +12,8 @@ Ext.define('PBS.DataStoreConfig', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsDataStoreConfig',
 
+    title: gettext('Data Store Configuration'),
+
     initComponent : function() {
         var me = this;
 
