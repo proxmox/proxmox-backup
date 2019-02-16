@@ -42,7 +42,9 @@ pub fn generate_csrf_key() -> Result<(), Error> {
     tools::file_set_contents(
         &path, &pem, Some(Mode::from_bits_truncate(0o0640)))?;
 
-    nix::unistd::chown(&path, Some(nix::unistd::ROOT), Some(nix::unistd::Gid::from_raw(33)))?;
+    let (_, backup_gid) = tools::getpwnam_ugid("backup")?;
+
+    nix::unistd::chown(&path, Some(nix::unistd::ROOT), Some(nix::unistd::Gid::from_raw(backup_gid)))?;
 
     Ok(())
 }

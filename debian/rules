@@ -10,12 +10,12 @@ export BUILD_MODE=release
 
 override_dh_auto_build:
 	dh_auto_build -- \
-	    PROXY_USER=www-data \
+	    PROXY_USER=backup \
 	    LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_install:
 	dh_auto_install -- \
-	    PROXY_USER=www-data \
+	    PROXY_USER=backup \
 	    LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_installinit:
