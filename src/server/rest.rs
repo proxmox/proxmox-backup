@@ -422,6 +422,48 @@ fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
     return Box::new(response);
 }
 
+fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<String>) {
+
+    let mut ticket = None;
+    if let Some(raw_cookie) = headers.get("COOKIE") {
+        if let Ok(cookie) = raw_cookie.to_str() {
+            ticket = tools::extract_auth_cookie(cookie, "PBSAuthCookie");
+        }
+    }
+
+    let token = match headers.get("CSRFPreventionToken").map(|v| v.to_str()) {
+        Some(Ok(v)) => Some(v.to_owned()),
+        _ => None,
+    };
+
+    (ticket, token)
+}
+
+fn check_auth(method: &hyper::Method, ticket: Option<String>, token: Option<String>) -> Result<String, Error> {
+
+    let ticket_lifetime = 3600*2; // 2 hours
+
+    let username = match ticket {
+        Some(ticket) => match tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", &ticket, None, -300, ticket_lifetime) {
+            Ok((_age, Some(username))) => username.to_owned(),
+            Ok((_, None)) => bail!("ticket without username."),
+            Err(err) => return Err(err),
+        }
+        None => bail!("missing ticket"),
+    };
+
+    if method != hyper::Method::GET {
+        if let Some(token) = token {
+            println!("CSRF prev token: {:?}", token);
+            verify_csrf_prevention_token(csrf_secret(), &username, &token, -300, ticket_lifetime)?;
+        } else {
+            bail!("");
+        }
+    }
+
+    Ok(username)
+}
+
 pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
@@ -457,20 +499,9 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
-    if let Some(raw_cookie) = parts.headers.get("COOKIE") {
-        if let Ok(cookie) = raw_cookie.to_str() {
-            if let Some(ticket) = tools::extract_auth_cookie(cookie, "PBSAuthCookie") {
-                if let Ok((_, Some(username))) = tools::ticket::verify_rsa_ticket(
-                    public_auth_key(), "PBS", &ticket, None, -300, 3600*2) {
-                    rpcenv.set_user(Some(username));
-                }
-            }
-        }
-    }
-
-
     if comp_len >= 1 && components[0] == "api2" {
         println!("GOT API REQUEST");
+
         if comp_len >= 2 {
             let format = components[1];
             let formatter = match format {
@@ -486,16 +517,24 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             if comp_len == 4 && components[2] == "access" && components[3] == "ticket" {
                 // explicitly allow those calls without auth
             } else {
-                if let Some(_username) = rpcenv.get_user() {
-                    // fixme: check permissions
-                } else {
-                    // always delay unauthorized calls by 3 seconds (from start of request)
-                    let resp = (formatter.format_error)(http_err!(UNAUTHORIZED, "permission check failed.".into()));
-                    let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
-                        .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
-                        .and_then(|_| Ok(resp));
+                let (ticket, token) = extract_auth_data(&parts.headers);
+                match check_auth(&method, ticket, token) {
+                    Ok(username) => {
 
-                    return Box::new(delayed_response);
+                        // fixme: check permissions
+
+                        rpcenv.set_user(Some(username));
+                    }
+                    Err(err) => {
+                        // always delay unauthorized calls by 3 seconds (from start of request)
+                        let err = http_err!(UNAUTHORIZED, format!("permission check failed - {}", err));
+                        let resp = (formatter.format_error)(err);
+                        let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
+                            .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
+                            .and_then(|_| Ok(resp));
+
+                        return Box::new(delayed_response);
+                    }
                 }
             }
 

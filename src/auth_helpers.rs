@@ -9,22 +9,77 @@ use openssl::sha;
 
 use std::path::PathBuf;
 
+fn compute_csrf_secret_digest(
+    timestamp: i64,
+    secret: &[u8],
+    username: &str,
+) -> String {
+
+    let mut hasher = sha::Sha256::new();
+    let data = format!("{:08X}:{}:", timestamp, username);
+    hasher.update(data.as_bytes());
+    hasher.update(secret);
+
+    base64::encode_config(&hasher.finish(), base64::STANDARD_NO_PAD)
+}
+
 pub fn assemble_csrf_prevention_token(
     secret: &[u8],
     username: &str,
 ) -> String {
 
     let epoch = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs();
+        std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
 
-    let mut hasher = sha::Sha256::new();
-    let data = format!("{:08X}:{}:", epoch, username);
-    hasher.update(data.as_bytes());
-    hasher.update(secret);
-
-    let digest = base64::encode_config(&hasher.finish(), base64::STANDARD_NO_PAD);
+    let digest = compute_csrf_secret_digest(epoch, secret, username);
 
     format!("{:08X}:{}", epoch, digest)
+}
+
+pub fn verify_csrf_prevention_token(
+    secret: &[u8],
+    username: &str,
+    token: &str,
+    min_age: i64,
+    max_age: i64,
+) -> Result<i64, Error> {
+
+    use std::collections::VecDeque;
+
+    let mut parts: VecDeque<&str> = token.split(':').collect();
+
+    try_block!({
+
+        if parts.len() != 2 {
+            bail!("format error - wrong number of parts.");
+        }
+
+        let timestamp = parts.pop_front().unwrap();
+        let sig = parts.pop_front().unwrap();
+
+        let ttime = i64::from_str_radix(timestamp, 16).
+            map_err(|err| format_err!("timestamp format error - {}", err))?;
+
+        let digest = compute_csrf_secret_digest(ttime, secret, username);
+
+        if digest != sig {
+            bail!("invalid signature.");
+        }
+
+        let now = std::time::SystemTime::now().duration_since(
+            std::time::SystemTime::UNIX_EPOCH)?.as_secs() as i64;
+
+        let age = now - ttime;
+        if age < min_age {
+            bail!("timestamp newer than expected.");
+        }
+
+        if age > max_age {
+            bail!("timestamp too old.");
+        }
+
+        Ok(age)
+    }).map_err(|err| format_err!("invalid csrf token - {}", err))
 }
 
 pub fn generate_csrf_key() -> Result<(), Error> {
