@@ -85,21 +85,23 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
 }
 
-pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
+pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, Error> {
 
     let path = path.as_ref();
 
-    let file = std::fs::File::open(path)?;
+    try_block!({
+        let file = std::fs::File::open(path)?;
 
-    use std::io::{BufRead, BufReader};
+        use std::io::{BufRead, BufReader};
 
-    let mut reader = BufReader::new(file);
+        let mut reader = BufReader::new(file);
 
-    let mut line = String::new();
+        let mut line = String::new();
 
-    let _ = reader.read_line(&mut line)?;
+        let _ = reader.read_line(&mut line)?;
 
-    Ok(line)
+        Ok(line)
+    }).map_err(|err: Error| format_err!("unable to read {:?} - {}", path, err))
 }
 
 pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, std::io::Error> {
