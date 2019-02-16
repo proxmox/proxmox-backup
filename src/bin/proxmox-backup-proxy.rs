@@ -56,10 +56,7 @@ fn run() -> Result<(), Error> {
     let rest_server = RestServer::new(config);
 
     let cert_path = configdir!("/proxy.pfx");
-    let raw_cert = match tools::file_get_contents(cert_path) {
-        Ok(data) => data,
-        Err(err) => bail!("unable to read certificate {} - {}", cert_path, err),
-    };
+    let raw_cert = tools::file_get_contents(cert_path)?;
 
     let identity = match native_tls::Identity::from_pkcs12(&raw_cert, "") {
         Ok(data) => data,

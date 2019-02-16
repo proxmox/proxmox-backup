@@ -41,10 +41,7 @@ pub mod section_config;
 
 pub mod backup;
 
-pub mod config {
-
-    pub mod datastore;
-}
+pub mod config;
 
 pub mod storage {
 

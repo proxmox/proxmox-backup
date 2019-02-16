@@ -5,6 +5,7 @@ use proxmox_backup::api::router::*;
 use proxmox_backup::api::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::auth_helpers::*;
+use proxmox_backup::config;
 
 use failure::*;
 use lazy_static::lazy_static;
@@ -28,7 +29,9 @@ fn run() -> Result<(), Error> {
         log::LevelFilter::Info,
         Some("proxmox-backup-api")) {
         bail!("unable to inititialize syslog - {}", err);
-     }
+    }
+
+    config::create_configdir()?;
 
     if let Err(err) = generate_auth_key() {
         bail!("unable to generate auth key - {}", err);
