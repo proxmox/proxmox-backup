@@ -12,10 +12,11 @@ macro_rules! IPV6H16 { () => (r"(?:[0-9a-fA-F]{1,4})") }
 #[macro_export]
 macro_rules! IPV6LS32 { () => (concat!(r"(?:(?:", IPV4RE!(), "|", IPV6H16!(), ":", IPV6H16!(), "))" )) }
 
-
+/// Returns the regular expression string to match IPv4 addresses
 #[macro_export]
 macro_rules! IPV4RE { () => (concat!(r"(?:(?:", IPV4OCTET!(), r"\.){3}", IPV4OCTET!(), ")")) }
 
+/// Returns the regular expression string to match IPv6 addresses
 #[macro_export]
 macro_rules! IPV6RE { () => (concat!(r"(?:",
     r"(?:(?:",                                               r"(?:", IPV6H16!(), r":){6})", IPV6LS32!(), r")|",
@@ -29,6 +30,7 @@ macro_rules! IPV6RE { () => (concat!(r"(?:",
     r"(?:(?:(?:(?:", IPV6H16!(), r":){0,6}", IPV6H16!(), r")?::",                                        ")))"))
 }
 
+/// Returns the regular expression string to match IP addresses (v4 or v6)
 #[macro_export]
 macro_rules! IPRE { () => (concat!(r"(?:", IPV4RE!(), "|", IPV6RE!(), ")")) }
 
