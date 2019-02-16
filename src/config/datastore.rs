@@ -40,8 +40,17 @@ pub fn config() -> Result<SectionConfigData, Error> {
     let mut contents = String::new();
 
     try_block!({
-        let mut file = std::fs::File::open(DATASTORE_CFG_FILENAME)?;
-        file.read_to_string(&mut contents)
+        match std::fs::File::open(DATASTORE_CFG_FILENAME) {
+            Ok(mut file) => file.read_to_string(&mut contents),
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    contents = String::from("");
+                    Ok(0)
+                } else {
+                    Err(err)
+                }
+            }
+        }
     }).map_err(|e| format_err!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, e))?;
 
     CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
