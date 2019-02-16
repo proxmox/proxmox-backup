@@ -1,6 +1,6 @@
 use failure::*;
 
-use std::fs::{OpenOptions};
+//use std::fs::{OpenOptions};
 use std::io::Read;
 
 //use std::sync::Arc;
@@ -59,21 +59,6 @@ pub fn config() -> Result<SectionConfigData, Error> {
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
-
-    let mut file = match OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .open(DATASTORE_CFG_FILENAME) {
-            Ok(file) => file,
-            Err(err) => bail!("Unable to open '{}' - {}",
-                              DATASTORE_CFG_FILENAME, err),
-        };
-
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-
-    //fixme: compute and compare digest
 
     tools::file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
 
