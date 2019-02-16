@@ -104,8 +104,13 @@ pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, Error> {
     }).map_err(|err: Error| format_err!("unable to read {:?} - {}", path, err))
 }
 
-pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, std::io::Error> {
-    std::fs::read(path)
+pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
+
+    let path = path.as_ref();
+
+    try_block!({
+        std::fs::read(path)
+    }).map_err(|err| format_err!("unable to read {:?} - {}", path, err))
 }
 
 /// Atomically write a file. We first create a temporary file, which
