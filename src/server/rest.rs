@@ -464,30 +464,39 @@ fn check_auth(method: &hyper::Method, ticket: Option<String>, token: Option<Stri
     Ok(username)
 }
 
-pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
-
-    let (parts, body) = req.into_parts();
-
-    let method = parts.method.clone();
-    let path = parts.uri.path();
-
-    // normalize path
-    // do not allow ".", "..", or hidden files ".XXXX"
-    // also remove empty path components
+// normalize path
+// do not allow ".", "..", or hidden files ".XXXX"
+// also remove empty path components
+fn normalize_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 
     let items = path.split('/');
+
     let mut path = String::new();
     let mut components = vec![];
 
     for name in items {
         if name.is_empty() { continue; }
         if name.starts_with(".") {
-            return Box::new(future::err(http_err!(BAD_REQUEST, "Path contains illegal components.".to_string())));
+            bail!("Path contains illegal components.");
         }
         path.push('/');
         path.push_str(name);
         components.push(name);
     }
+
+    Ok((path, components))
+}
+
+pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
+
+    let (parts, body) = req.into_parts();
+
+    let method = parts.method.clone();
+
+    let (path, components) = match normalize_path(parts.uri.path()) {
+        Ok((p,c)) => (p, c),
+        Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
+    };
 
     let comp_len = components.len();
 
