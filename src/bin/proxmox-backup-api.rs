@@ -50,7 +50,7 @@ fn run() -> Result<(), Error> {
     }
 
     let config = ApiConfig::new(
-        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PRIVILEDGED);
+        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PRIVILEGED);
 
     let rest_server = RestServer::new(config);
 

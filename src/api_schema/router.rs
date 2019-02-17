@@ -32,14 +32,20 @@ pub trait RpcEnvironment {
     fn get_user(&self) -> Option<String>;
 }
 
+
+/// Environment Type
+///
+/// We use this to enumerate the different environment types. Some methods
+/// needs to do different things when started from the command line interface,
+/// or when executed from a privileged server running as root.
 #[derive(PartialEq, Copy, Clone)]
 pub enum RpcEnvironmentType {
-    ///  command started from command line
+    /// Command started from command line
     CLI,
-    /// access from public acessable server
+    /// Access from public accessible server
     PUBLIC,
-    /// ... access from priviledged server (run as root)
-    PRIVILEDGED,
+    /// Access from privileged server (run as root)
+    PRIVILEGED,
 }
 
 #[derive(Debug, Fail)]
