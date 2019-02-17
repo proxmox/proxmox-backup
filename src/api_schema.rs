@@ -9,7 +9,9 @@
 //! definition by path.
 
 #[macro_use]
-pub mod schema;
+mod schema;
+pub use schema::*;
+
 pub mod registry;
 #[macro_use]
 pub mod router;

@@ -1,4 +1,4 @@
-use crate::api_schema::schema::*;
+use crate::api_schema::*;
 
 use failure::*;
 use std::collections::HashMap;

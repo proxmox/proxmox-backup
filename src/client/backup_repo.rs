@@ -1,6 +1,6 @@
 use failure::*;
 
-use crate::api_schema::schema::*;
+use crate::api_schema::*;
 
 use std::sync::Arc;
 use lazy_static::lazy_static;

@@ -1,6 +1,6 @@
 use failure::*;
 
-use crate::api_schema::schema::*;
+use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json, Value};
 

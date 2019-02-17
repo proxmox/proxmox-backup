@@ -4,7 +4,7 @@ use failure::*;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
-use proxmox_backup::api_schema::schema::*;
+use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 
 use serde_json::{Value};

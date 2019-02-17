@@ -1,5 +1,5 @@
 use crate::tools;
-use crate::api_schema::schema::*;
+use crate::api_schema::*;
 use crate::api_schema::router::*;
 use crate::api_schema::config::*;
 use crate::auth_helpers::*;

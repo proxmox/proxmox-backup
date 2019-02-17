@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
-use crate::api_schema::schema::*;
+use crate::api_schema::*;
 use crate::api_schema::router::*;
 //use crate::api_schema::config::*;
 use super::environment::CliEnvironment;
