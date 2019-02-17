@@ -225,11 +225,7 @@ fn handle_sync_api_request(
             }
 
             if delay {
-                let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
-                    .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
-                    .and_then(|_| Ok(resp));
-
-                Either::A(delayed_response)
+                Either::A(delayed_response(resp, delay_unauth_time))
             } else {
                 Either::B(future::ok(resp))
             }
@@ -278,11 +274,12 @@ fn handle_async_api_request(
     }
 }
 
-fn get_index() ->  BoxFut {
+fn get_index(username: Option<String>, token: Option<String>) ->  Response<Body> {
 
     let nodename = tools::nodename();
-    let username = ""; // fixme: implement real auth
-    let token = "";
+    let username = username.unwrap_or(String::from(""));
+
+    let token = token.unwrap_or(String::from(""));
 
     let setup = json!({
         "Setup": { "auth_cookie_name": "PBSAuthCookie" },
@@ -326,13 +323,11 @@ fn get_index() ->  BoxFut {
 </html>
 "###, setup.to_string());
 
-    let resp = Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html")
         .body(index.into())
-        .unwrap();
-
-    Box::new(future::ok(resp))
+        .unwrap()
 }
 
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
@@ -439,7 +434,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
     (ticket, token)
 }
 
-fn check_auth(method: &hyper::Method, ticket: Option<String>, token: Option<String>) -> Result<String, Error> {
+fn check_auth(method: &hyper::Method, ticket: &Option<String>, token: &Option<String>) -> Result<String, Error> {
 
     let ticket_lifetime = 3600*2; // 2 hours
 
@@ -487,6 +482,13 @@ fn normalize_path(path: &str) -> Result<(String, Vec<&str>), Error> {
     Ok((path, components))
 }
 
+fn delayed_response(resp: Response<Body>, delay_unauth_time: std::time::Instant) -> BoxFut {
+
+    Box::new(tokio::timer::Delay::new(delay_unauth_time)
+        .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
+        .and_then(|_| Ok(resp)))
+}
+
 pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
     let (parts, body) = req.into_parts();
@@ -509,7 +511,6 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
     if comp_len >= 1 && components[0] == "api2" {
-        println!("GOT API REQUEST");
 
         if comp_len >= 2 {
             let format = components[1];
@@ -527,7 +528,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                 // explicitly allow those calls without auth
             } else {
                 let (ticket, token) = extract_auth_data(&parts.headers);
-                match check_auth(&method, ticket, token) {
+                match check_auth(&method, &ticket, &token) {
                     Ok(username) => {
 
                         // fixme: check permissions
@@ -537,12 +538,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, format!("permission check failed - {}", err));
-                        let resp = (formatter.format_error)(err);
-                        let delayed_response = tokio::timer::Delay::new(delay_unauth_time)
-                            .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer delay error: {}", err)))
-                            .and_then(|_| Ok(resp));
-
-                        return Box::new(delayed_response);
+                        return delayed_response((formatter.format_error)(err), delay_unauth_time);
                     }
                 }
             }
@@ -562,10 +558,18 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             }
         }
     } else {
-        // not Auth for accessing files!
+        // not Auth required for accessing files!
 
         if comp_len == 0 {
-            return get_index();
+            let (ticket, token) = extract_auth_data(&parts.headers);
+            if ticket != None {
+                match check_auth(&method, &ticket, &token) {
+                    Ok(username) => return Box::new(future::ok(get_index(Some(username), token))),
+                    _ => return delayed_response(get_index(None, None), delay_unauth_time),
+                }
+            } else {
+                return Box::new(future::ok(get_index(None, None)));
+            }
         } else {
             let filename = api.find_alias(&components);
             return handle_static_file_download(filename);
