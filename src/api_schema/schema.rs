@@ -11,6 +11,14 @@ pub struct ParameterError {
     error_list: Vec<Error>,
 }
 
+/// Error type for schema validation
+///
+/// The validation functions may produce several error message,
+/// i.e. when validation objects, it can produce one message for each
+/// erroneous object property.
+
+// fixme: record parameter names, to make it usefull to display errord
+// on HTML forms.
 impl ParameterError {
 
     pub fn new() -> Self {
