@@ -1,7 +1,7 @@
 use failure::*;
 use serde_json::{json, Value};
 
-use crate::api_schema::router::RpcEnvironment;
+use crate::api_schema::router::{HttpError, RpcEnvironment};
 
 use hyper::{Body, Response, StatusCode};
 use hyper::header;
@@ -52,11 +52,19 @@ fn json_format_result(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
 
 fn json_format_error(err: Error) -> Response<Body> {
 
-    let mut response = Response::new(Body::from(err.to_string()));
+    let mut response = if let Some(apierr) = err.downcast_ref::<HttpError>() {
+        let mut resp = Response::new(Body::from(apierr.message.clone()));
+        *resp.status_mut() = apierr.code;
+        resp
+    } else {
+        let mut resp = Response::new(Body::from(err.to_string()));
+        *resp.status_mut() = StatusCode::BAD_REQUEST;
+        resp
+    };
+
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         header::HeaderValue::from_static(JSON_CONTENT_TYPE));
-    *response.status_mut() = StatusCode::BAD_REQUEST;
 
     response.extensions_mut().insert(ErrorMessageExtension(err.to_string()));
 

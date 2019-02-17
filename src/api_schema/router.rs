@@ -62,7 +62,7 @@ impl HttpError {
 
 impl fmt::Display for HttpError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error {}: {}", self.code, self.message)
+        write!(f, "{}", self.message)
     }
 }
 

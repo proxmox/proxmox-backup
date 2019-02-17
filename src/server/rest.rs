@@ -454,10 +454,10 @@ fn check_auth(method: &hyper::Method, ticket: Option<String>, token: Option<Stri
 
     if method != hyper::Method::GET {
         if let Some(token) = token {
-            println!("CSRF prev token: {:?}", token);
+            println!("CSRF prevention token: {:?}", token);
             verify_csrf_prevention_token(csrf_secret(), &username, &token, -300, ticket_lifetime)?;
         } else {
-            bail!("");
+            bail!("missing CSRF prevention token");
         }
     }
 
