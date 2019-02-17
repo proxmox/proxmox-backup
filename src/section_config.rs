@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use serde_json::{json, Value};
 
 use std::sync::Arc;
-use crate::api::schema::*;
+use crate::api_schema::schema::*;
 
 pub struct SectionConfigPlugin {
     type_name: String,

@@ -2,8 +2,8 @@
 extern crate proxmox_backup;
 
 use proxmox_backup::tools;
-use proxmox_backup::api::router::*;
-use proxmox_backup::api::config::*;
+use proxmox_backup::api_schema::router::*;
+use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::auth_helpers::*;
 

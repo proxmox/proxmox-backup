@@ -1,8 +1,8 @@
 use failure::*;
 //use std::collections::HashMap;
 
-use crate::api::schema::*;
-use crate::api::router::*;
+use crate::api_schema::schema::*;
+use crate::api_schema::router::*;
 use crate::backup::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;

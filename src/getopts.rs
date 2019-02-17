@@ -1,4 +1,4 @@
-use crate::api::schema::*;
+use crate::api_schema::schema::*;
 
 use failure::*;
 

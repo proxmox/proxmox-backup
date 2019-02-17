@@ -5,8 +5,8 @@ use failure::*;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
-use proxmox_backup::api::schema::*;
-use proxmox_backup::api::router::*;
+use proxmox_backup::api_schema::schema::*;
+use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
 //use proxmox_backup::backup::chunk_store::*;
 //use proxmox_backup::backup::image_index::*;

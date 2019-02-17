@@ -5,7 +5,7 @@ use std::io::Read;
 
 //use std::sync::Arc;
 use crate::tools;
-use crate::api::schema::*;
+use crate::api_schema::schema::*;
 
 use crate::section_config::*;
 

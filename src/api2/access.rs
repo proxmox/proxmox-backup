@@ -1,8 +1,8 @@
 use failure::*;
 
 use crate::tools;
-use crate::api::schema::*;
-use crate::api::router::*;
+use crate::api_schema::schema::*;
+use crate::api_schema::router::*;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
 

@@ -1,6 +1,6 @@
 use failure::*;
 
-use crate::api::schema::*;
+use crate::api_schema::schema::*;
 use serde_json::{Value};
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,7 +1,7 @@
 use crate::tools;
-use crate::api::schema::*;
-use crate::api::router::*;
-use crate::api::config::*;
+use crate::api_schema::schema::*;
+use crate::api_schema::router::*;
+use crate::api_schema::config::*;
 use crate::auth_helpers::*;
 use super::environment::RestEnvironment;
 use super::formatter::*;

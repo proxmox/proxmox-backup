@@ -1,6 +1,6 @@
 use failure::*;
 
-use crate::api::schema::*;
+use crate::api_schema::schema::*;
 use crate::section_config::*;
 
 use lazy_static::lazy_static;

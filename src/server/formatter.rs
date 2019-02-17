@@ -1,7 +1,7 @@
 use failure::*;
 use serde_json::{json, Value};
 
-use crate::api::router::RpcEnvironment;
+use crate::api_schema::router::RpcEnvironment;
 
 use hyper::{Body, Response, StatusCode};
 use hyper::header;

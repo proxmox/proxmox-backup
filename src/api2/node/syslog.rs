@@ -1,7 +1,7 @@
 use failure::*;
 
-use crate::api::schema::*;
-use crate::api::router::*;
+use crate::api_schema::schema::*;
+use crate::api_schema::router::*;
 use serde_json::{json, Value};
 
 use std::sync::Arc;

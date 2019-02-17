@@ -4,8 +4,8 @@ use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
 use crate::backup::*;
 //use crate::server::rest::*;
-use crate::api::schema::*;
-use crate::api::router::*;
+use crate::api_schema::schema::*;
+use crate::api_schema::router::*;
 
 use chrono::{Utc, TimeZone};
 

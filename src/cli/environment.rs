@@ -1,4 +1,4 @@
-use crate::api::router::*;
+use crate::api_schema::router::*;
 
 use std::collections::HashMap;
 use serde_json::Value;
