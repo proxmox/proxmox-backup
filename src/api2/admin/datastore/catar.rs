@@ -33,7 +33,7 @@ impl Future for UploadCaTar {
             match try_ready!(self.stream.poll()) {
                 Some(chunk) => {
                     self.count += chunk.len();
-                    if let Err(err) = self.index.write(&chunk) {
+                    if let Err(err) = self.index.write_all(&chunk) {
                         bail!("writing chunk failed - {}", err);
                     }
                 }
