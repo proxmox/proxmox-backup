@@ -82,7 +82,7 @@ impl HttpClient {
         let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
-        let ticket = self.login()?;
+        let (ticket, _token) = self.login()?;
 
         let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
 
@@ -96,7 +96,7 @@ impl HttpClient {
         Self::run_request(request)
     }
 
-    fn login(&self) ->  Result<String, Error> {
+    fn login(&self) ->  Result<(String, String), Error> {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
 
@@ -123,8 +123,12 @@ impl HttpClient {
             Some(t) => t,
             None => bail!("got unexpected respose for login request."),
         };
+        let token = match auth_res["data"]["CSRFPreventionToken"].as_str() {
+            Some(t) => t,
+            None => bail!("got unexpected respose for login request."),
+        };
 
-        Ok(ticket.to_owned())
+        Ok((ticket.to_owned(), token.to_owned()))
     }
 
     pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
@@ -132,7 +136,7 @@ impl HttpClient {
         let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
-        let ticket = self.login()?;
+        let (ticket, token) = self.login()?;
 
         let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
 
@@ -141,6 +145,7 @@ impl HttpClient {
             .uri(url)
             .header("User-Agent", "proxmox-backup-client/1.0")
             .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
+            .header("CSRFPreventionToken", token)
             .header("Content-Type", content_type)
             .body(body)?;
 
