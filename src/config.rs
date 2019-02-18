@@ -15,7 +15,7 @@ use crate::buildcfg;
 /// For security reasons, we want to make sure they are set correctly:
 /// * owned by 'backup' user/group
 /// * nobody else can read (mode 0700)
-pub fn check_confidir_permissions() -> Result<(), Error> {
+pub fn check_configdir_permissions() -> Result<(), Error> {
 
     let cfgdir = buildcfg::CONFIGDIR;
     let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
@@ -48,7 +48,7 @@ pub fn create_configdir() -> Result<(), Error> {
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
         Ok(()) => {},
         Err(nix::Error::Sys(nix::errno::Errno::EEXIST)) => {
-            check_confidir_permissions()?;
+            check_configdir_permissions()?;
             return Ok(());
         },
         Err(err) => bail!("unable to create configuration directory '{}' - {}", cfgdir, err),
