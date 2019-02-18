@@ -181,16 +181,17 @@ fn proxy_protected_request(
         .request(request)
         .map_err(|e| Error::from(e))
         .map(|mut resp| {
-            resp.extensions_mut().insert(NoLogExtension);
+            resp.extensions_mut().insert(NoLogExtension());
             resp
         });
+
 
     let resp = if info.reload_timezone {
         Either::A(resp.then(|resp| {unsafe { tzset() }; resp }))
     } else {
         Either::B(resp)
     };
-
+ 
     return Box::new(resp);
 }
 
