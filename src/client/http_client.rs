@@ -79,6 +79,7 @@ impl HttpClient {
 
     pub fn get(&self, path: &str) -> Result<Value, Error> {
 
+        let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
         let ticket = self.login()?;
@@ -128,6 +129,7 @@ impl HttpClient {
 
     pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
+        let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
 
         let ticket = self.login()?;
