@@ -69,7 +69,7 @@ fn run() -> Result<(), Error> {
     let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
     let connections = listener
         .incoming()
-        .map_err(|e| Error::from(e))
+        .map_err(Error::from)
         .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
         .then(|r| match r {
             // accept()s can fail here with an Err() when eg. the client rejects

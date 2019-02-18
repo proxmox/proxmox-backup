@@ -86,7 +86,7 @@ impl Iterator for ReadDir {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|res| {
             res.map(|entry| ReadDirEntry { entry, parent_fd: self.dir_fd })
-                .map_err(|e| Error::from(e))
+                .map_err(Error::from)
         })
     }
 }

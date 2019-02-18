@@ -179,7 +179,7 @@ fn proxy_protected_request(
 
     let resp = hyper::client::Client::new()
         .request(request)
-        .map_err(|e| Error::from(e))
+        .map_err(Error::from)
         .map(|mut resp| {
             resp.extensions_mut().insert(NoLogExtension());
             resp

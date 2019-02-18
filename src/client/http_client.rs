@@ -43,12 +43,12 @@ impl HttpClient {
 
         let future = client
             .request(request)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|resp| {
 
                 let status = resp.status();
 
-                resp.into_body().concat2().map_err(|e| Error::from(e))
+                resp.into_body().concat2().map_err(Error::from)
                     .and_then(move |data| {
 
                         let text = String::from_utf8(data.to_vec()).unwrap();
