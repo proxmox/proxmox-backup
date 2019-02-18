@@ -1,4 +1,3 @@
-
 const CA_CHUNKER_WINDOW_SIZE: usize = 48;
 
 /// Slinding window chunker (Buzhash)
@@ -162,7 +161,7 @@ impl Chunker {
             self.start();
         }
 
-        let idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+        let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
 
         while pos < data_len {
             // roll window
@@ -173,14 +172,19 @@ impl Chunker {
                 BUZHASH_TABLE[enter as usize];
 
             self.chunk_size += 1;
-
             pos += 1;
+
+            self.window[idx] = enter;
+
             if self.shall_break() {
                 self.h = 0;
                 self.chunk_size = 0;
                 self.window_size = 0;
                 return pos;
             }
+
+            idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+            //idx += 1; if idx >= CA_CHUNKER_WINDOW_SIZE { idx = 0 };
         }
 
         0
@@ -197,7 +201,7 @@ impl Chunker {
         (self.h & self.break_test_value) <= 2
 
         //(self.h & 0x1ffff) <= 2 //THIS IS SLOW!!!
-   }
+    }
 
     // This is the original implementation from casync
     /*
@@ -211,7 +215,7 @@ impl Chunker {
         (self.h % self.discriminator) == (self.discriminator - 1)
     }
      */
-    
+
     fn start(&mut self) {
 
         let window_len = self.window.len();
@@ -224,4 +228,78 @@ impl Chunker {
         let byte = self.window[window_len-1];
         self.h ^= BUZHASH_TABLE[(byte as usize)];
     }
+}
+
+#[test]
+fn test_chunker1() {
+
+    let mut buffer = Vec::new();
+
+    for i in 0..256*1024 {
+        for j in 0..4 {
+            let byte = ((i >> (j<<3))&0xff) as u8;
+            buffer.push(byte);
+        }
+    }
+    let mut chunker = Chunker::new(64*1024);
+
+    let mut pos = 0;
+    let mut last = 0;
+
+    let mut chunks1: Vec<(usize, usize)> = vec![];
+    let mut chunks2: Vec<(usize, usize)> = vec![];
+
+    // test1: feed single bytes
+    while pos < buffer.len() {
+        let k = chunker.scan(&buffer[pos..pos+1]);
+        pos += 1;
+        if k != 0 {
+            let prev = last;
+            last = pos;
+            chunks1.push((prev, pos-prev));
+         }
+    }
+    chunks1.push((last, buffer.len() - last));
+
+    let mut chunker = Chunker::new(64*1024);
+
+    let mut pos = 0;
+
+    // test2: feed with whole buffer
+    while pos < buffer.len() {
+        let k = chunker.scan(&buffer[pos..]);
+        if k != 0 {
+            chunks2.push((pos, k));
+            pos += k;
+         } else {
+            break;
+        }
+    }
+
+    chunks2.push((pos, buffer.len() - pos));
+
+    if chunks1 != chunks2 {
+
+        let mut size1 = 0;
+        for (_offset, len) in &chunks1 {
+            size1 += len;
+        }
+        println!("Chunks1:{}\n{:?}\n", size1, chunks1);
+
+        let mut size2 = 0;
+        for (_offset, len) in &chunks2 {
+            size2 += len;
+        }
+        println!("Chunks2:{}\n{:?}\n", size2, chunks2);
+
+        if size1 != 256*4*1024 {
+            panic!("wrong size for chunks1");
+        }
+        if size2 != 256*4*1024 {
+            panic!("wrong size for chunks2");
+        }
+
+        panic!("got different chunks");
+    }
+
 }
