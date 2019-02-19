@@ -220,13 +220,11 @@ impl Chunker {
 
         let window_len = self.window.len();
 
-        for i in 0..window_len-1 {
+        let mut h: u32 = 0;
+        for i in 0..window_len {
             let byte = self.window[i];
-            self.h ^= BUZHASH_TABLE[(byte as usize)].rotate_left((window_len - (i + 1)) as u32);
+            h = h.rotate_left(1) ^ BUZHASH_TABLE[byte as usize];
         }
-
-        let byte = self.window[window_len-1];
-        self.h ^= BUZHASH_TABLE[(byte as usize)];
     }
 }
 
