@@ -228,6 +228,7 @@ impl Chunker {
             let byte = self.window[i];
             h = h.rotate_left(1) ^ BUZHASH_TABLE[byte as usize];
         }
+        self.h = h;
     }
 }
 
