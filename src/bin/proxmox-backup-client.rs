@@ -8,7 +8,7 @@ use proxmox_backup::cli::command::*;
 use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
-//use proxmox_backup::backup::chunk_store::*;
+use proxmox_backup::backup::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 //use proxmox_backup::catar::encoder::*;
@@ -18,19 +18,31 @@ use serde_json::{Value};
 use hyper::Body;
 use std::sync::Arc;
 
-fn backup_directory(repo: &BackupRepository, body: Body, archive_name: &str) -> Result<(), Error> {
+fn backup_directory(
+    repo: &BackupRepository,
+    body: Body,
+    archive_name: &str,
+    chunk_size: Option<u64>,
+) -> Result<(), Error> {
 
     let client = HttpClient::new(&repo.host, &repo.user);
 
     let epoch = std::time::SystemTime::now().duration_since(
         std::time::SystemTime::UNIX_EPOCH)?.as_secs();
 
-    let query = url::form_urlencoded::Serializer::new(String::new())
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+
+    query
         .append_pair("archive_name", archive_name)
         .append_pair("type", "host")
         .append_pair("id", &tools::nodename())
-        .append_pair("time", &epoch.to_string())
-        .finish();
+        .append_pair("time", &epoch.to_string());
+
+    if let Some(size) = chunk_size {
+        query.append_pair("chunk-size", &size.to_string());
+    }
+
+    let query = query.finish();
 
     let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
@@ -96,16 +108,10 @@ fn create_backup(
 
     let repo = BackupRepository::parse(repo_url)?;
 
-    let mut _chunk_size = 4*1024*1024;
+    let chunk_size_opt = param["chunk-size"].as_u64().map(|v| v*1024);
 
-    if let Some(size) = param["chunk-size"].as_u64() {
-        static SIZES: [u64; 7] = [64, 128, 256, 512, 1024, 2048, 4096];
-
-        if SIZES.contains(&size) {
-            _chunk_size = (size as usize) * 1024;
-        } else {
-            bail!("Got unsupported chunk size '{}'", size);
-        }
+    if let Some(size) = chunk_size_opt {
+        verify_chunk_size(size)?;
     }
 
     let stat = match nix::sys::stat::stat(filename) {
@@ -120,7 +126,7 @@ fn create_backup(
 
         let body = Body::wrap_stream(stream);
 
-        backup_directory(&repo, body, target)?;
+        backup_directory(&repo, body, target, chunk_size_opt)?;
 
     } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
         println!("Backup image '{}' to '{:?}'", filename, repo);

@@ -329,6 +329,7 @@ pub struct DynamicIndexWriter {
     pub uuid: [u8; 16],
     pub ctime: u64,
 
+    chunk_count: usize,
     chunk_offset: usize,
     last_chunk: usize,
     chunk_buffer: Vec<u8>,
@@ -387,6 +388,7 @@ impl DynamicIndexWriter {
             ctime,
             uuid: *uuid.as_bytes(),
 
+            chunk_count: 0,
             chunk_offset: 0,
             last_chunk: 0,
             chunk_buffer: Vec::with_capacity(chunk_size*4),
@@ -405,6 +407,8 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
+        let avg = ((self.chunk_offset as f64)/(self.chunk_count as f64)) as usize;
+        println!("Average chunk size {}", avg);
         // fixme:
 
         if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
@@ -428,6 +432,8 @@ impl DynamicIndexWriter {
                 ErrorKind::Other,
                 format!("wrong chunk size {} != {}", expected_chunk_size, chunk_size)));
         }
+
+        self.chunk_count += 1;
 
         self.last_chunk = self.chunk_offset;
 

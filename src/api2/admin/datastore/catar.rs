@@ -76,7 +76,8 @@ fn upload_catar(
         bail!("got wrong content-type for catar archive upload");
     }
 
-    let chunk_size = 4*1024*1024;
+    let chunk_size = param["chunk-size"].as_u64().unwrap_or(4096*1024);
+    verify_chunk_size(chunk_size)?;
 
     let datastore = DataStore::lookup_datastore(store)?;
 
@@ -84,7 +85,7 @@ fn upload_catar(
 
     path.push(archive_name);
 
-    let index = datastore.create_dynamic_writer(path, chunk_size)?;
+    let index = datastore.create_dynamic_writer(path, chunk_size as usize)?;
 
     let upload = UploadCaTar { stream: req_body, index, count: 0};
 
@@ -112,7 +113,13 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
             .required("id", StringSchema::new("Backup ID."))
             .required("time", IntegerSchema::new("Backup time (Unix epoch.)")
                       .minimum(1547797308))
-
+            .optional(
+                "chunk-size",
+                IntegerSchema::new("Chunk size in bytes. Must be a power of 2.")
+                    .minimum(64*1024)
+                    .maximum(4096*1024)
+                    .default(4096*1024)
+            )
     )
 }
 

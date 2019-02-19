@@ -40,6 +40,16 @@ pub struct ChunkStore {
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
 
+pub fn verify_chunk_size(size: u64) -> Result<(), Error> {
+
+    static SIZES: [u64; 7] = [64*1024, 128*1024, 256*1024, 512*1024, 1024*1024, 2048*1024, 4096*1024];
+
+    if !SIZES.contains(&size) {
+        bail!("Got unsupported chunk size '{}'", size);
+    }
+    Ok(())
+}
+
 fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
     let mut buf = Vec::<u8>::with_capacity(2+1+2+1);
