@@ -33,6 +33,8 @@ pub struct BackupInfo {
     pub backup_id: String,
     /// Backup timestamp
     pub backup_time: DateTime<Utc>,
+    /// List of data files
+    pub files: Vec<String>,
 }
 
 lazy_static!{
@@ -172,6 +174,7 @@ impl DataStore {
         let mut list = vec![];
 
         lazy_static! {
+            static ref BACKUP_FILE_REGEX: regex::Regex = regex::Regex::new(r"^.*\.([fd]idx)$").unwrap();
             static ref BACKUP_TYPE_REGEX: regex::Regex = regex::Regex::new(r"^(host|vm|ct)$").unwrap();
             static ref BACKUP_ID_REGEX: regex::Regex = regex::Regex::new(r"^[A-Za-z][A-Za-z0-9_-]+$").unwrap();
             static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
@@ -182,15 +185,24 @@ impl DataStore {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
             tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |l1_fd, backup_id, file_type| {
                 if file_type != nix::dir::Type::Directory { return Ok(()); }
-                tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |_, backup_time, file_type| {
+                tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
                     let dt = Utc.datetime_from_str(backup_time, "%Y-%m-%dT%H:%M:%S")?;
+
+                    let mut files = vec![];
+
+                    tools::scandir(l2_fd, backup_time, &BACKUP_FILE_REGEX, |_, filename, file_type| {
+                        if file_type != nix::dir::Type::File { return Ok(()); }
+                        files.push(filename.to_owned());
+                        Ok(())
+                    })?;
 
                     list.push(BackupInfo {
                         backup_type: backup_type.to_owned(),
                         backup_id: backup_id.to_owned(),
                         backup_time: dt,
+                        files,
                     });
 
                     Ok(())

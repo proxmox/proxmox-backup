@@ -2,6 +2,7 @@ extern crate proxmox_backup;
 
 use failure::*;
 //use std::os::unix::io::AsRawFd;
+use chrono::{Local, TimeZone};
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::command::*;
@@ -92,7 +93,27 @@ fn list_backups(
 
     let result = client.get(&path)?;
 
-    Ok(result)
+    // fixme: implement and use output formatter instead ..
+    let list = result["data"].as_array().unwrap();
+
+    for item in list {
+
+        let id = item["backup_id"].as_str(). unwrap();
+        let btype = item["backup_type"].as_str(). unwrap();
+        let epoch = item["backup_time"].as_i64(). unwrap();
+
+        let time_str = Local.timestamp(epoch, 0).format("%c");
+
+        let files = item["files"].as_array().unwrap();
+
+        for file in files {
+            let filename = file.as_str().unwrap();
+            println!("| {} | {} | {} | {}", btype, id, time_str, filename);
+        }
+    }
+
+    //Ok(result)
+    Ok(Value::Null)
 }
 
 

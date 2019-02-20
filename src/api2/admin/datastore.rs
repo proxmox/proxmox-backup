@@ -81,6 +81,7 @@ fn get_backup_list(
             "backup_type": info.backup_type,
             "backup_id": info.backup_id,
             "backup_time": info.backup_time.timestamp(),
+            "files": info.files,
         }));
     }
 
