@@ -96,6 +96,26 @@ impl HttpClient {
         Self::run_request(request)
     }
 
+    pub fn post(&self, path: &str) -> Result<Value, Error> {
+
+        let path = path.trim_matches('/');
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
+
+        let (ticket, token) = self.login()?;
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
+            .header("CSRFPreventionToken", token)
+            .body(Body::empty())?;
+
+        Self::run_request(request)
+    }
+
     fn login(&self) ->  Result<(String, String), Error> {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
