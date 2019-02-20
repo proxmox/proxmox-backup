@@ -11,6 +11,8 @@ use futures::stream::Stream;
 use serde_json::{Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
+use crate::tools::tty;
+
 /// HTTP(S) API client
 pub struct HttpClient {
     username: String,
@@ -24,6 +26,24 @@ impl HttpClient {
             server: String::from(server),
             username: String::from(username),
         }
+    }
+
+    fn get_password(&self) -> Result<String, Error> {
+        use std::env::VarError::*;
+        match std::env::var("PBS_PASSWORD") {
+            Ok(p) => return Ok(p),
+            Err(NotUnicode(_)) => bail!("PBS_PASSWORD contains bad characters"),
+            Err(NotPresent) => {
+                // Try another method
+            }
+        }
+
+        // If we're on a TTY, query the user for a password
+        if tty::stdin_isatty() {
+            return Ok(String::from_utf8(tty::read_password("Password: ")?)?);
+        }
+
+        bail!("no password input mechanism available");
     }
 
     fn run_request(
@@ -120,10 +140,7 @@ impl HttpClient {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
 
-        let password = match std::env::var("PBS_PASSWORD") {
-            Ok(p) => p,
-            Err(err) => bail!("missing passphrase - {}", err),
-        };
+        let password = self.get_password()?;
 
         let query = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("username", &self.username)
