@@ -14,10 +14,10 @@ struct ChunkWriter {
 
     chunk_count: usize,
 
-    M_old: f64,
-    M_new: f64,
-    S_old: f64,
-    S_new: f64,
+    m_old: f64,
+    m_new: f64,
+    s_old: f64,
+    s_new: f64,
 }
 
 impl ChunkWriter {
@@ -29,10 +29,10 @@ impl ChunkWriter {
             chunk_offset: 0,
             chunk_count: 0,
 
-            M_old: 0.0,
-            M_new: 0.0,
-            S_old: 0.0,
-            S_new: 0.0,
+            m_old: 0.0,
+            m_new: 0.0,
+            s_old: 0.0,
+            s_new: 0.0,
         }
     }
 
@@ -41,25 +41,25 @@ impl ChunkWriter {
         self.chunk_count += 1;
 
         if self.chunk_count == 1 {
-            self.M_old = chunk_size;
-            self.M_new = chunk_size;
-            self.S_old = 0.0;
+            self.m_old = chunk_size;
+            self.m_new = chunk_size;
+            self.s_old = 0.0;
         } else {
-            self.M_new = self.M_old + (chunk_size - self.M_old)/(self.chunk_count as f64);
-            self.S_new = self.S_old +
-                (chunk_size - self.M_old)*(chunk_size - self.M_new);
+            self.m_new = self.m_old + (chunk_size - self.m_old)/(self.chunk_count as f64);
+            self.s_new = self.s_old +
+                (chunk_size - self.m_old)*(chunk_size - self.m_new);
             // set up for next iteration
-            self.M_old = self.M_new;
-            self.S_old = self.S_new;
+            self.m_old = self.m_new;
+            self.s_old = self.s_new;
         }
 
         let variance = if self.chunk_count > 1 {
-            self.S_new/((self.chunk_count -1)as f64)
+            self.s_new/((self.chunk_count -1)as f64)
         } else { 0.0 };
 
         let std_deviation = variance.sqrt();
-        let deviation_per = (std_deviation*100.0)/self.M_new;
-        println!("COUNT {:10} SIZE {:10} MEAN {:10} DEVIATION {:3}%", self.chunk_count, chunk_size, self.M_new as usize, deviation_per as usize);
+        let deviation_per = (std_deviation*100.0)/self.m_new;
+        println!("COUNT {:10} SIZE {:10} MEAN {:10} DEVIATION {:3}%", self.chunk_count, chunk_size, self.m_new as usize, deviation_per as usize);
     }
 }
 
@@ -109,6 +109,7 @@ fn main() -> Result<(), Error> {
 
         writer.write_all(&buffer)?;
 
+        if bytes > 1024*1024*1024 { break; }
     }
 
     Ok(())
