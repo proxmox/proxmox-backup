@@ -1,4 +1,7 @@
-const CA_CHUNKER_WINDOW_SIZE: usize = 64;
+
+/// Note: doö not use 32 or 64, because that always computes hash 0
+/// for constant data streams .. 0,0,0,0,0,0
+const CA_CHUNKER_WINDOW_SIZE: usize = 48;
 
 /// Slinding window chunker (Buzhash)
 ///
@@ -161,16 +164,14 @@ impl Chunker {
             self.start();
         }
 
-        //let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
-        let mut idx = self.chunk_size & 0x3f;
+        let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
 
         while pos < data_len {
             // roll window
             let enter = data[pos];
             let leave = self.window[idx];
             self.h = self.h.rotate_left(1) ^
-                //BUZHASH_TABLE[leave as usize].rotate_left(CA_CHUNKER_WINDOW_SIZE as u32) ^
-                BUZHASH_TABLE[leave as usize] ^
+                BUZHASH_TABLE[leave as usize].rotate_left(CA_CHUNKER_WINDOW_SIZE as u32) ^
                 BUZHASH_TABLE[enter as usize];
 
             self.chunk_size += 1;
@@ -185,8 +186,7 @@ impl Chunker {
                 return pos;
             }
 
-            //idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
-            idx = self.chunk_size & 0x3f;
+            idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
             //idx += 1; if idx >= CA_CHUNKER_WINDOW_SIZE { idx = 0 };
         }
 
