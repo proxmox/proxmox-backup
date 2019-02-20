@@ -26,6 +26,7 @@ pub mod common_regex;
 pub mod ticket;
 pub mod borrow;
 pub mod fs;
+pub mod tty;
 
 /// Macro to write error-handling blocks (like perl eval {})
 ///
