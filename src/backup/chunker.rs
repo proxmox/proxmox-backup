@@ -147,21 +147,21 @@ impl Chunker {
         if self.window_size <  window_len {
             let need =  window_len - self.window_size;
             let copy_len = if need < data_len { need } else { data_len };
-            unsafe {
-                let src_ptr = data.as_ptr().add(pos);
-                let dest_ptr = self.window.as_mut_ptr().add(self.window_size);
-                std::ptr::copy_nonoverlapping(src_ptr, dest_ptr, copy_len);
+
+            for _i in 0..copy_len {
+                let byte = data[pos];
+                self.window[self.window_size] = byte;
+                self.h = self.h.rotate_left(1) ^ BUZHASH_TABLE[byte as usize];
+                pos += 1;
+                self.window_size += 1;
             }
-            pos += copy_len;
-            self.window_size += copy_len;
+
             self.chunk_size += copy_len;
 
             // return if window is still not full
             if self.window_size <  window_len {
                 return 0;
             }
-
-            self.start();
         }
 
         let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
@@ -218,18 +218,6 @@ impl Chunker {
         (self.h % self.discriminator) == (self.discriminator - 1)
     }
      */
-
-    fn start(&mut self) {
-
-        let window_len = self.window.len();
-
-        let mut h: u32 = 0;
-        for i in 0..window_len {
-            let byte = self.window[i];
-            h = h.rotate_left(1) ^ BUZHASH_TABLE[byte as usize];
-        }
-        self.h = h;
-    }
 }
 
 #[test]
