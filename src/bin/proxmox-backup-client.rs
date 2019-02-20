@@ -116,6 +116,23 @@ fn list_backups(
     Ok(Value::Null)
 }
 
+fn start_garbage_collection(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/gc", repo.store);
+
+    let result = client.post(&path)?;
+
+    Ok(result)
+}
 
 fn create_backup(
     param: Value,
@@ -206,8 +223,17 @@ fn main() {
         ))
         .arg_param(vec!["repository"]);
 
+    let garbage_collect_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            start_garbage_collection,
+            ObjectSchema::new("Start garbage collection for a specific repository.")
+                .required("repository", repo_url_schema.clone())
+        ))
+        .arg_param(vec!["repository"]);
+
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), create_cmd_def.into())
+        .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into());
 
     if let Err(err) = run_cli_command(&cmd_def.into()) {
