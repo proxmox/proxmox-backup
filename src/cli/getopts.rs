@@ -52,6 +52,10 @@ fn parse_argument(arg: &str) -> RawArgument {
     };
 }
 
+/// Parses command line arguments using a `Schema`
+///
+/// Returns parsed options as json object, together with the
+/// list of additional command line arguments.
 pub fn parse_arguments<T: AsRef<str>>(
     args: &[T],
     arg_param: &Vec<&'static str>,

@@ -7,8 +7,9 @@
 mod environment;
 pub use environment::*;
 
+mod getopts;
+pub use getopts::*;
+
 mod command;
 pub use command::*;
 
-mod getopts;
-pub use getopts::*;
