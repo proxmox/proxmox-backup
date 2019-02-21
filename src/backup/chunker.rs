@@ -1,7 +1,10 @@
 
-/// Note: doö not use 32 or 64, because that always computes hash 0
+/// Note: window size 32 or 64, is faster because we can
+/// speedup modulo operations, but always computes hash 0
 /// for constant data streams .. 0,0,0,0,0,0
-const CA_CHUNKER_WINDOW_SIZE: usize = 48;
+/// so we use a modified the chunk boundary test too not
+/// use hash value 0 to detect a boundary.
+const CA_CHUNKER_WINDOW_SIZE: usize = 64;
 
 /// Slinding window chunker (Buzhash)
 ///
@@ -164,14 +167,16 @@ impl Chunker {
             }
         }
 
-        let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+        //let mut idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+        let mut idx = self.chunk_size & 0x3f;
 
         while pos < data_len {
             // roll window
             let enter = data[pos];
             let leave = self.window[idx];
             self.h = self.h.rotate_left(1) ^
-                BUZHASH_TABLE[leave as usize].rotate_left(CA_CHUNKER_WINDOW_SIZE as u32) ^
+                //BUZHASH_TABLE[leave as usize].rotate_left(CA_CHUNKER_WINDOW_SIZE as u32) ^
+                BUZHASH_TABLE[leave as usize] ^
                 BUZHASH_TABLE[enter as usize];
 
             self.chunk_size += 1;
@@ -186,7 +191,8 @@ impl Chunker {
                 return pos;
             }
 
-            idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+            //idx = self.chunk_size % CA_CHUNKER_WINDOW_SIZE;
+            idx = self.chunk_size & 0x3f;
             //idx += 1; if idx >= CA_CHUNKER_WINDOW_SIZE { idx = 0 };
         }
 
@@ -201,9 +207,12 @@ impl Chunker {
 
         if self.chunk_size < self.chunk_size_min { return false; }
 
-        (self.h & self.break_test_value) <= 2
-
         //(self.h & 0x1ffff) <= 2 //THIS IS SLOW!!!
+
+        //(self.h & self.break_test_value) <= 2 // Bad on 0 streams
+
+        // simply add arbitrary value (10) before testing
+        ((self.h+10) & self.break_test_value) <= 2
     }
 
     // This is the original implementation from casync
