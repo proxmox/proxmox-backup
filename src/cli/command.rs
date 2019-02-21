@@ -2,7 +2,7 @@ use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use serde_json::Value;
+//use serde_json::Value;
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -11,27 +11,39 @@ use super::environment::CliEnvironment;
 
 use super::getopts;
 
-pub fn print_cli_usage() {
+fn print_simple_usage(prefix: &str, _cli_cmd: &CliCommand, err: Error) {
 
-    eprintln!("Usage: TODO");
+    eprintln!("Error: {}", err);
+    eprintln!("\nUsage: {} <TODO>", prefix);
 }
 
-#[derive(Debug, Fail)]
-#[fail(display = "Usage error: {}", _0)]
-pub struct UsageError(Error);
+fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) {
 
-pub struct Invocation<'a>(&'a CliCommand, Value);
-
-fn handle_simple_command(cli_cmd: &CliCommand, args: Vec<String>) -> Result<Invocation, Error> {
-
-    let (params, rest) = getopts::parse_arguments(
-        &args, &cli_cmd.arg_param, &cli_cmd.info.parameters)?;
+    let (params, rest) = match getopts::parse_arguments(
+        &args, &cli_cmd.arg_param, &cli_cmd.info.parameters) {
+        Ok((p, r)) => (p, r),
+        Err(err) => {
+            print_simple_usage(prefix, cli_cmd, err.into());
+            std::process::exit(-1);
+        }
+    };
 
     if !rest.is_empty() {
-        bail!("got additional arguments: {:?}", rest);
+        let err = format_err!("got additional arguments: {:?}", rest);
+        print_simple_usage(prefix, cli_cmd, err);
+        std::process::exit(-1);
     }
 
-    Ok(Invocation(cli_cmd, params))
+    let mut rpcenv = CliEnvironment::new();
+
+    match (cli_cmd.info.handler)(params, &cli_cmd.info, &mut rpcenv) {
+        Ok(value) => {
+            println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
+        }
+        Err(err) => {
+            eprintln!("Error: {}", err);
+        }
+    }
 }
 
 fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLineInterface> {
@@ -56,7 +68,14 @@ fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLin
     None
 }
 
-fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<Invocation, Error> {
+fn print_nested_usage(prefix: &str, _def: &CliCommandMap, err: Error) {
+
+    eprintln!("Error: {}", err);
+    eprintln!("\nUsage: {} <TODO>", prefix);
+
+}
+
+fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String>) {
 
     if args.len() < 1 {
         let mut cmds: Vec<&String> = def.commands.keys().collect();
@@ -68,22 +87,30 @@ fn handle_nested_command(def: &CliCommandMap, mut args: Vec<String>) -> Result<I
             s
         });
 
-        bail!("expected command argument, but no command specified.\nPossible commands: {}", list);
+        let err = format_err!("no command specified.\nPossible commands: {}", list);
+        print_nested_usage(prefix, def, err);
+        std::process::exit(-1);
     }
 
     let command = args.remove(0);
 
     let sub_cmd = match find_command(def, &command) {
         Some(cmd) => cmd,
-        None => bail!("no such command '{}'", command),
+        None => {
+            let err = format_err!("no such command '{}'", command);
+            print_nested_usage(prefix, def, err);
+            std::process::exit(-1);
+        }
     };
+
+    let new_prefix = format!("{} {}", prefix, command);
 
     match sub_cmd {
         CommandLineInterface::Simple(cli_cmd) => {
-            handle_simple_command(cli_cmd, args)
+            handle_simple_command(&new_prefix, cli_cmd, args);
         }
         CommandLineInterface::Nested(map) => {
-            handle_nested_command(map, args)
+            handle_nested_command(&new_prefix, map, args);
         }
     }
 }
@@ -248,30 +275,24 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     print_nested_completion(def, args);
 }
 
-pub fn run_cli_command(def: &CommandLineInterface) -> Result<(), Error> {
+pub fn run_cli_command(def: &CommandLineInterface) {
 
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args = std::env::args();
+
+    let prefix = args.next().unwrap();
+    let prefix = prefix.rsplit('/').next().unwrap(); // without path
+
+    let args: Vec<String> = args.collect();
 
     if !args.is_empty() && args[0] == "bashcomplete" {
         print_bash_completion(def);
-        return Ok(());
+        return;
     }
 
-    let invocation = match def {
-        CommandLineInterface::Simple(cli_cmd) => handle_simple_command(cli_cmd, args),
-        CommandLineInterface::Nested(map) => handle_nested_command(map, args),
+    match def {
+        CommandLineInterface::Simple(cli_cmd) => handle_simple_command(&prefix, cli_cmd, args),
+        CommandLineInterface::Nested(map) => handle_nested_command(&prefix, map, args),
     };
-
-    let mut rpcenv = CliEnvironment::new();
-
-    let res = match invocation {
-        Err(e) => return Err(UsageError(e).into()),
-        Ok(invocation) => (invocation.0.info.handler)(invocation.1, &invocation.0.info, &mut rpcenv)?,
-    };
-
-    println!("Result: {}", serde_json::to_string_pretty(&res).unwrap());
-
-    Ok(())
 }
 
 pub type CompletionFunction = fn(&str) -> Vec<String>;

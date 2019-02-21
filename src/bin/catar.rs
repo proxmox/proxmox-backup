@@ -185,10 +185,5 @@ fn main() {
             .into()
         );
 
-    if let Err(err) = run_cli_command(&cmd_def.into()) {
-        eprintln!("Error: {}", err);
-        print_cli_usage();
-        std::process::exit(-1);
-    }
-
+    run_cli_command(&cmd_def.into());
 }

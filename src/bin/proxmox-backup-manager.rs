@@ -51,10 +51,5 @@ fn main() {
         .insert("datastore".to_owned(), datastore_commands())
         .insert("garbage-collection".to_owned(), garbage_collection_commands());
 
-    if let Err(err) = run_cli_command(&cmd_def.into()) {
-        eprintln!("Error: {}", err);
-        print_cli_usage();
-        std::process::exit(-1);
-    }
-
+    run_cli_command(&cmd_def.into());
 }

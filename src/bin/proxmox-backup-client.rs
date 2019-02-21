@@ -236,12 +236,5 @@ fn main() {
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into());
 
-    if let Err(err) = run_cli_command(&cmd_def.into()) {
-        eprintln!("Error: {}", err);
-        if err.downcast::<UsageError>().is_ok() {
-            print_cli_usage();
-        }
-        std::process::exit(-1);
-    }
-
+    run_cli_command(&cmd_def.into());
 }
