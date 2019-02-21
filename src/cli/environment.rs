@@ -3,6 +3,7 @@ use crate::api_schema::router::*;
 use std::collections::HashMap;
 use serde_json::Value;
 
+/// `RpcEnvironmet` implementation for command line tools
 pub struct CliEnvironment {
     result_attributes: HashMap<String, Value>,
     user: Option<String>,

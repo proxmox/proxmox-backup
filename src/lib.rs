@@ -31,16 +31,10 @@ pub mod storage {
     pub mod futures;
 }
 
-pub mod cli {
-
-    pub mod environment;
-    pub mod command;
-}
-
+pub mod cli;
 
 pub mod api2;
 
 pub mod client;
 
-pub mod getopts;
 pub mod auth_helpers;

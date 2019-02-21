@@ -5,7 +5,7 @@ use failure::*;
 use chrono::{Local, TimeZone};
 
 use proxmox_backup::tools;
-use proxmox_backup::cli::command::*;
+use proxmox_backup::cli::*;
 use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;

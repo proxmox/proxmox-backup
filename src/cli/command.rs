@@ -9,7 +9,7 @@ use crate::api_schema::router::*;
 //use crate::api_schema::config::*;
 use super::environment::CliEnvironment;
 
-use crate::getopts;
+use super::getopts;
 
 pub fn print_cli_usage() {
 
