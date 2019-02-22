@@ -27,7 +27,8 @@ pub struct Chunker {
 
     _discriminator: u32,
 
-    break_test_value: u32,
+    break_test_mask: u32,
+    break_test_minimum: u32,
 
     window: [u8; CA_CHUNKER_WINDOW_SIZE],
 }
@@ -121,7 +122,8 @@ impl Chunker {
             panic!("got unexpected chunk size - not a power of two.");
         }
 
-        let break_test_value = (chunk_size_avg*2 -1) as u32;
+        let break_test_mask = (chunk_size_avg*2 - 1) as u32;
+        let break_test_minimum =  break_test_mask - 2;
 
         Self {
             h: 0,
@@ -131,7 +133,8 @@ impl Chunker {
             chunk_size_max: chunk_size_avg<<2,
             _chunk_size_avg: chunk_size_avg,
             _discriminator:  discriminator,
-            break_test_value: break_test_value,
+            break_test_mask: break_test_mask,
+            break_test_minimum: break_test_minimum,
             window: [0u8; CA_CHUNKER_WINDOW_SIZE],
         }
     }
@@ -209,10 +212,9 @@ impl Chunker {
 
         //(self.h & 0x1ffff) <= 2 //THIS IS SLOW!!!
 
-        //(self.h & self.break_test_value) <= 2 // Bad on 0 streams
+        //(self.h & self.break_test_mask) <= 2 // Bad on 0 streams
 
-        // simply add arbitrary value (10) before testing
-        ((self.h+10) & self.break_test_value) <= 2
+        (self.h & self.break_test_mask) >= self.break_test_minimum
     }
 
     // This is the original implementation from casync
