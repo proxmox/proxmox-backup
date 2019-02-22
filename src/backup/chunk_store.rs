@@ -298,24 +298,30 @@ impl ChunkStore {
     pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
 
         // fixme: use Sha512/256 when available
-        let mut hasher = sha::Sha256::new();
-        hasher.update(chunk);
+        let digest = sha::sha256(chunk);
+        let (new, csize) = self.insert_chunk_noverify(&digest, chunk)?;
+        Ok((new, digest, csize))
+    }
 
-        let digest = hasher.finish();
+    pub fn insert_chunk_noverify(
+        &self,
+        digest: &[u8; 32],
+        chunk: &[u8],
+    ) -> Result<(bool, u64), Error> {
 
         //println!("DIGEST {}", tools::digest_to_hex(&digest));
 
         let mut chunk_path = self.chunk_dir.clone();
-        let prefix = digest_to_prefix(&digest);
+        let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
-        let digest_str = tools::digest_to_hex(&digest);
+        let digest_str = tools::digest_to_hex(digest);
         chunk_path.push(&digest_str);
 
         let lock = self.mutex.lock();
 
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
             if metadata.is_file() {
-                return Ok((true, digest, metadata.len()));
+                return Ok((true, metadata.len()));
             } else {
                 bail!("Got unexpected file type on store '{}' for chunk {}", self.name, digest_str);
             }
@@ -351,7 +357,7 @@ impl ChunkStore {
 
         drop(lock);
 
-        Ok((false, digest, compressed_size))
+        Ok((false, compressed_size))
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
