@@ -1,8 +1,6 @@
 use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Arc;
-
 //use serde_json::Value;
 
 use crate::api_schema::*;
@@ -20,9 +18,22 @@ enum ParameterDisplayStyle {
     Fixed,
 }
 
-fn get_schema_type_text(schema: Arc<Schema>, _style: ParameterDisplayStyle) -> String {
+/// CLI usage information format
+#[derive(Copy, Clone, PartialEq)]
+enum DocumentationFormat {
+    /// text, command line only (one line)
+    Short,
+    /// text, list all options
+    Long,
+    /// text, include description
+    Full,
+    /// like full, but in pandoc json format
+    Pandoc,
+}
 
-    let type_text = match *schema {
+fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> String {
+
+    let type_text = match schema {
         Schema::Null => String::from("<null>"), // should not happen
         Schema::String(_) => String::from("<string>"),
         Schema::Boolean(_) => String::from("<boolean>"),
@@ -36,29 +47,64 @@ fn get_schema_type_text(schema: Arc<Schema>, _style: ParameterDisplayStyle) -> S
 
 fn get_property_description(
     name: &str,
-    schema: Arc<Schema>,
-    style: ParameterDisplayStyle
+    schema: &Schema,
+    style: ParameterDisplayStyle,
+    format: DocumentationFormat,
 ) -> String {
 
     let type_text = get_schema_type_text(schema, style);
 
-    let display_name = match style {
-        ParameterDisplayStyle::Arg => {
-            format!("--{}", name)
-        }
-        ParameterDisplayStyle::Fixed => {
-            format!("<{}>", name)
-        }
+    let (descr, default) = match schema {
+        Schema::Null => ("null", None),
+        Schema::String(ref schema) => (schema.description, schema.default.map(|v| v.to_owned())),
+        Schema::Boolean(ref schema) => (schema.description, schema.default.map(|v| v.to_string())),
+        Schema::Integer(ref schema) => (schema.description, schema.default.map(|v| v.to_string())),
+        Schema::Object(ref schema) => (schema.description, None),
+        Schema::Array(ref schema) => (schema.description, None),
     };
 
-    format!(" {:-10} {}", display_name, type_text)
+    if format == DocumentationFormat::Pandoc {
+        panic!("implement me");
+
+    } else {
+
+        let default_text = match default {
+            Some(text) =>  format!("   (default={})", text),
+            None => String::new(),
+        };
+
+        let display_name = match style {
+            ParameterDisplayStyle::Arg => {
+                format!("--{}", name)
+            }
+            ParameterDisplayStyle::Fixed => {
+                format!("<{}>", name)
+            }
+        };
+
+        // fixme: wrap text
+        let mut text = format!(" {:-10} {}{}", display_name, type_text, default_text);
+        let indent = "             ";
+        text.push('\n');
+        text.push_str(indent);
+        text.push_str(descr);
+        text.push('\n');
+        text.push('\n');
+
+        text
+    }
 }
 
-fn generate_usage_str(prefix: &str, cli_cmd: &CliCommand, indent: &str) -> String {
+fn generate_usage_str(
+    prefix: &str,
+    cli_cmd: &CliCommand,
+    format: DocumentationFormat,
+    indent: &str) -> String {
 
     let arg_param = &cli_cmd.arg_param;
     let fixed_param = &cli_cmd.fixed_param;
     let properties = &cli_cmd.info.parameters.properties;
+    let description = &cli_cmd.info.parameters.description;
 
     let mut done_hash = HashSet::<&str>::new();
     let mut args = String::new();
@@ -70,8 +116,15 @@ fn generate_usage_str(prefix: &str, cli_cmd: &CliCommand, indent: &str) -> Strin
         args.push('<'); args.push_str(positional_arg); args.push('>');
         if *optional { args.push(']'); }
 
-        //arg_descr.push_str(&get_property_description(positional_arg, schema.clone(), ParameterDisplayStyle::Fixed));
         done_hash.insert(positional_arg);
+    }
+
+    let mut arg_descr = String::new();
+    for positional_arg in arg_param {
+        let (_optional, schema) = properties.get(positional_arg).unwrap();
+        let param_descr = get_property_description(
+            positional_arg, &schema, ParameterDisplayStyle::Fixed, format);
+        arg_descr.push_str(&param_descr);
     }
 
     let mut options = String::new();
@@ -84,12 +137,12 @@ fn generate_usage_str(prefix: &str, cli_cmd: &CliCommand, indent: &str) -> Strin
         if done_hash.contains(prop) { continue; }
         if fixed_param.contains(&prop) { continue; }
 
-        let type_text = get_schema_type_text(schema.clone(), ParameterDisplayStyle::Arg);
+        let type_text = get_schema_type_text(&schema, ParameterDisplayStyle::Arg);
 
         if *optional {
 
             options.push(' ');
-            options.push_str(&get_property_description(prop, schema.clone(), ParameterDisplayStyle::Arg));
+            options.push_str(&get_property_description(prop, &schema, ParameterDisplayStyle::Arg, format));
 
         } else {
             args.push_str("--"); args.push_str(prop);
@@ -100,8 +153,38 @@ fn generate_usage_str(prefix: &str, cli_cmd: &CliCommand, indent: &str) -> Strin
         done_hash.insert(prop);
     }
 
-
-    format!("{}{}{}", indent, prefix, args)
+    match format {
+        DocumentationFormat::Short => {
+            format!("{}{}{}", indent, prefix, args)
+        }
+        DocumentationFormat::Long => {
+            let mut text = format!("{}{}{}\n", indent, prefix, args);
+            if arg_descr.len() > 0 {
+                text.push('\n');
+                text.push_str(&arg_descr);
+            }
+            if options.len() > 0 {
+                text.push('\n');
+                text.push_str(&options);
+            }
+            text
+        }
+        DocumentationFormat::Full => {
+            let mut text = format!("{}{}{}\n\n{}\n", indent, prefix, args, description);
+            if arg_descr.len() > 0 {
+                text.push('\n');
+                text.push_str(&arg_descr);
+            }
+            if options.len() > 0 {
+                text.push('\n');
+                text.push_str(&options);
+            }
+            text
+        }
+        DocumentationFormat::Pandoc => {
+            panic!("implement me");
+        }
+    }
 }
 
 fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
@@ -113,7 +196,7 @@ fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
 
 fn print_simple_usage(prefix: &str, cli_cmd: &CliCommand) {
 
-    let usage =  generate_usage_str(prefix, cli_cmd, "");
+    let usage =  generate_usage_str(prefix, cli_cmd, DocumentationFormat::Long, "");
     eprintln!("{}", usage);
 }
 
@@ -172,10 +255,11 @@ fn print_nested_usage_error(prefix: &str, def: &CliCommandMap, err: Error) {
 
     eprintln!("Error: {}\n\nUsage:\n", err);
 
-    print_nested_usage(prefix, def);
+   // print_nested_usage(prefix, def, DocumentationFormat::Short);
+    print_nested_usage(prefix, def, DocumentationFormat::Long);
 }
 
-fn print_nested_usage(prefix: &str, def: &CliCommandMap) {
+fn print_nested_usage(prefix: &str, def: &CliCommandMap, format: DocumentationFormat) {
 
     let mut cmds: Vec<&String> = def.commands.keys().collect();
     cmds.sort();
@@ -185,11 +269,11 @@ fn print_nested_usage(prefix: &str, def: &CliCommandMap) {
 
         match def.commands.get(cmd).unwrap() {
             CommandLineInterface::Simple(cli_cmd) => {
-                let usage =  generate_usage_str(&new_prefix, cli_cmd, "");
+                let usage =  generate_usage_str(&new_prefix, cli_cmd, format, "");
                 eprintln!("{}", usage);
             }
             CommandLineInterface::Nested(map) => {
-                print_nested_usage(&new_prefix, map);
+                print_nested_usage(&new_prefix, map, format);
             }
         }
     }
