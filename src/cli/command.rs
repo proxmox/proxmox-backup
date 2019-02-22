@@ -1,6 +1,7 @@
 use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 //use serde_json::Value;
 
@@ -11,10 +12,109 @@ use super::environment::CliEnvironment;
 
 use super::getopts;
 
-fn print_simple_usage(prefix: &str, _cli_cmd: &CliCommand, err: Error) {
+#[derive(Copy, Clone)]
+enum ParameterDisplayStyle {
+    //Config,
+    //SonfigSub,
+    Arg,
+    Fixed,
+}
 
-    eprintln!("Error: {}", err);
-    eprintln!("\nUsage: {} <TODO>", prefix);
+fn get_schema_type_text(schema: Arc<Schema>, _style: ParameterDisplayStyle) -> String {
+
+    let type_text = match *schema {
+        Schema::Null => String::from("<null>"), // should not happen
+        Schema::String(_) => String::from("<string>"),
+        Schema::Boolean(_) => String::from("<boolean>"),
+        Schema::Integer(_) => String::from("<integer>"),
+        Schema::Object(_) => String::from("<object>"),
+        Schema::Array(_) => String::from("<array>"),
+    };
+
+    type_text
+}
+
+fn get_property_description(
+    name: &str,
+    schema: Arc<Schema>,
+    style: ParameterDisplayStyle
+) -> String {
+
+    let type_text = get_schema_type_text(schema, style);
+
+    let display_name = match style {
+        ParameterDisplayStyle::Arg => {
+            format!("--{}", name)
+        }
+        ParameterDisplayStyle::Fixed => {
+            format!("<{}>", name)
+        }
+    };
+
+    format!(" {:-10} {}", display_name, type_text)
+}
+
+fn generate_usage_str(prefix: &str, cli_cmd: &CliCommand, indent: &str) -> String {
+
+    let arg_param = &cli_cmd.arg_param;
+    let fixed_param = &cli_cmd.fixed_param;
+    let properties = &cli_cmd.info.parameters.properties;
+
+    let mut done_hash = HashSet::<&str>::new();
+    let mut args = String::new();
+
+    for positional_arg in arg_param {
+        let (optional, _schema) = properties.get(positional_arg).unwrap();
+        args.push(' ');
+        if *optional { args.push('['); }
+        args.push('<'); args.push_str(positional_arg); args.push('>');
+        if *optional { args.push(']'); }
+
+        //arg_descr.push_str(&get_property_description(positional_arg, schema.clone(), ParameterDisplayStyle::Fixed));
+        done_hash.insert(positional_arg);
+    }
+
+    let mut options = String::new();
+
+    let mut prop_names: Vec<&str> = properties.keys().map(|v| *v).collect();
+    prop_names.sort();
+
+    for prop in prop_names {
+        let (optional, schema) = properties.get(prop).unwrap();
+        if done_hash.contains(prop) { continue; }
+        if fixed_param.contains(&prop) { continue; }
+
+        let type_text = get_schema_type_text(schema.clone(), ParameterDisplayStyle::Arg);
+
+        if *optional {
+
+            options.push(' ');
+            options.push_str(&get_property_description(prop, schema.clone(), ParameterDisplayStyle::Arg));
+
+        } else {
+            args.push_str("--"); args.push_str(prop);
+            args.push(' ');
+            args.push_str(&type_text);
+        }
+
+        done_hash.insert(prop);
+    }
+
+
+    format!("{}{}{}", indent, prefix, args)
+}
+
+fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
+
+    eprint!("Error: {}\nUsage: ", err);
+
+    print_simple_usage(prefix, cli_cmd);
+}
+
+fn print_simple_usage(prefix: &str, cli_cmd: &CliCommand) {
+
+    let usage =  generate_usage_str(prefix, cli_cmd, "");
+    eprintln!("{}", usage);
 }
 
 fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) {
@@ -23,14 +123,14 @@ fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) 
         &args, &cli_cmd.arg_param, &cli_cmd.info.parameters) {
         Ok((p, r)) => (p, r),
         Err(err) => {
-            print_simple_usage(prefix, cli_cmd, err.into());
+            print_simple_usage_error(prefix, cli_cmd, err.into());
             std::process::exit(-1);
         }
     };
 
     if !rest.is_empty() {
         let err = format_err!("got additional arguments: {:?}", rest);
-        print_simple_usage(prefix, cli_cmd, err);
+        print_simple_usage_error(prefix, cli_cmd, err);
         std::process::exit(-1);
     }
 
@@ -68,10 +168,31 @@ fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLin
     None
 }
 
-fn print_nested_usage(prefix: &str, _def: &CliCommandMap, err: Error) {
+fn print_nested_usage_error(prefix: &str, def: &CliCommandMap, err: Error) {
 
-    eprintln!("Error: {}", err);
-    eprintln!("\nUsage: {} <TODO>", prefix);
+    eprintln!("Error: {}\n\nUsage:\n", err);
+
+    print_nested_usage(prefix, def);
+}
+
+fn print_nested_usage(prefix: &str, def: &CliCommandMap) {
+
+    let mut cmds: Vec<&String> = def.commands.keys().collect();
+    cmds.sort();
+
+    for cmd in cmds {
+        let new_prefix = format!("{} {}", prefix, cmd);
+
+        match def.commands.get(cmd).unwrap() {
+            CommandLineInterface::Simple(cli_cmd) => {
+                let usage =  generate_usage_str(&new_prefix, cli_cmd, "");
+                eprintln!("{}", usage);
+            }
+            CommandLineInterface::Nested(map) => {
+                print_nested_usage(&new_prefix, map);
+            }
+        }
+    }
 
 }
 
@@ -88,7 +209,7 @@ fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String
         });
 
         let err = format_err!("no command specified.\nPossible commands: {}", list);
-        print_nested_usage(prefix, def, err);
+        print_nested_usage_error(prefix, def, err);
         std::process::exit(-1);
     }
 
@@ -98,7 +219,7 @@ fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String
         Some(cmd) => cmd,
         None => {
             let err = format_err!("no such command '{}'", command);
-            print_nested_usage(prefix, def, err);
+            print_nested_usage_error(prefix, def, err);
             std::process::exit(-1);
         }
     };
