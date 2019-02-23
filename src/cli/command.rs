@@ -1,7 +1,7 @@
 use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
-//use serde_json::Value;
+use serde_json::Value;
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -63,14 +63,19 @@ fn get_property_description(
         Schema::Array(ref schema) => (schema.description, None),
     };
 
+    let default_text = match default {
+        Some(text) =>  format!("   (default={})", text),
+        None => String::new(),
+    };
+
     if format == DocumentationFormat::ReST {
 
         let mut text = match style {
            ParameterDisplayStyle::Arg => {
-                format!(":``--{} {}``:  ", name, type_text)
+                format!(":``--{} {}{}``:  ", name, type_text, default_text)
             }
             ParameterDisplayStyle::Fixed => {
-                format!(":``<{}> {}``:  ", name, type_text)
+                format!(":``<{}> {}{}``:  ", name, type_text, default_text)
             }
         };
 
@@ -81,11 +86,6 @@ fn get_property_description(
         text
 
     } else {
-
-        let default_text = match default {
-            Some(text) =>  format!("   (default={})", text),
-            None => String::new(),
-        };
 
         let display_name = match style {
             ParameterDisplayStyle::Arg => {
@@ -167,28 +167,30 @@ fn generate_usage_str(
         done_hash.insert(prop);
     }
 
+    let option_indicator = if options.len() > 0 { " [OPTIONS]" } else { "" };
+
     let mut text = match format {
         DocumentationFormat::Short => {
-            return format!("{}{}{}", indent, prefix, args);
+            return format!("{}{}{}{}\n\n", indent, prefix, args, option_indicator);
         }
         DocumentationFormat::Long => {
-            format!("{}{}{}\n", indent, prefix, args)
+            format!("{}{}{}{}\n\n", indent, prefix, args, option_indicator)
         }
         DocumentationFormat::Full => {
-            format!("{}{}{}\n\n{}\n", indent, prefix, args, description)
+            format!("{}{}{}{}\n\n{}\n\n", indent, prefix, args, option_indicator, description)
         }
         DocumentationFormat::ReST => {
-            format!("``{} {}``\n\n{}\n\n", prefix, args.trim(), description)
+            format!("``{} {}{}``\n\n{}\n\n", prefix, args.trim(), option_indicator, description)
         }
     };
 
     if arg_descr.len() > 0 {
-        text.push('\n');
         text.push_str(&arg_descr);
+        text.push('\n');
     }
     if options.len() > 0 {
-        text.push('\n');
         text.push_str(&options);
+        text.push('\n');
     }
     text
 }
@@ -199,7 +201,48 @@ fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
     eprint!("Error: {}\nUsage: {}", err, usage);
 }
 
-fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) {
+fn print_help(
+    top_def: &CommandLineInterface,
+    mut prefix: String,
+    args: &Vec<String>,
+    verbose: Option<bool>,
+) {
+    let mut iface = top_def;
+
+    for cmd in args {
+        if let CommandLineInterface::Nested(map) = iface {
+            if let Some(subcmd) = find_command(map, cmd) {
+                iface = subcmd;
+                prefix.push(' ');
+                prefix.push_str(cmd);
+                continue;
+            }
+        }
+        eprintln!("no such command '{}'", cmd);
+        std::process::exit(-1);
+    }
+
+    let format = match verbose.unwrap_or(false) {
+        true => DocumentationFormat::Full,
+        false => DocumentationFormat::Short,
+    };
+
+    match iface {
+        CommandLineInterface::Nested(map) => {
+            println!("Usage:\n\n{}", generate_nested_usage(&prefix, map, format));
+        }
+        CommandLineInterface::Simple(cli_cmd) => {
+            println!("Usage: {}", generate_usage_str(&prefix, cli_cmd, format, ""));
+        }
+    }
+}
+
+fn handle_simple_command(
+    top_def: &CommandLineInterface,
+    prefix: &str,
+    cli_cmd: &CliCommand,
+    args: Vec<String>,
+) {
 
     let (params, rest) = match getopts::parse_arguments(
         &args, &cli_cmd.arg_param, &cli_cmd.info.parameters) {
@@ -209,6 +252,12 @@ fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) 
             std::process::exit(-1);
         }
     };
+
+    if (cli_cmd.info.handler as *const fn()) == (dummy_help as *const fn()) {
+        let prefix = prefix.split(' ').next().unwrap().to_string();
+        print_help(top_def, prefix, &rest, params["verbose"].as_bool());
+        return;
+    }
 
     if !rest.is_empty() {
         let err = format_err!("got additional arguments: {:?}", rest);
@@ -252,9 +301,9 @@ fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLin
 
 fn print_nested_usage_error(prefix: &str, def: &CliCommandMap, err: Error) {
 
-    let usage = generate_nested_usage(prefix, def, DocumentationFormat::Long);
+    let usage = generate_nested_usage(prefix, def, DocumentationFormat::Short);
 
-    eprintln!("Error: {}\n\nUsage:\n{}", err, usage);
+    eprintln!("Error: {}\n\nUsage:\n\n{}", err, usage);
 }
 
 fn generate_nested_usage(prefix: &str, def: &CliCommandMap, format: DocumentationFormat) -> String {
@@ -283,7 +332,12 @@ fn generate_nested_usage(prefix: &str, def: &CliCommandMap, format: Documentatio
     usage
 }
 
-fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String>) {
+fn handle_nested_command(
+    top_def: &CommandLineInterface,
+    prefix: &str,
+    def: &CliCommandMap,
+    mut args: Vec<String>,
+) {
 
     if args.len() < 1 {
         let mut cmds: Vec<&String> = def.commands.keys().collect();
@@ -315,10 +369,10 @@ fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String
 
     match sub_cmd {
         CommandLineInterface::Simple(cli_cmd) => {
-            handle_simple_command(&new_prefix, cli_cmd, args);
+            handle_simple_command(top_def, &new_prefix, cli_cmd, args);
         }
         CommandLineInterface::Nested(map) => {
-            handle_nested_command(&new_prefix, map, args);
+            handle_nested_command(top_def, &new_prefix, map, args);
         }
     }
 }
@@ -483,7 +537,22 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     print_nested_completion(def, args);
 }
 
-pub fn run_cli_command(def: &CommandLineInterface) {
+pub fn run_cli_command(def: CommandLineInterface) {
+
+    let help_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            dummy_help,
+            ObjectSchema::new("Get help about specified command.")
+                .optional("verbose", BooleanSchema::new("Verbose help."))
+        )
+    );
+
+    let def = match def {
+        CommandLineInterface::Simple(cli_cmd) => CommandLineInterface::Simple(cli_cmd),
+        CommandLineInterface::Nested(map) => CommandLineInterface::Nested(map.insert("help", help_cmd_def.into())),
+    };
+
+    let top_def = &def; // we pass this to the help function ...
 
     let mut args = std::env::args();
 
@@ -494,17 +563,17 @@ pub fn run_cli_command(def: &CommandLineInterface) {
 
     if !args.is_empty() {
         if args[0] == "bashcomplete" {
-            print_bash_completion(def);
+            print_bash_completion(&def);
             return;
         }
 
         if args[0] == "printdoc" {
             let usage = match def {
                 CommandLineInterface::Simple(cli_cmd) => {
-                    generate_usage_str(&prefix, cli_cmd,  DocumentationFormat::ReST, "")
+                    generate_usage_str(&prefix, &cli_cmd,  DocumentationFormat::ReST, "")
                 }
                 CommandLineInterface::Nested(map) => {
-                    generate_nested_usage(&prefix, map, DocumentationFormat::ReST)
+                    generate_nested_usage(&prefix, &map, DocumentationFormat::ReST)
                 }
             };
             println!("{}", usage);
@@ -513,8 +582,8 @@ pub fn run_cli_command(def: &CommandLineInterface) {
     }
 
     match def {
-        CommandLineInterface::Simple(cli_cmd) => handle_simple_command(&prefix, cli_cmd, args),
-        CommandLineInterface::Nested(map) => handle_nested_command(&prefix, map, args),
+        CommandLineInterface::Simple(ref cli_cmd) => handle_simple_command(top_def, &prefix, &cli_cmd, args),
+        CommandLineInterface::Nested(ref map) => handle_nested_command(top_def, &prefix, &map, args),
     };
 }
 
@@ -555,6 +624,10 @@ impl CliCommand {
 
 pub struct CliCommandMap {
     pub commands: HashMap<String, CommandLineInterface>,
+}
+
+fn dummy_help(_param: Value, _info: &ApiMethod, _rpcenv: &mut RpcEnvironment) -> Result<Value, Error> {
+    panic!("internal error"); // this is just a place holder - never call this
 }
 
 impl CliCommandMap {

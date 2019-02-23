@@ -51,5 +51,5 @@ fn main() {
         .insert("datastore".to_owned(), datastore_commands())
         .insert("garbage-collection".to_owned(), garbage_collection_commands());
 
-    run_cli_command(&cmd_def.into());
+    run_cli_command(cmd_def.into());
 }

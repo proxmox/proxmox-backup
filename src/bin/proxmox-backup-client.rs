@@ -236,5 +236,5 @@ fn main() {
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into());
 
-    run_cli_command(&cmd_def.into());
+    run_cli_command(cmd_def.into());
 }

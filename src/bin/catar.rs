@@ -185,5 +185,5 @@ fn main() {
             .into()
         );
 
-    run_cli_command(&cmd_def.into());
+    run_cli_command(cmd_def.into());
 }
