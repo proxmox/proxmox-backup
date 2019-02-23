@@ -425,7 +425,7 @@ fn print_simple_completion(
     cli_cmd: &CliCommand,
     done: &mut HashSet<String>,
     arg_param: &[&str],
-    mut args: Vec<String>,
+    args: &[String],
 ) {
     // fixme: arg_param, fixed_param
     //eprintln!("COMPL: {:?} {:?} {}", arg_param, args, args.len());
@@ -434,8 +434,7 @@ fn print_simple_completion(
         let prop_name = arg_param[0];
         done.insert(prop_name.into());
         if args.len() > 1 {
-            args.remove(0);
-            print_simple_completion(cli_cmd, done, &arg_param[1..], args);
+            print_simple_completion(cli_cmd, done, &arg_param[1..], &args[1..]);
             return;
         } else if args.len() == 1 {
             if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
@@ -448,11 +447,11 @@ fn print_simple_completion(
 
     record_done_arguments(done, &cli_cmd.info.parameters, &args);
 
-    let prefix = args.pop().unwrap(); // match on last arg
+    let prefix = &args[args.len()-1]; // match on last arg
 
     // complete option-name or option-value ?
-    if !prefix.starts_with("-") && args.len() > 0 {
-        let last = &args[args.len()-1];
+    if !prefix.starts_with("-") && args.len() > 1 {
+        let last = &args[args.len()-2];
         if last.starts_with("--") && last.len() > 2 {
             let prop_name = &last[2..];
             if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
@@ -465,7 +464,7 @@ fn print_simple_completion(
     for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
         if done.contains(*name) { continue; }
         let option = String::from("--") + name;
-        if option.starts_with(&prefix) {
+        if option.starts_with(prefix) {
             println!("{}", option);
         }
     }
@@ -476,7 +475,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
     match def {
         CommandLineInterface::Simple(_) => {
             let mut done = HashSet::new();
-            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args.to_vec());
+            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args);
             return;
         }
         CommandLineInterface::Nested(map) => {
@@ -500,7 +499,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
     }
 }
 
-fn print_nested_completion(def: &CommandLineInterface, mut args: Vec<String>) {
+fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
 
     match def {
         CommandLineInterface::Simple(cli_cmd) => {
@@ -517,13 +516,13 @@ fn print_nested_completion(def: &CommandLineInterface, mut args: Vec<String>) {
                 }
                 return;
             }
-            let first = args.remove(0);
-            if let Some(sub_cmd) = map.commands.get(&first) {
-                print_nested_completion(sub_cmd, args);
+            let first = &args[0];
+            if let Some(sub_cmd) = map.commands.get(first) {
+                print_nested_completion(sub_cmd, &args[1..]);
                 return;
             }
             for cmd in map.commands.keys() {
-                if cmd.starts_with(&first) {
+                if cmd.starts_with(first) {
                     println!("{}", cmd);
                 }
             }
@@ -564,7 +563,7 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     if !args.is_empty() && args[0] == "help" {
         print_help_completion(def, &help_command_def(), &args[1..]);
     } else {
-        print_nested_completion(def, args);
+        print_nested_completion(def, &args);
     }
 }
 
