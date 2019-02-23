@@ -472,9 +472,10 @@ fn print_simple_completion(
 
 fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args: &[String]) {
 
+    let mut done = HashSet::new();
+
     match def {
         CommandLineInterface::Simple(_) => {
-            let mut done = HashSet::new();
             print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args);
             return;
         }
@@ -485,11 +486,19 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
                 }
                 return;
             }
+
             let first = &args[0];
+
+            if first.starts_with("-") {
+                print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args);
+                return;
+            }
+
             if let Some(sub_cmd) = map.commands.get(first) {
                 print_help_completion(sub_cmd, help_cmd, &args[1..]);
                 return;
             }
+
             for cmd in map.commands.keys() {
                 if cmd.starts_with(first) {
                     println!("{}", cmd);
