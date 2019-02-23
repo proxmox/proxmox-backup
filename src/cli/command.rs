@@ -471,6 +471,35 @@ fn print_simple_completion(
     }
 }
 
+fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args: &[String]) {
+
+    match def {
+        CommandLineInterface::Simple(_) => {
+            let mut done = HashSet::new();
+            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args.to_vec());
+            return;
+        }
+        CommandLineInterface::Nested(map) => {
+            if args.is_empty() {
+                for cmd in map.commands.keys() {
+                    println!("{}", cmd);
+                }
+                return;
+            }
+            let first = &args[0];
+            if let Some(sub_cmd) = map.commands.get(first) {
+                print_help_completion(sub_cmd, help_cmd, &args[1..]);
+                return;
+            }
+            for cmd in map.commands.keys() {
+                if cmd.starts_with(first) {
+                    println!("{}", cmd);
+                }
+            }
+        }
+    }
+}
+
 fn print_nested_completion(def: &CommandLineInterface, mut args: Vec<String>) {
 
     match def {
@@ -532,24 +561,29 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
         args.push("".into());
     }
 
-    //eprintln!("COMP_ARGS {:?}", args);
-
-    print_nested_completion(def, args);
+    if !args.is_empty() && args[0] == "help" {
+        print_help_completion(def, &help_command_def(), &args[1..]);
+    } else {
+        print_nested_completion(def, args);
+    }
 }
 
-pub fn run_cli_command(def: CommandLineInterface) {
-
-    let help_cmd_def = CliCommand::new(
+fn help_command_def() ->  CliCommand {
+    CliCommand::new(
         ApiMethod::new(
             dummy_help,
             ObjectSchema::new("Get help about specified command.")
                 .optional("verbose", BooleanSchema::new("Verbose help."))
         )
-    );
+    )
+}
+
+pub fn run_cli_command(def: CommandLineInterface) {
 
     let def = match def {
         CommandLineInterface::Simple(cli_cmd) => CommandLineInterface::Simple(cli_cmd),
-        CommandLineInterface::Nested(map) => CommandLineInterface::Nested(map.insert("help", help_cmd_def.into())),
+        CommandLineInterface::Nested(map) =>
+            CommandLineInterface::Nested(map.insert("help", help_command_def().into())),
     };
 
     let top_def = &def; // we pass this to the help function ...
