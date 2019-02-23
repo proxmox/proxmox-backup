@@ -202,7 +202,7 @@ fn main() {
             create_backup,
             ObjectSchema::new("Create backup.")
                 .required("repository", repo_url_schema.clone())
-                .required("filename", StringSchema::new("Source name (file or directory name)"))
+                .required("filename", StringSchema::new("Source name (file or directory name)."))
                 .required("target", StringSchema::new("Target name."))
                 .optional(
                     "chunk-size",

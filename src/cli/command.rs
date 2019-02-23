@@ -27,8 +27,8 @@ enum DocumentationFormat {
     Long,
     /// text, include description
     Full,
-    /// like full, but in pandoc json format
-    Pandoc,
+    /// like full, but in reStructuredText format
+    ReST,
 }
 
 fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> String {
@@ -63,8 +63,22 @@ fn get_property_description(
         Schema::Array(ref schema) => (schema.description, None),
     };
 
-    if format == DocumentationFormat::Pandoc {
-        panic!("implement me");
+    if format == DocumentationFormat::ReST {
+
+        let mut text = match style {
+           ParameterDisplayStyle::Arg => {
+                format!(":``--{} {}``:  ", name, type_text)
+            }
+            ParameterDisplayStyle::Fixed => {
+                format!(":``<{}> {}``:  ", name, type_text)
+            }
+        };
+
+        text.push_str(descr);
+        text.push('\n');
+        text.push('\n');
+
+        text
 
     } else {
 
@@ -141,7 +155,7 @@ fn generate_usage_str(
 
         if *optional {
 
-            options.push(' ');
+            if options.len() > 0 { options.push(' '); }
             options.push_str(&get_property_description(prop, &schema, ParameterDisplayStyle::Arg, format));
 
         } else {
@@ -153,51 +167,36 @@ fn generate_usage_str(
         done_hash.insert(prop);
     }
 
-    match format {
+    let mut text = match format {
         DocumentationFormat::Short => {
-            format!("{}{}{}", indent, prefix, args)
+            return format!("{}{}{}", indent, prefix, args);
         }
         DocumentationFormat::Long => {
-            let mut text = format!("{}{}{}\n", indent, prefix, args);
-            if arg_descr.len() > 0 {
-                text.push('\n');
-                text.push_str(&arg_descr);
-            }
-            if options.len() > 0 {
-                text.push('\n');
-                text.push_str(&options);
-            }
-            text
+            format!("{}{}{}\n", indent, prefix, args)
         }
         DocumentationFormat::Full => {
-            let mut text = format!("{}{}{}\n\n{}\n", indent, prefix, args, description);
-            if arg_descr.len() > 0 {
-                text.push('\n');
-                text.push_str(&arg_descr);
-            }
-            if options.len() > 0 {
-                text.push('\n');
-                text.push_str(&options);
-            }
-            text
+            format!("{}{}{}\n\n{}\n", indent, prefix, args, description)
         }
-        DocumentationFormat::Pandoc => {
-            panic!("implement me");
+        DocumentationFormat::ReST => {
+            format!("``{} {}``\n\n{}\n\n", prefix, args.trim(), description)
         }
+    };
+
+    if arg_descr.len() > 0 {
+        text.push('\n');
+        text.push_str(&arg_descr);
     }
+    if options.len() > 0 {
+        text.push('\n');
+        text.push_str(&options);
+    }
+    text
 }
 
 fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
 
-    eprint!("Error: {}\nUsage: ", err);
-
-    print_simple_usage(prefix, cli_cmd);
-}
-
-fn print_simple_usage(prefix: &str, cli_cmd: &CliCommand) {
-
     let usage =  generate_usage_str(prefix, cli_cmd, DocumentationFormat::Long, "");
-    eprintln!("{}", usage);
+    eprint!("Error: {}\nUsage: {}", err, usage);
 }
 
 fn handle_simple_command(prefix: &str, cli_cmd: &CliCommand, args: Vec<String>) {
@@ -253,31 +252,35 @@ fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLin
 
 fn print_nested_usage_error(prefix: &str, def: &CliCommandMap, err: Error) {
 
-    eprintln!("Error: {}\n\nUsage:\n", err);
+    let usage = generate_nested_usage(prefix, def, DocumentationFormat::Long);
 
-   // print_nested_usage(prefix, def, DocumentationFormat::Short);
-    print_nested_usage(prefix, def, DocumentationFormat::Long);
+    eprintln!("Error: {}\n\nUsage:\n{}", err, usage);
 }
 
-fn print_nested_usage(prefix: &str, def: &CliCommandMap, format: DocumentationFormat) {
+fn generate_nested_usage(prefix: &str, def: &CliCommandMap, format: DocumentationFormat) -> String {
 
     let mut cmds: Vec<&String> = def.commands.keys().collect();
     cmds.sort();
+
+    let mut usage = String::new();
 
     for cmd in cmds {
         let new_prefix = format!("{} {}", prefix, cmd);
 
         match def.commands.get(cmd).unwrap() {
             CommandLineInterface::Simple(cli_cmd) => {
-                let usage =  generate_usage_str(&new_prefix, cli_cmd, format, "");
-                eprintln!("{}", usage);
+                if usage.len() > 0 && format == DocumentationFormat::ReST {
+                    usage.push_str("----\n\n");
+                }
+                usage.push_str(&generate_usage_str(&new_prefix, cli_cmd, format, ""));
             }
             CommandLineInterface::Nested(map) => {
-                print_nested_usage(&new_prefix, map, format);
+                usage.push_str(&generate_nested_usage(&new_prefix, map, format));
             }
         }
     }
 
+    usage
 }
 
 fn handle_nested_command(prefix: &str, def: &CliCommandMap, mut args: Vec<String>) {
@@ -489,9 +492,24 @@ pub fn run_cli_command(def: &CommandLineInterface) {
 
     let args: Vec<String> = args.collect();
 
-    if !args.is_empty() && args[0] == "bashcomplete" {
-        print_bash_completion(def);
-        return;
+    if !args.is_empty() {
+        if args[0] == "bashcomplete" {
+            print_bash_completion(def);
+            return;
+        }
+
+        if args[0] == "printdoc" {
+            let usage = match def {
+                CommandLineInterface::Simple(cli_cmd) => {
+                    generate_usage_str(&prefix, cli_cmd,  DocumentationFormat::ReST, "")
+                }
+                CommandLineInterface::Nested(map) => {
+                    generate_nested_usage(&prefix, map, DocumentationFormat::ReST)
+                }
+            };
+            println!("{}", usage);
+            return;
+        }
     }
 
     match def {
