@@ -1,4 +1,4 @@
 This is just a test.
 
-.. NOTE: No further info.
+.. NOTE:: No further info.
 
