@@ -8,7 +8,7 @@ endif
 
 ##UNITS:= proxmox-backup-client
 
-proxmox-backup-client.1: proxmox-backup-client/man1.rst ${COMPILEDIR}/proxmox-backup-client
+proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
 	rst2man $< >$@
 
