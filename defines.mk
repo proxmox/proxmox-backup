@@ -8,6 +8,7 @@ SBINDIR := $(PREFIX)/sbin
 LIBDIR := $(PREFIX)/lib
 LIBEXECDIR := $(LIBDIR)
 DATAROOTDIR := $(PREFIX)/share
+MAN1DIR := $(PREFIX)/share/man/man1
 JSDIR := $(DATAROOTDIR)/javascript/proxmox-backup
 SYSCONFDIR := /etc
 

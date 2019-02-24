@@ -3,7 +3,7 @@ include defines.mk
 ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
 GITVERSION:=$(shell git rev-parse HEAD)
 
-SUBDIRS := etc www
+SUBDIRS := etc www docs
 
 # Binaries usable by users
 USR_BIN := \
@@ -87,6 +87,9 @@ clean:
 dinstall: ${DEB}
 	dpkg -i ${DEB}
 
+# make sure we build binaries before docs
+docs: cargo-build
+
 .PHONY: cargo-build
 cargo-build:
 	cargo build $(CARGO_BUILD_ARGS)
@@ -104,3 +107,4 @@ install: $(COMPILED_BINS)
 	$(foreach i,$(SERVICE_BIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install
+	$(MAKE) -C docs install

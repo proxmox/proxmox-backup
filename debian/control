@@ -6,6 +6,7 @@ Build-Depends: bash-completion,
                debhelper (>= 10),
                libpam0g-dev,
                pkg-config,
+	       docutils-doc,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
