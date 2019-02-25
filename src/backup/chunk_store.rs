@@ -1,6 +1,6 @@
 use failure::*;
 use std::path::{Path, PathBuf};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::time::Duration;
 
 use openssl::sha;
@@ -181,22 +181,10 @@ impl ChunkStore {
         let digest_str = tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
-        let mut f = std::fs::File::open(&chunk_path)?;
+        let f = std::fs::File::open(&chunk_path)?;
+        let mut decoder = lz4::Decoder::new(f)?;
 
-        let stat = nix::sys::stat::fstat(f.as_raw_fd())?;
-        let size = stat.st_size as usize;
-
-        if buffer.capacity() < size {
-            let mut newsize =  buffer.capacity();
-            while newsize < size { newsize = newsize << 1; }
-            let additional = newsize - buffer.len();
-            buffer.reserve_exact(additional);
-        }
-        unsafe { buffer.set_len(size); }
-
-        use std::io::Read;
-
-        f.read_exact(buffer.as_mut_slice())?;
+        decoder.read_to_end(buffer)?;
 
         Ok(())
     }
@@ -332,8 +320,15 @@ impl ChunkStore {
 
         let mut tmp_path = chunk_path.clone();
         tmp_path.set_extension("tmp");
-        let mut f = std::fs::File::create(&tmp_path)?;
-        f.write_all(chunk)?;
+
+        let f = std::fs::File::create(&tmp_path)?;
+
+        // fixme: what is the fasted lz4 encoder available (see lzbench)?
+        let mut encoder = lz4::EncoderBuilder::new().level(1).build(f)?;
+
+        encoder.write_all(chunk)?;
+        let (_, encode_result) = encoder.finish();
+        encode_result?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }

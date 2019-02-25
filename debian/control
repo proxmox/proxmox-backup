@@ -5,6 +5,7 @@ Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
                debhelper (>= 10),
                libpam0g-dev,
+	       liblz4-dev,
                pkg-config,
 	       docutils-doc,
 Standards-Version: 3.9.5
@@ -16,5 +17,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 	 libjs-extjs (>= 6.0.1),
 	 fonts-font-awesome,
 	 proxmox-widget-toolkit,
+	 liblz4-1,
 Description: Proxmox Backup Server
  This is experimental code used to test Rust.
