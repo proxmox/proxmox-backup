@@ -461,8 +461,7 @@ impl DynamicIndexWriter {
 
                 println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,
                          (compressed_size*100)/(chunk_size as u64), is_duplicate,  tools::digest_to_hex(&digest));
-                self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
-                self.writer.write(&digest)?;
+                self.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);
                 return Ok(());
             }
@@ -471,6 +470,12 @@ impl DynamicIndexWriter {
                 return Err(Error::new(ErrorKind::Other, err.to_string()));
             }
         }
+    }
+
+    pub fn add_chunk(&mut self, offset: u64, digest: &[u8; 32]) -> Result<(), std::io::Error> {
+        self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(offset.to_le()) })?;
+        self.writer.write(digest)?;
+        Ok(())
     }
 }
 
