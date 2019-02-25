@@ -11,6 +11,9 @@
 //! whereas the `FixedIndex*` format is an optimization to store a
 //! list of equal sized chunks.
 
+mod chunk_stat;
+pub use chunk_stat::*;
+
 mod chunker;
 pub use chunker::*;
 

@@ -1,6 +1,7 @@
 use failure::*;
 
 use crate::tools;
+use super::chunk_stat::*;
 use super::chunk_store::*;
 use super::chunker::*;
 
@@ -329,9 +330,8 @@ pub struct DynamicIndexWriter {
     pub uuid: [u8; 16],
     pub ctime: u64,
 
-    compressed_size: u64,
-    disk_size: u64,
-    chunk_count: usize,
+    stat: ChunkStat,
+
     chunk_offset: usize,
     last_chunk: usize,
     chunk_buffer: Vec<u8>,
@@ -390,9 +390,8 @@ impl DynamicIndexWriter {
             ctime,
             uuid: *uuid.as_bytes(),
 
-            compressed_size: 0,
-            disk_size: 0,
-            chunk_count: 0,
+            stat: ChunkStat::new(0),
+
             chunk_offset: 0,
             last_chunk: 0,
             chunk_buffer: Vec::with_capacity(chunk_size*4),
@@ -411,12 +410,13 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
-        let size = self.chunk_offset;
-        let avg = ((size as f64)/(self.chunk_count as f64)) as usize;
-        let compression = (self.compressed_size*100)/(size as u64);
-        let rate = (self.disk_size*100)/(size as u64);
-        println!("Size: {}, average chunk size: {}, compression rate: {}%, disk_size: {} ({}%)",
-                 size, avg, compression, self.disk_size, rate);
+        self.stat.size = self.chunk_offset as u64;
+
+        // add size of index file
+        self.stat.size += (self.stat.chunk_count*40 + std::mem::size_of::<DynamicIndexHeader>()) as u64;
+
+        println!("STAT: {:?}", self.stat);
+
         // fixme:
 
         if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
@@ -424,6 +424,10 @@ impl DynamicIndexWriter {
         }
 
         Ok(())
+    }
+
+    pub fn stat(&self) -> &ChunkStat {
+        &self.stat
     }
 
     fn write_chunk_buffer(&mut self) -> Result<(), std::io::Error> {
@@ -441,17 +445,18 @@ impl DynamicIndexWriter {
                 format!("wrong chunk size {} != {}", expected_chunk_size, chunk_size)));
         }
 
-        self.chunk_count += 1;
+        self.stat.chunk_count += 1;
 
         self.last_chunk = self.chunk_offset;
 
         match self.store.insert_chunk(&self.chunk_buffer) {
             Ok((is_duplicate, digest, compressed_size)) => {
 
-                self.compressed_size += compressed_size;
+                self.stat.compressed_size += compressed_size;
                 if is_duplicate {
+                    self.stat.duplicate_chunks += 1;
                 } else {
-                    self.disk_size += compressed_size;
+                    self.stat.disk_size += compressed_size;
                 }
 
                 println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,

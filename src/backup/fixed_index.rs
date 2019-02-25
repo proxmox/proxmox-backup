@@ -1,6 +1,7 @@
 use failure::*;
 
 use crate::tools;
+use super::chunk_stat::*;
 use super::chunk_store::*;
 
 use std::sync::Arc;
@@ -159,10 +160,10 @@ pub struct FixedIndexWriter {
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
-    duplicate_chunks: usize,
-    disk_size: u64,
+
+    stat: ChunkStat,
+
     size: usize,
-    compressed_size: u64,
     index: *mut u8,
     pub uuid: [u8; 16],
     pub ctime: u64,
@@ -231,10 +232,8 @@ impl FixedIndexWriter {
             filename: full_path,
             tmp_filename: tmp_path,
             chunk_size,
-            duplicate_chunks: 0,
             size,
-            compressed_size: 0,
-            disk_size: 0,
+            stat: ChunkStat::new(size as u64),
             index: data,
             ctime,
             uuid: *uuid.as_bytes(),
@@ -253,11 +252,9 @@ impl FixedIndexWriter {
 
         self.index = std::ptr::null_mut();
 
-        let compression = (self.compressed_size*100)/(self.size as u64);
-        let rate = (self.disk_size*100)/(self.size as u64);
+        self.stat.disk_size += index_size as u64;
 
-        println!("Original size: {}, compression rate: {}%, deduplicated size: {}, disk size: {} ({}%)",
-                 self.size, compression, self.size - (self.duplicate_chunks*self.chunk_size), self.disk_size, rate);
+        println!("STAT: {:?}", self.stat);
 
         Ok(())
     }
@@ -273,6 +270,10 @@ impl FixedIndexWriter {
         }
 
         Ok(())
+    }
+
+    pub fn stat(&self) -> &ChunkStat {
+        &self.stat
     }
 
     // Note: We want to add data out of order, so do not assume and order here.
@@ -299,15 +300,16 @@ impl FixedIndexWriter {
 
         let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(chunk)?;
 
-        self.compressed_size += compressed_size;
+        self.stat.chunk_count += 1;
+        self.stat.compressed_size += compressed_size;
 
         println!("ADD CHUNK {} {} {}% {} {}", pos, chunk.len(),
                  (compressed_size*100)/(chunk.len() as u64), is_duplicate, tools::digest_to_hex(&digest));
 
         if is_duplicate {
-            self.duplicate_chunks += 1;
+            self.stat.duplicate_chunks += 1;
         } else {
-            self.disk_size += compressed_size;
+            self.stat.disk_size += compressed_size;
         }
 
         let index_pos = (pos/self.chunk_size)*32;
