@@ -292,7 +292,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32]), Error> {
+    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
 
         // fixme: use Sha512/256 when available
         let mut hasher = sha::Sha256::new();
@@ -312,7 +312,7 @@ impl ChunkStore {
 
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
             if metadata.is_file() {
-                 return Ok((true, digest));
+                return Ok((true, digest, metadata.len()));
             } else {
                 bail!("Got unexpected file type on store '{}' for chunk {}", self.name, digest_str);
             }
@@ -327,7 +327,7 @@ impl ChunkStore {
         let mut encoder = lz4::EncoderBuilder::new().level(1).build(f)?;
 
         encoder.write_all(chunk)?;
-        let (_, encode_result) = encoder.finish();
+        let (f, encode_result) = encoder.finish();
         encode_result?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
@@ -340,11 +340,15 @@ impl ChunkStore {
             );
         }
 
+        // fixme: is there a better way to get the compressed size?
+        let stat = nix::sys::stat::fstat(f.as_raw_fd())?;
+        let compressed_size = stat.st_size as u64;
+
         //println!("PATH {:?}", chunk_path);
 
         drop(lock);
 
-        Ok((false, digest))
+        Ok((false, digest, compressed_size))
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
@@ -372,10 +376,10 @@ fn test_chunk_store1() {
     assert!(chunk_store.is_err());
 
     let chunk_store = ChunkStore::create("test", &path).unwrap();
-    let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    let (exists, _, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
     assert!(!exists);
 
-    let (exists, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    let (exists, _, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
     assert!(exists);
 
 

@@ -329,6 +329,8 @@ pub struct DynamicIndexWriter {
     pub uuid: [u8; 16],
     pub ctime: u64,
 
+    compressed_size: u64,
+    disk_size: u64,
     chunk_count: usize,
     chunk_offset: usize,
     last_chunk: usize,
@@ -388,6 +390,8 @@ impl DynamicIndexWriter {
             ctime,
             uuid: *uuid.as_bytes(),
 
+            compressed_size: 0,
+            disk_size: 0,
             chunk_count: 0,
             chunk_offset: 0,
             last_chunk: 0,
@@ -407,8 +411,12 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
-        let avg = ((self.chunk_offset as f64)/(self.chunk_count as f64)) as usize;
-        println!("Average chunk size {}", avg);
+        let size = self.chunk_offset;
+        let avg = ((size as f64)/(self.chunk_count as f64)) as usize;
+        let compression = (self.compressed_size*100)/(size as u64);
+        let rate = (self.disk_size*100)/(size as u64);
+        println!("Size: {}, average chunk size: {}, compression rate: {}%, disk_size: {} ({}%)",
+                 size, avg, compression, self.disk_size, rate);
         // fixme:
 
         if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
@@ -438,8 +446,16 @@ impl DynamicIndexWriter {
         self.last_chunk = self.chunk_offset;
 
         match self.store.insert_chunk(&self.chunk_buffer) {
-            Ok((is_duplicate, digest)) => {
-                println!("ADD CHUNK {:016x} {} {} {}", self.chunk_offset, chunk_size, is_duplicate,  tools::digest_to_hex(&digest));
+            Ok((is_duplicate, digest, compressed_size)) => {
+
+                self.compressed_size += compressed_size;
+                if is_duplicate {
+                } else {
+                    self.disk_size += compressed_size;
+                }
+
+                println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,
+                         (compressed_size*100)/(chunk_size as u64), is_duplicate,  tools::digest_to_hex(&digest));
                 self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(self.chunk_offset as u64) })?;
                 self.writer.write(&digest)?;
                 self.chunk_buffer.truncate(0);

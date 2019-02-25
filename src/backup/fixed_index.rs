@@ -160,7 +160,9 @@ pub struct FixedIndexWriter {
     tmp_filename: PathBuf,
     chunk_size: usize,
     duplicate_chunks: usize,
+    disk_size: u64,
     size: usize,
+    compressed_size: u64,
     index: *mut u8,
     pub uuid: [u8; 16],
     pub ctime: u64,
@@ -231,6 +233,8 @@ impl FixedIndexWriter {
             chunk_size,
             duplicate_chunks: 0,
             size,
+            compressed_size: 0,
+            disk_size: 0,
             index: data,
             ctime,
             uuid: *uuid.as_bytes(),
@@ -249,8 +253,11 @@ impl FixedIndexWriter {
 
         self.index = std::ptr::null_mut();
 
-        println!("Original size: {} Compressed size: {} Deduplicated size: {}",
-                self.size, self.size, self.size - (self.duplicate_chunks*self.chunk_size));
+        let compression = (self.compressed_size*100)/(self.size as u64);
+        let rate = (self.disk_size*100)/(self.size as u64);
+
+        println!("Original size: {}, compression rate: {}%, deduplicated size: {}, disk size: {} ({}%)",
+                 self.size, compression, self.size - (self.duplicate_chunks*self.chunk_size), self.disk_size, rate);
 
         Ok(())
     }
@@ -290,12 +297,19 @@ impl FixedIndexWriter {
         if pos & (self.chunk_size-1) != 0 { bail!("add unaligned chunk (pos = {})", pos); }
 
 
-        let (is_duplicate, digest) = self.store.insert_chunk(chunk)?;
+        let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(chunk)?;
 
-        println!("ADD CHUNK {} {} {} {}", pos, chunk.len(), is_duplicate, tools::digest_to_hex(&digest));
+        self.compressed_size += compressed_size;
 
-        if is_duplicate { self.duplicate_chunks += 1; }
-        
+        println!("ADD CHUNK {} {} {}% {} {}", pos, chunk.len(),
+                 (compressed_size*100)/(chunk.len() as u64), is_duplicate, tools::digest_to_hex(&digest));
+
+        if is_duplicate {
+            self.duplicate_chunks += 1;
+        } else {
+            self.disk_size += compressed_size;
+        }
+
         let index_pos = (pos/self.chunk_size)*32;
         unsafe {
             let dst = self.index.add(index_pos);
