@@ -330,6 +330,13 @@ pub fn required_integer_param<'a>(param: &'a Value, name: &str) -> Result<i64, E
     }
 }
 
+pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<Vec<Value>, Error> {
+    match param[name].as_array()   {
+        Some(s) => Ok(s.to_vec()),
+        None => bail!("missing parameter '{}'", name),
+    }
+}
+
 pub fn complete_file_name(arg: &str) -> Vec<String> {
 
     let mut result = vec![];
