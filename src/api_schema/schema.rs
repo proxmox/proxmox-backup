@@ -36,9 +36,16 @@ impl ParameterError {
 
 impl fmt::Display for ParameterError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = self.error_list.iter().fold(String::from(""), |acc, item| {
+
+        let mut msg = String::new();
+
+        if self.len() > 0 {
+            msg.push_str("parameter verification errors\n\n");
+        }
+
+        msg.push_str(&self.error_list.iter().fold(String::from(""), |acc, item| {
             acc + &item.to_string() + "\n"
-        });
+        }));
 
         write!(f, "{}", msg)
     }
