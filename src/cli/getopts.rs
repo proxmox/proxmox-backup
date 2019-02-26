@@ -65,6 +65,29 @@ pub fn parse_arguments<T: AsRef<str>>(
 
     let properties = &schema.properties;
 
+    // first check if all arg_param exists in schema
+
+    let mut last_arg_param_is_optional = false;
+    let mut last_arg_param_is_array = false;
+
+    for i in 0..arg_param.len() {
+        let name = arg_param[i];
+        if let Some((optional, param_schema)) = properties.get::<str>(&name) {
+            if i == arg_param.len() -1 {
+                last_arg_param_is_optional = *optional;
+                if let Schema::Array(_) = param_schema.as_ref() {
+                    last_arg_param_is_array = true;
+                }
+            } else {
+                if *optional {
+                    panic!("positional argument '{}' may not be optional", name);
+                }
+            }
+        } else {
+            panic!("no such property '{}' in schema", name);
+        }
+    }
+
     let mut data: Vec<(String, String)> = vec![];
     let mut rest: Vec<String> = vec![];
 
@@ -145,19 +168,28 @@ pub fn parse_arguments<T: AsRef<str>>(
     }
 
     for i in 0..arg_param.len() {
-        if rest.len() > i {
-            data.push((arg_param[i].to_string(), rest[i].clone()));
+
+        let name = arg_param[i];
+        let is_last_arg_param = (i == arg_param.len() - 1);
+
+        if rest.len() == 0 {
+            if !(is_last_arg_param && last_arg_param_is_optional) {
+                errors.push(format_err!("missing argument '{}'", name));
+            }
         } else {
-            errors.push(format_err!("missing argument '{}'", arg_param[i]));
+            if is_last_arg_param && last_arg_param_is_array {
+                for value in rest {
+                    data.push((name.to_string(), value));
+                }
+                rest = vec![];
+            } else {
+                data.push((name.to_string(), rest.remove(0)));
+            }
         }
     }
 
     if errors.len() > 0 {
         return Err(errors);
-    }
-
-    if arg_param.len() > 0 {
-        rest = rest[arg_param.len()..].to_vec();
     }
 
     let options = parse_parameter_strings(&data, schema, true)?;
