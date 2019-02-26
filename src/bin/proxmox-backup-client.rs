@@ -18,18 +18,22 @@ use proxmox_backup::backup::*;
 use serde_json::{Value};
 use hyper::Body;
 use std::sync::Arc;
+use regex::Regex;
+
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+):(.+)$").unwrap();
+}
 
 fn backup_directory(
+    client: &mut HttpClient,
     repo: &BackupRepository,
     body: Body,
     archive_name: &str,
+    backup_time: u64,
     chunk_size: Option<u64>,
 ) -> Result<(), Error> {
-
-    let client = HttpClient::new(&repo.host, &repo.user);
-
-    let epoch = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
 
     let mut query = url::form_urlencoded::Serializer::new(String::new());
 
@@ -37,7 +41,7 @@ fn backup_directory(
         .append_pair("archive_name", archive_name)
         .append_pair("type", "host")
         .append_pair("id", &tools::nodename())
-        .append_pair("time", &epoch.to_string());
+        .append_pair("time", &backup_time.to_string());
 
     if let Some(size) = chunk_size {
         query.append_pair("chunk-size", &size.to_string());
@@ -87,7 +91,7 @@ fn list_backups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(&repo.host, &repo.user);
 
     let path = format!("api2/json/admin/datastore/{}/backups", repo.store);
 
@@ -125,7 +129,7 @@ fn start_garbage_collection(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(&repo.host, &repo.user);
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store);
 
@@ -134,15 +138,23 @@ fn start_garbage_collection(
     Ok(result)
 }
 
+fn parse_backupspec(value: &str) -> Result<(&str, &str), Error> {
+
+    if let Some(caps) = BACKUPSPEC_REGEX.captures(value) {
+        return Ok((caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str()));
+    }
+    bail!("unable to parse directory specification '{}'", value);
+}
+
 fn create_backup(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let filename = tools::required_string_param(&param, "filename")?;
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let target = tools::required_string_param(&param, "target")?;
+
+    let backupspec_list = tools::required_array_param(&param, "backupspec")?;
 
     let repo = BackupRepository::parse(repo_url)?;
 
@@ -152,35 +164,49 @@ fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let stat = match nix::sys::stat::stat(filename) {
-        Ok(s) => s,
-        Err(err) => bail!("unable to access '{}' - {}", filename, err),
-    };
+    let mut upload_list = vec![];
 
-    if (stat.st_mode & libc::S_IFDIR) != 0 {
-        println!("Backup directory '{}' to '{:?}'", filename, repo);
+    for backupspec in backupspec_list {
+        let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
 
-        let stream = CaTarBackupStream::open(filename)?;
+        let stat = match nix::sys::stat::stat(filename) {
+            Ok(s) => s,
+            Err(err) => bail!("unable to access '{}' - {}", filename, err),
+        };
 
-        let body = Body::wrap_stream(stream);
+        if (stat.st_mode & libc::S_IFDIR) != 0 {
+             let stream = CaTarBackupStream::open(filename)?;
 
-        backup_directory(&repo, body, target, chunk_size_opt)?;
+            let body = Body::wrap_stream(stream);
 
-    } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
-        println!("Backup image '{}' to '{:?}'", filename, repo);
+            let target = format!("{}.catar", target);
 
-        if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
-        let _size = stat.st_size as usize;
+            upload_list.push((body, filename.to_owned(), target));
 
-        panic!("implement me");
+        } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
+            if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
+            let _size = stat.st_size as usize;
 
-        //backup_image(&datastore, &file, size, &target, chunk_size)?;
+            panic!("implement me");
 
-       // let idx = datastore.open_image_reader(target)?;
-       // idx.print_info();
+            //backup_image(&datastore, &file, size, &target, chunk_size)?;
 
-    } else {
-        bail!("unsupported file type (expected a directory, file or block device)");
+            // let idx = datastore.open_image_reader(target)?;
+            // idx.print_info();
+
+        } else {
+            bail!("unsupported file type (expected a directory, file or block device)");
+        }
+    }
+
+    let backup_time = std::time::SystemTime::now().duration_since(
+        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    for (body, filename, target) in upload_list {
+        println!("Upload '{}' to '{:?}'", filename, repo);
+        backup_directory(&mut client, &repo, body, &target, backup_time, chunk_size_opt)?;
     }
 
     //datastore.garbage_collection()?;
@@ -202,8 +228,15 @@ fn main() {
             create_backup,
             ObjectSchema::new("Create backup.")
                 .required("repository", repo_url_schema.clone())
-                .required("filename", StringSchema::new("Source name (file or directory name)."))
-                .required("target", StringSchema::new("Target name."))
+                .required(
+                    "backupspec",
+                    ArraySchema::new(
+                        "List of backup source specifications ([<label>:<path>] ...)",
+                        StringSchema::new("Directory source specification ([<label>:<path>]).")
+                            .format(Arc::new(ApiStringFormat::Pattern(&BACKUPSPEC_REGEX)))
+                            .into()
+                    ).min_length(1)
+                )
                 .optional(
                     "chunk-size",
                     IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
@@ -212,8 +245,8 @@ fn main() {
                         .default(4096)
                 )
         ))
-        .arg_param(vec!["repository", "filename", "target"])
-        .completion_cb("filename", tools::complete_file_name);
+        .arg_param(vec!["repository", "backupspec"])
+        .completion_cb("backupspec", tools::complete_file_name);
 
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
