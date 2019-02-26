@@ -170,7 +170,7 @@ pub fn parse_arguments<T: AsRef<str>>(
     for i in 0..arg_param.len() {
 
         let name = arg_param[i];
-        let is_last_arg_param = (i == arg_param.len() - 1);
+        let is_last_arg_param = i == (arg_param.len() - 1);
 
         if rest.len() == 0 {
             if !(is_last_arg_param && last_arg_param_is_optional) {
