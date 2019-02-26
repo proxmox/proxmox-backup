@@ -125,10 +125,14 @@ fn generate_usage_str(
 
     for positional_arg in arg_param {
         match properties.get(positional_arg) {
-            Some((optional, _schema)) => {
+            Some((optional, schema)) => {
                 args.push(' ');
+
+                let is_array = if let Schema::Array(_) = schema.as_ref() { true } else { false };
                 if *optional { args.push('['); }
+                if is_array { args.push('{'); }
                 args.push('<'); args.push_str(positional_arg); args.push('>');
+                if is_array { args.push('}'); }
                 if *optional { args.push(']'); }
 
                 done_hash.insert(positional_arg);
