@@ -124,13 +124,17 @@ fn generate_usage_str(
     let mut args = String::new();
 
     for positional_arg in arg_param {
-        let (optional, _schema) = properties.get(positional_arg).unwrap();
-        args.push(' ');
-        if *optional { args.push('['); }
-        args.push('<'); args.push_str(positional_arg); args.push('>');
-        if *optional { args.push(']'); }
+        match properties.get(positional_arg) {
+            Some((optional, _schema)) => {
+                args.push(' ');
+                if *optional { args.push('['); }
+                args.push('<'); args.push_str(positional_arg); args.push('>');
+                if *optional { args.push(']'); }
 
-        done_hash.insert(positional_arg);
+                done_hash.insert(positional_arg);
+            }
+            None => panic!("no such property '{}' in schema", positional_arg),
+        }
     }
 
     let mut arg_descr = String::new();
