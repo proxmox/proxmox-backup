@@ -17,6 +17,9 @@ use crate::tools::tty;
 pub struct HttpClient {
     username: String,
     server: String,
+
+    ticket: Option<String>,
+    token: Option<String>
 }
 
 impl HttpClient {
@@ -25,6 +28,8 @@ impl HttpClient {
         Self {
             server: String::from(server),
             username: String::from(username),
+            ticket: None,
+            token: None,
         }
     }
 
@@ -97,7 +102,7 @@ impl HttpClient {
         rx.recv().unwrap()
     }
 
-    pub fn get(&self, path: &str) -> Result<Value, Error> {
+    pub fn get(&mut self, path: &str) -> Result<Value, Error> {
 
         let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
@@ -116,7 +121,7 @@ impl HttpClient {
         Self::run_request(request)
     }
 
-    pub fn post(&self, path: &str) -> Result<Value, Error> {
+    pub fn post(&mut self, path: &str) -> Result<Value, Error> {
 
         let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
@@ -136,7 +141,13 @@ impl HttpClient {
         Self::run_request(request)
     }
 
-    fn login(&self) ->  Result<(String, String), Error> {
+    fn login(&mut self) ->  Result<(String, String), Error> {
+
+        if let Some(ref ticket) = self.ticket {
+            if let Some(ref token) = self.token {
+                return Ok((ticket.clone(), token.clone()));
+            }
+        }
 
         let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
 
@@ -165,10 +176,13 @@ impl HttpClient {
             None => bail!("got unexpected respose for login request."),
         };
 
+        self.ticket = Some(ticket.to_owned());
+        self.token = Some(token.to_owned());
+
         Ok((ticket.to_owned(), token.to_owned()))
     }
 
-    pub fn upload(&self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
+    pub fn upload(&mut self, content_type: &str, body: Body, path: &str) -> Result<Value, Error> {
 
         let path = path.trim_matches('/');
         let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
