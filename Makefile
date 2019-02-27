@@ -58,7 +58,7 @@ doc:
 build:
 	rm -rf build
 	rsync -a debian Makefile defines.mk Cargo.toml src $(SUBDIRS) build/
-	test -d target && rsync -a target build/ || true
+	if test -d target; then cp Cargo.lock build/ && rsync -a target build/; fi
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
 
