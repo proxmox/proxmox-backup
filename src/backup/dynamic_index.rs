@@ -1,6 +1,7 @@
 use failure::*;
 
 use crate::tools;
+use super::IndexFile;
 use super::chunk_stat::*;
 use super::chunk_store::*;
 use super::chunker::*;
@@ -192,6 +193,22 @@ impl DynamicIndexReader {
             return self.binary_search(start_idx, start, middle_idx, middle_end, offset);
         } else {
             return self.binary_search(middle_idx + 1, middle_end, end_idx, end, offset);
+        }
+    }
+}
+
+impl IndexFile for DynamicIndexReader {
+    fn index_count(&self) -> usize {
+        self.index_entries
+    }
+
+    fn index_digest(&self, pos: usize) -> Option<&[u8; 32]> {
+        if pos >= self.index_entries {
+            None
+        } else {
+            Some(unsafe {
+                std::mem::transmute(self.chunk_digest(pos).as_ptr())
+            })
         }
     }
 }

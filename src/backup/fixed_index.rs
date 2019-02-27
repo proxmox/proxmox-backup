@@ -1,6 +1,7 @@
 use failure::*;
 
 use crate::tools;
+use super::IndexFile;
 use super::chunk_stat::*;
 use super::chunk_store::*;
 
@@ -132,14 +133,14 @@ impl FixedIndexReader {
 
         if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
 
-        let index_count = (self.size + self.chunk_size - 1)/self.chunk_size;
+        let index_count = self.index_count();
 
         status.used_bytes += index_count * self.chunk_size;
         status.used_chunks += index_count;
 
         for pos in 0..index_count {
 
-            let digest = unsafe { std::slice::from_raw_parts_mut(self.index.add(pos*32), 32) };
+            let digest = self.index_digest(pos).unwrap();
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
                       tools::digest_to_hex(digest), self.filename, err);
@@ -155,6 +156,20 @@ impl FixedIndexReader {
         println!("ChunkSize: {}", self.chunk_size);
         println!("CTime: {}", Local.timestamp(self.ctime as i64, 0).format("%c"));
         println!("UUID: {:?}", self.uuid);
+    }
+}
+
+impl IndexFile for FixedIndexReader {
+    fn index_count(&self) -> usize {
+        (self.size + self.chunk_size - 1)/self.chunk_size
+    }
+
+    fn index_digest(&self, pos: usize) -> Option<&[u8; 32]> {
+        if pos >= self.index_count() {
+            None
+        } else {
+            Some(unsafe { std::mem::transmute(self.index.add(pos*32)) })
+        }
     }
 }
 

@@ -20,6 +20,9 @@ pub use chunker::*;
 mod chunk_store;
 pub use chunk_store::*;
 
+mod index;
+pub use index::*;
+
 mod fixed_index;
 pub use fixed_index::*;
 
