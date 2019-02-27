@@ -57,8 +57,8 @@ doc:
 .PHONY: build
 build:
 	rm -rf build
-	rsync -a debian Makefile defines.mk Cargo.toml src $(SUBDIRS) build/
-	if test -d target; then cp Cargo.lock build/ && rsync -a target build/; fi
+	cargo build --release
+	rsync -a debian Makefile defines.mk Cargo.toml Cargo.lock src target $(SUBDIRS) build/
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
 
