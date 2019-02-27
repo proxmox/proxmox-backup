@@ -10,10 +10,11 @@ Welcome to Proxmox Backup's documentation!
    :maxdepth: 3
    :caption: Table of Contents
 
-   section1.rst
-   section2.rst
-   command-line-tools.rst
-
+   introduction.rst
+   installation.rst
+   deployment-guide.rst
+   admin-guide.rst
+ 
 .. raw:: latex
 
    \appendix
