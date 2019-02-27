@@ -232,6 +232,26 @@ pub fn complete_backup_source(arg: &str) -> Vec<String> {
     result
 }
 
+fn prune(
+    mut param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/prune", repo.store);
+
+    param.as_object_mut().unwrap().remove("repository");
+
+    let result = client.post_json(&path, param)?;
+
+    Ok(result)
+}
+
 fn main() {
 
     let repo_url_schema: Arc<Schema> = Arc::new(
@@ -286,10 +306,20 @@ fn main() {
         ))
         .arg_param(vec!["repository"]);
 
+    let prune_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            prune,
+            proxmox_backup::api2::admin::datastore::add_common_prune_prameters(
+                ObjectSchema::new("Prune backup repository.")
+                    .required("repository", repo_url_schema.clone())
+            )
+        ))
+        .arg_param(vec!["repository"]);
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), create_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
-        .insert("list".to_owned(), list_cmd_def.into());
+        .insert("list".to_owned(), list_cmd_def.into())
+        .insert("prune".to_owned(), prune_cmd_def.into());
 
     run_cli_command(cmd_def.into());
 }

@@ -14,6 +14,47 @@ use crate::backup::*;
 
 mod catar;
 
+fn prune(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = param["store"].as_str().unwrap();
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    println!("Starting prune on store {}", store);
+
+    println!("PARAMS {:?}", param);
+
+
+    Ok(json!(null))
+}
+
+pub fn add_common_prune_prameters(schema: ObjectSchema) -> ObjectSchema  {
+
+    schema
+        .optional(
+            "keep-daily",
+            IntegerSchema::new("Number of daily backups to keep")
+                .minimum(0)
+        )
+}
+
+fn api_method_prune() -> ApiMethod {
+    ApiMethod::new(
+        prune,
+        add_common_prune_prameters(
+            ObjectSchema::new("Prune the datastore.")
+                .required(
+                    "store",
+                    StringSchema::new("Datastore name.")
+                )
+        )
+    )
+}
+
 // this is just a test for mutability/mutex handling  - will remove later
 fn start_garbage_collection(
     param: Value,
@@ -109,9 +150,10 @@ pub fn router() -> Router {
             |_,_,_| Ok(json!([
                 {"subdir": "backups" },
                 {"subdir": "catar" },
-                {"subdir": "status"},
-                {"subdir": "gc" }
-            ])),
+                {"subdir": "gc" },
+                {"subdir": "status" },
+                {"subdir": "prune" },
+           ])),
             ObjectSchema::new("Directory index.")
                 .required("store", StringSchema::new("Datastore name.")))
         )
@@ -131,7 +173,11 @@ pub fn router() -> Router {
             "gc",
             Router::new()
                 .get(api_method_garbage_collection_status())
-                .post(api_method_start_garbage_collection()));
+                .post(api_method_start_garbage_collection()))
+        .subdir(
+            "prune",
+            Router::new()
+                .post(api_method_prune()));
 
 
 
