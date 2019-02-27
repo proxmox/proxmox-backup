@@ -4,10 +4,10 @@ Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
                debhelper (>= 10),
+               docutils-doc,
+               liblz4-dev,
                libpam0g-dev,
-	       liblz4-dev,
                pkg-config,
-	       docutils-doc,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
