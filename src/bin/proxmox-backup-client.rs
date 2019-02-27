@@ -212,6 +212,24 @@ fn create_backup(
     //datastore.garbage_collection()?;
 
     Ok(Value::Null)
+
+}
+
+pub fn complete_backup_source(arg: &str) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let data: Vec<&str> = arg.splitn(2, ':').collect();
+
+    if data.len() != 2 { return result; }
+
+    let files = tools::complete_file_name(data[1]);
+
+    for file in files {
+        result.push(format!("{}:{}", data[0], file));
+    }
+
+    result
 }
 
 fn main() {
@@ -250,7 +268,7 @@ fn main() {
                 )
         ))
         .arg_param(vec!["repository", "backupspec"])
-        .completion_cb("backupspec", tools::complete_file_name);
+        .completion_cb("backupspec", complete_backup_source);
 
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
