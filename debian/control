@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
                debhelper (>= 10),
-               python-docutils,
+               python3-docutils,
                liblz4-dev,
                libpam0g-dev,
                pkg-config,
