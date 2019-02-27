@@ -136,7 +136,29 @@ impl HttpClient {
             .header("User-Agent", "proxmox-backup-client/1.0")
             .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
             .header("CSRFPreventionToken", token)
+            .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
             .body(Body::empty())?;
+
+        Self::run_request(request)
+    }
+
+    pub fn post_json(&mut self, path: &str, data: Value) -> Result<Value, Error> {
+
+        let path = path.trim_matches('/');
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
+
+        let (ticket, token) = self.login()?;
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
+            .header("CSRFPreventionToken", token)
+            .header(hyper::header::CONTENT_TYPE, "application/json")
+            .body(Body::from(data.to_string()))?;
 
         Self::run_request(request)
     }

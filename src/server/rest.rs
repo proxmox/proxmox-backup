@@ -117,6 +117,18 @@ fn get_request_parameters_async(
     uri_param: HashMap<String, String>,
 ) -> Box<Future<Item = Value, Error = failure::Error> + Send>
 {
+    let mut is_json = false;
+
+    if let Some(value) = parts.headers.get(header::CONTENT_TYPE) {
+        if value == "application/x-www-form-urlencoded" {
+            is_json = false;
+        } else if value == "application/json" {
+            is_json = true;
+        } else {
+            return Box::new(future::err(http_err!(BAD_REQUEST, format!("unsupported content type"))));
+        }
+    }
+
     let resp = req_body
         .map_err(|err| http_err!(BAD_REQUEST, format!("Promlems reading request body: {}", err)))
         .fold(Vec::new(), |mut acc, chunk| {
@@ -129,6 +141,18 @@ fn get_request_parameters_async(
         .and_then(move |body| {
 
             let utf8 = std::str::from_utf8(&body)?;
+
+            let obj_schema = &info.parameters;
+
+            if is_json {
+                let mut params: Value = serde_json::from_str(utf8)?;
+                for (k, v) in uri_param {
+                    if let Some((_optional, prop_schema)) = obj_schema.properties.get::<str>(&k) {
+                        params[&k] = parse_simple_value(&v, prop_schema)?;
+                    }
+                }
+                return Ok(params);
+            }
 
             let mut param_list: Vec<(String, String)> = vec![];
 
@@ -150,7 +174,7 @@ fn get_request_parameters_async(
                 param_list.push((k.clone(), v.clone()));
             }
 
-            let params = parse_parameter_strings(&param_list, &info.parameters, true)?;
+            let params = parse_parameter_strings(&param_list, obj_schema, true)?;
 
             Ok(params)
         });
