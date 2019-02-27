@@ -223,6 +223,12 @@ fn main() {
             .into()
     );
 
+    let backup_source_schema: Arc<Schema> = Arc::new(
+        StringSchema::new("Backup source specification ([<label>:<path>]).")
+            .format(Arc::new(ApiStringFormat::Pattern(&BACKUPSPEC_REGEX)))
+            .into()
+    );
+
     let create_cmd_def = CliCommand::new(
         ApiMethod::new(
             create_backup,
@@ -232,9 +238,7 @@ fn main() {
                     "backupspec",
                     ArraySchema::new(
                         "List of backup source specifications ([<label>:<path>] ...)",
-                        StringSchema::new("Directory source specification ([<label>:<path>]).")
-                            .format(Arc::new(ApiStringFormat::Pattern(&BACKUPSPEC_REGEX)))
-                            .into()
+                        backup_source_schema,
                     ).min_length(1)
                 )
                 .optional(
