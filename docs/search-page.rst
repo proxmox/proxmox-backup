@@ -1,0 +1,4 @@
+Search Page
+-----------
+
+`search`

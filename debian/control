@@ -5,6 +5,7 @@ Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
                debhelper (>= 10),
                python3-docutils,
+	       python3-sphinx,
                liblz4-dev,
                libpam0g-dev,
                pkg-config,
