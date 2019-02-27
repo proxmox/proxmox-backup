@@ -2,6 +2,7 @@ use failure::*;
 
 use chrono::prelude::*;
 
+use std::io;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -155,27 +156,31 @@ impl DataStore {
         backup_type: &str,
         backup_id: &str,
         backup_time: i64,
-    ) ->  Result<PathBuf, Error> {
+    ) ->  Result<(PathBuf, bool), io::Error> {
         let mut relative_path = PathBuf::new();
 
         relative_path.push(backup_type);
 
         relative_path.push(backup_id);
 
+        // create intermediate path first:
+        let mut full_path = self.base_path();
+        full_path.push(&relative_path);
+        std::fs::create_dir_all(&full_path)?;
+
         let dt = Utc.timestamp(backup_time, 0);
         let date_str = dt.format("%Y-%m-%dT%H:%M:%S").to_string();
 
         println!("date: {}", date_str);
-
         relative_path.push(&date_str);
+        full_path.push(&date_str);
 
-
-        let mut full_path = self.base_path();
-        full_path.push(&relative_path);
-
-        std::fs::create_dir_all(&full_path)?;
-
-        Ok(relative_path)
+        // create the last component now
+        match std::fs::create_dir(&full_path) {
+            Ok(_) => Ok((relative_path, true)),
+            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok((relative_path, false)),
+            Err(e) => Err(e)
+        }
     }
 
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
