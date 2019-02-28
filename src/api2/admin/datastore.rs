@@ -4,6 +4,8 @@ use crate::api_schema::*;
 use crate::api_schema::router::*;
 //use crate::server::rest::*;
 use serde_json::{json, Value};
+use std::collections::{HashSet, HashMap};
+use chrono::{DateTime, Datelike, Local};
 
 //use hyper::StatusCode;
 //use hyper::rt::{Future, Stream};
@@ -13,6 +15,40 @@ use crate::config::datastore;
 use crate::backup::*;
 
 mod catar;
+
+fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
+
+    let mut group_hash = HashMap::new();
+
+    for info in backup_list {
+        let group_id = format!("{}/{}", info.backup_type, info.backup_id);
+        let time_list = group_hash.entry(group_id).or_insert(vec![]);
+        time_list.push(info);
+    }
+
+    group_hash
+}
+
+fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
+    mark: &mut HashSet<String>,
+    list: &Vec<BackupInfo>,
+    keep: usize,
+    select_id: F,
+){
+    let mut hash = HashSet::new();
+    for info in list {
+        let local_time = info.backup_time.with_timezone(&Local);
+        if hash.len() >= keep as usize { break; }
+        let backup_id = info.unique_id();
+        let sel_id: String = select_id(local_time, &info);
+        if !hash.contains(&sel_id) {
+            hash.insert(sel_id);
+            //println!(" KEEP ID {} {}", backup_id, local_time.format("%c"));
+            mark.insert(backup_id);
+        }
+    }
+}
+
 
 fn prune(
     param: Value,
@@ -26,8 +62,55 @@ fn prune(
 
     println!("Starting prune on store {}", store);
 
-    println!("PARAMS {:?}", param);
+    let backup_list =  datastore.list_backups()?;
 
+    let group_hash = group_backups(backup_list);
+
+    for (_group_id, mut list) in group_hash {
+
+        let mut mark = HashSet::new();
+
+        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time)); // new backups first
+
+        if let Some(keep_last) = param["keep-last"].as_u64() {
+            list.iter().take(keep_last as usize).for_each(|info| {
+                let backup_id = format!(" {}/{}/{}", info.backup_type, info.backup_id,  info.backup_time.timestamp());
+                mark.insert(backup_id);
+            });
+        }
+
+        if let Some(keep_daily) = param["keep-daily"].as_u64() {
+            mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
+                format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
+            });
+        }
+
+        if let Some(keep_weekly) = param["keep-weekly"].as_u64() {
+            mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.iso_week().week())
+            });
+        }
+
+        if let Some(keep_monthly) = param["keep-monthly"].as_u64() {
+            mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.month())
+            });
+        }
+
+        if let Some(keep_yearly) = param["keep-yearly"].as_u64() {
+            mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.year())
+            });
+        }
+
+        let mut remove_list: Vec<&BackupInfo> = list.iter().filter(|info| !mark.contains(&info.unique_id())).collect();
+
+        remove_list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time)); // oldest backups first
+
+        for info in remove_list {
+            datastore.remove_backup_dir(&info.backup_type, &info.backup_id, info.backup_time)?;
+        }
+    }
 
     Ok(json!(null))
 }
@@ -36,9 +119,29 @@ pub fn add_common_prune_prameters(schema: ObjectSchema) -> ObjectSchema  {
 
     schema
         .optional(
+            "keep-last",
+            IntegerSchema::new("Number of backups to keep.")
+                .minimum(1)
+        )
+        .optional(
             "keep-daily",
-            IntegerSchema::new("Number of daily backups to keep")
-                .minimum(0)
+            IntegerSchema::new("Number of daily backups to keep.")
+                .minimum(1)
+        )
+        .optional(
+            "keep-weekly",
+            IntegerSchema::new("Number of weekly backups to keep.")
+                .minimum(1)
+        )
+        .optional(
+            "keep-monthly",
+            IntegerSchema::new("Number of monthly backups to keep.")
+                .minimum(1)
+        )
+        .optional(
+            "keep-yearly",
+            IntegerSchema::new("Number of yearly backups to keep.")
+                .minimum(1)
         )
 }
 

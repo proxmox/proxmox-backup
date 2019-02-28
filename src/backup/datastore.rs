@@ -38,6 +38,13 @@ pub struct BackupInfo {
     pub files: Vec<String>,
 }
 
+impl BackupInfo {
+
+    pub fn unique_id(&self) -> String {
+        format!("{}/{}/{}", self.backup_type, self.backup_id, self.backup_time.timestamp())
+    }
+}
+
 lazy_static!{
     static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
 }
@@ -149,6 +156,24 @@ impl DataStore {
         relative_path.push(&date_str);
 
         relative_path
+    }
+
+    /// Remove a backup directory including all content
+    pub fn remove_backup_dir(
+        &self,
+        backup_type: &str,
+        backup_id: &str,
+        backup_time: DateTime<Utc>,
+    ) ->  Result<(), io::Error> {
+
+        let relative_path = self.get_backup_dir(backup_type, backup_id, backup_time);
+        let mut full_path = self.base_path();
+        full_path.push(&relative_path);
+
+        log::info!("removing backup {:?}", full_path);
+        std::fs::remove_dir_all(full_path)?;
+
+        Ok(())
     }
 
     pub fn create_backup_dir(
