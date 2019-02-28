@@ -13,6 +13,7 @@ use crate::config::datastore;
 use super::chunk_store::*;
 use super::fixed_index::*;
 use super::dynamic_index::*;
+use super::index::*;
 
 use chrono::{Utc, TimeZone};
 
@@ -132,6 +133,20 @@ impl DataStore {
         let index = DynamicIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
+    }
+
+    pub fn open_index<P>(&self, filename: P) -> Result<Box<dyn IndexFile + Send>, Error>
+    where
+        P: AsRef<Path>,
+    {
+        let filename = filename.as_ref();
+        let out: Box<dyn IndexFile + Send> =
+            match filename.extension().and_then(|ext| ext.to_str()) {
+                Some("didx") => Box::new(self.open_dynamic_reader(filename)?),
+                Some("fidx") => Box::new(self.open_fixed_reader(filename)?),
+                _ => bail!("cannot open index file of unknown type: {:?}", filename),
+            };
+        Ok(out)
     }
 
     pub fn base_path(&self) -> PathBuf {
