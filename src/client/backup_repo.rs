@@ -8,7 +8,8 @@ use regex::Regex;
 
 lazy_static! {
     /// Regular expression to parse repository URLs
-    pub static ref BACKUP_REPO_URL_REGEX: Regex = Regex::new(r"^(?:(?:([\w@]+)@)?(\w+):)?(\w+)$").unwrap();
+    pub static ref BACKUP_REPO_URL_REGEX: Regex =
+        Regex::new(r"^(?:(?:([\w@]+)@)?([\w\-_.]+):)?(\w+)$").unwrap();
 
     /// API schema format definition for repository URLs
     pub static ref BACKUP_REPO_URL: Arc<ApiStringFormat> =
