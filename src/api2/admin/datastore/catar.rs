@@ -81,7 +81,8 @@ fn upload_catar(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let (mut path, _new) = datastore.create_backup_dir(backup_type, backup_id, backup_time)?;
+    let (mut path, _new) = datastore.create_backup_dir(
+        backup_type, backup_id, Utc.timestamp(backup_time, 0))?;
 
     path.push(archive_name);
 

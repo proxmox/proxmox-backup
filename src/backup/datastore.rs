@@ -195,7 +195,7 @@ impl DataStore {
         &self,
         backup_type: &str,
         backup_id: &str,
-        backup_time: i64,
+        backup_time: DateTime<Utc>,
     ) ->  Result<(PathBuf, bool), io::Error> {
         let mut relative_path = PathBuf::new();
 
@@ -208,8 +208,7 @@ impl DataStore {
         full_path.push(&relative_path);
         std::fs::create_dir_all(&full_path)?;
 
-        let dt = Utc.timestamp(backup_time, 0);
-        let date_str = dt.format("%Y-%m-%dT%H:%M:%S").to_string();
+        let date_str = backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
 
         println!("date: {}", date_str);
         relative_path.push(&date_str);
