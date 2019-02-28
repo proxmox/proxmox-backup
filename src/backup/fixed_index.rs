@@ -36,6 +36,9 @@ pub struct FixedIndexReader {
     pub ctime: u64,
 }
 
+// `index` is mmap()ed which cannot be thread-local so should be sendable
+unsafe impl Send for FixedIndexReader {}
+
 impl Drop for FixedIndexReader {
 
     fn drop(&mut self) {

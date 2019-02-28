@@ -36,7 +36,8 @@ pub struct DynamicIndexReader {
     pub ctime: u64,
 }
 
-// fixme: ???!!!
+// `index` is mmap()ed which cannot be thread-local so should be sendable
+// FIXME: Introduce an mmap wrapper type for this?
 unsafe impl Send for DynamicIndexReader {}
 
 impl Drop for DynamicIndexReader {
