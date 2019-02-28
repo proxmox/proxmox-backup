@@ -235,7 +235,7 @@ impl BufferedDynamicReader {
     }
 }
 
-impl crate::tools::BufferedReader for  BufferedDynamicReader {
+impl crate::tools::BufferedRead for BufferedDynamicReader {
 
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
 
@@ -279,7 +279,7 @@ impl std::io::Read for  BufferedDynamicReader {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
 
         use std::io::{Error, ErrorKind};
-        use crate::tools::BufferedReader;
+        use crate::tools::BufferedRead;
 
         let data = match self.buffered_read(self.read_offset) {
             Ok(v) => v,

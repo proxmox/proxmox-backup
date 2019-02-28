@@ -50,10 +50,10 @@ macro_rules! try_block {
 }
 
 
-/// The `BufferedReader` trait provides a single function
+/// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
 /// purpose of this traid is to avoid unnecessary data copies.
-pub trait BufferedReader {
+pub trait BufferedRead {
     /// This functions tries to fill the internal buffers, then
     /// returns a reference to the available data. It returns an empty
     /// buffer if `offset` points to the end of the file.
