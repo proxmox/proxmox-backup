@@ -173,7 +173,7 @@ fn generate_usage_str(
 
         if *optional {
 
-            if options.len() > 0 { options.push(' '); }
+            if options.len() > 0 { options.push('\n'); }
             options.push_str(&get_property_description(prop, &schema, ParameterDisplayStyle::Arg, format));
 
         } else {
