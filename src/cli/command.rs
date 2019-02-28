@@ -37,7 +37,17 @@ fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> Strin
         Schema::Null => String::from("<null>"), // should not happen
         Schema::String(_) => String::from("<string>"),
         Schema::Boolean(_) => String::from("<boolean>"),
-        Schema::Integer(_) => String::from("<integer>"),
+        Schema::Integer(integer_schema) => {
+            if integer_schema.minimum != None && integer_schema.maximum != None {
+                format!("<integer> ({} - {})", integer_schema.minimum.unwrap(), integer_schema.maximum.unwrap())
+            } else if integer_schema.minimum != None {
+                format!("<integer> ({} - N)", integer_schema.minimum.unwrap())
+            } else if integer_schema.maximum != None {
+                format!("<integer> (-N - {})", integer_schema.maximum.unwrap())
+            } else {
+                String::from("<integer>")
+            }
+         },
         Schema::Object(_) => String::from("<object>"),
         Schema::Array(_) => String::from("<array>"),
     };
