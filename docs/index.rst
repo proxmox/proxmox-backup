@@ -24,6 +24,7 @@ Welcome to Proxmox Backup's documentation!
    :caption: Appendix
 
    command-syntax.rst
+   glossary.rst
    generated-index.rst
    search-page.rst
 
