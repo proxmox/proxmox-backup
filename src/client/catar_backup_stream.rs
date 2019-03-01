@@ -2,7 +2,7 @@ use failure::*;
 
 use std::thread;
 use std::os::unix::io::FromRawFd;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use futures::{Async, Poll};
 use futures::stream::Stream;
@@ -54,7 +54,7 @@ impl CaTarBackupStream {
         Ok(Self { pipe: Some(pipe), buffer, child: Some(child) })
     }
 
-    pub fn open(dirname: &str) -> Result<Self, Error> {
+    pub fn open(dirname: &Path) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);

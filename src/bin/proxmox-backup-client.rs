@@ -3,8 +3,10 @@ extern crate proxmox_backup;
 use failure::*;
 //use std::os::unix::io::AsRawFd;
 use chrono::{DateTime, Local, Utc, TimeZone};
+use std::path::Path;
 
 use proxmox_backup::tools;
+use proxmox_backup::flog;
 use proxmox_backup::cli::*;
 use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
@@ -26,10 +28,10 @@ lazy_static! {
     static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+):(.+)$").unwrap();
 }
 
-fn backup_directory(
+fn backup_directory<P: AsRef<Path>>(
     client: &mut HttpClient,
     repo: &BackupRepository,
-    body: Body,
+    dir_path: P,
     archive_name: &str,
     backup_time: DateTime<Utc>,
     chunk_size: Option<u64>,
@@ -50,6 +52,10 @@ fn backup_directory(
     let query = query.finish();
 
     let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+
+    let stream = CaTarBackupStream::open(dir_path.as_ref())?;
+
+    let body = Body::wrap_stream(stream);
 
     client.upload("application/x-proxmox-backup-catar", body, &path)?;
 
@@ -202,15 +208,23 @@ fn create_backup(
 
     client.login()?; // login before starting backup
 
+    let log_file_name = format!("backup-log-{}.log", backup_time.format("%Y-%m-%dT%H:%M:%S"));
+
+    let mut log = tools::FileLogger::new(&log_file_name, true)?;
+
+    flog!(log, "Starting backup");
+    flog!(log, "Client name: {}", tools::nodename());
+    flog!(log, "UTC Start Time: {}", Utc::now().format("%c"));
+
     for (filename, target) in upload_list {
-        println!("Upload '{}' to '{:?}'", filename, repo);
-
-        let stream = CaTarBackupStream::open(&filename)?;
-
-        let body = Body::wrap_stream(stream);
-
-        backup_directory(&mut client, &repo, body, &target, backup_time, chunk_size_opt)?;
+        flog!(log, "Upload '{}' to '{:?}' as {}", filename, repo, target);
+        backup_directory(&mut client, &repo, &filename, &target, backup_time, chunk_size_opt)?;
     }
+
+    flog!(log, "Upload backup log");
+    // fixme: impl upload log
+
+    flog!(log, "UTC End Time: {}", Utc::now().format("%c"));
 
     //datastore.garbage_collection()?;
 
