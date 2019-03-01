@@ -175,13 +175,10 @@ fn create_backup(
         };
 
         if (stat.st_mode & libc::S_IFDIR) != 0 {
-             let stream = CaTarBackupStream::open(filename)?;
-
-            let body = Body::wrap_stream(stream);
 
             let target = format!("{}.catar", target);
 
-            upload_list.push((body, filename.to_owned(), target));
+            upload_list.push((filename.to_owned(), target));
 
         } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
             if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
@@ -204,8 +201,15 @@ fn create_backup(
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
 
-    for (body, filename, target) in upload_list {
+    client.login()?; // login before starting backup
+
+    for (filename, target) in upload_list {
         println!("Upload '{}' to '{:?}'", filename, repo);
+
+        let stream = CaTarBackupStream::open(&filename)?;
+
+        let body = Body::wrap_stream(stream);
+
         backup_directory(&mut client, &repo, body, &target, backup_time, chunk_size_opt)?;
     }
 

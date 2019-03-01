@@ -163,7 +163,7 @@ impl HttpClient {
         Self::run_request(request)
     }
 
-    fn login(&mut self) ->  Result<(String, String), Error> {
+    pub fn login(&mut self) ->  Result<(String, String), Error> {
 
         if let Some(ref ticket) = self.ticket {
             if let Some(ref token) = self.token {
