@@ -7,7 +7,7 @@ use crate::backup::*;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 
-use chrono::{Utc, TimeZone};
+use chrono::{Local, TimeZone};
 
 use serde_json::Value;
 use std::io::Write;
@@ -82,7 +82,7 @@ fn upload_catar(
     let datastore = DataStore::lookup_datastore(store)?;
 
     let (mut path, _new) = datastore.create_backup_dir(
-        backup_type, backup_id, Utc.timestamp(backup_time, 0))?;
+        backup_type, backup_id, Local.timestamp(backup_time, 0))?;
 
     path.push(archive_name);
 
@@ -138,7 +138,7 @@ fn download_catar(
     let backup_type = tools::required_string_param(&param, "type")?;
     let backup_id = tools::required_string_param(&param, "id")?;
     let backup_time = tools::required_integer_param(&param, "time")?;
-    let backup_time = Utc.timestamp(backup_time, 0);
+    let backup_time = Local.timestamp(backup_time, 0);
 
     println!("Download {}.catar from {} ({}/{}/{}/{}.didx)", archive_name, store,
              backup_type, backup_id, backup_time, archive_name);

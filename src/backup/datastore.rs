@@ -15,7 +15,7 @@ use super::fixed_index::*;
 use super::dynamic_index::*;
 use super::index::*;
 
-use chrono::{Utc, TimeZone};
+use chrono::Local;
 
 /// Datastore Management
 ///
@@ -55,18 +55,20 @@ pub struct BackupDir {
     /// Backup group
     pub group: BackupGroup,
     /// Backup timestamp
-    pub backup_time: DateTime<Utc>,
+    pub backup_time: DateTime<Local>,
 }
 
 impl BackupDir {
+
+    fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
+        backup_time.to_rfc3339().to_string()
+    }
 
     pub fn relative_path(&self) ->  PathBuf  {
 
         let mut relative_path = self.group.group_path();
 
-        let date_str = self.backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
-
-        relative_path.push(&date_str);
+        relative_path.push(&Self::backup_time_to_file_name(self.backup_time));
 
         relative_path
     }
@@ -207,7 +209,7 @@ impl DataStore {
         &self,
         backup_type: &str,
         backup_id: &str,
-        backup_time: DateTime<Utc>,
+        backup_time: DateTime<Local>,
     ) ->  Result<(PathBuf, bool), io::Error> {
         let mut relative_path = PathBuf::new();
 
@@ -220,7 +222,7 @@ impl DataStore {
         full_path.push(&relative_path);
         std::fs::create_dir_all(&full_path)?;
 
-        let date_str = backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
+        let date_str = BackupDir::backup_time_to_file_name(backup_time);
 
         println!("date: {}", date_str);
         relative_path.push(&date_str);
@@ -244,7 +246,7 @@ impl DataStore {
             static ref BACKUP_TYPE_REGEX: regex::Regex = regex::Regex::new(r"^(host|vm|ct)$").unwrap();
             static ref BACKUP_ID_REGEX: regex::Regex = regex::Regex::new(r"^[A-Za-z][A-Za-z0-9_-]+$").unwrap();
             static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
-                r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$").unwrap();
+                r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}$").unwrap();
         }
 
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
@@ -254,7 +256,7 @@ impl DataStore {
                 tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-                    let dt = Utc.datetime_from_str(backup_time, "%Y-%m-%dT%H:%M:%S")?;
+                    let dt = backup_time.parse::<DateTime<Local>>()?;
 
                     let mut files = vec![];
 

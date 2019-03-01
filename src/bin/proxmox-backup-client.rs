@@ -108,17 +108,26 @@ fn list_backups(
 
     for item in list {
 
-        let id = item["backup_id"].as_str(). unwrap();
-        let btype = item["backup_type"].as_str(). unwrap();
-        let epoch = item["backup_time"].as_i64(). unwrap();
+        let id = item["backup_id"].as_str().unwrap();
+        let btype = item["backup_type"].as_str().unwrap();
+        let epoch = item["backup_time"].as_i64().unwrap();
+        let backup_time = Local.timestamp(epoch, 0);
 
-        let time_str = Local.timestamp(epoch, 0).format("%c");
+        let backup_dir = BackupDir {
+            group: BackupGroup {
+                backup_type: btype.to_string(),
+                backup_id: id.to_string(),
+            },
+            backup_time
+        };
 
-        let files = item["files"].as_array().unwrap();
+        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
 
-        for file in files {
-            let filename = file.as_str().unwrap();
-            println!("| {} | {} | {} | {}", btype, id, time_str, filename);
+        let info = BackupInfo { backup_dir, files };
+
+        for filename in info.files {
+            let path = info.backup_dir.relative_path().to_str().unwrap().to_owned();
+            println!("{} | {}/{}", backup_time.format("%c"), path, filename);
         }
     }
 
