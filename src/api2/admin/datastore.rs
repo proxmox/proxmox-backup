@@ -22,7 +22,7 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     let mut group_hash = HashMap::new();
 
     for info in backup_list {
-        let group_id = format!("{}/{}", info.backup_dir.backup_type, info.backup_dir.backup_id);
+        let group_id = format!("{}/{}", info.backup_dir.group.backup_type, info.backup_dir.group.backup_id);
         let time_list = group_hash.entry(group_id).or_insert(vec![]);
         time_list.push(info);
     }
@@ -223,8 +223,8 @@ fn get_backup_list(
 
     for info in datastore.list_backups()? {
         list.push(json!({
-            "backup_type": info.backup_dir.backup_type,
-            "backup_id": info.backup_dir.backup_id,
+            "backup_type": info.backup_dir.group.backup_type,
+            "backup_id": info.backup_dir.group.backup_id,
             "backup_time": info.backup_dir.backup_time.timestamp(),
             "files": info.files,
         }));

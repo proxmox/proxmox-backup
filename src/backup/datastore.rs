@@ -26,13 +26,34 @@ pub struct DataStore {
     gc_mutex: Mutex<bool>,
 }
 
-/// Uniquely identify backups (relative to data store)
+/// Group Backups
 #[derive(Debug)]
-pub struct BackupDir {
+pub struct BackupGroup {
     /// Type of backup
     pub backup_type: String,
     /// Unique (for this type) ID
     pub backup_id: String,
+}
+
+impl BackupGroup {
+
+    pub fn group_path(&self) ->  PathBuf  {
+
+        let mut relative_path = PathBuf::new();
+
+        relative_path.push(&self.backup_type);
+
+        relative_path.push(&self.backup_id);
+
+        relative_path
+    }
+}
+
+/// Uniquely identify a Backup (relative to data store)
+#[derive(Debug)]
+pub struct BackupDir {
+    /// Backup group
+    pub group: BackupGroup,
     /// Backup timestamp
     pub backup_time: DateTime<Utc>,
 }
@@ -41,11 +62,7 @@ impl BackupDir {
 
     pub fn relative_path(&self) ->  PathBuf  {
 
-        let mut relative_path = PathBuf::new();
-
-        relative_path.push(&self.backup_type);
-
-        relative_path.push(&self.backup_id);
+        let mut relative_path = self.group.group_path();
 
         let date_str = self.backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
 
@@ -249,8 +266,10 @@ impl DataStore {
 
                     list.push(BackupInfo {
                         backup_dir: BackupDir {
-                            backup_type: backup_type.to_owned(),
-                            backup_id: backup_id.to_owned(),
+                            group: BackupGroup {
+                                backup_type: backup_type.to_owned(),
+                                backup_id: backup_id.to_owned(),
+                            },
                             backup_time: dt,
                         },
                         files,
