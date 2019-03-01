@@ -145,7 +145,13 @@ fn download_catar(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let mut path = datastore.get_backup_dir(backup_type, backup_id, backup_time);
+    let backup_dir = BackupDir {
+        backup_type: backup_type.to_string(),
+        backup_id: backup_id.to_string(),
+        backup_time,
+    };
+
+    let mut path = backup_dir.relative_path();
 
     let mut full_archive_name = PathBuf::from(archive_name);
     full_archive_name.set_extension("didx");

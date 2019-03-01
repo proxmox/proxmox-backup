@@ -6,6 +6,7 @@ use crate::api_schema::router::*;
 use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
 use chrono::{DateTime, Datelike, Local};
+use std::path::PathBuf;
 
 //use hyper::StatusCode;
 //use hyper::rt::{Future, Stream};
@@ -21,7 +22,7 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     let mut group_hash = HashMap::new();
 
     for info in backup_list {
-        let group_id = format!("{}/{}", info.backup_type, info.backup_id);
+        let group_id = format!("{}/{}", info.backup_dir.backup_type, info.backup_dir.backup_id);
         let time_list = group_hash.entry(group_id).or_insert(vec![]);
         time_list.push(info);
     }
@@ -30,16 +31,16 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
 }
 
 fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
-    mark: &mut HashSet<String>,
+    mark: &mut HashSet<PathBuf>,
     list: &Vec<BackupInfo>,
     keep: usize,
     select_id: F,
 ){
     let mut hash = HashSet::new();
     for info in list {
-        let local_time = info.backup_time.with_timezone(&Local);
+        let local_time = info.backup_dir.backup_time.with_timezone(&Local);
         if hash.len() >= keep as usize { break; }
-        let backup_id = info.unique_id();
+        let backup_id = info.backup_dir.relative_path();
         let sel_id: String = select_id(local_time, &info);
         if !hash.contains(&sel_id) {
             hash.insert(sel_id);
@@ -70,12 +71,11 @@ fn prune(
 
         let mut mark = HashSet::new();
 
-        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time)); // new backups first
+        list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time)); // new backups first
 
         if let Some(keep_last) = param["keep-last"].as_u64() {
             list.iter().take(keep_last as usize).for_each(|info| {
-                let backup_id = format!(" {}/{}/{}", info.backup_type, info.backup_id,  info.backup_time.timestamp());
-                mark.insert(backup_id);
+                mark.insert(info.backup_dir.relative_path());
             });
         }
 
@@ -103,12 +103,13 @@ fn prune(
             });
         }
 
-        let mut remove_list: Vec<&BackupInfo> = list.iter().filter(|info| !mark.contains(&info.unique_id())).collect();
+        let mut remove_list: Vec<&BackupInfo> = list.iter()
+            .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
 
-        remove_list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time)); // oldest backups first
+        remove_list.sort_unstable_by(|a, b| a.backup_dir.backup_time.cmp(&b.backup_dir.backup_time)); // oldest backups first
 
         for info in remove_list {
-            datastore.remove_backup_dir(&info.backup_type, &info.backup_id, info.backup_time)?;
+            datastore.remove_backup_dir(&info.backup_dir)?;
         }
     }
 
@@ -222,9 +223,9 @@ fn get_backup_list(
 
     for info in datastore.list_backups()? {
         list.push(json!({
-            "backup_type": info.backup_type,
-            "backup_id": info.backup_id,
-            "backup_time": info.backup_time.timestamp(),
+            "backup_type": info.backup_dir.backup_type,
+            "backup_id": info.backup_dir.backup_id,
+            "backup_time": info.backup_dir.backup_time.timestamp(),
             "files": info.files,
         }));
     }

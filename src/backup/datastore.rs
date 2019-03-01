@@ -26,25 +26,44 @@ pub struct DataStore {
     gc_mutex: Mutex<bool>,
 }
 
-/// Detailed Backup Information
+/// Uniquely identify backups (relative to data store)
 #[derive(Debug)]
-pub struct BackupInfo {
+pub struct BackupDir {
     /// Type of backup
     pub backup_type: String,
     /// Unique (for this type) ID
     pub backup_id: String,
     /// Backup timestamp
     pub backup_time: DateTime<Utc>,
+}
+
+impl BackupDir {
+
+    pub fn relative_path(&self) ->  PathBuf  {
+
+        let mut relative_path = PathBuf::new();
+
+        relative_path.push(&self.backup_type);
+
+        relative_path.push(&self.backup_id);
+
+        let date_str = self.backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+        relative_path.push(&date_str);
+
+        relative_path
+    }
+}
+
+/// Detailed Backup Information
+#[derive(Debug)]
+pub struct BackupInfo {
+    /// the backup directory
+    pub backup_dir: BackupDir,
     /// List of data files
     pub files: Vec<String>,
 }
 
-impl BackupInfo {
-
-    pub fn unique_id(&self) -> String {
-        format!("{}/{}/{}", self.backup_type, self.backup_id, self.backup_time.timestamp())
-    }
-}
 
 lazy_static!{
     static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
@@ -153,35 +172,11 @@ impl DataStore {
         self.chunk_store.base_path()
     }
 
-    pub fn get_backup_dir(
-        &self,
-        backup_type: &str,
-        backup_id: &str,
-        backup_time: DateTime<Utc>,
-    ) ->  PathBuf  {
-
-        let mut relative_path = PathBuf::new();
-
-        relative_path.push(backup_type);
-
-        relative_path.push(backup_id);
-
-        let date_str = backup_time.format("%Y-%m-%dT%H:%M:%S").to_string();
-
-        relative_path.push(&date_str);
-
-        relative_path
-    }
-
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(
-        &self,
-        backup_type: &str,
-        backup_id: &str,
-        backup_time: DateTime<Utc>,
+    pub fn remove_backup_dir(&self, backup_dir: &BackupDir,
     ) ->  Result<(), io::Error> {
 
-        let relative_path = self.get_backup_dir(backup_type, backup_id, backup_time);
+        let relative_path = backup_dir.relative_path();
         let mut full_path = self.base_path();
         full_path.push(&relative_path);
 
@@ -253,9 +248,11 @@ impl DataStore {
                     })?;
 
                     list.push(BackupInfo {
-                        backup_type: backup_type.to_owned(),
-                        backup_id: backup_id.to_owned(),
-                        backup_time: dt,
+                        backup_dir: BackupDir {
+                            backup_type: backup_type.to_owned(),
+                            backup_id: backup_id.to_owned(),
+                            backup_time: dt,
+                        },
                         files,
                     });
 
