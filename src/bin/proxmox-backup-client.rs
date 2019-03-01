@@ -2,7 +2,7 @@ extern crate proxmox_backup;
 
 use failure::*;
 //use std::os::unix::io::AsRawFd;
-use chrono::{Local, TimeZone};
+use chrono::{DateTime, Local, Utc, TimeZone};
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
@@ -31,7 +31,7 @@ fn backup_directory(
     repo: &BackupRepository,
     body: Body,
     archive_name: &str,
-    backup_time: u64,
+    backup_time: DateTime<Utc>,
     chunk_size: Option<u64>,
 ) -> Result<(), Error> {
 
@@ -41,7 +41,7 @@ fn backup_directory(
         .append_pair("archive_name", archive_name)
         .append_pair("type", "host")
         .append_pair("id", &tools::nodename())
-        .append_pair("time", &backup_time.to_string());
+        .append_pair("time", &backup_time.timestamp().to_string());
 
     if let Some(size) = chunk_size {
         query.append_pair("chunk-size", &size.to_string());
@@ -196,8 +196,7 @@ fn create_backup(
         }
     }
 
-    let backup_time = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+    let backup_time = Utc::now();
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
 
