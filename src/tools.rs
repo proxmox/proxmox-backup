@@ -28,6 +28,10 @@ pub mod borrow;
 pub mod fs;
 pub mod tty;
 
+#[macro_use]
+mod file_logger;
+pub use file_logger::*;
+
 /// Macro to write error-handling blocks (like perl eval {})
 ///
 /// #### Example:
