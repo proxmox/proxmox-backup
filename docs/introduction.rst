@@ -33,10 +33,12 @@ Main features
 :Performance: The whole software stack is written in :term:`Rust`,
    which provides high speed and memory efficiency.
 
-:Open Source: No secrets. You have access to the whole source tree.
-
 :Compression: Ultra fast `LZ4`_ compression is able to compress
    several gigabytes of data per second.
+
+:Open Source: No secrets. You have access to the whole source tree.
+
+:Support: Commercial support options available from `Proxmox`_.
 
 Why Backup?
 -----------

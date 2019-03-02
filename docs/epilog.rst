@@ -5,6 +5,7 @@
 
 .. _Container: https://en.wikipedia.org/wiki/Container_(virtualization)
 .. _LZ4: https://en.wikipedia.org/wiki/LZ4_(compression_algorithm)
+.. _Proxmox: https://www.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
 .. _Rust: https://www.rust-lang.org/
