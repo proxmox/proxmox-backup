@@ -8,7 +8,27 @@ this is a test
 Why Backup?
 -----------
 
-dfgfd fghfgh fh
+The primary purpose of backup is to protect against data loss. Data
+loss can happen because of faulty hardware, but also by human errors.
+
+A common mistake is to delete a file or folder which is still
+required. Virtualization can amplify this problem, because it is now
+easy to delete a whole virtual machine by a single button press.
+
+Backups can also serve as a toolkit for administrators to temporarily
+store data. For example, it is common practice to perform full backups
+before installing major software updates. If something goes wrong, you
+can just restore the previous state.
+
+Another reason for backups are legal requirements. Some data must be
+kept in a safe place for several years so that you can access it if
+required by law.
+
+
+- value of data, importance for your business, legal regulations
+
+- restore tests. to make sure backup/restore works
+
 
 
 Features
