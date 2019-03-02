@@ -475,3 +475,15 @@ pub fn extract_auth_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
 
     None
 }
+
+pub fn join(data: &Vec<String>, sep: char) -> String {
+
+    let mut list = String::new();
+
+    for item in data {
+        if list.len() != 0 { list.push(sep); }
+        list.push_str(item);
+    }
+
+    list
+}
