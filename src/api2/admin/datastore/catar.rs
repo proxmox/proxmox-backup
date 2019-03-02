@@ -55,7 +55,7 @@ fn upload_catar(
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
-    let mut archive_name = String::from(tools::required_string_param(&param, "archive_name")?);
+    let mut archive_name = String::from(tools::required_string_param(&param, "archive-name")?);
 
     if !archive_name.ends_with(".catar") {
         bail!("got wront file extension (expected '.catar')");
@@ -108,7 +108,7 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
         upload_catar,
         ObjectSchema::new("Upload .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
-            .required("archive_name", StringSchema::new("Backup archive name."))
+            .required("archive-name", StringSchema::new("Backup archive name."))
             .required("type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
             .required("id", StringSchema::new("Backup ID."))
@@ -133,7 +133,7 @@ fn download_catar(
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
-    let archive_name = tools::required_string_param(&param, "archive_name")?;
+    let archive_name = tools::required_string_param(&param, "archive-name")?;
 
     let backup_type = tools::required_string_param(&param, "type")?;
     let backup_id = tools::required_string_param(&param, "id")?;
@@ -177,7 +177,7 @@ pub fn api_method_download_catar() -> ApiAsyncMethod {
         download_catar,
         ObjectSchema::new("Download .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
-            .required("archive_name", StringSchema::new("Backup archive name."))
+            .required("archive-name", StringSchema::new("Backup archive name."))
             .required("type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
             .required("id", StringSchema::new("Backup ID."))

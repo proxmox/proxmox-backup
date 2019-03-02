@@ -40,7 +40,7 @@ fn backup_directory<P: AsRef<Path>>(
     let mut query = url::form_urlencoded::Serializer::new(String::new());
 
     query
-        .append_pair("archive_name", archive_name)
+        .append_pair("archive-name", archive_name)
         .append_pair("type", "host")
         .append_pair("id", &tools::nodename())
         .append_pair("time", &backup_time.timestamp().to_string());
@@ -108,9 +108,9 @@ fn list_backups(
 
     for item in list {
 
-        let id = item["backup_id"].as_str().unwrap();
-        let btype = item["backup_type"].as_str().unwrap();
-        let epoch = item["backup_time"].as_i64().unwrap();
+        let id = item["backup-id"].as_str().unwrap();
+        let btype = item["backup-type"].as_str().unwrap();
+        let epoch = item["backup-time"].as_i64().unwrap();
         let backup_time = Local.timestamp(epoch, 0);
 
         let backup_dir = BackupDir {

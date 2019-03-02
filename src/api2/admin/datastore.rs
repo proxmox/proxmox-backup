@@ -308,9 +308,9 @@ fn get_backup_list(
 
     for info in datastore.list_backups()? {
         list.push(json!({
-            "backup_type": info.backup_dir.group.backup_type,
-            "backup_id": info.backup_dir.group.backup_id,
-            "backup_time": info.backup_dir.backup_time.timestamp(),
+            "backup-type": info.backup_dir.group.backup_type,
+            "backup-id": info.backup_dir.group.backup_id,
+            "backup-time": info.backup_dir.backup_time.timestamp(),
             "files": info.files,
         }));
     }
