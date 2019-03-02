@@ -135,6 +135,45 @@ fn list_backups(
     Ok(Value::Null)
 }
 
+fn list_backup_groups(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/groups", repo.store);
+
+    let result = client.get(&path)?;
+
+    // fixme: implement and use output formatter instead ..
+    let list = result["data"].as_array().unwrap();
+
+    for item in list {
+
+        let id = item["backup_id"].as_str().unwrap();
+        let btype = item["backup_type"].as_str().unwrap();
+        let epoch = item["last_backup"].as_i64().unwrap();
+        let last_backup = Local.timestamp(epoch, 0);
+        let num_backups = item["num_backups"].as_u64().unwrap();
+
+        let group = BackupGroup {
+            backup_type: btype.to_string(),
+            backup_id: id.to_string(),
+        };
+
+        let path = group.group_path().to_str().unwrap().to_owned();
+        println!("{} | {} | {}", path, last_backup.format("%c"), num_backups);
+    }
+
+    //Ok(result)
+    Ok(Value::Null)
+}
+
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
@@ -318,8 +357,8 @@ fn main() {
 
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
-            list_backups,
-            ObjectSchema::new("List backups.")
+            list_backup_groups,
+            ObjectSchema::new("List backup groups.")
                 .required("repository", repo_url_schema.clone())
         ))
         .arg_param(vec!["repository"]);

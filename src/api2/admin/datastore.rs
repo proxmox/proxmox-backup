@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
 use chrono::{DateTime, Datelike, Local};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 //use hyper::StatusCode;
 //use hyper::rt::{Future, Stream};
@@ -50,6 +51,39 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     }
 }
 
+fn get_group_list(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = param["store"].as_str().unwrap();
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let backup_list =  datastore.list_backups()?;
+
+    let group_hash = group_backups(backup_list);
+
+    let mut groups = vec![];
+
+    for (_group_id, mut list) in group_hash {
+
+        list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time)); // new backups first
+
+        let info = &list[0];
+        let group = &info.backup_dir.group;
+
+        groups.push(json!({
+            "backup_type": group.backup_type,
+            "backup_id": group.backup_id,
+            "last_backup": info.backup_dir.backup_time.timestamp(),
+            "num_backups": list.len() as u64,
+        }));
+    }
+
+    Ok(json!(groups))
+}
 
 fn prune(
     param: Value,
@@ -249,17 +283,22 @@ fn get_datastore_list(
 
 pub fn router() -> Router {
 
+    let store_schema: Arc<Schema> = Arc::new(
+        StringSchema::new("Datastore name.").into()
+    );
+
     let datastore_info = Router::new()
         .get(ApiMethod::new(
             |_,_,_| Ok(json!([
                 {"subdir": "backups" },
                 {"subdir": "catar" },
                 {"subdir": "gc" },
+                {"subdir": "groups" },
                 {"subdir": "status" },
                 {"subdir": "prune" },
            ])),
             ObjectSchema::new("Directory index.")
-                .required("store", StringSchema::new("Datastore name.")))
+                .required("store", store_schema.clone()))
         )
         .subdir(
             "backups",
@@ -267,7 +306,7 @@ pub fn router() -> Router {
                 .get(ApiMethod::new(
                     get_backup_list,
                     ObjectSchema::new("List backups.")
-                        .required("store", StringSchema::new("Datastore name.")))))
+                        .required("store", store_schema.clone()))))
         .subdir(
             "catar",
             Router::new()
@@ -278,6 +317,13 @@ pub fn router() -> Router {
             Router::new()
                 .get(api_method_garbage_collection_status())
                 .post(api_method_start_garbage_collection()))
+        .subdir(
+            "groups",
+            Router::new()
+                .get(ApiMethod::new(
+                    get_group_list,
+                    ObjectSchema::new("List backup groups.")
+                        .required("store", store_schema.clone()))))
         .subdir(
             "prune",
             Router::new()
