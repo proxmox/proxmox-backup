@@ -1,5 +1,6 @@
 use failure::*;
 
+use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 //use crate::server::rest::*;
@@ -23,7 +24,7 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     let mut group_hash = HashMap::new();
 
     for info in backup_list {
-        let group_id = format!("{}/{}", info.backup_dir.group.backup_type, info.backup_dir.group.backup_id);
+        let group_id = info.backup_dir.group.group_path().to_str().unwrap().to_owned();
         let time_list = group_hash.entry(group_id).or_insert(vec![]);
         time_list.push(info);
     }
@@ -83,6 +84,55 @@ fn get_group_list(
     }
 
     Ok(json!(groups))
+}
+
+fn list_snapshots (
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+
+    let group = BackupGroup {
+        backup_type: backup_type.to_owned(),
+        backup_id: backup_id.to_owned(),
+    };
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let backup_list = datastore.list_backups()?;
+
+    let mut group_hash = group_backups(backup_list);
+
+    let group_id = group.group_path().to_str().unwrap().to_owned();
+
+    let group_snapshots = match group_hash.get_mut(&group_id) {
+        Some(data) => {
+            // new backups first
+            data.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time));
+            data
+        }
+        None => bail!("Backup group '{}' does not exists.", group_id),
+    };
+
+    let mut snapshots = vec![];
+
+    for info in group_snapshots {
+
+        let group = &info.backup_dir.group;
+
+        snapshots.push(json!({
+            "backup-type": group.backup_type,
+            "backup-id": group.backup_id,
+            "backup-time": info.backup_dir.backup_time.timestamp(),
+            "files": info.files,
+        }));
+    }
+
+    Ok(json!(snapshots))
 }
 
 fn prune(
@@ -294,6 +344,7 @@ pub fn router() -> Router {
                 {"subdir": "catar" },
                 {"subdir": "gc" },
                 {"subdir": "groups" },
+                {"subdir": "snapshots" },
                 {"subdir": "status" },
                 {"subdir": "prune" },
            ])),
@@ -324,6 +375,15 @@ pub fn router() -> Router {
                     get_group_list,
                     ObjectSchema::new("List backup groups.")
                         .required("store", store_schema.clone()))))
+        .subdir(
+            "snapshots",
+            Router::new()
+                .get(ApiMethod::new(
+                    list_snapshots,
+                    ObjectSchema::new("List backup groups.")
+                        .required("store", store_schema.clone())
+                        .required("backup-type", StringSchema::new("Backup type."))
+                        .required("backup-id", StringSchema::new("Backup ID.")))))
         .subdir(
             "prune",
             Router::new()

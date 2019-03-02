@@ -7,6 +7,7 @@ use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use std::sync::{Mutex, Arc};
+use regex::Regex;
 
 use crate::tools;
 use crate::config::datastore;
@@ -36,6 +37,17 @@ pub struct BackupGroup {
 }
 
 impl BackupGroup {
+
+    pub fn parse(path: &str) -> Result<Self, Error> {
+
+        let cap = GROUP_PATH_REGEX.captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
+
+        Ok(Self {
+            backup_type: cap.get(1).unwrap().as_str().to_owned(),
+            backup_id: cap.get(2).unwrap().as_str().to_owned(),
+        })
+    }
 
     pub fn group_path(&self) ->  PathBuf  {
 
@@ -84,8 +96,27 @@ pub struct BackupInfo {
 }
 
 
+macro_rules! BACKUP_ID_RE { () => ("[A-Za-z0-9][A-Za-z0-9_-]+") }
+macro_rules! BACKUP_TYPE_RE { () => ("(?:host|vm|ct)") }
+
 lazy_static!{
     static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
+
+    static ref BACKUP_FILE_REGEX: Regex = Regex::new(
+        r"^.*\.([fd]idx)$").unwrap();
+
+    static ref BACKUP_TYPE_REGEX: Regex = Regex::new(
+        concat!(r"^(", BACKUP_TYPE_RE!(), r")$")).unwrap();
+
+    static ref BACKUP_ID_REGEX: Regex = Regex::new(
+        concat!(r"^", BACKUP_ID_RE!(), r"$")).unwrap();
+
+    static ref BACKUP_DATE_REGEX: Regex = Regex::new(
+        r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}$").unwrap();
+
+    static ref GROUP_PATH_REGEX: Regex = Regex::new(
+        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
+
 }
 
 impl DataStore {
@@ -240,14 +271,6 @@ impl DataStore {
         let path = self.base_path();
 
         let mut list = vec![];
-
-        lazy_static! {
-            static ref BACKUP_FILE_REGEX: regex::Regex = regex::Regex::new(r"^.*\.([fd]idx)$").unwrap();
-            static ref BACKUP_TYPE_REGEX: regex::Regex = regex::Regex::new(r"^(host|vm|ct)$").unwrap();
-            static ref BACKUP_ID_REGEX: regex::Regex = regex::Regex::new(r"^[A-Za-z][A-Za-z0-9_-]+$").unwrap();
-            static ref BACKUP_DATE_REGEX: regex::Regex = regex::Regex::new(
-                r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}$").unwrap();
-        }
 
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }

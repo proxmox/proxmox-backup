@@ -174,6 +174,61 @@ fn list_backup_groups(
     Ok(Value::Null)
 }
 
+fn list_snapshots(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let path = tools::required_string_param(&param, "group")?;
+    let group = BackupGroup::parse(path)?;
+
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("backup-type", &group.backup_type)
+        .append_pair("backup-id", &group.backup_id)
+        .finish();
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, query);
+
+    // fixme: params
+    let result = client.get(&path)?;
+
+    // fixme: implement and use output formatter instead ..
+    let list = result["data"].as_array().unwrap();
+
+    for item in list {
+
+        let id = item["backup-id"].as_str().unwrap();
+        let btype = item["backup-type"].as_str().unwrap();
+        let epoch = item["backup-time"].as_i64().unwrap();
+        let backup_time = Local.timestamp(epoch, 0);
+
+        let snapshot = BackupDir {
+            group: BackupGroup {
+                backup_type: btype.to_string(),
+                backup_id: id.to_string(),
+            },
+            backup_time,
+        };
+
+        let path = snapshot.relative_path().to_str().unwrap().to_owned();
+
+        let files = item["files"].as_array().unwrap().iter()
+            .map(|v| {
+                v.as_str().unwrap().to_owned()
+            }).collect();
+
+        println!("{} | {} | {}", path, backup_time.format("%c"), tools::join(&files, ' '));
+    }
+
+    Ok(Value::Null)
+}
+
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
@@ -363,6 +418,15 @@ fn main() {
         ))
         .arg_param(vec!["repository"]);
 
+    let snapshots_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            list_snapshots,
+            ObjectSchema::new("List backup snapshots.")
+                .required("repository", repo_url_schema.clone())
+                .required("group", StringSchema::new("Backup group."))
+        ))
+        .arg_param(vec!["repository", "group"]);
+
     let garbage_collect_cmd_def = CliCommand::new(
         ApiMethod::new(
             start_garbage_collection,
@@ -384,7 +448,8 @@ fn main() {
         .insert("create".to_owned(), create_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
-        .insert("prune".to_owned(), prune_cmd_def.into());
+        .insert("prune".to_owned(), prune_cmd_def.into())
+        .insert("snapshots".to_owned(), snapshots_cmd_def.into());
 
     run_cli_command(cmd_def.into());
 }

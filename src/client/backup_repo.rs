@@ -39,7 +39,7 @@ impl BackupRepository {
     pub fn parse(url: &str) -> Result<Self, Error> {
 
         let cap = BACKUP_REPO_URL_REGEX.captures(url)
-            .ok_or_else(|| format_err!("unable to parse reepository url '{}'", url))?;
+            .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
 
         Ok(BackupRepository {
             user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
