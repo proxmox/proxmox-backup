@@ -155,11 +155,11 @@ fn list_backup_groups(
 
     for item in list {
 
-        let id = item["backup_id"].as_str().unwrap();
-        let btype = item["backup_type"].as_str().unwrap();
-        let epoch = item["last_backup"].as_i64().unwrap();
+        let id = item["backup-id"].as_str().unwrap();
+        let btype = item["backup-type"].as_str().unwrap();
+        let epoch = item["last-backup"].as_i64().unwrap();
         let last_backup = Local.timestamp(epoch, 0);
-        let num_backups = item["num_backups"].as_u64().unwrap();
+        let backup_count = item["backup-count"].as_u64().unwrap();
 
         let group = BackupGroup {
             backup_type: btype.to_string(),
@@ -167,7 +167,14 @@ fn list_backup_groups(
         };
 
         let path = group.group_path().to_str().unwrap().to_owned();
-        println!("{} | {} | {}", path, last_backup.format("%c"), num_backups);
+
+        let files = item["files"].as_array().unwrap().iter()
+            .map(|v| {
+                v.as_str().unwrap().to_owned()
+            }).collect();
+
+        println!("{} | {} | {} | {}", path, last_backup.format("%c"),
+                 backup_count, tools::join(&files, ' '));
     }
 
     //Ok(result)

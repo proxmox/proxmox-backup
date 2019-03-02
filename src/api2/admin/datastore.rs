@@ -52,7 +52,7 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     }
 }
 
-fn get_group_list(
+fn list_groups(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut RpcEnvironment,
@@ -76,10 +76,11 @@ fn get_group_list(
         let group = &info.backup_dir.group;
 
         groups.push(json!({
-            "backup_type": group.backup_type,
-            "backup_id": group.backup_id,
-            "last_backup": info.backup_dir.backup_time.timestamp(),
-            "num_backups": list.len() as u64,
+            "backup-type": group.backup_type,
+            "backup-id": group.backup_id,
+            "last-backup": info.backup_dir.backup_time.timestamp(),
+            "backup-count": list.len() as u64,
+            "files": info.files,
         }));
     }
 
@@ -372,7 +373,7 @@ pub fn router() -> Router {
             "groups",
             Router::new()
                 .get(ApiMethod::new(
-                    get_group_list,
+                    list_groups,
                     ObjectSchema::new("List backup groups.")
                         .required("store", store_schema.clone()))))
         .subdir(
