@@ -48,6 +48,9 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+epilog_file = open('epilog.rst', 'r')
+rst_epilog = epilog_file.read()
+
 # General information about the project.
 project = 'Proxmox Backup'
 copyright = '2019, Proxmox Support Team'
@@ -84,6 +87,7 @@ language = None
 exclude_patterns = [
     '_build', 'Thumbs.db', '.DS_Store',
     'proxmox-backup-client/man1.rst',
+    'epilog.rst',
     'pbs-copyright.rst',
 ]
 
