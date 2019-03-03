@@ -17,7 +17,7 @@ use std::time::Duration;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::AsRawFd;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub mod timer;
 pub mod wrapped_reader_stream;
@@ -318,6 +318,36 @@ pub fn nodename() -> &'static str {
     }
 
     &NODENAME
+}
+
+pub fn json_object_to_query(data: Value) -> Result<String, Error> {
+
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+
+    let object = data.as_object().ok_or_else(|| {
+        format_err!("json_object_to_query: got wrong data type (expected object).")
+    })?;
+
+    for (key, value) in object {
+        match value {
+            Value::Bool(b) => { query.append_pair(key, &b.to_string()); }
+            Value::Number(n) => { query.append_pair(key, &n.to_string()); }
+            Value::String(s) => { query.append_pair(key, &s); }
+            Value::Array(arr) => {
+                for element in arr {
+                    match element {
+                        Value::Bool(b) => { query.append_pair(key, &b.to_string()); }
+                        Value::Number(n) => { query.append_pair(key, &n.to_string()); }
+                        Value::String(s) => { query.append_pair(key, &s); }
+                        _ => bail!("json_object_to_query: unable to handle complex array data types."),
+                    }
+                }
+            }
+            _ => bail!("json_object_to_query: unable to handle complex data types."),
+        }
+    }
+
+    Ok(query.finish())
 }
 
 pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {

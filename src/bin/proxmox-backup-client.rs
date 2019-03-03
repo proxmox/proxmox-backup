@@ -17,7 +17,7 @@ use proxmox_backup::backup::*;
 //use proxmox_backup::catar::encoder::*;
 //use proxmox_backup::backup::datastore::*;
 
-use serde_json::{Value};
+use serde_json::{json, Value};
 use hyper::Body;
 use std::sync::Arc;
 use regex::Regex;
@@ -193,10 +193,10 @@ fn list_snapshots(
     let path = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(path)?;
 
-    let query = url::form_urlencoded::Serializer::new(String::new())
-        .append_pair("backup-type", &group.backup_type)
-        .append_pair("backup-id", &group.backup_id)
-        .finish();
+    let query = tools::json_object_to_query(json!({
+        "backup-type": &group.backup_type,
+        "backup-id": &group.backup_id,
+    }))?;
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
 
