@@ -420,10 +420,10 @@ fn main() {
             .into()
     );
 
-    let create_cmd_def = CliCommand::new(
+    let backup_cmd_def = CliCommand::new(
         ApiMethod::new(
             create_backup,
-            ObjectSchema::new("Create backup.")
+            ObjectSchema::new("Create (host) backup.")
                 .required("repository", repo_url_schema.clone())
                 .required(
                     "backupspec",
@@ -487,7 +487,7 @@ fn main() {
         ))
         .arg_param(vec!["repository"]);
     let cmd_def = CliCommandMap::new()
-        .insert("create".to_owned(), create_cmd_def.into())
+        .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
