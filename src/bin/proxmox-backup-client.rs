@@ -39,9 +39,9 @@ fn backup_directory<P: AsRef<Path>>(
 
     let mut param = json!({
         "archive-name": archive_name,
-        "type": "host",
-        "id": &tools::nodename(),
-        "time": backup_time.timestamp(),
+        "backup-type": "host",
+        "backup-id": &tools::nodename(),
+        "backup-time": backup_time.timestamp(),
     });
 
     if let Some(size) = chunk_size {

@@ -63,9 +63,9 @@ fn upload_catar(
 
     archive_name.push_str(".didx");
 
-    let backup_type = tools::required_string_param(&param, "type")?;
-    let backup_id = tools::required_string_param(&param, "id")?;
-    let backup_time = tools::required_integer_param(&param, "time")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
     println!("Upload {}/{}/{}/{}/{}", store, backup_type, backup_id, backup_time, archive_name);
 
@@ -109,10 +109,10 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
         ObjectSchema::new("Upload .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
             .required("archive-name", StringSchema::new("Backup archive name."))
-            .required("type", StringSchema::new("Backup type.")
+            .required("backup-type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
-            .required("id", StringSchema::new("Backup ID."))
-            .required("time", IntegerSchema::new("Backup time (Unix epoch.)")
+            .required("backup-id", StringSchema::new("Backup ID."))
+            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
                       .minimum(1547797308))
             .optional(
                 "chunk-size",
@@ -135,9 +135,9 @@ fn download_catar(
     let store = tools::required_string_param(&param, "store")?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let backup_type = tools::required_string_param(&param, "type")?;
-    let backup_id = tools::required_string_param(&param, "id")?;
-    let backup_time = tools::required_integer_param(&param, "time")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
     let backup_time = Local.timestamp(backup_time, 0);
 
     println!("Download {}.catar from {} ({}/{}/{}/{}.didx)", archive_name, store,
@@ -178,10 +178,10 @@ pub fn api_method_download_catar() -> ApiAsyncMethod {
         ObjectSchema::new("Download .catar backup file.")
             .required("store", StringSchema::new("Datastore name."))
             .required("archive-name", StringSchema::new("Backup archive name."))
-            .required("type", StringSchema::new("Backup type.")
+            .required("backup-type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(vec!["ct".into(), "host".into()]))))
-            .required("id", StringSchema::new("Backup ID."))
-            .required("time", IntegerSchema::new("Backup time (Unix epoch.)")
+            .required("backup-id", StringSchema::new("Backup ID."))
+            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
                       .minimum(1547797308))
 
     )
