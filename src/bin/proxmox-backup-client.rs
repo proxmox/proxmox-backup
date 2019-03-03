@@ -235,6 +235,33 @@ fn list_snapshots(
     Ok(Value::Null)
 }
 
+fn forget_snapshots(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = BackupDir::parse(path)?;
+
+    let query = tools::json_object_to_query(json!({
+        "backup-type": &snapshot.group.backup_type,
+        "backup-id": &snapshot.group.backup_id,
+        "backup-time": snapshot.backup_time.timestamp(),
+    }))?;
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, query);
+
+    let result = client.delete(&path)?;
+
+    Ok(result)
+}
+
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
@@ -433,6 +460,15 @@ fn main() {
         ))
         .arg_param(vec!["repository", "group"]);
 
+    let forget_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            forget_snapshots,
+            ObjectSchema::new("Forget (remove) backup snapshots.")
+                .required("repository", repo_url_schema.clone())
+                .required("snapshot", StringSchema::new("Snapshot path."))
+        ))
+        .arg_param(vec!["repository", "snapshot"]);
+
     let garbage_collect_cmd_def = CliCommand::new(
         ApiMethod::new(
             start_garbage_collection,
@@ -452,6 +488,7 @@ fn main() {
         .arg_param(vec!["repository"]);
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), create_cmd_def.into())
+        .insert("forget".to_owned(), forget_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())

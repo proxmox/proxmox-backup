@@ -6,7 +6,7 @@ use crate::api_schema::router::*;
 //use crate::server::rest::*;
 use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Datelike, Local, TimeZone};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -85,6 +85,33 @@ fn list_groups(
     }
 
     Ok(json!(groups))
+}
+
+fn delete_snapshots (
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+    let backup_time = Local.timestamp(backup_time, 0);
+
+    let snapshot = BackupDir {
+        group: BackupGroup {
+            backup_type: backup_type.to_owned(),
+            backup_id: backup_id.to_owned(),
+        },
+        backup_time,
+    };
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    datastore.remove_backup_dir(&snapshot)?;
+
+    Ok(Value::Null)
 }
 
 fn list_snapshots (
@@ -379,12 +406,27 @@ pub fn router() -> Router {
         .subdir(
             "snapshots",
             Router::new()
-                .get(ApiMethod::new(
-                    list_snapshots,
-                    ObjectSchema::new("List backup groups.")
-                        .required("store", store_schema.clone())
-                        .required("backup-type", StringSchema::new("Backup type."))
-                        .required("backup-id", StringSchema::new("Backup ID.")))))
+                .get(
+                    ApiMethod::new(
+                        list_snapshots,
+                        ObjectSchema::new("List backup groups.")
+                            .required("store", store_schema.clone())
+                            .required("backup-type", StringSchema::new("Backup type."))
+                            .required("backup-id", StringSchema::new("Backup ID."))
+                    )
+                )
+                .delete(
+                    ApiMethod::new(
+                        delete_snapshots,
+                        ObjectSchema::new("Delete backup snapshot.")
+                            .required("store", store_schema.clone())
+                            .required("backup-type", StringSchema::new("Backup type."))
+                            .required("backup-id", StringSchema::new("Backup ID."))
+                            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
+                                      .minimum(1547797308))
+                    )
+                )
+        )
         .subdir(
             "prune",
             Router::new()

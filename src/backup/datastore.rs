@@ -72,6 +72,21 @@ pub struct BackupDir {
 
 impl BackupDir {
 
+    pub fn parse(path: &str) -> Result<Self, Error> {
+
+        let cap = SNAPSHOT_PATH_REGEX.captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
+
+
+        Ok(Self {
+            group: BackupGroup {
+                backup_type: cap.get(1).unwrap().as_str().to_owned(),
+                backup_id: cap.get(2).unwrap().as_str().to_owned(),
+            },
+            backup_time: cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?,
+        })
+    }
+
     fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
         backup_time.to_rfc3339().to_string()
     }
@@ -96,8 +111,9 @@ pub struct BackupInfo {
 }
 
 
-macro_rules! BACKUP_ID_RE { () => ("[A-Za-z0-9][A-Za-z0-9_-]+") }
-macro_rules! BACKUP_TYPE_RE { () => ("(?:host|vm|ct)") }
+macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
+macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
+macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}") }
 
 lazy_static!{
     static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
@@ -112,10 +128,13 @@ lazy_static!{
         concat!(r"^", BACKUP_ID_RE!(), r"$")).unwrap();
 
     static ref BACKUP_DATE_REGEX: Regex = Regex::new(
-        r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}$").unwrap();
+        concat!(r"^", BACKUP_TIME_RE!() ,r"$")).unwrap();
 
     static ref GROUP_PATH_REGEX: Regex = Regex::new(
         concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
+
+    static ref SNAPSHOT_PATH_REGEX: Regex = Regex::new(
+        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
 
 }
 
