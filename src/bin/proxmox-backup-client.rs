@@ -37,19 +37,18 @@ fn backup_directory<P: AsRef<Path>>(
     chunk_size: Option<u64>,
 ) -> Result<(), Error> {
 
-    let mut query = url::form_urlencoded::Serializer::new(String::new());
-
-    query
-        .append_pair("archive-name", archive_name)
-        .append_pair("type", "host")
-        .append_pair("id", &tools::nodename())
-        .append_pair("time", &backup_time.timestamp().to_string());
+    let mut param = json!({
+        "archive-name": archive_name,
+        "type": "host",
+        "id": &tools::nodename(),
+        "time": backup_time.timestamp(),
+    });
 
     if let Some(size) = chunk_size {
-        query.append_pair("chunk-size", &size.to_string());
+        param["chunk-size"] = size.into();
     }
 
-    let query = query.finish();
+    let query = tools::json_object_to_query(param)?;
 
     let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
