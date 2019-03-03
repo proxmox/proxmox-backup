@@ -17,7 +17,7 @@ use std::time::Duration;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::AsRawFd;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 pub mod timer;
 pub mod wrapped_reader_stream;
