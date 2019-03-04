@@ -131,6 +131,16 @@ pub struct BackupInfo {
     pub files: Vec<String>,
 }
 
+impl BackupInfo {
+
+    pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
+        if ascendending { // oldest first
+            list.sort_unstable_by(|a, b| a.backup_dir.backup_time.cmp(&b.backup_dir.backup_time));
+        } else { // newest first
+            list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time));
+        }
+    }
+}
 
 macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }

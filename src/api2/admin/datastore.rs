@@ -70,7 +70,7 @@ fn list_groups(
 
     for (_group_id, mut list) in group_hash {
 
-        list.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time())); // new backups first
+        BackupInfo::sort_list(&mut list, false);
 
         let info = &list[0];
         let group = info.backup_dir.group();
@@ -130,7 +130,7 @@ fn list_snapshots (
     let group_snapshots = match group_hash.get_mut(&group_id) {
         Some(data) => {
             // new backups first
-            data.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time()));
+            BackupInfo::sort_list(data, false);
             data
         }
         None => bail!("Backup group '{}' does not exists.", group_id),
@@ -173,7 +173,7 @@ fn prune(
 
         let mut mark = HashSet::new();
 
-        list.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time())); // new backups first
+        BackupInfo::sort_list(&mut list, false);
 
         if let Some(keep_last) = param["keep-last"].as_u64() {
             list.iter().take(keep_last as usize).for_each(|info| {
@@ -205,10 +205,10 @@ fn prune(
             });
         }
 
-        let mut remove_list: Vec<&BackupInfo> = list.iter()
+        let mut remove_list: Vec<BackupInfo> = list.into_iter()
             .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
 
-        remove_list.sort_unstable_by(|a, b| a.backup_dir.backup_time().cmp(&b.backup_dir.backup_time())); // oldest backups first
+        BackupInfo::sort_list(&mut remove_list, true);
 
         for info in remove_list {
             datastore.remove_backup_dir(&info.backup_dir)?;
