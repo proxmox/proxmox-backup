@@ -76,8 +76,8 @@ fn list_groups(
         let group = &info.backup_dir.group;
 
         groups.push(json!({
-            "backup-type": group.backup_type,
-            "backup-id": group.backup_id,
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
             "last-backup": info.backup_dir.backup_time.timestamp(),
             "backup-count": list.len() as u64,
             "files": info.files,
@@ -100,10 +100,7 @@ fn delete_snapshots (
     let backup_time = Local.timestamp(backup_time, 0);
 
     let snapshot = BackupDir {
-        group: BackupGroup {
-            backup_type: backup_type.to_owned(),
-            backup_id: backup_id.to_owned(),
-        },
+        group: BackupGroup::new(backup_type, backup_id),
         backup_time,
     };
 
@@ -124,10 +121,7 @@ fn list_snapshots (
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
 
-    let group = BackupGroup {
-        backup_type: backup_type.to_owned(),
-        backup_id: backup_id.to_owned(),
-    };
+    let group = BackupGroup::new(backup_type, backup_id);
 
     let datastore = DataStore::lookup_datastore(store)?;
 
@@ -153,8 +147,8 @@ fn list_snapshots (
         let group = &info.backup_dir.group;
 
         snapshots.push(json!({
-            "backup-type": group.backup_type,
-            "backup-id": group.backup_id,
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
             "backup-time": info.backup_dir.backup_time.timestamp(),
             "files": info.files,
         }));
@@ -335,8 +329,8 @@ fn get_backup_list(
 
     for info in datastore.list_backups()? {
         list.push(json!({
-            "backup-type": info.backup_dir.group.backup_type,
-            "backup-id": info.backup_dir.group.backup_id,
+            "backup-type": info.backup_dir.group.backup_type(),
+            "backup-id": info.backup_dir.group.backup_id(),
             "backup-time": info.backup_dir.backup_time.timestamp(),
             "files": info.files,
         }));

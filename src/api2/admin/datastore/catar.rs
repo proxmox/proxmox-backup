@@ -146,10 +146,7 @@ fn download_catar(
     let datastore = DataStore::lookup_datastore(store)?;
 
     let backup_dir = BackupDir {
-        group: BackupGroup {
-            backup_type: backup_type.to_string(),
-            backup_id: backup_id.to_string(),
-        },
+        group: BackupGroup::new(backup_type, backup_id),
         backup_time,
     };
 

@@ -113,10 +113,7 @@ fn list_backups(
         let backup_time = Local.timestamp(epoch, 0);
 
         let backup_dir = BackupDir {
-            group: BackupGroup {
-                backup_type: btype.to_string(),
-                backup_id: id.to_string(),
-            },
+            group: BackupGroup::new(btype, id),
             backup_time
         };
 
@@ -160,10 +157,7 @@ fn list_backup_groups(
         let last_backup = Local.timestamp(epoch, 0);
         let backup_count = item["backup-count"].as_u64().unwrap();
 
-        let group = BackupGroup {
-            backup_type: btype.to_string(),
-            backup_id: id.to_string(),
-        };
+        let group = BackupGroup::new(btype, id);
 
         let path = group.group_path().to_str().unwrap().to_owned();
 
@@ -193,8 +187,8 @@ fn list_snapshots(
     let group = BackupGroup::parse(path)?;
 
     let query = tools::json_object_to_query(json!({
-        "backup-type": &group.backup_type,
-        "backup-id": &group.backup_id,
+        "backup-type": group.backup_type(),
+        "backup-id": group.backup_id(),
     }))?;
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
@@ -215,10 +209,7 @@ fn list_snapshots(
         let backup_time = Local.timestamp(epoch, 0);
 
         let snapshot = BackupDir {
-            group: BackupGroup {
-                backup_type: btype.to_string(),
-                backup_id: id.to_string(),
-            },
+            group: BackupGroup::new(btype, id),
             backup_time,
         };
 
@@ -248,8 +239,8 @@ fn forget_snapshots(
     let snapshot = BackupDir::parse(path)?;
 
     let query = tools::json_object_to_query(json!({
-        "backup-type": &snapshot.group.backup_type,
-        "backup-id": &snapshot.group.backup_id,
+        "backup-type": snapshot.group.backup_type(),
+        "backup-id": snapshot.group.backup_id(),
         "backup-time": snapshot.backup_time.timestamp(),
     }))?;
 

@@ -31,12 +31,24 @@ pub struct DataStore {
 #[derive(Debug)]
 pub struct BackupGroup {
     /// Type of backup
-    pub backup_type: String,
+    backup_type: String,
     /// Unique (for this type) ID
-    pub backup_id: String,
+    backup_id: String,
 }
 
 impl BackupGroup {
+
+    pub fn new<T: Into<String>>(backup_type: T, backup_id: T) -> Self {
+        Self { backup_type: backup_type.into(), backup_id: backup_id.into() }
+    }
+
+    pub fn backup_type(&self) -> &str {
+        &self.backup_type
+    }
+
+    pub fn backup_id(&self) -> &str {
+        &self.backup_id
+    }
 
     pub fn parse(path: &str) -> Result<Self, Error> {
 
