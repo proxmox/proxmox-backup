@@ -35,6 +35,7 @@ fn backup_directory<P: AsRef<Path>>(
     archive_name: &str,
     backup_time: DateTime<Utc>,
     chunk_size: Option<u64>,
+    verbose: bool,
 ) -> Result<(), Error> {
 
     let mut param = json!({
@@ -52,7 +53,7 @@ fn backup_directory<P: AsRef<Path>>(
 
     let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
-    let stream = CaTarBackupStream::open(dir_path.as_ref())?;
+    let stream = CaTarBackupStream::open(dir_path.as_ref(), verbose)?;
 
     let body = Body::wrap_stream(stream);
 
@@ -300,6 +301,8 @@ fn create_backup(
 
     let repo = BackupRepository::parse(repo_url)?;
 
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+
     let chunk_size_opt = param["chunk-size"].as_u64().map(|v| v*1024);
 
     if let Some(size) = chunk_size_opt {
@@ -354,7 +357,7 @@ fn create_backup(
 
     for (filename, target) in upload_list {
         flog!(log, "Upload '{}' to '{:?}' as {}", filename, repo, target);
-        backup_directory(&mut client, &repo, &filename, &target, backup_time, chunk_size_opt)?;
+        backup_directory(&mut client, &repo, &filename, &target, backup_time, chunk_size_opt, verbose)?;
     }
 
     flog!(log, "Upload backup log");
@@ -432,6 +435,9 @@ fn main() {
                         backup_source_schema,
                     ).min_length(1)
                 )
+                .optional(
+                    "verbose",
+                    BooleanSchema::new("Verbose output.").default(false))
                 .optional(
                     "chunk-size",
                     IntegerSchema::new("Chunk size in KB. Must be a power of 2.")

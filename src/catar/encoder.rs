@@ -35,6 +35,7 @@ pub struct CaTarEncoder<'a, W: Write> {
     _size: usize,
     file_copy_buffer: Vec<u8>,
     devices: Option<HashSet<u64>>,
+    verbose: bool,
 }
 
 impl <'a, W: Write> CaTarEncoder<'a, W> {
@@ -43,7 +44,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         path: PathBuf,
         dir: &mut nix::dir::Dir,
         device_list: Option<Vec<u64>>,
-        writer: &'a mut W
+        writer: &'a mut W,
+        verbose: bool,
     ) -> Result<(), Error> {
 
         const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
@@ -58,6 +60,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             _size: 0,
             file_copy_buffer,
             devices: None,
+            verbose,
         };
 
         // todo: use scandirat??
@@ -84,6 +87,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             for dev in list { devices.insert(dev); }
             me.devices = Some(devices);
         }
+
+        if verbose { println!("{:?}", me.current_path); }
 
         me.encode_dir(dir, &stat, magic)?;
 
@@ -303,6 +308,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         for filename in &name_list {
             self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
+
+            if self.verbose { println!("{:?}", self.current_path); }
 
             let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 Ok(stat) => stat,
