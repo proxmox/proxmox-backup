@@ -138,10 +138,9 @@ fn download_catar(
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
-    let backup_time = Local.timestamp(backup_time, 0);
 
     println!("Download {}.catar from {} ({}/{}/{}/{}.didx)", archive_name, store,
-             backup_type, backup_id, backup_time, archive_name);
+             backup_type, backup_id, Local.timestamp(backup_time, 0), archive_name);
 
     let datastore = DataStore::lookup_datastore(store)?;
 

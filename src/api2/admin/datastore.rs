@@ -6,7 +6,7 @@ use crate::api_schema::router::*;
 //use crate::server::rest::*;
 use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
-use chrono::{DateTime, Datelike, Local, TimeZone};
+use chrono::{DateTime, Datelike, Local};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -97,7 +97,6 @@ fn delete_snapshots (
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
-    let backup_time = Local.timestamp(backup_time, 0);
 
     let snapshot = BackupDir::new(BackupGroup::new(backup_type, backup_id), backup_time);
 

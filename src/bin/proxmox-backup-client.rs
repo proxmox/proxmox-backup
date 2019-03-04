@@ -110,9 +110,8 @@ fn list_backups(
         let id = item["backup-id"].as_str().unwrap();
         let btype = item["backup-type"].as_str().unwrap();
         let epoch = item["backup-time"].as_i64().unwrap();
-        let backup_time = Local.timestamp(epoch, 0);
 
-        let backup_dir = BackupDir::new(BackupGroup::new(btype, id), backup_time);
+        let backup_dir = BackupDir::new(BackupGroup::new(btype, id), epoch);
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
 
@@ -120,7 +119,7 @@ fn list_backups(
 
         for filename in info.files {
             let path = info.backup_dir.relative_path().to_str().unwrap().to_owned();
-            println!("{} | {}/{}", backup_time.format("%c"), path, filename);
+            println!("{} | {}/{}", info.backup_dir.backup_time().format("%c"), path, filename);
         }
     }
 
@@ -203,9 +202,8 @@ fn list_snapshots(
         let id = item["backup-id"].as_str().unwrap();
         let btype = item["backup-type"].as_str().unwrap();
         let epoch = item["backup-time"].as_i64().unwrap();
-        let backup_time = Local.timestamp(epoch, 0);
 
-        let snapshot = BackupDir::new(BackupGroup::new(btype, id), backup_time);
+        let snapshot = BackupDir::new(BackupGroup::new(btype, id), epoch);
 
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
@@ -214,7 +212,7 @@ fn list_snapshots(
                 v.as_str().unwrap().to_owned()
             }).collect();
 
-        println!("{} | {} | {}", path, backup_time.format("%c"), tools::join(&files, ' '));
+        println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
     }
 
     Ok(Value::Null)

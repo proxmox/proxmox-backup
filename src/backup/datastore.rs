@@ -84,8 +84,9 @@ pub struct BackupDir {
 
 impl BackupDir {
 
-    pub fn new(group: BackupGroup, backup_time: DateTime<Local>) -> Self {
-        Self { group, backup_time }
+    pub fn new(group: BackupGroup, timestamp: i64) -> Self {
+        // Note: makes sure that nanoseconds is 0
+        Self { group, backup_time: Local.timestamp(timestamp, 0) }
     }
 
     pub fn group(&self) -> &BackupGroup {
@@ -103,7 +104,7 @@ impl BackupDir {
 
         let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
         let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?;
-        Ok(BackupDir::new(group, backup_time))
+        Ok(BackupDir::new(group, backup_time.timestamp()))
     }
 
     fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
@@ -332,7 +333,7 @@ impl DataStore {
                     })?;
 
                     list.push(BackupInfo {
-                        backup_dir: BackupDir::new(BackupGroup::new(backup_type, backup_id), dt),
+                        backup_dir: BackupDir::new(BackupGroup::new(backup_type, backup_id), dt.timestamp()),
                         files,
                     });
 
