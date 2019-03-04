@@ -269,6 +269,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         } else {
             if let Some(ref set) = self.devices {
                 include_children = set.contains(&dir_stat.st_dev);
+            } else if is_temporary_file_system(magic) {
+                include_children = false;
             }
         }
 
