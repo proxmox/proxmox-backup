@@ -101,14 +101,9 @@ impl BackupDir {
         let cap = SNAPSHOT_PATH_REGEX.captures(path)
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
-
-        Ok(Self {
-            group: BackupGroup {
-                backup_type: cap.get(1).unwrap().as_str().to_owned(),
-                backup_id: cap.get(2).unwrap().as_str().to_owned(),
-            },
-            backup_time: cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?,
-        })
+        let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
+        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?;
+        Ok(BackupDir::new(group, backup_time))
     }
 
     fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
@@ -337,13 +332,7 @@ impl DataStore {
                     })?;
 
                     list.push(BackupInfo {
-                        backup_dir: BackupDir {
-                            group: BackupGroup {
-                                backup_type: backup_type.to_owned(),
-                                backup_id: backup_id.to_owned(),
-                            },
-                            backup_time: dt,
-                        },
+                        backup_dir: BackupDir::new(BackupGroup::new(backup_type, backup_id), dt),
                         files,
                     });
 
