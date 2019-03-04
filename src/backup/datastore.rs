@@ -77,12 +77,24 @@ impl BackupGroup {
 #[derive(Debug)]
 pub struct BackupDir {
     /// Backup group
-    pub group: BackupGroup,
+    group: BackupGroup,
     /// Backup timestamp
-    pub backup_time: DateTime<Local>,
+    backup_time: DateTime<Local>,
 }
 
 impl BackupDir {
+
+    pub fn new(group: BackupGroup, backup_time: DateTime<Local>) -> Self {
+        Self { group, backup_time }
+    }
+
+    pub fn group(&self) -> &BackupGroup {
+        &self.group
+    }
+
+    pub fn backup_time(&self) -> DateTime<Local> {
+        self.backup_time
+    }
 
     pub fn parse(path: &str) -> Result<Self, Error> {
 

@@ -24,7 +24,7 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     let mut group_hash = HashMap::new();
 
     for info in backup_list {
-        let group_id = info.backup_dir.group.group_path().to_str().unwrap().to_owned();
+        let group_id = info.backup_dir.group().group_path().to_str().unwrap().to_owned();
         let time_list = group_hash.entry(group_id).or_insert(vec![]);
         time_list.push(info);
     }
@@ -40,7 +40,7 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
 ){
     let mut hash = HashSet::new();
     for info in list {
-        let local_time = info.backup_dir.backup_time.with_timezone(&Local);
+        let local_time = info.backup_dir.backup_time().with_timezone(&Local);
         if hash.len() >= keep as usize { break; }
         let backup_id = info.backup_dir.relative_path();
         let sel_id: String = select_id(local_time, &info);
@@ -70,15 +70,15 @@ fn list_groups(
 
     for (_group_id, mut list) in group_hash {
 
-        list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time)); // new backups first
+        list.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time())); // new backups first
 
         let info = &list[0];
-        let group = &info.backup_dir.group;
+        let group = info.backup_dir.group();
 
         groups.push(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
-            "last-backup": info.backup_dir.backup_time.timestamp(),
+            "last-backup": info.backup_dir.backup_time().timestamp(),
             "backup-count": list.len() as u64,
             "files": info.files,
         }));
@@ -99,10 +99,7 @@ fn delete_snapshots (
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
     let backup_time = Local.timestamp(backup_time, 0);
 
-    let snapshot = BackupDir {
-        group: BackupGroup::new(backup_type, backup_id),
-        backup_time,
-    };
+    let snapshot = BackupDir::new(BackupGroup::new(backup_type, backup_id), backup_time);
 
     let datastore = DataStore::lookup_datastore(store)?;
 
@@ -134,7 +131,7 @@ fn list_snapshots (
     let group_snapshots = match group_hash.get_mut(&group_id) {
         Some(data) => {
             // new backups first
-            data.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time));
+            data.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time()));
             data
         }
         None => bail!("Backup group '{}' does not exists.", group_id),
@@ -144,12 +141,12 @@ fn list_snapshots (
 
     for info in group_snapshots {
 
-        let group = &info.backup_dir.group;
+        let group = info.backup_dir.group();
 
         snapshots.push(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
-            "backup-time": info.backup_dir.backup_time.timestamp(),
+            "backup-time": info.backup_dir.backup_time().timestamp(),
             "files": info.files,
         }));
     }
@@ -177,7 +174,7 @@ fn prune(
 
         let mut mark = HashSet::new();
 
-        list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time)); // new backups first
+        list.sort_unstable_by(|a, b| b.backup_dir.backup_time().cmp(&a.backup_dir.backup_time())); // new backups first
 
         if let Some(keep_last) = param["keep-last"].as_u64() {
             list.iter().take(keep_last as usize).for_each(|info| {
@@ -212,7 +209,7 @@ fn prune(
         let mut remove_list: Vec<&BackupInfo> = list.iter()
             .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
 
-        remove_list.sort_unstable_by(|a, b| a.backup_dir.backup_time.cmp(&b.backup_dir.backup_time)); // oldest backups first
+        remove_list.sort_unstable_by(|a, b| a.backup_dir.backup_time().cmp(&b.backup_dir.backup_time())); // oldest backups first
 
         for info in remove_list {
             datastore.remove_backup_dir(&info.backup_dir)?;
@@ -329,9 +326,9 @@ fn get_backup_list(
 
     for info in datastore.list_backups()? {
         list.push(json!({
-            "backup-type": info.backup_dir.group.backup_type(),
-            "backup-id": info.backup_dir.group.backup_id(),
-            "backup-time": info.backup_dir.backup_time.timestamp(),
+            "backup-type": info.backup_dir.group().backup_type(),
+            "backup-id": info.backup_dir.group().backup_id(),
+            "backup-time": info.backup_dir.backup_time().timestamp(),
             "files": info.files,
         }));
     }
