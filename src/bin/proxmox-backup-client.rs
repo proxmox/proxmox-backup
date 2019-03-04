@@ -2,11 +2,10 @@ extern crate proxmox_backup;
 
 use failure::*;
 //use std::os::unix::io::AsRawFd;
-use chrono::{DateTime, Local, Utc, TimeZone};
+use chrono::{DateTime, Local, TimeZone};
 use std::path::Path;
 
 use proxmox_backup::tools;
-use proxmox_backup::flog;
 use proxmox_backup::cli::*;
 use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
@@ -33,7 +32,7 @@ fn backup_directory<P: AsRef<Path>>(
     repo: &BackupRepository,
     dir_path: P,
     archive_name: &str,
-    backup_time: DateTime<Utc>,
+    backup_time: DateTime<Local>,
     chunk_size: Option<u64>,
     verbose: bool,
 ) -> Result<(), Error> {
@@ -341,34 +340,25 @@ fn create_backup(
         }
     }
 
-    let backup_time = Utc::now();
+    let backup_time = Local.timestamp(Local::now().timestamp(), 0);
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
 
     client.login()?; // login before starting backup
 
-    let log_file_name = format!("backup-log-{}.log", backup_time.format("%Y-%m-%dT%H:%M:%S"));
-
-    let mut log = tools::FileLogger::new(&log_file_name, true)?;
-
-    flog!(log, "Starting backup");
-    flog!(log, "Client name: {}", tools::nodename());
-    flog!(log, "UTC Start Time: {}", Utc::now().format("%c"));
+    println!("Starting backup");
+    println!("Client name: {}", tools::nodename());
+    println!("Start Time: {}", backup_time.to_rfc3339());
 
     for (filename, target) in upload_list {
-        flog!(log, "Upload '{}' to '{:?}' as {}", filename, repo, target);
+        println!("Upload '{}' to '{:?}' as {}", filename, repo, target);
         backup_directory(&mut client, &repo, &filename, &target, backup_time, chunk_size_opt, verbose)?;
     }
 
-    flog!(log, "Upload backup log");
-    // fixme: impl upload log
-
-    flog!(log, "UTC End Time: {}", Utc::now().format("%c"));
-
-    //datastore.garbage_collection()?;
+    let end_time = Local.timestamp(Local::now().timestamp(), 0);
+    println!("End Time: {}", end_time.to_rfc3339());
 
     Ok(Value::Null)
-
 }
 
 pub fn complete_backup_source(arg: &str) -> Vec<String> {
