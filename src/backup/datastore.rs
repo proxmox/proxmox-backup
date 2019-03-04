@@ -16,7 +16,7 @@ use super::fixed_index::*;
 use super::dynamic_index::*;
 use super::index::*;
 
-use chrono::Local;
+use chrono::{Timelike, Local};
 
 /// Datastore Management
 ///
@@ -88,6 +88,7 @@ impl BackupDir {
     }
 
     fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
+        // Note: backup_time should have nanosecond == 0
         backup_time.to_rfc3339().to_string()
     }
 
@@ -272,9 +273,12 @@ impl DataStore {
         full_path.push(&relative_path);
         std::fs::create_dir_all(&full_path)?;
 
+        if backup_time.nanosecond() != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "invalid backup time - should not contain nanoseconds."));
+        }
+
         let date_str = BackupDir::backup_time_to_file_name(backup_time);
 
-        println!("date: {}", date_str);
         relative_path.push(&date_str);
         full_path.push(&date_str);
 
