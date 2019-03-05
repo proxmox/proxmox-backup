@@ -12,6 +12,18 @@ use serde_json::{json, Value};
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
+    let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
+
+    if password.starts_with("PBS:") {
+        if let Ok((_age, Some(ticket_username))) = tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", password, None, -300, ticket_lifetime) {
+            if ticket_username == username {
+                return Ok(());
+            } else {
+                bail!("ticket login failed - wrong username");
+            }
+        }
+    }
+
     if username == "root@pam" {
         let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
         auth.get_handler().set_credentials("root", password);
