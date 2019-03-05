@@ -1,13 +1,10 @@
 use failure::*;
 
-use chrono::prelude::*;
-
 use std::io;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use std::sync::{Mutex, Arc};
-use regex::Regex;
 
 use crate::tools;
 use crate::config::datastore;
@@ -15,8 +12,11 @@ use super::chunk_store::*;
 use super::fixed_index::*;
 use super::dynamic_index::*;
 use super::index::*;
+use super::backup_info::*;
 
-use chrono::{Timelike, Local};
+lazy_static!{
+    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
+}
 
 /// Datastore Management
 ///
@@ -25,148 +25,6 @@ use chrono::{Timelike, Local};
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
-}
-
-/// Group Backups
-#[derive(Debug)]
-pub struct BackupGroup {
-    /// Type of backup
-    backup_type: String,
-    /// Unique (for this type) ID
-    backup_id: String,
-}
-
-impl BackupGroup {
-
-    pub fn new<T: Into<String>>(backup_type: T, backup_id: T) -> Self {
-        Self { backup_type: backup_type.into(), backup_id: backup_id.into() }
-    }
-
-    pub fn backup_type(&self) -> &str {
-        &self.backup_type
-    }
-
-    pub fn backup_id(&self) -> &str {
-        &self.backup_id
-    }
-
-    pub fn parse(path: &str) -> Result<Self, Error> {
-
-        let cap = GROUP_PATH_REGEX.captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
-
-        Ok(Self {
-            backup_type: cap.get(1).unwrap().as_str().to_owned(),
-            backup_id: cap.get(2).unwrap().as_str().to_owned(),
-        })
-    }
-
-    pub fn group_path(&self) ->  PathBuf  {
-
-        let mut relative_path = PathBuf::new();
-
-        relative_path.push(&self.backup_type);
-
-        relative_path.push(&self.backup_id);
-
-        relative_path
-    }
-}
-
-/// Uniquely identify a Backup (relative to data store)
-#[derive(Debug)]
-pub struct BackupDir {
-    /// Backup group
-    group: BackupGroup,
-    /// Backup timestamp
-    backup_time: DateTime<Local>,
-}
-
-impl BackupDir {
-
-    pub fn new(group: BackupGroup, timestamp: i64) -> Self {
-        // Note: makes sure that nanoseconds is 0
-        Self { group, backup_time: Local.timestamp(timestamp, 0) }
-    }
-
-    pub fn group(&self) -> &BackupGroup {
-        &self.group
-    }
-
-    pub fn backup_time(&self) -> DateTime<Local> {
-        self.backup_time
-    }
-
-    pub fn parse(path: &str) -> Result<Self, Error> {
-
-        let cap = SNAPSHOT_PATH_REGEX.captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
-
-        let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
-        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?;
-        Ok(BackupDir::new(group, backup_time.timestamp()))
-    }
-
-    fn backup_time_to_file_name(backup_time: DateTime<Local>) -> String {
-        // Note: backup_time should have nanosecond == 0
-        backup_time.to_rfc3339().to_string()
-    }
-
-    pub fn relative_path(&self) ->  PathBuf  {
-
-        let mut relative_path = self.group.group_path();
-
-        relative_path.push(&Self::backup_time_to_file_name(self.backup_time));
-
-        relative_path
-    }
-}
-
-/// Detailed Backup Information
-#[derive(Debug)]
-pub struct BackupInfo {
-    /// the backup directory
-    pub backup_dir: BackupDir,
-    /// List of data files
-    pub files: Vec<String>,
-}
-
-impl BackupInfo {
-
-    pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
-        if ascendending { // oldest first
-            list.sort_unstable_by(|a, b| a.backup_dir.backup_time.cmp(&b.backup_dir.backup_time));
-        } else { // newest first
-            list.sort_unstable_by(|a, b| b.backup_dir.backup_time.cmp(&a.backup_dir.backup_time));
-        }
-    }
-}
-
-macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
-macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
-macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}") }
-
-lazy_static!{
-    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
-
-    static ref BACKUP_FILE_REGEX: Regex = Regex::new(
-        r"^.*\.([fd]idx)$").unwrap();
-
-    static ref BACKUP_TYPE_REGEX: Regex = Regex::new(
-        concat!(r"^(", BACKUP_TYPE_RE!(), r")$")).unwrap();
-
-    static ref BACKUP_ID_REGEX: Regex = Regex::new(
-        concat!(r"^", BACKUP_ID_RE!(), r"$")).unwrap();
-
-    static ref BACKUP_DATE_REGEX: Regex = Regex::new(
-        concat!(r"^", BACKUP_TIME_RE!() ,r"$")).unwrap();
-
-    static ref GROUP_PATH_REGEX: Regex = Regex::new(
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
-
-    static ref SNAPSHOT_PATH_REGEX: Regex = Regex::new(
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
-
 }
 
 impl DataStore {
@@ -286,31 +144,16 @@ impl DataStore {
         Ok(())
     }
 
-    pub fn create_backup_dir(
-        &self,
-        backup_type: &str,
-        backup_id: &str,
-        backup_time: DateTime<Local>,
-    ) ->  Result<(PathBuf, bool), io::Error> {
-        let mut relative_path = PathBuf::new();
-
-        relative_path.push(backup_type);
-
-        relative_path.push(backup_id);
+    pub fn create_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(PathBuf, bool), io::Error> {
 
         // create intermediate path first:
         let mut full_path = self.base_path();
-        full_path.push(&relative_path);
+        full_path.push(backup_dir.group().group_path());
         std::fs::create_dir_all(&full_path)?;
 
-        if backup_time.nanosecond() != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "invalid backup time - should not contain nanoseconds."));
-        }
-
-        let date_str = BackupDir::backup_time_to_file_name(backup_time);
-
-        relative_path.push(&date_str);
-        full_path.push(&date_str);
+        let relative_path = backup_dir.relative_path();
+        let mut full_path = self.base_path();
+        full_path.push(&relative_path);
 
         // create the last component now
         match std::fs::create_dir(&full_path) {
@@ -322,37 +165,7 @@ impl DataStore {
 
     pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
         let path = self.base_path();
-
-        let mut list = vec![];
-
-        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
-            if file_type != nix::dir::Type::Directory { return Ok(()); }
-            tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |l1_fd, backup_id, file_type| {
-                if file_type != nix::dir::Type::Directory { return Ok(()); }
-                tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
-                    if file_type != nix::dir::Type::Directory { return Ok(()); }
-
-                    let dt = backup_time.parse::<DateTime<Local>>()?;
-
-                    let mut files = vec![];
-
-                    tools::scandir(l2_fd, backup_time, &BACKUP_FILE_REGEX, |_, filename, file_type| {
-                        if file_type != nix::dir::Type::File { return Ok(()); }
-                        files.push(filename.to_owned());
-                        Ok(())
-                    })?;
-
-                    list.push(BackupInfo {
-                        backup_dir: BackupDir::new(BackupGroup::new(backup_type, backup_id), dt.timestamp()),
-                        files,
-                    });
-
-                    Ok(())
-                })
-            })
-        })?;
-
-        Ok(list)
+        BackupInfo::list_backups(&path)
     }
 
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {

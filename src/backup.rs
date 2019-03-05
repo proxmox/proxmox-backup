@@ -29,5 +29,8 @@ pub use fixed_index::*;
 mod dynamic_index;
 pub use dynamic_index::*;
 
+mod backup_info;
+pub use backup_info::*;
+
 mod datastore;
 pub use datastore::*;

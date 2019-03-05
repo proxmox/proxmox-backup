@@ -80,9 +80,9 @@ fn upload_catar(
     verify_chunk_size(chunk_size)?;
 
     let datastore = DataStore::lookup_datastore(store)?;
+    let backup_dir = BackupDir::new(BackupGroup::new(backup_type, backup_id), backup_time);
 
-    let (mut path, _new) = datastore.create_backup_dir(
-        backup_type, backup_id, Local.timestamp(backup_time, 0))?;
+    let (mut path, _new) = datastore.create_backup_dir(&backup_dir)?;
 
     path.push(archive_name);
 
