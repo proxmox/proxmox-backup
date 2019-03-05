@@ -33,7 +33,7 @@ lazy_static!{
 
 }
 
-/// Group Backups
+/// BackupGroup is a directory containing a list of BackupDir
 #[derive(Debug)]
 pub struct BackupGroup {
     /// Type of backup
@@ -80,6 +80,8 @@ impl BackupGroup {
 }
 
 /// Uniquely identify a Backup (relative to data store)
+///
+/// We also call this a backup snaphost.
 #[derive(Debug)]
 pub struct BackupDir {
     /// Backup group
@@ -123,7 +125,7 @@ impl BackupDir {
     }
 }
 
-/// Detailed Backup Information
+/// Detailed Backup Information, lists files inside a BackupDir
 #[derive(Debug)]
 pub struct BackupInfo {
     /// the backup directory
