@@ -25,6 +25,6 @@ Welcome to Proxmox Backup's documentation!
 
    command-syntax.rst
    glossary.rst
-   generated-index.rst
-   search-page.rst
+
+* :ref:`genindex`
 
