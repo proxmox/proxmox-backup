@@ -461,7 +461,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
 
 fn check_auth(method: &hyper::Method, ticket: &Option<String>, token: &Option<String>) -> Result<String, Error> {
 
-    let ticket_lifetime = 3600*2; // 2 hours
+    let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
     let username = match ticket {
         Some(ticket) => match tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", &ticket, None, -300, ticket_lifetime) {

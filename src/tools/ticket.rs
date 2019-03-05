@@ -7,6 +7,9 @@ use openssl::pkey::{PKey, Public, Private};
 use openssl::sign::{Signer, Verifier};
 use openssl::hash::MessageDigest;
 
+pub const TICKET_LIFETIME: i64 = 3600*2; // 2 hours
+
+
 pub fn assemble_rsa_ticket(
     keypair: &PKey<Private>,
     prefix: &str,
