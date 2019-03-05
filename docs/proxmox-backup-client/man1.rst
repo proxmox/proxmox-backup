@@ -2,14 +2,14 @@
 proxmox-backup-client
 ==========================
 
-.. |VERSION| replace:: 1.0
+.. include:: ../epilog.rst
 
 -------------------------------------------------------------
 Command line toot for Backup and Restore
 -------------------------------------------------------------
 
-:Author:    Proxmox Support Team <support@proxmox.com>
-:Version:   Version |VERSION|
+:Author: |AUTHOR|
+:Version: Version |VERSION|
 :Manual section: 1
 
 

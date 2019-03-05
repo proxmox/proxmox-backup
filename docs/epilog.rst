@@ -3,6 +3,10 @@
    We use this file to define external links and commone replacement
    patterns.
 
+.. |VERSION| replace:: 1.0
+.. |AUTHOR| replace:: Proxmox Support Team <support@proxmox.com>
+
+
 .. _Container: https://en.wikipedia.org/wiki/Container_(virtualization)
 .. _LZ4: https://en.wikipedia.org/wiki/LZ4_(compression_algorithm)
 .. _Proxmox: https://www.proxmox.com
