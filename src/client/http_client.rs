@@ -4,14 +4,16 @@ use http::Uri;
 use hyper::Body;
 use hyper::client::Client;
 use hyper::rt::{self, Future};
+use xdg::BaseDirectories;
+use chrono::Utc;
 
 use http::Request;
 use futures::stream::Stream;
 
-use serde_json::{Value};
+use serde_json::{json, Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
-use crate::tools::tty;
+use crate::tools::{self, tty};
 
 /// HTTP(S) API client
 pub struct HttpClient {
@@ -20,6 +22,81 @@ pub struct HttpClient {
 
     ticket: Option<String>,
     token: Option<String>
+}
+
+fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    // usually /run/user/<uid>/...
+    let path = base.place_runtime_file("tickets")?;
+
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+
+    let mut data = tools::file_get_json(&path).unwrap_or(json!({}));
+
+    let now = Utc::now().timestamp();
+
+    data[server][username] = json!({ "timestamp": now, "ticket": ticket, "token": token});
+
+    let mut new_data = json!({});
+
+    let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
+
+    let empty = serde_json::map::Map::new();
+    for (server, info) in data.as_object().unwrap_or(&empty) {
+        for (_user, uinfo) in info.as_object().unwrap_or(&empty) {
+            if let Some(timestamp) = uinfo["timestamp"].as_i64() {
+                let age = now - timestamp;
+                if age < ticket_lifetime {
+                    new_data[server][username] = uinfo.clone();
+                }
+            }
+        }
+    }
+
+    tools::file_set_contents(path, new_data.to_string().as_bytes(), Some(mode))?;
+
+    Ok(())
+}
+
+fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
+    let base = match BaseDirectories::with_prefix("proxmox-backup") {
+        Ok(b) => b,
+        _ => return None,
+    };
+
+    // usually /run/user/<uid>/...
+    let path = match base.place_runtime_file("tickets") {
+        Ok(p) => p,
+        _ => return None,
+    };
+
+    let data = tools::file_get_json(&path).unwrap_or(json!({}));
+
+    let now = Utc::now().timestamp();
+
+    let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
+
+    if let Some(uinfo) = data[server][username].as_object() {
+        if let Some(timestamp) = uinfo["timestamp"].as_i64() {
+            let age = now - timestamp;
+            if age < ticket_lifetime {
+                let ticket = match uinfo["ticket"].as_str() {
+                    Some(t) => t,
+                    None => return None,
+                };
+                let token = match uinfo["token"].as_str() {
+                    Some(t) => t,
+                    None => return None,
+                };              println!("LOGIN OK");
+
+                return Some((ticket.to_owned(), token.to_owned()));
+            }
+        }
+    }
+
+    None
 }
 
 impl HttpClient {
@@ -183,17 +260,9 @@ impl HttpClient {
         Self::run_request(request)
     }
 
-    pub fn login(&mut self) ->  Result<(String, String), Error> {
-
-        if let Some(ref ticket) = self.ticket {
-            if let Some(ref token) = self.token {
-                return Ok((ticket.clone(), token.clone()));
-            }
-        }
+    fn try_login(&mut self, password: &str) -> Result<(String, String), Error> {
 
         let url: Uri = format!("https://{}:8007/{}", self.server, "/api2/json/access/ticket").parse()?;
-
-        let password = self.get_password()?;
 
         let query = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("username", &self.username)
@@ -218,8 +287,28 @@ impl HttpClient {
             None => bail!("got unexpected respose for login request."),
         };
 
-        self.ticket = Some(ticket.to_owned());
-        self.token = Some(token.to_owned());
+        Ok((ticket.to_owned(), token.to_owned()))
+    }
+
+    pub fn login(&mut self) ->  Result<(String, String), Error> {
+
+        if let Some(ref ticket) = self.ticket {
+            if let Some(ref token) = self.token {
+                return Ok((ticket.clone(), token.clone()));
+            }
+        }
+
+        if let Some((ticket, _token)) = load_ticket_info(&self.server, &self.username) {
+            if let Ok((ticket, token)) = self.try_login(&ticket) {
+                let _ = store_ticket_info(&self.server, &self.username, &ticket, &token);
+                return Ok((ticket.to_owned(), token.to_owned()))
+            }
+        }
+
+        let password = self.get_password()?;
+        let (ticket, token) = self.try_login(&password)?;
+
+        let _ = store_ticket_info(&self.server, &self.username, &ticket, &token);
 
         Ok((ticket.to_owned(), token.to_owned()))
     }
