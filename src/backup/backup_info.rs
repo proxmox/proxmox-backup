@@ -44,7 +44,7 @@ pub struct BackupGroup {
 
 impl BackupGroup {
 
-    pub fn new<T: Into<String>>(backup_type: T, backup_id: T) -> Self {
+    pub fn new<T: Into<String>, U: Into<String>>(backup_type: T, backup_id: U) -> Self {
         Self { backup_type: backup_type.into(), backup_id: backup_id.into() }
     }
 
