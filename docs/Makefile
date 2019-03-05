@@ -10,6 +10,7 @@ GENERATED_SYNOPSIS := 				\
 	proxmox-backup-client/synopsis.rst
 
 MANUAL_PAGES := 			\
+	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1
 
 
@@ -37,6 +38,9 @@ proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst
 	rst2man $< >$@
 
+proxmox-backup-proxy.1: proxmox-backup-proxy/man1.rst  proxmox-backup-proxy/description.rst
+	rst2man $< >$@
+
 .PHONY: html
 html: ${GENERATED_SYNOPSIS}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
@@ -61,4 +65,4 @@ clean:
 
 install: ${MANUAL_PAGES}
 	install -dm755 $(DESTDIR)$(MAN1DIR)
-	install -m755  proxmox-backup-client.1 $(DESTDIR)$(MAN1DIR)/
+	for i in ${MANUAL_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN1DIR)/ ; done

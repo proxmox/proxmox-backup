@@ -87,6 +87,7 @@ language = None
 exclude_patterns = [
     '_build', 'Thumbs.db', '.DS_Store',
     'proxmox-backup-client/man1.rst',
+    'proxmox-backup-proxy/man1.rst',
     'epilog.rst',
     'pbs-copyright.rst',
 ]
