@@ -118,6 +118,19 @@ pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
     }).map_err(|err| format_err!("unable to read {:?} - {}", path, err))
 }
 
+pub fn file_get_json<P: AsRef<Path>>(path: P) -> Result<Value, Error> {
+
+    let path = path.as_ref();
+
+    let raw = file_get_contents(path)?;
+
+    try_block!({
+        let data = String::from_utf8(raw)?;
+        let json = serde_json::from_str(&data)?;
+        Ok(json)
+    }).map_err(|err: Error| format_err!("unable to read json from {:?} - {}", path, err))
+}
+
 /// Atomically write a file. We first create a temporary file, which
 /// is then renamed.
 pub fn file_set_contents<P: AsRef<Path>>(
