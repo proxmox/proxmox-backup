@@ -339,6 +339,9 @@ fn create_backup(
     }
 
     let end_time = Local.timestamp(Local::now().timestamp(), 0);
+    let elapsed = end_time.signed_duration_since(backup_time);
+    println!("Duration: {}", elapsed);
+
     println!("End Time: {}", end_time.to_rfc3339());
 
     Ok(Value::Null)
