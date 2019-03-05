@@ -92,9 +92,16 @@ pub struct BackupDir {
 
 impl BackupDir {
 
-    pub fn new(group: BackupGroup, timestamp: i64) -> Self {
+    pub fn new<T, U>(backup_type: T, backup_id: U, timestamp: i64) -> Self
+    where
+        T: Into<String>,
+        U: Into<String>,
+    {
         // Note: makes sure that nanoseconds is 0
-        Self { group, backup_time: Local.timestamp(timestamp, 0) }
+        Self {
+            group: BackupGroup::new(backup_type.into(), backup_id.into()),
+            backup_time: Local.timestamp(timestamp, 0),
+        }
     }
 
     pub fn group(&self) -> &BackupGroup {
@@ -112,7 +119,7 @@ impl BackupDir {
 
         let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
         let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?;
-        Ok(BackupDir::new(group, backup_time.timestamp()))
+        Ok(BackupDir::from((group, backup_time.timestamp())))
     }
 
     pub fn relative_path(&self) ->  PathBuf  {
@@ -122,6 +129,12 @@ impl BackupDir {
         relative_path.push(self.backup_time.to_rfc3339());
 
         relative_path
+    }
+}
+
+impl From<(BackupGroup, i64)> for BackupDir {
+    fn from((group, timestamp): (BackupGroup, i64)) -> Self {
+        Self { group, backup_time: Local.timestamp(timestamp, 0) }
     }
 }
 
@@ -165,7 +178,7 @@ impl BackupInfo {
                     })?;
 
                     list.push(BackupInfo {
-                        backup_dir: BackupDir::new(BackupGroup::new(backup_type, backup_id), dt.timestamp()),
+                        backup_dir: BackupDir::new(backup_type, backup_id, dt.timestamp()),
                         files,
                     });
 

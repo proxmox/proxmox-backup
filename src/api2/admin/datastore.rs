@@ -98,7 +98,7 @@ fn delete_snapshots (
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    let snapshot = BackupDir::new(BackupGroup::new(backup_type, backup_id), backup_time);
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
     let datastore = DataStore::lookup_datastore(store)?;
 

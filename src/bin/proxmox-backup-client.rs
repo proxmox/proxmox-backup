@@ -111,7 +111,7 @@ fn list_backups(
         let btype = item["backup-type"].as_str().unwrap();
         let epoch = item["backup-time"].as_i64().unwrap();
 
-        let backup_dir = BackupDir::new(BackupGroup::new(btype, id), epoch);
+        let backup_dir = BackupDir::new(btype, id, epoch);
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
 
@@ -203,7 +203,7 @@ fn list_snapshots(
         let btype = item["backup-type"].as_str().unwrap();
         let epoch = item["backup-time"].as_i64().unwrap();
 
-        let snapshot = BackupDir::new(BackupGroup::new(btype, id), epoch);
+        let snapshot = BackupDir::new(btype, id, epoch);
 
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
