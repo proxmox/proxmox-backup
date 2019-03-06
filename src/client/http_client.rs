@@ -89,8 +89,7 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
                 let token = match uinfo["token"].as_str() {
                     Some(t) => t,
                     None => return None,
-                };              println!("LOGIN OK");
-
+                };
                 return Some((ticket.to_owned(), token.to_owned()));
             }
         }
