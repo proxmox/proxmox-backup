@@ -127,9 +127,7 @@ impl HttpClient {
         bail!("no password input mechanism available");
     }
 
-    fn run_request(
-        request: Request<Body>,
-    ) -> Result<Value, Error> {
+    fn build_client() -> Result<Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>, Error> {
         let mut builder = native_tls::TlsConnector::builder();
         // FIXME: We need a CLI option for this!
         builder.danger_accept_invalid_certs(true);
@@ -139,6 +137,13 @@ impl HttpClient {
         let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
         https.https_only(true); // force it!
         let client = Client::builder().build::<_, Body>(https);
+        Ok(client)
+    }
+
+    fn run_request(
+        request: Request<Body>,
+    ) -> Result<Value, Error> {
+        let client = Self::build_client()?;
 
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -176,6 +181,61 @@ impl HttpClient {
         rt::run(future);
 
         rx.recv().unwrap()
+    }
+
+    fn run_download(
+        request: Request<Body>,
+        mut output: Box<dyn std::io::Write + Send>,
+    ) -> Result<(), Error> {
+        let client = Self::build_client()?;
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let future = client
+            .request(request)
+            .map_err(Error::from)
+            .and_then(move |resp| {
+
+                let status = resp.status();
+
+                resp.into_body()
+                    .map_err(Error::from)
+                    .for_each(move |chunk| {
+                        output.write_all(&chunk)?;
+                        Ok(())
+                    })
+
+            })
+            .then(move |res| {
+                tx.send(res).unwrap();
+                Ok(())
+            });
+
+        // drop client, else client keeps connectioon open (keep-alive feature)
+        drop(client);
+
+        rt::run(future);
+
+        rx.recv().unwrap()
+    }
+
+    pub fn download(&mut self, path: &str, output: Box<dyn std::io::Write + Send>) -> Result<(), Error> {
+
+        let path = path.trim_matches('/');
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
+
+        let (ticket, _token) = self.login()?;
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
+        let request = Request::builder()
+            .method("GET")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
+            .body(Body::empty())?;
+
+        Self::run_download(request, output)
     }
 
     pub fn get(&mut self, path: &str) -> Result<Value, Error> {
