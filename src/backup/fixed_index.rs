@@ -333,7 +333,12 @@ impl FixedIndexWriter {
             self.stat.disk_size += compressed_size;
         }
 
-        let index_pos = (pos/self.chunk_size)*32;
+        self.add_digest(pos / self.chunk_size, &digest)
+    }
+
+    pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {
+
+        let index_pos = index*32;
         unsafe {
             let dst = self.index.add(index_pos);
             dst.copy_from_nonoverlapping(digest.as_ptr(), 32);
