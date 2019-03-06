@@ -1,0 +1,14 @@
+[package]
+name = "proxmox-protocol"
+version = "0.1.0"
+authors = [
+    "Dietmar Maurer <dietmar@proxmox.com>",
+    "Wolfgang Bumiller <w.bumiller@proxmox.com>",
+]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+endian_trait = "0.6"
+failure = "0.1"
+openssl = "0.10"
