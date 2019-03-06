@@ -381,6 +381,62 @@ pub fn complete_backup_source(arg: &str) -> Vec<String> {
     result
 }
 
+fn restore(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = BackupRepository::parse(repo_url)?;
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = BackupDir::parse(path)?;
+
+    let query = tools::json_object_to_query(json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time().timestamp(),
+    }))?;
+
+    let target_path = tools::required_string_param(&param, "target")?;
+    if let Err(err) = std::fs::create_dir(target_path) {
+        bail!("unable to create target directory - {}", err);
+    }
+
+    let mut client = HttpClient::new(&repo.host, &repo.user);
+
+    let path = format!("api2/json/admin/datastore/{}/files?{}", repo.store, query);
+    let result = client.get(&path)?;
+
+    let files = result["data"].as_array().unwrap();
+
+    for file in files {
+        let file = file.as_str().unwrap();
+
+        let query = tools::json_object_to_query(json!({
+            "backup-type": snapshot.group().backup_type(),
+            "backup-id": snapshot.group().backup_id(),
+            "backup-time": snapshot.backup_time().timestamp(),
+            "archive-name": file,
+        }))?;
+
+        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+        let mut target = std::path::PathBuf::from(target_path);
+        target.push(file);
+
+        let fh = std::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&target)?;
+
+        println!("DOWNLOAD FILE {} to {:?}", path, target);
+        client.download(&path, Box::new(fh))?;
+    }
+
+    Ok(Value::Null)
+}
+
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
@@ -479,6 +535,16 @@ fn main() {
         ))
         .arg_param(vec!["repository"]);
 
+    let restore_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            restore,
+            ObjectSchema::new("Restore backup repository.")
+                .required("repository", repo_url_schema.clone())
+                .required("snapshot", StringSchema::new("Snapshot path."))
+                .required("target", StringSchema::new("Target directory path."))
+        ))
+        .arg_param(vec!["repository", "snapshot", "target"]);
+
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
             prune,
@@ -488,12 +554,14 @@ fn main() {
             )
         ))
         .arg_param(vec!["repository"]);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
+        .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into());
 
     run_cli_command(cmd_def.into());
