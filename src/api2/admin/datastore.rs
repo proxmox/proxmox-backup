@@ -88,6 +88,26 @@ fn list_groups(
     Ok(json!(groups))
 }
 
+fn list_snapshot_files (
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let files = datastore.list_files(&snapshot)?;
+
+    Ok(json!(files))
+}
+
 fn delete_snapshots (
     param: Value,
     _info: &ApiMethod,
@@ -391,6 +411,21 @@ pub fn router() -> Router {
             Router::new()
                 .get(api_method_garbage_collection_status())
                 .post(api_method_start_garbage_collection()))
+        .subdir(
+            "files",
+            Router::new()
+                .get(
+                    ApiMethod::new(
+                        list_snapshot_files,
+                        ObjectSchema::new("List snapshot files.")
+                            .required("store", store_schema.clone())
+                            .required("backup-type", StringSchema::new("Backup type."))
+                            .required("backup-id", StringSchema::new("Backup ID."))
+                            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
+                                      .minimum(1547797308))
+                    )
+                )
+        )
         .subdir(
             "groups",
             Router::new()
