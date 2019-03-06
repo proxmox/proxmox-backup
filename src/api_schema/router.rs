@@ -234,6 +234,10 @@ impl Router {
         self
     }
 
+    pub fn upgrade(mut self, m: ApiAsyncMethod) -> Self {
+        self.get = MethodDefinition::Async(m);
+        self
+    }
 
     pub fn delete(mut self, m: ApiMethod) -> Self {
         self.delete = MethodDefinition::Simple(m);
