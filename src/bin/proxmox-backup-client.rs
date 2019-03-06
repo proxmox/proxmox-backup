@@ -421,17 +421,22 @@ fn restore(
             "archive-name": file,
         }))?;
 
-        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
-        let mut target = std::path::PathBuf::from(target_path);
-        target.push(file);
+        if file.ends_with(".catar.didx") {
+            let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+            let mut target = std::path::PathBuf::from(target_path);
+            target.push(file);
+            target.set_extension("");
 
-        let fh = std::fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&target)?;
+            let fh = std::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&target)?;
 
-        println!("DOWNLOAD FILE {} to {:?}", path, target);
-        client.download(&path, Box::new(fh))?;
+            println!("DOWNLOAD FILE {} to {:?}", path, target);
+            client.download(&path, Box::new(fh))?;
+        } else {
+            bail!("unknown file extensions - unable to download '{}'", file);
+        }
     }
 
     Ok(Value::Null)
