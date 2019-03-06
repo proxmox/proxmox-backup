@@ -32,6 +32,7 @@ fn backup_directory<P: AsRef<Path>>(
     repo: &BackupRepository,
     dir_path: P,
     archive_name: &str,
+    backup_id: &str,
     backup_time: DateTime<Local>,
     chunk_size: Option<u64>,
     verbose: bool,
@@ -40,7 +41,7 @@ fn backup_directory<P: AsRef<Path>>(
     let mut param = json!({
         "archive-name": archive_name,
         "backup-type": "host",
-        "backup-id": &tools::nodename(),
+        "backup-id": backup_id,
         "backup-time": backup_time.timestamp(),
     });
 
@@ -291,6 +292,8 @@ fn create_backup(
         verify_chunk_size(size)?;
     }
 
+    let backup_id = param["host-id"].as_str().unwrap_or(&tools::nodename());
+
     let mut upload_list = vec![];
 
     for backupspec in backupspec_list {
@@ -335,7 +338,7 @@ fn create_backup(
 
     for (filename, target) in upload_list {
         println!("Upload '{}' to '{:?}' as {}", filename, repo, target);
-        backup_directory(&mut client, &repo, &filename, &target, backup_time, chunk_size_opt, verbose)?;
+        backup_directory(&mut client, &repo, &filename, &target, backup_id, backup_time, chunk_size_opt, verbose)?;
     }
 
     let end_time = Local.timestamp(Local::now().timestamp(), 0);
@@ -414,6 +417,9 @@ fn main() {
                 .optional(
                     "verbose",
                     BooleanSchema::new("Verbose output.").default(false))
+                .optional(
+                    "host-id",
+                    StringSchema::new("Use specified ID for the backup group name ('host/<id>'). The default is the system hostname."))
                 .optional(
                     "chunk-size",
                     IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
