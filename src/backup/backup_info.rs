@@ -157,10 +157,25 @@ impl BackupInfo {
         }
     }
 
-    pub fn list_backups(path: &Path) -> Result<Vec<BackupInfo>, Error> {
+    pub fn list_files(base_path: &Path, backup_dir: &BackupDir) -> Result<Vec<String>, Error> {
+        let mut path = base_path.to_owned();
+        path.push(backup_dir.relative_path());
+
+        let mut files = vec![];
+
+        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
+            if file_type != nix::dir::Type::File { return Ok(()); }
+            files.push(filename.to_owned());
+            Ok(())
+        })?;
+
+        Ok(files)
+    }
+
+    pub fn list_backups(base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
         let mut list = vec![];
 
-        tools::scandir(libc::AT_FDCWD, path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
+        tools::scandir(libc::AT_FDCWD, base_path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
             tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |l1_fd, backup_id, file_type| {
                 if file_type != nix::dir::Type::Directory { return Ok(()); }
