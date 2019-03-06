@@ -9,6 +9,7 @@ name = "proxmox_backup"
 path = "src/lib.rs"
 
 [dependencies]
+proxmox-protocol = { path = "proxmox-protocol" }
 log = "0.4"
 syslog = "4.0"
 failure = "0.1"

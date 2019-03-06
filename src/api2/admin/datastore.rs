@@ -18,6 +18,7 @@ use crate::config::datastore;
 use crate::backup::*;
 
 mod catar;
+mod upload;
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 
@@ -381,6 +382,10 @@ pub fn router() -> Router {
             Router::new()
                 .download(catar::api_method_download_catar())
                 .upload(catar::api_method_upload_catar()))
+        .subdir(
+            "test-upload",
+            Router::new()
+                .upgrade(upload::api_method_upgrade_upload()))
         .subdir(
             "gc",
             Router::new()
