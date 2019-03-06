@@ -12,7 +12,7 @@ use chrono::{Local, TimeZone};
 use serde_json::Value;
 use std::io::Write;
 use futures::*;
-use std::path::PathBuf;
+//use std::path::PathBuf;
 use std::sync::Arc;
 
 use hyper::Body;
@@ -139,7 +139,7 @@ fn download_catar(
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    println!("Download {}.catar from {} ({}/{}/{}/{}.didx)", archive_name, store,
+    println!("Download {} from {} ({}/{}/{}/{})", archive_name, store,
              backup_type, backup_id, Local.timestamp(backup_time, 0), archive_name);
 
     let datastore = DataStore::lookup_datastore(store)?;
@@ -147,11 +147,7 @@ fn download_catar(
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
     let mut path = backup_dir.relative_path();
-
-    let mut full_archive_name = PathBuf::from(archive_name);
-    full_archive_name.set_extension("didx");
-
-    path.push(full_archive_name);
+    path.push(archive_name);
 
     let index = datastore.open_dynamic_reader(path)?;
     let reader = BufferedDynamicReader::new(index);
