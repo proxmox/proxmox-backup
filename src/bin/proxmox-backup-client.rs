@@ -141,10 +141,24 @@ fn list_backup_groups(
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store);
 
-    let result = client.get(&path)?;
+    let mut result = client.get(&path)?;
 
     // fixme: implement and use output formatter instead ..
-    let list = result["data"].as_array().unwrap();
+    let list = result["data"].as_array_mut().unwrap();
+
+    list.sort_unstable_by(|a, b| {
+        let a_id = a["backup-id"].as_str().unwrap();
+        let a_backup_type = a["backup-type"].as_str().unwrap();
+        let b_id = b["backup-id"].as_str().unwrap();
+        let b_backup_type = b["backup-type"].as_str().unwrap();
+
+        let type_order = a_backup_type.cmp(b_backup_type);
+        if type_order == std::cmp::Ordering::Equal {
+            a_id.cmp(b_id)
+        } else {
+            type_order
+        }
+    });
 
     for item in list {
 
@@ -163,7 +177,7 @@ fn list_backup_groups(
                 v.as_str().unwrap().to_owned()
             }).collect();
 
-        println!("{} | {} | {} | {}", path, last_backup.format("%c"),
+        println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
                  backup_count, tools::join(&files, ' '));
     }
 
