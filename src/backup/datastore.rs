@@ -243,4 +243,16 @@ impl DataStore {
 
         Ok(())
     }
+
+    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
+        self.chunk_store.insert_chunk(chunk)
+    }
+
+    pub fn insert_chunk_noverify(
+        &self,
+        digest: &[u8; 32],
+        chunk: &[u8],
+    ) -> Result<(bool, u64), Error> {
+        self.chunk_store.insert_chunk_noverify(digest, chunk)
+    }
 }
