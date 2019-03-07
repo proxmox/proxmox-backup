@@ -181,6 +181,7 @@ impl ChunkStore {
         let digest_str = tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
+        buffer.clear();
         let f = std::fs::File::open(&chunk_path)?;
         let mut decoder = lz4::Decoder::new(f)?;
 
