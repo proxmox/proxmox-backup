@@ -41,7 +41,7 @@ md5 = "0.6"
 base64 = "0.10"
 pam-sys = "0.5"
 pam = "0.7"
-lz4 = "1.23"
+zstd = "0.4"
 xdg = "2.2"
 
 [patch.crates-io]

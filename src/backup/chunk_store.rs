@@ -183,7 +183,7 @@ impl ChunkStore {
 
         buffer.clear();
         let f = std::fs::File::open(&chunk_path)?;
-        let mut decoder = lz4::Decoder::new(f)?;
+        let mut decoder = zstd::stream::Decoder::new(f)?;
 
         decoder.read_to_end(buffer)?;
 
@@ -333,12 +333,10 @@ impl ChunkStore {
 
         let f = std::fs::File::create(&tmp_path)?;
 
-        // fixme: what is the fasted lz4 encoder available (see lzbench)?
-        let mut encoder = lz4::EncoderBuilder::new().level(1).build(f)?;
+        let mut encoder = zstd::stream::Encoder::new(f, 1)?;
 
         encoder.write_all(chunk)?;
-        let (f, encode_result) = encoder.finish();
-        encode_result?;
+        let f = encoder.finish()?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
