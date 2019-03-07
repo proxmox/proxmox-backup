@@ -7,6 +7,9 @@ authors = [
 ]
 edition = "2018"
 
+[lib]
+crate-type = ['lib', 'cdylib']
+
 [dependencies]
 chrono = "0.4"
 endian_trait = "0.6"
