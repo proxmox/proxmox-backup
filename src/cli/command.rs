@@ -574,11 +574,12 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
         Err(_) => return,
     };
 
-
     let mut args = match shellwords::split(&cmdline) {
         Ok(v) => v,
         Err(_) => return,
     };
+
+    if args.len() == 0 { return; }
 
     args.remove(0); //no need for program name
 
