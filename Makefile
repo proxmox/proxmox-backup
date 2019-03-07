@@ -59,7 +59,7 @@ build:
 	rm -rf build
 	cargo build --release
 	rsync -a debian Makefile defines.mk Cargo.toml Cargo.lock \
-	    src proxmox-protocol $(SUBDIRS) \
+	    src proxmox-protocol zstd-sys $(SUBDIRS) \
 	    target build/
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
