@@ -2,11 +2,13 @@
 
 use std::os::raw::c_void;
 
+use libc::size_t;
+
 use crate::Chunker;
 
 /// Creates a new chunker instance.
 #[no_mangle]
-pub extern "C" fn proxmox_chunker_new(chunk_size_avg: u64) -> *mut Chunker {
+pub extern "C" fn proxmox_chunker_new(chunk_size_avg: size_t) -> *mut Chunker {
     Box::leak(Box::new(Chunker::new(chunk_size_avg as usize)))
 }
 
@@ -26,18 +28,20 @@ pub extern "C" fn proxmox_chunker_done(me: *mut Chunker) {
 pub extern "C" fn proxmox_chunker_scan(
     me: *mut Chunker,
     data: *const c_void,
-    size: u64,
-) -> u64 {
+    size: size_t,
+) -> size_t {
     let me = unsafe { &mut *me };
-    me.scan(unsafe {
-        std::slice::from_raw_parts(data as *const u8, size as usize)
-    }) as u64
+    me.scan(unsafe { std::slice::from_raw_parts(data as *const u8, size as usize) }) as size_t
 }
 
 /// Compute a chunk digest. This is mostly a convenience method to avoid having to lookup the right
 /// digest method for your language of choice.
 #[no_mangle]
-pub extern "C" fn proxmox_chunk_digest(data: *const c_void, size: u64, out_digest: *mut [u8; 32]) {
+pub extern "C" fn proxmox_chunk_digest(
+    data: *const c_void,
+    size: size_t,
+    out_digest: *mut [u8; 32],
+) {
     let digest = crate::FixedChunk::from_data(unsafe {
         std::slice::from_raw_parts(data as *const u8, size as usize)
     });

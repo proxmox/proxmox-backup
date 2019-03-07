@@ -4,9 +4,10 @@
 
 use std::ffi::{CStr, CString};
 use std::io;
-use std::os::raw::{c_char, c_int, c_ulong, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 
 use failure::{bail, format_err, Error};
+use libc::size_t;
 
 /// Read callback. The first parameter is the `opaque` parameter passed to `proxmox_backup_new`,
 /// the rest are the usual read function parameters. This should return the number of bytes
@@ -328,7 +329,7 @@ pub extern "C" fn proxmox_backup_create(
     backup_id: *const c_char,
     time_epoch: i64,
     file_name: *const c_char,
-    chunk_size: c_ulong,
+    chunk_size: size_t,
     file_size: i64,
     is_new: bool,
 ) -> c_int {
@@ -391,7 +392,7 @@ pub extern "C" fn proxmox_backup_dynamic_data(
 pub extern "C" fn proxmox_backup_fixed_data(
     me: *mut CClient,
     stream: c_int,
-    index: c_ulong,
+    index: size_t,
     digest: *const [u8; 32],
 ) -> c_int {
     let me = unsafe { &mut *me };

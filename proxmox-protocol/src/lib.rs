@@ -16,5 +16,5 @@ pub use client::*;
 mod types;
 pub use types::*;
 
-pub mod c_client;
 pub mod c_chunker;
+pub mod c_client;

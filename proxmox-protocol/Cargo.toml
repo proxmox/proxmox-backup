@@ -14,4 +14,5 @@ crate-type = ['lib', 'cdylib']
 chrono = "0.4"
 endian_trait = "0.6"
 failure = "0.1"
+libc = "0.2"
 openssl = "0.10"
