@@ -17,3 +17,4 @@ mod types;
 pub use types::*;
 
 pub mod c_client;
+pub mod c_chunker;
