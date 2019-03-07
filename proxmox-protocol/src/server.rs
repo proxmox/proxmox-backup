@@ -184,7 +184,8 @@ where
                     self.common.current_packet_type as u32,
                 ),
             };
-            if !self.common.next()? {
+            self.common.next()?;
+            if !self.common.poll_read()? {
                 break;
             }
         }

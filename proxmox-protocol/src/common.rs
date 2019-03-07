@@ -138,7 +138,7 @@ where
         &self.buffer[beg..end]
     }
 
-    pub fn next(&mut self) -> Result<bool> {
+    pub fn next(&mut self) -> Result<()> {
         let pktlen = self.packet_length();
         unsafe {
             if self.buffer.len() != pktlen {
@@ -150,7 +150,7 @@ where
             }
             self.buffer.set_len(self.buffer.len() - pktlen);
         }
-        self.poll_data_do()
+        Ok(())
     }
 
     // NOTE: After calling this you must `self.buffer.set_len()` when done!

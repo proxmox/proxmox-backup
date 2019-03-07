@@ -273,7 +273,7 @@ pub extern "C" fn proxmox_backup_continue_upload(me: *mut CClient) -> c_int {
 #[no_mangle]
 pub extern "C" fn proxmox_backup_poll_read(me: *mut CClient) -> c_int {
     let me = unsafe { &mut *me };
-    match me.client.poll_read() {
+    match me.client.poll_read(false) {
         Ok(_) => 0,
         Err(e) => me.set_error(e),
     }

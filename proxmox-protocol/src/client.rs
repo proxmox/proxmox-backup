@@ -103,7 +103,7 @@ where
 
     pub fn wait_for_handshake(&mut self) -> Result<bool> {
         if !self.handshake_done {
-            self.poll_read()?;
+            self.poll_read(true)?;
         }
         Ok(self.handshake_done)
     }
@@ -126,8 +126,10 @@ where
     }
 
     pub fn wait_for_hashes(&mut self) -> Result<bool> {
-        if self.hash_download.is_some() {
-            self.poll_read()?;
+        while self.hash_download.is_some() {
+            if !self.poll_read(true)? {
+                break;
+            }
         }
         Ok(self.hash_download.is_none())
     }
@@ -254,8 +256,8 @@ where
         }
     }
 
-    // generic data polling method
-    pub fn poll_read(&mut self) -> Result<()> {
+    // generic data polling method, returns true if at least one packet was received
+    pub fn poll_read(&mut self, one: bool) -> Result<bool> {
         if self.common.eof {
             // polls after EOF are errors:
             bail!("server disconnected");
@@ -266,7 +268,7 @@ where
             if self.common.eof {
                 bail!("server disconnected");
             }
-            return Ok(());
+            return Ok(false);
         }
 
         loop {
@@ -280,11 +282,12 @@ where
                     self.common.current_packet_type as u32,
                 ),
             }
-            if !self.common.next()? {
+            self.common.next()?;
+            if one || !self.common.poll_read()? {
                 break;
             }
         }
-        Ok(())
+        Ok(true)
     }
 
     // None => nothing was queued
@@ -414,19 +417,23 @@ where
         if !self.waiting_ids.contains_key(&id.0) {
             bail!("wait_for_id() called on unexpected id {}", id.0);
         }
-        self.poll_read()?;
 
-        use hash_map::Entry::*;
+        loop {
+            if !self.poll_read(true)? {
+                return Ok(false);
+            }
 
-        match self.waiting_ids.entry(id.0) {
-            Vacant(_) => Ok(true),
-            Occupied(entry) => match entry.get() {
-                AckState::Received => {
-                    entry.remove();
-                    Ok(true)
-                }
-                _ => Ok(false),
-            },
+            use hash_map::Entry::*;
+            match self.waiting_ids.entry(id.0) {
+                Vacant(_) => return Ok(true),
+                Occupied(entry) => match entry.get() {
+                    AckState::Received => {
+                        entry.remove();
+                        return Ok(true);
+                    }
+                    _ => continue,
+                },
+            }
         }
     }
 
