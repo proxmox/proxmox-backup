@@ -106,14 +106,6 @@ where
         match self.poll_data_do() {
             Ok(has_packet) => Ok(has_packet),
             Err(e) => {
-                // To support AsyncRead/AsyncWrite we do not enter a failed
-                // state when we read from a non-blocking source which fails
-                // with WouldBlock.
-                if let Some(ioe) = e.downcast_ref::<std::io::Error>() {
-                    if ioe.kind() == io::ErrorKind::WouldBlock {
-                        return Ok(false);
-                    }
-                }
                 self.error = true;
                 Err(e)
             }
