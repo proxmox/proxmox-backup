@@ -43,3 +43,6 @@ pam-sys = "0.5"
 pam = "0.7"
 zstd = "0.4"
 xdg = "2.2"
+
+[replace]
+"zstd-sys:1.4.8" = { path = "zstd-sys" }

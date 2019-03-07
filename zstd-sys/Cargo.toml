@@ -1,0 +1,14 @@
+[package]
+edition = "2018"
+name = "zstd-sys"
+version = "1.4.8"
+authors = [
+    "Wolfgang Bumiller <w.bumiller@proxmox.com>",
+]
+
+[build-dependencies]
+bindgen = ">0.42.2"
+
+[features]
+default = ["legacy"]
+legacy = []
