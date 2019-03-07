@@ -43,6 +43,3 @@ pam-sys = "0.5"
 pam = "0.7"
 zstd = "0.4"
 xdg = "2.2"
-
-[patch.crates-io]
-lz4-sys = { path = "lz4-rs/lz4-sys" }

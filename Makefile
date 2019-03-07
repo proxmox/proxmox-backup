@@ -46,10 +46,10 @@ all: cargo-build $(SUBDIRS)
 $(SUBDIRS):
 	$(MAKE) -C $@
 
-test: | dependencies
+test:
 	cargo test $(CARGO_BUILD_ARGS)
 
-doc: | dependencies
+doc:
 	cargo doc --no-deps $(CARGO_BUILD_ARGS)
 
 # always re-create this dir
@@ -93,7 +93,7 @@ dinstall: ${DEB}
 docs: cargo-build
 
 .PHONY: cargo-build
-cargo-build: | dependencies
+cargo-build:
 	cargo build $(CARGO_BUILD_ARGS)
 
 $(COMPILED_BINS): cargo-build
@@ -110,17 +110,3 @@ install: $(COMPILED_BINS)
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install
 	$(MAKE) -C docs install
-
-#
-# External dependency patching:
-#
-
-dependencies: lz4-rs
-
-# We want to dynamically link against the system's liblz4!
-# The lz4-sys crate provides some more helpers in addition to the 'extern "C"' block so we still
-# need to use its rust code directly in order for the `lz4` crate to be happy.
-lz4-rs:
-	git clone https://github.com/bozaro/lz4-rs
-	echo 'fn main() { println!("cargo:rustc-link-lib=lz4"); }' \
-		>lz4-rs/lz4-sys/build.rs
