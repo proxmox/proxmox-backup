@@ -479,7 +479,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let major = unsafe { libc::major(stat.st_rdev) } as u64;
         let minor = unsafe { libc::minor(stat.st_rdev) } as u64;
 
-        println!("encode_device: {:?} {} {} {}", self.current_path, stat.st_rdev, major, minor);
+        //println!("encode_device: {:?} {} {} {}", self.current_path, stat.st_rdev, major, minor);
 
         self.write_header(CA_FORMAT_DEVICE, std::mem::size_of::<CaFormatDevice>() as u64)?;
         self.write_item(CaFormatDevice { major, minor })?;
