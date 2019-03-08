@@ -4,7 +4,6 @@
 
 use failure::*;
 use endian_trait::Endian;
-use std::collections::HashSet;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
@@ -34,7 +33,8 @@ pub struct CaTarEncoder<'a, W: Write> {
     writer_pos: usize,
     _size: usize,
     file_copy_buffer: Vec<u8>,
-    devices: Option<HashSet<u64>>,
+    all_file_systems: bool,
+    root_st_dev: u64,
     verbose: bool,
 }
 
@@ -43,7 +43,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
     pub fn encode(
         path: PathBuf,
         dir: &mut nix::dir::Dir,
-        device_list: Option<Vec<u64>>,
+        all_file_systems: bool,
         writer: &'a mut W,
         verbose: bool,
     ) -> Result<(), Error> {
@@ -53,26 +53,17 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         let mut file_copy_buffer = Vec::with_capacity(FILE_COPY_BUFFER_SIZE);
         unsafe { file_copy_buffer.set_len(FILE_COPY_BUFFER_SIZE); }
 
-        let mut me = Self {
-            current_path: path,
-            writer: writer,
-            writer_pos: 0,
-            _size: 0,
-            file_copy_buffer,
-            devices: None,
-            verbose,
-        };
 
         // todo: use scandirat??
 
         let dir_fd = dir.as_raw_fd();
         let stat = match nix::sys::stat::fstat(dir_fd) {
             Ok(stat) => stat,
-            Err(err) => bail!("fstat {:?} failed - {}", me.current_path, err),
+            Err(err) => bail!("fstat {:?} failed - {}", path, err),
         };
 
         if (stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
-            bail!("got unexpected file type {:?} (not a directory)", me.current_path);
+            bail!("got unexpected file type {:?} (not a directory)", path);
         }
 
         let magic = detect_fs_type(dir_fd)?;
@@ -81,12 +72,16 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
             bail!("backup virtual file systems is disabled!");
         }
 
-        if let Some(list) = device_list {
-            let mut devices = HashSet::new();
-            devices.insert(stat.st_dev); // always include archive root device
-            for dev in list { devices.insert(dev); }
-            me.devices = Some(devices);
-        }
+        let mut me = Self {
+            current_path: path,
+            writer: writer,
+            writer_pos: 0,
+            _size: 0,
+            file_copy_buffer,
+            all_file_systems,
+            root_st_dev: stat.st_dev,
+            verbose,
+        };
 
         if verbose { println!("{:?}", me.current_path); }
 
@@ -268,15 +263,11 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         let mut dir_count = 0;
 
-        let mut include_children = true;
+        let include_children;
         if is_virtual_file_system(magic) {
             include_children = false;
         } else {
-            if let Some(ref set) = self.devices {
-                include_children = set.contains(&dir_stat.st_dev);
-            } else if is_temporary_file_system(magic) {
-                include_children = false;
-            }
+            include_children = (self.root_st_dev == dir_stat.st_dev) || self.all_file_systems;
         }
 
         if include_children {
@@ -432,13 +423,11 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
         self.write_entry(entry)?;
 
-        let mut include_payload = true;
+        let include_payload;
         if is_virtual_file_system(magic) {
             include_payload = false;
         } else {
-            if let Some(ref set) = self.devices {
-                include_payload = set.contains(&stat.st_dev);
-            }
+            include_payload = (stat.st_dev == self.root_st_dev) || self.all_file_systems;
         }
 
         if !include_payload {

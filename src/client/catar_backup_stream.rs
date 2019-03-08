@@ -44,8 +44,7 @@ impl CaTarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            let device_list = vec![];
-            if let Err(err) = CaTarEncoder::encode(path, &mut dir, Some(device_list), &mut writer, verbose) {
+             if let Err(err) = CaTarEncoder::encode(path, &mut dir, false, &mut writer, verbose) {
                 eprintln!("catar encode failed - {}", err);
             }
         });
