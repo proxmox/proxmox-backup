@@ -43,8 +43,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
     pub fn encode(
         path: PathBuf,
         dir: &mut nix::dir::Dir,
-        all_file_systems: bool,
         writer: &'a mut W,
+        all_file_systems: bool,
         verbose: bool,
     ) -> Result<(), Error> {
 

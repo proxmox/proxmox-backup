@@ -144,7 +144,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    CaTarEncoder::encode(source, &mut dir, all_file_systems, &mut writer, verbose)?;
+    CaTarEncoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
 
     writer.flush()?;
 

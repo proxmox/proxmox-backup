@@ -35,6 +35,7 @@ fn backup_directory<P: AsRef<Path>>(
     backup_id: &str,
     backup_time: DateTime<Local>,
     chunk_size: Option<u64>,
+    all_file_systems: bool,
     verbose: bool,
 ) -> Result<(), Error> {
 
@@ -53,7 +54,7 @@ fn backup_directory<P: AsRef<Path>>(
 
     let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
-    let stream = CaTarBackupStream::open(dir_path.as_ref(), verbose)?;
+    let stream = CaTarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
 
     let body = Body::wrap_stream(stream);
 
@@ -298,6 +299,8 @@ fn create_backup(
 
     let repo = BackupRepository::parse(repo_url)?;
 
+    let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
+
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
     let chunk_size_opt = param["chunk-size"].as_u64().map(|v| v*1024);
@@ -352,7 +355,8 @@ fn create_backup(
 
     for (filename, target) in upload_list {
         println!("Upload '{}' to '{:?}' as {}", filename, repo, target);
-        backup_directory(&mut client, &repo, &filename, &target, backup_id, backup_time, chunk_size_opt, verbose)?;
+        backup_directory(&mut client, &repo, &filename, &target, backup_id, backup_time,
+                         chunk_size_opt, all_file_systems, verbose)?;
     }
 
     let end_time = Local.timestamp(Local::now().timestamp(), 0);

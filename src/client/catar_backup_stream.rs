@@ -36,7 +36,7 @@ impl Drop for CaTarBackupStream {
 
 impl CaTarBackupStream {
 
-    pub fn new(mut dir: Dir, path: PathBuf, verbose: bool) -> Result<Self, Error> {
+    pub fn new(mut dir: Dir, path: PathBuf, all_file_systems: bool, verbose: bool) -> Result<Self, Error> {
         let mut buffer = Vec::with_capacity(4096);
         unsafe { buffer.set_len(buffer.capacity()); }
 
@@ -44,7 +44,7 @@ impl CaTarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-             if let Err(err) = CaTarEncoder::encode(path, &mut dir, false, &mut writer, verbose) {
+             if let Err(err) = CaTarEncoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
                 eprintln!("catar encode failed - {}", err);
             }
         });
@@ -54,12 +54,12 @@ impl CaTarBackupStream {
         Ok(Self { pipe: Some(pipe), buffer, child: Some(child) })
     }
 
-    pub fn open(dirname: &Path, verbose: bool) -> Result<Self, Error> {
+    pub fn open(dirname: &Path,  all_file_systems: bool, verbose: bool) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, verbose)
+        Self::new(dir, path, all_file_systems, verbose)
     }
 }
 
