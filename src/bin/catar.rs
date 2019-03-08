@@ -129,6 +129,7 @@ fn create_archive(
 
     let archive = tools::required_string_param(&param, "archive")?;
     let source = tools::required_string_param(&param, "source")?;
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
 
     let source = std::path::PathBuf::from(source);
 
@@ -142,7 +143,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    CaTarEncoder::encode(source, &mut dir, false, &mut writer, false)?;
+    CaTarEncoder::encode(source, &mut dir, false, &mut writer, verbose)?;
 
     writer.flush()?;
 
@@ -158,6 +159,7 @@ fn main() {
                 ObjectSchema::new("Create new catar archive.")
                     .required("archive", StringSchema::new("Archive name"))
                     .required("source", StringSchema::new("Source directory."))
+                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
             ))
             .arg_param(vec!["archive", "source"])
             .completion_cb("archive", tools::complete_file_name)
