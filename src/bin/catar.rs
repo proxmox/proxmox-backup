@@ -130,6 +130,7 @@ fn create_archive(
     let archive = tools::required_string_param(&param, "archive")?;
     let source = tools::required_string_param(&param, "source")?;
     let verbose = param["verbose"].as_bool().unwrap_or(false);
+    let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
     let source = std::path::PathBuf::from(source);
 
@@ -143,7 +144,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    CaTarEncoder::encode(source, &mut dir, false, &mut writer, verbose)?;
+    CaTarEncoder::encode(source, &mut dir, all_file_systems, &mut writer, verbose)?;
 
     writer.flush()?;
 
@@ -160,7 +161,8 @@ fn main() {
                     .required("archive", StringSchema::new("Archive name"))
                     .required("source", StringSchema::new("Source directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
-            ))
+                    .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
+           ))
             .arg_param(vec!["archive", "source"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
