@@ -14,8 +14,7 @@
 mod chunk_stat;
 pub use chunk_stat::*;
 
-mod chunker;
-pub use chunker::*;
+pub use proxmox_protocol::Chunker;
 
 mod chunk_store;
 pub use chunk_store::*;

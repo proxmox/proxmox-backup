@@ -4,7 +4,7 @@ use crate::tools;
 use super::IndexFile;
 use super::chunk_stat::*;
 use super::chunk_store::*;
-use super::chunker::*;
+use proxmox_protocol::Chunker;
 
 use std::sync::Arc;
 use std::io::{Read, Write, BufWriter};
