@@ -291,6 +291,8 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
 
                 name_list.push(filename);
             }
+        } else {
+            eprintln!("skip mount point: {:?}", self.current_path);
         }
 
         name_list.sort_unstable_by(|a, b| a.cmp(&b));
@@ -431,6 +433,7 @@ impl <'a, W: Write> CaTarEncoder<'a, W> {
         }
 
         if !include_payload {
+            eprintln!("skip content: {:?}", self.current_path);
             self.write_header(CA_FORMAT_PAYLOAD, 0)?;
             return Ok(());
         }
