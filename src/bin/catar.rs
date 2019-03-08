@@ -55,12 +55,14 @@ fn print_filenames(
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
+    /* FIXME
+
     let archive = tools::required_string_param(&param, "archive")?;
     let file = std::fs::File::open(archive)?;
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = CaTarDecoder::new(&mut reader)?;
+     let mut decoder = CaTarDecoder::new(&mut reader)?;
 
     let root = decoder.root();
 
@@ -68,6 +70,9 @@ fn print_filenames(
     let mut out = stdout.lock();
 
     decoder.print_filenames(&mut out, &mut PathBuf::from("."), &root)?;
+    */
+
+    panic!("not implemented");
 
     Ok(Value::Null)
 }

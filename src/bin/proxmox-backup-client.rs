@@ -3,7 +3,8 @@ extern crate proxmox_backup;
 use failure::*;
 //use std::os::unix::io::AsRawFd;
 use chrono::{DateTime, Local, TimeZone};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::ffi::OsString;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
@@ -427,17 +428,15 @@ fn restore(
 
         if file.ends_with(".catar.didx") {
             let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
-            let mut target = std::path::PathBuf::from(target_path);
-            target.push(file);
-            target.set_extension("");
 
-            let fh = std::fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&target)?;
+            let mut filename = std::path::PathBuf::from(file);
+            filename.set_extension(""); // remove .didx
+            filename.set_extension(""); // remove .catar
 
-            println!("DOWNLOAD FILE {} to {:?}", path, target);
-            client.download(&path, Box::new(fh))?;
+            println!("DOWNLOAD FILE {} to {:?}", path, filename);
+            let writer = CaTarBackupWriter::new(
+                &PathBuf::from(target_path), OsString::from(filename), true)?;
+            client.download(&path, Box::new(writer))?;
         } else {
             bail!("unknown file extensions - unable to download '{}'", file);
         }

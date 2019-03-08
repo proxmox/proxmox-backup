@@ -9,5 +9,8 @@ pub use  http_client::*;
 mod catar_backup_stream;
 pub use catar_backup_stream::*;
 
+mod catar_decode_writer;
+pub use catar_decode_writer::*;
+
 mod backup_repo;
 pub use backup_repo::*;
