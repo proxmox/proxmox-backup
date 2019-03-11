@@ -12,7 +12,7 @@ use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 use chrono::{Local, TimeZone};
 
-/// Header format definition for fixed index files (`.fixd`)
+/// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
 pub struct FixedIndexHeader {
     /// The string `PROXMOX-FIDX`

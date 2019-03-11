@@ -90,6 +90,23 @@ fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target
 }
 */
 
+fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    for file in list.into_iter() {
+        if file.ends_with(".didx") {
+            result.push(file[..file.len()-5].to_owned());
+        } else if file.ends_with(".fidx") {
+            result.push(file[..file.len()-5].to_owned());
+        } else {
+            result.push(file); // should not happen
+        }
+    }
+
+    result
+}
+
 fn list_backups(
     param: Value,
     _info: &ApiMethod,
@@ -117,12 +134,11 @@ fn list_backups(
         let backup_dir = BackupDir::new(btype, id, epoch);
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
+        let files = strip_chunked_file_expenstions(files);
 
-        let info = BackupInfo { backup_dir, files };
-
-        for filename in info.files {
-            let path = info.backup_dir.relative_path().to_str().unwrap().to_owned();
-            println!("{} | {}/{}", info.backup_dir.backup_time().format("%c"), path, filename);
+        for filename in files {
+            let path = backup_dir.relative_path().to_str().unwrap().to_owned();
+            println!("{} | {}/{}", backup_dir.backup_time().format("%c"), path, filename);
         }
     }
 
@@ -174,10 +190,8 @@ fn list_backup_groups(
 
         let path = group.group_path().to_str().unwrap().to_owned();
 
-        let files = item["files"].as_array().unwrap().iter()
-            .map(|v| {
-                v.as_str().unwrap().to_owned()
-            }).collect();
+        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
+        let files = strip_chunked_file_expenstions(files);
 
         println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
                  backup_count, tools::join(&files, ' '));
@@ -224,10 +238,8 @@ fn list_snapshots(
 
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
-        let files = item["files"].as_array().unwrap().iter()
-            .map(|v| {
-                v.as_str().unwrap().to_owned()
-            }).collect();
+        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
+        let files = strip_chunked_file_expenstions(files);
 
         println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
     }
