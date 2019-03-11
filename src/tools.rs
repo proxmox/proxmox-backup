@@ -27,6 +27,7 @@ pub mod ticket;
 pub mod borrow;
 pub mod fs;
 pub mod tty;
+pub mod signalfd;
 
 #[macro_use]
 mod file_logger;
