@@ -207,14 +207,16 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
         Ok(())
     }
 
-    pub fn restore_sequential<F: Fn(&Path) -> Result<(), Error>>(
+    pub fn restore_sequential<F>(
         &mut self,
         path: &mut PathBuf, // used for error reporting
         filename: &OsStr,  // repeats path last component
         parent: &nix::dir::Dir,
         create_new: bool,
         callback: &F,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+        where F: Fn(&Path) -> Result<(), Error>
+    {
 
         let parent_fd = parent.as_raw_fd();
 
