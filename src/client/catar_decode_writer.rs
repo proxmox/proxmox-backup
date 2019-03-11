@@ -4,11 +4,6 @@ use std::thread;
 use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::io::Write;
-use std::ffi::OsString;
-
-//use nix::fcntl::OFlag;
-//use nix::sys::stat::Mode;
-//use nix::dir::Dir;
 
 use crate::catar::decoder::*;
 
@@ -29,22 +24,17 @@ impl Drop for CaTarBackupWriter {
 
 impl CaTarBackupWriter {
 
-    pub fn new(base: &Path, subdir: OsString, verbose: bool) -> Result<Self, Error> {
+    pub fn new(base: &Path, verbose: bool) -> Result<Self, Error> {
         let (rx, tx) = nix::unistd::pipe()?;
 
-        let dir = match nix::dir::Dir::open(base, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty()) {
-            Ok(dir) => dir,
-            Err(err) => bail!("unable to open target directory {:?} - {}", base, err),
-        };
-        let mut path = PathBuf::from(base);
-        path.push(&subdir);
+        let base = PathBuf::from(base);
         
         let child = thread::spawn(move|| {
             let mut reader = unsafe { std::fs::File::from_raw_fd(rx) };
             let mut decoder = CaTarDecoder::new(&mut reader);
 
             
-            if let Err(err) = decoder.restore_sequential(&mut path, &subdir, &dir, false, & |path| {
+            if let Err(err) = decoder.restore(&base, & |path| {
                 println!("RESTORE: {:?}", path);
                 Ok(())
             }) {

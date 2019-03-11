@@ -133,7 +133,13 @@ fn download_catar(
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
-    let archive_name = tools::required_string_param(&param, "archive-name")?;
+    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+
+    if !archive_name.ends_with(".catar") {
+        bail!("wrong archive extension");
+    } else {
+        archive_name.push_str(".didx");
+    }
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;

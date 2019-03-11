@@ -405,51 +405,59 @@ fn restore(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot = BackupDir::parse(path)?;
-
-    let query = tools::json_object_to_query(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time().timestamp(),
-    }))?;
-
-    let target_path = tools::required_string_param(&param, "target")?;
-    if let Err(err) = std::fs::create_dir(target_path) {
-        bail!("unable to create target directory - {}", err);
-    }
+    let archive_name = tools::required_string_param(&param, "archive-name")?;
 
     let mut client = HttpClient::new(&repo.host, &repo.user);
 
-    let path = format!("api2/json/admin/datastore/{}/files?{}", repo.store, query);
-    let result = client.get(&path)?;
+    let path = tools::required_string_param(&param, "snapshot")?;
 
-    let files = result["data"].as_array().unwrap();
+    let query;
 
-    for file in files {
-        let file = file.as_str().unwrap();
+    if path.matches('/').count() == 1 {
+        let group = BackupGroup::parse(path)?;
 
-        let query = tools::json_object_to_query(json!({
+        let subquery = tools::json_object_to_query(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+        }))?;
+
+        let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, subquery);
+        let result = client.get(&path)?;
+
+        let list = result["data"].as_array().unwrap();
+        if list.len() == 0 {
+            bail!("backup group '{}' does not contain any snapshots:", path);
+        }
+
+        query = tools::json_object_to_query(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+            "backup-time": list[0]["backup-time"].as_i64().unwrap(),
+            "archive-name": archive_name,
+        }))?;
+    } else {
+        let snapshot = BackupDir::parse(path)?;
+
+        query = tools::json_object_to_query(json!({
             "backup-type": snapshot.group().backup_type(),
             "backup-id": snapshot.group().backup_id(),
             "backup-time": snapshot.backup_time().timestamp(),
-            "archive-name": file,
+            "archive-name": archive_name,
         }))?;
+    }
 
-        if file.ends_with(".catar.didx") {
-            let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+    let target = tools::required_string_param(&param, "target")?;
 
-            let mut filename = std::path::PathBuf::from(file);
-            filename.set_extension(""); // remove .didx
-            filename.set_extension(""); // remove .catar
+    if archive_name.ends_with(".catar") {
+        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
 
-            println!("DOWNLOAD FILE {} to {:?}", path, filename);
-            let writer = CaTarBackupWriter::new(
-                &PathBuf::from(target_path), OsString::from(filename), true)?;
-            client.download(&path, Box::new(writer))?;
-        } else {
-            bail!("unknown file extensions - unable to download '{}'", file);
-        }
+        println!("DOWNLOAD FILE {} to {}", path, target);
+
+        let target = PathBuf::from(target);
+        let writer = CaTarBackupWriter::new(&target, true)?;
+        client.download(&path, Box::new(writer))?;
+    } else {
+        bail!("unknown file extensions - unable to download '{}'", archive_name);
     }
 
     Ok(Value::Null)
@@ -558,10 +566,11 @@ fn main() {
             restore,
             ObjectSchema::new("Restore backup repository.")
                 .required("repository", repo_url_schema.clone())
-                .required("snapshot", StringSchema::new("Snapshot path."))
+                .required("snapshot", StringSchema::new("Group/Snapshot path."))
+                .required("archive-name", StringSchema::new("Backup archive name."))
                 .required("target", StringSchema::new("Target directory path."))
         ))
-        .arg_param(vec!["repository", "snapshot", "target"]);
+        .arg_param(vec!["repository", "snapshot", "archive-name", "target"]);
 
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(

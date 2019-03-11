@@ -89,11 +89,20 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
             bail!("filename entry not nul terminated.");
         }
 
+        if (buffer.len() == 1 && buffer[0] == b'.') || (buffer.len() == 2 && buffer[0] == b'.' && buffer[1] == b'.') {
+            bail!("found invalid filename with slashes.");
+        }
+
         if buffer.iter().find(|b| (**b == b'/')).is_some() {
             bail!("found invalid filename with slashes.");
         }
 
-        Ok(std::ffi::OsString::from_vec(buffer))
+        let name = std::ffi::OsString::from_vec(buffer);
+        if name.is_empty() {
+            bail!("found empty filename.");
+        }
+
+        Ok(name)
     }
 
     fn restore_attributes(&mut self, _entry: &CaFormatEntry) -> Result<CaFormatHeader, Error> {
@@ -207,12 +216,29 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
         Ok(())
     }
 
-    pub fn restore_sequential<F>(
+    pub fn restore<F>(
+        &mut self,
+        path: &Path, // used for error reporting
+        callback: &F,
+    ) -> Result<(), Error>
+        where F: Fn(&Path) -> Result<(), Error>
+    {
+
+        let _ = std::fs::create_dir(path);
+
+        let dir = match nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty()) {
+            Ok(dir) => dir,
+            Err(err) => bail!("unable to open target directory {:?} - {}", path, err),
+        };
+
+        self.restore_sequential(&mut path.to_owned(), &OsString::new(), &dir, callback)
+    }
+
+    fn restore_sequential<F>(
         &mut self,
         path: &mut PathBuf, // used for error reporting
         filename: &OsStr,  // repeats path last component
         parent: &nix::dir::Dir,
-        create_new: bool,
         callback: &F,
     ) -> Result<(), Error>
         where F: Fn(&Path) -> Result<(), Error>
@@ -230,10 +256,15 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
         let ifmt = mode & libc::S_IFMT;
 
         if ifmt == libc::S_IFDIR {
-            let dir = match dir_mkdirat(parent_fd, filename, create_new) {
-                Ok(dir) => dir,
-                Err(err) => bail!("unable to open directory {:?} - {}", path, err),
-            };
+            let dir;
+            if filename.is_empty() {
+                dir = nix::dir::Dir::openat(parent_fd, ".", OFlag::O_DIRECTORY,  Mode::empty())?;
+             } else {
+                dir = match dir_mkdirat(parent_fd, filename, true) {
+                    Ok(dir) => dir,
+                    Err(err) => bail!("unable to open directory {:?} - {}", path, err),
+                };
+            }
 
             let mut head = self.restore_attributes(&entry)?;
 
@@ -242,7 +273,7 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
                 path.push(&name);
                 println!("NAME: {:?}", path);
 
-                self.restore_sequential(path, &name, &dir, true, callback)?;
+                self.restore_sequential(path, &name, &dir, callback)?;
                 path.pop();
 
                 head = self.read_item()?;
@@ -272,6 +303,10 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
             self.restore_ugid(&entry, dir.as_raw_fd())?;
 
             return Ok(());
+        }
+
+        if filename.is_empty() {
+            bail!("got empty file name at {:?}", path)
         }
 
         if ifmt == libc::S_IFLNK {
