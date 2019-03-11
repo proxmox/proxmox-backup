@@ -1,7 +1,6 @@
-#[macro_use]
-extern crate proxmox_backup;
-
+use proxmox_backup::configdir;
 use proxmox_backup::tools;
+use proxmox_backup::tools::daemon::ReexecStore;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
@@ -10,10 +9,12 @@ use proxmox_backup::auth_helpers::*;
 use failure::*;
 use lazy_static::lazy_static;
 
-use futures::future::Future;
 use futures::stream::Stream;
+use tokio::prelude::*;
 
 use hyper;
+
+static mut QUIT_MAIN: bool = false;
 
 fn main() {
 
@@ -24,7 +25,6 @@ fn main() {
 }
 
 fn run() -> Result<(), Error> {
-
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
         log::LevelFilter::Info,
@@ -63,8 +63,18 @@ fn run() -> Result<(), Error> {
         Err(err) => bail!("unabled to decode pkcs12 identity {} - {}", cert_path, err),
     };
 
-    let addr = ([0,0,0,0,0,0,0,0], 8007).into();
-    let listener = tokio::net::TcpListener::bind(&addr)?;
+    // This manages data for reloads:
+    let mut reexecer = ReexecStore::new();
+
+    // http server future:
+
+    let listener: tokio::net::TcpListener = reexecer.restore(
+        "PROXMOX_BACKUP_LISTEN_FD",
+        || {
+            let addr = ([0,0,0,0,0,0,0,0], 8007).into();
+            Ok(tokio::net::TcpListener::bind(&addr)?)
+        },
+    )?;
     let acceptor = native_tls::TlsAcceptor::new(identity)?;
     let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
     let connections = listener
@@ -91,12 +101,63 @@ fn run() -> Result<(), Error> {
             r
         });
 
-    let server = hyper::Server::builder(connections)
+    let mut http_server = hyper::Server::builder(connections)
         .serve(rest_server)
         .map_err(|e| eprintln!("server error: {}", e));
 
-    // Run this server for... forever!
-    hyper::rt::run(server);
+    // signalfd future:
+    let signal_handler =
+        proxmox_backup::tools::daemon::default_signalfd_stream(
+            reexecer,
+            || {
+                unsafe { QUIT_MAIN = true; }
+                Ok(())
+            },
+        )?
+        .map(|si| {
+            // debugging...
+            eprintln!("received signal: {}", si.ssi_signo);
+        })
+        .map_err(|e| {
+            eprintln!("error from signalfd: {}, shutting down...", e);
+            unsafe {
+                QUIT_MAIN = true;
+            }
+        });
 
+    // Combined future for signalfd & http server, we want to quit as soon as either of them ends.
+    // Neither of them is supposed to end unless some weird error happens, so just bail out if is
+    // the case...
+    let mut signal_handler = signal_handler.into_future();
+    let main = futures::future::poll_fn(move || {
+        // Helper for some diagnostic error messages:
+        fn poll_helper<S: Future>(stream: &mut S, name: &'static str) -> bool {
+            match stream.poll() {
+                Ok(Async::Ready(_)) => {
+                    eprintln!("{} ended, shutting down", name);
+                    true
+                }
+                Err(_) => {
+                    eprintln!("{} error, shutting down", name);
+                    true
+                },
+                _ => false,
+            }
+        }
+        if poll_helper(&mut http_server, "http server") ||
+           poll_helper(&mut signal_handler, "signalfd handler")
+        {
+            return Ok(Async::Ready(()));
+        }
+
+        if unsafe { QUIT_MAIN } {
+            eprintln!("shutdown requested");
+            Ok(Async::Ready(()))
+        } else {
+            Ok(Async::NotReady)
+        }
+    });
+
+    hyper::rt::run(main);
     Ok(())
 }
