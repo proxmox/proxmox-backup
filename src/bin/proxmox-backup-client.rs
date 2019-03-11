@@ -25,7 +25,7 @@ use regex::Regex;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(:?catar|raw)):(.+)$").unwrap();
 }
 
 fn backup_directory<P: AsRef<Path>>(
@@ -324,9 +324,7 @@ fn create_backup(
 
         if (stat.st_mode & libc::S_IFDIR) != 0 {
 
-            let target = format!("{}.catar", target);
-
-            upload_list.push((filename.to_owned(), target));
+            upload_list.push((filename.to_owned(), target.to_owned()));
 
         } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
             if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
@@ -488,7 +486,7 @@ fn main() {
                 .required(
                     "backupspec",
                     ArraySchema::new(
-                        "List of backup source specifications ([<label>:<path>] ...)",
+                        "List of backup source specifications ([<label.ext>:<path>] ...)",
                         backup_source_schema,
                     ).min_length(1)
                 )
