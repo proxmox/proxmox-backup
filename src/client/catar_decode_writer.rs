@@ -44,7 +44,7 @@ impl CaTarBackupWriter {
             let mut decoder = CaTarDecoder::new(&mut reader);
 
             
-            if let Err(err) = decoder.restore_sequential(&mut path, &subdir, &dir, & |path| {
+            if let Err(err) = decoder.restore_sequential(&mut path, &subdir, &dir, false, & |path| {
                 println!("RESTORE: {:?}", path);
                 Ok(())
             }) {

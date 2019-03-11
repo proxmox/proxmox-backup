@@ -212,6 +212,7 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
         path: &mut PathBuf, // used for error reporting
         filename: &OsStr,  // repeats path last component
         parent: &nix::dir::Dir,
+        create_new: bool,
         callback: &F,
     ) -> Result<(), Error> {
 
@@ -227,7 +228,7 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
         let ifmt = mode & libc::S_IFMT;
 
         if ifmt == libc::S_IFDIR {
-            let dir = match dir_mkdirat(parent_fd, filename) {
+            let dir = match dir_mkdirat(parent_fd, filename, create_new) {
                 Ok(dir) => dir,
                 Err(err) => bail!("unable to open directory {:?} - {}", path, err),
             };
@@ -238,7 +239,8 @@ impl <'a, R: Read> CaTarDecoder<'a, R> {
                 let name = self.read_filename(head.size)?;
                 path.push(&name);
                 println!("NAME: {:?}", path);
-                self.restore_sequential(path, &name, &dir, callback)?;
+
+                self.restore_sequential(path, &name, &dir, true, callback)?;
                 path.pop();
 
                 head = self.read_item()?;
@@ -393,13 +395,23 @@ fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Res
     Ok(file)
 }
 
-fn dir_mkdirat(parent: RawFd, filename: &OsStr) -> Result<nix::dir::Dir, Error> {
+fn dir_mkdirat(parent: RawFd, filename: &OsStr, create_new: bool) -> Result<nix::dir::Dir, nix::Error> {
 
     // call mkdirat first
     let res = filename.with_nix_path(|cstr| unsafe {
         libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU)
     })?;
-    Errno::result(res)?;
+
+    match Errno::result(res) {
+        Ok(_) => {},
+        Err(err) => {
+            if err == nix::Error::Sys(nix::errno::Errno::EEXIST) {
+                if create_new { return Err(err); }
+            } else {
+                return Err(err);
+            }
+        }
+    }
 
     let dir = nix::dir::Dir::openat(parent, filename, OFlag::O_DIRECTORY,  Mode::empty())?;
 
