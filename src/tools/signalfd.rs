@@ -1,18 +1,19 @@
-//! signalfd handling for tokio
+//! signalfd handling for tokio, with some re-exports for convenience
 
 use std::os::unix::io::{AsRawFd, RawFd};
 
 use failure::*;
-use nix::sys::signalfd::{self, SigSet};
+use nix::sys::signalfd;
 use tokio::prelude::*;
 use tokio::reactor::PollEvented2;
 
-type Result<T> = std::result::Result<T, Error>;
+pub use nix::sys::signal::{SigSet, Signal};
 
+/// Wrapper for `nix::sys::signal::SignalFd` to provide an async `Stream` of `siginfo`.
 pub struct SignalFd {
     inner: signalfd::SignalFd,
     pinned_fd: Box<RawFd>,
-    wakeup: PollEvented2<mio::unix::EventedFd<'static>>,
+    wakeup: Option<PollEvented2<mio::unix::EventedFd<'static>>>,
 }
 
 impl std::ops::Deref for SignalFd {
@@ -30,20 +31,23 @@ impl std::ops::DerefMut for SignalFd {
 }
 
 impl SignalFd {
-    pub fn new(mask: &SigSet) -> Result<Self> {
+    pub fn new(mask: &SigSet) -> Result<Self, Error> {
         let inner = signalfd::SignalFd::with_flags(
             mask,
             signalfd::SfdFlags::SFD_CLOEXEC | signalfd::SfdFlags::SFD_NONBLOCK,
         )?;
 
-        // box the signalfd's Rawfd, turn it into a raw pointer and create a &'static reference so
-        // we can store it inthe SignalFd struct...
+        // EventedFd takes a reference and therefore a lifetime parameter. Since we want to
+        // reference something that is part of our own Self, we need to find a work around:
+        // Pin the file descriptor in memory by boxing it and fake a &'static lifetime.
+        //
+        // Note that we must not provide access to this lifetime to the outside!
         let pinned_fd = Box::new(inner.as_raw_fd());
         let fd_ptr: *const RawFd = &*pinned_fd;
         let static_fd: &'static RawFd = unsafe { &*fd_ptr };
         let evented = mio::unix::EventedFd(static_fd);
 
-        let wakeup = PollEvented2::new(evented);
+        let wakeup = Some(PollEvented2::new(evented));
 
         Ok(Self {
             inner,
@@ -60,7 +64,7 @@ impl Stream for SignalFd {
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         let ready = mio::Ready::readable();
 
-        match self.wakeup.poll_read_ready(ready) {
+        match self.wakeup.as_mut().unwrap().poll_read_ready(ready) {
             Ok(Async::Ready(_)) => (), // go on
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(e) => return Err(e.into()),
@@ -69,7 +73,7 @@ impl Stream for SignalFd {
         match self.inner.read_signal() {
             Ok(Some(signal)) => Ok(Async::Ready(Some(signal))),
             Ok(None) => {
-                self.wakeup.clear_read_ready(ready)?;
+                self.wakeup.as_mut().unwrap().clear_read_ready(ready)?;
                 Ok(Async::NotReady)
             }
             Err(e) => Err(e.into()),
@@ -80,5 +84,11 @@ impl Stream for SignalFd {
 impl AsRawFd for SignalFd {
     fn as_raw_fd(&self) -> RawFd {
         *self.pinned_fd
+    }
+}
+
+impl Drop for SignalFd {
+    fn drop(&mut self) {
+        self.wakeup = None; // enforce drop order
     }
 }
