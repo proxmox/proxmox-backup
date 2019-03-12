@@ -167,7 +167,7 @@ fn generate_usage_str(
     for prop in prop_names {
         let (optional, schema) = properties.get(prop).unwrap();
         if done_hash.contains(prop) { continue; }
-        if fixed_param.contains(&prop) { continue; }
+        if fixed_param.contains_key(&prop) { continue; }
 
         let type_text = get_schema_type_text(&schema, ParameterDisplayStyle::Arg);
 
@@ -531,7 +531,7 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
     match def {
         CommandLineInterface::Simple(cli_cmd) => {
             let mut done = HashSet::new();
-            let fixed: Vec<String> = cli_cmd.fixed_param.iter().map(|s| s.to_string()).collect();
+            let fixed: Vec<String> = cli_cmd.fixed_param.keys().map(|s| s.to_string()).collect();
             record_done_arguments(&mut done, &cli_cmd.info.parameters, &fixed);
             print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, args);
             return;
@@ -655,7 +655,7 @@ pub type CompletionFunction = fn(&str) -> Vec<String>;
 pub struct CliCommand {
     pub info: ApiMethod,
     pub arg_param: Vec<&'static str>,
-    pub fixed_param: Vec<&'static str>,
+    pub fixed_param: HashMap<&'static str, String>,
     pub completion_functions: HashMap<String, CompletionFunction>,
 }
 
@@ -664,7 +664,7 @@ impl CliCommand {
     pub fn new(info: ApiMethod) -> Self {
         Self {
             info, arg_param: vec![],
-            fixed_param: vec![],
+            fixed_param: HashMap::new(),
             completion_functions: HashMap::new(),
         }
     }
@@ -674,8 +674,8 @@ impl CliCommand {
         self
     }
 
-    pub fn fixed_param(mut self, args: Vec<&'static str>) -> Self {
-        self.fixed_param = args;
+    pub fn fixed_param(mut self, key: &'static str, value: String) -> Self {
+        self.fixed_param.insert(key, value);
         self
     }
 
