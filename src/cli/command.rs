@@ -544,9 +544,11 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
                 return;
             }
             let first = &args[0];
-            if let Some(sub_cmd) = map.commands.get(first) {
-                print_nested_completion(sub_cmd, &args[1..]);
-                return;
+            if args.len() > 1 {
+                if let Some(sub_cmd) = map.commands.get(first) {
+                    print_nested_completion(sub_cmd, &args[1..]);
+                    return;
+                }
             }
             for cmd in map.commands.keys() {
                 if cmd.starts_with(first) {
