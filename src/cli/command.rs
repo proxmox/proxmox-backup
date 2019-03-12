@@ -438,7 +438,8 @@ fn record_done_argument(done: &mut HashMap<String, String>, parameters: &ObjectS
 fn print_simple_completion(
     cli_cmd: &CliCommand,
     done: &mut HashMap<String, String>,
-    arg_param: &[&str],
+    all_arg_param: &[&str], // this is always the full list
+    arg_param: &[&str], // we remove done arguments
     args: &[String],
 ) {
     // fixme: arg_param, fixed_param
@@ -448,7 +449,7 @@ fn print_simple_completion(
         let prop_name = arg_param[0];
         if args.len() > 1 {
             record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
-            print_simple_completion(cli_cmd, done, &arg_param[1..], &args[1..]);
+            print_simple_completion(cli_cmd, done, arg_param, &arg_param[1..], &args[1..]);
             return;
         } else if args.len() == 1 {
             record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
@@ -485,6 +486,7 @@ fn print_simple_completion(
 
     for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
         if done.contains_key(*name) { continue; }
+        if all_arg_param.contains(name) { continue; }
         let option = String::from("--") + name;
         if option.starts_with(prefix) {
             println!("{}", option);
@@ -498,7 +500,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
 
     match def {
         CommandLineInterface::Simple(_) => {
-            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args);
+            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, &help_cmd.arg_param, args);
             return;
         }
         CommandLineInterface::Nested(map) => {
@@ -512,7 +514,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
             let first = &args[0];
 
             if first.starts_with("-") {
-                print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, args);
+                print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, &help_cmd.arg_param, args);
                 return;
             }
 
@@ -538,7 +540,7 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
             cli_cmd.fixed_param.iter().map(|(key, value)| {
                 record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
             });
-            print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, args);
+            print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, &cli_cmd.arg_param, args);
             return;
         }
         CommandLineInterface::Nested(map) => {
