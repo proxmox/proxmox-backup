@@ -17,6 +17,8 @@ use std::time::Duration;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::AsRawFd;
 
+use std::collections::HashMap;
+
 use serde_json::Value;
 
 pub mod timer;
@@ -385,7 +387,7 @@ pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<Vec<Valu
     }
 }
 
-pub fn complete_file_name(arg: &str) -> Vec<String> {
+pub fn complete_file_name(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 

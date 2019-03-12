@@ -2,6 +2,7 @@ use failure::*;
 
 //use std::fs::{OpenOptions};
 use std::io::Read;
+use std::collections::HashMap;
 
 //use std::sync::Arc;
 use crate::tools;
@@ -66,7 +67,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 }
 
 // shell completion helper
-pub fn complete_datastore_name(_arg: &str) -> Vec<String> {
+pub fn complete_datastore_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok(data) => data.sections.iter().map(|(id,_)| id.to_string()).collect(),
         Err(_) => return vec![],

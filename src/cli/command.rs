@@ -399,10 +399,11 @@ fn print_property_completion(
     schema: &Schema,
     name: &str,
     completion_functions: &HashMap<String, CompletionFunction>,
-    arg: &str)
-{
+    arg: &str,
+    param: &HashMap<String, String>,
+) {
     if let Some(callback) = completion_functions.get(name) {
-        let list = (callback)(arg);
+        let list = (callback)(arg, param);
         for value in list {
             if value.starts_with(arg) {
                 println!("{}", value);
@@ -424,24 +425,19 @@ fn print_property_completion(
     println!("");
 }
 
-fn record_done_arguments(done: &mut HashSet<String>, parameters: &ObjectSchema, list: &[String]) {
+fn record_done_argument(done: &mut HashMap<String, String>, parameters: &ObjectSchema, key: &str, value: &str) {
 
-    for arg in list {
-        if arg.starts_with("--") && arg.len() > 2 {
-            let prop_name = arg[2..].to_owned();
-            if let Some((_, schema)) = parameters.properties.get::<str>(&prop_name) {
-                match schema.as_ref() {
-                    Schema::Array(_) => { /* do nothing */ }
-                    _ => { done.insert(prop_name); }
-                }
-            }
+    if let Some((_, schema)) = parameters.properties.get::<str>(key) {
+        match schema.as_ref() {
+            Schema::Array(_) => { /* do nothing ?? */ }
+            _ => { done.insert(key.to_owned(), value.to_owned()); }
         }
     }
 }
 
 fn print_simple_completion(
     cli_cmd: &CliCommand,
-    done: &mut HashSet<String>,
+    done: &mut HashMap<String, String>,
     arg_param: &[&str],
     args: &[String],
 ) {
@@ -450,20 +446,28 @@ fn print_simple_completion(
 
     if !arg_param.is_empty() {
         let prop_name = arg_param[0];
-        done.insert(prop_name.into());
         if args.len() > 1 {
+            record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
             print_simple_completion(cli_cmd, done, &arg_param[1..], &args[1..]);
             return;
         } else if args.len() == 1 {
+            record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
             if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
-                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0]);
+                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0], done);
             }
         }
         return;
     }
     if args.is_empty() { return; }
 
-    record_done_arguments(done, &cli_cmd.info.parameters, &args);
+    // Try to parse all argumnets but last, record args already done
+    if args.len() > 1 {
+        let mut errors = ParameterError::new(); // we simply ignore any parsing errors here
+        let (data, rest) = getopts::parse_argument_list(&args[0..args.len()-1], &cli_cmd.info.parameters, &mut errors);
+        for (key, value) in &data {
+            record_done_argument(done, &cli_cmd.info.parameters, key, value);
+        }
+    }
 
     let prefix = &args[args.len()-1]; // match on last arg
 
@@ -473,14 +477,14 @@ fn print_simple_completion(
         if last.starts_with("--") && last.len() > 2 {
             let prop_name = &last[2..];
             if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
-                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &prefix);
+                print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &prefix, done);
             }
             return;
         }
     }
 
     for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
-        if done.contains(*name) { continue; }
+        if done.contains_key(*name) { continue; }
         let option = String::from("--") + name;
         if option.starts_with(prefix) {
             println!("{}", option);
@@ -490,7 +494,7 @@ fn print_simple_completion(
 
 fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args: &[String]) {
 
-    let mut done = HashSet::new();
+    let mut done = HashMap::new();
 
     match def {
         CommandLineInterface::Simple(_) => {
@@ -530,9 +534,10 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
 
     match def {
         CommandLineInterface::Simple(cli_cmd) => {
-            let mut done = HashSet::new();
-            let fixed: Vec<String> = cli_cmd.fixed_param.keys().map(|s| s.to_string()).collect();
-            record_done_arguments(&mut done, &cli_cmd.info.parameters, &fixed);
+            let mut done: HashMap<String, String> = HashMap::new();
+            cli_cmd.fixed_param.iter().map(|(key, value)| {
+                record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
+            });
             print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, args);
             return;
         }
@@ -650,7 +655,7 @@ pub fn run_cli_command(def: CommandLineInterface) {
     };
 }
 
-pub type CompletionFunction = fn(&str) -> Vec<String>;
+pub type CompletionFunction = fn(&str, &HashMap<String, String>) -> Vec<String>;
 
 pub struct CliCommand {
     pub info: ApiMethod,

@@ -4,7 +4,7 @@ use failure::*;
 //use std::os::unix::io::AsRawFd;
 use chrono::{DateTime, Local, TimeZone};
 use std::path::{Path, PathBuf};
-use std::ffi::OsString;
+use std::collections::HashMap;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
@@ -379,7 +379,7 @@ fn create_backup(
     Ok(Value::Null)
 }
 
-pub fn complete_backup_source(arg: &str) -> Vec<String> {
+pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -387,7 +387,7 @@ pub fn complete_backup_source(arg: &str) -> Vec<String> {
 
     if data.len() != 2 { return result; }
 
-    let files = tools::complete_file_name(data[1]);
+    let files = tools::complete_file_name(data[1], param);
 
     for file in files {
         result.push(format!("{}:{}", data[0], file));
@@ -592,4 +592,5 @@ fn main() {
         .insert("snapshots".to_owned(), snapshots_cmd_def.into());
 
     run_cli_command(cmd_def.into());
+
 }
