@@ -30,6 +30,7 @@ pub mod borrow;
 pub mod fs;
 pub mod tty;
 pub mod signalfd;
+pub mod daemon;
 
 #[macro_use]
 mod file_logger;
