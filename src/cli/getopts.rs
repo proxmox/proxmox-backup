@@ -52,46 +52,21 @@ fn parse_argument(arg: &str) -> RawArgument {
     };
 }
 
-/// Parses command line arguments using a `Schema`
-///
-/// Returns parsed options as json object, together with the
-/// list of additional command line arguments.
-pub fn parse_arguments<T: AsRef<str>>(
+/// parse as many arguments as possible into a Vec<String, String>. This does not
+/// verify the schema.
+/// Returns parsed data and the rest as separate array
+pub (crate) fn parse_argument_list<T: AsRef<str>>(
     args: &[T],
-    arg_param: &Vec<&'static str>,
     schema: &ObjectSchema,
-) -> Result<(Value, Vec<String>), ParameterError> {
-    let mut errors = ParameterError::new();
-
-    let properties = &schema.properties;
-
-    // first check if all arg_param exists in schema
-
-    let mut last_arg_param_is_optional = false;
-    let mut last_arg_param_is_array = false;
-
-    for i in 0..arg_param.len() {
-        let name = arg_param[i];
-        if let Some((optional, param_schema)) = properties.get::<str>(&name) {
-            if i == arg_param.len() -1 {
-                last_arg_param_is_optional = *optional;
-                if let Schema::Array(_) = param_schema.as_ref() {
-                    last_arg_param_is_array = true;
-                }
-            } else {
-                if *optional {
-                    panic!("positional argument '{}' may not be optional", name);
-                }
-            }
-        } else {
-            panic!("no such property '{}' in schema", name);
-        }
-    }
+    errors: &mut ParameterError,
+) -> (Vec<(String, String)>, Vec<String>) {
 
     let mut data: Vec<(String, String)> = vec![];
     let mut rest: Vec<String> = vec![];
 
     let mut pos = 0;
+
+    let properties = &schema.properties;
 
     while pos < args.len() {
         match parse_argument(args[pos].as_ref()) {
@@ -166,6 +141,47 @@ pub fn parse_arguments<T: AsRef<str>>(
     for i in &args[pos..] {
         rest.push(i.as_ref().to_string());
     }
+
+    (data, rest)
+}
+
+/// Parses command line arguments using a `Schema`
+///
+/// Returns parsed options as json object, together with the
+/// list of additional command line arguments.
+pub fn parse_arguments<T: AsRef<str>>(
+    args: &[T],
+    arg_param: &Vec<&'static str>,
+    schema: &ObjectSchema,
+) -> Result<(Value, Vec<String>), ParameterError> {
+    let mut errors = ParameterError::new();
+
+    let properties = &schema.properties;
+
+    // first check if all arg_param exists in schema
+
+    let mut last_arg_param_is_optional = false;
+    let mut last_arg_param_is_array = false;
+
+    for i in 0..arg_param.len() {
+        let name = arg_param[i];
+        if let Some((optional, param_schema)) = properties.get::<str>(&name) {
+            if i == arg_param.len() -1 {
+                last_arg_param_is_optional = *optional;
+                if let Schema::Array(_) = param_schema.as_ref() {
+                    last_arg_param_is_array = true;
+                }
+            } else {
+                if *optional {
+                    panic!("positional argument '{}' may not be optional", name);
+                }
+            }
+        } else {
+            panic!("no such property '{}' in schema", name);
+        }
+    }
+
+    let (mut data, mut rest) = parse_argument_list(args, schema, &mut errors);
 
     for i in 0..arg_param.len() {
 
