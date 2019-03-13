@@ -5,6 +5,7 @@ use crate::api_schema::*;
 use std::sync::Arc;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::fmt;
 
 lazy_static! {
     /// Regular expression to parse repository URLs
@@ -68,15 +69,16 @@ impl BackupRepository {
     pub fn store(&self) -> &str {
         &self.store
     }
+}
 
-    pub fn to_string(&self) -> String  {
-
-        if let Some(ref user) = self.user {
-            return format!("{}@{}:{}", user, self.host(), self.store);
-        } else if let Some(ref host) = self.host {
-            return format!("{}:{}", host, self.store);
-        }
-        self.store.to_owned()
+impl fmt::Display for BackupRepository {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+       if let Some(ref user) = self.user {
+           write!(f, "{}@{}:{}", user, self.host(), self.store)
+       } else if let Some(ref host) = self.host {
+           write!(f, "{}:{}", host, self.store)
+       } else {
+           write!(f, "{}", self.store)
+       }
     }
-
 }
