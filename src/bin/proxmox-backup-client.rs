@@ -606,10 +606,10 @@ fn complete_backup_group(arg: &str, param: &HashMap<String, String>) -> Vec<Stri
 
     if let Some(list) = resp["data"].as_array() {
         for item in list {
-            if let Some(backup_id) = item["backup-id"].as_str() {
-                if let Some(backup_type) = item["backup-type"].as_str() {
-                    result.push(format!("{}/{}", backup_type, backup_id));
-                }
+            if let (Some(backup_id), Some(backup_type)) =
+                (item["backup-id"].as_str(), item["backup-type"].as_str())
+            {
+                result.push(format!("{}/{}", backup_type, backup_id));
             }
         }
     }
