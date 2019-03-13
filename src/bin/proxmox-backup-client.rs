@@ -581,35 +581,99 @@ fn prune(
     Ok(result)
 }
 
-fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-    let mut result = vec![];
+    let mut client = HttpClient::new(repo.host(), repo.user());
+
+    let mut resp = match client.try_get(url) {
+        Ok(v) => v,
+        _ => return Value::Null,
+    };
+
+    if let Some(map) = resp.as_object_mut() {
+        if let Some(data) = map.remove("data") {
+            return data;
+        }
+    }
+    Value::Null
+}
+
+fn extract_repo(param: &HashMap<String, String>) -> Option<BackupRepository> {
 
     let repo_url = match param.get("repository") {
         Some(v) => v,
-        _ => return result,
+        _ => return None,
     };
 
     let repo: BackupRepository = match repo_url.parse() {
         Ok(v) => v,
-        _ => return result,
+        _ => return None,
     };
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    Some(repo)
+}
+
+fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let repo = match extract_repo(param) {
+        Some(v) => v,
+        _ => return result,
+    };
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
-    let resp = match client.try_get(&path) {
-        Ok(v) => v,
-        _ => return result,
-    };
+    let data = try_get(&repo, &path);
 
-    if let Some(list) = resp["data"].as_array() {
+    if let Some(list) = data.as_array() {
         for item in list {
             if let (Some(backup_id), Some(backup_type)) =
                 (item["backup-id"].as_str(), item["backup-type"].as_str())
             {
                 result.push(format!("{}/{}", backup_type, backup_id));
+            }
+        }
+    }
+
+    result
+}
+
+fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+     let repo = match extract_repo(param) {
+        Some(v) => v,
+        _ => return result,
+    };
+
+    if arg.matches('/').count() < 2 {
+        let groups = complete_backup_group(arg, param);
+        for group in groups {
+            result.push(group.to_string());
+            result.push(format!("{}/", group));
+        }
+        return result;
+    }
+
+    let mut parts = arg.split('/');
+    let query = tools::json_object_to_query(json!({
+        "backup-type": parts.next().unwrap(),
+        "backup-id": parts.next().unwrap(),
+    })).unwrap();
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
+
+    let data = try_get(&repo, &path);
+
+    if let Some(list) = data.as_array() {
+        for item in list {
+            if let (Some(backup_id), Some(backup_type), Some(backup_time)) =
+                (item["backup-id"].as_str(), item["backup-type"].as_str(), item["backup-time"].as_i64())
+            {
+                let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
+                result.push(snapshot.relative_path().to_str().unwrap().to_owned());
             }
         }
     }
@@ -705,7 +769,8 @@ fn main() {
                 .required("snapshot", StringSchema::new("Snapshot path."))
         ))
         .arg_param(vec!["repository", "snapshot"])
-        .completion_cb("repository", complete_repository);
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot);
 
     let garbage_collect_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -726,7 +791,8 @@ fn main() {
                 .required("target", StringSchema::new("Target directory path."))
         ))
         .arg_param(vec!["repository", "snapshot", "archive-name", "target"])
-        .completion_cb("repository", complete_repository);
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot);
 
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
