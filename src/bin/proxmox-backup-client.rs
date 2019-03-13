@@ -78,7 +78,7 @@ fn record_repository(repo: &BackupRepository) {
     let _ = tools::file_set_contents(path, new_data.to_string().as_bytes(), None);
 }
 
-fn complete_repository(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -96,7 +96,7 @@ fn complete_repository(arg: &str, param: &HashMap<String, String>) -> Vec<String
     let data = tools::file_get_json(&path).unwrap_or(json!({}));
 
     if let Some(map) = data.as_object() {
-        for (repo, count) in map {
+        for (repo, _count) in map {
             result.push(repo.to_owned());
         }
     }
@@ -581,7 +581,7 @@ fn prune(
     Ok(result)
 }
 
-fn complete_backup_group(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -612,6 +612,20 @@ fn complete_backup_group(arg: &str, param: &HashMap<String, String>) -> Vec<Stri
                 result.push(format!("{}/{}", backup_type, backup_id));
             }
         }
+    }
+
+    result
+}
+
+fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let mut size = 64;
+    loop {
+        result.push(size.to_string());
+        size = size * 2;
+        if size > 4096 { break; }
     }
 
     result
@@ -660,7 +674,8 @@ fn main() {
         ))
         .arg_param(vec!["repository", "backupspec"])
         .completion_cb("repository", complete_repository)
-        .completion_cb("backupspec", complete_backup_source);
+        .completion_cb("backupspec", complete_backup_source)
+        .completion_cb("chunk-size", complete_chunk_size);
 
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
