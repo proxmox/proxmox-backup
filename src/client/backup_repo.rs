@@ -22,11 +22,11 @@ lazy_static! {
 #[derive(Debug)]
 pub struct BackupRepository {
     /// The user name used for Authentication
-    pub user: String,
+    user: Option<String>,
     /// The host name or IP address
-    pub host: String,
+    host: Option<String>,
     /// The name of the datastore
-    pub store: String,
+    store: String,
 }
 
 impl BackupRepository {
@@ -41,10 +41,42 @@ impl BackupRepository {
         let cap = BACKUP_REPO_URL_REGEX.captures(url)
             .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
 
+
         Ok(BackupRepository {
-            user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
-            host: cap.get(2).map_or("localhost", |m| m.as_str()).to_owned(),
+            //user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
+            //host: cap.get(2).map_or("localhost", |m| m.as_str()).to_owned(),
+            user: cap.get(1).map(|m| m.as_str().to_owned()),
+            host: cap.get(2).map(|m| m.as_str().to_owned()),
             store: cap[3].to_owned(),
         })
     }
+
+    pub fn user(&self) -> &str {
+        if let Some(ref user) = self.user {
+            return user;
+        }
+        "root@pam"
+    }
+
+    pub fn host(&self) -> &str {
+        if let Some(ref host) = self.host {
+            return host;
+        }
+        "localhost"
+    }
+
+    pub fn store(&self) -> &str {
+        &self.store
+    }
+
+    pub fn to_string(&self) -> String  {
+
+        if let Some(ref user) = self.user {
+            return format!("{}@{}:{}", user, self.host(), self.store);
+        } else if let Some(ref host) = self.host {
+            return format!("{}:{}", host, self.store);
+        }
+        self.store.to_owned()
+    }
+
 }

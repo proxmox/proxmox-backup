@@ -611,12 +611,12 @@ fn main() {
     );
 
     let no_cert_validation = true; // FIXME
-    let domain = repo.host;
+    let domain = repo.host().to_owned();
     let port = 8007;
     let address = format!("{}:{}", domain, port);
     let urlbase = format!("https://{}/api2/json", address);
 
-    let user = repo.user.to_string();
+    let user = repo.user().to_string();
     let pass = match proxmox_backup::tools::tty::read_password("Password: ")
         .and_then(|x| String::from_utf8(x).map_err(Error::from))
     {
@@ -626,7 +626,7 @@ fn main() {
             exit(1);
         }
     };
-    let store = repo.store;
+    let store = repo.store().to_owned();
 
     let stream = File::open(filename.clone())
         .map_err(Error::from)

@@ -21,11 +21,87 @@ use serde_json::{json, Value};
 use hyper::Body;
 use std::sync::Arc;
 use regex::Regex;
+use xdg::BaseDirectories;
 
 use lazy_static::lazy_static;
 
 lazy_static! {
     static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:catar|raw)):(.+)$").unwrap();
+}
+
+
+fn record_repository(repo: &BackupRepository) {
+
+    let base = match BaseDirectories::with_prefix("proxmox-backup") {
+        Ok(v) => v,
+        _ => return,
+    };
+
+    // usually $HOME/.cache/proxmox-backup/repo-list
+    let path = match base.place_cache_file("repo-list") {
+        Ok(v) => v,
+        _ => return,
+    };
+
+    let mut data = tools::file_get_json(&path).unwrap_or(json!({}));
+
+    let repo = repo.to_string();
+
+    data[&repo] = json!{ data[&repo].as_i64().unwrap_or(0) + 1 };
+
+    let mut map = serde_json::map::Map::new();
+
+    loop {
+        let mut max_used = 0;
+        let mut max_repo = None;
+        for (repo, count) in data.as_object().unwrap() {
+            if map.contains_key(repo) { continue; }
+            if let Some(count) = count.as_i64() {
+                if count > max_used {
+                    max_used = count;
+                    max_repo = Some(repo);
+                }
+            }
+        }
+        if let Some(repo) = max_repo {
+            map.insert(repo.to_owned(), json!(max_used));
+        } else {
+            break;
+        }
+        if map.len() > 10 { // store max. 10 repos
+            break;
+        }
+    }
+
+    let new_data = json!(map);
+
+    let _ = tools::file_set_contents(path, new_data.to_string().as_bytes(), None);
+}
+
+fn complete_repository(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let base = match BaseDirectories::with_prefix("proxmox-backup") {
+        Ok(v) => v,
+        _ => return result,
+    };
+
+    // usually $HOME/.cache/proxmox-backup/repo-list
+    let path = match base.place_cache_file("repo-list") {
+        Ok(v) => v,
+        _ => return result,
+    };
+
+    let data = tools::file_get_json(&path).unwrap_or(json!({}));
+
+    if let Some(map) = data.as_object() {
+        for (repo, count) in map {
+            result.push(repo.to_owned());
+        }
+    }
+
+    result
 }
 
 fn backup_directory<P: AsRef<Path>>(
@@ -53,7 +129,7 @@ fn backup_directory<P: AsRef<Path>>(
 
     let query = tools::json_object_to_query(param)?;
 
-    let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+    let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store(), query);
 
     let stream = CaTarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
 
@@ -116,11 +192,13 @@ fn list_backups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/backups", repo.store);
+    let path = format!("api2/json/admin/datastore/{}/backups", repo.store());
 
     let result = client.get(&path)?;
+
+    record_repository(&repo);
 
     // fixme: implement and use output formatter instead ..
     let list = result["data"].as_array().unwrap();
@@ -155,11 +233,13 @@ fn list_backup_groups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/groups", repo.store);
+    let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
     let mut result = client.get(&path)?;
+
+    record_repository(&repo);
 
     // fixme: implement and use output formatter instead ..
     let list = result["data"].as_array_mut().unwrap();
@@ -218,12 +298,14 @@ fn list_snapshots(
         "backup-id": group.backup_id(),
     }))?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, query);
+    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
     // fixme: params
     let result = client.get(&path)?;
+
+    record_repository(&repo);
 
     // fixme: implement and use output formatter instead ..
     let list = result["data"].as_array().unwrap();
@@ -265,11 +347,13 @@ fn forget_snapshots(
         "backup-time": snapshot.backup_time().timestamp(),
     }))?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, query);
+    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
     let result = client.delete(&path)?;
+
+    record_repository(&repo);
 
     Ok(result)
 }
@@ -283,11 +367,13 @@ fn start_garbage_collection(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/gc", repo.store);
+    let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
     let result = client.post(&path)?;
+
+    record_repository(&repo);
 
     Ok(result)
 }
@@ -356,9 +442,11 @@ fn create_backup(
 
     let backup_time = Local.timestamp(Local::now().timestamp(), 0);
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
     client.login()?; // login before starting backup
+
+    record_repository(&repo);
 
     println!("Starting backup");
     println!("Client name: {}", tools::nodename());
@@ -379,7 +467,7 @@ fn create_backup(
     Ok(Value::Null)
 }
 
-pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -411,7 +499,11 @@ fn restore(
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
+
+    client.login()?; // login before starting
+
+    record_repository(&repo);
 
     let path = tools::required_string_param(&param, "snapshot")?;
 
@@ -425,7 +517,7 @@ fn restore(
             "backup-id": group.backup_id(),
         }))?;
 
-        let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store, subquery);
+        let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), subquery);
         let result = client.get(&path)?;
 
         let list = result["data"].as_array().unwrap();
@@ -453,7 +545,7 @@ fn restore(
     let target = tools::required_string_param(&param, "target")?;
 
     if archive_name.ends_with(".catar") {
-        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store, query);
+        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store(), query);
 
         println!("DOWNLOAD FILE {} to {}", path, target);
 
@@ -476,13 +568,15 @@ fn prune(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo = BackupRepository::parse(repo_url)?;
 
-    let mut client = HttpClient::new(&repo.host, &repo.user);
+    let mut client = HttpClient::new(repo.host(), repo.user());
 
-    let path = format!("api2/json/admin/datastore/{}/prune", repo.store);
+    let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
     param.as_object_mut().unwrap().remove("repository");
 
     let result = client.post_json(&path, param)?;
+
+    record_repository(&repo);
 
     Ok(result)
 }
@@ -529,6 +623,7 @@ fn main() {
                 )
         ))
         .arg_param(vec!["repository", "backupspec"])
+        .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source);
 
     let list_cmd_def = CliCommand::new(
@@ -537,7 +632,8 @@ fn main() {
             ObjectSchema::new("List backup groups.")
                 .required("repository", repo_url_schema.clone())
         ))
-        .arg_param(vec!["repository"]);
+        .arg_param(vec!["repository"])
+        .completion_cb("repository", complete_repository);
 
     let snapshots_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -546,7 +642,8 @@ fn main() {
                 .required("repository", repo_url_schema.clone())
                 .required("group", StringSchema::new("Backup group."))
         ))
-        .arg_param(vec!["repository", "group"]);
+        .arg_param(vec!["repository", "group"])
+        .completion_cb("repository", complete_repository);
 
     let forget_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -555,7 +652,8 @@ fn main() {
                 .required("repository", repo_url_schema.clone())
                 .required("snapshot", StringSchema::new("Snapshot path."))
         ))
-        .arg_param(vec!["repository", "snapshot"]);
+        .arg_param(vec!["repository", "snapshot"])
+        .completion_cb("repository", complete_repository);
 
     let garbage_collect_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -563,7 +661,8 @@ fn main() {
             ObjectSchema::new("Start garbage collection for a specific repository.")
                 .required("repository", repo_url_schema.clone())
         ))
-        .arg_param(vec!["repository"]);
+        .arg_param(vec!["repository"])
+        .completion_cb("repository", complete_repository);
 
     let restore_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -574,7 +673,8 @@ fn main() {
                 .required("archive-name", StringSchema::new("Backup archive name."))
                 .required("target", StringSchema::new("Target directory path."))
         ))
-        .arg_param(vec!["repository", "snapshot", "archive-name", "target"]);
+        .arg_param(vec!["repository", "snapshot", "archive-name", "target"])
+        .completion_cb("repository", complete_repository);
 
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -584,7 +684,8 @@ fn main() {
                     .required("repository", repo_url_schema.clone())
             )
         ))
-        .arg_param(vec!["repository"]);
+        .arg_param(vec!["repository"])
+        .completion_cb("repository", complete_repository);
 
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
