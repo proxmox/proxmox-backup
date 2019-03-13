@@ -240,9 +240,10 @@ impl<S: AsyncRead + AsyncWrite> UploaderBase<S> {
     }
 
     pub fn finish_backup(&mut self, stream: BackupStream) -> Result<(), Error> {
-        let (ack, name, _done) = self.client.as_mut().unwrap().finish_backup(stream)?;
+        let id = stream.into();
+        let (name, _done) = self.client.as_mut().unwrap().finish_backup(stream)?;
         println!("Server created file: {}", name);
-        self.wait_id = Some(ack);
+        self.wait_id = Some(id);
         Ok(())
     }
 

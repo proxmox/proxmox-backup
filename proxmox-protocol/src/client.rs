@@ -587,17 +587,17 @@ where
         self.common.queue_data(packet.finish())
     }
 
-    pub fn finish_backup(&mut self, stream: BackupStream) -> Result<(StreamId, String, bool)> {
+    pub fn finish_backup(&mut self, stream: BackupStream) -> Result<(String, bool)> {
         let path = self
             .streams
             .remove(&stream.0)
             .ok_or_else(|| format_err!("no such active backup stream"))?
             .path
             .unwrap_or_else(|| "<no remote name received>".to_string());
-        let ack = self
+        let done = self
             .common
             .queue_data(Packet::simple(stream.0, PacketType::BackupFinished))?;
         self.expect_ok_for_id(stream.0);
-        Ok((StreamId(stream.0), path, ack))
+        Ok((path, done))
     }
 }
