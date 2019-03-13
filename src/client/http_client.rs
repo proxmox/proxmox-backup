@@ -257,6 +257,45 @@ impl HttpClient {
         Self::run_request(request)
     }
 
+    /// like get(), but use existing credentials (never asks for password).
+    /// this simply fails when there is no ticket
+    pub fn try_get(&mut self, path: &str) -> Result<Value, Error> {
+
+        let path = path.trim_matches('/');
+        let url: Uri = format!("https://{}:8007/{}", self.server, path).parse()?;
+
+        let mut credentials = None;
+
+        if let Some(ref ticket) = self.ticket {
+            if let Some(ref token) = self.token {
+                credentials = Some((ticket.clone(), token.clone()));
+            }
+        }
+
+        if credentials == None {
+            if let Some((ticket, token)) = load_ticket_info(&self.server, &self.username) {
+                credentials = Some((ticket.clone(), token.clone()));
+            }
+        }
+
+        if credentials == None {
+            bail!("unable to get credentials");
+        }
+
+        let (ticket, _token) = credentials.unwrap();
+
+        let enc_ticket = percent_encode(ticket.as_bytes(), DEFAULT_ENCODE_SET).to_string();
+
+        let request = Request::builder()
+            .method("GET")
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header("Cookie", format!("PBSAuthCookie={}", enc_ticket))
+            .body(Body::empty())?;
+
+        Self::run_request(request)
+    }
+
     pub fn delete(&mut self, path: &str) -> Result<Value, Error> {
 
         let path = path.trim_matches('/');

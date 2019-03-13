@@ -581,6 +581,42 @@ fn prune(
     Ok(result)
 }
 
+fn complete_backup_group(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let repo_url = match param.get("repository") {
+        Some(v) => v,
+        _ => return result,
+    };
+
+    let repo: BackupRepository = match repo_url.parse() {
+        Ok(v) => v,
+        _ => return result,
+    };
+
+    let mut client = HttpClient::new(repo.host(), repo.user());
+
+    let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
+
+    let resp = match client.try_get(&path) {
+        Ok(v) => v,
+        _ => return result,
+    };
+
+    if let Some(list) = resp["data"].as_array() {
+        for item in list {
+            if let Some(backup_id) = item["backup-id"].as_str() {
+                if let Some(backup_type) = item["backup-type"].as_str() {
+                    result.push(format!("{}/{}", backup_type, backup_id));
+                }
+            }
+        }
+    }
+
+    result
+}
+
 fn main() {
 
     let repo_url_schema: Arc<Schema> = Arc::new(
@@ -643,6 +679,7 @@ fn main() {
                 .required("group", StringSchema::new("Backup group."))
         ))
         .arg_param(vec!["repository", "group"])
+        .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
     let forget_cmd_def = CliCommand::new(
