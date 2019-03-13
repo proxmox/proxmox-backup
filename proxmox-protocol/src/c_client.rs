@@ -402,3 +402,41 @@ pub extern "C" fn proxmox_backup_fixed_data(
         })
     })
 }
+
+/// Finish a running backup.
+///
+/// Tells the server that the backup is supposed to be considered complete. If the request could be
+/// sent out entirely `1` is returned. If the underlying socket is non-blocking and the packet
+/// wasn't finished `0` is returned, after which `proxmox_backup_poll_send` should be used.
+///
+/// Once the request was sent out successfully, the client should wait for acknowledgement by the
+/// remote server via `proxmox_backup_wait_for_id`, passing the backup stream ID as parameter.
+///
+/// Finally, if the client wishes to know the exact name the server stored the file under, the
+/// `remote_path` parameter can be non-`NULL` to receive a string containing the file name, which
+/// must be freed by the caller!
+///
+/// Returns: `1` on success, possibly `0` for non-blocking I/O, `-1` on error.
+#[no_mangle]
+pub extern "C" fn proxmox_backup_finish_backup(
+    me: *mut CClient,
+    stream: c_int,
+    remote_path: *mut *mut c_char,
+) -> c_int {
+    let me = unsafe { &mut *me };
+    me.int_call(move |client| {
+        let (path, ack) = client.finish_backup(crate::BackupStream(stream as u8))?;
+
+        if !remote_path.is_null() {
+            // would be shorter with the unstable map_or_else
+            let cstr = CString::new(path)
+                .map(|cs| cs.into_raw())
+                .unwrap_or(std::ptr::null_mut());
+            unsafe {
+                *remote_path = cstr;
+            }
+        }
+
+        Ok(if ack { 1 } else { 0 })
+    })
+}
