@@ -190,7 +190,7 @@ fn list_backups(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 
@@ -231,7 +231,7 @@ fn list_backup_groups(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 
@@ -288,7 +288,7 @@ fn list_snapshots(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let path = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(path)?;
@@ -336,7 +336,7 @@ fn forget_snapshots(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
@@ -365,7 +365,7 @@ fn start_garbage_collection(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 
@@ -396,7 +396,7 @@ fn create_backup(
 
     let backupspec_list = tools::required_array_param(&param, "backupspec")?;
 
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
@@ -495,7 +495,7 @@ fn restore(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
@@ -566,7 +566,7 @@ fn prune(
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo = BackupRepository::parse(repo_url)?;
+    let repo: BackupRepository = repo_url.parse()?;
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 

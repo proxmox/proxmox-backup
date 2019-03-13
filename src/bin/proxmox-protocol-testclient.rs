@@ -593,7 +593,7 @@ fn main() {
     // optional previous backup:
     let previous = args.next().map(|s| s.to_string());
 
-    let repo = match BackupRepository::parse(&repo) {
+    let repo: BackupRepository = match repo.parse() {
         Ok(repo) => repo,
         Err(e) => {
             eprintln!("error parsing repository: {}", e);

@@ -32,26 +32,6 @@ pub struct BackupRepository {
 
 impl BackupRepository {
 
-    /// Parse a repository URL.
-    ///
-    /// This parses strings like `user@host:datastore`. The `user` and
-    /// `host` parts are optional, where `host` defaults to the local
-    /// host, and `user` defaults to `root@pam`.
-    pub fn parse(url: &str) -> Result<Self, Error> {
-
-        let cap = BACKUP_REPO_URL_REGEX.captures(url)
-            .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
-
-
-        Ok(BackupRepository {
-            //user: cap.get(1).map_or("root@pam", |m| m.as_str()).to_owned(),
-            //host: cap.get(2).map_or("localhost", |m| m.as_str()).to_owned(),
-            user: cap.get(1).map(|m| m.as_str().to_owned()),
-            host: cap.get(2).map(|m| m.as_str().to_owned()),
-            store: cap[3].to_owned(),
-        })
-    }
-
     pub fn user(&self) -> &str {
         if let Some(ref user) = self.user {
             return user;
@@ -82,3 +62,25 @@ impl fmt::Display for BackupRepository {
        }
     }
 }
+
+impl std::str::FromStr for BackupRepository {
+    type Err = Error;
+
+    /// Parse a repository URL.
+    ///
+    /// This parses strings like `user@host:datastore`. The `user` and
+    /// `host` parts are optional, where `host` defaults to the local
+    /// host, and `user` defaults to `root@pam`.
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+
+        let cap = BACKUP_REPO_URL_REGEX.captures(url)
+            .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
+
+        Ok(Self {
+            user: cap.get(1).map(|m| m.as_str().to_owned()),
+            host: cap.get(2).map(|m| m.as_str().to_owned()),
+            store: cap[3].to_owned(),
+        })
+    }
+}
+
