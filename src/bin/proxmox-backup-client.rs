@@ -25,7 +25,7 @@ use regex::Regex;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(:?catar|raw)):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:catar|raw)):(.+)$").unwrap();
 }
 
 fn backup_directory<P: AsRef<Path>>(
@@ -385,7 +385,11 @@ pub fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec
 
     let data: Vec<&str> = arg.splitn(2, ':').collect();
 
-    if data.len() != 2 { return result; }
+    if data.len() != 2 {
+        result.push(String::from("root.catar:/"));
+        result.push(String::from("etc.catar:/etc"));
+        return result;
+    }
 
     let files = tools::complete_file_name(data[1], param);
 
