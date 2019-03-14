@@ -50,7 +50,7 @@ fn print_goodby_entries(buffer: &[u8]) -> Result<(), Error> {
 }
 
 fn print_filenames(
-    param: Value,
+    _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {

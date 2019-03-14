@@ -8,7 +8,7 @@ SUBDIRS := etc www docs
 # Binaries usable by users
 USR_BIN := \
 	proxmox-backup-client \
-	catar
+	pxar
 
 # Binaries usable by admins
 USR_SBIN := proxmox-backup-manager
