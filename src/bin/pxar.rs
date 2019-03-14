@@ -84,44 +84,18 @@ fn dump_archive(
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
-    let mut file = std::fs::File::open(archive)?;
+    let file = std::fs::File::open(archive)?;
 
-    println!("PXAR {}", archive);
+    let mut reader = std::io::BufReader::new(file);
 
-    let mut buffer = [0u8; 16];
+    let mut decoder = PxarDecoder::new(&mut reader);
 
-    let mut nesting = 0;
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
 
-    loop {
-        file.read_exact(&mut buffer)?;
+    println!("PXAR dump: {}", archive);
 
-        let header = map_struct::<CaFormatHeader>(&mut buffer)?;
-
-        println!("Type: {:016x}", header.htype);
-        println!("Size: {}", header.size);
-
-        let mut rest = vec![0u8; (header.size as usize) - 16];
-        file.read_exact(&mut rest)?;
-
-        if header.htype == CA_FORMAT_FILENAME {
-            let name = read_os_string(&rest);
-            let hash = compute_goodbye_hash(&rest[..rest.len()-1]);
-            println!("Name: {:?} {:016x}",  name, hash);
-        }
-
-        if header.htype == CA_FORMAT_ENTRY {
-            let entry = map_struct::<CaFormatEntry>(&mut rest)?;
-            println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
-            if ((entry.mode as u32) & libc::S_IFMT) == libc::S_IFDIR {
-                nesting += 1;
-            }
-        }
-        if header.htype == CA_FORMAT_GOODBYE {
-            nesting -= 1;
-            print_goodby_entries(&rest)?;
-            if nesting == 0 { break; }
-        }
-    }
+    decoder.dump_archive(&mut out);
 
     Ok(Value::Null)
 }

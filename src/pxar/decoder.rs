@@ -216,6 +216,18 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
         Ok(())
     }
 
+    fn skip_bytes(&mut self, count: usize) -> Result<(), Error> {
+        let mut done = 0;
+        while done < count  {
+            let todo = count - done;
+            let n = if todo > self.skip_buffer.len() { self.skip_buffer.len() } else { todo };
+            let data = &mut self.skip_buffer[..n];
+            self.reader.read_exact(data)?;
+            done += n;
+        }
+        Ok(())
+    }
+
     pub fn restore<F>(
         &mut self,
         path: &Path, // used for error reporting
@@ -286,17 +298,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
             println!("Skip Goodbye");
             if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
 
-            // self.reader.seek(SeekFrom::Current((head.size - HEADER_SIZE) as i64))?;
-            let mut done = 0;
-            let skip = (head.size - HEADER_SIZE) as usize;
-            while done < skip  {
-                let todo = skip - done;
-                let n = if todo > self.skip_buffer.len() { self.skip_buffer.len() } else { todo };
-                let data = &mut self.skip_buffer[..n];
-                self.reader.read_exact(data)?;
-                done += n;
-            }
-
+            self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
 
             self.restore_mode(&entry, dir.as_raw_fd())?;
             self.restore_mtime(&entry, dir.as_raw_fd())?;
@@ -415,6 +417,81 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
             self.restore_ugid(&entry, file.as_raw_fd())?;
 
             return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Dump archive format details. This is ment for debugging.
+    pub fn dump_archive<W: std::io::Write>(
+        &mut self,
+        output: &mut W,
+    ) -> Result<(), Error> {
+
+        let mut nesting = 0;
+
+        let mut dirpath = PathBuf::new();
+
+        let head: CaFormatHeader = self.read_item()?;
+        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
+        let entry: CaFormatEntry = self.read_item()?;
+        println!("Root: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
+
+        loop {
+            let head: CaFormatHeader = self.read_item()?;
+
+            println!("Type: {:016x}", head.htype);
+            println!("Size: {}", head.size);
+
+            match head.htype {
+
+                CA_FORMAT_FILENAME =>  {
+                    let name = self.read_filename(head.size)?;
+                    //let hash = compute_goodbye_hash(&rest[..rest.len()-1]);
+                    println!("Name: {:?}", name);
+
+                    let head: CaFormatHeader = self.read_item()?;
+                    check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
+                    let entry: CaFormatEntry = self.read_item()?;
+                    println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
+
+                    if ((entry.mode as u32) & libc::S_IFMT) == libc::S_IFDIR {
+                        nesting += 1;
+                        dirpath.push(&name);
+                        println!("Path: {:?}", dirpath);
+                    } else {
+                        dirpath.push(&name);
+                        println!("Path: {:?}", dirpath);
+                        dirpath.pop();
+                    }
+                }
+                CA_FORMAT_GOODBYE => {
+                    self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
+                    nesting -= 1;
+                    println!("Goodbye: {:?}", dirpath);
+                    dirpath.pop();
+                    if nesting == 0 {
+                        // fixme: check eof??
+                        break;
+                    }
+                }
+                CA_FORMAT_SYMLINK => {
+                    let target = self.read_symlink(head.size)?;
+                    println!("Symlink: {:?}", target);
+                }
+                CA_FORMAT_DEVICE => {
+                    let device: CaFormatDevice = self.read_item()?;
+                    println!("Device: {}, {}", device.major, device.minor);
+                }
+                CA_FORMAT_PAYLOAD => {
+                    let payload_size = (head.size - HEADER_SIZE) as usize;
+                    println!("Payload: {}", payload_size);
+                    self.skip_bytes(payload_size)?;
+                }
+                _ => {
+                    panic!("unknown header type");
+                }
+            }
         }
 
         Ok(())
