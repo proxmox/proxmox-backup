@@ -17,7 +17,7 @@ pub mod server {
 
 }
 
-pub mod catar;
+pub mod pxar;
 
 pub mod section_config;
 

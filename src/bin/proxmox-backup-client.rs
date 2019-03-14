@@ -14,7 +14,7 @@ use proxmox_backup::client::*;
 use proxmox_backup::backup::*;
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
-//use proxmox_backup::catar::encoder::*;
+//use proxmox_backup::pxar::encoder::*;
 //use proxmox_backup::backup::datastore::*;
 
 use serde_json::{json, Value};
@@ -26,7 +26,7 @@ use xdg::BaseDirectories;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:catar|raw)):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|raw)):(.+)$").unwrap();
 }
 
 
@@ -129,13 +129,13 @@ fn backup_directory<P: AsRef<Path>>(
 
     let query = tools::json_object_to_query(param)?;
 
-    let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store(), query);
+    let path = format!("api2/json/admin/datastore/{}/pxar?{}", repo.store(), query);
 
-    let stream = CaTarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
+    let stream = PxarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
 
     let body = Body::wrap_stream(stream);
 
-    client.upload("application/x-proxmox-backup-catar", body, &path)?;
+    client.upload("application/x-proxmox-backup-pxar", body, &path)?;
 
     Ok(())
 }
@@ -183,6 +183,7 @@ fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
     result
 }
 
+/* not used:
 fn list_backups(
     param: Value,
     _info: &ApiMethod,
@@ -223,6 +224,7 @@ fn list_backups(
     //Ok(result)
     Ok(Value::Null)
 }
+ */
 
 fn list_backup_groups(
     param: Value,
@@ -474,8 +476,8 @@ fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<Str
     let data: Vec<&str> = arg.splitn(2, ':').collect();
 
     if data.len() != 2 {
-        result.push(String::from("root.catar:/"));
-        result.push(String::from("etc.catar:/etc"));
+        result.push(String::from("root.pxar:/"));
+        result.push(String::from("etc.pxar:/etc"));
         return result;
     }
 
@@ -544,13 +546,13 @@ fn restore(
 
     let target = tools::required_string_param(&param, "target")?;
 
-    if archive_name.ends_with(".catar") {
-        let path = format!("api2/json/admin/datastore/{}/catar?{}", repo.store(), query);
+    if archive_name.ends_with(".pxar") {
+        let path = format!("api2/json/admin/datastore/{}/pxar?{}", repo.store(), query);
 
         println!("DOWNLOAD FILE {} to {}", path, target);
 
         let target = PathBuf::from(target);
-        let writer = CaTarBackupWriter::new(&target, true)?;
+        let writer = PxarBackupWriter::new(&target, true)?;
         client.download(&path, Box::new(writer))?;
     } else {
         bail!("unknown file extensions - unable to download '{}'", archive_name);

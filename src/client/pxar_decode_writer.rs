@@ -5,16 +5,16 @@ use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::io::Write;
 
-use crate::catar::decoder::*;
+use crate::pxar::decoder::*;
 
-/// Writer implementation to deccode a .catar archive (download).
+/// Writer implementation to deccode a .pxar archive (download).
 
-pub struct CaTarBackupWriter {
+pub struct PxarBackupWriter {
     pipe: Option<std::fs::File>,
     child: Option<thread::JoinHandle<()>>,
 }
 
-impl Drop for CaTarBackupWriter {
+impl Drop for PxarBackupWriter {
 
     fn drop(&mut self) {
         drop(self.pipe.take());
@@ -22,23 +22,23 @@ impl Drop for CaTarBackupWriter {
     }
 }
 
-impl CaTarBackupWriter {
+impl PxarBackupWriter {
 
-    pub fn new(base: &Path, verbose: bool) -> Result<Self, Error> {
+    pub fn new(base: &Path, _verbose: bool) -> Result<Self, Error> {
         let (rx, tx) = nix::unistd::pipe()?;
 
         let base = PathBuf::from(base);
         
         let child = thread::spawn(move|| {
             let mut reader = unsafe { std::fs::File::from_raw_fd(rx) };
-            let mut decoder = CaTarDecoder::new(&mut reader);
+            let mut decoder = PxarDecoder::new(&mut reader);
 
             
             if let Err(err) = decoder.restore(&base, & |path| {
                 println!("RESTORE: {:?}", path);
                 Ok(())
             }) {
-                eprintln!("catar decode failed - {}", err);
+                eprintln!("pxar decode failed - {}", err);
             }
         });
 
@@ -48,7 +48,7 @@ impl CaTarBackupWriter {
     }
 }
 
-impl Write for CaTarBackupWriter {
+impl Write for PxarBackupWriter {
 
     fn write(&mut self, buffer: &[u8]) -> Result<usize, std::io::Error> {
         let pipe = match self.pipe {

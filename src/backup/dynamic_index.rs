@@ -154,7 +154,7 @@ impl DynamicIndexReader {
         Ok(())
     }
 
-    pub fn dump_catar(&self, mut writer: Box<Write>) -> Result<(), Error> {
+    pub fn dump_pxar(&self, mut writer: Box<Write>) -> Result<(), Error> {
 
         let mut buffer = Vec::with_capacity(1024*1024);
 

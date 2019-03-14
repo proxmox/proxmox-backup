@@ -62,7 +62,7 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
 /// info.
 ///
 /// ```
-/// # use proxmox_backup::catar::binary_search_tree::copy_binary_search_tree;
+/// # use proxmox_backup::pxar::binary_search_tree::copy_binary_search_tree;
 /// copy_binary_search_tree(5, |src, dest| {
 ///    println!("Copy {} to {}", src, dest);
 /// });

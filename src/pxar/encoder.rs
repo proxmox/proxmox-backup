@@ -1,6 +1,6 @@
-//! *catar* format encoder.
+//! *pxar* format encoder.
 //!
-//! This module contain the code to generate *catar* archive files.
+//! This module contain the code to generate *pxar* archive files.
 
 use failure::*;
 use endian_trait::Endian;
@@ -27,7 +27,7 @@ use nix::sys::stat::FileStat;
 /// maximum memory usage.
 pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
 
-pub struct CaTarEncoder<'a, W: Write> {
+pub struct PxarEncoder<'a, W: Write> {
     current_path: PathBuf, // used for error reporting
     writer: &'a mut W,
     writer_pos: usize,
@@ -38,7 +38,7 @@ pub struct CaTarEncoder<'a, W: Write> {
     verbose: bool,
 }
 
-impl <'a, W: Write> CaTarEncoder<'a, W> {
+impl <'a, W: Write> PxarEncoder<'a, W> {
 
     pub fn encode(
         path: PathBuf,

@@ -12,9 +12,9 @@ use serde_json::{Value};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use proxmox_backup::catar::format_definition::*;
-use proxmox_backup::catar::encoder::*;
-use proxmox_backup::catar::decoder::*;
+use proxmox_backup::pxar::format_definition::*;
+use proxmox_backup::pxar::encoder::*;
+use proxmox_backup::pxar::decoder::*;
 
 use proxmox_backup::tools::*;
 
@@ -62,7 +62,7 @@ fn print_filenames(
 
     let mut reader = std::io::BufReader::new(file);
 
-     let mut decoder = CaTarDecoder::new(&mut reader)?;
+     let mut decoder = PxarDecoder::new(&mut reader)?;
 
     let root = decoder.root();
 
@@ -86,7 +86,7 @@ fn dump_archive(
     let archive = tools::required_string_param(&param, "archive")?;
     let mut file = std::fs::File::open(archive)?;
 
-    println!("CATAR {}", archive);
+    println!("PXAR {}", archive);
 
     let mut buffer = [0u8; 16];
 
@@ -149,7 +149,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    CaTarEncoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
+    PxarEncoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
 
     writer.flush()?;
 
@@ -162,7 +162,7 @@ fn main() {
         .insert("create", CliCommand::new(
             ApiMethod::new(
                 create_archive,
-                ObjectSchema::new("Create new catar archive.")
+                ObjectSchema::new("Create new .pxar archive.")
                     .required("archive", StringSchema::new("Archive name"))
                     .required("source", StringSchema::new("Source directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))

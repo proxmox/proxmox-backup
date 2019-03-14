@@ -11,22 +11,22 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::dir::Dir;
 
-use crate::catar::encoder::*;
+use crate::pxar::encoder::*;
 
-/// Stream implementation to encode and upload .catar archives.
+/// Stream implementation to encode and upload .pxar archives.
 ///
 /// The hyper client needs an async Stream for file upload, so we
-/// spawn an extra thread to encode the .catar data and pipe it to the
+/// spawn an extra thread to encode the .pxar data and pipe it to the
 /// consumer.
 ///
 /// Note: The currect implementation is not fully ansync and can block.
-pub struct CaTarBackupStream {
+pub struct PxarBackupStream {
     pipe: Option<std::fs::File>,
     buffer: Vec<u8>,
     child: Option<thread::JoinHandle<()>>,
 }
 
-impl Drop for CaTarBackupStream {
+impl Drop for PxarBackupStream {
 
     fn drop(&mut self) {
         drop(self.pipe.take());
@@ -34,7 +34,7 @@ impl Drop for CaTarBackupStream {
     }
 }
 
-impl CaTarBackupStream {
+impl PxarBackupStream {
 
     pub fn new(mut dir: Dir, path: PathBuf, all_file_systems: bool, verbose: bool) -> Result<Self, Error> {
         let mut buffer = Vec::with_capacity(4096);
@@ -44,8 +44,8 @@ impl CaTarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-             if let Err(err) = CaTarEncoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
-                eprintln!("catar encode failed - {}", err);
+            if let Err(err) = PxarEncoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
+                eprintln!("pxar encode failed - {}", err);
             }
         });
 
@@ -63,7 +63,7 @@ impl CaTarBackupStream {
     }
 }
 
-impl Stream for CaTarBackupStream {
+impl Stream for PxarBackupStream {
 
     type Item = Vec<u8>;
     type Error = Error;

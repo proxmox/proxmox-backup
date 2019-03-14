@@ -17,7 +17,7 @@ use crate::config::datastore;
 
 use crate::backup::*;
 
-mod catar;
+mod pxar;
 mod upload;
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
@@ -380,7 +380,7 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             |_,_,_| Ok(json!([
                 {"subdir": "backups" },
-                {"subdir": "catar" },
+                {"subdir": "pxar" },
                 {"subdir": "gc" },
                 {"subdir": "groups" },
                 {"subdir": "snapshots" },
@@ -398,10 +398,10 @@ pub fn router() -> Router {
                     ObjectSchema::new("List backups.")
                         .required("store", store_schema.clone()))))
         .subdir(
-            "catar",
+            "pxar",
             Router::new()
-                .download(catar::api_method_download_catar())
-                .upload(catar::api_method_upload_catar()))
+                .download(pxar::api_method_download_pxar())
+                .upload(pxar::api_method_upload_pxar()))
         .subdir(
             "test-upload",
             Router::new()

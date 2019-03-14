@@ -24,7 +24,7 @@ type Result<T> = std::result::Result<T, Error>;
 pub fn api_method_upgrade_upload() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
         upgrade_upload,
-        ObjectSchema::new("Download .catar backup file.")
+        ObjectSchema::new("Download .pxar backup file.")
             .required("store", StringSchema::new("Datastore name.")),
     )
 }

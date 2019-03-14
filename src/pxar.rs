@@ -1,9 +1,10 @@
-//! *catar* Implementation
+//! *pxar* Implementation
 //!
-//! This is a implementation of the *catar* format used by the
-//! [casync](https://github.com/systemd/casync) toolkit. It is a file
-//! archive format defined by 'Lennart Poettering', specially defined
-//! for efficent deduplication.
+//! This code implements a slightly modified version of the *catar*
+//! format used in the [casync](https://github.com/systemd/casync)
+//! toolkit (we are not 100% binary compatible). It is a file archive
+//! format defined by 'Lennart Poettering', specially defined for
+//! efficent deduplication.
 
 //! Every archive contains items in the following order:
 //!  * ENTRY             -- containing general stat() data and related bits

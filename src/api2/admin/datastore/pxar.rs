@@ -18,13 +18,13 @@ use std::sync::Arc;
 use hyper::Body;
 use hyper::http::request::Parts;
 
-pub struct UploadCaTar {
+pub struct UploadPxar {
     stream: Body,
     index: DynamicIndexWriter,
     count: usize,
 }
 
-impl Future for UploadCaTar {
+impl Future for UploadPxar {
     type Item = ();
     type Error = failure::Error;
 
@@ -46,7 +46,7 @@ impl Future for UploadCaTar {
     }
 }
 
-fn upload_catar(
+fn upload_pxar(
     parts: Parts,
     req_body: Body,
     param: Value,
@@ -57,8 +57,8 @@ fn upload_catar(
     let store = tools::required_string_param(&param, "store")?;
     let mut archive_name = String::from(tools::required_string_param(&param, "archive-name")?);
 
-    if !archive_name.ends_with(".catar") {
-        bail!("got wront file extension (expected '.catar')");
+    if !archive_name.ends_with(".pxar") {
+        bail!("got wront file extension (expected '.pxar')");
     }
 
     archive_name.push_str(".didx");
@@ -72,8 +72,8 @@ fn upload_catar(
     let content_type = parts.headers.get(http::header::CONTENT_TYPE)
         .ok_or(format_err!("missing content-type header"))?;
 
-    if content_type != "application/x-proxmox-backup-catar" {
-        bail!("got wrong content-type for catar archive upload");
+    if content_type != "application/x-proxmox-backup-pxar" {
+        bail!("got wrong content-type for pxar archive upload");
     }
 
     let chunk_size = param["chunk-size"].as_u64().unwrap_or(4096*1024);
@@ -88,7 +88,7 @@ fn upload_catar(
 
     let index = datastore.create_dynamic_writer(path, chunk_size as usize)?;
 
-    let upload = UploadCaTar { stream: req_body, index, count: 0};
+    let upload = UploadPxar { stream: req_body, index, count: 0};
 
     let resp = upload.and_then(|_| {
 
@@ -103,10 +103,10 @@ fn upload_catar(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_catar() -> ApiAsyncMethod {
+pub fn api_method_upload_pxar() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        upload_catar,
-        ObjectSchema::new("Upload .catar backup file.")
+        upload_pxar,
+        ObjectSchema::new("Upload .pxar backup file.")
             .required("store", StringSchema::new("Datastore name."))
             .required("archive-name", StringSchema::new("Backup archive name."))
             .required("backup-type", StringSchema::new("Backup type.")
@@ -124,7 +124,7 @@ pub fn api_method_upload_catar() -> ApiAsyncMethod {
     )
 }
 
-fn download_catar(
+fn download_pxar(
     _parts: Parts,
     _req_body: Body,
     param: Value,
@@ -135,7 +135,7 @@ fn download_catar(
     let store = tools::required_string_param(&param, "store")?;
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".catar") {
+    if !archive_name.ends_with(".pxar") {
         bail!("wrong archive extension");
     } else {
         archive_name.push_str(".didx");
@@ -167,10 +167,10 @@ fn download_catar(
     Ok(Box::new(future::ok(response)))
 }
 
-pub fn api_method_download_catar() -> ApiAsyncMethod {
+pub fn api_method_download_pxar() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        download_catar,
-        ObjectSchema::new("Download .catar backup file.")
+        download_pxar,
+        ObjectSchema::new("Download .pxar backup file.")
             .required("store", StringSchema::new("Datastore name."))
             .required("archive-name", StringSchema::new("Backup archive name."))
             .required("backup-type", StringSchema::new("Backup type.")

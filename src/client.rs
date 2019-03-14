@@ -6,11 +6,11 @@
 mod http_client;
 pub use  http_client::*;
 
-mod catar_backup_stream;
-pub use catar_backup_stream::*;
+mod pxar_backup_stream;
+pub use pxar_backup_stream::*;
 
-mod catar_decode_writer;
-pub use catar_decode_writer::*;
+mod pxar_decode_writer;
+pub use pxar_decode_writer::*;
 
 mod backup_repo;
 pub use backup_repo::*;

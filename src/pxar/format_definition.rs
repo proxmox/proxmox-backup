@@ -1,4 +1,4 @@
-//! *catar* binary format definition
+//! *pxar* binary format definition
 //!
 //! Please note the all values are stored in little endian ordering.
 //!

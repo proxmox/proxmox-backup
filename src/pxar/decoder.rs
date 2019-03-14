@@ -1,6 +1,6 @@
-//! *catar* format decoder.
+//! *pxar* format decoder.
 //!
-//! This module contain the code to decode *catar* archive files.
+//! This module contain the code to decode *pxar* archive files.
 
 use failure::*;
 use endian_trait::Endian;
@@ -22,14 +22,14 @@ use nix::errno::Errno;
 use nix::NixPath;
 
 // This one need Read, but works without Seek
-pub struct CaTarDecoder<'a, R: Read> {
+pub struct PxarDecoder<'a, R: Read> {
     reader: &'a mut R,
     skip_buffer: Vec<u8>,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
-impl <'a, R: Read> CaTarDecoder<'a, R> {
+impl <'a, R: Read> PxarDecoder<'a, R> {
 
     pub fn new(reader: &'a mut R) -> Self {
         let mut skip_buffer = vec![0u8; 64*1024];
