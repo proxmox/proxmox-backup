@@ -32,7 +32,7 @@ const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 impl <'a, R: Read> PxarDecoder<'a, R> {
 
     pub fn new(reader: &'a mut R) -> Self {
-        let mut skip_buffer = vec![0u8; 64*1024];
+        let skip_buffer = vec![0u8; 64*1024];
         Self { reader, skip_buffer }
     }
 
@@ -481,7 +481,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
                             println!("Goodbye: {:?}", path);
                             self.dump_goodby_entries(entry_count, table_size)?;
                         } else {
-                            self.skip_bytes(table_size);
+                            self.skip_bytes(table_size)?;
                         }
                         break;
                     }
@@ -541,7 +541,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
             bail!("Goodbye table with strange size ({})", table_size);
         }
 
-        let entries = (table_size / item_size);
+        let entries = table_size / item_size;
 
         if entry_count != (entries - 1) {
             bail!("Goodbye table with wrong entry count ({} != {})", entry_count, entries - 1);
