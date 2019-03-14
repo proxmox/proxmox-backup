@@ -395,7 +395,7 @@ pub fn complete_file_name(arg: &str, _param: &HashMap<String, String>) -> Vec<St
     use nix::sys::stat::Mode;
     use nix::fcntl::AtFlags;
 
-    let mut dirname = std::path::PathBuf::from(arg);
+    let mut dirname = std::path::PathBuf::from(if arg.len() == 0 { "./" } else { arg });
 
     let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
         Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
