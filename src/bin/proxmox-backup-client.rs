@@ -681,6 +681,46 @@ fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec
     result
 }
 
+fn complete_archive_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let repo = match extract_repo(param) {
+        Some(v) => v,
+        _ => return result,
+    };
+
+    let snapshot = match param.get("snapshot") {
+        Some(path) => {
+            match BackupDir::parse(path) {
+                Ok(v) => v,
+                _ => return result,
+            }
+        }
+        _ => return result,
+    };
+
+    let query = tools::json_object_to_query(json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time().timestamp(),
+    })).unwrap();
+
+    let path = format!("api2/json/admin/datastore/{}/files?{}", repo.store(), query);
+
+    let data = try_get(&repo, &path);
+
+    if let Some(list) = data.as_array() {
+        for item in list {
+            if let Some(filename) = item.as_str() {
+                result.push(filename.to_owned());
+            }
+        }
+    }
+
+    strip_chunked_file_expenstions(result)
+}
+
 fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
@@ -792,7 +832,9 @@ fn main() {
         ))
         .arg_param(vec!["repository", "snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_group_or_snapshot);
+        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("target", tools::complete_file_name);
 
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
