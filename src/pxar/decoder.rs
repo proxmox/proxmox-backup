@@ -422,75 +422,146 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
         Ok(())
     }
 
-    /// Dump archive format details. This is ment for debugging.
-    pub fn dump_archive<W: std::io::Write>(
+    /// List/Dump archive content.
+    ///
+    /// Simply print the list of contained files. This dumps archive
+    /// format details when the verbose flag is set (useful for debug).
+    pub fn dump_entry<W: std::io::Write>(
         &mut self,
+        path: &mut PathBuf,
+        verbose: bool,
         output: &mut W,
     ) -> Result<(), Error> {
 
-        let mut nesting = 0;
-
-        let mut dirpath = PathBuf::new();
-
-        let head: CaFormatHeader = self.read_item()?;
-        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
-        let entry: CaFormatEntry = self.read_item()?;
-        println!("Root: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
-
-        loop {
-            let head: CaFormatHeader = self.read_item()?;
-
+        let print_head = |head: &CaFormatHeader| {
             println!("Type: {:016x}", head.htype);
             println!("Size: {}", head.size);
+        };
+
+        let head: CaFormatHeader = self.read_item()?;
+        if verbose {
+            println!("Path: {:?}", path);
+            print_head(&head);
+        } else {
+            println!("{:?}", path);
+        }
+
+        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
+        let entry: CaFormatEntry = self.read_item()?;
+
+        if verbose {
+            println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
+        }
+        // fixme: dump attributes (ACLs, ...)
+
+        let ifmt = (entry.mode as u32) & libc::S_IFMT;
+
+        if ifmt == libc::S_IFDIR {
+
+            let mut entry_count = 0;
+
+            loop {
+                let head: CaFormatHeader = self.read_item()?;
+                if verbose {
+                    print_head(&head);
+                }
+                match head.htype {
+
+                    CA_FORMAT_FILENAME =>  {
+                        let name = self.read_filename(head.size)?;
+                        if verbose { println!("Name: {:?}", name); }
+                        entry_count += 1;
+                        path.push(&name);
+                        self.dump_entry(path, verbose, output)?;
+                        path.pop();
+                    }
+                    CA_FORMAT_GOODBYE => {
+                        let table_size = (head.size - HEADER_SIZE) as usize;
+                        if verbose {
+                            println!("Goodbye: {:?}", path);
+                            self.dump_goodby_entries(entry_count, table_size)?;
+                        } else {
+                            self.skip_bytes(table_size);
+                        }
+                        break;
+                    }
+                    _ => {
+                        panic!("got unexpected header type inside directory");
+                    }
+                }
+            }
+        } else {
+
+            let head: CaFormatHeader = self.read_item()?;
+            if verbose {
+                print_head(&head);
+            }
 
             match head.htype {
 
-                CA_FORMAT_FILENAME =>  {
-                    let name = self.read_filename(head.size)?;
-                    //let hash = compute_goodbye_hash(&rest[..rest.len()-1]);
-                    println!("Name: {:?}", name);
-
-                    let head: CaFormatHeader = self.read_item()?;
-                    check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
-                    let entry: CaFormatEntry = self.read_item()?;
-                    println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
-
-                    if ((entry.mode as u32) & libc::S_IFMT) == libc::S_IFDIR {
-                        nesting += 1;
-                        dirpath.push(&name);
-                        println!("Path: {:?}", dirpath);
-                    } else {
-                        dirpath.push(&name);
-                        println!("Path: {:?}", dirpath);
-                        dirpath.pop();
-                    }
-                }
-                CA_FORMAT_GOODBYE => {
-                    self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
-                    nesting -= 1;
-                    println!("Goodbye: {:?}", dirpath);
-                    dirpath.pop();
-                    if nesting == 0 {
-                        // fixme: check eof??
-                        break;
-                    }
-                }
                 CA_FORMAT_SYMLINK => {
                     let target = self.read_symlink(head.size)?;
-                    println!("Symlink: {:?}", target);
+                    if verbose {
+                        println!("Symlink: {:?}", target);
+                    }
                 }
                 CA_FORMAT_DEVICE => {
                     let device: CaFormatDevice = self.read_item()?;
-                    println!("Device: {}, {}", device.major, device.minor);
+                    if verbose {
+                        println!("Device: {}, {}", device.major, device.minor);
+                    }
                 }
                 CA_FORMAT_PAYLOAD => {
                     let payload_size = (head.size - HEADER_SIZE) as usize;
-                    println!("Payload: {}", payload_size);
+                    if verbose {
+                        println!("Payload: {}", payload_size);
+                    }
                     self.skip_bytes(payload_size)?;
                 }
                 _ => {
-                    panic!("unknown header type");
+                    panic!("got unexpected header type inside non-directory");
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn dump_goodby_entries(
+        &mut self,
+        entry_count: usize,
+        table_size: usize,
+    ) -> Result<(), Error> {
+
+        let item_size = std::mem::size_of::<CaFormatGoodbyeItem>();
+        if table_size < item_size {
+            bail!("Goodbye table to small ({} < {})", table_size, item_size);
+        }
+        if (table_size % item_size) != 0 {
+            bail!("Goodbye table with strange size ({})", table_size);
+        }
+
+        let entries = (table_size / item_size);
+
+        if entry_count != (entries - 1) {
+            bail!("Goodbye table with wrong entry count ({} != {})", entry_count, entries - 1);
+        }
+
+        let mut count = 0;
+
+        loop {
+            let item: CaFormatGoodbyeItem = self.read_item()?;
+            count += 1;
+            if item.hash == CA_FORMAT_GOODBYE_TAIL_MARKER {
+                if count != entries {
+                    bail!("unexpected goodbye tail marker");
+                }
+                println!("Goodby tail mark.");
+                break;
+            }
+            println!("Goodby item: offset {}, size {}, hash {:016x}", item.offset, item.size, item.hash);
+            if count >= (table_size / item_size) {
+                bail!("too many goodbye items (no tail marker)");
             }
         }
 
