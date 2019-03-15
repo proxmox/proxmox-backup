@@ -3,25 +3,15 @@
 //! This module contain the code to decode *pxar* archive files.
 
 use failure::*;
-use endian_trait::Endian;
 
 use super::format_definition::*;
 use super::sequential_decoder::*;
-use crate::tools;
 
-use std::io::{Read, Write, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-use std::os::unix::io::AsRawFd;
-use std::os::unix::io::RawFd;
-use std::os::unix::io::FromRawFd;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 
-use nix::fcntl::OFlag;
-use nix::sys::stat::Mode;
-use nix::errno::Errno;
-use nix::NixPath;
 
 pub struct CaDirectoryEntry {
     start: u64,
@@ -214,9 +204,7 @@ impl <'a, R: Read + Seek> Decoder<'a, R> {
 
             let ifmt = mode & libc::S_IFMT;
 
-            let osstr: &OsStr =  prefix.as_ref();
-            output.write(osstr.as_bytes())?;
-            output.write(b"\n")?;
+            writeln!(output, "{:?}", prefix)?;
 
             if ifmt == libc::S_IFDIR {
                 self.print_filenames(output, prefix, item)?;
@@ -233,56 +221,4 @@ impl <'a, R: Read + Seek> Decoder<'a, R> {
 
         Ok(())
     }
-}
-
-fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {
-
-    let fd = filename.with_nix_path(|cstr| {
-        nix::fcntl::openat(parent, cstr.as_ref(), flags, mode)
-    })??;
-
-    let file = unsafe { std::fs::File::from_raw_fd(fd) };
-
-    Ok(file)
-}
-
-fn dir_mkdirat(parent: RawFd, filename: &OsStr) -> Result<nix::dir::Dir, Error> {
-
-    // call mkdirat first
-    let res = filename.with_nix_path(|cstr| unsafe {
-        libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU)
-    })?;
-    Errno::result(res)?;
-
-    let dir = nix::dir::Dir::openat(parent, filename, OFlag::O_DIRECTORY,  Mode::empty())?;
-
-    Ok(dir)
-}
-
-fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error> {
-
-    target.with_nix_path(|target| {
-        linkname.with_nix_path(|linkname| {
-            let res = unsafe { libc::symlinkat(target.as_ptr(), parent, linkname.as_ptr()) };
-            Errno::result(res)?;
-            Ok(())
-        })?
-    })?
-}
-
-fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
-
-    // restore mtime
-    const UTIME_OMIT: i64 = ((1 << 30) - 2);
-    const NANOS_PER_SEC: i64 = 1_000_000_000;
-
-    let sec = (mtime_nsec as i64) / NANOS_PER_SEC;
-    let nsec = (mtime_nsec as i64) % NANOS_PER_SEC;
-
-    let times: [libc::timespec; 2] = [
-        libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT },
-        libc::timespec { tv_sec: sec, tv_nsec: nsec },
-    ];
-
-    times
 }

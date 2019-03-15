@@ -541,15 +541,16 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         table_size: usize,
     ) -> Result<(), Error> {
 
-        let item_size = std::mem::size_of::<CaFormatGoodbyeItem>();
-        if table_size < item_size {
-            bail!("Goodbye table to small ({} < {})", table_size, item_size);
+        const GOODBYE_ITEM_SIZE: usize = std::mem::size_of::<CaFormatGoodbyeItem>();
+
+        if table_size < GOODBYE_ITEM_SIZE {
+            bail!("Goodbye table to small ({} < {})", table_size, GOODBYE_ITEM_SIZE);
         }
-        if (table_size % item_size) != 0 {
+        if (table_size % GOODBYE_ITEM_SIZE) != 0 {
             bail!("Goodbye table with strange size ({})", table_size);
         }
 
-        let entries = table_size / item_size;
+        let entries = table_size / GOODBYE_ITEM_SIZE;
 
         if entry_count != (entries - 1) {
             bail!("Goodbye table with wrong entry count ({} != {})", entry_count, entries - 1);
@@ -568,7 +569,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                 break;
             }
             println!("Goodby item: offset {}, size {}, hash {:016x}", item.offset, item.size, item.hash);
-            if count >= (table_size / item_size) {
+            if count >= entries {
                 bail!("too many goodbye items (no tail marker)");
             }
         }
