@@ -498,8 +498,9 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                     }
                 }
             }
-        } else {
-
+        } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) ||
+            (ifmt == libc::S_IFLNK) || (ifmt == libc::S_IFREG)
+        {
             let head: CaFormatHeader = self.read_item()?;
             if verbose {
                 print_head(&head);
@@ -530,8 +531,17 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                     panic!("got unexpected header type inside non-directory");
                 }
             }
+        } else if ifmt == libc::S_IFIFO {
+            if verbose {
+                println!("Fifo:");
+            }
+        } else if ifmt == libc::S_IFSOCK {
+            if verbose {
+                println!("Socket:");
+            }
+        } else {
+            panic!("unknown st_mode");
         }
-
         Ok(())
     }
 
