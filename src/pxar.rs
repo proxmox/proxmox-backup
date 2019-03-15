@@ -39,6 +39,7 @@
 //!   * GOODBYE           -- lookup table at the end of a list of directory entries
 
 mod binary_search_tree;
+pub use binary_search_tree::*;
 
 mod format_definition;
 pub use format_definition::*;
