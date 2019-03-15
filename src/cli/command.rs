@@ -464,7 +464,7 @@ fn print_simple_completion(
     // Try to parse all argumnets but last, record args already done
     if args.len() > 1 {
         let mut errors = ParameterError::new(); // we simply ignore any parsing errors here
-        let (data, rest) = getopts::parse_argument_list(&args[0..args.len()-1], &cli_cmd.info.parameters, &mut errors);
+        let (data, _rest) = getopts::parse_argument_list(&args[0..args.len()-1], &cli_cmd.info.parameters, &mut errors);
         for (key, value) in &data {
             record_done_argument(done, &cli_cmd.info.parameters, key, value);
         }
@@ -537,7 +537,7 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
     match def {
         CommandLineInterface::Simple(cli_cmd) => {
             let mut done: HashMap<String, String> = HashMap::new();
-            cli_cmd.fixed_param.iter().map(|(key, value)| {
+            cli_cmd.fixed_param.iter().for_each(|(key, value)| {
                 record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
             });
             print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, &cli_cmd.arg_param, args);
