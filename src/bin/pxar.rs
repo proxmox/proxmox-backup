@@ -10,7 +10,7 @@ use proxmox_backup::api_schema::router::*;
 use serde_json::{Value};
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use proxmox_backup::pxar::encoder::*;
 use proxmox_backup::pxar::decoder::*;
@@ -61,6 +61,32 @@ fn dump_archive(
     Ok(Value::Null)
 }
 
+fn extract_archive(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let archive = tools::required_string_param(&param, "archive")?;
+    let target = tools::required_string_param(&param, "target")?;
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+
+    let file = std::fs::File::open(archive)?;
+
+    let mut reader = std::io::BufReader::new(file);
+
+    let mut decoder = PxarDecoder::new(&mut reader);
+
+    decoder.restore(Path::new(target), & |path| {
+        if verbose {
+            println!("{:?}", path);
+        }
+        Ok(())
+    })?;
+
+    Ok(Value::Null)
+}
+
 fn create_archive(
     param: Value,
     _info: &ApiMethod,
@@ -72,7 +98,7 @@ fn create_archive(
     let verbose = param["verbose"].as_bool().unwrap_or(false);
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
-    let source = std::path::PathBuf::from(source);
+    let source = PathBuf::from(source);
 
     let mut dir = nix::dir::Dir::open(
         &source, nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
@@ -107,6 +133,19 @@ fn main() {
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
            .into()
+        )
+        .insert("extract", CliCommand::new(
+            ApiMethod::new(
+                extract_archive,
+                ObjectSchema::new("Extract an archive.")
+                    .required("archive", StringSchema::new("Archive name."))
+                    .required("target", StringSchema::new("Target directory."))
+                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
+          ))
+            .arg_param(vec!["archive", "target"])
+            .completion_cb("archive", tools::complete_file_name)
+            .completion_cb("target", tools::complete_file_name)
+            .into()
         )
         .insert("list", CliCommand::new(
             ApiMethod::new(
