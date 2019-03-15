@@ -196,7 +196,7 @@ impl HttpClient {
             .map_err(Error::from)
             .and_then(move |resp| {
 
-                let status = resp.status();
+                let _status = resp.status(); // fixme: ??
 
                 resp.into_body()
                     .map_err(Error::from)
