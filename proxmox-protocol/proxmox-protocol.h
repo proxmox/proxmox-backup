@@ -69,6 +69,10 @@ extern int proxmox_backup_fixed_data(
     size_t index,
     const void *digest);
 
+extern int proxmox_backup_finish_backup(
+    ProxmoxBackup *self,
+    int stream,
+    char **remote_path);
 
 typedef struct ProxmoxChunker ProxmoxChunker;
 extern ProxmoxChunker *proxmox_chunker_new(uint64_t chunk_size_avg);
