@@ -13,6 +13,9 @@ pub use chunker::*;
 mod client;
 pub use client::*;
 
+mod connect;
+pub use connect::*;
+
 mod types;
 pub use types::*;
 
