@@ -266,6 +266,8 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
+        (callback)(path)?;
+
         let mode = entry.mode as u32; //fixme: upper 32bits?
 
         let ifmt = mode & libc::S_IFMT;
@@ -286,8 +288,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
             while head.htype == CA_FORMAT_FILENAME {
                 let name = self.read_filename(head.size)?;
                 path.push(&name);
-                println!("NAME: {:?}", path);
-
+                //println!("NAME: {:?}", path);
                 self.restore_sequential(path, &name, &dir, callback)?;
                 path.pop();
 
@@ -298,7 +299,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
                 bail!("got unknown header type inside directory entry {:016x}", head.htype);
             }
 
-            println!("Skip Goodbye");
+            //println!("Skip Goodbye");
             if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
 
             self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
@@ -322,7 +323,7 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
             match head.htype {
                 CA_FORMAT_SYMLINK => {
                     let target = self.read_symlink(head.size)?;
-                    println!("TARGET: {:?}", target);
+                    //println!("TARGET: {:?}", target);
                     if let Err(err) = symlinkat(&target, parent_fd, filename) {
                         bail!("create symlink {:?} failed - {}", path, err);
                     }

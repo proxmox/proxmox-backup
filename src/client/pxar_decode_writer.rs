@@ -35,7 +35,7 @@ impl PxarDecodeWriter {
           
             if let Err(err) = decoder.restore(&base, & |path| {
                 if verbose {
-                    println!("RESTORE: {:?}", path);
+                    println!("{:?}", path);
                 }
                 Ok(())
             }) {
