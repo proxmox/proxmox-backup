@@ -12,8 +12,7 @@ use serde_json::{Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use proxmox_backup::pxar::encoder::*;
-use proxmox_backup::pxar::decoder::*;
+use proxmox_backup::pxar;
 
 fn print_filenames(
     param: Value,
@@ -26,7 +25,7 @@ fn print_filenames(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = PxarDecoder::new(&mut reader);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -48,7 +47,7 @@ fn dump_archive(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = PxarDecoder::new(&mut reader);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -75,7 +74,7 @@ fn extract_archive(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = PxarDecoder::new(&mut reader);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
 
     decoder.restore(Path::new(target), & |path| {
         if verbose {
@@ -110,7 +109,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    PxarEncoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
+    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
 
     writer.flush()?;
 

@@ -11,7 +11,7 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::dir::Dir;
 
-use crate::pxar::encoder::*;
+use crate::pxar;
 
 /// Stream implementation to encode and upload .pxar archives.
 ///
@@ -44,7 +44,7 @@ impl PxarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            if let Err(err) = PxarEncoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
+            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
                 eprintln!("pxar encode failed - {}", err);
             }
         });

@@ -38,8 +38,13 @@
 //!   * ...
 //!   * GOODBYE           -- lookup table at the end of a list of directory entries
 
-pub mod binary_search_tree;
-pub mod format_definition;
-pub mod encoder;
-pub mod decoder;
+mod binary_search_tree;
 
+mod format_definition;
+pub use format_definition::*;
+
+mod encoder;
+pub use encoder::*;
+
+mod decoder;
+pub use decoder::*;

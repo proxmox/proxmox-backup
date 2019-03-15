@@ -5,7 +5,7 @@ use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::io::Write;
 
-use crate::pxar::decoder::*;
+use crate::pxar;
 
 /// Writer implementation to deccode a .pxar archive (download).
 
@@ -31,7 +31,7 @@ impl PxarDecodeWriter {
         
         let child = thread::spawn(move|| {
             let mut reader = unsafe { std::fs::File::from_raw_fd(rx) };
-            let mut decoder = PxarDecoder::new(&mut reader);
+            let mut decoder = pxar::SequentialDecoder::new(&mut reader);
           
             if let Err(err) = decoder.restore(&base, & |path| {
                 if verbose {

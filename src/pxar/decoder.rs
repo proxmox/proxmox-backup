@@ -22,14 +22,14 @@ use nix::errno::Errno;
 use nix::NixPath;
 
 // This one need Read, but works without Seek
-pub struct PxarDecoder<'a, R: Read> {
+pub struct SequentialDecoder<'a, R: Read> {
     reader: &'a mut R,
     skip_buffer: Vec<u8>,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
-impl <'a, R: Read> PxarDecoder<'a, R> {
+impl <'a, R: Read> SequentialDecoder<'a, R> {
 
     pub fn new(reader: &'a mut R) -> Self {
         let skip_buffer = vec![0u8; 64*1024];

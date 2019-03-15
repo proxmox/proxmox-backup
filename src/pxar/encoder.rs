@@ -27,7 +27,7 @@ use nix::sys::stat::FileStat;
 /// maximum memory usage.
 pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
 
-pub struct PxarEncoder<'a, W: Write> {
+pub struct Encoder<'a, W: Write> {
     current_path: PathBuf, // used for error reporting
     writer: &'a mut W,
     writer_pos: usize,
@@ -38,7 +38,7 @@ pub struct PxarEncoder<'a, W: Write> {
     verbose: bool,
 }
 
-impl <'a, W: Write> PxarEncoder<'a, W> {
+impl <'a, W: Write> Encoder<'a, W> {
 
     pub fn encode(
         path: PathBuf,
