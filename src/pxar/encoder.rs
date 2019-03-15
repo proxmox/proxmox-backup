@@ -4,6 +4,7 @@
 
 use failure::*;
 use endian_trait::Endian;
+use std::collections::HashMap;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
@@ -27,8 +28,15 @@ use nix::sys::stat::FileStat;
 /// maximum memory usage.
 pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
 
+#[derive(Eq, PartialEq, Hash)]
+struct HardLinkInfo {
+    st_dev: u64,
+    st_ino: u64,
+}
+
 pub struct Encoder<'a, W: Write> {
-    current_path: PathBuf, // used for error reporting
+    base_path: PathBuf,
+    relative_path: PathBuf,
     writer: &'a mut W,
     writer_pos: usize,
     _size: usize,
@@ -36,9 +44,15 @@ pub struct Encoder<'a, W: Write> {
     all_file_systems: bool,
     root_st_dev: u64,
     verbose: bool,
+    hardlinks: HashMap<HardLinkInfo, PathBuf>,
 }
 
 impl <'a, W: Write> Encoder<'a, W> {
+
+    // used for error reporting
+    fn full_path(&self) ->  PathBuf {
+        self.base_path.join(&self.relative_path)
+    }
 
     pub fn encode(
         path: PathBuf,
@@ -73,7 +87,8 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
 
         let mut me = Self {
-            current_path: path,
+            base_path: path,
+            relative_path: PathBuf::new(),
             writer: writer,
             writer_pos: 0,
             _size: 0,
@@ -81,9 +96,10 @@ impl <'a, W: Write> Encoder<'a, W> {
             all_file_systems,
             root_st_dev: stat.st_dev,
             verbose,
+            hardlinks: HashMap::new(),
         };
 
-        if verbose { println!("{:?}", me.current_path); }
+        if verbose { println!("{:?}", me.full_path()); }
 
         me.encode_dir(dir, &stat, magic)?;
 
@@ -143,7 +159,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         let mtime = stat.st_mtime * 1_000_000_000 + stat.st_mtime_nsec;
         if mtime < 0 {
-            bail!("got strange mtime ({}) from fstat for {:?}.", mtime, self.current_path);
+            bail!("got strange mtime ({}) from fstat for {:?}.", mtime, self.full_path());
         }
 
 
@@ -168,7 +184,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             if let nix::Error::Sys(errno) = err {
                 if errno_is_unsupported(errno) { return Ok(()) };
             }
-            bail!("read_attr_fd failed for {:?} - {}", self.current_path, err);
+            bail!("read_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
 
         let flags = ca_feature_flags_from_chattr(attr as u32);
@@ -188,7 +204,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             if let nix::Error::Sys(errno) = err {
                 if errno_is_unsupported(errno) { return Ok(()) };
             }
-            bail!("read_fat_attr_fd failed for {:?} - {}", self.current_path, err);
+            bail!("read_fat_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
 
         let flags = ca_feature_flags_from_fat_attr(attr);
@@ -246,7 +262,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
     fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat, magic: i64)  -> Result<(), Error> {
 
-        //println!("encode_dir: {:?} start {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
         let mut name_list = vec![];
 
@@ -275,12 +291,12 @@ impl <'a, W: Write> Encoder<'a, W> {
                 dir_count += 1;
                 if dir_count > MAX_DIRECTORY_ENTRIES {
                     bail!("too many directory items in {:?} (> {})",
-                          self.current_path, MAX_DIRECTORY_ENTRIES);
+                          self.full_path(), MAX_DIRECTORY_ENTRIES);
                 }
 
                 let entry = match entry {
                     Ok(entry) => entry,
-                    Err(err) => bail!("readir {:?} failed - {}", self.current_path, err),
+                    Err(err) => bail!("readir {:?} failed - {}", self.full_path(), err),
                 };
                 let filename = entry.file_name().to_owned();
 
@@ -292,7 +308,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 name_list.push(filename);
             }
         } else {
-            eprintln!("skip mount point: {:?}", self.current_path);
+            eprintln!("skip mount point: {:?}", self.full_path());
         }
 
         name_list.sort_unstable_by(|a, b| a.cmp(&b));
@@ -300,17 +316,17 @@ impl <'a, W: Write> Encoder<'a, W> {
         let mut goodbye_items = vec![];
 
         for filename in &name_list {
-            self.current_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
+            self.relative_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
-            if self.verbose { println!("{:?}", self.current_path); }
+            if self.verbose { println!("{:?}", self.full_path()); }
 
             let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 Ok(stat) => stat,
                 Err(nix::Error::Sys(Errno::ENOENT)) => {
-                    self.report_vanished_file(&self.current_path)?;
+                    self.report_vanished_file(&self.full_path())?;
                     continue;
                 }
-                Err(err) => bail!("fstat {:?} failed - {}", self.current_path, err),
+                Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
             };
 
             let start_pos = self.writer_pos;
@@ -322,10 +338,10 @@ impl <'a, W: Write> Encoder<'a, W> {
                 let mut dir = match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(dir) => dir,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
-                        self.report_vanished_file(&self.current_path)?;
+                        self.report_vanished_file(&self.full_path())?;
                         continue; // fixme!!
                     },
-                    Err(err) => bail!("open dir {:?} failed - {}", self.current_path, err),
+                    Err(err) => bail!("open dir {:?} failed - {}", self.full_path(), err),
                 };
 
                 let child_magic = if dir_stat.st_dev != stat.st_dev {
@@ -338,13 +354,24 @@ impl <'a, W: Write> Encoder<'a, W> {
                 self.encode_dir(&mut dir, &stat, child_magic)?;
 
             } else if ifmt == libc::S_IFREG {
+
+                if stat.st_nlink > 1 {
+                    let link_info = HardLinkInfo { st_dev: stat.st_dev, st_ino: stat.st_ino };
+                    if let Some(target) = self.hardlinks.get(&link_info) {
+                        // fixme: store hardlink info somwhow?
+                        eprintln!("FOUND HARDLINK {:?}", target);
+                    } else {
+                        self.hardlinks.insert(link_info, self.relative_path.clone());
+                    }
+                }
+
                 let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(filefd) => filefd,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
-                        self.report_vanished_file(&self.current_path)?;
+                        self.report_vanished_file(&self.full_path())?;
                         continue;
                     },
-                    Err(err) => bail!("open file {:?} failed - {}", self.current_path, err),
+                    Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
                 };
 
                 let child_magic = if dir_stat.st_dev != stat.st_dev {
@@ -372,10 +399,10 @@ impl <'a, W: Write> Encoder<'a, W> {
                         self.encode_symlink(&buffer[..((len+1) as usize)], &stat)?
                     }
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
-                        self.report_vanished_file(&self.current_path)?;
+                        self.report_vanished_file(&self.full_path())?;
                         continue;
                     }
-                    Err(err) => bail!("readlink {:?} failed - {}", self.current_path, err),
+                    Err(err) => bail!("readlink {:?} failed - {}", self.full_path(), err),
                 }
             } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) {
                 self.write_filename(&filename)?;
@@ -384,7 +411,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 self.write_filename(&filename)?;
                 self.encode_special(&stat)?;
             } else {
-                bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.current_path);
+                bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.full_path());
             }
 
             let end_pos = self.writer_pos;
@@ -395,10 +422,10 @@ impl <'a, W: Write> Encoder<'a, W> {
                 hash: compute_goodbye_hash(filename.to_bytes()),
             });
 
-            self.current_path.pop();
+            self.relative_path.pop();
         }
 
-        //println!("encode_dir: {:?} end {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} end {}", self.full_path(), self.writer_pos);
 
         // fixup goodby item offsets
         let goodbye_start = self.writer_pos as u64;
@@ -410,13 +437,13 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         self.write_goodbye_table(goodbye_offset, &mut goodbye_items)?;
 
-        //println!("encode_dir: {:?} end1 {}", self.current_path, self.writer_pos);
+        //println!("encode_dir: {:?} end1 {}", self.full_path(), self.writer_pos);
         Ok(())
     }
 
     fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64)  -> Result<(), Error> {
 
-        //println!("encode_file: {:?}", self.current_path);
+        //println!("encode_file: {:?}", self.full_path());
 
         let mut entry = self.create_entry(&stat)?;
 
@@ -433,7 +460,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
 
         if !include_payload {
-            eprintln!("skip content: {:?}", self.current_path);
+            eprintln!("skip content: {:?}", self.full_path());
             self.write_header(CA_FORMAT_PAYLOAD, 0)?;
             return Ok(());
         }
@@ -447,12 +474,12 @@ impl <'a, W: Write> Encoder<'a, W> {
             let n = match nix::unistd::read(filefd, &mut self.file_copy_buffer) {
                 Ok(n) => n,
                 Err(nix::Error::Sys(Errno::EINTR)) => continue /* try again */,
-                Err(err) =>  bail!("read {:?} failed - {}", self.current_path, err),
+                Err(err) =>  bail!("read {:?} failed - {}", self.full_path(), err),
             };
             if n == 0 { // EOF
                 if pos != size {
                     // Note:: casync format cannot handle that
-                    bail!("detected shrinked file {:?} ({} < {})", self.current_path, pos, size);
+                    bail!("detected shrinked file {:?} ({} < {})", self.full_path(), pos, size);
                 }
                 break;
             }
@@ -482,7 +509,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         let major = unsafe { libc::major(stat.st_rdev) } as u64;
         let minor = unsafe { libc::minor(stat.st_rdev) } as u64;
 
-        //println!("encode_device: {:?} {} {} {}", self.current_path, stat.st_rdev, major, minor);
+        //println!("encode_device: {:?} {} {} {}", self.full_path(), stat.st_rdev, major, minor);
 
         self.write_header(CA_FORMAT_DEVICE, std::mem::size_of::<CaFormatDevice>() as u64)?;
         self.write_item(CaFormatDevice { major, minor })?;
@@ -502,7 +529,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
     fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
 
-        //println!("encode_symlink: {:?} -> {:?}", self.current_path, target);
+        //println!("encode_symlink: {:?} -> {:?}", self.full_path(), target);
 
         let entry = self.create_entry(&stat)?;
         self.write_entry(entry)?;
