@@ -189,14 +189,8 @@ pub extern "C" fn proxmox_backup_new(
     opaque: *mut c_void,
     read: ReadFn,
     write: WriteFn,
-    drop: DropFn,
+    drop: Option<DropFn>,
 ) -> *mut CClient {
-    let drop_ptr: *const () = unsafe { std::mem::transmute(drop) };
-    let drop = if drop_ptr.is_null() {
-        None
-    } else {
-        Some(drop)
-    };
     make_c_client(crate::Client::new(CApiSocket {
         opaque,
         read,
