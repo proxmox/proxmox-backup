@@ -228,9 +228,12 @@ impl <'a, R: Read> PxarDecoder<'a, R> {
         Ok(())
     }
 
+    /// Restore an archive into the specified directory.
+    ///
+    /// The directory is created if it does not exist.
     pub fn restore<F>(
         &mut self,
-        path: &Path, // used for error reporting
+        path: &Path,
         callback: &F,
     ) -> Result<(), Error>
         where F: Fn(&Path) -> Result<(), Error>
