@@ -46,5 +46,5 @@ pub use format_definition::*;
 mod encoder;
 pub use encoder::*;
 
-mod decoder;
-pub use decoder::*;
+mod sequential_decoder;
+pub use sequential_decoder::*;
