@@ -1,9 +1,9 @@
 //! For the C API we need to provide a `Client` compatible with C. In rust `Client` takes a
-//! `T: io::Read + io::Write`, so we need to provide a way for C to provide callbacks to us to
+//! `T: Read + Write`, so we need to provide a way for C to provide callbacks to us to
 //! implement this.
 
 use std::ffi::{CStr, CString};
-use std::io;
+use std::io::{self, Read, Write};
 use std::os::raw::{c_char, c_int, c_void};
 
 use failure::{bail, format_err, Error};
@@ -19,11 +19,28 @@ pub type ReadFn = extern "C" fn(opaque: *mut c_void, buf: *mut u8, size: u64) ->
 /// actually written, or a negative `errno` value on error (eg. `-EAGAIN`).
 pub type WriteFn = extern "C" fn(opaque: *mut c_void, buf: *const u8, size: u64) -> i64;
 
+/// Optional drop callback. This is called when the Client gets destroyed and allows freeing
+/// resources associated with the opaque object behind the C API socket.
+pub type DropFn = extern "C" fn(opaque: *mut c_void);
+
 /// Stores the external C callbacks for communicating with the protocol socket.
-struct CApiSocket {
+pub struct CApiSocket {
     opaque: *mut c_void,
     read: ReadFn,
     write: WriteFn,
+    drop: Option<DropFn>,
+}
+
+impl CApiSocket {
+    fn from_io<T: Read + Write>(stream: T) -> Self {
+        let opaque = Box::leak(Box::new(stream));
+        Self {
+            opaque: opaque as *mut T as _,
+            read: c_read_fn::<T>,
+            write: c_write_fn::<T>,
+            drop: Some(c_drop_fn::<T>),
+        }
+    }
 }
 
 /// A client instance using C callbacks for reading from and writing to the protocol socket.
@@ -72,7 +89,7 @@ impl CClient {
     }
 }
 
-impl io::Read for CApiSocket {
+impl Read for CApiSocket {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let rc = (self.read)(self.opaque, buf.as_mut_ptr(), buf.len() as u64);
         if rc < 0 {
@@ -83,7 +100,7 @@ impl io::Read for CApiSocket {
     }
 }
 
-impl io::Write for CApiSocket {
+impl Write for CApiSocket {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let rc = (self.write)(self.opaque, buf.as_ptr(), buf.len() as u64);
         if rc < 0 {
@@ -98,6 +115,68 @@ impl io::Write for CApiSocket {
     }
 }
 
+impl Drop for CApiSocket {
+    fn drop(&mut self) {
+        if let Some(drop) = self.drop {
+            drop(self.opaque);
+        }
+    }
+}
+
+extern "C" fn c_read_fn<T: Read>(opaque: *mut c_void, buf: *mut u8, size: u64) -> i64 {
+    let stream = unsafe { &mut *(opaque as *mut T) };
+    let buf = unsafe { std::slice::from_raw_parts_mut(buf, size as usize) };
+
+    match stream.read(buf) {
+        Ok(size) => size as i64,
+        Err(err) => {
+            match err.raw_os_error() {
+                Some(err) => -(err as i64),
+                None => {
+                    eprintln!("error reading from stream: {}", err);
+                    -libc::EIO as i64
+                }
+            }
+        },
+    }
+}
+
+extern "C" fn c_write_fn<T: Write>(opaque: *mut c_void, buf: *const u8, size: u64) -> i64 {
+    let stream = unsafe { &mut *(opaque as *mut T) };
+    let buf = unsafe { std::slice::from_raw_parts(buf, size as usize) };
+
+    match stream.write(buf) {
+        Ok(size) => size as i64,
+        Err(err) => {
+            match err.raw_os_error() {
+                Some(err) => -(err as i64),
+                None => {
+                    eprintln!("error writing to stream: {}", err);
+                    -libc::EIO as i64
+                }
+            }
+        },
+    }
+}
+
+extern "C" fn c_drop_fn<T>(opaque: *mut c_void) {
+    unsafe {
+        Box::from_raw(opaque as *mut T);
+    }
+}
+
+pub(crate) fn make_c_compatible_client<T: Read + Write>(stream: T) -> crate::Client<CApiSocket> {
+    crate::Client::new(CApiSocket::from_io(stream))
+}
+
+pub(crate) fn make_c_client(client: crate::Client<CApiSocket>) -> *mut CClient {
+    Box::leak(Box::new(CClient {
+        client,
+        error: None,
+        upload: None,
+    }))
+}
+
 /// Creates a new instance of a backup protocol client.
 ///
 /// # Arguments
@@ -110,15 +189,19 @@ pub extern "C" fn proxmox_backup_new(
     opaque: *mut c_void,
     read: ReadFn,
     write: WriteFn,
+    drop: DropFn,
 ) -> *mut CClient {
-    Box::leak(Box::new(CClient {
-        client: crate::Client::new(CApiSocket {
-            opaque,
-            read,
-            write,
-        }),
-        error: None,
-        upload: None,
+    let drop_ptr: *const () = unsafe { std::mem::transmute(drop) };
+    let drop = if drop_ptr.is_null() {
+        None
+    } else {
+        Some(drop)
+    };
+    make_c_client(crate::Client::new(CApiSocket {
+        opaque,
+        read,
+        write,
+        drop,
     }))
 }
 
