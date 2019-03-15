@@ -552,7 +552,7 @@ fn restore(
         println!("DOWNLOAD FILE {} to {}", path, target);
 
         let target = PathBuf::from(target);
-        let writer = PxarBackupWriter::new(&target, true)?;
+        let writer = PxarDecodeWriter::new(&target, true)?;
         client.download(&path, Box::new(writer))?;
     } else {
         bail!("unknown file extensions - unable to download '{}'", archive_name);

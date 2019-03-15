@@ -9,12 +9,12 @@ use crate::pxar::decoder::*;
 
 /// Writer implementation to deccode a .pxar archive (download).
 
-pub struct PxarBackupWriter {
+pub struct PxarDecodeWriter {
     pipe: Option<std::fs::File>,
     child: Option<thread::JoinHandle<()>>,
 }
 
-impl Drop for PxarBackupWriter {
+impl Drop for PxarDecodeWriter {
 
     fn drop(&mut self) {
         drop(self.pipe.take());
@@ -22,9 +22,9 @@ impl Drop for PxarBackupWriter {
     }
 }
 
-impl PxarBackupWriter {
+impl PxarDecodeWriter {
 
-    pub fn new(base: &Path, _verbose: bool) -> Result<Self, Error> {
+    pub fn new(base: &Path, verbose: bool) -> Result<Self, Error> {
         let (rx, tx) = nix::unistd::pipe()?;
 
         let base = PathBuf::from(base);
@@ -32,10 +32,11 @@ impl PxarBackupWriter {
         let child = thread::spawn(move|| {
             let mut reader = unsafe { std::fs::File::from_raw_fd(rx) };
             let mut decoder = PxarDecoder::new(&mut reader);
-
-            
+          
             if let Err(err) = decoder.restore(&base, & |path| {
-                println!("RESTORE: {:?}", path);
+                if verbose {
+                    println!("RESTORE: {:?}", path);
+                }
                 Ok(())
             }) {
                 eprintln!("pxar decode failed - {}", err);
@@ -48,7 +49,7 @@ impl PxarBackupWriter {
     }
 }
 
-impl Write for PxarBackupWriter {
+impl Write for PxarDecodeWriter {
 
     fn write(&mut self, buffer: &[u8]) -> Result<usize, std::io::Error> {
         let pipe = match self.pipe {
