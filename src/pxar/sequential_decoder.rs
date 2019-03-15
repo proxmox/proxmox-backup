@@ -36,7 +36,11 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         Self { reader, skip_buffer }
     }
 
-    fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
+    pub (crate) fn get_reader_mut(&mut self) -> & mut R {
+        self.reader
+    }
+
+    pub (crate) fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
 
         let mut result: T = unsafe { std::mem::uninitialized() };
 
@@ -71,7 +75,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         Ok(PathBuf::from(std::ffi::OsString::from_vec(buffer)))
     }
 
-    fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
+    pub (crate) fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
         if size < (HEADER_SIZE + 2) {
             bail!("dectected short filename");
         }

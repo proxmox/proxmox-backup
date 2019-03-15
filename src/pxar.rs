@@ -48,3 +48,6 @@ pub use encoder::*;
 
 mod sequential_decoder;
 pub use sequential_decoder::*;
+
+mod decoder;
+pub use decoder::*;
