@@ -54,14 +54,14 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         Ok(result.from_le())
     }
 
-    fn read_symlink(&mut self, size: u64) -> Result<PathBuf, Error> {
+    fn read_link(&mut self, size: u64) -> Result<PathBuf, Error> {
         if size < (HEADER_SIZE + 2) {
-             bail!("dectected short symlink target.");
+             bail!("dectected short link target.");
         }
         let target_len = size - HEADER_SIZE;
 
         if target_len > (libc::PATH_MAX as u64) {
-            bail!("symlink target too long ({}).", target_len);
+            bail!("link target too long ({}).", target_len);
         }
 
         let mut buffer = vec![0u8; target_len as usize];
@@ -69,10 +69,29 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
         let last_byte = buffer.pop().unwrap();
         if last_byte != 0u8 {
-            bail!("symlink target not nul terminated.");
+            bail!("link target not nul terminated.");
         }
 
         Ok(PathBuf::from(std::ffi::OsString::from_vec(buffer)))
+    }
+
+    fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
+        if size < (HEADER_SIZE + 8 + 2) {
+            bail!("dectected short hardlink header.");
+        }
+        let offset: u64 = self.read_item()?;
+        let target = self.read_link(size - 8)?;
+
+        for c in target.components() {
+            match c {
+                std::path::Component::Normal(_) => { /* OK */  },
+                _ => {
+                    bail!("hardlink target contains invalid component {:?}", c);
+                }
+            }
+        }
+
+        Ok((target, offset))
     }
 
     pub (crate) fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
@@ -250,13 +269,15 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             Err(err) => bail!("unable to open target directory {:?} - {}", path, err),
         };
 
-        self.restore_sequential(&mut path.to_owned(), &OsString::new(), &dir, callback)
+        let mut relative_path = PathBuf::new();
+        self.restore_sequential(path, &mut relative_path, &OsString::new(), &dir, callback)
     }
 
     fn restore_sequential<F>(
         &mut self,
-        path: &mut PathBuf, // used for error reporting
-        filename: &OsStr,  // repeats path last component
+        base_path: &Path,
+        relative_path: &mut PathBuf,
+        filename: &OsStr,  // repeats path last relative_path component
         parent: &nix::dir::Dir,
         callback: &F,
     ) -> Result<(), Error>
@@ -265,12 +286,23 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
         let parent_fd = parent.as_raw_fd();
 
-        // read ENTRY first
+        let full_path = base_path.join(&relative_path);
+
+        (callback)(&full_path)?;
+
         let head: CaFormatHeader = self.read_item()?;
+
+        if head.htype == PXAR_FORMAT_HARDLINK {
+            let (target, _offset) = self.read_hardlink(head.size)?;
+            let target_path = base_path.join(&target);
+            //println!("HARDLINK: {} {:?} -> {:?}", offset, full_path, target_path);
+            hardlink(&target_path, &full_path)?;
+            return Ok(());
+        }
+
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
-        (callback)(path)?;
 
         let mode = entry.mode as u32; //fixme: upper 32bits?
 
@@ -283,7 +315,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
              } else {
                 dir = match dir_mkdirat(parent_fd, filename, true) {
                     Ok(dir) => dir,
-                    Err(err) => bail!("unable to open directory {:?} - {}", path, err),
+                    Err(err) => bail!("unable to open directory {:?} - {}", full_path, err),
                 };
             }
 
@@ -291,10 +323,9 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
             while head.htype == CA_FORMAT_FILENAME {
                 let name = self.read_filename(head.size)?;
-                path.push(&name);
-                //println!("NAME: {:?}", path);
-                self.restore_sequential(path, &name, &dir, callback)?;
-                path.pop();
+                relative_path.push(&name);
+                self.restore_sequential(base_path, relative_path, &name, &dir, callback)?;
+                relative_path.pop();
 
                 head = self.read_item()?;
             }
@@ -316,7 +347,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         }
 
         if filename.is_empty() {
-            bail!("got empty file name at {:?}", path)
+            bail!("got empty file name at {:?}", full_path)
         }
 
         if ifmt == libc::S_IFLNK {
@@ -326,10 +357,10 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             let head: CaFormatHeader = self.read_item()?;
             match head.htype {
                 CA_FORMAT_SYMLINK => {
-                    let target = self.read_symlink(head.size)?;
+                    let target = self.read_link(head.size)?;
                     //println!("TARGET: {:?}", target);
                     if let Err(err) = symlinkat(&target, parent_fd, filename) {
-                        bail!("create symlink {:?} failed - {}", path, err);
+                        bail!("create symlink {:?} failed - {}", full_path, err);
                     }
                 }
                  _ => {
@@ -395,7 +426,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
             let mut file = match file_openat(parent_fd, filename, flags, open_mode) {
                 Ok(file) => file,
-                Err(err) => bail!("open file {:?} failed - {}", path, err),
+                Err(err) => bail!("open file {:?} failed - {}", full_path, err),
             };
 
             let head = self.restore_attributes(&entry)?;
@@ -454,6 +485,14 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             println!("{:?}", path);
         }
 
+        if head.htype == PXAR_FORMAT_HARDLINK {
+            let (target, offset) = self.read_hardlink(head.size)?;
+            if verbose {
+                println!("Hardlink: {} {:?}", offset, target);
+            }
+            return Ok(());
+        }
+
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
@@ -509,7 +548,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             match head.htype {
 
                 CA_FORMAT_SYMLINK => {
-                    let target = self.read_symlink(head.size)?;
+                    let target = self.read_link(head.size)?;
                     if verbose {
                         println!("Symlink: {:?}", target);
                     }
@@ -620,6 +659,16 @@ fn dir_mkdirat(parent: RawFd, filename: &OsStr, create_new: bool) -> Result<nix:
     let dir = nix::dir::Dir::openat(parent, filename, OFlag::O_DIRECTORY,  Mode::empty())?;
 
     Ok(dir)
+}
+
+fn hardlink(oldpath: &Path, newpath: &Path) -> Result<(), Error> {
+    oldpath.with_nix_path(|oldpath| {
+        newpath.with_nix_path(|newpath| {
+            let res = unsafe { libc::link(oldpath.as_ptr(), newpath.as_ptr()) };
+            Errno::result(res)?;
+            Ok(())
+        })?
+    })?
 }
 
 fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error> {

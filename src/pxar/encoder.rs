@@ -44,7 +44,7 @@ pub struct Encoder<'a, W: Write> {
     all_file_systems: bool,
     root_st_dev: u64,
     verbose: bool,
-    hardlinks: HashMap<HardLinkInfo, PathBuf>,
+    hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
 }
 
 impl <'a, W: Write> Encoder<'a, W> {
@@ -355,35 +355,47 @@ impl <'a, W: Write> Encoder<'a, W> {
 
             } else if ifmt == libc::S_IFREG {
 
+                let mut hardlink_target = None;
+
                 if stat.st_nlink > 1 {
                     let link_info = HardLinkInfo { st_dev: stat.st_dev, st_ino: stat.st_ino };
-                    if let Some(target) = self.hardlinks.get(&link_info) {
-                        // fixme: store hardlink info somwhow?
-                        eprintln!("FOUND HARDLINK {:?}", target);
-                    } else {
-                        self.hardlinks.insert(link_info, self.relative_path.clone());
+                    hardlink_target = self.hardlinks.get(&link_info).map(|(v, offset)| {
+                        let mut target = v.clone().into_os_string();
+                        target.push("\0"); // add Nul byte
+                        (target, (start_pos as u64) - offset)
+                    });
+                    if hardlink_target == None {
+                        self.hardlinks.insert(link_info, (self.relative_path.clone(), start_pos as u64));
                     }
                 }
 
-                let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
-                    Ok(filefd) => filefd,
-                    Err(nix::Error::Sys(Errno::ENOENT)) => {
-                        self.report_vanished_file(&self.full_path())?;
-                        continue;
-                    },
-                    Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
-                };
+                if let Some((target, offset)) = hardlink_target {
 
-                let child_magic = if dir_stat.st_dev != stat.st_dev {
-                    detect_fs_type(filefd)?
+                    self.write_filename(&filename)?;
+                    self.encode_hardlink(target.as_bytes(), offset)?;
+
                 } else {
-                    magic
-                };
 
-                self.write_filename(&filename)?;
-                let res = self.encode_file(filefd, &stat, child_magic);
-                let _ = nix::unistd::close(filefd); // ignore close errors
-                res?;
+                    let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                        Ok(filefd) => filefd,
+                        Err(nix::Error::Sys(Errno::ENOENT)) => {
+                            self.report_vanished_file(&self.full_path())?;
+                            continue;
+                        },
+                        Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
+                    };
+
+                    let child_magic = if dir_stat.st_dev != stat.st_dev {
+                        detect_fs_type(filefd)?
+                    } else {
+                        magic
+                    };
+
+                    self.write_filename(&filename)?;
+                    let res = self.encode_file(filefd, &stat, child_magic);
+                    let _ = nix::unistd::close(filefd); // ignore close errors
+                    res?;
+                }
 
             } else if ifmt == libc::S_IFLNK {
                 let mut buffer = [0u8; libc::PATH_MAX as usize];
@@ -535,6 +547,18 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.write_entry(entry)?;
 
         self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
+        self.write(target)?;
+
+        Ok(())
+    }
+
+    fn encode_hardlink(&mut self, target: &[u8], offset: u64)  -> Result<(), Error> {
+
+        //println!("encode_hardlink: {:?} -> {:?}", self.full_path(), target);
+
+        // Note: HARDLINK replaces an ENTRY.
+        self.write_header(PXAR_FORMAT_HARDLINK, (target.len() as u64) + 8)?;
+        self.write_item(offset)?;
         self.write(target)?;
 
         Ok(())

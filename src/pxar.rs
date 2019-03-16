@@ -38,6 +38,14 @@
 //!   * ...
 //!   * GOODBYE           -- lookup table at the end of a list of directory entries
 
+///! The original format has no way to deal with hardlinks, so we
+///! extended the format by a special HARDLINK tag, which can replace
+///! an ENTRY tag. The HARDLINK tag contains an 64bit offset which
+///! points to the linked ENTRY inside the archive, followed by the
+///! full path name of that ENTRY. HARDLINKs may not have further data
+///! (user, group, acl, ...) because this is already defined by the
+///! linked ENTRY.
+
 mod binary_search_tree;
 pub use binary_search_tree::*;
 

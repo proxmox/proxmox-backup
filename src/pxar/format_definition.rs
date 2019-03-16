@@ -15,6 +15,9 @@ pub const CA_FORMAT_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
 pub const CA_FORMAT_SYMLINK: u64 = 0x664a6fb6830e0d6c;
 pub const CA_FORMAT_DEVICE: u64 = 0xac3dace369dfe643;
 
+// compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
+pub const PXAR_FORMAT_HARDLINK: u64 = 0x2c5e06f634f65b86;
+
 pub const CA_FORMAT_PAYLOAD: u64 = 0x8b9e1d93d6dcffc9;
 
 pub const CA_FORMAT_GOODBYE: u64 = 0xdfd35c5e8327c403;
