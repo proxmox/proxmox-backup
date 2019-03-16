@@ -24,6 +24,7 @@ Welcome to Proxmox Backup's documentation!
    :caption: Appendix
 
    command-syntax.rst
+   file-formats.rst
    glossary.rst
 
 * :ref:`genindex`

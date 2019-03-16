@@ -1,0 +1,43 @@
+digraph g {
+graph [
+rankdir = "LR"
+fontname="Helvetica"
+];
+node [
+fontsize = "16"
+shape = "record"
+];
+edge [
+];
+
+"archive" [
+label = "archive.pxar"
+shape = "record"
+];
+
+"rootdir" [
+label = "<f0> ENTRY| \{XATTR\}\* extended attribute list\l | \{ACL_USER\}\* USER ACL entries\l | \{ACL_GROUP\}\* GROUP ACL entries\l| \[ACL_GROUP_OBJ\] the ACL_GROUP_OBJ \l| \[ACL_DEFAULT\] the various default ACL fields\l|\{ACL_DEFAULT_USER\}\* USER ACL entries\l|\{ACL_DEFAULT_GROUP\}\* GROUP ACL entries\l|\[FCAPS\] file capability in Linux disk format\l|\[QUOTA_PROJECT_ID\] the ext4/xfs quota project ID\l| { PAYLOAD  | SYMLINK | DEVICE | { <de> \{DirectoryEntries\}\* | GOODBYE}}"
+shape = "record"
+];
+
+
+"entry" [
+label = "<f0> size: u64 = 64\l|type: u64 = ENTRY\l|feature_flags: u64\l|mode: u64\l|flags: u64\l|uid: u64\l|gid: u64\l|mtime: u64\l"
+labeljust = "l"
+shape = "record"
+];
+
+
+
+"direntry" [
+label = "<f0> FILENAME |{ENTRY | HARDLINK}"
+shape = "record"
+];
+
+"archive" -> "rootdir":f0
+
+"rootdir":f0 -> "entry":f0
+
+"rootdir":de -> "direntry":f0
+
+}
