@@ -4,7 +4,7 @@ extern crate proxmox_backup;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
-use proxmox_backup::tools::daemon::ReexecStore;
+use proxmox_backup::tools::daemon::Reloader;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 
@@ -28,7 +28,7 @@ fn main() {
 
 fn run() -> Result<(), Error> {
     // This manages data for reloads:
-    let mut reexecer = ReexecStore::new();
+    let mut reloader = Reloader::new();
 
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
@@ -60,7 +60,7 @@ fn run() -> Result<(), Error> {
 
     // http server future:
 
-    let listener: tokio::net::TcpListener = reexecer.restore(
+    let listener: tokio::net::TcpListener = reloader.restore(
         "PROXMOX_BACKUP_LISTEN_FD",
         || {
             let addr = ([127,0,0,1], 82).into();
@@ -76,7 +76,7 @@ fn run() -> Result<(), Error> {
 
     let signal_handler =
         proxmox_backup::tools::daemon::default_signalfd_stream(
-            reexecer,
+            reloader,
             || {
                 unsafe { QUIT_MAIN = true; }
                 Ok(())

@@ -6,6 +6,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
 use failure::*;
+use nix::sys::signalfd::siginfo;
 use tokio::prelude::*;
 
 use crate::tools::fd_change_cloexec;
@@ -16,14 +17,14 @@ pub type BoxedStoreFunc = Box<dyn Fn() -> Result<String, Error> + UnwindSafe + S
 
 /// Helper trait to "store" something in the environment to be re-used after re-executing the
 /// service on a reload.
-pub trait ReexecContinue: Sized {
+pub trait Reloadable: Sized {
     fn restore(var: &str) -> Result<Self, Error>;
     fn get_store_func(&self) -> BoxedStoreFunc;
 }
 
 /// Manages things to be stored and reloaded upon reexec.
 /// Anything which should be restorable should be instantiated via this struct's `restore` method,
-pub struct ReexecStore {
+pub struct Reloader {
     pre_exec: Vec<PreExecEntry>,
 }
 
@@ -34,7 +35,7 @@ struct PreExecEntry {
     store_fn: BoxedStoreFunc,
 }
 
-impl ReexecStore {
+impl Reloader {
     pub fn new() -> Self {
         Self {
             pre_exec: Vec::new(),
@@ -47,7 +48,7 @@ impl ReexecStore {
     /// Values created via this method will be remembered for later re-execution.
     pub fn restore<T, F>(&mut self, name: &'static str, or_create: F) -> Result<T, Error>
     where
-        T: ReexecContinue,
+        T: Reloadable,
         F: FnOnce() -> Result<T, Error>,
     {
         let res = match std::env::var(name) {
@@ -120,12 +121,12 @@ impl ReexecStore {
 }
 
 /// Provide a default signal handler for daemons (daemon & proxy).
-/// When the first `SIGHUP` is received, the `reexec_store`'s `fork_restart` method will be
+/// When the first `SIGHUP` is received, the `reloader`'s `fork_restart` method will be
 /// triggered. Any further `SIGHUP` is "passed through".
 pub fn default_signalfd_stream<F>(
-    reexec_store: ReexecStore,
+    reloader: Reloader,
     before_reload: F,
-) -> Result<impl Stream<Item = nix::sys::signalfd::siginfo, Error = Error>, Error>
+) -> Result<impl Stream<Item = siginfo, Error = Error>, Error>
 where
     F: FnOnce() -> Result<(), Error>,
 {
@@ -137,7 +138,7 @@ where
     sigprocmask(SigmaskHow::SIG_BLOCK, Some(&sigs), None)?;
 
     let sigfdstream = SignalFd::new(&sigs)?;
-    let mut reexec_store = Some(reexec_store);
+    let mut reloader = Some(reloader);
     let mut before_reload = Some(before_reload);
 
     Ok(sigfdstream
@@ -148,12 +149,12 @@ where
             if si.ssi_signo == Signal::SIGHUP as u32 {
                 // The firs time this happens we will try to start a new process which should take
                 // over.
-                if let Some(reexec_store) = reexec_store.take() {
+                if let Some(reloader) = reloader.take() {
                     if let Err(e) = (before_reload.take().unwrap())() {
                         return Some(Err(e));
                     }
 
-                    match reexec_store.fork_restart() {
+                    match reloader.fork_restart() {
                         Ok(_) => return None,
                         Err(e) => return Some(Err(e)),
                     }
@@ -172,7 +173,7 @@ where
 }
 
 // For now all we need to do is store and reuse a tcp listening socket:
-impl ReexecContinue for tokio::net::TcpListener {
+impl Reloadable for tokio::net::TcpListener {
     // NOTE: The socket must not be closed when the store-function is called:
     // FIXME: We could become "independent" of the TcpListener and its reference to the file
     // descriptor by `dup()`ing it (and check if the listener still exists via kcmp()?)

@@ -1,6 +1,6 @@
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
-use proxmox_backup::tools::daemon::ReexecStore;
+use proxmox_backup::tools::daemon::Reloader;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
@@ -64,11 +64,11 @@ fn run() -> Result<(), Error> {
     };
 
     // This manages data for reloads:
-    let mut reexecer = ReexecStore::new();
+    let mut reloader = Reloader::new();
 
     // http server future:
 
-    let listener: tokio::net::TcpListener = reexecer.restore(
+    let listener: tokio::net::TcpListener = reloader.restore(
         "PROXMOX_BACKUP_LISTEN_FD",
         || {
             let addr = ([0,0,0,0,0,0,0,0], 8007).into();
@@ -108,7 +108,7 @@ fn run() -> Result<(), Error> {
     // signalfd future:
     let signal_handler =
         proxmox_backup::tools::daemon::default_signalfd_stream(
-            reexecer,
+            reloader,
             || {
                 unsafe { QUIT_MAIN = true; }
                 Ok(())
