@@ -76,7 +76,15 @@ fn run() -> Result<(), Error> {
             // the cert and closes the connection, so we follow up with mapping
             // it to an option and then filtering None with filter_map
             Ok(c) => Ok::<_, Error>(Some(c)),
-            Err(_) => Ok(None),
+            Err(e) => {
+                if let Some(_io) = e.downcast_ref::<std::io::Error>() {
+                    // "real" IO errors should not simply be ignored
+                    bail!("shutting down...");
+                } else {
+                    // handshake errors just get filtered by filter_map() below:
+                    Ok(None)
+                }
+            }
         })
         .filter_map(|r| {
             // Filter out the Nones
