@@ -5,6 +5,9 @@ use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
 use failure::*;
+use tokio::prelude::*;
+
+use crate::tools::signalfd::{SigSet, SignalFd};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 pub type BoxedStoreFunc = Box<dyn Fn() -> Result<String, Error> + UnwindSafe + Send>;
@@ -112,4 +115,56 @@ impl ReexecStore {
         nix::unistd::execvp(&exe, &args)?;
         Ok(())
     }
+}
+
+/// Provide a default signal handler for daemons (daemon & proxy).
+/// When the first `SIGHUP` is received, the `reexec_store`'s `fork_restart` method will be
+/// triggered. Any further `SIGHUP` is "passed through".
+pub fn default_signalfd_stream<F>(
+    reexec_store: ReexecStore,
+    before_reload: F,
+) -> Result<impl Stream<Item = nix::sys::signalfd::siginfo, Error = Error>, Error>
+where
+    F: FnOnce() -> Result<(), Error>,
+{
+    use nix::sys::signal::{SigmaskHow, Signal, sigprocmask};
+
+    // Block SIGHUP for *all* threads and use it for a signalfd handler:
+    let mut sigs = SigSet::empty();
+    sigs.add(Signal::SIGHUP);
+    sigprocmask(SigmaskHow::SIG_BLOCK, Some(&sigs), None)?;
+
+    let sigfdstream = SignalFd::new(&sigs)?;
+    let mut reexec_store = Some(reexec_store);
+    let mut before_reload = Some(before_reload);
+
+    Ok(sigfdstream
+        .filter_map(move |si| {
+            // FIXME: logging should be left to the user of this:
+            eprintln!("received signal: {}", si.ssi_signo);
+
+            if si.ssi_signo == Signal::SIGHUP as u32 {
+                // The firs time this happens we will try to start a new process which should take
+                // over.
+                if let Some(reexec_store) = reexec_store.take() {
+                    if let Err(e) = (before_reload.take().unwrap())() {
+                        return Some(Err(e));
+                    }
+
+                    match reexec_store.fork_restart() {
+                        Ok(_) => return None,
+                        Err(e) => return Some(Err(e)),
+                    }
+                }
+            }
+
+            // pass the rest through:
+            Some(Ok(si))
+        })
+        // filter_map cannot produce errors, so we create Result<> items instead, iow:
+        //   before: Stream<Item = siginfo, Error>
+        //   after:  Stream<Item = Result<siginfo, Error>, Error>.
+        // use and_then to lift out the wrapped result:
+        .and_then(|si_res| si_res)
+    )
 }
