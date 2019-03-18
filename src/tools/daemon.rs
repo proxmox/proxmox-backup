@@ -6,7 +6,8 @@ use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
 use failure::*;
-use nix::sys::signalfd::siginfo;
+use futures::future::poll_fn;
+use futures::try_ready;
 use tokio::prelude::*;
 
 use crate::tools::fd_change_cloexec;
@@ -120,58 +121,6 @@ impl Reloader {
     }
 }
 
-/// Provide a default signal handler for daemons (daemon & proxy).
-/// When the first `SIGHUP` is received, the `reloader`'s `fork_restart` method will be
-/// triggered. Any further `SIGHUP` is "passed through".
-pub fn default_signalfd_stream<F>(
-    reloader: Reloader,
-    before_reload: F,
-) -> Result<impl Stream<Item = siginfo, Error = Error>, Error>
-where
-    F: FnOnce() -> Result<(), Error>,
-{
-    use nix::sys::signal::{SigmaskHow, Signal, sigprocmask};
-
-    // Block SIGHUP for *all* threads and use it for a signalfd handler:
-    let mut sigs = SigSet::empty();
-    sigs.add(Signal::SIGHUP);
-    sigprocmask(SigmaskHow::SIG_BLOCK, Some(&sigs), None)?;
-
-    let sigfdstream = SignalFd::new(&sigs)?;
-    let mut reloader = Some(reloader);
-    let mut before_reload = Some(before_reload);
-
-    Ok(sigfdstream
-        .filter_map(move |si| {
-            // FIXME: logging should be left to the user of this:
-            eprintln!("received signal: {}", si.ssi_signo);
-
-            if si.ssi_signo == Signal::SIGHUP as u32 {
-                // The firs time this happens we will try to start a new process which should take
-                // over.
-                if let Some(reloader) = reloader.take() {
-                    if let Err(e) = (before_reload.take().unwrap())() {
-                        return Some(Err(e));
-                    }
-
-                    match reloader.fork_restart() {
-                        Ok(_) => return None,
-                        Err(e) => return Some(Err(e)),
-                    }
-                }
-            }
-
-            // pass the rest through:
-            Some(Ok(si))
-        })
-        // filter_map cannot produce errors, so we create Result<> items instead, iow:
-        //   before: Stream<Item = siginfo, Error>
-        //   after:  Stream<Item = Result<siginfo, Error>, Error>.
-        // use and_then to lift out the wrapped result:
-        .and_then(|si_res| si_res)
-    )
-}
-
 // For now all we need to do is store and reuse a tcp listening socket:
 impl Reloadable for tokio::net::TcpListener {
     // NOTE: The socket must not be closed when the store-function is called:
@@ -195,4 +144,63 @@ impl Reloadable for tokio::net::TcpListener {
             &tokio::reactor::Handle::default(),
         )?)
     }
+}
+
+/// This creates a future representing a daemon which reloads itself when receiving a SIGHUP.
+/// If this is started regularly, a listening socket is created. In this case, the file descriptor
+/// number will be remembered in `PROXMOX_BACKUP_LISTEN_FD`.
+/// If the variable already exists, its contents will instead be used to restore the listening
+/// socket.  The finished listening socket is then passed to the `create_service` function which
+/// can be used to setup the TLS and the HTTP daemon.
+pub fn create_daemon<F, S>(
+    address: std::net::SocketAddr,
+    create_service: F,
+) -> Result<impl Future<Item = (), Error = ()>, Error>
+where
+    F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
+    S: Future<Item = (), Error = ()>,
+{
+    let mut reloader = Reloader::new();
+
+    let listener: tokio::net::TcpListener = reloader.restore(
+        "PROXMOX_BACKUP_LISTEN_FD",
+        move || Ok(tokio::net::TcpListener::bind(&address)?),
+    )?;
+
+    let service = create_service(listener)?;
+
+    // Block SIGHUP for *all* threads and use it for a signalfd handler:
+    use nix::sys::signal;
+    let mut sigs = SigSet::empty();
+    sigs.add(signal::Signal::SIGHUP);
+    signal::sigprocmask(signal::SigmaskHow::SIG_BLOCK, Some(&sigs), None)?;
+
+    let mut sigfdstream = SignalFd::new(&sigs)?
+        .map_err(|e| log::error!("error in signal handler: {}", e));
+
+    let mut reloader = Some(reloader);
+
+    // Use a Future instead of a Stream for ease-of-use: Poll until we receive a SIGHUP.
+    let signal_handler = poll_fn(move || {
+        match try_ready!(sigfdstream.poll()) {
+            Some(si) => {
+                log::info!("received signal {}", si.ssi_signo);
+                if si.ssi_signo == signal::Signal::SIGHUP as u32 {
+                    if let Err(e) = reloader.take().unwrap().fork_restart() {
+                        log::error!("error during reload: {}", e);
+                    }
+                    Ok(Async::Ready(()))
+                } else {
+                    Ok(Async::NotReady)
+                }
+            }
+            // or the stream ended (which it can't, really)
+            None => Ok(Async::Ready(()))
+        }
+    });
+
+    Ok(service.select(signal_handler)
+        .map(|_| log::info!("daemon shutting down..."))
+        .map_err(|_| ())
+    )
 }

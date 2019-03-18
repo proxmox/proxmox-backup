@@ -1,6 +1,6 @@
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
-use proxmox_backup::tools::daemon::Reloader;
+use proxmox_backup::tools::daemon;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
@@ -13,8 +13,6 @@ use futures::stream::Stream;
 use tokio::prelude::*;
 
 use hyper;
-
-static mut QUIT_MAIN: bool = false;
 
 fn main() {
 
@@ -63,101 +61,41 @@ fn run() -> Result<(), Error> {
         Err(err) => bail!("unabled to decode pkcs12 identity {} - {}", cert_path, err),
     };
 
-    // This manages data for reloads:
-    let mut reloader = Reloader::new();
-
-    // http server future:
-
-    let listener: tokio::net::TcpListener = reloader.restore(
-        "PROXMOX_BACKUP_LISTEN_FD",
-        || {
-            let addr = ([0,0,0,0,0,0,0,0], 8007).into();
-            Ok(tokio::net::TcpListener::bind(&addr)?)
+    let server = daemon::create_daemon(
+        ([0,0,0,0,0,0,0,0], 8007).into(),
+        |listener| {
+            let acceptor = native_tls::TlsAcceptor::new(identity)?;
+            let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
+            let connections = listener
+                .incoming()
+                .map_err(Error::from)
+                .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
+                .then(|r| match r {
+                    // accept()s can fail here with an Err() when eg. the client rejects
+                    // the cert and closes the connection, so we follow up with mapping
+                    // it to an option and then filtering None with filter_map
+                    Ok(c) => Ok::<_, Error>(Some(c)),
+                    Err(e) => {
+                        if let Some(_io) = e.downcast_ref::<std::io::Error>() {
+                            // "real" IO errors should not simply be ignored
+                            bail!("shutting down...");
+                        } else {
+                            // handshake errors just get filtered by filter_map() below:
+                            Ok(None)
+                        }
+                    }
+                })
+                .filter_map(|r| {
+                    // Filter out the Nones
+                    r
+                });
+            Ok(hyper::Server::builder(connections)
+                .serve(rest_server)
+                .map_err(|e| eprintln!("server error: {}", e))
+            )
         },
     )?;
-    let acceptor = native_tls::TlsAcceptor::new(identity)?;
-    let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
-    let connections = listener
-        .incoming()
-        .map_err(Error::from)
-        .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
-        .then(|r| match r {
-            // accept()s can fail here with an Err() when eg. the client rejects
-            // the cert and closes the connection, so we follow up with mapping
-            // it to an option and then filtering None with filter_map
-            Ok(c) => Ok::<_, Error>(Some(c)),
-            Err(e) => {
-                if let Some(_io) = e.downcast_ref::<std::io::Error>() {
-                    // "real" IO errors should not simply be ignored
-                    bail!("shutting down...");
-                } else {
-                    // handshake errors just get filtered by filter_map() below:
-                    Ok(None)
-                }
-            }
-        })
-        .filter_map(|r| {
-            // Filter out the Nones
-            r
-        });
 
-    let mut http_server = hyper::Server::builder(connections)
-        .serve(rest_server)
-        .map_err(|e| eprintln!("server error: {}", e));
-
-    // signalfd future:
-    let signal_handler =
-        proxmox_backup::tools::daemon::default_signalfd_stream(
-            reloader,
-            || {
-                unsafe { QUIT_MAIN = true; }
-                Ok(())
-            },
-        )?
-        .map(|si| {
-            // debugging...
-            eprintln!("received signal: {}", si.ssi_signo);
-        })
-        .map_err(|e| {
-            eprintln!("error from signalfd: {}, shutting down...", e);
-            unsafe {
-                QUIT_MAIN = true;
-            }
-        });
-
-    // Combined future for signalfd & http server, we want to quit as soon as either of them ends.
-    // Neither of them is supposed to end unless some weird error happens, so just bail out if is
-    // the case...
-    let mut signal_handler = signal_handler.into_future();
-    let main = futures::future::poll_fn(move || {
-        // Helper for some diagnostic error messages:
-        fn poll_helper<S: Future>(stream: &mut S, name: &'static str) -> bool {
-            match stream.poll() {
-                Ok(Async::Ready(_)) => {
-                    eprintln!("{} ended, shutting down", name);
-                    true
-                }
-                Err(_) => {
-                    eprintln!("{} error, shutting down", name);
-                    true
-                },
-                _ => false,
-            }
-        }
-        if poll_helper(&mut http_server, "http server") ||
-           poll_helper(&mut signal_handler, "signalfd handler")
-        {
-            return Ok(Async::Ready(()));
-        }
-
-        if unsafe { QUIT_MAIN } {
-            eprintln!("shutdown requested");
-            Ok(Async::Ready(()))
-        } else {
-            Ok(Async::NotReady)
-        }
-    });
-
-    hyper::rt::run(main);
+    hyper::rt::run(server);
     Ok(())
 }
