@@ -15,7 +15,7 @@ use super::index::*;
 use super::backup_info::*;
 
 lazy_static!{
-    static ref datastore_map: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
+    static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
 }
 
 /// Datastore Management
@@ -37,7 +37,7 @@ impl DataStore {
 
         let path = store_config["path"].as_str().unwrap();
 
-        let mut map = datastore_map.lock().unwrap();
+        let mut map = DATASTORE_MAP.lock().unwrap();
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!

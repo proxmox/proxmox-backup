@@ -252,7 +252,7 @@ impl SectionConfig {
 
         if !first_char.is_whitespace() { return None }
 
-        let mut kv_iter = line.trim_left().splitn(2, |c: char| c.is_whitespace());
+        let mut kv_iter = line.trim_start().splitn(2, |c: char| c.is_whitespace());
 
         let key = match kv_iter.next() {
             Some(v) => v.trim(),
