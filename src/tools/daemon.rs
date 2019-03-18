@@ -1,12 +1,14 @@
 //! Helpers for daemons/services.
 
 use std::ffi::CString;
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
 use failure::*;
 use tokio::prelude::*;
 
+use crate::tools::fd_change_cloexec;
 use crate::tools::signalfd::{SigSet, SignalFd};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
@@ -167,4 +169,29 @@ where
         // use and_then to lift out the wrapped result:
         .and_then(|si_res| si_res)
     )
+}
+
+// For now all we need to do is store and reuse a tcp listening socket:
+impl ReexecContinue for tokio::net::TcpListener {
+    // NOTE: The socket must not be closed when the store-function is called:
+    // FIXME: We could become "independent" of the TcpListener and its reference to the file
+    // descriptor by `dup()`ing it (and check if the listener still exists via kcmp()?)
+    fn get_store_func(&self) -> BoxedStoreFunc {
+        let fd = self.as_raw_fd();
+        Box::new(move || {
+            fd_change_cloexec(fd, false)?;
+            Ok(fd.to_string())
+        })
+    }
+
+    fn restore(var: &str) -> Result<Self, Error> {
+        let fd = var.parse::<u32>()
+            .map_err(|e| format_err!("invalid file descriptor: {}", e))?
+            as RawFd;
+        fd_change_cloexec(fd, true)?;
+        Ok(Self::from_std(
+            unsafe { std::net::TcpListener::from_raw_fd(fd) },
+            &tokio::reactor::Handle::default(),
+        )?)
+    }
 }
