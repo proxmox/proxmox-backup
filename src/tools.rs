@@ -533,3 +533,12 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
 
     list
 }
+
+pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
+    use nix::fcntl::{fcntl, F_GETFD, F_SETFD, FdFlag};
+    let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)
+        .ok_or_else(|| format_err!("unhandled file flags"))?; // nix crate is stupid this way...
+    flags.set(FdFlag::FD_CLOEXEC, on);
+    fcntl(fd, F_SETFD(flags))?;
+    Ok(())
+}
