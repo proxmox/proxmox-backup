@@ -120,12 +120,16 @@ fn get_request_parameters_async(
     let mut is_json = false;
 
     if let Some(value) = parts.headers.get(header::CONTENT_TYPE) {
-        if value == "application/x-www-form-urlencoded" {
-            is_json = false;
-        } else if value == "application/json" {
-            is_json = true;
-        } else {
-            return Box::new(future::err(http_err!(BAD_REQUEST, format!("unsupported content type"))));
+        match value.to_str().map(|v| v.split(';').next()) {
+            Ok(Some("application/x-www-form-urlencoded")) => {
+                is_json = false;
+            }
+            Ok(Some("application/json")) => {
+                is_json = true;
+            }
+            _ => {
+                return Box::new(future::err(http_err!(BAD_REQUEST, format!("unsupported content type"))));
+            }
         }
     }
 
