@@ -188,8 +188,7 @@ pub fn lock_file<F: AsRawFd>(
     file: &mut F,
     exclusive: bool,
     timeout: Option<Duration>,
-    ) -> Result<(), Error>
-{
+) -> Result<(), Error> {
     let lockarg =
         if exclusive {
             nix::fcntl::FlockArg::LockExclusive
