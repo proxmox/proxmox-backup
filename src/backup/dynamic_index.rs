@@ -340,6 +340,8 @@ impl std::io::Seek for  BufferedDynamicReader {
 
 pub struct DynamicIndexWriter {
     store: Arc<ChunkStore>,
+    _lock: tools::ProcessLockSharedGuard,
+
     chunker: Chunker,
     writer: BufWriter<File>,
     closed: bool,
@@ -365,6 +367,8 @@ impl Drop for DynamicIndexWriter {
 impl DynamicIndexWriter {
 
     pub fn create(store: Arc<ChunkStore>, path: &Path, chunk_size: usize) -> Result<Self, Error> {
+
+        let shared_lock = store.try_shared_lock()?;
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
@@ -400,6 +404,7 @@ impl DynamicIndexWriter {
 
         Ok(Self {
             store,
+            _lock: shared_lock,
             chunker: Chunker::new(chunk_size),
             writer: writer,
             closed: false,

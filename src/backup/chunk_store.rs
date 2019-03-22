@@ -1,13 +1,11 @@
 use failure::*;
+
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::os::unix::io::AsRawFd;
 
 use openssl::sha;
-use std::sync::Mutex;
-
-use std::fs::File;
-use std::os::unix::io::AsRawFd;
 
 use crate::tools;
 
@@ -35,7 +33,7 @@ pub struct ChunkStore {
     pub (crate) base: PathBuf,
     chunk_dir: PathBuf,
     mutex: Mutex<bool>,
-    _lockfile: File,
+    locker: Arc<Mutex<tools::ProcessLocker>>,
 }
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
@@ -131,15 +129,13 @@ impl ChunkStore {
         let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
-        // make sure only one process/thread/task can use it
-        let lockfile = tools::open_file_locked(
-            lockfile_path, Duration::from_secs(10))?;
+        let locker = tools::ProcessLocker::new(&lockfile_path)?;
 
         Ok(ChunkStore {
             name: name.to_owned(),
             base,
             chunk_dir,
-            _lockfile: lockfile,
+            locker,
             mutex: Mutex::new(false)
         })
     }
@@ -368,6 +364,14 @@ impl ChunkStore {
 
     pub fn base_path(&self) -> PathBuf {
         self.base.clone()
+    }
+
+    pub fn try_shared_lock(&self) -> Result<tools::ProcessLockSharedGuard, Error> {
+        tools::ProcessLocker::try_shared_lock(self.locker.clone())
+    }
+
+    pub fn try_exclusive_lock(&self) -> Result<tools::ProcessLockExclusiveGuard, Error> {
+        tools::ProcessLocker::try_exclusive_lock(self.locker.clone())
     }
 }
 

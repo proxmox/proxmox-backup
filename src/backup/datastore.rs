@@ -227,6 +227,8 @@ impl DataStore {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
+            let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
+
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.used_bytes = 0;
 

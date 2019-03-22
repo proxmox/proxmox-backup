@@ -175,6 +175,7 @@ impl IndexFile for FixedIndexReader {
 
 pub struct FixedIndexWriter {
     store: Arc<ChunkStore>,
+    _lock: tools::ProcessLockSharedGuard,
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
@@ -203,6 +204,8 @@ impl Drop for FixedIndexWriter {
 impl FixedIndexWriter {
 
     pub fn create(store: Arc<ChunkStore>, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
+
+        let shared_lock = store.try_shared_lock()?;
 
         let full_path = store.relative_path(path);
         let mut tmp_path = full_path.clone();
@@ -250,6 +253,7 @@ impl FixedIndexWriter {
 
         Ok(Self {
             store,
+            _lock: shared_lock,
             filename: full_path,
             tmp_filename: tmp_path,
             chunk_size,
