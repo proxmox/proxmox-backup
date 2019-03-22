@@ -85,7 +85,7 @@ impl ProcessLocker {
     /// Create a new instance for the specified file.
     ///
     /// This simply creates the file if it does not exist.
-    pub fn new(lockfile: &str) -> Result<Arc<Mutex<Self>>, Error> {
+    pub fn new<P: AsRef<std::path::Path>>(lockfile: P) -> Result<Arc<Mutex<Self>>, Error> {
 
         let file = std::fs::OpenOptions::new()
             .create(true)
