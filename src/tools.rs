@@ -32,6 +32,9 @@ pub mod tty;
 pub mod signalfd;
 pub mod daemon;
 
+mod process_locker;
+pub use process_locker::*;
+
 #[macro_use]
 mod file_logger;
 pub use file_logger::*;
