@@ -58,6 +58,10 @@ impl DynamicIndexReader {
 
         let mut file = std::fs::File::open(&full_path)?;
 
+        if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
+            bail!("unable to get shared lock on {:?} - {}", full_path, err);
+        }
+
         let header_size = std::mem::size_of::<DynamicIndexHeader>();
 
         // todo: use static assertion when available in rust
