@@ -7,6 +7,7 @@ use super::chunk_store::*;
 
 use std::sync::Arc;
 use std::io::{Read, Write};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
@@ -29,6 +30,7 @@ pub struct FixedIndexHeader {
 
 pub struct FixedIndexReader {
     store: Arc<ChunkStore>,
+    _file: File,
     filename: PathBuf,
     chunk_size: usize,
     pub size: usize,
@@ -55,7 +57,7 @@ impl FixedIndexReader {
 
         let full_path = store.relative_path(path);
 
-        let mut file = std::fs::File::open(&full_path)?;
+        let mut file = File::open(&full_path)?;
 
         if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
             bail!("unable to get shared lock on {:?} - {}", full_path, err);
@@ -110,6 +112,7 @@ impl FixedIndexReader {
         Ok(Self {
             store,
             filename: full_path,
+            _file: file,
             chunk_size,
             size,
             index: data,
