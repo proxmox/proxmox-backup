@@ -37,14 +37,16 @@
 //!
 //! * Create Index Files:
 //!
-//!   Acquire shared lock for ChunkStore.
+//!   Acquire shared lock for ChunkStore (process wide).
 //!
 //!   Note: We create temporary (.tmp) file, then do an atomic rename ...
 //!
 //!
 //! * Garbage Collect:
 //!
-//!   Acquire exclusive lock for ChunkStore.
+//!   Acquire exclusive lock for ChunkStore (process wide). If we have
+//!   already an shared lock for ChunkStore, try to updraged that
+//!   lock.
 //!
 //!
 //! * Server Restart
@@ -53,6 +55,24 @@
 //!   ChunkStore lock asap. Start new service with existing listening
 //!   socket.
 //!
+//!
+//! # Garbage Collection
+//!
+//! Deleting backups is as easy as deleting the corresponding .idx
+//! files. Unfortunately, this does not free up any storage, because
+//! those files just contains references to chunks.
+//!
+//! To free up some storage, we run a garbage collection process at
+//! regular intervals. The collector uses an mark and sweep
+//! approach. In the first run, it scans all .idx files to mark used
+//! chunks. The second run then removes all unmarked chunks from the
+//! store.
+//!
+//! The above locking mechanism makes sure that we are the only
+//! process running GC.
+//!
+//!
+
 
 mod chunk_stat;
 pub use chunk_stat::*;
