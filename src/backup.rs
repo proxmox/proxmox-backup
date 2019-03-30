@@ -17,7 +17,7 @@
 //! so that we can update the software without rebooting the host. But
 //! such restarts must not abort running backup jobs, so we need to
 //! keep the old service running until those jobs are finished. This
-//! implies that we need some kink of locking for the
+//! implies that we need some kind of locking for the
 //! ChunkStore. Please note that it is perfectly valid to have
 //! multiple parallel ChunkStore writers, even when they write the
 //! same chunk (because the chunk would have the same name and the
@@ -39,7 +39,8 @@
 //!
 //!   Acquire shared lock for ChunkStore (process wide).
 //!
-//!   Note: We create temporary (.tmp) file, then do an atomic rename ...
+//!   Note: When creating .idx files, we create temporary (.tmp) file,
+//!   then do an atomic rename ...
 //!
 //!
 //! * Garbage Collect:
@@ -56,7 +57,7 @@
 //!   socket.
 //!
 //!
-//! # Garbage Collection
+//! # Garbage Collection (GC)
 //!
 //! Deleting backups is as easy as deleting the corresponding .idx
 //! files. Unfortunately, this does not free up any storage, because
@@ -69,10 +70,31 @@
 //! store.
 //!
 //! The above locking mechanism makes sure that we are the only
-//! process running GC.
+//! process running GC. But we still want to be able to create backups
+//! during GC, so there may be multiple backup threads/tasks
+//! running. Either started before GC started, or started while GC is
+//! running.
 //!
+//! ## `atime` based GC
 //!
-
+//! The idea here is to mark chunks by updating the `atime` (access
+//! timestamp) on the chunk file. This is quite simple and does not
+//! need RAM.
+//!
+//! One minor problem is that recent Linux versions use the `relatime`
+//! mount flag by default for performance reasons (yes, we want
+//! that). When enabled, `atime` data is written to the disk only if
+//! the file has been modified since the `atime` data was last updated
+//! (`mtime`), or if the file was last accessed more than a certain
+//! amount of time ago (by default 24h).
+//!
+//! Another problem arise when running backups references old
+//! chunks. We need to make sure that the sweep does not remove such
+//! chunks. Not sure how to implement that.
+//!
+//! ## Store `marks` in RAM using a HASH
+//!
+//! Not sure if this is better. TODO
 
 mod chunk_stat;
 pub use chunk_stat::*;
