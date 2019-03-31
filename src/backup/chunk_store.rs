@@ -247,10 +247,28 @@ impl ChunkStore {
         }))
     }
 
-    pub fn sweep_unused_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
+    pub fn oldest_writer(&self) -> Option<i64> {
+        tools::ProcessLocker::oldest_shared_lock(self.locker.clone())
+    }
+
+    pub fn sweep_unused_chunks(
+        &self,
+        oldest_writer: Option<i64>,
+        status: &mut GarbageCollectionStatus
+    ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
 
         let now = unsafe { libc::time(std::ptr::null_mut()) };
+
+        let mut min_atime = now - 3600*24; // at least 24h (see mount option relatime)
+
+        if let Some(stamp) = oldest_writer {
+            if stamp < min_atime {
+                min_atime = stamp;
+            }
+        }
+
+        min_atime -= 300; // add 5 mins gap for safety
 
         for entry in self.get_chunk_iterator(true)? {
             let (dirfd, entry) = match entry {
@@ -273,7 +291,7 @@ impl ChunkStore {
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 let age = now - stat.st_atime;
                 //println!("FOUND {}  {:?}", age/(3600*24), filename);
-                if age/(3600*24) >= 2 {
+                if stat.st_atime < min_atime {
                     println!("UNLINK {}  {:?}", age/(3600*24), filename);
                     let res = unsafe { libc::unlinkat(dirfd, filename.as_ptr(), 0) };
                     if res != 0 {

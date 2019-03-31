@@ -2,11 +2,16 @@
 //!
 //! This implemenation uses fcntl record locks with non-blocking
 //! F_SETLK command (never blocks).
+//!
+//! We maintain a map of shared locks with time stamps, so you can get
+//! the timestamp for the oldest open lock with
+//! `oldest_shared_lock()`.
 
 use failure::*;
 
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
+use std::collections::HashMap;
 
 // fixme: use F_OFD_ locks when implemented with nix::fcntl
 
@@ -17,12 +22,15 @@ pub struct ProcessLocker {
     file: std::fs::File,
     exclusive: bool,
     writers: usize,
+    next_guard_id: u64,
+    shared_guard_list: HashMap<u64, i64>, // guard_id => timestamp
 }
 
 /// Lock guard for shared locks
 ///
 /// Release the lock when it goes out of scope.
 pub struct ProcessLockSharedGuard {
+    guard_id: u64,
     locker: Arc<Mutex<ProcessLocker>>,
 }
 
@@ -31,6 +39,8 @@ impl  Drop for ProcessLockSharedGuard {
         let mut data = self.locker.lock().unwrap();
 
         if data.writers == 0 { panic!("unexpected ProcessLocker state"); }
+
+        data.shared_guard_list.remove(&self.guard_id);
 
         if data.writers == 1 && !data.exclusive {
 
@@ -97,6 +107,8 @@ impl ProcessLocker {
             file: file,
             exclusive: false,
             writers: 0,
+            next_guard_id: 0,
+            shared_guard_list: HashMap::new(),
         })))
     }
 
@@ -130,7 +142,30 @@ impl ProcessLocker {
 
         data.writers += 1;
 
-        Ok(ProcessLockSharedGuard { locker: locker.clone()  })
+        let guard = ProcessLockSharedGuard { locker: locker.clone(), guard_id: data.next_guard_id };
+        data.next_guard_id += 1;
+
+        let now = unsafe { libc::time(std::ptr::null_mut()) };
+
+        data.shared_guard_list.insert(guard.guard_id, now);
+
+        Ok(guard)
+    }
+
+    /// Get oldest shared lock timestamp
+    pub fn oldest_shared_lock(locker: Arc<Mutex<Self>>) -> Option<i64> {
+        let mut result = None;
+
+        let data = locker.lock().unwrap();
+
+        for (_k, v) in &data.shared_guard_list {
+            result = match result {
+                None => Some(*v),
+                Some(x) => if x < *v { Some(x) } else { Some(*v) },
+            };
+        }
+
+        result
     }
 
     /// Try to aquire a exclusive lock

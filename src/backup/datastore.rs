@@ -229,6 +229,8 @@ impl DataStore {
 
             let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
 
+            let oldest_writer = self.chunk_store.oldest_writer();
+
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.used_bytes = 0;
 
@@ -237,7 +239,7 @@ impl DataStore {
             self.mark_used_chunks(&mut gc_status)?;
 
             println!("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(&mut gc_status)?;
+            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status)?;
 
             println!("Used bytes: {}", gc_status.used_bytes);
             println!("Used chunks: {}", gc_status.used_chunks);
