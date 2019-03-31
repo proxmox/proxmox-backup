@@ -266,7 +266,8 @@ impl ChunkStore {
                 continue;
             }
 
-            let filename = entry.file_name();
+            let lock = self.mutex.lock();
+
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 let age = now - stat.st_atime;
                 //println!("FOUND {}  {:?}", age/(3600*24), filename);
@@ -285,9 +286,9 @@ impl ChunkStore {
                 } else {
                     status.disk_chunks += 1;
                     status.disk_bytes += stat.st_size as usize;
-
                 }
             }
+            drop(lock);
         }
         Ok(())
     }
