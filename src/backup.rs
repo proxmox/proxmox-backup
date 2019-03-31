@@ -65,8 +65,8 @@
 //!
 //! To free up some storage, we run a garbage collection process at
 //! regular intervals. The collector uses an mark and sweep
-//! approach. In the first run, it scans all .idx files to mark used
-//! chunks. The second run then removes all unmarked chunks from the
+//! approach. In the first phase, it scans all .idx files to mark used
+//! chunks. The second phase then removes all unmarked chunks from the
 //! store.
 //!
 //! The above locking mechanism makes sure that we are the only
@@ -79,18 +79,24 @@
 //!
 //! The idea here is to mark chunks by updating the `atime` (access
 //! timestamp) on the chunk file. This is quite simple and does not
-//! need RAM.
+//! need additional RAM.
 //!
 //! One minor problem is that recent Linux versions use the `relatime`
 //! mount flag by default for performance reasons (yes, we want
 //! that). When enabled, `atime` data is written to the disk only if
 //! the file has been modified since the `atime` data was last updated
 //! (`mtime`), or if the file was last accessed more than a certain
-//! amount of time ago (by default 24h).
+//! amount of time ago (by default 24h). So we may only delete chunks
+//! with `atime` older than 24 hours.
 //!
-//! Another problem arise when running backups references old
-//! chunks. We need to make sure that the sweep does not remove such
-//! chunks. Not sure how to implement that.
+//! Another problem arise from running backups. The mark phase does
+//! not find any chunks from those backups, because there is no .idx
+//! file for them (created after the backup). Chunks created or
+//! touched by those backups may have an `atime` as old as the start
+//! time of those backup. Please not that the backup start time may
+//! predate the GC start time. Se we may only delete chunk older than
+//! the start time of those running backup jobs.
+//!
 //!
 //! ## Store `marks` in RAM using a HASH
 //!
