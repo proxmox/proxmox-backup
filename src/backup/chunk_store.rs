@@ -266,6 +266,8 @@ impl ChunkStore {
                 continue;
             }
 
+            let filename = entry.file_name();
+
             let lock = self.mutex.lock();
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
