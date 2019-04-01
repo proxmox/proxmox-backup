@@ -589,11 +589,18 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
     } else {
         // not Auth required for accessing files!
 
+        if method != hyper::Method::GET {
+            return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported method"))));
+        }
+
         if comp_len == 0 {
             let (ticket, token) = extract_auth_data(&parts.headers);
             if ticket != None {
                 match check_auth(&method, &ticket, &token) {
-                    Ok(username) => return Box::new(future::ok(get_index(Some(username), token))),
+                    Ok(username) => {
+                        let new_token = assemble_csrf_prevention_token(csrf_secret(), &username);
+                        return Box::new(future::ok(get_index(Some(username), Some(new_token))));
+                    }
                     _ => return delayed_response(get_index(None, None), delay_unauth_time),
                 }
             } else {
