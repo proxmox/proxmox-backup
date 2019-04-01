@@ -26,7 +26,25 @@ Ext.define('PBS.DataStoreConfig', {
             store.load();
         };
 
- 	var tbar = [
+	var sm = Ext.create('Ext.selection.RowModel', {});
+
+	var gc_btn = new Proxmox.button.Button({
+	    text: gettext('Start GC'),
+	    disabled: true,
+	    selModel: sm,
+	    handler: function() {
+		var rec = sm.getSelection()[0];
+		Proxmox.Utils.API2Request({
+		    url: '/admin/datastore/' + rec.data.name + '/gc',
+		    method: 'POST',
+		    failure: function(response) {
+			Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		    }
+		});
+	    }
+	});
+
+	var tbar = [
             {
 		text: gettext('Create'),
 		handler: function() {
@@ -35,11 +53,10 @@ Ext.define('PBS.DataStoreConfig', {
 		    //win.on('destroy', reload);
 		    //win.show();
 		}
-            }
+            },
+	    gc_btn
 	    //edit_btn, remove_btn
         ];
-
-	var sm = Ext.create('Ext.selection.RowModel', {});
 
 	Proxmox.Utils.monStoreErrors(me, store);
 

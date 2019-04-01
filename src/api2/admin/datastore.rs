@@ -282,7 +282,6 @@ fn api_method_prune() -> ApiMethod {
     )
 }
 
-// this is just a test for mutability/mutex handling  - will remove later
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
