@@ -573,7 +573,10 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             }
 
             match api.find_method(&components[2..], method, &mut uri_param) {
-                MethodDefinition::None => {}
+                MethodDefinition::None => {
+                    let err = http_err!(NOT_FOUND, "Path not found.".to_string());
+                    return Box::new(future::ok((formatter.format_error)(err)));
+                }
                 MethodDefinition::Simple(api_method) => {
                     if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
                         return proxy_protected_request(api_method, parts, body);
