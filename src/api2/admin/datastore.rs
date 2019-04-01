@@ -288,13 +288,17 @@ fn start_garbage_collection(
     _rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let store = param["store"].as_str().unwrap();
+    let store = param["store"].as_str().unwrap().to_string();
 
-    let datastore = DataStore::lookup_datastore(store)?;
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     println!("Starting garbage collection on store {}", store);
 
-    datastore.garbage_collection()?;
+    std::thread::spawn(move || {
+        if let Err(err) = datastore.garbage_collection() {
+            println!("Garbage collection error on store {} - {}", store, err);
+        }
+    });
 
     Ok(json!(null))
 }
