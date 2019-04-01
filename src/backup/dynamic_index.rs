@@ -149,6 +149,9 @@ impl DynamicIndexReader {
     pub fn mark_used_chunks(&self, _status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         for pos in 0..self.index_entries {
+
+            tools::fail_on_shutdown()?;
+
             let digest = self.chunk_digest(pos);
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",

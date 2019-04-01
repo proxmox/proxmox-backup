@@ -209,6 +209,9 @@ impl DataStore {
         let image_list = self.list_images()?;
 
         for path in image_list {
+
+            tools::fail_on_shutdown()?;
+
             if let Some(ext) = path.extension() {
                 if ext == "fidx" {
                     let index = self.open_fixed_reader(&path)?;

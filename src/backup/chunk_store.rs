@@ -271,6 +271,9 @@ impl ChunkStore {
         min_atime -= 300; // add 5 mins gap for safety
 
         for entry in self.get_chunk_iterator(true)? {
+
+            tools::fail_on_shutdown()?;
+
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
                 Err(_) => continue, // ignore errors

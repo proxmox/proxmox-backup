@@ -147,6 +147,8 @@ impl FixedIndexReader {
 
         for pos in 0..index_count {
 
+            tools::fail_on_shutdown()?;
+
             let digest = self.index_digest(pos).unwrap();
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",

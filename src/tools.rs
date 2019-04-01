@@ -557,3 +557,10 @@ pub fn request_shutdown() {
 pub fn shutdown_requested() -> bool {
     unsafe { SHUTDOWN_REQUESTED }
 }
+
+pub fn fail_on_shutdown() -> Result<(), Error> {
+    if shutdown_requested() {
+        bail!("Server shutdown requested - aborting task");
+    }
+    Ok(())
+}
