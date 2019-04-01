@@ -200,7 +200,10 @@ where
     });
 
     Ok(service.select(signal_handler)
-        .map(|_| log::info!("daemon shutting down..."))
-        .map_err(|_| ())
+       .map(|_| {
+           log::info!("daemon shutting down...");
+           crate::tools::request_shutdown();
+       })
+       .map_err(|_| ())
     )
 }

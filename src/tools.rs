@@ -545,3 +545,15 @@ pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
     fcntl(fd, F_SETFD(flags))?;
     Ok(())
 }
+
+
+static mut SHUTDOWN_REQUESTED: bool = false;
+
+pub fn request_shutdown() {
+    unsafe { SHUTDOWN_REQUESTED = true; }
+}
+
+#[inline(always)]
+pub fn shutdown_requested() -> bool {
+    unsafe { SHUTDOWN_REQUESTED }
+}
