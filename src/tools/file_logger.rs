@@ -1,5 +1,5 @@
 use failure::*;
-use chrono::Local;
+use chrono::{TimeZone, Local};
 use std::io::Write;
 
 /// Log messages with timestamps into files
@@ -18,6 +18,7 @@ use std::io::Write;
 /// ```
 
 
+#[derive(Debug)]
 pub struct FileLogger {
     file: std::fs::File,
     to_stdout: bool,
@@ -54,8 +55,7 @@ impl FileLogger {
             stdout.write(b"\n").unwrap();
         }
 
-
-        let line = format!("{}: {}\n", Local::now().format("%b %e %T"), msg);
+        let line = format!("{}: {}\n", Local.timestamp(Local::now().timestamp(), 0).to_rfc3339(), msg);
         self.file.write(line.as_bytes()).unwrap();
     }
 }
