@@ -34,7 +34,7 @@ macro_rules! flog {
 
 impl FileLogger {
 
-    pub fn new(file_name: &str, to_stdout: bool) -> Result<Self, Error> {
+    pub fn new<P: AsRef<std::path::Path>>(file_name: P, to_stdout: bool) -> Result<Self, Error> {
 
         let file = std::fs::OpenOptions::new()
             .read(true)
