@@ -18,7 +18,12 @@ pub fn read_proc_pid_stat(pid: libc::pid_t) -> Result<ProcFsPidStat, Error> {
     let statstr = tools::file_read_firstline(format!("/proc/{}/stat", pid))?;
 
     lazy_static! {
-        static ref REGEX: Regex = Regex::new(r"^(?P<pid>\d+) \(.*\) (?P<status>\S) -?\d+ -?\d+ -?\d+ -?\d+ -?\d+ \d+ \d+ \d+ \d+ \d+ (?P<utime>\d+) (?P<stime>\d+) -?\d+ -?\d+ -?\d+ -?\d+ -?\d+ 0 (?P<starttime>\d+) (?P<vsize>\d+) (?P<rss>-?\d+) \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ -?\d+ -?\d+ \d+ \d+ \d+").unwrap();
+        static ref REGEX: Regex = Regex::new(concat!(
+            r"^(?P<pid>\d+) \(.*\) (?P<status>\S) -?\d+ -?\d+ -?\d+ -?\d+ -?\d+ \d+ \d+ \d+ \d+ \d+ ",
+            r"(?P<utime>\d+) (?P<stime>\d+) -?\d+ -?\d+ -?\d+ -?\d+ -?\d+ 0 ",
+            r"(?P<starttime>\d+) (?P<vsize>\d+) (?P<rss>-?\d+) ",
+            r"\d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ -?\d+ -?\d+ \d+ \d+ \d+"
+        )).unwrap();
     }
 
     if let Some(cap) = REGEX.captures(&statstr) {
