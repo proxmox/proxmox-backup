@@ -13,7 +13,7 @@ pub struct ProcFsPidStat {
     pub rss: i64,
 }
 
-pub fn read_proc_pid_stat(pid: nix::unistd::Pid) -> Result<ProcFsPidStat, Error> {
+pub fn read_proc_pid_stat(pid: libc::pid_t) -> Result<ProcFsPidStat, Error> {
 
     let statstr = tools::file_read_firstline(format!("/proc/{}/stat", pid))?;
 
@@ -22,7 +22,7 @@ pub fn read_proc_pid_stat(pid: nix::unistd::Pid) -> Result<ProcFsPidStat, Error>
     }
 
     if let Some(cap) = REGEX.captures(&statstr) {
-        if pid != nix::unistd::Pid::from_raw(cap["pid"].parse::<i32>().unwrap()) {
+        if pid != cap["pid"].parse::<i32>().unwrap() {
             bail!("unable to read pid stat for process '{}' - got wrong pid", pid);
         }
 
@@ -40,7 +40,7 @@ pub fn read_proc_pid_stat(pid: nix::unistd::Pid) -> Result<ProcFsPidStat, Error>
     bail!("unable to read pid stat for process '{}'", pid);
 }
 
-pub fn read_proc_starttime(pid: nix::unistd::Pid) -> Result<u64, Error> {
+pub fn read_proc_starttime(pid: libc::pid_t) -> Result<u64, Error> {
 
     let info = read_proc_pid_stat(pid)?;
 
