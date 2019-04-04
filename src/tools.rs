@@ -126,17 +126,27 @@ pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
     }).map_err(|err| format_err!("unable to read {:?} - {}", path, err))
 }
 
-pub fn file_get_json<P: AsRef<Path>>(path: P) -> Result<Value, Error> {
+pub fn file_get_json<P: AsRef<Path>>(path: P, default: Option<Value>) -> Result<Value, Error> {
 
     let path = path.as_ref();
 
-    let raw = file_get_contents(path)?;
+    let raw = match std::fs::read(path) {
+        Ok(v) => v,
+        Err(err) => {
+            if err.kind() ==  std::io::ErrorKind::NotFound {
+                if let Some(v) = default {
+                    return Ok(v);
+                }
+            }
+            bail!("unable to read json {:?} - {}", path, err);
+        }
+    };
 
     try_block!({
         let data = String::from_utf8(raw)?;
         let json = serde_json::from_str(&data)?;
         Ok(json)
-    }).map_err(|err: Error| format_err!("unable to read json from {:?} - {}", path, err))
+    }).map_err(|err: Error| format_err!("unable to parse json from {:?} - {}", path, err))
 }
 
 /// Atomically write a file. We first create a temporary file, which

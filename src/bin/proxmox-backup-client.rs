@@ -43,7 +43,7 @@ fn record_repository(repo: &BackupRepository) {
         _ => return,
     };
 
-    let mut data = tools::file_get_json(&path).unwrap_or(json!({}));
+    let mut data = tools::file_get_json(&path, None).unwrap_or(json!({}));
 
     let repo = repo.to_string();
 
@@ -93,7 +93,7 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
         _ => return result,
     };
 
-    let data = tools::file_get_json(&path).unwrap_or(json!({}));
+    let data = tools::file_get_json(&path, None).unwrap_or(json!({}));
 
     if let Some(map) = data.as_object() {
         for (repo, _count) in map {

@@ -33,7 +33,7 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
 
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
 
-    let mut data = tools::file_get_json(&path).unwrap_or(json!({}));
+    let mut data = tools::file_get_json(&path, Some(json!({})))?;
 
     let now = Utc::now().timestamp();
 
@@ -72,7 +72,10 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
         _ => return None,
     };
 
-    let data = tools::file_get_json(&path).unwrap_or(json!({}));
+    let data = match tools::file_get_json(&path, None) {
+        Ok(v) => v,
+        _ => return None,
+    };
 
     let now = Utc::now().timestamp();
 
