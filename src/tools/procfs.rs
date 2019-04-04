@@ -51,3 +51,21 @@ pub fn read_proc_starttime(pid: libc::pid_t) -> Result<u64, Error> {
 
     Ok(info.starttime)
 }
+
+pub fn check_process_running(pid: libc::pid_t) -> Option<ProcFsPidStat> {
+    if let Ok(info) = read_proc_pid_stat(pid) {
+	if info.status != 'Z' as u8 {
+	    return Some(info);
+	}
+    }
+    None
+}
+
+pub fn check_process_running_pstart(pid: libc::pid_t, pstart: u64) -> Option<ProcFsPidStat> {
+    if let Some(info) = check_process_running(pid) {
+	if info.starttime == pstart {
+	    return Some(info);
+	}
+    }
+    None
+}
