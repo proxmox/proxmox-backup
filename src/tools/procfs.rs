@@ -3,6 +3,17 @@ use failure::*;
 use crate::tools;
 use lazy_static::lazy_static;
 use regex::Regex;
+use libc;
+
+/// POSIX sysconf call
+pub fn sysconf(name: i32) -> i64 {
+    extern { fn sysconf(name: i32) -> i64; }
+    unsafe { sysconf(name) }
+}
+
+lazy_static! {
+    static ref CLOCK_TICKS: f64 = sysconf(libc::_SC_CLK_TCK) as f64;
+}
 
 pub struct ProcFsPidStat {
     pub status: u8,
@@ -68,4 +79,22 @@ pub fn check_process_running_pstart(pid: libc::pid_t, pstart: u64) -> Option<Pro
 	}
     }
     None
+}
+
+pub fn read_proc_uptime() -> Result<(f64, f64), Error> {
+    let file = "/proc/uptime";
+    let line = tools::file_read_firstline(&file)?;
+    let mut values = line.split_whitespace().map(|v| v.parse::<f64>());
+
+    match (values.next(), values.next()) {
+	(Some(Ok(up)), Some(Ok(idle))) => return Ok((up, idle)),
+	_ => bail!("Error while parsing '{}'", file),
+    }
+}
+
+pub fn read_proc_uptime_ticks() -> Result<(u64, u64), Error> {
+    let (mut up, mut idle) = read_proc_uptime()?;
+    up *= *CLOCK_TICKS;
+    idle *= *CLOCK_TICKS;
+    Ok((up as u64, idle as u64))
 }
