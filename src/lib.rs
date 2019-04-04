@@ -11,6 +11,8 @@ pub mod api_schema;
 pub mod server {
 
     pub mod environment;
+    mod worker_task;
+    pub use worker_task::*;
     pub mod formatter;
     #[macro_use]
     pub mod rest;
