@@ -1,11 +1,11 @@
 use failure::*;
 
 use std::process::Command;
-use proxmox_backup::catar::encoder::*;
+use proxmox_backup::pxar::*;
 
 fn run_test(dir_name: &str) -> Result<(), Error> {
 
-    println!("run catar test {}", dir_name);
+    println!("run pxar test {}", dir_name);
 
     Command::new("casync")
         .arg("make")
@@ -26,7 +26,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    CaTarEncoder::encode(path, &mut dir, None, &mut writer)?;
+    Encoder::encode(path, &mut dir, &mut writer, false, false)?;
 
     Command::new("cmp")
         .arg("--verbose")
