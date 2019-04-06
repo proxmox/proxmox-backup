@@ -16,6 +16,7 @@ use std::sync::Arc;
 use crate::config::datastore;
 
 use crate::backup::*;
+use crate::server::WorkerTask;
 
 mod pxar;
 mod upload;
@@ -285,7 +286,7 @@ fn api_method_prune() -> ApiMethod {
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap().to_string();
@@ -294,13 +295,16 @@ fn start_garbage_collection(
 
     println!("Starting garbage collection on store {}", store);
 
-    std::thread::spawn(move || {
-        if let Err(err) = datastore.garbage_collection() {
-            println!("Garbage collection error on store {} - {}", store, err);
-        }
-    });
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
-    Ok(json!(null))
+    let upid_str = WorkerTask::new_thread(
+        "garbage_collection", Some(store.clone()), "root@pam", to_stdout, move |worker|
+        {
+            worker.log(format!("starting garbage collection on store {}", store));
+            datastore.garbage_collection()
+        })?;
+
+    Ok(json!(upid_str))
 }
 
 pub fn api_method_start_garbage_collection() -> ApiMethod {
