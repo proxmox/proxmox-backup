@@ -301,7 +301,7 @@ fn start_garbage_collection(
         "garbage_collection", Some(store.clone()), "root@pam", to_stdout, move |worker|
         {
             worker.log(format!("starting garbage collection on store {}", store));
-            datastore.garbage_collection()
+            datastore.garbage_collection(worker)
         })?;
 
     Ok(json!(upid_str))

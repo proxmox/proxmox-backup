@@ -13,6 +13,7 @@ use super::fixed_index::*;
 use super::dynamic_index::*;
 use super::index::*;
 use super::backup_info::*;
+use crate::server::WorkerTask;
 
 lazy_static!{
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
@@ -226,7 +227,7 @@ impl DataStore {
         Ok(())
    }
 
-    pub fn garbage_collection(&self) -> Result<(), Error> {
+    pub fn garbage_collection(&self, worker: Arc<WorkerTask>) -> Result<(), Error> {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
@@ -237,20 +238,20 @@ impl DataStore {
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.used_bytes = 0;
 
-            println!("Start GC phase1 (mark chunks)");
+            worker.log("Start GC phase1 (mark chunks)");
 
             self.mark_used_chunks(&mut gc_status)?;
 
-            println!("Start GC phase2 (sweep unused chunks)");
+            worker.log("Start GC phase2 (sweep unused chunks)");
             self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status)?;
 
-            println!("Used bytes: {}", gc_status.used_bytes);
-            println!("Used chunks: {}", gc_status.used_chunks);
-            println!("Disk bytes: {}", gc_status.disk_bytes);
-            println!("Disk chunks: {}", gc_status.disk_chunks);
+            worker.log(&format!("Used bytes: {}", gc_status.used_bytes));
+            worker.log(&format!("Used chunks: {}", gc_status.used_chunks));
+            worker.log(&format!("Disk bytes: {}", gc_status.disk_bytes));
+            worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
 
         } else {
-            println!("Start GC failed - (already running/locked)");
+            bail!("Start GC failed - (already running/locked)");
         }
 
         Ok(())
