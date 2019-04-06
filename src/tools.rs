@@ -165,8 +165,8 @@ pub fn file_set_contents_full<P: AsRef<Path>>(
     path: P,
     data: &[u8],
     perm: Option<stat::Mode>,
-    owner: Option<nix::unistd::Uid>,
-    group: Option<nix::unistd::Gid>,
+    owner: Option<unistd::Uid>,
+    group: Option<unistd::Gid>,
 ) -> Result<(), Error> {
 
     let path = path.as_ref();
@@ -349,6 +349,26 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     let info = unsafe { *info };
 
     Ok((info.pw_uid, info.pw_gid))
+}
+
+/// Creates a new, empty directory at the provided path witzh specified ownership
+pub fn create_dir_chown<P: AsRef<Path>>(
+    path: P,
+    perm: Option<stat::Mode>,
+    owner: Option<unistd::Uid>,
+    group: Option<unistd::Gid>,
+) -> Result<(), Error>
+{
+    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from(
+        stat::Mode::S_IRWXO | stat::Mode::S_IRWXG
+    ));
+
+    let path = path.as_ref();
+
+    unistd::mkdir(path, mode)?;
+    unistd::chown(path, owner, group)?;
+
+    Ok(())
 }
 
 /// Change ownership of an open file handle
