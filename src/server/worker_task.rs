@@ -30,6 +30,7 @@ static WORKER_TASK_NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 /// string repesentaion, which gives additional information about the
 /// type of the task. for example:
 ///
+///     UPID:{node}:{pid}:{pstart}:{task_id}:{starttime}:{worker_type}:{worker_id}:{username}:
 ///     UPID:elsa:00004F37:0039E469:00000000:5CA78B83:garbage_collection::root@pam:
 ///
 /// Please note that we use tokio, so a single thread can run multiple
