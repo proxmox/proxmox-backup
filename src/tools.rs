@@ -351,21 +351,28 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     Ok((info.pw_uid, info.pw_gid))
 }
 
-/// Creates a new, empty directory at the provided path witzh specified ownership
+/// Creates directory at the provided path with specified ownership
+///
+/// Simply returns if the directory already exists.
 pub fn create_dir_chown<P: AsRef<Path>>(
     path: P,
     perm: Option<stat::Mode>,
     owner: Option<unistd::Uid>,
     group: Option<unistd::Gid>,
-) -> Result<(), Error>
+) -> Result<(), nix::Error>
 {
-    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from(
-        stat::Mode::S_IRWXO | stat::Mode::S_IRWXG
-    ));
+    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from_bits_truncate(0o770));
 
     let path = path.as_ref();
 
-    unistd::mkdir(path, mode)?;
+    match nix::unistd::mkdir(path, mode) {
+        Ok(()) => {},
+        Err(nix::Error::Sys(nix::errno::Errno::EEXIST)) => {
+            return Ok(());
+        },
+        err => return err,
+    }
+
     unistd::chown(path, owner, group)?;
 
     Ok(())

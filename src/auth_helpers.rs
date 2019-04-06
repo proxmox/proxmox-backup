@@ -94,12 +94,12 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    tools::file_set_contents(
-        &path, &pem, Some(Mode::from_bits_truncate(0o0640)))?;
-
     let (_, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let uid = Some(nix::unistd::ROOT);
+    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-    nix::unistd::chown(&path, Some(nix::unistd::ROOT), Some(nix::unistd::Gid::from_raw(backup_gid)))?;
+    tools::file_set_contents_full(
+        &path, &pem, Some(Mode::from_bits_truncate(0o0640)), uid, gid)?;
 
     Ok(())
 }

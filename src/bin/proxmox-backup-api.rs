@@ -4,6 +4,7 @@ extern crate proxmox_backup;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
+use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
@@ -30,6 +31,8 @@ fn run() -> Result<(), Error> {
         Some("proxmox-backup-api")) {
         bail!("unable to inititialize syslog - {}", err);
     }
+
+    server::create_task_log_dir()?;
 
     config::create_configdir()?;
 

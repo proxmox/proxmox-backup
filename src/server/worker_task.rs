@@ -13,7 +13,8 @@ use std::fs::File;
 
 use crate::tools::{self, FileLogger};
 
-macro_rules! PROXMOX_BACKUP_TASK_DIR { () => ("/var/log/proxmox-backup/tasks") }
+macro_rules! PROXMOX_BACKUP_LOG_DIR { () => ("/var/log/proxmox-backup") }
+macro_rules! PROXMOX_BACKUP_TASK_DIR { () => (concat!( PROXMOX_BACKUP_LOG_DIR!(), "/tasks")) }
 macro_rules! PROXMOX_BACKUP_TASK_LOCK_FN { () => (concat!(PROXMOX_BACKUP_TASK_DIR!(), "/.active.lock")) }
 macro_rules! PROXMOX_BACKUP_ACTIVE_TASK_FN { () => (concat!(PROXMOX_BACKUP_TASK_DIR!(), "/active")) }
 
@@ -116,6 +117,23 @@ fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<(i64, St
     }
 }
 
+/// Create task log directory with correct permissions
+pub fn create_task_log_dir() -> Result<(), Error> {
+
+    try_block!({
+        let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+        let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
+        let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+
+        tools::create_dir_chown(PROXMOX_BACKUP_LOG_DIR!(), None, uid, gid)?;
+        tools::create_dir_chown(PROXMOX_BACKUP_TASK_DIR!(), None, uid, gid)?;
+
+        Ok(())
+    }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))?;
+
+    Ok(())
+}
+
 /// Returns the absolute path to the task log file
 pub fn upid_log_path(upid: &UPID) -> std::path::PathBuf {
     let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR!());
@@ -175,7 +193,12 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
     let my_pid  = unsafe { libc::getpid() };
     let my_pid_stat = tools::procfs::read_proc_pid_stat(my_pid)?;
 
+    let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
+    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+
     let lock = tools::open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN!(), std::time::Duration::new(10, 0))?;
+    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN!(), uid, gid)?;
 
     let reader = match File::open(PROXMOX_BACKUP_ACTIVE_TASK_FN!()) {
         Ok(f) => Some(BufReader::new(f)),
@@ -280,7 +303,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
         }
     }
 
-    tools::file_set_contents(PROXMOX_BACKUP_ACTIVE_TASK_FN!(), raw.as_bytes(), None)?;
+    tools::file_set_contents_full(PROXMOX_BACKUP_ACTIVE_TASK_FN!(), raw.as_bytes(), None, uid, gid)?;
 
     drop(lock);
 
@@ -348,15 +371,21 @@ impl WorkerTask {
         };
 
         let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR!());
+
         path.push(format!("{:02X}", upid.pstart % 256));
 
-        let _ = std::fs::create_dir_all(&path); // ignore errors here
+        let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+        let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
+        let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+
+        tools::create_dir_chown(&path, None, uid, gid)?;
 
         path.push(upid.to_string());
 
         println!("FILE: {:?}", path);
 
-        let logger = FileLogger::new(path, to_stdout)?;
+        let logger = FileLogger::new(&path, to_stdout)?;
+        nix::unistd::chown(&path, uid, gid)?;
 
         update_active_workers(Some(&upid))?;
 
