@@ -13,6 +13,7 @@ use std::io::Write;
 /// # use failure::*;
 /// use proxmox_backup::tools::FileLogger;
 ///
+/// # std::fs::remove_file("test.log");
 /// let mut log = FileLogger::new("test.log", true).unwrap();
 /// flog!(log, "A simple log: {}", "Hello!");
 /// ```
