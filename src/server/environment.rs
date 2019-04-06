@@ -3,6 +3,7 @@ use crate::api_schema::router::*;
 use std::collections::HashMap;
 use serde_json::Value;
 
+/// Encapsulates information about the runtime environment
 pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
