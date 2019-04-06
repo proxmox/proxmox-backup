@@ -28,10 +28,10 @@ static WORKER_TASK_NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 /// We use this to uniquely identify worker task. UPIDs have a short
 /// string repesentaion, which gives additional information about the
 /// type of the task. for example:
-///
-///     UPID:{node}:{pid}:{pstart}:{task_id}:{starttime}:{worker_type}:{worker_id}:{username}:
-///     UPID:elsa:00004F37:0039E469:00000000:5CA78B83:garbage_collection::root@pam:
-///
+/// ```text
+/// UPID:{node}:{pid}:{pstart}:{task_id}:{starttime}:{worker_type}:{worker_id}:{username}:
+/// UPID:elsa:00004F37:0039E469:00000000:5CA78B83:garbage_collection::root@pam:
+/// ```
 /// Please note that we use tokio, so a single thread can run multiple
 /// tasks.
 #[derive(Debug, Clone)]
@@ -375,12 +375,19 @@ impl WorkerTask {
     }
 
     /// Spawn a new tokio task/future.
-    pub fn spawn<F, T>(worker_type: &str, worker_id: Option<String>, username: &str, to_stdout: bool, f: F) -> Result<(), Error>
+    pub fn spawn<F, T>(
+        worker_type: &str,
+        worker_id: Option<String>,
+        username: &str,
+        to_stdout: bool,
+        f: F,
+    ) -> Result<String, Error>
         where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> T,
               T: Send + 'static + Future<Item=(), Error=Error>,
     {
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
         let task_id = worker.upid.task_id;
+        let upid_str = worker.upid.to_string();
 
         tokio::spawn(f(worker.clone()).then(move |result| {
             WORKER_TASK_LIST.lock().unwrap().remove(&task_id);
@@ -389,11 +396,17 @@ impl WorkerTask {
             Ok(())
         }));
 
-        Ok(())
+        Ok(upid_str)
     }
 
     /// Create a new worker thread.
-    pub fn new_thread<F>(worker_type: &str, worker_id: Option<String>, username: &str, to_stdout: bool, f: F) -> Result<(), Error>
+    pub fn new_thread<F>(
+        worker_type: &str,
+        worker_id: Option<String>,
+        username: &str,
+        to_stdout: bool,
+        f: F,
+    ) -> Result<String, Error>
         where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>
     {
         println!("register worker thread");
@@ -402,6 +415,7 @@ impl WorkerTask {
 
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
         let task_id = worker.upid.task_id;
+        let upid_str = worker.upid.to_string();
 
         let _child = std::thread::spawn(move || {
             let result = f(worker.clone());
@@ -413,7 +427,7 @@ impl WorkerTask {
 
         tokio::spawn(c.then(|_| Ok(())));
 
-        Ok(())
+        Ok(upid_str)
     }
 
     fn log_result(&self, result: Result<(), Error>) {
