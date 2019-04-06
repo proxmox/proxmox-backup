@@ -149,12 +149,24 @@ pub fn file_get_json<P: AsRef<Path>>(path: P, default: Option<Value>) -> Result<
     }).map_err(|err: Error| format_err!("unable to parse json from {:?} - {}", path, err))
 }
 
-/// Atomically write a file. We first create a temporary file, which
-/// is then renamed.
+/// Atomically write a file
+///
+/// We first create a temporary file, which is then renamed.
 pub fn file_set_contents<P: AsRef<Path>>(
     path: P,
     data: &[u8],
     perm: Option<stat::Mode>,
+) -> Result<(), Error> {
+    file_set_contents_full(path, data, perm, None, None)
+}
+
+/// Atomically write a file with owner and group
+pub fn file_set_contents_full<P: AsRef<Path>>(
+    path: P,
+    data: &[u8],
+    perm: Option<stat::Mode>,
+    owner: Option<nix::unistd::Uid>,
+    group: Option<nix::unistd::Gid>,
 ) -> Result<(), Error> {
 
     let path = path.as_ref();
@@ -178,6 +190,13 @@ pub fn file_set_contents<P: AsRef<Path>>(
     if let Err(err) = stat::fchmod(fd, mode) {
         let _ = unistd::unlink(tmp_path);
         bail!("fchmod {:?} failed: {}", tmp_path, err);
+    }
+
+    if owner != None || group != None {
+        if let Err(err) = fchown(fd, owner, group) {
+            let _ = unistd::unlink(tmp_path);
+            bail!("fchown {:?} failed: {}", tmp_path, err);
+        }
     }
 
     use std::os::unix::io::FromRawFd;
@@ -320,7 +339,7 @@ pub fn file_chunker<C, R>(
     Ok(())
 }
 
-// Returns the Unix uid/gid for the sepcified system user.
+/// Returns the Unix uid/gid for the sepcified system user.
 pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error> {
     let info = unsafe { libc::getpwnam(std::ffi::CString::new(username).unwrap().as_ptr()) };
     if info == std::ptr::null_mut() {
@@ -330,6 +349,25 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     let info = unsafe { *info };
 
     Ok((info.pw_uid, info.pw_gid))
+}
+
+/// Change ownership of an open file handle
+pub fn fchown(
+    fd: RawFd,
+    owner: Option<nix::unistd::Uid>,
+    group: Option<nix::unistd::Gid>
+) -> Result<(), Error> {
+
+    // According to the POSIX specification, -1 is used to indicate that owner and group
+    // are not to be changed.  Since uid_t and gid_t are unsigned types, we have to wrap
+    // around to get -1 (copied fron nix crate).
+    let uid = owner.map(Into::into).unwrap_or((0 as libc::uid_t).wrapping_sub(1));
+    let gid = group.map(Into::into).unwrap_or((0 as libc::gid_t).wrapping_sub(1));
+
+    let res = unsafe { libc::fchown(fd, uid, gid) };
+    nix::errno::Errno::result(res)?;
+
+    Ok(())
 }
 
 // Returns the hosts node name (UTS node name)
