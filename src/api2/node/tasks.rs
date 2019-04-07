@@ -44,7 +44,7 @@ fn list_tasks(
             entry["status"] = Value::from(state.1.clone());
         }
 
-        if (count as u64) <= start {
+        if (count as u64) < start {
             count += 1;
             continue;
         } else {
