@@ -64,6 +64,28 @@ impl UPID {
         path.push(self.to_string());
         path
     }
+
+    /// Test if the task is still running
+    pub fn is_active(&self) -> bool {
+
+        lazy_static! {
+            static ref MY_PID: i32 = unsafe { libc::getpid() };
+            static ref MY_PID_PSTART: u64 = tools::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
+        }
+
+        if (self.pid == *MY_PID) && (self.pstart == *MY_PID_PSTART) {
+            if WORKER_TASK_LIST.lock().unwrap().contains_key(&self.task_id) {
+                true
+            } else {
+                false
+            }
+        } else {
+            match tools::procfs::check_process_running_pstart(self.pid, self.pstart) {
+                Some(_) => true,
+                _ => false,
+            }
+        }
+    }
 }
 
 
@@ -194,9 +216,6 @@ pub struct TaskListInfo {
 // Returns a sorted list of known tasks,
 fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, Error> {
 
-    let my_pid  = unsafe { libc::getpid() };
-    let my_pid_stat = tools::procfs::read_proc_pid_stat(my_pid)?;
-
     let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
     let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
     let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
@@ -226,18 +245,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                 Err(err) => bail!("unable to parse active worker status '{}' - {}", line, err),
                 Ok((upid_str, upid, state)) => {
 
-                    let running = if (upid.pid == my_pid) && (upid.pstart == my_pid_stat.starttime) {
-                        if WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id) {
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        match tools::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
-                            Some(_) => true,
-                            _ => false,
-                        }
-                    };
+                    let running = upid.is_active();
 
                     if running {
                         active_list.push(TaskListInfo { upid, upid_str, state: None });
