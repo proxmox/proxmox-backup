@@ -55,6 +55,18 @@ pub struct UPID {
     pub node: String,
 }
 
+impl UPID {
+
+    /// Returns the absolute path to the task log file
+    pub fn log_path(&self) -> std::path::PathBuf {
+        let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR!());
+        path.push(format!("{:02X}", self.pstart % 256));
+        path.push(self.to_string());
+        path
+    }
+}
+
+
 impl std::str::FromStr for UPID {
     type Err = Error;
 
@@ -134,18 +146,10 @@ pub fn create_task_log_dir() -> Result<(), Error> {
     Ok(())
 }
 
-/// Returns the absolute path to the task log file
-pub fn upid_log_path(upid: &UPID) -> std::path::PathBuf {
-    let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR!());
-    path.push(format!("{:02X}", upid.pstart % 256));
-    path.push(upid.to_string());
-    path
-}
-
 fn upid_read_status(upid: &UPID) -> Result<String, Error> {
     let mut status = String::from("unknown");
 
-    let path = upid_log_path(upid);
+    let path = upid.log_path();
 
     let file = File::open(path)?;
     let reader = BufReader::new(file);
