@@ -2,6 +2,7 @@ use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json};
 
+mod tasks;
 mod time;
 mod network;
 mod dns;
@@ -24,6 +25,7 @@ pub fn router() -> Router {
         .subdir("network", network::router())
         .subdir("services", services::router())
         .subdir("syslog", syslog::router())
+        .subdir("tasks", tasks::router())
         .subdir("time", time::router());
 
     route
