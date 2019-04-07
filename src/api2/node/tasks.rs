@@ -17,6 +17,8 @@ fn list_tasks(
     let limit = param["limit"].as_u64().unwrap_or(50);
     let errors = param["errors"].as_bool().unwrap_or(false);
 
+    let userfilter = param["userfilter"].as_str();
+
     let list = server::read_task_list()?;
 
     let mut result = vec![];
@@ -34,6 +36,10 @@ fn list_tasks(
             "id": info.upid.worker_id,
             "user": info.upid.username,
         });
+
+        if let Some(username) = userfilter {
+            if !info.upid.username.contains(username) { continue; }
+        }
 
         if let Some(ref state) = info.state {
             if errors && state.1 == "OK" {
@@ -81,7 +87,11 @@ pub fn router() -> Router {
                     "errors",
                     BooleanSchema::new("Only list erroneous tasks.")
                 )
-            )
+                .optional(
+                    "userfilter",
+                    StringSchema::new("Only list tasks from this user.")
+                )
+           )
         );
 
     route
