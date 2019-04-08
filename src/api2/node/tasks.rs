@@ -18,7 +18,7 @@ fn get_task_status(
 
     let upid = extract_upid(&param)?;
 
-    let result = if upid.is_active() {
+    let result = if crate::server::worker_is_active(&upid) {
         json!({
             "status": "running",
         })

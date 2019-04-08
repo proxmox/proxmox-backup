@@ -7,6 +7,9 @@
 mod environment;
 pub use environment::*;
 
+mod upid;
+pub use upid::*;
+
 mod state;
 pub use state::*;
 
