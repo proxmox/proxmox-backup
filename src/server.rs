@@ -10,6 +10,9 @@ pub use environment::*;
 mod state;
 pub use state::*;
 
+mod command_socket;
+pub use command_socket::*;
+
 mod worker_task;
 pub use worker_task::*;
 
