@@ -12,6 +12,7 @@ use proxmox_backup::config;
 use failure::*;
 use lazy_static::lazy_static;
 
+use futures::*;
 use futures::future::Future;
 
 use hyper;
@@ -66,7 +67,16 @@ fn run() -> Result<(), Error> {
         },
     )?;
 
-    hyper::rt::run(server);
+    tokio::run(lazy(||  {
+
+        if let Err(err) = server::server_state_init() {
+            eprintln!("unable to start daemon - {}", err);
+        } else {
+            tokio::spawn(server);
+        }
+
+        Ok(())
+    }));
 
     Ok(())
 }

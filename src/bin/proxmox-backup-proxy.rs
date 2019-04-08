@@ -1,5 +1,6 @@
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
+use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
@@ -9,8 +10,8 @@ use proxmox_backup::auth_helpers::*;
 use failure::*;
 use lazy_static::lazy_static;
 
+use futures::*;
 use futures::stream::Stream;
-use tokio::prelude::*;
 
 use hyper;
 
@@ -96,6 +97,16 @@ fn run() -> Result<(), Error> {
         },
     )?;
 
-    hyper::rt::run(server);
+    tokio::run(lazy(||  {
+
+        if let Err(err) = server::server_state_init() {
+            eprintln!("unable to start daemon - {}", err);
+        } else {
+            tokio::spawn(server);
+        }
+
+        Ok(())
+    }));
+
     Ok(())
 }

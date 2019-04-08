@@ -6,12 +6,10 @@ use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
 use failure::*;
-use futures::future::poll_fn;
-use futures::try_ready;
 use tokio::prelude::*;
 
+use crate::server;
 use crate::tools::fd_change_cloexec;
-use crate::tools::signalfd::{SigSet, SignalFd};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 pub type BoxedStoreFunc = Box<dyn Fn() -> Result<String, Error> + UnwindSafe + Send>;
@@ -169,40 +167,21 @@ where
 
     let service = create_service(listener)?;
 
-    // Block SIGHUP for *all* threads and use it for a signalfd handler:
-    use nix::sys::signal;
-    let mut sigs = SigSet::empty();
-    sigs.add(signal::Signal::SIGHUP);
-    signal::sigprocmask(signal::SigmaskHow::SIG_BLOCK, Some(&sigs), None)?;
-
-    let mut sigfdstream = SignalFd::new(&sigs)?
-        .map_err(|e| log::error!("error in signal handler: {}", e));
-
     let mut reloader = Some(reloader);
 
-    // Use a Future instead of a Stream for ease-of-use: Poll until we receive a SIGHUP.
-    let signal_handler = poll_fn(move || {
-        match try_ready!(sigfdstream.poll()) {
-            Some(si) => {
-                log::info!("received signal {}", si.ssi_signo);
-                if si.ssi_signo == signal::Signal::SIGHUP as u32 {
-                    if let Err(e) = reloader.take().unwrap().fork_restart() {
-                        log::error!("error during reload: {}", e);
-                    }
-                    Ok(Async::Ready(()))
-                } else {
-                    Ok(Async::NotReady)
-                }
-            }
-            // or the stream ended (which it can't, really)
-            None => Ok(Async::Ready(()))
-        }
-    });
-
-    Ok(service.select(signal_handler)
-       .map(|_| {
-           log::info!("daemon shutting down...");
-           crate::tools::request_shutdown();
+    let abort_future = server::shutdown_future().map_err(|_| {});
+    Ok(service
+       .select(abort_future)
+       .map(move |_| {
+           crate::tools::request_shutdown(); // make sure we are in shutdown mode
+           if server::is_reload_request() {
+               log::info!("daemon reload...");
+               if let Err(e) = reloader.take().unwrap().fork_restart() {
+                   log::error!("error during reload: {}", e);
+               }
+           } else {
+               log::info!("daemon shutting down...");
+           }
        })
        .map_err(|_| ())
     )
