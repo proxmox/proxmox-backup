@@ -627,6 +627,7 @@ static mut SHUTDOWN_REQUESTED: bool = false;
 
 pub fn request_shutdown() {
     unsafe { SHUTDOWN_REQUESTED = true; }
+    crate::server::server_shutdown();
 }
 
 #[inline(always)]

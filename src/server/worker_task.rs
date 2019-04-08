@@ -410,7 +410,10 @@ impl WorkerTask {
             }),
         });
 
-        WORKER_TASK_LIST.lock().unwrap().insert(task_id, worker.clone());
+        let mut hash = WORKER_TASK_LIST.lock().unwrap();
+
+        hash.insert(task_id, worker.clone());
+        super::set_worker_count(hash.len());
 
         Ok(worker)
     }
@@ -434,6 +437,7 @@ impl WorkerTask {
             WORKER_TASK_LIST.lock().unwrap().remove(&task_id);
             worker.log_result(result);
             let _ = update_active_workers(None);
+            super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
             Ok(())
         }));
 
@@ -464,6 +468,7 @@ impl WorkerTask {
             worker.log_result(result);
             let _ = update_active_workers(None);
             p.send(()).unwrap();
+            super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
         });
 
         tokio::spawn(c.then(|_| Ok(())));
