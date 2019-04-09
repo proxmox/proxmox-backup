@@ -121,12 +121,19 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
     Ok(())
 }
 
-fn upid_read_status(upid: &UPID) -> Result<String, Error> {
+/// Read exits status from task log file
+pub fn upid_read_status(upid: &UPID) -> Result<String, Error> {
     let mut status = String::from("unknown");
 
     let path = upid.log_path();
 
-    let file = File::open(path)?;
+    let mut file = File::open(path)?;
+
+    /// speedup - only read tail
+    use std::io::Seek;
+    use std::io::SeekFrom;
+    let _ = file.seek(SeekFrom::End(-8192)); // ignore errors
+
     let reader = BufReader::new(file);
 
     for line in reader.lines() {
