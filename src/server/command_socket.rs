@@ -43,7 +43,7 @@ pub fn create_control_socket<P, F>(path: P, auto_remove: bool, f: F) -> Result<i
                     let res = try_block!({
                         let param = match cmd.parse::<Value>() {
                             Ok(p) => p,
-                            Err(err) => bail!("ERRER {}", err),
+                            Err(err) => bail!("unable to parse json value - {}", err),
                         };
 
                         f1(param)
@@ -63,7 +63,6 @@ pub fn create_control_socket<P, F>(path: P, auto_remove: bool, f: F) -> Result<i
         });
 
     let abort_future = super::last_worker_future().map_err(|_| {});
-    // let task = control_future.select(abort_future).map(|_| {}).map_err(|_| {});
     let task = control_future.select(abort_future)
         .then(move |_| {
             if auto_remove { let _ = std::fs::remove_file(path1); }
