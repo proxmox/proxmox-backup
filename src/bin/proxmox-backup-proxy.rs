@@ -1,3 +1,4 @@
+use proxmox_backup::try_block;
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
 use proxmox_backup::server;
@@ -99,7 +100,13 @@ fn run() -> Result<(), Error> {
 
     tokio::run(lazy(||  {
 
-        if let Err(err) = server::server_state_init() {
+        let init_result: Result<(), Error> = try_block!({
+            server::create_task_control_socket()?;
+            server::server_state_init()?;
+            Ok(())
+        });
+
+        if let Err(err) = init_result {
             eprintln!("unable to start daemon - {}", err);
         } else {
             tokio::spawn(server);
