@@ -1,5 +1,7 @@
 use failure::*;
 
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader};
 use crate::tools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -97,4 +99,57 @@ pub fn read_proc_uptime_ticks() -> Result<(u64, u64), Error> {
     up *= *CLOCK_TICKS;
     idle *= *CLOCK_TICKS;
     Ok((up as u64, idle as u64))
+}
+
+#[derive(Debug)]
+pub struct ProcFsMemStat {
+    pub memtotal: u64,
+    pub memfree: u64,
+    pub memused: u64,
+    pub memshared: u64,
+    pub swaptotal: u64,
+    pub swapfree: u64,
+    pub swapused: u64,
+}
+
+pub fn read_meminfo() -> Result<ProcFsMemStat, Error> {
+    let path = "/proc/meminfo";
+    let file = OpenOptions::new().read(true).open(&path)?;
+
+    let mut meminfo = ProcFsMemStat {
+	memtotal: 0,
+	memfree: 0,
+	memused: 0,
+	memshared: 0,
+	swaptotal: 0,
+	swapfree: 0,
+	swapused: 0,
+    };
+
+    let (mut buffers, mut cached) = (0, 0);
+    for line in BufReader::new(&file).lines() {
+	let content = line?;
+	let mut content_iter = content.split_whitespace();
+	if let (Some(key), Some(value)) = (content_iter.next(), content_iter.next()) {
+	    match key {
+		"MemTotal:" => meminfo.memtotal = value.parse::<u64>()? * 1024,
+		"MemFree:" => meminfo.memfree = value.parse::<u64>()? * 1024,
+		"SwapTotal:" => meminfo.swaptotal = value.parse::<u64>()? * 1024,
+		"SwapFree:" => meminfo.swapfree = value.parse::<u64>()? * 1024,
+		"Buffers:" => buffers = value.parse::<u64>()? * 1024,
+		"Cached:" => cached = value.parse::<u64>()? * 1024,
+		_ => continue,
+	    }
+	}
+    }
+
+    meminfo.memfree += buffers + cached;
+    meminfo.memused = meminfo.memtotal - meminfo.memfree;
+
+    meminfo.swapused = meminfo.swaptotal - meminfo.swapfree;
+
+    let spages_line = tools::file_read_firstline("/sys/kernel/mm/ksm/pages_sharing")?;
+    meminfo.memshared = spages_line.trim_end().parse::<u64>()? * 4096;
+
+    Ok(meminfo)
 }
