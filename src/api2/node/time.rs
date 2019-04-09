@@ -79,7 +79,8 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_time,
                 ObjectSchema::new("Read server time and time zone settings.")
-            ).returns(
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+             ).returns(
                 ObjectSchema::new("Returns server time and timezone.")
                     .required("timezone", StringSchema::new("Time zone"))
                     .required("time", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
@@ -92,7 +93,9 @@ pub fn router() -> Router {
             ApiMethod::new(
                 set_timezone,
                 ObjectSchema::new("Set time zone.")
-                    .required("timezone", StringSchema::new("Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("timezone", StringSchema::new(
+                        "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
             ).protected(true).reload_timezone(true)
         );
 

@@ -24,7 +24,7 @@ fn get_task_status(
         })
     } else {
          json!({
-            "status": "running",
+            "status": "stopped",
         })
     };
 
@@ -46,7 +46,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
 fn read_task_log(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -77,6 +77,8 @@ fn read_task_log(
             }
         }
     }
+
+    rpcenv.set_result_attrib("total", Value::from(count));
 
     Ok(json!(lines))
 }
@@ -141,7 +143,7 @@ fn list_tasks(
 
 pub fn router() -> Router {
 
-    let upid_schema : Arc<Schema> = Arc::new(
+    let upid_schema: Arc<Schema> = Arc::new(
         StringSchema::new("Unique Process/Task ID.")
             .max_length(256)
             .into()
@@ -157,6 +159,7 @@ pub fn router() -> Router {
                 Ok(Value::from(result))
             },
             ObjectSchema::new("Directory index.")
+                .required("node", crate::api2::node::NODE_SCHEMA.clone())
                 .required("upid", upid_schema.clone()))
         )
         .subdir(
@@ -165,6 +168,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         read_task_log,
                         ObjectSchema::new("Read task log.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("upid", upid_schema.clone())
                             .optional(
                                 "start",
@@ -187,6 +191,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         get_task_status,
                         ObjectSchema::new("Get task status.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("upid", upid_schema.clone()))
                 )
         );
@@ -196,6 +201,7 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             list_tasks,
             ObjectSchema::new("List tasks.")
+                .required("node", crate::api2::node::NODE_SCHEMA.clone())
                 .optional(
                     "start",
                     IntegerSchema::new("List tasks beginning from this offset.")

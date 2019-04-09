@@ -20,7 +20,9 @@ pub fn router() -> Router {
     let route = Router::new()
         .get(ApiMethod::new(
             get_network_config,
-            ObjectSchema::new("Read network configuration.")));
+            ObjectSchema::new("Read network configuration.")
+                .required("node", crate::api2::node::NODE_SCHEMA.clone())
+        ));
 
     route
 }

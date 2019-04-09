@@ -101,7 +101,8 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_syslog,
                 ObjectSchema::new("Read server time and time zone settings.")
-                    .optional(
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                     .optional(
                         "start",
                         IntegerSchema::new("Start line number.")
                             .minimum(0)

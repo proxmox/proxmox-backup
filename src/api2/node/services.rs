@@ -226,6 +226,7 @@ pub fn router() -> Router {
                 Ok(Value::from(result))
             },
             ObjectSchema::new("Directory index.")
+                .required("node", crate::api2::node::NODE_SCHEMA.clone())
                 .required("service", service_id_schema.clone()))
         )
         .subdir(
@@ -234,7 +235,8 @@ pub fn router() -> Router {
                 .get(ApiMethod::new(
                     get_service_state,
                     ObjectSchema::new("Read service properties.")
-                        .required("service", service_id_schema.clone()))
+                        .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                       .required("service", service_id_schema.clone()))
                 )
         )
         .subdir(
@@ -244,6 +246,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         start_service,
                         ObjectSchema::new("Start service.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -255,6 +258,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         stop_service,
                         ObjectSchema::new("Stop service.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -266,6 +270,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         restart_service,
                         ObjectSchema::new("Restart service.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -277,6 +282,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         reload_service,
                         ObjectSchema::new("Reload service.")
+                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -288,6 +294,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 list_services,
                 ObjectSchema::new("Service list.")
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
             ).returns(
                 ArraySchema::new(
                     "Returns a list of systemd services.",

@@ -129,6 +129,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_dns,
                 ObjectSchema::new("Read DNS settings.")
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
             ).returns(
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
                     .required("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
@@ -142,6 +143,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 update_dns,
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
+                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
                     .required("search", SEARCH_DOMAIN_SCHEMA.clone())
                     .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
                     .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())

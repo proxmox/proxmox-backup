@@ -26,13 +26,12 @@ lazy_static! {
     pub static ref PVE_CONFIG_DIGEST_SCHEMA: Arc<Schema> =
         StringSchema::new("Prevent changes if current configuration file has different SHA256 digest. This can be used to prevent concurrent modifications.")
         .format(PVE_CONFIG_DIGEST_FORMAT.clone()).into();
-
 }
 
 pub fn router() -> Router {
 
     let nodes = Router::new()
-        .subdir("localhost", node::router());
+        .match_all("node", node::router());
 
     let route = Router::new()
         .get(ApiMethod::new(
