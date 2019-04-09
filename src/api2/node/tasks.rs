@@ -18,14 +18,23 @@ fn get_task_status(
 
     let upid = extract_upid(&param)?;
 
-    let result = if crate::server::worker_is_active(&upid) {
-        json!({
-            "status": "running",
-        })
+    let mut result = json!({
+        "upid": param["upid"],
+        "node": upid.node,
+        "pid": upid.pid,
+        "pstart": upid.pstart,
+        "starttime": upid.starttime,
+        "type": upid.worker_type,
+        "id": upid.worker_id,
+        "user": upid.username,
+    });
+
+    if crate::server::worker_is_active(&upid) {
+        result["status"] = Value::from("running");
     } else {
-         json!({
-            "status": "stopped",
-        })
+        let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(String::from("unknown"));
+        result["status"] = Value::from("stopped");
+        result["exitstatus"] = Value::from(exitstatus);
     };
 
     Ok(result)
