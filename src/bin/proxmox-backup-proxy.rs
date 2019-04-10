@@ -91,9 +91,11 @@ fn run() -> Result<(), Error> {
                     // Filter out the Nones
                     r
                 });
+
             Ok(hyper::Server::builder(connections)
-                .serve(rest_server)
-                .map_err(|e| eprintln!("server error: {}", e))
+               .serve(rest_server)
+               .with_graceful_shutdown(server::shutdown_future())
+               .map_err(|err| eprintln!("server error: {}", err))
             )
         },
     )?;
@@ -109,7 +111,10 @@ fn run() -> Result<(), Error> {
         if let Err(err) = init_result {
             eprintln!("unable to start daemon - {}", err);
         } else {
-            tokio::spawn(server);
+            tokio::spawn(server.then(|_| {
+                log::info!("done - exit server");
+                Ok(())
+            }));
         }
 
         Ok(())

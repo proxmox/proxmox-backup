@@ -169,9 +169,7 @@ where
 
     let mut reloader = Some(reloader);
 
-    let abort_future = server::shutdown_future().map_err(|_| {});
     Ok(service
-       .select(abort_future)
        .map(move |_| {
            crate::tools::request_shutdown(); // make sure we are in shutdown mode
            if server::is_reload_request() {
