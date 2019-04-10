@@ -2,6 +2,7 @@ use failure::*;
 
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
+use std::collections::HashSet;
 use crate::tools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -152,4 +153,63 @@ pub fn read_meminfo() -> Result<ProcFsMemStat, Error> {
     meminfo.memshared = spages_line.trim_end().parse::<u64>()? * 4096;
 
     Ok(meminfo)
+}
+
+#[derive(Clone, Debug)]
+pub struct ProcFsCPUInfo {
+    pub user_hz: f64,
+    pub mhz: f64,
+    pub model: String,
+    pub hvm: bool,
+    pub sockets: usize,
+    pub cpus: usize,
+}
+
+static CPU_INFO: Option<ProcFsCPUInfo> = None;
+
+pub fn read_cpuinfo() -> Result<ProcFsCPUInfo, Error> {
+    if let Some(cpu_info) = &CPU_INFO { return Ok(cpu_info.clone()); }
+
+    let path = "/proc/cpuinfo";
+    let file = OpenOptions::new().read(true).open(&path)?;
+
+    let mut cpuinfo = ProcFsCPUInfo {
+	user_hz: *CLOCK_TICKS,
+	mhz: 0.0,
+	model: String::new(),
+	hvm: false,
+	sockets: 0,
+	cpus: 0,
+    };
+
+    let mut socket_ids = HashSet::new();
+    for line in BufReader::new(&file).lines() {
+	let content = line?;
+	if content.is_empty() { continue; }
+	let mut content_iter = content.split(":");
+	match (content_iter.next(), content_iter.next()) {
+	    (Some(key), Some(value)) => {
+		let mut key_iter = key.split_whitespace();
+		match (key_iter.next(), key_iter.next()) {
+		    (Some("processor"), None) =>
+			cpuinfo.cpus += 1,
+		    (Some("model"), Some("name")) =>
+			cpuinfo.model = value.trim().to_string(),
+		    (Some("cpu"), Some("MHz")) =>
+			cpuinfo.mhz = value.trim().parse::<f64>()?,
+		    (Some("flags"), None) =>
+			cpuinfo.hvm = value.contains(" vmx ") || value.contains(" svm "),
+		    (Some("physical"), Some("id")) => {
+			let id = value.trim().parse::<u8>()?;
+			socket_ids.insert(id);
+		    },
+		    _ => continue,
+		}
+	    },
+	    _ => bail!("Error while parsing '{}'", path),
+	}
+    }
+    cpuinfo.sockets = socket_ids.len();
+
+    Ok(cpuinfo)
 }
