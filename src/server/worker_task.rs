@@ -476,6 +476,7 @@ impl WorkerTask {
 
     /// Request abort
     pub fn request_abort(&self) {
+        eprintln!("set abort flag for worker {}", self.upid);
         self.abort_requested.store(true, Ordering::SeqCst);
     }
 
