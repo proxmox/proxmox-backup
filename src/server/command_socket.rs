@@ -13,14 +13,12 @@ use serde_json::Value;
 use std::sync::Arc;
 
 /// Listens on a Unix Socket to handle simple command asynchronously
-pub fn create_control_socket<P, F>(path: P, auto_remove: bool, f: F) -> Result<impl Future<Item=(), Error=()>, Error>
+pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Item=(), Error=()>, Error>
     where P: Into<PathBuf>,
           F: Send + Sync +'static + Fn(Value) -> Result<Value, Error>,
 {
     let path: PathBuf = path.into();
     let path1: PathBuf = path.clone();
-
-    if auto_remove { let _ = std::fs::remove_file(&path); }
 
     let socket = UnixListener::bind(&path)?;
 
@@ -64,10 +62,7 @@ pub fn create_control_socket<P, F>(path: P, auto_remove: bool, f: F) -> Result<i
 
     let abort_future = super::last_worker_future().map_err(|_| {});
     let task = control_future.select(abort_future)
-        .then(move |_| {
-            if auto_remove { let _ = std::fs::remove_file(path1); }
-            Ok(())
-        });
+        .then(move |_| { Ok(()) });
 
     Ok(task)
 }

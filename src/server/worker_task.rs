@@ -52,9 +52,9 @@ pub fn worker_is_active(upid: &UPID) -> bool {
 pub fn create_task_control_socket() -> Result<(), Error> {
 
     let socketname = format!(
-        "{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, *MY_PID);
+        "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, *MY_PID);
 
-    let control_future = super::create_control_socket(socketname, true, |param| {
+    let control_future = super::create_control_socket(socketname, |param| {
         let param = param.as_object()
             .ok_or(format_err!("unable to parse parameters (expected json object)"))?;
         if param.keys().count() != 2 { bail!("worng number of parameters"); }
