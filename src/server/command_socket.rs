@@ -70,3 +70,52 @@ pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Item=(),
 
     Ok(task)
 }
+
+
+pub fn send_command<P>(
+    path: P,
+    params: Value
+) -> impl Future<Item=Value, Error=Error>
+    where P: Into<PathBuf>,
+
+{
+    let path: PathBuf = path.into();
+
+    tokio::net::UnixStream::connect(path)
+        .map_err(move |err| format_err!("control socket connect failed - {}", err))
+        .and_then(move |conn| {
+
+            let (rx, tx) = conn.split();
+
+            let mut command_string = params.to_string();
+            command_string.push('\n');
+
+            tokio::io::write_all(tx, command_string)
+                .and_then(|(tx,_)| tokio::io::shutdown(tx))
+                .map_err(|err| format_err!("control socket write error - {}", err))
+                .and_then(move |_| {
+                    tokio::io::lines(std::io::BufReader::new(rx))
+                        .into_future()
+                        .then(|test| {
+                            match test {
+                                Ok((Some(data), _)) => {
+                                    if data.starts_with("OK: ") {
+                                        match data[4..].parse::<Value>() {
+                                            Ok(v) => Ok(v),
+                                            Err(err) => bail!("unable to parse json response - {}", err),
+                                        }
+                                    } else if data.starts_with("ERROR: ") {
+                                        bail!("{}", &data[7..]);
+                                    } else {
+                                        bail!("unable to parse response: {}", data);
+                                    }
+                                }
+                                Ok((None, _)) => {
+                                    bail!("no response");
+                                }
+                                Err((err, _)) => Err(Error::from(err)),
+                            }
+                        })
+                })
+        })
+}

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::{BufRead, BufReader};
 use std::fs::File;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::UPID;
 
@@ -57,7 +57,7 @@ pub fn create_task_control_socket() -> Result<(), Error> {
     let control_future = super::create_control_socket(socketname, |param| {
         let param = param.as_object()
             .ok_or(format_err!("unable to parse parameters (expected json object)"))?;
-        if param.keys().count() != 2 { bail!("worng number of parameters"); }
+        if param.keys().count() != 2 { bail!("wrong number of parameters"); }
 
         let command = param.get("command")
             .ok_or(format_err!("unable to parse parameters (missing command)"))?;
@@ -86,6 +86,32 @@ pub fn create_task_control_socket() -> Result<(), Error> {
     tokio::spawn(control_future);
 
     Ok(())
+}
+
+pub fn abort_worker_async(upid: UPID) {
+    let task = abort_worker(upid);
+
+    tokio::spawn(task.then(|res| {
+        if let Err(err) = res {
+            eprintln!("abort worker failed - {}", err);
+        }
+        Ok(())
+    }));
+}
+
+pub fn abort_worker(upid: UPID) -> impl Future<Item=(), Error=Error> {
+
+    let target_pid = upid.pid;
+
+    let socketname = format!(
+        "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, target_pid);
+
+    let cmd = json!({
+        "command": "abort-task",
+        "upid": upid.to_string(),
+    });
+
+    super::send_command(socketname, cmd).map(|_| {})
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<(i64, String)>), Error> {
