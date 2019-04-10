@@ -92,6 +92,21 @@ fn read_task_log(
     Ok(json!(lines))
 }
 
+fn stop_task(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let upid = extract_upid(&param)?;
+
+    if crate::server::worker_is_active(&upid) {
+        server::abort_worker_async(upid);
+    }
+
+    Ok(Value::Null)
+}
+
 fn list_tasks(
     param: Value,
     _info: &ApiMethod,
@@ -170,6 +185,13 @@ pub fn router() -> Router {
             ObjectSchema::new("Directory index.")
                 .required("node", crate::api2::node::NODE_SCHEMA.clone())
                 .required("upid", upid_schema.clone()))
+        )
+        .delete(ApiMethod::new(
+            stop_task,
+            ObjectSchema::new("Try to stop a task.")
+                .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                .required("upid", upid_schema.clone())).protected(true)
+
         )
         .subdir(
             "log", Router::new()
