@@ -1,6 +1,6 @@
 use failure::*;
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use crate::tools;
 use lazy_static::lazy_static;
