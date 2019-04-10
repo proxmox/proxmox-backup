@@ -1,7 +1,7 @@
 //! Helpers for daemons/services.
 
 use std::ffi::CString;
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 
@@ -9,16 +9,16 @@ use failure::*;
 use tokio::prelude::*;
 
 use crate::server;
-use crate::tools::fd_change_cloexec;
+use crate::tools::{fd_change_cloexec, self};
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
-pub type BoxedStoreFunc = Box<dyn Fn() -> Result<String, Error> + UnwindSafe + Send>;
+pub type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
 
 /// Helper trait to "store" something in the environment to be re-used after re-executing the
 /// service on a reload.
 pub trait Reloadable: Sized {
     fn restore(var: &str) -> Result<Self, Error>;
-    fn get_store_func(&self) -> BoxedStoreFunc;
+    fn get_store_func(&self) -> Result<BoxedStoreFunc, Error>;
 }
 
 /// Manages things to be stored and reloaded upon reexec.
@@ -58,13 +58,13 @@ impl Reloader {
 
         self.pre_exec.push(PreExecEntry {
             name,
-            store_fn: res.get_store_func(),
+            store_fn: res.get_store_func()?,
         });
         Ok(res)
     }
 
     fn pre_exec(self) -> Result<(), Error> {
-        for item in self.pre_exec {
+        for mut item in self.pre_exec {
             std::env::set_var(item.name, (item.store_fn)()?);
         }
         Ok(())
@@ -124,12 +124,15 @@ impl Reloadable for tokio::net::TcpListener {
     // NOTE: The socket must not be closed when the store-function is called:
     // FIXME: We could become "independent" of the TcpListener and its reference to the file
     // descriptor by `dup()`ing it (and check if the listener still exists via kcmp()?)
-    fn get_store_func(&self) -> BoxedStoreFunc {
-        let fd = self.as_raw_fd();
-        Box::new(move || {
-            fd_change_cloexec(fd, false)?;
-            Ok(fd.to_string())
-        })
+    fn get_store_func(&self) -> Result<BoxedStoreFunc, Error> {
+        let mut fd_opt = Some(tools::Fd(
+            nix::fcntl::fcntl(self.as_raw_fd(), nix::fcntl::FcntlArg::F_DUPFD_CLOEXEC(0))?
+        ));
+        Ok(Box::new(move || {
+            let fd = fd_opt.take().unwrap();
+            fd_change_cloexec(fd.as_raw_fd(), false)?;
+            Ok(fd.into_raw_fd().to_string())
+        }))
     }
 
     fn restore(var: &str) -> Result<Self, Error> {
