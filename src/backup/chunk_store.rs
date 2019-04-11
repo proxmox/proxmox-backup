@@ -4,12 +4,15 @@ use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
+use serde_derive::Serialize;
 
 use openssl::sha;
 
 use crate::tools;
 
+#[derive(Clone, Serialize)]
 pub struct GarbageCollectionStatus {
+    pub upid: Option<String>,
     pub used_bytes: usize,
     pub used_chunks: usize,
     pub disk_bytes: usize,
@@ -19,6 +22,7 @@ pub struct GarbageCollectionStatus {
 impl Default for GarbageCollectionStatus {
     fn default() -> Self {
         GarbageCollectionStatus {
+            upid: None,
             used_bytes: 0,
             used_chunks: 0,
             disk_bytes: 0,

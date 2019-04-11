@@ -323,10 +323,13 @@ fn garbage_collection_status(
 
     let store = param["store"].as_str().unwrap();
 
+    let datastore = DataStore::lookup_datastore(&store)?;
+
     println!("Garbage collection status on store {}", store);
 
-    Ok(json!(null))
+    let status = datastore.last_gc_status();
 
+    Ok(serde_json::to_value(&status)?)
 }
 
 pub fn api_method_garbage_collection_status() -> ApiMethod {
@@ -391,7 +394,7 @@ pub fn router() -> Router {
                 {"subdir": "gc" },
                 {"subdir": "groups" },
                 {"subdir": "snapshots" },
-                {"subdir": "status" },
+                //{"subdir": "status" },
                 {"subdir": "prune" },
            ])),
             ObjectSchema::new("Directory index.")

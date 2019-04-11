@@ -26,6 +26,7 @@ lazy_static!{
 pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
+    last_gc_status: Mutex<GarbageCollectionStatus>,
 }
 
 impl DataStore {
@@ -65,9 +66,12 @@ impl DataStore {
 
         let chunk_store = ChunkStore::open(store_name, path)?;
 
+        let gc_status = GarbageCollectionStatus::default();
+
         Ok(Self {
             chunk_store: Arc::new(chunk_store),
             gc_mutex: Mutex::new(false),
+            last_gc_status: Mutex::new(gc_status),
         })
     }
 
@@ -225,7 +229,11 @@ impl DataStore {
         }
 
         Ok(())
-   }
+    }
+
+    pub fn last_gc_status(&self) -> GarbageCollectionStatus {
+        self.last_gc_status.lock().unwrap().clone()
+    }
 
     pub fn garbage_collection(&self, worker: Arc<WorkerTask>) -> Result<(), Error> {
 
@@ -236,7 +244,7 @@ impl DataStore {
             let oldest_writer = self.chunk_store.oldest_writer();
 
             let mut gc_status = GarbageCollectionStatus::default();
-            gc_status.used_bytes = 0;
+            gc_status.upid = Some(worker.to_string());
 
             worker.log("Start GC phase1 (mark chunks)");
 
@@ -249,6 +257,8 @@ impl DataStore {
             worker.log(&format!("Used chunks: {}", gc_status.used_chunks));
             worker.log(&format!("Disk bytes: {}", gc_status.disk_bytes));
             worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
+
+            *self.last_gc_status.lock().unwrap() = gc_status;
 
         } else {
             bail!("Start GC failed - (already running/locked)");
