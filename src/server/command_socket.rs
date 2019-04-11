@@ -11,6 +11,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use serde_json::Value;
 use std::sync::Arc;
+use std::os::unix::io::AsRawFd;
+use nix::sys::socket;
 
 /// Listens on a Unix Socket to handle simple command asynchronously
 pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Item=(), Error=()>, Error>
@@ -26,6 +28,21 @@ pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Item=(),
     let path3 = path2.clone();
 
     let control_future = socket.incoming()
+        .map_err(Error::from)
+        .and_then(|conn| {
+            // check permissions (same gid, or root user)
+            let opt = socket::sockopt::PeerCredentials {};
+            match socket::getsockopt(conn.as_raw_fd(), opt) {
+                Ok(cred) => {
+                    let mygid = unsafe { libc::getgid() };
+                    if !(cred.uid() == 0 || cred.gid() == mygid) {
+                        bail!("no permissions for {:?}", cred);
+                    }
+                }
+                Err(err) => bail!("no permissions - unable to read peer credential - {}", err),
+            }
+            Ok(conn)
+        })
         .map_err(move |err| { eprintln!("failed to accept on control socket {:?}: {}", path2, err); })
         .for_each(move |conn| {
             let f1 = f.clone();
