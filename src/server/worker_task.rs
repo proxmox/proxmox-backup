@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::{BufRead, BufReader};
 use std::fs::File;
+use std::panic::UnwindSafe;
+
 use serde_json::{json, Value};
 
 use super::UPID;
@@ -426,7 +428,7 @@ impl WorkerTask {
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
-        where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>
+        where F: Send + UnwindSafe + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>
     {
         println!("register worker thread");
 
@@ -437,7 +439,22 @@ impl WorkerTask {
         let upid_str = worker.upid.to_string();
 
         let _child = std::thread::spawn(move || {
-            let result = f(worker.clone());
+            let worker1 = worker.clone();
+            let result = match std::panic::catch_unwind(move || f(worker1)) {
+                Ok(r) => r,
+                Err(panic) => {
+                    match panic.downcast::<&str>() {
+                        Ok(panic_msg) => {
+                            Err(format_err!("worker panicked: {}", panic_msg))
+                        }
+                        Err(_) => {
+                            Err(format_err!("worker panicked: unknown type."))
+                        }
+                    }
+                }
+            };
+
+            //let result = f(worker.clone());
             WORKER_TASK_LIST.lock().unwrap().remove(&task_id);
             worker.log_result(result);
             let _ = update_active_workers(None);
