@@ -284,7 +284,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
     let mut task_list: Vec<TaskListInfo> = vec![];
     for (_, info) in task_hash { task_list.push(info); }
 
-    task_list.sort_unstable_by(|a, b| {
+    task_list.sort_unstable_by(|b, a| { // lastest on top
         match (&a.state, &b.state) {
             (Some(s1), Some(s2)) => s1.0.cmp(&s2.0),
             (Some(_), None) => std::cmp::Ordering::Less,
