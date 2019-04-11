@@ -39,6 +39,15 @@ Ext.define('PBS.DataStoreConfig', {
 		    method: 'POST',
 		    failure: function(response) {
 			Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		    },
+		    success: function(response, options) {
+			var upid = response.result.data;
+
+			var win = Ext.create('Proxmox.window.TaskViewer', {
+			    upid: upid
+			});
+			win.show();
+			me.close();
 		    }
 		});
 	    }
