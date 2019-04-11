@@ -5,7 +5,7 @@ Ext.define('PBS.ServerAdministration', {
 
     title: gettext('Server Administration'),
 
-    border: false,
+    border: true,
     defaults: { border: false },
 
     controller: {

@@ -5,7 +5,7 @@ Ext.define('PBS.SystemConfiguration', {
     xtype: 'pbsSystemConfiguration',
 
     title: gettext('Configuration') + ': ' + gettext('System'),
-    border: false,
+    border: true,
     scrollable: true,
     defaults: { border: false },
     items: [

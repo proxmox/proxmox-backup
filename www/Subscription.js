@@ -22,7 +22,7 @@ Ext.define('PBS.Subscription', {
 
     title: gettext('Subscription'),
 
-    border: false,
+    border: true,
 
     onlineHelp: 'getting_help',
 
