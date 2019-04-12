@@ -3,6 +3,7 @@ use failure::*;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::collections::HashSet;
+use std::process;
 use crate::tools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -207,4 +208,28 @@ pub fn read_cpuinfo() -> Result<ProcFsCPUInfo, Error> {
     cpuinfo.sockets = socket_ids.len();
 
     Ok(cpuinfo)
+}
+
+#[derive(Debug)]
+pub struct ProcFsMemUsage {
+    pub size: u64,
+    pub resident: u64,
+    pub shared: u64,
+}
+
+pub fn read_memory_usage() -> Result<ProcFsMemUsage, Error> {
+    let path = format!("/proc/{}/statm", process::id());
+    let line = tools::file_read_firstline(&path)?;
+    let mut values = line.split_whitespace().map(|v| v.parse::<u64>());
+
+    let ps = 4096;
+    match (values.next(), values.next(), values.next()) {
+	(Some(Ok(size)), Some(Ok(resident)), Some(Ok(shared))) =>
+	    Ok(ProcFsMemUsage {
+		size: size * ps,
+		resident: resident * ps,
+		shared: shared * ps,
+	    }),
+	_ => bail!("Error while parsing '{}'", path),
+    }
 }
