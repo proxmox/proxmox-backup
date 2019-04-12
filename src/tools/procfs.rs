@@ -85,13 +85,13 @@ pub fn check_process_running_pstart(pid: libc::pid_t, pstart: u64) -> Option<Pro
 }
 
 pub fn read_proc_uptime() -> Result<(f64, f64), Error> {
-    let file = "/proc/uptime";
-    let line = tools::file_read_firstline(&file)?;
+    let path = "/proc/uptime";
+    let line = tools::file_read_firstline(&path)?;
     let mut values = line.split_whitespace().map(|v| v.parse::<f64>());
 
     match (values.next(), values.next()) {
 	(Some(Ok(up)), Some(Ok(idle))) => return Ok((up, idle)),
-	_ => bail!("Error while parsing '{}'", file),
+	_ => bail!("Error while parsing '{}'", path),
     }
 }
 
@@ -103,7 +103,7 @@ pub fn read_proc_uptime_ticks() -> Result<(u64, u64), Error> {
 }
 
 #[derive(Debug)]
-pub struct ProcFsMemStat {
+pub struct ProcFsMemInfo {
     pub memtotal: u64,
     pub memfree: u64,
     pub memused: u64,
@@ -113,11 +113,11 @@ pub struct ProcFsMemStat {
     pub swapused: u64,
 }
 
-pub fn read_meminfo() -> Result<ProcFsMemStat, Error> {
+pub fn read_meminfo() -> Result<ProcFsMemInfo, Error> {
     let path = "/proc/meminfo";
     let file = OpenOptions::new().read(true).open(&path)?;
 
-    let mut meminfo = ProcFsMemStat {
+    let mut meminfo = ProcFsMemInfo {
 	memtotal: 0,
 	memfree: 0,
 	memused: 0,
