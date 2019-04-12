@@ -233,3 +233,33 @@ pub fn read_memory_usage() -> Result<ProcFsMemUsage, Error> {
 	_ => bail!("Error while parsing '{}'", path),
     }
 }
+
+#[derive(Debug)]
+pub struct ProcFsNetDev {
+    pub device: String,
+    pub receive: u64,
+    pub send: u64,
+}
+
+pub fn read_proc_net_dev() -> Result<Vec<ProcFsNetDev>, Error> {
+    let path = "/proc/net/dev";
+    let file = OpenOptions::new().read(true).open(&path)?;
+
+    let mut result = Vec::new();
+    for line in BufReader::new(&file).lines().skip(2) {
+	let content = line?;
+	let mut iter = content.split_whitespace();
+	match (iter.next(), iter.next(), iter.skip(7).next()) {
+	    (Some(device), Some(receive), Some(send)) => {
+		result.push(ProcFsNetDev {
+		    device: device[..device.len()-1].to_string(),
+		    receive: receive.parse::<u64>()?,
+		    send: send.parse::<u64>()?,
+		});
+	    },
+	    _ => bail!("Error while parsing '{}'", path),
+	}
+    }
+
+    Ok(result)
+}
