@@ -189,17 +189,12 @@ pub fn read_cpuinfo() -> Result<ProcFsCPUInfo, Error> {
 	let mut content_iter = content.split(":");
 	match (content_iter.next(), content_iter.next()) {
 	    (Some(key), Some(value)) => {
-		let mut key_iter = key.split_whitespace();
-		match (key_iter.next(), key_iter.next()) {
-		    (Some("processor"), None) =>
-			cpuinfo.cpus += 1,
-		    (Some("model"), Some("name")) =>
-			cpuinfo.model = value.trim().to_string(),
-		    (Some("cpu"), Some("MHz")) =>
-			cpuinfo.mhz = value.trim().parse::<f64>()?,
-		    (Some("flags"), None) =>
-			cpuinfo.hvm = value.contains(" vmx ") || value.contains(" svm "),
-		    (Some("physical"), Some("id")) => {
+		match key.trim_end() {
+		    "processor" => cpuinfo.cpus += 1,
+		    "model name" => cpuinfo.model = value.trim().to_string(),
+		    "cpu MHz" => cpuinfo.mhz = value.trim().parse::<f64>()?,
+		    "flags" => cpuinfo.hvm = value.contains(" vmx ") || value.contains(" svm "),
+		    "physical id" => {
 			let id = value.trim().parse::<u8>()?;
 			socket_ids.insert(id);
 		    },
