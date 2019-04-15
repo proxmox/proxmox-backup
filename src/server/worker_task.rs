@@ -341,6 +341,7 @@ impl std::fmt::Display for WorkerTask {
 struct WorkerTaskData {
     logger: FileLogger,
     progress: f64, // 0..1
+    pub abort_listeners: Vec<oneshot::Sender<()>>,
 }
 
 impl Drop for WorkerTask {
@@ -383,6 +384,7 @@ impl WorkerTask {
             data: Mutex::new(WorkerTaskData {
                 logger,
                 progress: 0.0,
+                abort_listeners: vec![],
             }),
         });
 
@@ -492,6 +494,16 @@ impl WorkerTask {
     pub fn request_abort(&self) {
         eprintln!("set abort flag for worker {}", self.upid);
         self.abort_requested.store(true, Ordering::SeqCst);
+        // noitify listeners
+        let mut data = self.data.lock().unwrap();
+        loop {
+            match data.abort_listeners.pop() {
+                None => { break; },
+                Some(ch) => {
+                    let _ = ch.send(()); // ignore erros here
+                },
+            }
+        }
     }
 
     /// Test if abort was requested.
@@ -505,5 +517,18 @@ impl WorkerTask {
             bail!("task '{}': abort requested - aborting task", self.upid);
         }
         Ok(())
+    }
+
+    /// Get a future which resolves on task abort
+    pub fn abort_future(&self) ->  oneshot::Receiver<()> {
+        let (tx, rx) = oneshot::channel::<()>();
+
+        let mut data = self.data.lock().unwrap();
+        if self.abort_requested() {
+            let _ = tx.send(());
+        } else {
+            data.abort_listeners.push(tx);
+        }
+        rx
     }
 }

@@ -93,10 +93,21 @@ fn upload_pxar(
     let upload = UploadPxar { stream: req_body, index, count: 0};
 
     let worker = server::WorkerTask::new("upload", Some(worker_id), &rpcenv.get_user().unwrap(), false)?;
+    let worker1 = worker.clone();
+    let abort_future = worker.abort_future();
 
     let resp = upload
+        .select(abort_future.map_err(|_| {})
+                .then(move |_| {
+                    worker1.log("aborting task...");
+                    bail!("task aborted");
+                })
+        )
         .then(move |result| {
-            worker.log_result(result);
+            match result {
+                Ok((result,_)) => worker.log_result(Ok(result)),
+                Err((err, _)) =>  worker.log_result(Err(err)),
+            }
             Ok(())
         })
         .and_then(|_| {
