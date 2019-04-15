@@ -3,7 +3,7 @@ use failure::*;
 use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
 use crate::backup::*;
-//use crate::server::rest::*;
+use crate::server;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 
@@ -51,7 +51,7 @@ fn upload_pxar(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    _rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut RpcEnvironment,
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
@@ -67,7 +67,9 @@ fn upload_pxar(
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    println!("Upload {}/{}/{}/{}/{}", store, backup_type, backup_id, backup_time, archive_name);
+    let worker_id = format!("{}_{}_{}_{}_{}", store, backup_type, backup_id, backup_time, archive_name);
+
+    println!("Upload {}", worker_id);
 
     let content_type = parts.headers.get(http::header::CONTENT_TYPE)
         .ok_or(format_err!("missing content-type header"))?;
@@ -90,7 +92,14 @@ fn upload_pxar(
 
     let upload = UploadPxar { stream: req_body, index, count: 0};
 
-    let resp = upload.and_then(|_| {
+    let worker = server::WorkerTask::new("upload", Some(worker_id), &rpcenv.get_user().unwrap(), false)?;
+
+    let resp = upload
+        .then(move |result| {
+            worker.log_result(result);
+            Ok(())
+        })
+        .and_then(|_| {
 
         let response = http::Response::builder()
             .status(200)
