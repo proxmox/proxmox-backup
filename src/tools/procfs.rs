@@ -4,6 +4,7 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::collections::HashSet;
 use std::process;
+use std::net::Ipv4Addr;
 use crate::tools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -259,6 +260,71 @@ pub fn read_proc_net_dev() -> Result<Vec<ProcFsNetDev>, Error> {
 	    },
 	    _ => bail!("Error while parsing '{}'", path),
 	}
+    }
+
+    Ok(result)
+}
+
+fn hex_nibble(c: u8) -> Result<u8, Error> {
+    Ok(match c {
+	b'0'..=b'9' => c - b'0',
+	b'a'..=b'f' => c - b'a' + 0xa,
+	b'A'..=b'F' => c - b'A' + 0xa,
+	_ => bail!("not a hex digit: {}", c as char),
+    })
+}
+
+fn hexstr_to_ipv4addr<T: AsRef<[u8]>>(hex: T) -> Result<Ipv4Addr, Error> {
+    let hex = hex.as_ref();
+    if hex.len() != 8 {
+	bail!("Error while converting hex string to IP address: unexpected string length");
+    }
+
+    let mut addr: [u8; 4] = unsafe { std::mem::uninitialized() };
+    for i in 0..4 {
+	addr[3 - i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
+    }
+
+    Ok(Ipv4Addr::from(addr))
+}
+
+#[derive(Debug)]
+pub struct ProcFsNetRoute {
+    pub dest: Ipv4Addr,
+    pub gateway: Ipv4Addr,
+    pub mask: Ipv4Addr,
+    pub metric: u32,
+    pub mtu: u32,
+    pub iface: String,
+}
+
+pub fn read_proc_net_route() -> Result<Vec<ProcFsNetRoute>, Error> {
+    let path = "/proc/net/route";
+    let file = OpenOptions::new().read(true).open(&path)?;
+    let err = "Error while parsing '/proc/net/route";
+
+    let mut result = Vec::new();
+    for line in BufReader::new(&file).lines().skip(1) {
+	let content = line?;
+	if content.is_empty() { continue; }
+	let mut iter = content.split_whitespace();
+
+	let iface = iter.next().ok_or(format_err!("{}", err))?;
+	let dest = iter.next().ok_or(format_err!("{}", err))?;
+	let gateway = iter.next().ok_or(format_err!("{}", err))?;
+	for _ in 0..3 { iter.next(); }
+	let metric = iter.next().ok_or(format_err!("{}", err))?;
+	let mask = iter.next().ok_or(format_err!("{}", err))?;
+	let mtu = iter.next().ok_or(format_err!("{}", err))?;
+
+	result.push(ProcFsNetRoute {
+	    dest: hexstr_to_ipv4addr(dest)?,
+	    gateway: hexstr_to_ipv4addr(gateway)?,
+	    mask: hexstr_to_ipv4addr(mask)?,
+	    metric: metric.parse()?,
+	    mtu: mtu.parse()?,
+	    iface: iface.to_string(),
+	});
     }
 
     Ok(result)
