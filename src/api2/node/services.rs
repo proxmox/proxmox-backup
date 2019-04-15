@@ -8,8 +8,9 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use std::process::{Command, Stdio};
 
-static SERVICE_NAME_LIST: [&str; 6] = [
+static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",
+    "proxmox-backup-proxy",
     "sshd",
     "syslog",
     "cron",
@@ -192,7 +193,12 @@ fn restart_service(
 
     log::info!("re-starting service {}", service);
 
-    run_service_command(service, "restart")
+    if service == "proxmox-backup-proxy" {
+        // special case, avoid aborting running tasks
+        run_service_command(service, "reload")
+    } else {
+        run_service_command(service, "restart")
+    }
 }
 
 fn reload_service(
