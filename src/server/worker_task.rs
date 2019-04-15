@@ -352,7 +352,7 @@ impl Drop for WorkerTask {
 
 impl WorkerTask {
 
-    fn new(worker_type: &str, worker_id: Option<String>, username: &str, to_stdout: bool) -> Result<Arc<Self>, Error> {
+    pub fn new(worker_type: &str, worker_id: Option<String>, username: &str, to_stdout: bool) -> Result<Arc<Self>, Error> {
         println!("register worker");
 
         let upid = UPID::new(worker_type, worker_id, username)?;
@@ -406,14 +406,10 @@ impl WorkerTask {
               T: Send + 'static + Future<Item=(), Error=Error>,
     {
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
-        let task_id = worker.upid.task_id;
         let upid_str = worker.upid.to_string();
 
         tokio::spawn(f(worker.clone()).then(move |result| {
-            WORKER_TASK_LIST.lock().unwrap().remove(&task_id);
             worker.log_result(result);
-            let _ = update_active_workers(None);
-            super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
             Ok(())
         }));
 
@@ -435,7 +431,6 @@ impl WorkerTask {
         let (p, c) = oneshot::channel::<()>();
 
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
-        let task_id = worker.upid.task_id;
         let upid_str = worker.upid.to_string();
 
         let _child = std::thread::spawn(move || {
@@ -454,12 +449,8 @@ impl WorkerTask {
                 }
             };
 
-            //let result = f(worker.clone());
-            WORKER_TASK_LIST.lock().unwrap().remove(&task_id);
             worker.log_result(result);
-            let _ = update_active_workers(None);
             p.send(()).unwrap();
-            super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
         });
 
         tokio::spawn(c.then(|_| Ok(())));
@@ -467,12 +458,18 @@ impl WorkerTask {
         Ok(upid_str)
     }
 
-    fn log_result(&self, result: Result<(), Error>) {
+    /// Log task result, remove task from running list
+    pub fn log_result(&self, result: Result<(), Error>) {
+
         if let Err(err) = result {
             self.log(&format!("TASK ERROR: {}", err));
         } else {
             self.log("TASK OK");
         }
+
+        WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
+        let _ = update_active_workers(None);
+        super::set_worker_count(WORKER_TASK_LIST.lock().unwrap().len());
     }
 
     /// Log a message.
