@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use chrono::Local;
 
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::tools;
 
@@ -45,7 +45,18 @@ impl UPID {
 
         let pid = unsafe { libc::getpid() };
 
-        static WORKER_TASK_NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
+        let bad: &[_] = &['/', ':', ' '];
+
+        if worker_type.contains(bad) {
+            bail!("illegal characters in worker type '{}'", worker_type);
+        }
+        if let Some(ref worker_id) = worker_id {
+            if worker_id.contains(bad) {
+                bail!("illegal characters in worker id '{}'", worker_id);
+            }
+        }
+
+        static WORKER_TASK_NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
         let task_id = WORKER_TASK_NEXT_ID.fetch_add(1, Ordering::SeqCst);
 
