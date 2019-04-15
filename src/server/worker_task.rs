@@ -175,7 +175,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<String, Error> {
                 if rest == "OK" {
                     status = String::from(rest);
                 } else if rest.starts_with("ERROR: ") {
-                    status = String::from(rest);
+                    status = String::from(&rest[7..]);
                 }
             }
         }
