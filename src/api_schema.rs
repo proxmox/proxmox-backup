@@ -12,6 +12,7 @@
 mod schema;
 pub use schema::*;
 
+pub mod api_handler;
 pub mod registry;
 #[macro_use]
 pub mod router;

@@ -1,7 +1,6 @@
 use failure::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use serde_json::Value;
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -268,7 +267,7 @@ fn handle_simple_command(
         }
     };
 
-    if (cli_cmd.info.handler as *const fn()) == (dummy_help as *const fn()) {
+    if cli_cmd.info.handler.is_none() {
         let prefix = prefix.split(' ').next().unwrap().to_string();
         print_help(top_def, prefix, &rest, params["verbose"].as_bool());
         return;
@@ -282,7 +281,7 @@ fn handle_simple_command(
 
     let mut rpcenv = CliEnvironment::new();
 
-    match (cli_cmd.info.handler)(params, &cli_cmd.info, &mut rpcenv) {
+    match (cli_cmd.info.handler.as_ref().unwrap())(params, &cli_cmd.info, &mut rpcenv) {
         Ok(value) => {
             println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
         }
@@ -603,8 +602,7 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
 
 fn help_command_def() ->  CliCommand {
     CliCommand::new(
-        ApiMethod::new(
-            dummy_help,
+        ApiMethod::new_dummy(
             ObjectSchema::new("Get help about specified command.")
                 .optional("verbose", BooleanSchema::new("Verbose help."))
         )
@@ -691,10 +689,6 @@ impl CliCommand {
 
 pub struct CliCommandMap {
     pub commands: HashMap<String, CommandLineInterface>,
-}
-
-fn dummy_help(_param: Value, _info: &ApiMethod, _rpcenv: &mut RpcEnvironment) -> Result<Value, Error> {
-    panic!("internal error"); // this is just a place holder - never call this
 }
 
 impl CliCommandMap {

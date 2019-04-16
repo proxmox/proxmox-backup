@@ -224,7 +224,7 @@ pub fn router() -> Router {
 
     let service_api = Router::new()
         .get(ApiMethod::new(
-            |_,_,_| {
+            || {
                 let mut result = vec![];
                 for cmd in &["state", "start", "stop", "restart", "reload"] {
                     result.push(json!({"subdir": cmd }));

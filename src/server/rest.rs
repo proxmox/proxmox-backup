@@ -239,7 +239,7 @@ fn handle_sync_api_request(
     let resp = params
         .and_then(move |params| {
             let mut delay = false;
-            let resp = match (info.handler)(params, info, &mut rpcenv) {
+            let resp = match (info.handler.as_ref().unwrap())(params, info, &mut rpcenv) {
                 Ok(data) => (formatter.format_result)(data, &rpcenv),
                 Err(err) => {
                     if let Some(httperr) = err.downcast_ref::<HttpError>() {

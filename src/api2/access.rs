@@ -70,7 +70,7 @@ pub fn router() -> Router {
 
     let route = Router::new()
         .get(ApiMethod::new(
-            |_,_,_| Ok(json!([
+            || Ok(json!([
                 {"subdir": "ticket"}
             ])),
             ObjectSchema::new("Directory index.")))

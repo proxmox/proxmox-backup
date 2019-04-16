@@ -175,7 +175,7 @@ pub fn router() -> Router {
 
     let upid_api = Router::new()
         .get(ApiMethod::new(
-            |_,_,_| {
+            || {
                 let mut result = vec![];
                 for cmd in &["log", "status"] {
                     result.push(json!({"subdir": cmd }));

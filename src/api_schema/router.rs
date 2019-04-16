@@ -10,6 +10,8 @@ use hyper::{Body, Response, StatusCode};
 use hyper::rt::Future;
 use hyper::http::request::Parts;
 
+use super::api_handler::*;
+
 pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
 /// Abstract Interface for API methods to interact with the environment
@@ -72,9 +74,10 @@ macro_rules! http_err {
     }}
 }
 
-type ApiHandlerFn = fn(Value, &ApiMethod, &mut dyn RpcEnvironment) -> Result<Value, Error>;
-
-type ApiAsyncHandlerFn = fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>;
+type ApiAsyncHandlerFn = Box<
+    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>
+    + Send + Sync + 'static
+>;
 
 /// This struct defines synchronous API call which returns the restulkt as json `Value`
 pub struct ApiMethod {
@@ -89,15 +92,28 @@ pub struct ApiMethod {
     /// Return type Schema
     pub returns: Arc<Schema>,
     /// Handler function
-    pub handler: ApiHandlerFn,
+    pub handler: Option<ApiHandlerFn>,
 }
 
 impl ApiMethod {
 
-    pub fn new(handler: ApiHandlerFn, parameters: ObjectSchema) -> Self {
+    pub fn new<F, Args, R, MetaArgs>(func: F, parameters: ObjectSchema) -> Self
+    where
+        F: WrapApiHandler<Args, R, MetaArgs>,
+    {
         Self {
             parameters,
-            handler,
+            handler: Some(func.wrap()),
+            returns: Arc::new(Schema::Null),
+            protected: false,
+            reload_timezone: false,
+        }
+    }
+
+    pub fn new_dummy(parameters: ObjectSchema) -> Self {
+        Self {
+            parameters,
+            handler: None,
             returns: Arc::new(Schema::Null),
             protected: false,
             reload_timezone: false,
@@ -134,10 +150,14 @@ pub struct ApiAsyncMethod {
 
 impl ApiAsyncMethod {
 
-    pub fn new(handler: ApiAsyncHandlerFn, parameters: ObjectSchema) -> Self {
+    pub fn new<F>(handler: F, parameters: ObjectSchema) -> Self
+    where
+        F: Fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>
+            + Send + Sync + 'static,
+    {
         Self {
             parameters,
-            handler,
+            handler: Box::new(handler),
             returns: Arc::new(Schema::Null),
         }
     }
