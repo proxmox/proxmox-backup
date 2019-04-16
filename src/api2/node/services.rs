@@ -223,18 +223,6 @@ pub fn router() -> Router {
     );
 
     let service_api = Router::new()
-        .get(ApiMethod::new(
-            || {
-                let mut result = vec![];
-                for cmd in &["state", "start", "stop", "restart", "reload"] {
-                    result.push(json!({"subdir": cmd }));
-                }
-                Ok(Value::from(result))
-            },
-            ObjectSchema::new("Directory index.")
-                .required("node", crate::api2::node::NODE_SCHEMA.clone())
-                .required("service", service_id_schema.clone()))
-        )
         .subdir(
             "state",
             Router::new()
@@ -293,7 +281,7 @@ pub fn router() -> Router {
                     ).protected(true)
                 )
         )
-        ;
+        .list_subdirs();
 
     let route = Router::new()
         .get(

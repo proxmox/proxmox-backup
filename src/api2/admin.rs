@@ -7,12 +7,8 @@ pub mod datastore;
 pub fn router() -> Router {
 
     let route = Router::new()
-        .get(ApiMethod::new(
-            || Ok(json!([
-                {"subdir": "datastore"}
-            ])),
-            ObjectSchema::new("Directory index.")))
-        .subdir("datastore", datastore::router());
+        .subdir("datastore", datastore::router())
+        .list_subdirs();
 
     route
 }

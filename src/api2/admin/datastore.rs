@@ -387,19 +387,6 @@ pub fn router() -> Router {
     );
 
     let datastore_info = Router::new()
-        .get(ApiMethod::new(
-            || Ok(json!([
-                {"subdir": "backups" },
-                {"subdir": "pxar" },
-                {"subdir": "gc" },
-                {"subdir": "groups" },
-                {"subdir": "snapshots" },
-                //{"subdir": "status" },
-                {"subdir": "prune" },
-           ])),
-            ObjectSchema::new("Directory index.")
-                .required("store", store_schema.clone()))
-        )
         .subdir(
             "backups",
             Router::new()
@@ -470,7 +457,9 @@ pub fn router() -> Router {
         .subdir(
             "prune",
             Router::new()
-                .post(api_method_prune()));
+                .post(api_method_prune())
+        )
+        .list_subdirs();
 
 
 

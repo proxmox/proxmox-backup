@@ -1,7 +1,7 @@
 use failure::*;
 
 use crate::api_schema::*;
-use serde_json::{Value};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::fmt;
@@ -227,6 +227,24 @@ impl Router {
             panic!("unexpected subroute type");
         }
         self
+    }
+
+    pub fn list_subdirs(self) -> Self {
+        match self.get {
+            MethodDefinition::None => {},
+            _ => panic!("cannot create directory index - method get already in use"),
+        }
+        match self.subroute {
+            SubRoute::Hash(ref map) => {
+                let index = json!(map.keys().map(|s| json!({ "subdira": s}))
+                    .collect::<Vec<Value>>());
+                self.get(ApiMethod::new(
+                    move || { Ok(index.clone()) },
+                    ObjectSchema::new("Directory index.").additional_properties(true))
+                )
+            }
+            _ => panic!("cannot create directory index (no SubRoute::Hash)"),
+        }
     }
 
     pub fn get(mut self, m: ApiMethod) -> Self {

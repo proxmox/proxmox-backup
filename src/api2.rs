@@ -34,22 +34,13 @@ pub fn router() -> Router {
         .match_all("node", node::router());
 
     let route = Router::new()
-        .get(ApiMethod::new(
-            || Ok(json!([
-                {"subdir": "access"},
-                {"subdir": "admin"},
-                {"subdir": "config"},
-                {"subdir": "nodes"},
-                {"subdir": "subscription"},
-                {"subdir": "version"},
-            ])),
-            ObjectSchema::new("Directory index.")))
         .subdir("access", access::router())
         .subdir("admin", admin::router())
         .subdir("config", config::router())
         .subdir("nodes", nodes)
         .subdir("subscription", subscription::router())
-        .subdir("version", version::router());
+        .subdir("version", version::router())
+        .list_subdirs();
 
     route
 }

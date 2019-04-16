@@ -34,21 +34,13 @@ lazy_static!{
 pub fn router() -> Router {
 
     let route = Router::new()
-        .get(ApiMethod::new(
-            || Ok(json!([
-                {"subdir": "dns"},
-                {"subdir": "network"},
-                {"subdir": "services"},
-                {"subdir": "syslog"},
-                {"subdir": "time"},
-           ])),
-            ObjectSchema::new("Directory index.")))
         .subdir("dns", dns::router())
         .subdir("network", network::router())
         .subdir("services", services::router())
         .subdir("syslog", syslog::router())
         .subdir("tasks", tasks::router())
-        .subdir("time", time::router());
+        .subdir("time", time::router())
+        .list_subdirs();
 
     route
 }

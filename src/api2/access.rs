@@ -69,11 +69,6 @@ fn create_ticket(
 pub fn router() -> Router {
 
     let route = Router::new()
-        .get(ApiMethod::new(
-            || Ok(json!([
-                {"subdir": "ticket"}
-            ])),
-            ObjectSchema::new("Directory index.")))
         .subdir(
             "ticket",
             Router::new()
@@ -97,7 +92,8 @@ pub fn router() -> Router {
                             .required("CSRFPreventionToken", StringSchema::new("Cross Site Request Forgery Prevention Token."))
                     ).protected(true)
                 )
-        );
+        )
+        .list_subdirs();
 
     route
 }

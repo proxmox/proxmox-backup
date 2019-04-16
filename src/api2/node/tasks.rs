@@ -174,18 +174,6 @@ pub fn router() -> Router {
     );
 
     let upid_api = Router::new()
-        .get(ApiMethod::new(
-            || {
-                let mut result = vec![];
-                for cmd in &["log", "status"] {
-                    result.push(json!({"subdir": cmd }));
-                }
-                Ok(Value::from(result))
-            },
-            ObjectSchema::new("Directory index.")
-                .required("node", crate::api2::node::NODE_SCHEMA.clone())
-                .required("upid", upid_schema.clone()))
-        )
         .delete(ApiMethod::new(
             stop_task,
             ObjectSchema::new("Try to stop a task.")
@@ -225,7 +213,8 @@ pub fn router() -> Router {
                             .required("node", crate::api2::node::NODE_SCHEMA.clone())
                             .required("upid", upid_schema.clone()))
                 )
-        );
+        )
+        .list_subdirs();
 
 
     let route = Router::new()
