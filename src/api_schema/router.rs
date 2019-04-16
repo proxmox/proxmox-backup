@@ -236,7 +236,7 @@ impl Router {
         }
         match self.subroute {
             SubRoute::Hash(ref map) => {
-                let index = json!(map.keys().map(|s| json!({ "subdira": s}))
+                let index = json!(map.keys().map(|s| json!({ "subdir": s}))
                     .collect::<Vec<Value>>());
                 self.get(ApiMethod::new(
                     move || { Ok(index.clone()) },
