@@ -2,7 +2,6 @@
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
-use serde_json::{json};
 use std::sync::Arc;
 
 pub mod config;
