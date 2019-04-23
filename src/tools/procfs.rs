@@ -405,3 +405,18 @@ pub fn read_proc_net_ipv6_route() -> Result<Vec<ProcFsNetIPv6Route>, Error> {
 
     Ok(result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_proc_net_route() {
+	read_proc_net_route().unwrap();
+    }
+    
+    #[test]
+    fn test_read_proc_net_ipv6_route() {
+	read_proc_net_ipv6_route().unwrap();
+    }
+}
