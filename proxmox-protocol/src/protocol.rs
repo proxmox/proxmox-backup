@@ -165,16 +165,13 @@ pub mod server {
 
     pub const PROTOCOL_VERSION: u32 = 1;
 
-    #[derive(Eq, PartialEq)]
-    #[repr(C, packed)]
-    pub struct HelloMagic([u8; 8]);
-    pub const HELLO_MAGIC: HelloMagic = HelloMagic(*b"PMXBCKUP");
+    pub const HELLO_MAGIC: [u8; 8] = *b"PMXBCKUP";
 
     pub const HELLO_VERSION: u32 = 1; // the current version
     #[derive(Endian)]
     #[repr(C, packed)]
     pub struct Hello {
-        pub magic: HelloMagic,
+        pub magic: [u8; 8],
         pub version: u32,
     }
 
@@ -189,21 +186,6 @@ pub mod server {
     pub struct Chunk {
         pub hash: super::DynamicChunk,
         // Data follows here...
-    }
-
-    impl Endian for HelloMagic {
-        fn to_be(self) -> Self {
-            self
-        }
-        fn to_le(self) -> Self {
-            self
-        }
-        fn from_be(self) -> Self {
-            self
-        }
-        fn from_le(self) -> Self {
-            self
-        }
     }
 
     #[derive(Endian)]
