@@ -302,7 +302,6 @@ pub struct ProcFsNetRoute {
 pub fn read_proc_net_route() -> Result<Vec<ProcFsNetRoute>, Error> {
     let path = "/proc/net/route";
     let file = OpenOptions::new().read(true).open(&path)?;
-    let err = "Error while parsing '/proc/net/route";
 
     let mut result = Vec::new();
     for line in BufReader::new(&file).lines().skip(1) {
@@ -310,13 +309,12 @@ pub fn read_proc_net_route() -> Result<Vec<ProcFsNetRoute>, Error> {
 	if content.is_empty() { continue; }
 	let mut iter = content.split_whitespace();
 
-	let iface = iter.next().ok_or(format_err!("{}", err))?;
-	let dest = iter.next().ok_or(format_err!("{}", err))?;
-	let gateway = iter.next().ok_or(format_err!("{}", err))?;
-	for _ in 0..3 { iter.next(); }
-	let metric = iter.next().ok_or(format_err!("{}", err))?;
-	let mask = iter.next().ok_or(format_err!("{}", err))?;
-	let mtu = iter.next().ok_or(format_err!("{}", err))?;
+	let mut next = || iter.next()
+	    .ok_or(format_err!("Error while parsing '{}'", path));
+
+	let (iface, dest, gateway) = (next()?, next()?, next()?);
+	for _ in 0..3 { next()?; }
+	let (metric, mask, mtu) = (next()?, next()?, next()?);
 
 	result.push(ProcFsNetRoute {
 	    dest: hexstr_to_ipv4addr(dest)?,
@@ -380,7 +378,6 @@ pub struct ProcFsNetIPv6Route {
 pub fn read_proc_net_ipv6_route() -> Result<Vec<ProcFsNetIPv6Route>, Error> {
     let path = "/proc/net/ipv6_route";
     let file = OpenOptions::new().read(true).open(&path)?;
-    let err = "Error while parsing '/proc/net/ipv6_route";
 
     let mut result = Vec::new();
     for line in BufReader::new(&file).lines() {
@@ -388,17 +385,18 @@ pub fn read_proc_net_ipv6_route() -> Result<Vec<ProcFsNetIPv6Route>, Error> {
 	if content.is_empty() { continue; }
 	let mut iter = content.split_whitespace();
 
-	let dest = iter.next().ok_or(format_err!("{}", err))?;
-	let dest_prefix_len = iter.next().ok_or(format_err!("{}", err))?;
-	for _ in 0..2 { iter.next(); }
-	let nexthop = iter.next().ok_or(format_err!("{}", err))?;
-	let metric = iter.next().ok_or(format_err!("{}", err))?;
-	for _ in 0..3 { iter.next(); }
-	let iface = iter.next().ok_or(format_err!("{}", err))?;
+	let mut next = || iter.next()
+	    .ok_or(format_err!("Error while parsing '{}'", path));
+
+	let (dest, prefix) = (next()?, next()?);
+	for _ in 0..2 { next()?; }
+	let (nexthop, metric) = (next()?, next()?);
+	for _ in 0..3 { next()?; }
+	let iface = next()?;
 
 	result.push(ProcFsNetIPv6Route {
 	    dest: hexstr_to_ipv6addr(dest)?,
-	    prefix: hexstr_to_u8(dest_prefix_len)?,
+	    prefix: hexstr_to_u8(prefix)?,
 	    gateway: hexstr_to_ipv6addr(nexthop)?,
 	    metric: hexstr_to_u32(metric)?,
 	    iface: iface.to_string(),
