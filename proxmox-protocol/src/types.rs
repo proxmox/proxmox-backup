@@ -9,7 +9,7 @@ pub enum IndexType {
     Dynamic,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Endian, Clone, Debug, Eq, Hash, PartialEq)]
 #[repr(transparent)]
 pub struct FixedChunk(pub [u8; 32]);
 
@@ -33,22 +33,7 @@ impl FixedChunk {
     }
 }
 
-impl Endian for FixedChunk {
-    fn to_be(self) -> Self {
-        self
-    }
-    fn to_le(self) -> Self {
-        self
-    }
-    fn from_be(self) -> Self {
-        self
-    }
-    fn from_le(self) -> Self {
-        self
-    }
-}
-
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Endian, Clone, Copy, Debug, Hash)]
 #[repr(C, packed)]
 pub struct ChunkEntry {
     pub hash: [u8; 32],
@@ -93,28 +78,6 @@ impl PartialEq for ChunkEntry {
 }
 
 impl Eq for ChunkEntry {}
-
-impl Endian for ChunkEntry {
-    fn to_be(self) -> Self {
-        self.size.to_be();
-        self
-    }
-
-    fn to_le(self) -> Self {
-        self.size.to_le();
-        self
-    }
-
-    fn from_be(self) -> Self {
-        self.size.from_be();
-        self
-    }
-
-    fn from_le(self) -> Self {
-        self.size.from_le();
-        self
-    }
-}
 
 impl Into<FixedChunk> for ChunkEntry {
     fn into(self) -> FixedChunk {
