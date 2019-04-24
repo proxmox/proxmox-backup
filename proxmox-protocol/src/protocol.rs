@@ -155,6 +155,7 @@ pub mod backup_type {
 }
 
 #[repr(C, packed)]
+#[derive(Endian)]
 pub struct DynamicChunk {
     pub offset: u64,
     pub digest: [u8; 32],
@@ -226,21 +227,6 @@ pub mod client {
     pub struct GetHashList {
         pub name_length: u16,
         // name follows as payload
-    }
-}
-
-impl Endian for DynamicChunk {
-    fn to_be(self) -> Self {
-        self
-    }
-    fn to_le(self) -> Self {
-        self
-    }
-    fn from_be(self) -> Self {
-        self
-    }
-    fn from_le(self) -> Self {
-        self
     }
 }
 
