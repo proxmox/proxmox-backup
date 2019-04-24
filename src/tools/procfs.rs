@@ -48,14 +48,14 @@ pub fn read_proc_pid_stat(pid: libc::pid_t) -> Result<ProcFsPidStat, Error> {
             bail!("unable to read pid stat for process '{}' - got wrong pid", pid);
         }
 
-	return Ok(ProcFsPidStat {
-	    status: cap["status"].as_bytes()[0],
-	    utime: cap["utime"].parse::<u64>().unwrap(),
-	    stime: cap["stime"].parse::<u64>().unwrap(),
-	    starttime: cap["starttime"].parse::<u64>().unwrap(),
-	    vsize: cap["vsize"].parse::<u64>().unwrap(),
-	    rss: cap["rss"].parse::<i64>().unwrap() * 4096,
-	});
+        return Ok(ProcFsPidStat {
+            status: cap["status"].as_bytes()[0],
+            utime: cap["utime"].parse::<u64>().unwrap(),
+            stime: cap["stime"].parse::<u64>().unwrap(),
+            starttime: cap["starttime"].parse::<u64>().unwrap(),
+            vsize: cap["vsize"].parse::<u64>().unwrap(),
+            rss: cap["rss"].parse::<i64>().unwrap() * 4096,
+        });
 
     }
 
@@ -71,18 +71,18 @@ pub fn read_proc_starttime(pid: libc::pid_t) -> Result<u64, Error> {
 
 pub fn check_process_running(pid: libc::pid_t) -> Option<ProcFsPidStat> {
     if let Ok(info) = read_proc_pid_stat(pid) {
-	if info.status != 'Z' as u8 {
-	    return Some(info);
-	}
+        if info.status != 'Z' as u8 {
+            return Some(info);
+        }
     }
     None
 }
 
 pub fn check_process_running_pstart(pid: libc::pid_t, pstart: u64) -> Option<ProcFsPidStat> {
     if let Some(info) = check_process_running(pid) {
-	if info.starttime == pstart {
-	    return Some(info);
-	}
+        if info.starttime == pstart {
+            return Some(info);
+        }
     }
     None
 }
@@ -93,8 +93,8 @@ pub fn read_proc_uptime() -> Result<(f64, f64), Error> {
     let mut values = line.split_whitespace().map(|v| v.parse::<f64>());
 
     match (values.next(), values.next()) {
-	(Some(Ok(up)), Some(Ok(idle))) => return Ok((up, idle)),
-	_ => bail!("Error while parsing '{}'", path),
+        (Some(Ok(up)), Some(Ok(idle))) => return Ok((up, idle)),
+        _ => bail!("Error while parsing '{}'", path),
     }
 }
 
@@ -121,30 +121,30 @@ pub fn read_meminfo() -> Result<ProcFsMemInfo, Error> {
     let file = OpenOptions::new().read(true).open(&path)?;
 
     let mut meminfo = ProcFsMemInfo {
-	memtotal: 0,
-	memfree: 0,
-	memused: 0,
-	memshared: 0,
-	swaptotal: 0,
-	swapfree: 0,
-	swapused: 0,
+        memtotal: 0,
+        memfree: 0,
+        memused: 0,
+        memshared: 0,
+        swaptotal: 0,
+        swapfree: 0,
+        swapused: 0,
     };
 
     let (mut buffers, mut cached) = (0, 0);
     for line in BufReader::new(&file).lines() {
-	let content = line?;
-	let mut content_iter = content.split_whitespace();
-	if let (Some(key), Some(value)) = (content_iter.next(), content_iter.next()) {
-	    match key {
-		"MemTotal:" => meminfo.memtotal = value.parse::<u64>()? * 1024,
-		"MemFree:" => meminfo.memfree = value.parse::<u64>()? * 1024,
-		"SwapTotal:" => meminfo.swaptotal = value.parse::<u64>()? * 1024,
-		"SwapFree:" => meminfo.swapfree = value.parse::<u64>()? * 1024,
-		"Buffers:" => buffers = value.parse::<u64>()? * 1024,
-		"Cached:" => cached = value.parse::<u64>()? * 1024,
-		_ => continue,
-	    }
-	}
+        let content = line?;
+        let mut content_iter = content.split_whitespace();
+        if let (Some(key), Some(value)) = (content_iter.next(), content_iter.next()) {
+            match key {
+                "MemTotal:" => meminfo.memtotal = value.parse::<u64>()? * 1024,
+                "MemFree:" => meminfo.memfree = value.parse::<u64>()? * 1024,
+                "SwapTotal:" => meminfo.swaptotal = value.parse::<u64>()? * 1024,
+                "SwapFree:" => meminfo.swapfree = value.parse::<u64>()? * 1024,
+                "Buffers:" => buffers = value.parse::<u64>()? * 1024,
+                "Cached:" => cached = value.parse::<u64>()? * 1024,
+                _ => continue,
+            }
+        }
     }
 
     meminfo.memfree += buffers + cached;
@@ -177,35 +177,35 @@ pub fn read_cpuinfo() -> Result<ProcFsCPUInfo, Error> {
     let file = OpenOptions::new().read(true).open(&path)?;
 
     let mut cpuinfo = ProcFsCPUInfo {
-	user_hz: *CLOCK_TICKS,
-	mhz: 0.0,
-	model: String::new(),
-	hvm: false,
-	sockets: 0,
-	cpus: 0,
+        user_hz: *CLOCK_TICKS,
+        mhz: 0.0,
+        model: String::new(),
+        hvm: false,
+        sockets: 0,
+        cpus: 0,
     };
 
     let mut socket_ids = HashSet::new();
     for line in BufReader::new(&file).lines() {
-	let content = line?;
-	if content.is_empty() { continue; }
-	let mut content_iter = content.split(":");
-	match (content_iter.next(), content_iter.next()) {
-	    (Some(key), Some(value)) => {
-		match key.trim_end() {
-		    "processor" => cpuinfo.cpus += 1,
-		    "model name" => cpuinfo.model = value.trim().to_string(),
-		    "cpu MHz" => cpuinfo.mhz = value.trim().parse::<f64>()?,
-		    "flags" => cpuinfo.hvm = value.contains(" vmx ") || value.contains(" svm "),
-		    "physical id" => {
-			let id = value.trim().parse::<u8>()?;
-			socket_ids.insert(id);
-		    },
-		    _ => continue,
-		}
-	    },
-	    _ => bail!("Error while parsing '{}'", path),
-	}
+        let content = line?;
+        if content.is_empty() { continue; }
+        let mut content_iter = content.split(":");
+        match (content_iter.next(), content_iter.next()) {
+            (Some(key), Some(value)) => {
+                match key.trim_end() {
+                    "processor" => cpuinfo.cpus += 1,
+                    "model name" => cpuinfo.model = value.trim().to_string(),
+                    "cpu MHz" => cpuinfo.mhz = value.trim().parse::<f64>()?,
+                    "flags" => cpuinfo.hvm = value.contains(" vmx ") || value.contains(" svm "),
+                    "physical id" => {
+                        let id = value.trim().parse::<u8>()?;
+                        socket_ids.insert(id);
+                    },
+                    _ => continue,
+                }
+            },
+            _ => bail!("Error while parsing '{}'", path),
+        }
     }
     cpuinfo.sockets = socket_ids.len();
 
@@ -226,13 +226,13 @@ pub fn read_memory_usage() -> Result<ProcFsMemUsage, Error> {
 
     let ps = 4096;
     match (values.next(), values.next(), values.next()) {
-	(Some(Ok(size)), Some(Ok(resident)), Some(Ok(shared))) =>
-	    Ok(ProcFsMemUsage {
-		size: size * ps,
-		resident: resident * ps,
-		shared: shared * ps,
-	    }),
-	_ => bail!("Error while parsing '{}'", path),
+        (Some(Ok(size)), Some(Ok(resident)), Some(Ok(shared))) =>
+            Ok(ProcFsMemUsage {
+                size: size * ps,
+                resident: resident * ps,
+                shared: shared * ps,
+            }),
+        _ => bail!("Error while parsing '{}'", path),
     }
 }
 
@@ -249,18 +249,18 @@ pub fn read_proc_net_dev() -> Result<Vec<ProcFsNetDev>, Error> {
 
     let mut result = Vec::new();
     for line in BufReader::new(&file).lines().skip(2) {
-	let content = line?;
-	let mut iter = content.split_whitespace();
-	match (iter.next(), iter.next(), iter.skip(7).next()) {
-	    (Some(device), Some(receive), Some(send)) => {
-		result.push(ProcFsNetDev {
-		    device: device[..device.len()-1].to_string(),
-		    receive: receive.parse::<u64>()?,
-		    send: send.parse::<u64>()?,
-		});
-	    },
-	    _ => bail!("Error while parsing '{}'", path),
-	}
+        let content = line?;
+        let mut iter = content.split_whitespace();
+        match (iter.next(), iter.next(), iter.skip(7).next()) {
+            (Some(device), Some(receive), Some(send)) => {
+                result.push(ProcFsNetDev {
+                    device: device[..device.len()-1].to_string(),
+                    receive: receive.parse::<u64>()?,
+                    send: send.parse::<u64>()?,
+                });
+            },
+            _ => bail!("Error while parsing '{}'", path),
+        }
     }
 
     Ok(result)
@@ -268,22 +268,22 @@ pub fn read_proc_net_dev() -> Result<Vec<ProcFsNetDev>, Error> {
 
 fn hex_nibble(c: u8) -> Result<u8, Error> {
     Ok(match c {
-	b'0'..=b'9' => c - b'0',
-	b'a'..=b'f' => c - b'a' + 0xa,
-	b'A'..=b'F' => c - b'A' + 0xa,
-	_ => bail!("not a hex digit: {}", c as char),
+        b'0'..=b'9' => c - b'0',
+        b'a'..=b'f' => c - b'a' + 0xa,
+        b'A'..=b'F' => c - b'A' + 0xa,
+        _ => bail!("not a hex digit: {}", c as char),
     })
 }
 
 fn hexstr_to_ipv4addr<T: AsRef<[u8]>>(hex: T) -> Result<Ipv4Addr, Error> {
     let hex = hex.as_ref();
     if hex.len() != 8 {
-	bail!("Error while converting hex string to IPv4 address: unexpected string length");
+        bail!("Error while converting hex string to IPv4 address: unexpected string length");
     }
 
     let mut addr: [u8; 4] = unsafe { std::mem::uninitialized() };
     for i in 0..4 {
-	addr[3 - i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
+        addr[3 - i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
     }
 
     Ok(Ipv4Addr::from(addr))
@@ -305,25 +305,25 @@ pub fn read_proc_net_route() -> Result<Vec<ProcFsNetRoute>, Error> {
 
     let mut result = Vec::new();
     for line in BufReader::new(&file).lines().skip(1) {
-	let content = line?;
-	if content.is_empty() { continue; }
-	let mut iter = content.split_whitespace();
+        let content = line?;
+        if content.is_empty() { continue; }
+        let mut iter = content.split_whitespace();
 
-	let mut next = || iter.next()
-	    .ok_or(format_err!("Error while parsing '{}'", path));
+        let mut next = || iter.next()
+            .ok_or(format_err!("Error while parsing '{}'", path));
 
-	let (iface, dest, gateway) = (next()?, next()?, next()?);
-	for _ in 0..3 { next()?; }
-	let (metric, mask, mtu) = (next()?, next()?, next()?);
+        let (iface, dest, gateway) = (next()?, next()?, next()?);
+        for _ in 0..3 { next()?; }
+        let (metric, mask, mtu) = (next()?, next()?, next()?);
 
-	result.push(ProcFsNetRoute {
-	    dest: hexstr_to_ipv4addr(dest)?,
-	    gateway: hexstr_to_ipv4addr(gateway)?,
-	    mask: hexstr_to_ipv4addr(mask)?,
-	    metric: metric.parse()?,
-	    mtu: mtu.parse()?,
-	    iface: iface.to_string(),
-	});
+        result.push(ProcFsNetRoute {
+            dest: hexstr_to_ipv4addr(dest)?,
+            gateway: hexstr_to_ipv4addr(gateway)?,
+            mask: hexstr_to_ipv4addr(mask)?,
+            metric: metric.parse()?,
+            mtu: mtu.parse()?,
+            iface: iface.to_string(),
+        });
     }
 
     Ok(result)
@@ -332,12 +332,12 @@ pub fn read_proc_net_route() -> Result<Vec<ProcFsNetRoute>, Error> {
 fn hexstr_to_ipv6addr<T: AsRef<[u8]>>(hex: T) -> Result<Ipv6Addr, Error> {
     let hex = hex.as_ref();
     if hex.len() != 32 {
-	bail!("Error while converting hex string to IPv6 address: unexpected string length");
+        bail!("Error while converting hex string to IPv6 address: unexpected string length");
     }
 
     let mut addr: [u8; 16] = unsafe { std::mem::uninitialized() };
     for i in 0..16 {
-	addr[i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
+        addr[i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
     }
 
     Ok(Ipv6Addr::from(addr))
@@ -346,7 +346,7 @@ fn hexstr_to_ipv6addr<T: AsRef<[u8]>>(hex: T) -> Result<Ipv6Addr, Error> {
 fn hexstr_to_u8<T: AsRef<[u8]>>(hex: T) -> Result<u8, Error> {
     let hex = hex.as_ref();
     if hex.len() != 2 {
-	bail!("Error while converting hex string to u8: unexpected string length");
+        bail!("Error while converting hex string to u8: unexpected string length");
     }
 
     Ok((hex_nibble(hex[0])? << 4) + hex_nibble(hex[1])?)
@@ -355,12 +355,12 @@ fn hexstr_to_u8<T: AsRef<[u8]>>(hex: T) -> Result<u8, Error> {
 fn hexstr_to_u32<T: AsRef<[u8]>>(hex: T) -> Result<u32, Error> {
     let hex = hex.as_ref();
     if hex.len() != 8 {
-	bail!("Error while converting hex string to u32: unexpected string length");
+        bail!("Error while converting hex string to u32: unexpected string length");
     }
 
     let mut bytes: [u8; 4] = unsafe { std::mem::uninitialized() };
     for i in 0..4 {
-	bytes[i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
+        bytes[i] = (hex_nibble(hex[i * 2])? << 4) + hex_nibble(hex[i * 2 + 1])?;
     }
 
     Ok(u32::from_be_bytes(bytes))
@@ -381,26 +381,26 @@ pub fn read_proc_net_ipv6_route() -> Result<Vec<ProcFsNetIPv6Route>, Error> {
 
     let mut result = Vec::new();
     for line in BufReader::new(&file).lines() {
-	let content = line?;
-	if content.is_empty() { continue; }
-	let mut iter = content.split_whitespace();
+        let content = line?;
+        if content.is_empty() { continue; }
+        let mut iter = content.split_whitespace();
 
-	let mut next = || iter.next()
-	    .ok_or_else(|| format_err!("Error while parsing '{}'", path));
+        let mut next = || iter.next()
+            .ok_or_else(|| format_err!("Error while parsing '{}'", path));
 
-	let (dest, prefix) = (next()?, next()?);
-	for _ in 0..2 { next()?; }
-	let (nexthop, metric) = (next()?, next()?);
-	for _ in 0..3 { next()?; }
-	let iface = next()?;
+        let (dest, prefix) = (next()?, next()?);
+        for _ in 0..2 { next()?; }
+        let (nexthop, metric) = (next()?, next()?);
+        for _ in 0..3 { next()?; }
+        let iface = next()?;
 
-	result.push(ProcFsNetIPv6Route {
-	    dest: hexstr_to_ipv6addr(dest)?,
-	    prefix: hexstr_to_u8(prefix)?,
-	    gateway: hexstr_to_ipv6addr(nexthop)?,
-	    metric: hexstr_to_u32(metric)?,
-	    iface: iface.to_string(),
-	});
+        result.push(ProcFsNetIPv6Route {
+            dest: hexstr_to_ipv6addr(dest)?,
+            prefix: hexstr_to_u8(prefix)?,
+            gateway: hexstr_to_ipv6addr(nexthop)?,
+            metric: hexstr_to_u32(metric)?,
+            iface: iface.to_string(),
+        });
     }
 
     Ok(result)
@@ -412,11 +412,11 @@ mod tests {
 
     #[test]
     fn test_read_proc_net_route() {
-	read_proc_net_route().unwrap();
+        read_proc_net_route().unwrap();
     }
     
     #[test]
     fn test_read_proc_net_ipv6_route() {
-	read_proc_net_ipv6_route().unwrap();
+        read_proc_net_ipv6_route().unwrap();
     }
 }
