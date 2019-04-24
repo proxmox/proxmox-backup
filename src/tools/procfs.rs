@@ -386,7 +386,7 @@ pub fn read_proc_net_ipv6_route() -> Result<Vec<ProcFsNetIPv6Route>, Error> {
 	let mut iter = content.split_whitespace();
 
 	let mut next = || iter.next()
-	    .ok_or(format_err!("Error while parsing '{}'", path));
+	    .ok_or_else(|| format_err!("Error while parsing '{}'", path));
 
 	let (dest, prefix) = (next()?, next()?);
 	for _ in 0..2 { next()?; }
