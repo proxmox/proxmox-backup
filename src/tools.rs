@@ -31,6 +31,8 @@ pub mod tty;
 pub mod signalfd;
 pub mod daemon;
 pub mod procfs;
+pub mod read;
+pub mod write;
 
 mod process_locker;
 pub use process_locker::*;
