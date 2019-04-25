@@ -1,6 +1,7 @@
 //! Helpers for daemons/services.
 
 use std::ffi::CString;
+use std::os::raw::{c_char, c_int};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
@@ -186,4 +187,35 @@ where
        })
        .map_err(|_| ())
     )
+}
+
+#[link(name = "systemd")]
+extern "C" {
+    fn sd_notify(unset_environment: c_int, state: *const c_char) -> c_int;
+}
+
+pub enum SystemdNotify {
+    Ready,
+    Reloading,
+    Stopping,
+    Status(String),
+    MainPid(nix::unistd::Pid),
+}
+
+pub fn systemd_notify(state: SystemdNotify) -> Result<(), Error> {
+    let message = match state {
+        SystemdNotify::Ready => CString::new("READY=1"),
+        SystemdNotify::Reloading => CString::new("RELOADING=1"),
+        SystemdNotify::Stopping => CString::new("STOPPING=1"),
+        SystemdNotify::Status(msg) => CString::new(format!("STATUS={}", msg)),
+        SystemdNotify::MainPid(pid) => CString::new(format!("MAINPID={}", pid)),
+    }?;
+    let rc = unsafe { sd_notify(0, message.as_ptr()) };
+    if rc < 0 {
+        bail!(
+            "systemd_notify failed: {}",
+            std::io::Error::from_raw_os_error(-rc),
+        );
+    }
+    Ok(())
 }
