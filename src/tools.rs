@@ -677,3 +677,9 @@ impl FromRawFd for Fd {
         Self(fd)
     }
 }
+
+// wrap nix::unistd::pipe2 + O_CLOEXEC into something returning guarded file descriptors
+pub fn pipe() -> Result<(Fd, Fd), Error> {
+    let (pin, pout) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)?;
+    Ok((Fd(pin), Fd(pout)))
+}
