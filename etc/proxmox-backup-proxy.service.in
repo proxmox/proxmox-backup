@@ -5,8 +5,9 @@ After=network.target
 Requires=proxmox-backup.service
 
 [Service]
-Type=simple
+Type=notify
 ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-proxy
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 User=%PROXY_USER%
 Group=%PROXY_USER%

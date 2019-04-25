@@ -103,6 +103,9 @@ impl Reloader {
             }
             Ok(ForkResult::Parent { child }) => {
                 eprintln!("forked off a new server (pid: {})", child);
+                if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
+                    log::error!("failed to notify systemd about the new main pid: {}", e);
+                }
                 Ok(())
             }
             Err(e) => {
@@ -178,8 +181,12 @@ where
            crate::tools::request_shutdown(); // make sure we are in shutdown mode
            if server::is_reload_request() {
                log::info!("daemon reload...");
+               if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
+                   log::error!("failed to notify systemd about the state change: {}", e);
+               }
                if let Err(e) = reloader.take().unwrap().fork_restart() {
                    log::error!("error during reload: {}", e);
+                   let _ = systemd_notify(SystemdNotify::Status(format!("error during reload")));
                }
            } else {
                log::info!("daemon shutting down...");

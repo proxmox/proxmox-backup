@@ -100,6 +100,8 @@ fn run() -> Result<(), Error> {
         },
     )?;
 
+    daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
+
     tokio::run(lazy(||  {
 
         let init_result: Result<(), Error> = try_block!({
