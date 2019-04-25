@@ -11,6 +11,8 @@ use tokio::prelude::*;
 
 use crate::server;
 use crate::tools::{fd_change_cloexec, self};
+use crate::tools::read::*;
+use crate::tools::write::*;
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 pub type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
@@ -86,15 +88,43 @@ impl Reloader {
             new_args.push(CString::new(arg.as_bytes())?);
         }
 
+        // Synchronisation pipe:
+        let (pin, pout) = super::pipe()?;
+
         // Start ourselves in the background:
         use nix::unistd::{fork, ForkResult};
         match fork() {
             Ok(ForkResult::Child) => {
-                // At this point we call pre-exec helpers. We must be certain that if they fail for
-                // whatever reason we can still call `_exit()`, so use catch_unwind.
-                match std::panic::catch_unwind(move || self.do_exec(exe, new_args)) {
-                    Ok(_) => eprintln!("do_exec returned unexpectedly!"),
-                    Err(_) => eprintln!("panic in re-exec"),
+                // Double fork so systemd can supervise us without nagging...
+                match fork() {
+                    Ok(ForkResult::Child) => {
+                        std::mem::drop(pin);
+                        // At this point we call pre-exec helpers. We must be certain that if they fail for
+                        // whatever reason we can still call `_exit()`, so use catch_unwind.
+                        match std::panic::catch_unwind(move || {
+                            let mut pout = unsafe {
+                                std::fs::File::from_raw_fd(pout.into_raw_fd())
+                            };
+                            let pid = nix::unistd::Pid::this();
+                            if let Err(e) = pout.write_value(&pid.as_raw()) {
+                                log::error!("failed to send new server PID to parent: {}", e);
+                                unsafe {
+                                    libc::_exit(-1);
+                                }
+                            }
+                            std::mem::drop(pout);
+                            self.do_exec(exe, new_args)
+                        })
+                        {
+                            Ok(_) => eprintln!("do_exec returned unexpectedly!"),
+                            Err(_) => eprintln!("panic in re-exec"),
+                        }
+                    }
+                    Ok(ForkResult::Parent { child }) => {
+                        std::mem::drop((pin, pout));
+                        log::debug!("forked off a new server (second pid: {})", child);
+                    }
+                    Err(e) => log::error!("fork() failed, restart delayed: {}", e),
                 }
                 // No matter how we managed to get here, this is the time where we bail out quickly:
                 unsafe {
@@ -102,14 +132,27 @@ impl Reloader {
                 }
             }
             Ok(ForkResult::Parent { child }) => {
-                eprintln!("forked off a new server (pid: {})", child);
+                log::debug!("forked off a new server (first pid: {}), waiting for 2nd pid", child);
+                std::mem::drop(pout);
+                let mut pin = unsafe {
+                    std::fs::File::from_raw_fd(pin.into_raw_fd())
+                };
+                let child = nix::unistd::Pid::from_raw(match pin.read_value() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("failed to receive pid of double-forked child process: {}", e);
+                        // systemd will complain but won't kill the service...
+                        return Ok(());
+                    }
+                });
+
                 if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
                     log::error!("failed to notify systemd about the new main pid: {}", e);
                 }
                 Ok(())
             }
             Err(e) => {
-                eprintln!("fork() failed, restart delayed: {}", e);
+                log::error!("fork() failed, restart delayed: {}", e);
                 Ok(())
             }
         }
