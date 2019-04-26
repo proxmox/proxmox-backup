@@ -1,3 +1,6 @@
+use std::io;
+use std::path::Path;
+
 use proxmox_backup::try_block;
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
@@ -22,6 +25,20 @@ fn main() {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }
+}
+
+fn load_certificate<T: AsRef<Path>, U: AsRef<Path>>(
+    key: T,
+    cert: U,
+) -> Result<openssl::pkcs12::Pkcs12, Error> {
+    let key = tools::file_get_contents(key)?;
+    let cert = tools::file_get_contents(cert)?;
+
+    let key = openssl::pkey::PKey::private_key_from_pem(&key)?;
+    let cert = openssl::x509::X509::from_pem(&cert)?;
+
+    Ok(openssl::pkcs12::Pkcs12::builder()
+        .build("", "", &key, &cert)?)
 }
 
 fn run() -> Result<(), Error> {
@@ -56,7 +73,14 @@ fn run() -> Result<(), Error> {
     let rest_server = RestServer::new(config);
 
     let cert_path = configdir!("/proxy.pfx");
-    let raw_cert = tools::file_get_contents(cert_path)?;
+    let raw_cert = match std::fs::read(cert_path) {
+        Ok(pfx) => pfx,
+        Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
+            let pkcs12 = load_certificate(configdir!("/proxy.key"), configdir!("/proxy.pem"))?;
+            pkcs12.to_der()?
+        }
+        Err(err) => bail!("unable to read certificate file {} - {}", cert_path, err),
+    };
 
     let identity = match native_tls::Identity::from_pkcs12(&raw_cert, "") {
         Ok(data) => data,
