@@ -41,6 +41,9 @@ pub use process_locker::*;
 mod file_logger;
 pub use file_logger::*;
 
+mod broadcast_future;
+pub use broadcast_future::*;
+
 /// Macro to write error-handling blocks (like perl eval {})
 ///
 /// #### Example:
