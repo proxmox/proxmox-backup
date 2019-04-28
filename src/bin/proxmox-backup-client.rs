@@ -24,6 +24,7 @@ use regex::Regex;
 use xdg::BaseDirectories;
 
 use lazy_static::lazy_static;
+use futures::*;
 
 lazy_static! {
     static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|raw)):(.+)$").unwrap();
@@ -135,7 +136,7 @@ fn backup_directory<P: AsRef<Path>>(
 
     let body = Body::wrap_stream(stream);
 
-    client.upload("application/x-proxmox-backup-pxar", body, &path)?;
+    client.upload("application/x-proxmox-backup-pxar", body, &path).wait()?;
 
     Ok(())
 }
@@ -235,11 +236,11 @@ fn list_backup_groups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let client = HttpClient::new(repo.host(), repo.user());
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
-    let mut result = client.get(&path)?;
+    let mut result = client.get(&path).wait()?;
 
     record_repository(&repo);
 
@@ -300,12 +301,12 @@ fn list_snapshots(
         "backup-id": group.backup_id(),
     }))?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let client = HttpClient::new(repo.host(), repo.user());
 
     let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
     // fixme: params
-    let result = client.get(&path)?;
+    let result = client.get(&path).wait()?;
 
     record_repository(&repo);
 
@@ -353,7 +354,7 @@ fn forget_snapshots(
 
     let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
-    let result = client.delete(&path)?;
+    let result = client.delete(&path).wait()?;
 
     record_repository(&repo);
 
@@ -373,7 +374,7 @@ fn start_garbage_collection(
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
-    let result = client.post(&path)?;
+    let result = client.post(&path, None).wait()?;
 
     record_repository(&repo);
 
@@ -446,8 +447,6 @@ fn create_backup(
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 
-    client.login()?; // login before starting backup
-
     record_repository(&repo);
 
     println!("Starting backup");
@@ -503,8 +502,6 @@ fn restore(
 
     let mut client = HttpClient::new(repo.host(), repo.user());
 
-    client.login()?; // login before starting
-
     record_repository(&repo);
 
     let path = tools::required_string_param(&param, "snapshot")?;
@@ -520,7 +517,7 @@ fn restore(
         }))?;
 
         let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), subquery);
-        let result = client.get(&path)?;
+        let result = client.get(&path).wait()?;
 
         let list = result["data"].as_array().unwrap();
         if list.len() == 0 {
@@ -553,7 +550,7 @@ fn restore(
 
         let target = PathBuf::from(target);
         let writer = PxarDecodeWriter::new(&target, true)?;
-        client.download(&path, Box::new(writer))?;
+        client.download(&path, Box::new(writer)).wait()?;
     } else {
         bail!("unknown file extensions - unable to download '{}'", archive_name);
     }
@@ -576,18 +573,19 @@ fn prune(
 
     param.as_object_mut().unwrap().remove("repository");
 
-    let result = client.post_json(&path, param)?;
+    let result = client.post(&path, Some(param)).wait()?;
 
     record_repository(&repo);
 
     Ok(result)
 }
 
+// like get, but simply ignore errors and return Null instead
 fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let client = HttpClient::new(repo.host(), repo.user());
 
-    let mut resp = match client.try_get(url) {
+    let mut resp = match client.get(url).wait() {
         Ok(v) => v,
         _ => return Value::Null,
     };
@@ -858,6 +856,9 @@ fn main() {
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into());
 
-    run_cli_command(cmd_def.into());
+    hyper::rt::run(futures::future::lazy(move || {
+        run_cli_command(cmd_def.into());
+        Ok(())
+    }));
 
 }
