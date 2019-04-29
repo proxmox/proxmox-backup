@@ -232,6 +232,50 @@ impl HttpClient {
         self.request(req)
     }
 
+    pub fn h2upgrade(&mut self, path: &str) ->  impl Future<Item=h2::client::SendRequest<bytes::Bytes>, Error=Error> {
+
+        let mut req = Self::request_builder(&self.server, "GET", path, None).unwrap();
+
+        let login = self.auth.listen();
+
+        let client = self.client.clone();
+
+        login.and_then(move |auth| {
+
+            let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+            req.headers_mut().insert("UPGRADE", HeaderValue::from_str("proxmox-backup-protocol-h2").unwrap());
+
+            client.request(req)
+                .map_err(Error::from)
+                .and_then(|resp| {
+
+                    let status = resp.status();
+                    if status != http::StatusCode::SWITCHING_PROTOCOLS {
+                        bail!("h2upgrade failed with status {:?}", status);
+                    }
+
+                    Ok(resp.into_body().on_upgrade().map_err(Error::from))
+                })
+                .flatten()
+                .and_then(|upgraded| {
+                    println!("upgraded");
+
+                    h2::client::handshake(upgraded).map_err(Error::from)
+                })
+                .and_then(|(h2, connection)| {
+                    let connection = connection
+                        .map_err(|_| panic!("HTTP/2.0 connection failed"));
+
+                    // Spawn a new task to drive the connection state
+                    hyper::rt::spawn(connection);
+
+                    // Wait until the `SendRequest` handle has available capacity.
+                    h2.ready().map_err(Error::from)
+                })
+        })
+    }
+
     fn credentials(
         client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
         server: &str,

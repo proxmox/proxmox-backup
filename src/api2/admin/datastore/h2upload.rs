@@ -47,6 +47,7 @@ fn upgrade_h2upload(
                 println!("upgrade done");
                 server::handshake(conn)
                     .and_then(|h2| {
+                        println!("Accept h2");
                         // Accept all inbound HTTP/2.0 streams sent over the
                         // connection.
                         h2.for_each(|(request, mut respond)| {
