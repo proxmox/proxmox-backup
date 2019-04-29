@@ -20,6 +20,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
+pub mod async_mutex;
 pub mod timer;
 pub mod wrapped_reader_stream;
 #[macro_use]
