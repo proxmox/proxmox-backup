@@ -194,7 +194,7 @@ fn list_backups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/backups", repo.store());
 
@@ -236,7 +236,7 @@ fn list_backup_groups(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
-    let client = HttpClient::new(repo.host(), repo.user());
+    let client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
@@ -301,7 +301,7 @@ fn list_snapshots(
         "backup-id": group.backup_id(),
     }))?;
 
-    let client = HttpClient::new(repo.host(), repo.user());
+    let client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
@@ -350,7 +350,7 @@ fn forget_snapshots(
         "backup-time": snapshot.backup_time().timestamp(),
     }))?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
 
@@ -370,7 +370,7 @@ fn start_garbage_collection(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
@@ -445,7 +445,7 @@ fn create_backup(
 
     let backup_time = Local.timestamp(Local::now().timestamp(), 0);
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     record_repository(&repo);
 
@@ -500,7 +500,7 @@ fn restore(
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     record_repository(&repo);
 
@@ -567,7 +567,7 @@ fn prune(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user());
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
@@ -583,7 +583,10 @@ fn prune(
 // like get, but simply ignore errors and return Null instead
 fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-    let client = HttpClient::new(repo.host(), repo.user());
+    let client = match HttpClient::new(repo.host(), repo.user()) {
+        Ok(v) => v,
+        _ => return Value::Null,
+    };
 
     let mut resp = match client.get(url).wait() {
         Ok(v) => v,

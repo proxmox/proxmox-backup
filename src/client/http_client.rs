@@ -110,15 +110,22 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
 
 impl HttpClient {
 
-    pub fn new(server: &str, username: &str) -> Self {
+    pub fn new(server: &str, username: &str) -> Result<Self, Error> {
         let client = Self::build_client();
-        let login = Self::credentials(client.clone(), server, username);
 
-        Self {
+        let password = if let Some((ticket, _token)) = load_ticket_info(server, username) {
+            ticket
+        } else {
+            Self::get_password(&username)?
+        };
+
+        let login = Self::credentials(client.clone(), server.to_owned(), username.to_owned(), password);
+
+        Ok(Self {
             client,
             server: String::from(server),
             auth: BroadcastFuture::new(login),
-        }
+        })
     }
 
     fn get_password(_username: &str) -> Result<String, Error> {
@@ -278,33 +285,17 @@ impl HttpClient {
 
     fn credentials(
         client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
-        server: &str,
-        username: &str,
+        server: String,
+        username: String,
+        password: String,
     ) -> Box<Future<Item=AuthInfo, Error=Error> + Send> {
 
-        let server = server.to_owned();
-        let server2 = server.to_owned();
-        let username = username.to_owned();
+        let server2 = server.clone();
 
         let create_request = futures::future::lazy(move || {
-
-            let data = if let Some((ticket, _token)) = load_ticket_info(&server, &username) {
-                json!({ "username": username, "password": ticket })
-            } else {
-
-                let password = match Self::get_password(&username) {
-                    Ok(p) => p,
-                    Err(err) => {
-                        return futures::future::Either::A(futures::future::err(err));
-                    }
-                };
-
-                json!({ "username": username, "password": password })
-            };
-
+            let data = json!({ "username": username, "password": password });
             let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
-
-            futures::future::Either::B(Self::api_request(client, req))
+            Self::api_request(client, req)
         });
 
         let login_future = create_request

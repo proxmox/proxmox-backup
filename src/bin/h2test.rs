@@ -48,7 +48,7 @@ fn run() -> Result<(), Error> {
 
     let username = "root@pam";
 
-    let mut client = HttpClient::new(host, username);
+    let mut client = HttpClient::new(host, username)?;
 
     let h2client = client.h2upgrade("/api2/json/admin/datastore/store2/h2upload");
 
