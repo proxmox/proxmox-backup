@@ -39,6 +39,10 @@ fn upgrade_h2upload(
         bail!("invalid protocol name");
     }
 
+    if parts.version >=  http::version::Version::HTTP_2 {
+        bail!("unexpected http version '{:?}' (expected version < 2)", parts.version);
+    }
+
     rt::spawn(
         req_body
             .on_upgrade()
