@@ -618,6 +618,30 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
     list
 }
 
+/// normalize uri path
+///
+/// Do not allow ".", "..", or hidden files ".XXXX"
+/// Also remove empty path components
+pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
+
+    let items = path.split('/');
+
+    let mut path = String::new();
+    let mut components = vec![];
+
+    for name in items {
+        if name.is_empty() { continue; }
+        if name.starts_with(".") {
+            bail!("Path contains illegal components.");
+        }
+        path.push('/');
+        path.push_str(name);
+        components.push(name);
+    }
+
+    Ok((path, components))
+}
+
 pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
     use nix::fcntl::{fcntl, F_GETFD, F_SETFD, FdFlag};
     let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)

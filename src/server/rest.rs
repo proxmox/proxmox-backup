@@ -488,29 +488,6 @@ fn check_auth(method: &hyper::Method, ticket: &Option<String>, token: &Option<St
     Ok(username)
 }
 
-// normalize path
-// do not allow ".", "..", or hidden files ".XXXX"
-// also remove empty path components
-fn normalize_path(path: &str) -> Result<(String, Vec<&str>), Error> {
-
-    let items = path.split('/');
-
-    let mut path = String::new();
-    let mut components = vec![];
-
-    for name in items {
-        if name.is_empty() { continue; }
-        if name.starts_with(".") {
-            bail!("Path contains illegal components.");
-        }
-        path.push('/');
-        path.push_str(name);
-        components.push(name);
-    }
-
-    Ok((path, components))
-}
-
 fn delayed_response(resp: Response<Body>, delay_unauth_time: std::time::Instant) -> BoxFut {
 
     Box::new(tokio::timer::Delay::new(delay_unauth_time)
@@ -524,7 +501,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
 
     let method = parts.method.clone();
 
-    let (path, components) = match normalize_path(parts.uri.path()) {
+    let (path, components) = match tools::normalize_uri_path(parts.uri.path()) {
         Ok((p,c)) => (p, c),
         Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
     };
