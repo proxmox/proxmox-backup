@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::fmt;
 
-use hyper::{Body, Response, StatusCode};
+use hyper::{Body, Method, Response, StatusCode};
 use hyper::rt::Future;
 use hyper::http::request::Parts;
 
@@ -304,5 +304,24 @@ impl Router {
         }
 
         None
+    }
+
+    pub fn find_method(
+        &self,
+        components: &[&str],
+        method: Method,
+        uri_param: &mut HashMap<String, String>
+    ) -> &MethodDefinition {
+
+        if let Some(info) = self.find_route(components, uri_param) {
+            return match method {
+                Method::GET => &info.get,
+                Method::PUT => &info.put,
+                Method::POST => &info.post,
+                Method::DELETE => &info.delete,
+                _ => &MethodDefinition::None,
+            };
+        }
+        &MethodDefinition::None
     }
 }
