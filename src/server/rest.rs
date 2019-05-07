@@ -223,7 +223,7 @@ fn proxy_protected_request(
     return Box::new(resp);
 }
 
-fn handle_sync_api_request(
+pub fn handle_sync_api_request(
     mut rpcenv: RestEnvironment,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
@@ -263,7 +263,7 @@ fn handle_sync_api_request(
     Box::new(resp)
 }
 
-fn handle_async_api_request(
+pub fn handle_async_api_request(
     mut rpcenv: RestEnvironment,
     info: &'static ApiAsyncMethod,
     formatter: &'static OutputFormatter,
