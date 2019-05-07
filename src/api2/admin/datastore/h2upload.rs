@@ -163,12 +163,21 @@ fn backup_api() -> Router {
         .get(
             ApiMethod::new(
                 test1_get,
-                ObjectSchema::new("Test something.")
+                ObjectSchema::new("Test sync callback.")
+            )
+        );
+
+    let test2 = Router::new()
+        .download(
+            ApiAsyncMethod::new(
+                test2_get,
+                ObjectSchema::new("Test async callback.")
             )
         );
 
     let router = Router::new()
         .subdir("test1", test1)
+        .subdir("test2", test2)
         .list_subdirs();
 
     router
@@ -182,4 +191,31 @@ fn test1_get (
 
 
     Ok(Value::Null)
+}
+
+fn test2_get(
+    parts: Parts,
+    req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<BoxFut, Error> {
+    let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+
+    let fut = tokio::timer::Interval::new_interval(std::time::Duration::from_millis(300))
+        .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer interval error: {}", err)))
+        .take(10)
+        .for_each(|tv| {
+            println!("LOOP {:?}", tv);
+            Ok(())
+        })
+        .and_then(|_| {
+            println!("TASK DONE");
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+               .unwrap())
+        });
+
+    Ok(Box::new(fut))
 }
