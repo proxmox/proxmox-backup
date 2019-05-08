@@ -17,6 +17,9 @@ use crate::api_schema::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
 
+mod environment;
+use environment::*;
+
 pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
         upgrade_h2upload,
@@ -29,53 +32,6 @@ lazy_static!{
     static ref BACKUP_ROUTER: Router = backup_api();
 }
 
-/// `RpcEnvironmet` implementation for backup service
-#[derive(Clone)]
-pub struct BackupEnvironment {
-    env_type: RpcEnvironmentType,
-    result_attributes: HashMap<String, Value>,
-    user: String,
-    worker: Arc<WorkerTask>,
-
-}
-
-impl BackupEnvironment {
-    pub fn new(env_type: RpcEnvironmentType, user: String, worker: Arc<WorkerTask>) -> Self {
-        Self {
-            result_attributes: HashMap::new(),
-            env_type,
-            user,
-            worker,
-        }
-    }
-
-    pub fn log<S: AsRef<str>>(&self, msg: S) {
-        self.worker.log(msg);
-    }
-}
-
-impl RpcEnvironment for BackupEnvironment {
-
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
-    }
-
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
-    }
-
-    fn env_type(&self) -> RpcEnvironmentType {
-        self.env_type
-    }
-
-    fn set_user(&mut self, _user: Option<String>) {
-        panic!("unable to change user");
-    }
-
-    fn get_user(&self) -> Option<String> {
-        Some(self.user.clone())
-    }
-}
 
 pub struct BackupService {
     rpcenv: BackupEnvironment,
