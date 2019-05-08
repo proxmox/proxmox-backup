@@ -182,13 +182,8 @@ fn upgrade_h2upload(
                     })
             })
             .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
-            .then(|result| {
-                match result {
-                    Ok((result,_)) => Ok(result),
-                    Err((err, _)) =>  Err(err),
-                }
-            })
-
+            .and_then(|(result, _)| Ok(result))
+            .map_err(|(err, _)| err)
     }).unwrap();
 
     Ok(Box::new(futures::future::ok(
