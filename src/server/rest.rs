@@ -223,8 +223,8 @@ fn proxy_protected_request(
     return Box::new(resp);
 }
 
-pub fn handle_sync_api_request(
-    mut rpcenv: RestEnvironment,
+pub fn handle_sync_api_request<Env: RpcEnvironment>(
+    mut rpcenv: Env,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
@@ -263,8 +263,8 @@ pub fn handle_sync_api_request(
     Box::new(resp)
 }
 
-pub fn handle_async_api_request(
-    mut rpcenv: RestEnvironment,
+pub fn handle_async_api_request<Env: RpcEnvironment>(
+    mut rpcenv: Env,
     info: &'static ApiAsyncMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
