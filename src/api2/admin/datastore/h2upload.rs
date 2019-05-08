@@ -3,6 +3,7 @@ use lazy_static::lazy_static;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::any::Any;
 
 use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
@@ -15,7 +16,7 @@ use crate::tools;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
 use crate::server::formatter::*;
-use crate::server::{WorkerTask, RestEnvironment};
+use crate::server::WorkerTask;
 
 pub fn api_method_upgrade_h2upload() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
@@ -29,14 +30,62 @@ lazy_static!{
     static ref BACKUP_ROUTER: Router = backup_api();
 }
 
+/// `RpcEnvironmet` implementation for backup service
+#[derive(Clone)]
+pub struct BackupEnvironment {
+    env_type: RpcEnvironmentType,
+    result_attributes: HashMap<String, Value>,
+    user: String,
+    worker: Arc<WorkerTask>,
+
+}
+
+impl BackupEnvironment {
+    pub fn new(env_type: RpcEnvironmentType, user: String, worker: Arc<WorkerTask>) -> Self {
+        Self {
+            result_attributes: HashMap::new(),
+            env_type,
+            user,
+            worker,
+        }
+    }
+
+    pub fn log<S: AsRef<str>>(&self, msg: S) {
+        self.worker.log(msg);
+    }
+}
+
+impl RpcEnvironment for BackupEnvironment {
+
+    fn set_result_attrib(&mut self, name: &str, value: Value) {
+        self.result_attributes.insert(name.into(), value);
+    }
+
+    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
+        self.result_attributes.get(name)
+    }
+
+    fn env_type(&self) -> RpcEnvironmentType {
+        self.env_type
+    }
+
+    fn set_user(&mut self, user: Option<String>) {
+        panic!("unable to change user");
+    }
+
+    fn get_user(&self) -> Option<String> {
+        Some(self.user.clone())
+    }
+}
+
 pub struct BackupService {
-    rpcenv: RestEnvironment,
+    rpcenv: BackupEnvironment,
     worker: Arc<WorkerTask>,
 }
 
 impl BackupService {
 
-    fn new(rpcenv: RestEnvironment, worker: Arc<WorkerTask>) -> Self {
+    fn new(rpcenv: BackupEnvironment, worker: Arc<WorkerTask>) -> Self {
         Self { rpcenv, worker }
     }
 
@@ -155,12 +204,12 @@ fn upgrade_h2upload(
 
     let worker_id = String::from("test2workerid");
 
+    let username = rpcenv.get_user().unwrap();
+    let env_type = rpcenv.env_type();
 
-    let mut rpcenv1 = RestEnvironment::new(rpcenv.env_type());
-    rpcenv1.set_user(rpcenv.get_user());
-
-    WorkerTask::spawn("test2_download", Some(worker_id), &rpcenv.get_user().unwrap(), true, move |worker| {
-        let service = BackupService::new(rpcenv1, worker.clone());
+    WorkerTask::spawn("test2_download", Some(worker_id), &username.clone(), true, move |worker| {
+        let backup_env = BackupEnvironment::new(env_type, username.clone(), worker.clone());
+        let service = BackupService::new(backup_env, worker.clone());
 
         let abort_future = worker.abort_future();
 
@@ -222,8 +271,14 @@ fn backup_api() -> Router {
 fn test1_get (
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
+
+    println!("TYPEID {:?}", (*rpcenv).type_id());
+
+    let env = rpcenv.as_any().downcast_ref::<BackupEnvironment>().unwrap();
+
+    env.log("Inside test1_get()");
 
     Ok(Value::Null)
 }

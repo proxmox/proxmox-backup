@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 /// Encapsulates information about the runtime environment
-#[derive(Clone)]
 pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
