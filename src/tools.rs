@@ -13,6 +13,7 @@ use std::path::Path;
 use std::io::Read;
 use std::io::ErrorKind;
 use std::time::Duration;
+use std::any::Any;
 
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 
@@ -710,4 +711,15 @@ impl FromRawFd for Fd {
 pub fn pipe() -> Result<(Fd, Fd), Error> {
     let (pin, pout) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)?;
     Ok((Fd(pin), Fd(pout)))
+}
+
+/// An easy way to convert types to Any
+///
+/// Mostly useful to downcast trait objects (see RpcEnvironment).
+pub trait AsAny {
+    fn as_any(&self) -> &Any;
+}
+
+impl<T: Any> AsAny for T {
+    fn as_any(&self) -> &Any { self }
 }

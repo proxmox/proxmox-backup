@@ -15,7 +15,7 @@ use super::api_handler::*;
 pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
 /// Abstract Interface for API methods to interact with the environment
-pub trait RpcEnvironment {
+pub trait RpcEnvironment: std::any::Any + crate::tools::AsAny + Send {
 
     /// Use this to pass additional result data. It is up to the environment
     /// how the data is used.
