@@ -163,6 +163,8 @@ fn upgrade_h2upload(
     WorkerTask::spawn("test2_download", Some(worker_id), &rpcenv.get_user().unwrap(), true, move |worker| {
         let service = BackupService::new(rpcenv1, worker.clone());
 
+        let abort_future = worker.abort_future();
+
         req_body
             .on_upgrade()
             .map_err(Error::from)
@@ -179,6 +181,14 @@ fn upgrade_h2upload(
                         x
                     })
             })
+            .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
+            .then(|result| {
+                match result {
+                    Ok((result,_)) => Ok(result),
+                    Err((err, _)) =>  Err(err),
+                }
+            })
+
     }).unwrap();
 
     Ok(Box::new(futures::future::ok(
@@ -235,7 +245,7 @@ fn test2_get(
 
     let fut = tokio::timer::Interval::new_interval(std::time::Duration::from_millis(300))
         .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer interval error: {}", err)))
-        .take(10)
+        .take(50)
         .for_each(|tv| {
             println!("LOOP {:?}", tv);
             Ok(())
