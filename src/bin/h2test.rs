@@ -50,7 +50,7 @@ fn run() -> Result<(), Error> {
 
     let mut client = HttpClient::new(host, username)?;
 
-    let h2client = client.h2upgrade("/api2/json/admin/datastore/store2/h2upload");
+    let h2client = client.h2upgrade("/api2/json/admin/datastore/store2/backup");
 
     let res = h2client.and_then(|mut h2| {
         println!("start http2");

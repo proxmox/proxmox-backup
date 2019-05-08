@@ -20,7 +20,7 @@ use crate::server::WorkerTask;
 
 mod pxar;
 mod upload;
-mod h2upload;
+mod backup;
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 
@@ -405,9 +405,9 @@ pub fn router() -> Router {
             Router::new()
                 .upgrade(upload::api_method_upgrade_upload()))
         .subdir(
-            "h2upload",
+            "backup",
             Router::new()
-                .upgrade(h2upload::api_method_upgrade_h2upload()))
+                .upgrade(backup::api_method_upgrade_backup()))
         .subdir(
             "gc",
             Router::new()

@@ -17,10 +17,10 @@ use crate::api_schema::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
 
-pub fn api_method_upgrade_h2upload() -> ApiAsyncMethod {
+pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
         upgrade_h2upload,
-        ObjectSchema::new("Experimental h2 server")
+        ObjectSchema::new("Upgraded to backup protocol.")
             .required("store", StringSchema::new("Datastore name.")),
     )
 }
