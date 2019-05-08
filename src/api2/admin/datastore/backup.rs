@@ -8,6 +8,7 @@ use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
 use hyper::{Body, Request, Response, StatusCode};
 use hyper::http::request::Parts;
+use chrono::{Local, TimeZone};
 
 use serde_json::Value;
 
@@ -22,11 +23,17 @@ use environment::*;
 
 pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        upgrade_h2upload,
+        upgrade_to_backup_protocol,
         ObjectSchema::new("Upgraded to backup protocol.")
-            .required("store", StringSchema::new("Datastore name.")),
+            .required("store", StringSchema::new("Datastore name."))
+            .required("backup-type", StringSchema::new("Backup type.")
+                      .format(Arc::new(ApiStringFormat::Enum(vec!["vm".into(), "ct".into(), "host".into()]))))
+            .required("backup-id", StringSchema::new("Backup ID."))
     )
 }
+
+static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
+
 
 lazy_static!{
     static ref BACKUP_ROUTER: Router = backup_api();
@@ -93,12 +100,6 @@ impl BackupService {
     }
 }
 
-impl Drop for  BackupService {
-    fn drop(&mut self) {
-        println!("SERVER DROP");
-    }
-}
-
 impl hyper::service::Service for BackupService {
     type ReqBody = Body;
     type ResBody = Body;
@@ -134,14 +135,19 @@ impl hyper::service::Service for BackupService {
     }
 }
 
-fn upgrade_h2upload(
+fn upgrade_to_backup_protocol(
     parts: Parts,
     req_body: Body,
-    _param: Value,
+    param: Value,
     _info: &ApiAsyncMethod,
     rpcenv: &mut RpcEnvironment,
 ) -> Result<BoxFut, Error> {
-    let expected_protocol: &'static str = "proxmox-backup-protocol-h2";
+
+    let store = tools::required_string_param(&param, "store")?;
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+
+    let _backup_time = Local.timestamp(Local::now().timestamp(), 0);
 
     let protocols = parts
         .headers
@@ -149,7 +155,7 @@ fn upgrade_h2upload(
         .ok_or_else(|| format_err!("missing Upgrade header"))?
         .to_str()?;
 
-    if protocols != expected_protocol {
+    if protocols != PROXMOX_BACKUP_PROTOCOL_ID {
         bail!("invalid protocol name");
     }
 
@@ -157,12 +163,12 @@ fn upgrade_h2upload(
         bail!("unexpected http version '{:?}' (expected version < 2)", parts.version);
     }
 
-    let worker_id = String::from("test2workerid");
+    let worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
 
     let username = rpcenv.get_user().unwrap();
     let env_type = rpcenv.env_type();
 
-    WorkerTask::spawn("test2_download", Some(worker_id), &username.clone(), true, move |worker| {
+    WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
         let backup_env = BackupEnvironment::new(env_type, username.clone(), worker.clone());
         let service = BackupService::new(backup_env, worker.clone());
 
@@ -179,11 +185,7 @@ fn upgrade_h2upload(
 
                 http.serve_connection(conn, service)
                     .map_err(Error::from)
-                    .then(|x| {
-                        println!("H2 END");
-                        x
-                    })
-            })
+             })
             .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
             .and_then(|(result, _)| Ok(result))
             .map_err(|(err, _)| err)
@@ -191,7 +193,7 @@ fn upgrade_h2upload(
 
     let response = Response::builder()
         .status(StatusCode::SWITCHING_PROTOCOLS)
-        .header(UPGRADE, HeaderValue::from_static(expected_protocol))
+        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID))
         .body(Body::empty())?;
 
     Ok(Box::new(futures::future::ok(response)))
