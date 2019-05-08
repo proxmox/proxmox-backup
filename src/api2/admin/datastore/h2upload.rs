@@ -183,15 +183,14 @@ fn upgrade_h2upload(
             .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
             .and_then(|(result, _)| Ok(result))
             .map_err(|(err, _)| err)
-    }).unwrap();
+    })?;
 
-    Ok(Box::new(futures::future::ok(
-        Response::builder()
-            .status(StatusCode::SWITCHING_PROTOCOLS)
-            .header(UPGRADE, HeaderValue::from_static(expected_protocol))
-            .body(Body::empty())
-            .unwrap()
-    )))
+    let response = Response::builder()
+        .status(StatusCode::SWITCHING_PROTOCOLS)
+        .header(UPGRADE, HeaderValue::from_static(expected_protocol))
+        .body(Body::empty())?;
+
+    Ok(Box::new(futures::future::ok(response)))
 }
 
 fn backup_api() -> Router {
@@ -248,8 +247,7 @@ fn test2_get(
             println!("TASK DONE");
             Ok(Response::builder()
                 .status(StatusCode::OK)
-                .body(Body::empty())
-               .unwrap())
+                .body(Body::empty())?)
         });
 
     Ok(Box::new(fut))
