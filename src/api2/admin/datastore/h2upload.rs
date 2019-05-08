@@ -3,7 +3,6 @@ use lazy_static::lazy_static;
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::any::Any;
 
 use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
@@ -69,7 +68,7 @@ impl RpcEnvironment for BackupEnvironment {
         self.env_type
     }
 
-    fn set_user(&mut self, user: Option<String>) {
+    fn set_user(&mut self, _user: Option<String>) {
         panic!("unable to change user");
     }
 
@@ -268,6 +267,10 @@ fn backup_api() -> Router {
     router
 }
 
+fn get_backup_environment(rpcenv: &mut RpcEnvironment) -> &BackupEnvironment  {
+    rpcenv.as_any().downcast_ref::<BackupEnvironment>().unwrap()
+}
+
 fn test1_get (
     _param: Value,
     _info: &ApiMethod,
@@ -276,7 +279,7 @@ fn test1_get (
 
     println!("TYPEID {:?}", (*rpcenv).type_id());
 
-    let env = rpcenv.as_any().downcast_ref::<BackupEnvironment>().unwrap();
+    let env = get_backup_environment(rpcenv);
 
     env.log("Inside test1_get()");
 
