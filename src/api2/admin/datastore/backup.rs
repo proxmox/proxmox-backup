@@ -14,12 +14,17 @@ use crate::tools;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
 use crate::server::WorkerTask;
+use crate::backup::*;
 
 mod environment;
 use environment::*;
 
 mod service;
 use service::*;
+
+mod upload_chunk;
+use upload_chunk::*;
+
 
 pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
@@ -43,6 +48,8 @@ fn upgrade_to_backup_protocol(
     static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
 
     let store = tools::required_string_param(&param, "store")?;
+    let datastore = DataStore::lookup_datastore(store)?;
+
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
 
@@ -68,7 +75,7 @@ fn upgrade_to_backup_protocol(
     let env_type = rpcenv.env_type();
 
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
-        let backup_env = BackupEnvironment::new(env_type, username.clone(), worker.clone());
+        let backup_env = BackupEnvironment::new(env_type, username.clone(), worker.clone(), datastore);
         let service = BackupService::new(backup_env, worker.clone());
 
         let abort_future = worker.abort_future();
@@ -116,16 +123,16 @@ fn backup_api() -> Router {
             )
         );
 
+    let chunks = Router::new()
+        .upload(api_method_upload_chunk());
+
     let router = Router::new()
+        .subdir("chunks", chunks)
         .subdir("test1", test1)
         .subdir("test2", test2)
         .list_subdirs();
 
     router
-}
-
-fn get_backup_environment(rpcenv: &mut RpcEnvironment) -> &BackupEnvironment  {
-    rpcenv.as_any().downcast_ref::<BackupEnvironment>().unwrap()
 }
 
 fn test1_get (
@@ -136,7 +143,7 @@ fn test1_get (
 
     println!("TYPEID {:?}", (*rpcenv).type_id());
 
-    let env = get_backup_environment(rpcenv);
+    let env: &BackupEnvironment = rpcenv.as_ref();
 
     env.log("Inside test1_get()");
 

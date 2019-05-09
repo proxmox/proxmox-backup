@@ -19,7 +19,7 @@ pub struct OutputFormatter {
 static JSON_CONTENT_TYPE: &str = "application/json;charset=UTF-8";
 
 
-fn json_response(result: Value) -> Response<Body> {
+pub fn json_response(result: Value) -> Response<Body> {
 
     let json_str = result.to_string();
 
@@ -50,7 +50,7 @@ fn json_format_result(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
     json_response(result)
 }
 
-fn json_format_error(err: Error) -> Response<Body> {
+pub fn json_format_error(err: Error) -> Response<Body> {
 
     let mut response = if let Some(apierr) = err.downcast_ref::<HttpError>() {
         let mut resp = Response::new(Body::from(apierr.message.clone()));

@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use crate::api_schema::router::{RpcEnvironment, RpcEnvironmentType};
 use crate::server::WorkerTask;
+use crate::backup::*;
 
 /// `RpcEnvironmet` implementation for backup service
 #[derive(Clone)]
@@ -12,17 +13,18 @@ pub struct BackupEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
     user: String,
-    worker: Arc<WorkerTask>,
-
+    pub worker: Arc<WorkerTask>,
+    pub datastore: Arc<DataStore>,
 }
 
 impl BackupEnvironment {
-    pub fn new(env_type: RpcEnvironmentType, user: String, worker: Arc<WorkerTask>) -> Self {
+    pub fn new(env_type: RpcEnvironmentType, user: String, worker: Arc<WorkerTask>, datastore: Arc<DataStore>) -> Self {
         Self {
             result_attributes: HashMap::new(),
             env_type,
             user,
             worker,
+            datastore,
         }
     }
 
@@ -51,5 +53,11 @@ impl RpcEnvironment for BackupEnvironment {
 
     fn get_user(&self) -> Option<String> {
         Some(self.user.clone())
+    }
+}
+
+impl AsRef<BackupEnvironment> for RpcEnvironment {
+    fn as_ref(&self) -> &BackupEnvironment {
+        self.as_any().downcast_ref::<BackupEnvironment>().unwrap()
     }
 }
