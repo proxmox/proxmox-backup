@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::fs::File;
 use std::io::{BufRead,BufReader};
 
+use crate::api2::types::*;
 use crate::server::{self, UPID};
 
 fn get_task_status(
@@ -177,7 +178,7 @@ pub fn router() -> Router {
         .delete(ApiMethod::new(
             stop_task,
             ObjectSchema::new("Try to stop a task.")
-                .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                .required("node", NODE_SCHEMA.clone())
                 .required("upid", upid_schema.clone())).protected(true)
 
         )
@@ -187,7 +188,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         read_task_log,
                         ObjectSchema::new("Read task log.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("upid", upid_schema.clone())
                             .optional(
                                 "start",
@@ -210,7 +211,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         get_task_status,
                         ObjectSchema::new("Get task status.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("upid", upid_schema.clone()))
                 )
         )
@@ -221,7 +222,7 @@ pub fn router() -> Router {
         .get(ApiMethod::new(
             list_tasks,
             ObjectSchema::new("List tasks.")
-                .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                .required("node", NODE_SCHEMA.clone())
                 .optional(
                     "start",
                     IntegerSchema::new("List tasks beginning from this offset.")

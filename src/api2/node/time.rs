@@ -3,6 +3,8 @@ use failure::*;
 use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
+use crate::api2::types::*;
+
 use serde_json::{json, Value};
 
 use chrono::prelude::*;
@@ -79,7 +81,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_time,
                 ObjectSchema::new("Read server time and time zone settings.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
              ).returns(
                 ObjectSchema::new("Returns server time and timezone.")
                     .required("timezone", StringSchema::new("Time zone"))
@@ -93,7 +95,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 set_timezone,
                 ObjectSchema::new("Set time zone.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
                     .required("timezone", StringSchema::new(
                         "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
             ).protected(true).reload_timezone(true)

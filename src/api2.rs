@@ -1,9 +1,4 @@
-//use failure::*;
-
-use crate::api_schema::*;
-use crate::api_schema::router::*;
-use std::sync::Arc;
-
+pub mod types;
 pub mod config;
 pub mod admin;
 pub mod node;
@@ -11,21 +6,7 @@ mod version;
 mod subscription;
 mod access;
 
-use lazy_static::lazy_static;
-use crate::tools::common_regex;
-
-// common schema definitions
-
-lazy_static! {
-    pub static ref IP_FORMAT: Arc<ApiStringFormat> = ApiStringFormat::Pattern(&common_regex::IP_REGEX).into();
-
-    pub static ref PVE_CONFIG_DIGEST_FORMAT: Arc<ApiStringFormat> =
-        ApiStringFormat::Pattern(&common_regex::SHA256_HEX_REGEX).into();
-
-    pub static ref PVE_CONFIG_DIGEST_SCHEMA: Arc<Schema> =
-        StringSchema::new("Prevent changes if current configuration file has different SHA256 digest. This can be used to prevent concurrent modifications.")
-        .format(PVE_CONFIG_DIGEST_FORMAT.clone()).into();
-}
+use crate::api_schema::router::*;
 
 pub fn router() -> Router {
 

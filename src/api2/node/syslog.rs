@@ -2,6 +2,8 @@ use failure::*;
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
+use crate::api2::types::*;
+
 use serde_json::{json, Value};
 
 use std::sync::Arc;
@@ -101,7 +103,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_syslog,
                 ObjectSchema::new("Read server time and time zone settings.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
                      .optional(
                         "start",
                         IntegerSchema::new("Start line number.")

@@ -3,8 +3,9 @@ use failure::*;
 
 use crate::tools;
 use crate::api2::*;
-//use crate::api_schema::*;
+use crate::api_schema::*;
 //use crate::api_schema::router::*;
+use crate::api2::types::*;
 
 use lazy_static::lazy_static;
 
@@ -105,23 +106,6 @@ fn get_dns(
     read_etc_resolv_conf()
 }
 
-lazy_static! {
-    pub static ref SEARCH_DOMAIN_SCHEMA: Arc<Schema> =
-        StringSchema::new("Search domain for host-name lookup.").into();
-
-    pub static ref FIRST_DNS_SERVER_SCHEMA: Arc<Schema> =
-        StringSchema::new("First name server IP address.")
-        .format(IP_FORMAT.clone()).into();
-
-    pub static ref SECOND_DNS_SERVER_SCHEMA: Arc<Schema> =
-        StringSchema::new("Second name server IP address.")
-        .format(IP_FORMAT.clone()).into();
-
-    pub static ref THIRD_DNS_SERVER_SCHEMA: Arc<Schema> =
-        StringSchema::new("Third name server IP address.")
-        .format(IP_FORMAT.clone()).into();
-}
-
 pub fn router() -> Router {
 
     let route = Router::new()
@@ -129,7 +113,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 get_dns,
                 ObjectSchema::new("Read DNS settings.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
             ).returns(
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
                     .required("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
@@ -143,7 +127,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 update_dns,
                 ObjectSchema::new("Returns DNS server IPs and sreach domain.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
                     .required("search", SEARCH_DOMAIN_SCHEMA.clone())
                     .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
                     .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())

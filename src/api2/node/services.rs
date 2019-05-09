@@ -8,6 +8,8 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use std::process::{Command, Stdio};
 
+use crate::api2::types::*;
+
 static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",
     "proxmox-backup-proxy",
@@ -229,7 +231,7 @@ pub fn router() -> Router {
                 .get(ApiMethod::new(
                     get_service_state,
                     ObjectSchema::new("Read service properties.")
-                        .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                        .required("node", NODE_SCHEMA.clone())
                        .required("service", service_id_schema.clone()))
                 )
         )
@@ -240,7 +242,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         start_service,
                         ObjectSchema::new("Start service.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -252,7 +254,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         stop_service,
                         ObjectSchema::new("Stop service.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -264,7 +266,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         restart_service,
                         ObjectSchema::new("Restart service.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -276,7 +278,7 @@ pub fn router() -> Router {
                     ApiMethod::new(
                         reload_service,
                         ObjectSchema::new("Reload service.")
-                            .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                            .required("node", NODE_SCHEMA.clone())
                             .required("service", service_id_schema.clone())
                     ).protected(true)
                 )
@@ -288,7 +290,7 @@ pub fn router() -> Router {
             ApiMethod::new(
                 list_services,
                 ObjectSchema::new("Service list.")
-                    .required("node", crate::api2::node::NODE_SCHEMA.clone())
+                    .required("node", NODE_SCHEMA.clone())
             ).returns(
                 ArraySchema::new(
                     "Returns a list of systemd services.",
