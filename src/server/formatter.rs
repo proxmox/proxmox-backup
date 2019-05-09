@@ -18,10 +18,16 @@ pub struct OutputFormatter {
 
 static JSON_CONTENT_TYPE: &str = "application/json;charset=UTF-8";
 
+pub fn json_response(result: Result<Value, Error>) -> Response<Body> {
+    match result {
+        Ok(data) => json_data_response(data),
+        Err(err) => json_error_response(err),
+    }
+}
 
-pub fn json_response(result: Value) -> Response<Body> {
+pub fn json_data_response(data: Value) -> Response<Body> {
 
-    let json_str = result.to_string();
+    let json_str = data.to_string();
 
     let raw = json_str.into_bytes();
 
@@ -47,10 +53,10 @@ fn json_format_data(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
         result["changes"] = changes.clone();
     }
 
-    json_response(result)
+    json_data_response(result)
 }
 
-pub fn json_format_error(err: Error) -> Response<Body> {
+pub fn json_error_response(err: Error) -> Response<Body> {
 
     let mut response = if let Some(apierr) = err.downcast_ref::<HttpError>() {
         let mut resp = Response::new(Body::from(apierr.message.clone()));
@@ -73,7 +79,7 @@ pub fn json_format_error(err: Error) -> Response<Body> {
 
 pub static JSON_FORMATTER: OutputFormatter = OutputFormatter {
     format_data: json_format_data,
-    format_error: json_format_error,
+    format_error: json_error_response,
 };
 
 fn extjs_format_data(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
@@ -92,7 +98,7 @@ fn extjs_format_data(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
     }
 
 
-    json_response(result)
+    json_data_response(result)
 }
 
 fn extjs_format_error(err: Error) -> Response<Body> {
@@ -108,7 +114,7 @@ fn extjs_format_error(err: Error) -> Response<Body> {
         "success": false
     });
 
-    let mut response = json_response(result);
+    let mut response = json_data_response(result);
 
     response.extensions_mut().insert(ErrorMessageExtension(message));
 

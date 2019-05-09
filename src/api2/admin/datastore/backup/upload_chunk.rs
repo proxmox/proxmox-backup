@@ -83,14 +83,9 @@ fn upload_chunk(
     let abort_future = env.worker.abort_future().then(|_| Ok(Value::Null));
 
     let resp = upload.select(abort_future)
-        .then(move |result| {
-            use crate::server::formatter::*;
-            match result {
-                Ok((result,_)) => Ok(json_response(result)),
-                Err((err, _)) => Ok(json_format_error(err)),
-            }
-        });
-
+        .and_then(|(result, _)| Ok(result))
+        .map_err(|(err, _)| err)
+        .then(|res| Ok(crate::server::formatter::json_response(res)));
 
     Ok(Box::new(resp))
 
