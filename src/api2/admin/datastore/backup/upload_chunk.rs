@@ -61,7 +61,7 @@ pub fn api_method_upload_chunk() -> ApiAsyncMethod {
         ObjectSchema::new("Upload chunk.")
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
-                      .maximum(1024*16)
+                      .maximum(1024*1024*16)
             )
     )
 }
