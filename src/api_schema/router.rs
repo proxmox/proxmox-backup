@@ -75,7 +75,7 @@ macro_rules! http_err {
 }
 
 type ApiAsyncHandlerFn = Box<
-    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>
+    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, Box<RpcEnvironment>) -> Result<BoxFut, Error>
     + Send + Sync + 'static
 >;
 
@@ -152,7 +152,7 @@ impl ApiAsyncMethod {
 
     pub fn new<F>(handler: F, parameters: ObjectSchema) -> Self
     where
-        F: Fn(Parts, Body, Value, &ApiAsyncMethod, &mut dyn RpcEnvironment) -> Result<BoxFut, Error>
+        F: Fn(Parts, Body, Value, &ApiAsyncMethod, Box<RpcEnvironment>) -> Result<BoxFut, Error>
             + Send + Sync + 'static,
     {
         Self {

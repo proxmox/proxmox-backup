@@ -41,8 +41,6 @@ impl BackupService {
             Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
         };
 
-        let formatter = &JSON_FORMATTER;
-
         self.worker.log(format!("H2 REQUEST {} {}", method, path));
         self.worker.log(format!("H2 COMPO {:?}", components));
 
@@ -51,13 +49,15 @@ impl BackupService {
         match BACKUP_ROUTER.find_method(&components, method, &mut uri_param) {
             MethodDefinition::None => {
                 let err = http_err!(NOT_FOUND, "Path not found.".to_string());
-                return Box::new(future::ok((formatter.format_error)(err)));
+                return Box::new(future::ok((self.rpcenv.formatter.format_error)(err)));
             }
             MethodDefinition::Simple(api_method) => {
-                return crate::server::rest::handle_sync_api_request(self.rpcenv.clone(), api_method, formatter, parts, body, uri_param);
+                return crate::server::rest::handle_sync_api_request(
+                    self.rpcenv.clone(), api_method, self.rpcenv.formatter, parts, body, uri_param);
             }
             MethodDefinition::Async(async_method) => {
-                return crate::server::rest::handle_async_api_request(self.rpcenv.clone(), async_method, formatter, parts, body, uri_param);
+                return crate::server::rest::handle_async_api_request(
+                    self.rpcenv.clone(), async_method, self.rpcenv.formatter, parts, body, uri_param);
             }
         }
     }

@@ -42,7 +42,7 @@ fn upgrade_to_backup_protocol(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
@@ -155,7 +155,7 @@ fn test2_get(
     _req_body: Body,
     _param: Value,
     _info: &ApiAsyncMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let fut = tokio::timer::Interval::new_interval(std::time::Duration::from_millis(300))

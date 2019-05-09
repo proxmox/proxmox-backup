@@ -34,7 +34,7 @@ fn upgrade_upload(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut> {
     let store = tools::required_string_param(&param, "store")?.to_string();
     let expected_protocol: &'static str = "proxmox-backup-protocol-1";

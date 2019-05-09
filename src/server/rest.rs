@@ -264,7 +264,7 @@ pub fn handle_sync_api_request<Env: RpcEnvironment>(
 }
 
 pub fn handle_async_api_request<Env: RpcEnvironment>(
-    mut rpcenv: Env,
+    rpcenv: Env,
     info: &'static ApiAsyncMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
@@ -294,7 +294,7 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
         }
     };
 
-    match (info.handler)(parts, req_body, params, info, &mut rpcenv) {
+    match (info.handler)(parts, req_body, params, info, Box::new(rpcenv)) {
         Ok(future) => future,
         Err(err) => {
             let resp = (formatter.format_error)(Error::from(err));

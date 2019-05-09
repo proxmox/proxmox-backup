@@ -71,7 +71,7 @@ fn upload_chunk(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let size = tools::required_integer_param(&param, "size")?;
@@ -85,7 +85,11 @@ fn upload_chunk(
     let resp = upload.select(abort_future)
         .and_then(|(result, _)| Ok(result))
         .map_err(|(err, _)| err)
-        .then(|res| Ok(crate::server::formatter::json_response(res)));
+        //.then(|res| Ok(crate::server::formatter::json_response(res)));
+        .then(move |res| {
+            let env: &BackupEnvironment = rpcenv.as_ref();
+            Ok(env.format_response(res))
+        });
 
     Ok(Box::new(resp))
 
