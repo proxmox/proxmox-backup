@@ -80,6 +80,7 @@ fn upload_chunk(
 
     let upload = UploadChunk::new(req_body, env.datastore.clone(), size as u64);
 
+    // fixme: do we really need abort here? We alread do that on level above.
     let abort_future = env.worker.abort_future().then(|_| Ok(Value::Null));
 
     let resp = upload.select(abort_future)
