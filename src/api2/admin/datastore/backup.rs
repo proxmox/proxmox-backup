@@ -8,7 +8,7 @@ use hyper::{Body, Response, StatusCode};
 use hyper::http::request::Parts;
 use chrono::{Local, TimeZone};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::tools;
 use crate::api_schema::router::*;
@@ -52,8 +52,7 @@ fn upgrade_to_backup_protocol(
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
-
-    let _backup_time = Local.timestamp(Local::now().timestamp(), 0);
+    let backup_time = Local.timestamp(Local::now().timestamp(), 0);
 
     let protocols = parts
         .headers
@@ -74,8 +73,14 @@ fn upgrade_to_backup_protocol(
     let username = rpcenv.get_user().unwrap();
     let env_type = rpcenv.env_type();
 
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
+
+    let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
+    if !is_new { bail!("backup directorty already exists."); }
+
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
-        let backup_env = BackupEnvironment::new(env_type, username.clone(), worker.clone(), datastore);
+        let backup_env = BackupEnvironment::new(
+            env_type, username.clone(), worker.clone(), datastore, backup_dir, path);
         let service = BackupService::new(backup_env, worker.clone());
 
         let abort_future = worker.abort_future();
@@ -123,16 +128,56 @@ fn backup_api() -> Router {
             )
         );
 
-    let chunks = Router::new()
-        .upload(api_method_upload_chunk());
-
     let router = Router::new()
-        .subdir("chunks", chunks)
+        .subdir(
+            "dynamic_chunk", Router::new()
+                .upload(api_method_upload_dynamic_chunk())
+        )
+        .subdir(
+            "dynamic_index", Router::new()
+                .post(api_method_create_dynamic_index())
+        )
         .subdir("test1", test1)
         .subdir("test2", test2)
         .list_subdirs();
 
     router
+}
+
+pub fn api_method_create_dynamic_index() -> ApiMethod {
+    ApiMethod::new(
+        create_dynamic_index,
+        ObjectSchema::new("Create dynamic chunk index file.")
+    )
+}
+
+fn create_dynamic_index(
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+    env.log("Inside create_dynamic_index");
+
+    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+
+    if !archive_name.ends_with(".pxar") {
+        bail!("wrong archive extension");
+    } else {
+        archive_name.push_str(".didx");
+    }
+
+    let mut path = env.path.clone();
+    path.push(archive_name);
+
+    let chunk_size = 4096*1024; // todo: ??
+
+    let index = env.datastore.create_dynamic_writer(path, chunk_size)?;
+    let uid = env.register_dynamic_writer(index);
+
+
+    Ok(json!(uid))
 }
 
 fn test1_get (

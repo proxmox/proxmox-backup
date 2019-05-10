@@ -28,10 +28,10 @@ impl UploadChunk {
 }
 
 impl Future for UploadChunk {
-    type Item = Value;
+    type Item = ([u8; 32], u64);
     type Error = failure::Error;
 
-    fn poll(&mut self) -> Poll<Value, failure::Error> {
+    fn poll(&mut self) -> Poll<([u8; 32], u64), failure::Error> {
         loop {
             match try_ready!(self.stream.poll()) {
                 Some(chunk) => {
@@ -41,24 +41,27 @@ impl Future for UploadChunk {
                     self.chunk.extend_from_slice(&chunk);
                 }
                 None => {
+                    if self.chunk.len() != (self.size as usize) {
+                        bail!("uploaded chunk has unexpected size.");
+                    }
 
-                    let (is_duplicate, digest, _compressed_size) = self.store.insert_chunk(&self.chunk)?;
+                    let (_is_duplicate, digest, _compressed_size) = self.store.insert_chunk(&self.chunk)?;
 
-                    let result = json!({
-                        "digest": tools::digest_to_hex(&digest),
-                        "duplicate": is_duplicate,
-                    });
-                    return Ok(Async::Ready(result))
+                    return Ok(Async::Ready((digest, self.size)))
                 }
             }
         }
     }
 }
 
-pub fn api_method_upload_chunk() -> ApiAsyncMethod {
+pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        upload_chunk,
-        ObjectSchema::new("Upload chunk.")
+        upload_dynamic_chunk,
+        ObjectSchema::new("Upload chunk for dynamic index writer (variable sized chunks).")
+            .required("wid", IntegerSchema::new("Dynamic writer ID.")
+                      .minimum(1)
+                      .maximum(256)
+            )
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
                       .maximum(1024*1024*16)
@@ -66,7 +69,7 @@ pub fn api_method_upload_chunk() -> ApiAsyncMethod {
     )
 }
 
-fn upload_chunk(
+fn upload_dynamic_chunk(
     _parts: Parts,
     req_body: Body,
     param: Value,
@@ -75,22 +78,24 @@ fn upload_chunk(
 ) -> Result<BoxFut, Error> {
 
     let size = tools::required_integer_param(&param, "size")?;
+    let wid = tools::required_integer_param(&param, "wid")? as usize;
+
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     let upload = UploadChunk::new(req_body, env.datastore.clone(), size as u64);
 
-    // fixme: do we really need abort here? We alread do that on level above.
-    let abort_future = env.worker.abort_future().then(|_| Ok(Value::Null));
-
-    let resp = upload.select(abort_future)
-        .and_then(|(result, _)| Ok(result))
-        .map_err(|(err, _)| err)
-        .then(move |res| {
+    let resp = upload
+        .then(move |result| {
             let env: &BackupEnvironment = rpcenv.as_ref();
-            Ok(env.format_response(res))
+
+            let result = result.and_then(|(digest, size)| {
+                env.dynamic_writer_append_chunk(wid, size, &digest)?;
+                Ok(json!(tools::digest_to_hex(&digest)))
+            });
+
+            Ok(env.format_response(result))
         });
 
     Ok(Box::new(resp))
-
 }
