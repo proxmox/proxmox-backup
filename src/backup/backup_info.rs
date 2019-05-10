@@ -34,7 +34,7 @@ lazy_static!{
 }
 
 /// BackupGroup is a directory containing a list of BackupDir
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BackupGroup {
     /// Type of backup
     backup_type: String,
@@ -82,7 +82,7 @@ impl BackupGroup {
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BackupDir {
     /// Backup group
     group: BackupGroup,
