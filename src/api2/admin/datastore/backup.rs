@@ -73,14 +73,19 @@ fn upgrade_to_backup_protocol(
     let username = rpcenv.get_user().unwrap();
     let env_type = rpcenv.env_type();
 
+    let last_backup = datastore.last_backup(backup_type, backup_id)?;
+
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directorty already exists."); }
 
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
-        let backup_env = BackupEnvironment::new(
+        let mut backup_env = BackupEnvironment::new(
             env_type, username.clone(), worker.clone(), datastore, backup_dir, path);
+
+        backup_env.last_backup = last_backup;
+
         let service = BackupService::new(backup_env, worker.clone());
 
         let abort_future = worker.abort_future();

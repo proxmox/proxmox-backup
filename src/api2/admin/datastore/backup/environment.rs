@@ -27,6 +27,7 @@ pub struct BackupEnvironment {
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
     pub path: PathBuf,
+    pub last_backup: Option<BackupInfo>,
     state: Arc<Mutex<SharedBackupState>>
 }
 
@@ -54,6 +55,7 @@ impl BackupEnvironment {
             formatter: &JSON_FORMATTER,
             backup_dir,
             path,
+            last_backup: None,
             state: Arc::new(Mutex::new(state)),
         }
     }

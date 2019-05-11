@@ -161,7 +161,7 @@ impl From<(BackupGroup, i64)> for BackupDir {
 }
 
 /// Detailed Backup Information, lists files inside a BackupDir
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BackupInfo {
     /// the backup directory
     pub backup_dir: BackupDir,
