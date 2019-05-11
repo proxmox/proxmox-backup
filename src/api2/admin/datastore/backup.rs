@@ -11,6 +11,7 @@ use chrono::{Local, TimeZone};
 use serde_json::{json, Value};
 
 use crate::tools;
+use crate::tools::wrapped_reader_stream::*;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
 use crate::server::WorkerTask;
@@ -140,6 +141,7 @@ fn backup_api() -> Router {
         )
         .subdir(
             "dynamic_index", Router::new()
+                .download(api_method_dynamic_chunk_index())
                 .post(api_method_create_dynamic_index())
         )
         .subdir("test1", test1)
@@ -147,6 +149,18 @@ fn backup_api() -> Router {
         .list_subdirs();
 
     router
+}
+
+pub fn api_method_dynamic_chunk_index() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        dynamic_chunk_index,
+        ObjectSchema::new(r###"
+Download the dynamic chunk index from the previous backup.
+Simply returns an empty list if this is the first backup.
+"###
+        )
+            .required("archive-name", StringSchema::new("Backup archive name."))
+    )
 }
 
 pub fn api_method_create_dynamic_index() -> ApiMethod {
@@ -199,6 +213,53 @@ fn test1_get (
     env.log("Inside test1_get()");
 
     Ok(Value::Null)
+}
+
+fn dynamic_chunk_index(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+    env.log("Inside dynamic_chunk_index");
+
+    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+
+    if !archive_name.ends_with(".pxar") {
+        bail!("wrong archive extension");
+    } else {
+        archive_name.push_str(".didx");
+    }
+
+    let last_backup = match &env.last_backup {
+        Some(info) => info,
+        None => {
+            let response = Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())?;
+            return Ok(Box::new(future::ok(response)));
+        }
+    };
+
+    let mut path = last_backup.backup_dir.relative_path();
+    path.push(archive_name);
+
+    let index = env.datastore.open_dynamic_reader(path)?;
+    // fixme: register index so that client can refer to it by ID
+
+    let reader = ChunkListReader::new(Box::new(index));
+
+    let stream = WrappedReaderStream::new(reader);
+
+    // fixme: set size, content type?
+    let response = http::Response::builder()
+        .status(200)
+        .body(Body::wrap_stream(stream))?;
+
+    Ok(Box::new(future::ok(response)))
 }
 
 fn test2_get(
