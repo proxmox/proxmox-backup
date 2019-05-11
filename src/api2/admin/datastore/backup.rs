@@ -77,12 +77,12 @@ fn upgrade_to_backup_protocol(
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group)?;
     let backup_dir = BackupDir::new_with_group(backup_group, backup_time.timestamp());
 
-    let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
+    let (_path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directorty already exists."); }
 
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
         let mut backup_env = BackupEnvironment::new(
-            env_type, username.clone(), worker.clone(), datastore, backup_dir, path);
+            env_type, username.clone(), worker.clone(), datastore, backup_dir);
 
         backup_env.last_backup = last_backup;
 
@@ -173,7 +173,7 @@ fn create_dynamic_index(
         archive_name.push_str(".didx");
     }
 
-    let mut path = env.path.clone();
+    let mut path = env.backup_dir.relative_path();
     path.push(archive_name);
 
     let chunk_size = 4096*1024; // todo: ??

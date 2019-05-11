@@ -1,7 +1,6 @@
 use failure::*;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use serde_json::Value;
 
@@ -26,7 +25,6 @@ pub struct BackupEnvironment {
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
-    pub path: PathBuf,
     pub last_backup: Option<BackupInfo>,
     state: Arc<Mutex<SharedBackupState>>
 }
@@ -38,7 +36,6 @@ impl BackupEnvironment {
         worker: Arc<WorkerTask>,
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
-        path: PathBuf,
     ) -> Self {
 
         let state = SharedBackupState {
@@ -54,7 +51,6 @@ impl BackupEnvironment {
             datastore,
             formatter: &JSON_FORMATTER,
             backup_dir,
-            path,
             last_backup: None,
             state: Arc::new(Mutex::new(state)),
         }
