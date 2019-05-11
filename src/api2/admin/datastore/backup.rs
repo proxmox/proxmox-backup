@@ -153,6 +153,7 @@ pub fn api_method_create_dynamic_index() -> ApiMethod {
     ApiMethod::new(
         create_dynamic_index,
         ObjectSchema::new("Create dynamic chunk index file.")
+            .required("archive-name", StringSchema::new("Backup archive name."))
     )
 }
 
