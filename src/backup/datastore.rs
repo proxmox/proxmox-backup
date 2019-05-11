@@ -168,16 +168,6 @@ impl DataStore {
         }
     }
 
-    /// Finds the latest backup inside a backup group
-    pub fn last_backup(&self, backup_type: &str, backup_id: &str) -> Result<Option<BackupInfo>, Error> {
-        let group = BackupGroup::new(backup_type, backup_id);
-
-        let backups = group.list_backups(&self.base_path())?;
-
-        Ok(backups.into_iter().max_by_key(|item| item.backup_dir.backup_time()))
-     }
-
-
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
         let base = self.base_path();
 

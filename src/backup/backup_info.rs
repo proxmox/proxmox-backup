@@ -125,6 +125,9 @@ impl BackupDir {
             backup_time: Local.timestamp(timestamp, 0),
         }
     }
+    pub fn new_with_group(group: BackupGroup, timestamp: i64) -> Self {
+        Self { group, backup_time: Local.timestamp(timestamp, 0) }
+    }
 
     pub fn group(&self) -> &BackupGroup {
         &self.group
@@ -170,6 +173,12 @@ pub struct BackupInfo {
 }
 
 impl BackupInfo {
+
+    /// Finds the latest backup inside a backup group
+    pub fn last_backup(base_path: &Path, group: &BackupGroup) -> Result<Option<BackupInfo>, Error> {
+        let backups = group.list_backups(base_path)?;
+        Ok(backups.into_iter().max_by_key(|item| item.backup_dir.backup_time()))
+    }
 
     pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
         if ascendending { // oldest first
