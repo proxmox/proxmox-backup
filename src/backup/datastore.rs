@@ -168,16 +168,6 @@ impl DataStore {
         }
     }
 
-    pub fn list_backups(&self) -> Result<Vec<BackupInfo>, Error> {
-        let path = self.base_path();
-        BackupInfo::list_backups(&path)
-    }
-
-    pub fn list_files(&self, backup_dir: &BackupDir) -> Result<Vec<String>, Error> {
-        let path = self.base_path();
-        BackupInfo::list_files(&path, backup_dir)
-    }
-
     pub fn list_images(&self) -> Result<Vec<PathBuf>, Error> {
         let base = self.base_path();
 

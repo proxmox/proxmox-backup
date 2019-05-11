@@ -65,7 +65,7 @@ fn list_groups(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let backup_list =  datastore.list_backups()?;
+    let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
 
     let group_hash = group_backups(backup_list);
 
@@ -105,7 +105,8 @@ fn list_snapshot_files (
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let files = datastore.list_files(&snapshot)?;
+    let path = datastore.base_path();
+    let files = BackupInfo::list_files(&path, &snapshot)?;
 
     Ok(json!(files))
 }
@@ -144,27 +145,13 @@ fn list_snapshots (
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let backup_list = datastore.list_backups()?;
+    let base_path = datastore.base_path();
 
-    let mut group_hash = group_backups(backup_list);
-
-    let group_id = group.group_path().to_str().unwrap().to_owned();
-
-    let group_snapshots = match group_hash.get_mut(&group_id) {
-        Some(data) => {
-            // new backups first
-            BackupInfo::sort_list(data, false);
-            data
-        }
-        None => bail!("Backup group '{}' does not exists.", group_id),
-    };
+    let backup_list = group.list_backups(&base_path)?;
 
     let mut snapshots = vec![];
 
-    for info in group_snapshots {
-
-        let group = info.backup_dir.group();
-
+    for info in backup_list {
         snapshots.push(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
@@ -188,7 +175,7 @@ fn prune(
 
     println!("Starting prune on store {}", store);
 
-    let backup_list =  datastore.list_backups()?;
+    let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
 
     let group_hash = group_backups(backup_list);
 
@@ -355,7 +342,9 @@ fn get_backup_list(
 
     let mut list = vec![];
 
-    for info in datastore.list_backups()? {
+    let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
+
+    for info in backup_list {
         list.push(json!({
             "backup-type": info.backup_dir.group().backup_type(),
             "backup-id": info.backup_dir.group().backup_id(),

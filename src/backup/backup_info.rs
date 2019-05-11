@@ -2,6 +2,7 @@ use crate::tools;
 
 use failure::*;
 use regex::Regex;
+use std::os::unix::io::RawFd;
 
 use chrono::{DateTime, TimeZone, Local};
 
@@ -76,6 +77,27 @@ impl BackupGroup {
         relative_path.push(&self.backup_id);
 
         relative_path
+    }
+
+    pub fn list_backups(&self, base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
+
+        let mut list = vec![];
+
+        let mut path = base_path.to_owned();
+        path.push(self.group_path());
+
+        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
+            if file_type != nix::dir::Type::Directory { return Ok(()); }
+
+            let dt = backup_time.parse::<DateTime<Local>>()?;
+            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), dt.timestamp());
+            let files = list_backup_files(l2_fd, backup_time)?;
+
+            list.push(BackupInfo { backup_dir, files });
+
+            Ok(())
+        })?;
+        Ok(list)
     }
 }
 
@@ -161,13 +183,7 @@ impl BackupInfo {
         let mut path = base_path.to_owned();
         path.push(backup_dir.relative_path());
 
-        let mut files = vec![];
-
-        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
-            if file_type != nix::dir::Type::File { return Ok(()); }
-            files.push(filename.to_owned());
-            Ok(())
-        })?;
+        let files = list_backup_files(libc::AT_FDCWD, &path)?;
 
         Ok(files)
     }
@@ -183,19 +199,11 @@ impl BackupInfo {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
                     let dt = backup_time.parse::<DateTime<Local>>()?;
+                    let backup_dir = BackupDir::new(backup_type, backup_id, dt.timestamp());
 
-                    let mut files = vec![];
+                    let files = list_backup_files(l2_fd, backup_time)?;
 
-                    tools::scandir(l2_fd, backup_time, &BACKUP_FILE_REGEX, |_, filename, file_type| {
-                        if file_type != nix::dir::Type::File { return Ok(()); }
-                        files.push(filename.to_owned());
-                        Ok(())
-                    })?;
-
-                    list.push(BackupInfo {
-                        backup_dir: BackupDir::new(backup_type, backup_id, dt.timestamp()),
-                        files,
-                    });
+                    list.push(BackupInfo { backup_dir, files });
 
                     Ok(())
                 })
@@ -203,4 +211,16 @@ impl BackupInfo {
         })?;
         Ok(list)
     }
+}
+
+fn list_backup_files<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> Result<Vec<String>, Error> {
+    let mut files = vec![];
+
+    tools::scandir(dirfd, path, &BACKUP_FILE_REGEX, |_, filename, file_type| {
+        if file_type != nix::dir::Type::File { return Ok(()); }
+        files.push(filename.to_owned());
+        Ok(())
+    })?;
+
+    Ok(files)
 }
