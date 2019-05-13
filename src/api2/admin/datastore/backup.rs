@@ -75,7 +75,7 @@ fn upgrade_to_backup_protocol(
     let env_type = rpcenv.env_type();
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
-    let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group)?;
+    let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group).unwrap_or(None);
     let backup_dir = BackupDir::new_with_group(backup_group, backup_time.timestamp());
 
     let (_path, is_new) = datastore.create_backup_dir(&backup_dir)?;
