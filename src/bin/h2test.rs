@@ -15,9 +15,8 @@ fn run() -> Result<(), Error> {
     let param = json!({"backup-type": "host", "backup-id": "test" });
     let upgrade = client.h2upgrade("/api2/json/admin/datastore/store2/backup", Some(param));
 
-    let res = upgrade.and_then(|send_request| {
+    let res = upgrade.and_then(|h2| {
         println!("start http2");
-        let h2 = H2Client::new(send_request);
         let result1 = h2.get("test1", None);
         let result2 = h2.get("test2", None);
 

@@ -242,7 +242,7 @@ impl HttpClient {
     pub fn h2upgrade(
         &mut self, path:
         &str, param: Option<Value>
-    ) -> impl Future<Item=h2::client::SendRequest<bytes::Bytes>, Error=Error> {
+    ) -> impl Future<Item=H2Client, Error=Error> {
 
         let mut req = Self::request_builder(&self.server, "GET", path, param).unwrap();
 
@@ -279,7 +279,9 @@ impl HttpClient {
                     hyper::rt::spawn(connection);
 
                     // Wait until the `SendRequest` handle has available capacity.
-                    h2.ready().map_err(Error::from)
+                    h2.ready()
+                        .map(H2Client::new)
+                        .map_err(Error::from)
                 })
         })
     }
