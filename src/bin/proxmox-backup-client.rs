@@ -198,7 +198,7 @@ fn list_backups(
 
     let path = format!("api2/json/admin/datastore/{}/backups", repo.store());
 
-    let result = client.get(&path)?;
+    let result = client.get(&path, None)?;
 
     record_repository(&repo);
 
@@ -240,7 +240,7 @@ fn list_backup_groups(
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
-    let mut result = client.get(&path).wait()?;
+    let mut result = client.get(&path, None).wait()?;
 
     record_repository(&repo);
 
@@ -296,17 +296,14 @@ fn list_snapshots(
     let path = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(path)?;
 
-    let query = tools::json_object_to_query(json!({
-        "backup-type": group.backup_type(),
-        "backup-id": group.backup_id(),
-    }))?;
-
     let client = HttpClient::new(repo.host(), repo.user())?;
 
-    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
+    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
-    // fixme: params
-    let result = client.get(&path).wait()?;
+    let result = client.get(&path, Some(json!({
+        "backup-type": group.backup_type(),
+        "backup-id": group.backup_id(),
+    }))).wait()?;
 
     record_repository(&repo);
 
@@ -344,17 +341,15 @@ fn forget_snapshots(
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
 
-    let query = tools::json_object_to_query(json!({
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+
+    let result = client.delete(&path, Some(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
         "backup-time": snapshot.backup_time().timestamp(),
-    }))?;
-
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
-
-    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
-
-    let result = client.delete(&path).wait()?;
+    }))).wait()?;
 
     record_repository(&repo);
 
@@ -511,13 +506,11 @@ fn restore(
     if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
 
-        let subquery = tools::json_object_to_query(json!({
+        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+        let result = client.get(&path, Some(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
-        }))?;
-
-        let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), subquery);
-        let result = client.get(&path).wait()?;
+        }))).wait()?;
 
         let list = result["data"].as_array().unwrap();
         if list.len() == 0 {
@@ -588,7 +581,7 @@ fn try_get(repo: &BackupRepository, url: &str) -> Value {
         _ => return Value::Null,
     };
 
-    let mut resp = match client.get(url).wait() {
+    let mut resp = match client.get(url, None).wait() {
         Ok(v) => v,
         _ => return Value::Null,
     };

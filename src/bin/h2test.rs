@@ -1,7 +1,7 @@
 use failure::*;
 use futures::*;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use proxmox_backup::client::*;
 
 fn get(mut h2: h2::client::SendRequest<bytes::Bytes>, path: &str) -> impl Future<Item=Value, Error=Error> {
@@ -50,7 +50,8 @@ fn run() -> Result<(), Error> {
 
     let mut client = HttpClient::new(host, username)?;
 
-    let h2client = client.h2upgrade("/api2/json/admin/datastore/store2/backup?backup-type=host&backup-id=test");
+    let param = json!({"backup-type": "host", "backup-id": "test" });
+    let h2client = client.h2upgrade("/api2/json/admin/datastore/store2/backup", Some(param));
 
     let res = h2client.and_then(|mut h2| {
         println!("start http2");

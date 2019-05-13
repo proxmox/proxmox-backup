@@ -176,15 +176,15 @@ impl HttpClient {
         })
     }
 
-    pub fn get(&self, path: &str) -> impl Future<Item=Value, Error=Error> {
+    pub fn get(&self, path: &str, data: Option<Value>) -> impl Future<Item=Value, Error=Error> {
 
-        let req = Self::request_builder(&self.server, "GET", path, None).unwrap();
+        let req = Self::request_builder(&self.server, "GET", path, data).unwrap();
         self.request(req)
     }
 
-    pub fn delete(&mut self, path: &str) -> impl Future<Item=Value, Error=Error> {
+    pub fn delete(&mut self, path: &str, data: Option<Value>) -> impl Future<Item=Value, Error=Error> {
 
-        let req = Self::request_builder(&self.server, "DELETE", path, None).unwrap();
+        let req = Self::request_builder(&self.server, "DELETE", path, data).unwrap();
         self.request(req)
     }
 
@@ -239,9 +239,12 @@ impl HttpClient {
         self.request(req)
     }
 
-    pub fn h2upgrade(&mut self, path: &str) ->  impl Future<Item=h2::client::SendRequest<bytes::Bytes>, Error=Error> {
+    pub fn h2upgrade(
+        &mut self, path:
+        &str, param: Option<Value>
+    ) -> impl Future<Item=h2::client::SendRequest<bytes::Bytes>, Error=Error> {
 
-        let mut req = Self::request_builder(&self.server, "GET", path, None).unwrap();
+        let mut req = Self::request_builder(&self.server, "GET", path, param).unwrap();
 
         let login = self.auth.listen();
 
@@ -360,9 +363,16 @@ impl HttpClient {
                     .body(Body::from(data.to_string()))?;
                 return Ok(request);
             } else {
-                unimplemented!();
+                let query = tools::json_object_to_query(data)?;
+                let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
+                let request = Request::builder()
+                    .method(method)
+                    .uri(url)
+                    .header("User-Agent", "proxmox-backup-client/1.0")
+                    .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(Body::empty())?;
+                return Ok(request);
             }
-
         }
 
         let request = Request::builder()
