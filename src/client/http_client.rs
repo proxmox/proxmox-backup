@@ -6,7 +6,7 @@ use hyper::client::Client;
 use xdg::BaseDirectories;
 use chrono::Utc;
 
-use http::Request;
+use http::{Request, Response};
 use http::header::HeaderValue;
 
 use futures::Future;
@@ -381,6 +381,112 @@ impl HttpClient {
             .header("User-Agent", "proxmox-backup-client/1.0")
             .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
             .body(Body::empty())?;
+
+        Ok(request)
+    }
+}
+
+pub struct H2Client {
+    h2: h2::client::SendRequest<bytes::Bytes>,
+}
+
+impl H2Client {
+
+    pub fn new(h2: h2::client::SendRequest<bytes::Bytes>) -> Self {
+        Self { h2 }
+    }
+
+    pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
+        let req = Self::request_builder("localhost", "GET", path, param).unwrap();
+        self.request(req)
+    }
+
+    pub fn post(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
+        let req = Self::request_builder("localhost", "POST", path, param).unwrap();
+        self.request(req)
+    }
+
+    fn request(
+        &self,
+        request: Request<()>,
+    ) -> impl Future<Item=Value, Error=Error> {
+
+        self.h2.clone().ready().map_err(Error::from).
+            and_then(move |mut send_request| {
+                // fixme: what about stream/upload?
+                let (response, _stream) = send_request.send_request(request, true).unwrap();
+                response
+                    .map_err(Error::from)
+                    .and_then(Self::h2api_response)
+            })
+    }
+
+    fn h2api_response(response: Response<h2::RecvStream>) -> impl Future<Item=Value, Error=Error> {
+
+        let status = response.status();
+
+        let (_head, mut body) = response.into_parts();
+
+        // The `release_capacity` handle allows the caller to manage
+        // flow control.
+        //
+        // Whenever data is received, the caller is responsible for
+        // releasing capacity back to the server once it has freed
+        // the data from memory.
+        let mut release_capacity = body.release_capacity().clone();
+
+        body
+            .map(move |chunk| {
+                println!("RX: {} bytes", chunk.len());
+                // Let the server send more data.
+                let _ = release_capacity.release_capacity(chunk.len());
+                chunk
+            })
+            .concat2()
+            .map_err(Error::from)
+            .and_then(move |data| {
+                println!("RX: {:?}", data);
+                let text = String::from_utf8(data.to_vec()).unwrap();
+                if status.is_success() {
+                    if text.len() > 0 {
+                        let mut value: Value = serde_json::from_str(&text)?;
+                        if let Some(map) = value.as_object_mut() {
+                            if let Some(data) = map.remove("data") {
+                                return Ok(data);
+                            }
+                        }
+                        bail!("got result without data property");
+                    } else {
+                        Ok(Value::Null)
+                    }
+                } else {
+                    bail!("HTTP Error {}: {}", status, text);
+                }
+            })
+    }
+
+    pub fn request_builder(server: &str, method: &str, path: &str, data: Option<Value>) -> Result<Request<()>, Error> {
+        let path = path.trim_matches('/');
+        let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
+
+        if let Some(data) = data {
+            let query = tools::json_object_to_query(data)?;
+            let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
+            let request = Request::builder()
+                .method(method)
+                .uri(url)
+                .header("User-Agent", "proxmox-backup-client/1.0")
+                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(())?;
+            return Ok(request);
+        }
+
+        let request = Request::builder()
+            .method(method)
+            .uri(url)
+            .header("User-Agent", "proxmox-backup-client/1.0")
+            .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(())?;
 
         Ok(request)
     }
