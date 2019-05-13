@@ -35,6 +35,7 @@ pub mod daemon;
 pub mod procfs;
 pub mod read;
 pub mod write;
+pub mod acl;
 
 mod process_locker;
 pub use process_locker::*;
