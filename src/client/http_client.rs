@@ -269,8 +269,6 @@ impl HttpClient {
                 })
                 .flatten()
                 .and_then(|upgraded| {
-                    println!("upgraded");
-
                     h2::client::handshake(upgraded).map_err(Error::from)
                 })
                 .and_then(|(h2, connection)| {
@@ -411,8 +409,10 @@ impl H2Client {
         request: Request<()>,
     ) -> impl Future<Item=Value, Error=Error> {
 
-        self.h2.clone().ready().map_err(Error::from).
-            and_then(move |mut send_request| {
+        self.h2.clone()
+            .ready()
+            .map_err(Error::from)
+            .and_then(move |mut send_request| {
                 // fixme: what about stream/upload?
                 let (response, _stream) = send_request.send_request(request, true).unwrap();
                 response
@@ -437,7 +437,6 @@ impl H2Client {
 
         body
             .map(move |chunk| {
-                println!("RX: {} bytes", chunk.len());
                 // Let the server send more data.
                 let _ = release_capacity.release_capacity(chunk.len());
                 chunk
@@ -445,7 +444,6 @@ impl H2Client {
             .concat2()
             .map_err(Error::from)
             .and_then(move |data| {
-                println!("RX: {:?}", data);
                 let text = String::from_utf8(data.to_vec()).unwrap();
                 if status.is_success() {
                     if text.len() > 0 {
