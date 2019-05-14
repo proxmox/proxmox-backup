@@ -386,6 +386,7 @@ impl HttpClient {
     }
 }
 
+#[derive(Clone)]
 pub struct H2Client {
     h2: h2::client::SendRequest<bytes::Bytes>,
 }
