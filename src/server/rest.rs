@@ -63,7 +63,7 @@ fn log_response(method: hyper::Method, path: &str, resp: &Response<Body>) {
 
     let status = resp.status();
 
-    if !status.is_success() {
+    if !(status.is_success() || status.is_informational()) {
         let reason = status.canonical_reason().unwrap_or("unknown reason");
         let client = "unknown"; // fixme: howto get peer_addr ?
 
