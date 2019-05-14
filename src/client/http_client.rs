@@ -407,6 +407,22 @@ impl H2Client {
         self.request(req)
     }
 
+    pub fn upload(&self, path: &str, param: Option<Value>, data: Vec<u8>) -> impl Future<Item=Value, Error=Error> {
+        let request = Self::request_builder("localhost", "POST", path, param).unwrap();
+
+        self.h2.clone()
+            .ready()
+            .map_err(Error::from)
+            .and_then(move |mut send_request| {
+                let (response, mut stream) = send_request.send_request(request, false).unwrap();
+                // fixme: implement flow control
+                stream.send_data(bytes::Bytes::from(data), true);
+                response
+                    .map_err(Error::from)
+                    .and_then(Self::h2api_response)
+            })
+    }
+
     fn request(
         &self,
         request: Request<()>,
@@ -416,7 +432,6 @@ impl H2Client {
             .ready()
             .map_err(Error::from)
             .and_then(move |mut send_request| {
-                // fixme: what about stream/upload?
                 let (response, _stream) = send_request.send_request(request, true).unwrap();
                 response
                     .map_err(Error::from)
