@@ -3,6 +3,8 @@
 //! This library implements the client side to access the backups
 //! server using https.
 
+mod pipe_to_stream;
+
 mod http_client;
 pub use  http_client::*;
 

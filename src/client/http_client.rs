@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
 use crate::tools::{self, BroadcastFuture, tty};
+use super::pipe_to_stream::*;
 
 #[derive(Clone)]
 struct AuthInfo {
@@ -414,12 +415,13 @@ impl H2Client {
             .ready()
             .map_err(Error::from)
             .and_then(move |mut send_request| {
-                let (response, mut stream) = send_request.send_request(request, false).unwrap();
-                // fixme: implement flow control
-                stream.send_data(bytes::Bytes::from(data), true);
-                response
-                    .map_err(Error::from)
-                    .and_then(Self::h2api_response)
+                let (response, stream) = send_request.send_request(request, false).unwrap();
+                PipeToSendStream::new(bytes::Bytes::from(data), stream)
+                    .and_then(|_| {
+                        response
+                            .map_err(Error::from)
+                            .and_then(Self::h2api_response)
+                    })
             })
     }
 
