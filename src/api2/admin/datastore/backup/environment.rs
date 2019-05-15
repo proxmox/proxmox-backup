@@ -89,6 +89,20 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    /// Close dynamic writer
+    pub fn dynamic_writer_close(&self, wid: usize) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        let mut data = match state.dynamic_writers.remove(&wid) {
+            Some(data) => data,
+            None => bail!("dynamic writer '{}' not registered", wid),
+        };
+
+        data.1.close()?;
+
+        Ok(())
+    }
+
     pub fn log<S: AsRef<str>>(&self, msg: S) {
         self.worker.log(msg);
     }

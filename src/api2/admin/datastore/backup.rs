@@ -144,6 +144,10 @@ fn backup_api() -> Router {
                 .download(api_method_dynamic_chunk_index())
                 .post(api_method_create_dynamic_index())
         )
+        .subdir(
+            "dynamic_close", Router::new()
+                .post(api_method_close_dynamic_index())
+        )
         .subdir("test1", test1)
         .subdir("test2", test2)
         .list_subdirs();
@@ -200,13 +204,40 @@ fn create_dynamic_index(
     Ok(json!(uid))
 }
 
+pub fn api_method_close_dynamic_index() -> ApiMethod {
+    ApiMethod::new(
+        close_dynamic_index,
+        ObjectSchema::new("Close dynamic index writer.")
+            .required("wid", IntegerSchema::new("Dynamic writer ID.")
+                      .minimum(1)
+                      .maximum(256)
+            )
+    )
+}
+
+fn close_dynamic_index (
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let wid = tools::required_integer_param(&param, "wid")? as usize;
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    env.dynamic_writer_close(wid)?;
+
+    Ok(Value::Null)
+}
+
+
+
 fn test1_get (
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    println!("TYPEID {:?}", (*rpcenv).type_id());
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
