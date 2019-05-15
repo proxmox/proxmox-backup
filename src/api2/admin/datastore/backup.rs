@@ -48,8 +48,8 @@ fn upgrade_to_backup_protocol(
 
     static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
 
-    let store = tools::required_string_param(&param, "store")?;
-    let datastore = DataStore::lookup_datastore(store)?;
+    let store = tools::required_string_param(&param, "store")?.to_owned();
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
@@ -78,18 +78,22 @@ fn upgrade_to_backup_protocol(
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group).unwrap_or(None);
     let backup_dir = BackupDir::new_with_group(backup_group, backup_time.timestamp());
 
-    let (_path, is_new) = datastore.create_backup_dir(&backup_dir)?;
+    let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directorty already exists."); }
 
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
-        let mut backup_env = BackupEnvironment::new(
+        let mut env = BackupEnvironment::new(
             env_type, username.clone(), worker.clone(), datastore, backup_dir);
 
-        backup_env.last_backup = last_backup;
+        env.last_backup = last_backup;
 
-        let service = BackupService::new(backup_env, worker.clone());
+        env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
+
+        let service = BackupService::new(env, worker.clone());
 
         let abort_future = worker.abort_future();
+
+        let worker2 = worker.clone();
 
         req_body
             .on_upgrade()
@@ -104,8 +108,13 @@ fn upgrade_to_backup_protocol(
                     .map_err(Error::from)
              })
             .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
-            .and_then(|(result, _)| Ok(result))
-            .map_err(|(err, _)| err)
+            .and_then(move |(_result, _)| {
+                worker2.log("backup finished sucessfully");
+                Ok(())
+            })
+            .map_err(|(err, _)| {
+                err
+            })
     })?;
 
     let response = Response::builder()
@@ -197,11 +206,13 @@ fn create_dynamic_index(
 
     let chunk_size = 4096*1024; // todo: ??
 
-    let index = env.datastore.create_dynamic_writer(path, chunk_size)?;
-    let uid = env.register_dynamic_writer(index);
+    let index = env.datastore.create_dynamic_writer(&path, chunk_size)?;
+    let wid = env.register_dynamic_writer(index);
+
+    env.log(format!("created new dynamic index {} ({:?})", wid, path));
 
 
-    Ok(json!(uid))
+    Ok(json!(wid))
 }
 
 pub fn api_method_close_dynamic_index() -> ApiMethod {
@@ -226,6 +237,8 @@ fn close_dynamic_index (
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     env.dynamic_writer_close(wid)?;
+
+    env.log(format!("sucessfully closed dynamic index {}", wid));
 
     Ok(Value::Null)
 }
