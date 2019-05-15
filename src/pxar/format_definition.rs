@@ -6,6 +6,7 @@
 //! `CaFormatHeader`, followed by the item data.
 
 use failure::*;
+use std::cmp::Ordering;
 use endian_trait::Endian;
 
 use siphasher::sip::SipHasher24;
@@ -14,6 +15,8 @@ pub const CA_FORMAT_ENTRY: u64 = 0x1396fabcea5bbb51;
 pub const CA_FORMAT_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
 pub const CA_FORMAT_SYMLINK: u64 = 0x664a6fb6830e0d6c;
 pub const CA_FORMAT_DEVICE: u64 = 0xac3dace369dfe643;
+pub const CA_FORMAT_XATTR: u64 = 0xb8157091f80bc486;
+pub const CA_FORMAT_FCAPS: u64 = 0xf7267db0afed0629;
 
 // compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
 pub const PXAR_FORMAT_HARDLINK: u64 = 0x2c5e06f634f65b86;
@@ -138,6 +141,7 @@ CA_FORMAT_EXCLUDE_NODUMP|
 CA_FORMAT_EXCLUDE_FILE|
 CA_FORMAT_SHA512_256;
 
+#[derive(Debug)]
 #[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatHeader {
@@ -195,6 +199,37 @@ pub fn read_os_string(buffer: &[u8]) -> std::ffi::OsString {
     };
 
     name.into()
+}
+
+#[derive(Debug, Eq)]
+#[repr(C)]
+pub struct CaFormatXAttr {
+    pub name: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+impl Ord for CaFormatXAttr {
+    fn cmp(&self, other: &CaFormatXAttr) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for CaFormatXAttr {
+    fn partial_cmp(&self, other: &CaFormatXAttr) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for CaFormatXAttr {
+    fn eq(&self, other: &CaFormatXAttr) -> bool {
+        self.name == other.name
+    }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct CaFormatFCaps {
+    pub data: Vec<u8>,
 }
 
 /// Create SipHash values for goodby tables.
