@@ -7,6 +7,17 @@ use crate::tools::{self, common_regex};
 
 lazy_static!{
 
+    // File names: may not contain slashes, may not start with "."
+    pub static ref FILENAME_FORMAT: Arc<ApiStringFormat> = Arc::new(ApiStringFormat::VerifyFn(|name| {
+        if name.starts_with('.') {
+            bail!("file names may not start with '.'");
+        }
+        if name.contains('/') {
+            bail!("file names may not contain slashes");
+        }
+        Ok(())
+    })).into();
+
     pub static ref IP_FORMAT: Arc<ApiStringFormat> = ApiStringFormat::Pattern(&common_regex::IP_REGEX).into();
 
     pub static ref PVE_CONFIG_DIGEST_FORMAT: Arc<ApiStringFormat> =
@@ -23,7 +34,7 @@ lazy_static!{
                     if node == "localhost" || node == tools::nodename() {
                         Ok(())
                     } else {
-                        Err(format_err!("no such node '{}'", node))
+                        bail!("no such node '{}'", node);
                     }
                 }))
             )
@@ -45,5 +56,8 @@ lazy_static!{
         StringSchema::new("Third name server IP address.")
         .format(IP_FORMAT.clone()).into();
 
+    pub static ref BACKUP_ARCHIVE_NAME_SCHEMA: Arc<Schema> =
+        StringSchema::new("Backup archive name.")
+        .format(FILENAME_FORMAT.clone()).into();
 
 }

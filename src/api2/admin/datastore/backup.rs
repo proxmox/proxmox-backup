@@ -159,7 +159,7 @@ Download the dynamic chunk index from the previous backup.
 Simply returns an empty list if this is the first backup.
 "###
         )
-            .required("archive-name", StringSchema::new("Backup archive name."))
+            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
     )
 }
 
@@ -167,7 +167,7 @@ pub fn api_method_create_dynamic_index() -> ApiMethod {
     ApiMethod::new(
         create_dynamic_index,
         ObjectSchema::new("Create dynamic chunk index file.")
-            .required("archive-name", StringSchema::new("Backup archive name."))
+            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
     )
 }
 
