@@ -89,11 +89,11 @@ fn upgrade_to_backup_protocol(
 
         env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
 
-        let service = BackupService::new(env, worker.clone());
+        let service = BackupService::new(env.clone(), worker.clone());
 
         let abort_future = worker.abort_future();
 
-        let worker2 = worker.clone();
+        let env2 = env.clone();
 
         req_body
             .on_upgrade()
@@ -108,12 +108,20 @@ fn upgrade_to_backup_protocol(
                     .map_err(Error::from)
              })
             .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
+            .map_err(|(err, _)| err)
             .and_then(move |(_result, _)| {
-                worker2.log("backup finished sucessfully");
+                env.ensure_finished()?;
+                env.log("backup finished sucessfully");
                 Ok(())
             })
-            .map_err(|(err, _)| {
-                err
+            .then(move |result| {
+                if let Err(err) = result {
+                    env2.log(format!("backup failed: {}", err));
+                    env2.log("removing failed backup");
+                    env2.remove_backup()?;
+                    return Err(err);
+                }
+                Ok(())
             })
     })?;
 
@@ -157,6 +165,15 @@ fn backup_api() -> Router {
             "dynamic_close", Router::new()
                 .post(api_method_close_dynamic_index())
         )
+        .subdir(
+            "finish", Router::new()
+                .get(
+                    ApiMethod::new(
+                        finish_backup,
+                        ObjectSchema::new("Mark backup as finished.")
+                    )
+                )
+        )
         .subdir("test1", test1)
         .subdir("test2", test2)
         .list_subdirs();
@@ -191,7 +208,6 @@ fn create_dynamic_index(
 ) -> Result<Value, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
-    env.log("Inside create_dynamic_index");
 
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
@@ -207,10 +223,9 @@ fn create_dynamic_index(
     let chunk_size = 4096*1024; // todo: ??
 
     let index = env.datastore.create_dynamic_writer(&path, chunk_size)?;
-    let wid = env.register_dynamic_writer(index);
+    let wid = env.register_dynamic_writer(index)?;
 
     env.log(format!("created new dynamic index {} ({:?})", wid, path));
-
 
     Ok(json!(wid))
 }
@@ -244,6 +259,18 @@ fn close_dynamic_index (
 }
 
 
+fn finish_backup (
+    _param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    env.finish_backup()?;
+
+    Ok(Value::Null)
+}
 
 fn test1_get (
     _param: Value,
@@ -268,7 +295,6 @@ fn dynamic_chunk_index(
 ) -> Result<BoxFut, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
-    env.log("Inside dynamic_chunk_index");
 
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 

@@ -11,9 +11,28 @@ use crate::server::formatter::*;
 use hyper::{Body, Response};
 
 struct SharedBackupState {
+    finished: bool,
     uid_counter: usize,
     dynamic_writers: HashMap<usize, (u64 /* offset */, DynamicIndexWriter)>,
 }
+
+impl SharedBackupState {
+
+    // Raise error if finished flag is set
+    fn ensure_unfinished(&self) -> Result<(), Error> {
+        if self.finished {
+            bail!("backup already marked as finished.");
+        }
+        Ok(())
+    }
+
+    // Get an unique integer ID
+    pub fn next_uid(&mut self) -> usize {
+        self.uid_counter += 1;
+        self.uid_counter
+    }
+}
+
 
 /// `RpcEnvironmet` implementation for backup service
 #[derive(Clone)]
@@ -39,6 +58,7 @@ impl BackupEnvironment {
     ) -> Self {
 
         let state = SharedBackupState {
+            finished: false,
             uid_counter: 0,
             dynamic_writers: HashMap::new(),
         };
@@ -56,26 +76,24 @@ impl BackupEnvironment {
         }
     }
 
-    /// Get an unique integer ID
-    pub fn next_uid(&self) -> usize {
-        let mut state = self.state.lock().unwrap();
-        state.uid_counter += 1;
-        state.uid_counter
-    }
-
     /// Store the writer with an unique ID
-    pub fn register_dynamic_writer(&self, writer: DynamicIndexWriter) -> usize {
-       let mut state = self.state.lock().unwrap();
-        state.uid_counter += 1;
-        let uid = state.uid_counter;
+    pub fn register_dynamic_writer(&self, writer: DynamicIndexWriter) -> Result<usize, Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let uid = state.next_uid();
 
         state.dynamic_writers.insert(uid, (0, writer));
-        uid
+
+        Ok(uid)
     }
 
     /// Append chunk to dynamic writer
     pub fn dynamic_writer_append_chunk(&self, wid: usize, size: u64, digest: &[u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
 
         let mut data = match state.dynamic_writers.get_mut(&wid) {
             Some(data) => data,
@@ -93,12 +111,30 @@ impl BackupEnvironment {
     pub fn dynamic_writer_close(&self, wid: usize) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
+        state.ensure_unfinished()?;
+
         let mut data = match state.dynamic_writers.remove(&wid) {
             Some(data) => data,
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
         data.1.close()?;
+
+        Ok(())
+    }
+
+    /// Mark backup as finished
+    pub fn finish_backup(&self) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+        // test if all writer are correctly closed
+
+        state.ensure_unfinished()?;
+
+        state.finished = true;
+
+        if state.dynamic_writers.len() != 0 {
+            bail!("found open index writer - unable to finish backup");
+        }
 
         Ok(())
     }
@@ -112,6 +148,25 @@ impl BackupEnvironment {
             Ok(data) => (self.formatter.format_data)(data, self),
             Err(err) => (self.formatter.format_error)(err),
         }
+    }
+
+    /// Raise error if finished flag is not set
+    pub fn ensure_finished(&self) -> Result<(), Error> {
+        let state = self.state.lock().unwrap();
+        if !state.finished {
+            bail!("backup ended but finished flag is not set.");
+        }
+        Ok(())
+    }
+
+    /// Remove complete backup
+    pub fn remove_backup(&self) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+        state.finished = true;
+
+        self.datastore.remove_backup_dir(&self.backup_dir)?;
+
+        Ok(())
     }
 }
 
