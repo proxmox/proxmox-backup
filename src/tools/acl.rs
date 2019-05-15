@@ -15,8 +15,8 @@ use nix::errno::Errno;
 
 // acl_perm_t values
 pub type ACLPerm = c_uint;
-pub const ACL_READ: ACLPerm    = 0x04;
-pub const ACL_WRITE: ACLPerm = 0x02;
+pub const ACL_READ: ACLPerm     = 0x04;
+pub const ACL_WRITE: ACLPerm    = 0x02;
 pub const ACL_EXECUTE: ACLPerm  = 0x01;
 
 // acl_tag_t values
@@ -48,7 +48,9 @@ extern "C" {
     fn acl_get_tag_type(entry: *mut c_void, tag_type: *mut ACLTag) -> c_int;
     fn acl_set_tag_type(entry: *mut c_void, tag_type: ACLTag) -> c_int;
     fn acl_get_permset(entry: *mut c_void, permset: *mut *mut c_void) -> c_int;
+    fn acl_clear_perms(permset: *mut c_void) -> c_int;
     fn acl_get_perm(permset: *mut c_void, perm: ACLPerm) -> c_int;
+    fn acl_add_perm(permset: *mut c_void, perm: ACLPerm) -> c_int;
     fn acl_get_qualifier(entry: *mut c_void) -> *mut c_void;
     fn acl_set_qualifier(entry: *mut c_void, qualifier: *const c_void) -> c_int;
     fn acl_init(count: c_int) -> *mut c_void;
@@ -137,6 +139,19 @@ impl ACL {
             current: ACL_FIRST_ENTRY,
         }
     }
+
+    pub fn add_entry_full(&mut self, tag: ACLTag, qualifier: Option<u64>, permissions: u64)
+        -> Result<(), nix::errno::Errno>
+    {
+        let mut entry = self.create_entry()?;
+        entry.set_tag_type(tag)?;
+        if let Some(qualifier) = qualifier {
+            entry.set_qualifier(qualifier)?;
+        }
+        entry.set_permissions(permissions)?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -179,6 +194,30 @@ impl<'a> ACLEntry<'a> {
                 return Err(Errno::last());
             } else if res > 0 { 
                 permissions |= perm as u64;
+            }
+        }
+
+        Ok(permissions)
+    }
+
+    pub fn set_permissions(&mut self, permissions: u64) -> Result<u64, nix::errno::Errno> {
+        let mut permset = ptr::null_mut() as *mut c_void;
+        let mut res = unsafe { acl_get_permset(self.ptr, &mut permset) };
+        if res < 0 {
+            return Err(Errno::last());
+        }
+
+        res = unsafe { acl_clear_perms(permset) };
+        if res < 0 {
+            return Err(Errno::last());
+        }
+
+        for &perm in &[ACL_READ, ACL_WRITE, ACL_EXECUTE] {
+            if permissions & perm as u64 == perm as u64 {
+                res = unsafe { acl_add_perm(permset, perm) };
+                if res < 0 {
+                    return Err(Errno::last());
+                }
             }
         }
 
