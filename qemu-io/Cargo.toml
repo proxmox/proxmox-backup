@@ -1,0 +1,29 @@
+[package]
+name = "qemu-io"
+version = "0.1.0"
+authors = [
+    "Wolfgang Bumiller <w.bumiller@proxmox.com>",
+]
+edition = "2018"
+
+#[lib]
+#crate-type = ['lib', 'cdylib']
+
+[dependencies]
+failure = "0.1"
+mio = "0.6"
+
+# In this crate 'future' by default means standard-future.
+# The 0.1-futures are exposed under the name 'futures_01'.
+
+[dependencies.futures-preview]
+version = "0.3.0-alpha.15"
+features = ["compat", "io-compat"]
+
+[dependencies.futures_01]
+package = "futures"
+version = "0.1"
+
+[features]
+default = ["standalone"]
+standalone = []
