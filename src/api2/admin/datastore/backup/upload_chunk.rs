@@ -99,3 +99,41 @@ fn upload_dynamic_chunk(
 
     Ok(Box::new(resp))
 }
+
+pub fn api_method_upload_speedtest() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        upload_speedtest,
+        ObjectSchema::new("Test uploadf speed.")
+    )
+}
+
+fn upload_speedtest(
+    _parts: Parts,
+    req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let resp = req_body
+        .map_err(Error::from)
+        .fold(0, |size: usize, chunk| -> Result<usize, Error> {
+            let sum = size + chunk.len();
+            //println!("UPLOAD {} bytes, sum {}", chunk.len(), sum);
+            Ok(sum)
+        })
+        .then(move |result| {
+            match result {
+                Ok(size) => {
+                    println!("UPLOAD END {} bytes", size);
+                }
+                Err(err) => {
+                    println!("Upload error: {}", err);
+                }
+            }
+            let env: &BackupEnvironment = rpcenv.as_ref();
+            Ok(env.format_response(Ok(Value::Null)))
+        });
+
+    Ok(Box::new(resp))
+}

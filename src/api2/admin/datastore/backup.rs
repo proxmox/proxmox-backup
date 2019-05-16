@@ -103,6 +103,9 @@ fn upgrade_to_backup_protocol(
 
                 let mut http = hyper::server::conn::Http::new();
                 http.http2_only(true);
+                // increase window size: todo - find optiomal size
+                http.http2_initial_stream_window_size( (1 << 31) - 2);
+                http.http2_initial_connection_window_size( (1 << 31) - 2);
 
                 http.serve_connection(conn, service)
                     .map_err(Error::from)
@@ -173,6 +176,10 @@ fn backup_api() -> Router {
                         ObjectSchema::new("Mark backup as finished.")
                     )
                 )
+        )
+        .subdir(
+            "speedtest", Router::new()
+                .upload(api_method_upload_speedtest())
         )
         .subdir("test1", test1)
         .subdir("test2", test2)

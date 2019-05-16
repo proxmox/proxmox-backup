@@ -153,10 +153,14 @@ impl HttpClient {
         builder.danger_accept_invalid_certs(true);
         let tlsconnector = builder.build().unwrap();
         let mut httpc = hyper::client::HttpConnector::new(1);
+        httpc.set_nodelay(true); // important!
         httpc.enforce_http(false); // we want https...
         let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
         https.https_only(true); // force it!
-        Client::builder().build::<_, Body>(https)
+        Client::builder()
+        //.http2_initial_stream_window_size( (1 << 31) - 2)
+        //.http2_initial_connection_window_size( (1 << 31) - 2)
+            .build::<_, Body>(https)
     }
 
     pub fn request(&self, mut req: Request<Body>) -> impl Future<Item=Value, Error=Error>  {
@@ -421,6 +425,49 @@ impl H2Client {
                         response
                             .map_err(Error::from)
                             .and_then(Self::h2api_response)
+                    })
+            })
+    }
+
+    pub fn upload_speedtest(&self) -> impl Future<Item=usize, Error=Error> {
+
+        self.h2.clone()
+            .ready()
+            .map_err(Error::from)
+            .and_then(move |mut send_request| {
+
+                let mut data = vec![];
+                // generate pseudo random byte sequence
+                for i in 0..1024*1024 {
+                    for j in 0..4 {
+                        let byte = ((i >> (j<<3))&0xff) as u8;
+                        data.push(byte);
+                    }
+                }
+
+                let item_len = data.len();
+                let repeat = 100;
+
+                let start = std::time::SystemTime::now();
+
+                futures::stream::repeat(data)
+                    .take(repeat)
+                    .for_each(move |data| {
+                        let request = Self::request_builder("localhost", "POST", "speedtest", None).unwrap();
+                        let (response, stream) = send_request.send_request(request, false).unwrap();
+                        println!("send test data ({} bytes)", data.len());
+                        PipeToSendStream::new(bytes::Bytes::from(data), stream)
+                            .and_then(|_| {
+                                response
+                                    .map_err(Error::from)
+                                    .and_then(Self::h2api_response)
+                                    .and_then(|_| Ok(()))
+                            })
+                    })
+                    .and_then(move |_| {
+                        let speed = ((item_len*1000000*(repeat as usize))/(1024*1024))/(start.elapsed()?.as_micros() as usize);
+                        println!("time per request: {} microseconds", (start.elapsed()?.as_micros())/(repeat as u128));
+                        Ok(speed)
                     })
             })
     }
