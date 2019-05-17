@@ -20,6 +20,7 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::NixPath;
+use crate::tools::xattr;
 
 // This one need Read, but works without Seek
 pub struct SequentialDecoder<'a, R: Read> {
@@ -128,15 +129,71 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         Ok(name)
     }
 
-    fn restore_attributes(&mut self, _entry: &CaFormatEntry) -> Result<CaFormatHeader, Error> {
+    fn read_xattr(&mut self, size: usize) -> Result<CaFormatXAttr, Error> {
+        let mut buffer = vec![0u8; size];
+        self.reader.read_exact(&mut buffer)?;
 
+        match buffer.iter().position(|c| *c == '\0' as u8) {
+            Some(pos) => {
+                // pos needs to be within the first 256 bytes in order to
+                // terminate a valid xattr name
+                if pos > 255 {
+                    bail!("Invalid zero termination for xattr name.");
+                }
+                if !xattr::name_store(&buffer[0..pos]) || xattr::security_capability(&buffer[0..pos]) {
+                    bail!("Invalid name for xattr - {}.", String::from_utf8_lossy(&buffer[0..pos]));
+                }
+                let name = buffer[0..pos].to_vec();
+                let value = buffer[pos + 1..size].to_vec();
+                return Ok(CaFormatXAttr {
+                    name: name,
+                    value: value,
+                });
+            },
+            _ => bail!("Incorrect zero termination in xattr."),
+        }
+    }
+
+    fn read_fcaps(&mut self, size: usize) -> Result<CaFormatFCaps, Error> {
+        let mut buffer = vec![0u8; size];
+        self.reader.read_exact(&mut buffer)?;
+
+        Ok(CaFormatFCaps { data: buffer })
+    }
+
+    fn restore_attributes(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<CaFormatHeader, Error> {
+        let mut xattrs: Vec<CaFormatXAttr> = Vec::new();
+        let mut fcaps: Option<CaFormatFCaps> = None;
+
+        let mut head: CaFormatHeader = self.read_item()?;
+        let mut size = (head.size - HEADER_SIZE) as usize;
         loop {
-            let head: CaFormatHeader = self.read_item()?;
             match head.htype {
-                // fimxe: impl ...
-                _ => return Ok(head),
+                CA_FORMAT_XATTR => xattrs.push(self.read_xattr(size)?),
+                CA_FORMAT_FCAPS => fcaps = Some(self.read_fcaps(size)?),
+                _ => break,
+            }
+            head = self.read_item()?;
+            size = (head.size - HEADER_SIZE) as usize;
+        }
+        self.restore_xattrs_fcaps_fd(fd, xattrs, fcaps)?;
+
+        Ok(head)
+    }
+
+    fn restore_xattrs_fcaps_fd(&mut self, fd: RawFd, xattrs: Vec<CaFormatXAttr>, fcaps: Option<CaFormatFCaps>) -> Result<(), Error> {
+        for xattr in xattrs {
+            if let Err(err) = xattr::fsetxattr(fd, xattr) {
+                bail!("fsetxattr failed with error: {}", err);
             }
         }
+        if let Some(fcaps) = fcaps {
+            if let Err(err) = xattr::fsetxattr_fcaps(fd, fcaps) {
+                bail!("fsetxattr_fcaps failed with error: {}", err);
+            }
+        }
+
+        Ok(())
     }
 
     fn restore_mode(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
@@ -319,7 +376,12 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                 };
             }
 
-            let mut head = self.restore_attributes(&entry)?;
+            self.restore_ugid(&entry, dir.as_raw_fd())?;
+            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+            let mut head = match self.restore_attributes(&entry, dir.as_raw_fd()) {
+                Ok(head) => head,
+                Err(err) => bail!("Restoring of directory attributes failed - {}", err),
+            };
 
             while head.htype == CA_FORMAT_FILENAME {
                 let name = self.read_filename(head.size)?;
@@ -341,7 +403,6 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
             self.restore_mode(&entry, dir.as_raw_fd())?;
             self.restore_mtime(&entry, dir.as_raw_fd())?;
-            self.restore_ugid(&entry, dir.as_raw_fd())?;
 
             return Ok(());
         }
@@ -429,7 +490,12 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                 Err(err) => bail!("open file {:?} failed - {}", full_path, err),
             };
 
-            let head = self.restore_attributes(&entry)?;
+            self.restore_ugid(&entry, file.as_raw_fd())?;
+            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+            let head = match self.restore_attributes(&entry, file.as_raw_fd()) {
+                Ok(head) => head,
+                Err(err) => bail!("Restoring of file attributes failed - {}", err),
+            };
 
             if head.htype != CA_FORMAT_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
@@ -453,7 +519,6 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
             self.restore_mode(&entry, file.as_raw_fd())?;
             self.restore_mtime(&entry, file.as_raw_fd())?;
-            self.restore_ugid(&entry, file.as_raw_fd())?;
 
             return Ok(());
         }
@@ -513,7 +578,21 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                     print_head(&head);
                 }
                 match head.htype {
-
+                    //TODO verify the correct order of occurrence
+                    CA_FORMAT_XATTR => {
+                        let size = (head.size - HEADER_SIZE) as usize;
+                        let xattr: CaFormatXAttr = self.read_xattr(size)?;
+                        if verbose {
+                            println!("XAttr: {:?}: {:?}", String::from_utf8_lossy(&xattr.name), String::from_utf8_lossy(&xattr.value));
+                        }
+                    }
+                    CA_FORMAT_FCAPS => {
+                        let size = (head.size - HEADER_SIZE) as usize;
+                        let fcaps: CaFormatFCaps = self.read_fcaps(size)?;
+                        if verbose {
+                            println!("FCaps: {:?}", fcaps);
+                        }
+                    }
                     CA_FORMAT_FILENAME =>  {
                         let name = self.read_filename(head.size)?;
                         if verbose { println!("Name: {:?}", name); }
@@ -540,34 +619,53 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) ||
             (ifmt == libc::S_IFLNK) || (ifmt == libc::S_IFREG)
         {
-            let head: CaFormatHeader = self.read_item()?;
-            if verbose {
-                print_head(&head);
-            }
+            loop {
+                let head: CaFormatHeader = self.read_item()?;
+                if verbose {
+                    print_head(&head);
+                }
 
-            match head.htype {
+                match head.htype {
 
-                CA_FORMAT_SYMLINK => {
-                    let target = self.read_link(head.size)?;
-                    if verbose {
-                        println!("Symlink: {:?}", target);
+                    CA_FORMAT_SYMLINK => {
+                        let target = self.read_link(head.size)?;
+                        if verbose {
+                            println!("Symlink: {:?}", target);
+                        }
+                        break;
                     }
-                }
-                CA_FORMAT_DEVICE => {
-                    let device: CaFormatDevice = self.read_item()?;
-                    if verbose {
-                        println!("Device: {}, {}", device.major, device.minor);
+                    CA_FORMAT_DEVICE => {
+                        let device: CaFormatDevice = self.read_item()?;
+                        if verbose {
+                            println!("Device: {}, {}", device.major, device.minor);
+                        }
+                        break;
                     }
-                }
-                CA_FORMAT_PAYLOAD => {
-                    let payload_size = (head.size - HEADER_SIZE) as usize;
-                    if verbose {
-                        println!("Payload: {}", payload_size);
+                    CA_FORMAT_XATTR => {
+                        let size = (head.size - HEADER_SIZE) as usize;
+                        let xattr: CaFormatXAttr = self.read_xattr(size)?;
+                        if verbose {
+                            println!("XAttr: {:?}: {:?}", String::from_utf8_lossy(&xattr.name), String::from_utf8_lossy(&xattr.value));
+                        }
                     }
-                    self.skip_bytes(payload_size)?;
-                }
-                _ => {
-                    panic!("got unexpected header type inside non-directory");
+                    CA_FORMAT_FCAPS => {
+                        let size = (head.size - HEADER_SIZE) as usize;
+                        let fcaps: CaFormatFCaps = self.read_fcaps(size)?;
+                        if verbose {
+                            println!("FCaps: {:?}", fcaps);
+                        }
+                    }
+                    CA_FORMAT_PAYLOAD => {
+                        let payload_size = (head.size - HEADER_SIZE) as usize;
+                        if verbose {
+                            println!("Payload: {}", payload_size);
+                        }
+                        self.skip_bytes(payload_size)?;
+                        break;
+                    }
+                    _ => {
+                        panic!("got unexpected header type inside non-directory");
+                    }
                 }
             }
         } else if ifmt == libc::S_IFIFO {
