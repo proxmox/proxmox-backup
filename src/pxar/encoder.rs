@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
+use crate::tools::xattr;
 
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
@@ -213,10 +214,74 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
+    fn read_xattrs(&self, fd: RawFd, stat: &FileStat, entry: &CaFormatEntry) -> Result<(Vec<CaFormatXAttr>, Option<CaFormatFCaps>), Error> {
+        let mut xattrs = Vec::new();
+        let mut fcaps = None;
+
+        let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS;
+        if (entry.feature_flags & flags) == 0 { return Ok((xattrs, fcaps)); }
+        // Should never be called on symlinks, just in case check anyway
+        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK { return Ok((xattrs, fcaps)); }
+
+        let xattr_names = match xattr::flistxattr(fd) {
+            Ok(names) => names,
+            Err(Errno::EOPNOTSUPP) => return Ok((xattrs, fcaps)),
+            Err(Errno::EBADF) => return Ok((xattrs, fcaps)),
+            Err(err) => bail!("read_xattrs failed for {:?} - {}", self.full_path(), err),
+        };
+
+        for name in xattr_names.split(|c| *c == '\0' as u8) {
+            // Only extract the relevant extended attributes
+            if !xattr::name_store(&name) { continue; }
+
+            let value = match xattr::fgetxattr(fd, name) {
+                Ok(value) => value,
+                // Vanished between flistattr and getxattr, this is ok, silently ignore
+                Err(Errno::ENODATA) => continue,
+                Err(err) => bail!("read_xattrs failed for {:?} - {}", self.full_path(), err),
+            };
+
+            if xattr::security_capability(&name) {
+                // fcaps are stored in own format within the archive
+                fcaps = Some(CaFormatFCaps {
+                    data: value,
+                });
+            } else {
+                xattrs.push(CaFormatXAttr {
+                    name: name.to_vec(),
+                    value: value,
+                });
+            }
+        }
+        xattrs.sort();
+
+        Ok((xattrs, fcaps))
+    }
+
     fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
 
         self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
         self.write_item(entry)?;
+
+        Ok(())
+    }
+
+    fn write_xattr(&mut self, xattr: CaFormatXAttr) -> Result<(), Error> {
+        let size = xattr.name.len() + xattr.value.len() + 1; // +1 for '\0' separating name and value
+        self.write_header(CA_FORMAT_XATTR, size as u64)?;
+        self.write(xattr.name.as_slice())?;
+        self.write(&[0])?;
+        self.write(xattr.value.as_slice())?;
+
+        Ok(())
+    }
+
+    fn write_fcaps(&mut self, fcaps: Option<CaFormatFCaps>) -> Result<(), Error> {
+        if let Some(fcaps) = fcaps {
+            let size = fcaps.data.len();
+            self.write_header(CA_FORMAT_FCAPS, size as u64)?;
+            self.write(fcaps.data.as_slice())?;
+        }
 
         Ok(())
     }
@@ -274,8 +339,11 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         self.read_chattr(rawfd, &mut dir_entry)?;
         self.read_fat_attr(rawfd, magic, &mut dir_entry)?;
+        let (xattrs, fcaps) = self.read_xattrs(rawfd, &dir_stat, &dir_entry)?;
 
         self.write_entry(dir_entry)?;
+        for xattr in xattrs { self.write_xattr(xattr)?; }
+        self.write_fcaps(fcaps)?;
 
         let mut dir_count = 0;
 
@@ -461,8 +529,11 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         self.read_chattr(filefd, &mut entry)?;
         self.read_fat_attr(filefd, magic, &mut entry)?;
+        let (xattrs, fcaps) = self.read_xattrs(filefd, &stat, &entry)?;
 
         self.write_entry(entry)?;
+        for xattr in xattrs { self.write_xattr(xattr)?; }
+        self.write_fcaps(fcaps)?;
 
         let include_payload;
         if is_virtual_file_system(magic) {
