@@ -91,3 +91,15 @@ pub fn fsetxattr_fcaps(fd: RawFd, fcaps: CaFormatFCaps) -> Result<(), nix::errno
     Ok(())
 }
 
+pub fn security_capability(name: &[u8]) -> bool {
+    name == b"security.capability"
+}
+
+pub fn name_store(name: &[u8]) -> bool {
+    if name.is_empty() { return false; }
+    if name.starts_with(b"user.") { return true; }
+    if name.starts_with(b"trusted.") { return true; }
+    if security_capability(name) { return true; }
+
+    false
+}
