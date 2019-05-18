@@ -37,10 +37,13 @@ impl Drop for PxarBackupStream {
 impl PxarBackupStream {
 
     pub fn new(mut dir: Dir, path: PathBuf, all_file_systems: bool, verbose: bool) -> Result<Self, Error> {
-        let mut buffer = Vec::with_capacity(4096);
+        let buffer_size = 1024*1024;
+        let mut buffer = Vec::with_capacity(buffer_size);
         unsafe { buffer.set_len(buffer.capacity()); }
 
         let (rx, tx) = nix::unistd::pipe()?;
+
+        nix::fcntl::fcntl(rx, nix::fcntl::FcntlArg::F_SETPIPE_SZ(buffer_size as i32))?;
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
