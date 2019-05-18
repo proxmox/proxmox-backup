@@ -4,6 +4,7 @@ use proxmox_protocol::Chunker;
 use futures::{Async, Poll};
 use futures::stream::Stream;
 
+/// Split input stream into dynamic sized chunks
 pub struct ChunkStream<S: Stream<Item=Vec<u8>, Error=Error>> {
     input: S,
     chunker: Chunker,
@@ -45,7 +46,7 @@ impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
                 Ok(Async::Ready(Some(mut data))) => {
 
                     if let Some(rest) = self.rest.take() { data.extend(rest); }
-                
+
                     let buffer = self.buffer.get_or_insert_with(|| Vec::with_capacity(1024*1024));
                     let boundary = self.chunker.scan(&data);
 
@@ -65,6 +66,66 @@ impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
                         return Ok(Async::Ready(self.buffer.take()));
                     } else {
                         panic!("got unexpected chunk boundary from chunker");
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Split input stream into fixed sized chunks
+pub struct FixedChunkStream<S: Stream<Item=Vec<u8>, Error=Error>> {
+    input: S,
+    chunk_size: usize,
+    buffer: Option<Vec<u8>>,
+}
+
+impl <S: Stream<Item=Vec<u8>, Error=Error>> FixedChunkStream<S> {
+
+    pub fn new(input: S, chunk_size: usize) -> Self {
+        Self { input, chunk_size, buffer: None }
+    }
+}
+
+impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for FixedChunkStream<S> {
+
+    type Item = Vec<u8>;
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<Option<Vec<u8>>, Error> {
+        loop {
+            match self.input.poll() {
+                Err(err) => {
+                    return Err(err);
+                }
+                Ok(Async::NotReady) => {
+                    return Ok(Async::NotReady);
+                }
+                Ok(Async::Ready(None)) => {
+                    // last chunk can have any size
+                    return Ok(Async::Ready(self.buffer.take()));
+                }
+                Ok(Async::Ready(Some(data))) => {
+                    let buffer = self.buffer.get_or_insert_with(|| Vec::with_capacity(1024*1024));
+                    let need = self.chunk_size - buffer.len();
+
+                    if need > data.len() {
+                        buffer.extend(data);
+                        // continue poll
+                    } else if need == data.len() {
+                        buffer.extend(data);
+                        return Ok(Async::Ready(self.buffer.take()));
+                    } else if need < data.len() {
+                        let (left, right) = data.split_at(need);
+                        buffer.extend(left);
+
+                        let result = self.buffer.take();
+
+                        self.buffer = Some(Vec::from(right));
+
+                        return Ok(Async::Ready(result));
+                    } else {
+                        unreachable!();
                     }
                 }
             }
