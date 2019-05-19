@@ -110,13 +110,13 @@ impl IntegerSchema {
 
         if let Some(minimum) = self.minimum {
             if value < minimum {
-                bail!("value must have a minimum value of {}", minimum);
+                bail!("value must have a minimum value of {} (got {})", minimum, value);
             }
         }
 
         if let Some(maximum) = self.maximum {
             if value > maximum {
-                bail!("value must have a maximum value of {}", maximum);
+                bail!("value must have a maximum value of {} (got {})", maximum, value);
             }
         }
 
