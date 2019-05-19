@@ -564,10 +564,9 @@ pub fn get_hardware_address() -> Result<String, Error> {
     Ok(format!("{:0x}", digest))
 }
 
+const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
+
 pub fn digest_to_hex(digest: &[u8]) -> String {
-
-    const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
-
     let mut buf = Vec::<u8>::with_capacity(digest.len()*2);
 
     for i in 0..digest.len() {
@@ -576,6 +575,29 @@ pub fn digest_to_hex(digest: &[u8]) -> String {
     }
 
     unsafe { String::from_utf8_unchecked(buf) }
+}
+
+pub fn hex_to_digest(hex: &str) -> Result<[u8; 32], Error> {
+    let mut digest = [0u8; 32];
+
+    let bytes = hex.as_bytes();
+
+    if bytes.len() != 64 { bail!("got wrong digest length."); }
+
+    let mut pos = 0;
+    for pair in bytes.chunks(2) {
+        if pos >= digest.len() { bail!("hex digest too long."); }
+        let mut h = pair[0];
+        if h >= b'0' && h <= b'f' { h = h - b'0'; } else { bail!("found illegal hex character."); }
+        let mut l = pair[1];
+        if l >= b'0' && l <= b'f' { l = l - b'0'; } else { bail!("found illegal hex character."); }
+        digest[pos] = (h<<4)|l;
+        pos +=1;
+    }
+
+    if pos != digest.len() {  bail!("hex digest too short."); }
+
+    Ok(digest)
 }
 
 pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
