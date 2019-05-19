@@ -33,6 +33,7 @@ fn main() {
 
             chunk_stream
                 .for_each(move |chunk| {
+                    if chunk.len() > 16*1024*1024 { panic!("Chunk too large {}", chunk.len()); }
                     repeat.fetch_add(1, Ordering::SeqCst);
                     stream_len.fetch_add(chunk.len(), Ordering::SeqCst);
                     println!("Got chunk {}", chunk.len());
