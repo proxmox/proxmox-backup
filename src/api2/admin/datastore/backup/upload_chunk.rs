@@ -110,7 +110,7 @@ pub fn api_method_upload_speedtest() -> ApiAsyncMethod {
 fn upload_speedtest(
     _parts: Parts,
     req_body: Body,
-    param: Value,
+    _param: Value,
     _info: &ApiAsyncMethod,
     rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
