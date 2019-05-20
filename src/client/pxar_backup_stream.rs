@@ -19,8 +19,6 @@ use crate::tools::wrapped_reader_stream::WrappedReaderStream;
 /// The hyper client needs an async Stream for file upload, so we
 /// spawn an extra thread to encode the .pxar data and pipe it to the
 /// consumer.
-///
-/// Note: The currect implementation is not fully ansync and can block.
 pub struct PxarBackupStream {
     stream: Option<WrappedReaderStream<std::fs::File>>,
     child: Option<thread::JoinHandle<()>>,
