@@ -16,22 +16,22 @@ use super::environment::*;
 pub struct UploadChunk {
     stream: Body,
     store: Arc<DataStore>,
-    size: u64,
+    size: u32,
     chunk: Vec<u8>,
 }
 
 impl UploadChunk {
 
-    pub fn new(stream: Body,  store: Arc<DataStore>, size: u64) -> Self {
+    pub fn new(stream: Body,  store: Arc<DataStore>, size: u32) -> Self {
         Self { stream, store, size, chunk: vec![] }
     }
 }
 
 impl Future for UploadChunk {
-    type Item = ([u8; 32], u64);
+    type Item = ([u8; 32], u32);
     type Error = failure::Error;
 
-    fn poll(&mut self) -> Poll<([u8; 32], u64), failure::Error> {
+    fn poll(&mut self) -> Poll<([u8; 32], u32), failure::Error> {
         loop {
             match try_ready!(self.stream.poll()) {
                 Some(chunk) => {
@@ -77,19 +77,20 @@ fn upload_dynamic_chunk(
     rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
-    let size = tools::required_integer_param(&param, "size")?;
+    let size = tools::required_integer_param(&param, "size")? as u32;
     let wid = tools::required_integer_param(&param, "wid")? as usize;
 
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let upload = UploadChunk::new(req_body, env.datastore.clone(), size as u64);
+    let upload = UploadChunk::new(req_body, env.datastore.clone(), size);
 
     let resp = upload
         .then(move |result| {
             let env: &BackupEnvironment = rpcenv.as_ref();
 
             let result = result.and_then(|(digest, size)| {
+                env.register_chunk(digest, size)?;
                 env.dynamic_writer_append_chunk(wid, size, &digest)?;
                 Ok(json!(tools::digest_to_hex(&digest)))
             });

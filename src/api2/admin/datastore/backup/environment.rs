@@ -14,6 +14,7 @@ struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
     dynamic_writers: HashMap<usize, (u64 /* offset */, DynamicIndexWriter)>,
+    known_chunks: HashMap<[u8;32], u32>,
 }
 
 impl SharedBackupState {
@@ -61,6 +62,7 @@ impl BackupEnvironment {
             finished: false,
             uid_counter: 0,
             dynamic_writers: HashMap::new(),
+            known_chunks: HashMap::new(),
         };
 
         Self {
@@ -73,6 +75,27 @@ impl BackupEnvironment {
             backup_dir,
             last_backup: None,
             state: Arc::new(Mutex::new(state)),
+        }
+    }
+
+    // Register a Chunk with associated length. A client may only use registered
+    // chunks (we do not trust clients that far ...)
+    pub fn register_chunk(&self, digest: [u8; 32], length: u32) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        state.known_chunks.insert(digest, length);
+
+        Ok(())
+    }
+
+    pub fn lookup_chunk(&self, digest: &[u8; 32]) -> Option<u32> {
+        let state = self.state.lock().unwrap();
+
+        match state.known_chunks.get(digest) {
+            Some(len) => Some(*len),
+            None => None,
         }
     }
 
@@ -90,7 +113,7 @@ impl BackupEnvironment {
     }
 
     /// Append chunk to dynamic writer
-    pub fn dynamic_writer_append_chunk(&self, wid: usize, size: u64, digest: &[u8; 32]) -> Result<(), Error> {
+    pub fn dynamic_writer_append_chunk(&self, wid: usize, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -100,7 +123,7 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
-        data.0 += size;
+        data.0 += size as u64;
 
         data.1.add_chunk(data.0, digest)?;
 

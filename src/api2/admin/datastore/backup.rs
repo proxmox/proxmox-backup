@@ -261,11 +261,10 @@ fn dynamic_append (
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let _size = 0;
-    let _digest = crate::tools::hex_to_digest(digest_str)?;
+    let digest = crate::tools::hex_to_digest(digest_str)?;
+    let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk"))?;
 
-    // fixme: lookup digest and chunk size, then add
-    //env.dynamic_writer_append_chunk(wid, size, &digest)?;
+    env.dynamic_writer_append_chunk(wid, size, &digest)?;
 
     env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));
 
