@@ -22,13 +22,14 @@ use crate::tools::wrapped_reader_stream::WrappedReaderStream;
 ///
 /// Note: The currect implementation is not fully ansync and can block.
 pub struct PxarBackupStream {
-    stream: WrappedReaderStream<std::fs::File>,
+    stream: Option<WrappedReaderStream<std::fs::File>>,
     child: Option<thread::JoinHandle<()>>,
 }
 
 impl Drop for PxarBackupStream {
 
     fn drop(&mut self) {
+        self.stream = None;
         self.child.take().unwrap().join().unwrap();
     }
 }
@@ -52,7 +53,7 @@ impl PxarBackupStream {
         let pipe = unsafe { std::fs::File::from_raw_fd(rx) };
         let stream = crate::tools::wrapped_reader_stream::WrappedReaderStream::new(pipe);
 
-        Ok(Self { stream, child: Some(child) })
+        Ok(Self { stream: Some(stream), child: Some(child) })
     }
 
     pub fn open(dirname: &Path,  all_file_systems: bool, verbose: bool) -> Result<Self, Error> {
@@ -70,6 +71,6 @@ impl Stream for PxarBackupStream {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Vec<u8>>, Error> {
-        self.stream.poll().map_err(Error::from)
+        self.stream.as_mut().unwrap().poll().map_err(Error::from)
     }
 }
