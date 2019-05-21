@@ -7,16 +7,16 @@ pub trait IndexFile: Send {
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
 }
 
-/// This struct can read the list of chunks from an `IndexFile`
+/// Encode digest list from an `IndexFile` into a binary stream
 ///
 /// The reader simply returns a birary stream of 32 byte digest values.
-pub struct ChunkListReader {
+pub struct DigestListEncoder {
     index: Box<dyn IndexFile>,
     pos: usize,
     count: usize,
 }
 
-impl ChunkListReader {
+impl DigestListEncoder {
 
     pub fn new(index: Box<dyn IndexFile>) -> Self {
         let count = index.index_count();
@@ -24,7 +24,7 @@ impl ChunkListReader {
     }
 }
 
-impl std::io::Read for ChunkListReader {
+impl std::io::Read for DigestListEncoder {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         if buf.len() < 32 { panic!("read buffer too small"); }

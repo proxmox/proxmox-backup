@@ -381,7 +381,7 @@ fn dynamic_chunk_index(
         env.register_chunk(digest, size)?;
     }
 
-    let reader = ChunkListReader::new(Box::new(index));
+    let reader = DigestListEncoder::new(Box::new(index));
 
     let stream = WrappedReaderStream::new(reader);
 
