@@ -130,6 +130,23 @@ impl DynamicIndexReader {
         Ok(())
     }
 
+    pub fn chunk_info(&self, pos: usize) -> Result<(u64, u64, [u8; 32]), Error> {
+        if pos >= self.index_entries {
+            bail!("chunk index out of range");
+        }
+        let start = if pos == 0 {
+            0
+        } else {
+            unsafe { *(self.index.add((pos-1)*40) as *const u64) }
+        };
+
+        let end = unsafe { *(self.index.add(pos*40) as *const u64) };
+        let mut digest: [u8; 32] = unsafe { std::mem::uninitialized() };
+        unsafe { std::ptr::copy_nonoverlapping(self.index.add(pos*40+8), digest.as_mut_ptr(), 32); }
+
+        Ok((start, end, digest))
+    }
+
     #[inline]
     fn chunk_end(&self, pos: usize) -> u64 {
         if pos >= self.index_entries {
