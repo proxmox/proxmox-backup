@@ -119,10 +119,15 @@ fn upgrade_to_backup_protocol(
             })
             .then(move |result| {
                 if let Err(err) = result {
-                    env2.log(format!("backup failed: {}", err));
-                    env2.log("removing failed backup");
-                    env2.remove_backup()?;
-                    return Err(err);
+                    match env2.ensure_finished() {
+                        Ok(()) => {}, // ignorte error after finish
+                        _ => {
+                            env2.log(format!("backup failed: {}", err));
+                            env2.log("removing failed backup");
+                            env2.remove_backup()?;
+                            return Err(err);
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -337,6 +342,8 @@ fn dynamic_chunk_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
+    println!("TEST CHUNK DOWNLOAD");
+
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
     if !archive_name.ends_with(".pxar") {
@@ -345,21 +352,34 @@ fn dynamic_chunk_index(
         archive_name.push_str(".didx");
     }
 
+    let empty_response = {
+        Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::empty())?
+    };
+
     let last_backup = match &env.last_backup {
         Some(info) => info,
-        None => {
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())?;
-            return Ok(Box::new(future::ok(response)));
-        }
+        None => return Ok(Box::new(future::ok(empty_response))),
     };
 
     let mut path = last_backup.backup_dir.relative_path();
-    path.push(archive_name);
+    path.push(&archive_name);
 
-    let index = env.datastore.open_dynamic_reader(path)?;
-    // fixme: register index so that client can refer to it by ID
+    let index = match env.datastore.open_dynamic_reader(path) {
+        Ok(index) => index,
+        Err(_) => {
+            env.log(format!("there is no last backup for archive '{}'", archive_name));
+            return Ok(Box::new(future::ok(empty_response)));
+        }
+    };
+
+    let count = index.index_count();
+    for pos in 0..count {
+        let (start, end, digest) = index.chunk_info(pos)?;
+        let size = (end - start) as u32;
+        env.register_chunk(digest, size)?;
+    }
 
     let reader = ChunkListReader::new(Box::new(index));
 
