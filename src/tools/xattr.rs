@@ -103,3 +103,69 @@ pub fn name_store(name: &[u8]) -> bool {
 
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::fs::OpenOptions;
+    use std::os::unix::io::AsRawFd;
+    use nix::errno::Errno;
+
+    #[test]
+    fn test_fsetxattr_fgetxattr() {
+        let path = "./tests/xattrs.txt";
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&path)
+            .unwrap();
+
+        let fd = file.as_raw_fd();
+
+        let valid_user = CaFormatXAttr {
+            name: b"user.attribute0".to_vec(),
+            value: b"value0".to_vec(),
+        };
+
+        let valid_empty_value = CaFormatXAttr {
+            name: b"user.empty".to_vec(),
+            value: Vec::new(),
+        };
+
+        let invalid_trusted = CaFormatXAttr {
+            name: b"trusted.attribute0".to_vec(),
+            value: b"value0".to_vec(),
+        };
+
+        let invalid_name_prefix = CaFormatXAttr {
+            name: b"users.attribte0".to_vec(),
+            value: b"value".to_vec(),
+        };
+
+        let mut name = b"user.".to_vec();
+        for _ in 0..260 {
+            name.push(b'a');
+        }
+
+        let invalid_name_length = CaFormatXAttr {
+            name: name,
+            value: b"err".to_vec(),
+        };
+
+        assert!(fsetxattr(fd, valid_user).is_ok());
+        assert!(fsetxattr(fd, valid_empty_value).is_ok());
+        assert_eq!(fsetxattr(fd, invalid_trusted), Err(Errno::EPERM));
+        assert_eq!(fsetxattr(fd, invalid_name_prefix), Err(Errno::EOPNOTSUPP));
+        assert_eq!(fsetxattr(fd, invalid_name_length), Err(Errno::ERANGE));
+
+        let v0 = fgetxattr(fd, b"user.attribute0\0".as_ref()).unwrap();
+        let v1 = fgetxattr(fd, b"user.empty\0".as_ref()).unwrap();
+
+        assert_eq!(v0, b"value0".as_ref());
+        assert_eq!(v1, b"".as_ref());
+        assert_eq!(fgetxattr(fd, b"user.attribute1\0".as_ref()), Err(Errno::ENODATA));
+
+        std::fs::remove_file(&path).unwrap();
+    }
+}
