@@ -47,8 +47,9 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 
 test:
-	cargo test test_broadcast_future
+	#cargo test test_broadcast_future
 	#cargo test $(CARGO_BUILD_ARGS)
+	cargo test $(tests) $(CARGO_BUILD_ARGS)
 
 doc:
 	cargo doc --no-deps $(CARGO_BUILD_ARGS)
