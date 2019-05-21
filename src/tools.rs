@@ -584,13 +584,18 @@ pub fn hex_to_digest(hex: &str) -> Result<[u8; 32], Error> {
 
     if bytes.len() != 64 { bail!("got wrong digest length."); }
 
+    let val = |c| {
+        if c >= b'0' && c <= b'9' { return Ok(c - b'0'); }
+        if c >= b'a' && c <= b'f' { return Ok(c - b'a' + 10); }
+        if c >= b'A' && c <= b'F' { return Ok(c - b'A' + 10); }
+        bail!("found illegal hex character.");
+    };
+
     let mut pos = 0;
     for pair in bytes.chunks(2) {
         if pos >= digest.len() { bail!("hex digest too long."); }
-        let mut h = pair[0];
-        if h >= b'0' && h <= b'f' { h = h - b'0'; } else { bail!("found illegal hex character."); }
-        let mut l = pair[1];
-        if l >= b'0' && l <= b'f' { l = l - b'0'; } else { bail!("found illegal hex character."); }
+        let h = val(pair[0])?;
+        let l = val(pair[1])?;
         digest[pos] = (h<<4)|l;
         pos +=1;
     }
