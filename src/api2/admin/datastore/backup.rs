@@ -267,7 +267,7 @@ fn dynamic_append (
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     let digest = crate::tools::hex_to_digest(digest_str)?;
-    let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk"))?;
+    let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
     env.dynamic_writer_append_chunk(wid, size, &digest)?;
 
