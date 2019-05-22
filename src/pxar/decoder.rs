@@ -34,9 +34,11 @@ impl <'a, R: Read + Seek> Decoder<'a, R> {
     pub fn new(reader: &'a mut R) -> Result<Self, Error> {
 
         let root_end = reader.seek(SeekFrom::End(0))?;
+        let no_xattrs = false;
+        let no_fcaps = false;
 
         Ok(Self {
-            inner: SequentialDecoder::new(reader),
+            inner: SequentialDecoder::new(reader, no_xattrs, no_fcaps),
             root_start: 0,
             root_end: root_end,
         })
@@ -48,7 +50,6 @@ impl <'a, R: Read + Seek> Decoder<'a, R> {
             end: self.root_end,
             filename: OsString::new(), // Empty
             entry: CaFormatEntry {
-                feature_flags: 0,
                 mode: 0,
                 flags: 0,
                 uid: 0,
