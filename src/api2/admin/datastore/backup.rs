@@ -160,7 +160,7 @@ fn backup_api() -> Router {
         )
         .subdir(
             "finish", Router::new()
-                .get(
+                .post(
                     ApiMethod::new(
                         finish_backup,
                         ObjectSchema::new("Mark backup as finished.")
