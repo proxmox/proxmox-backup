@@ -5,21 +5,24 @@ use futures::{Async, Poll};
 use futures::stream::Stream;
 
 /// Split input stream into dynamic sized chunks
-pub struct ChunkStream<S: Stream<Item=Vec<u8>, Error=Error>> {
+pub struct ChunkStream<S> {
     input: S,
     chunker: Chunker,
     buffer: Option<Vec<u8>>,
     scan: Option<Vec<u8>>,
 }
 
-impl <S: Stream<Item=Vec<u8>, Error=Error>> ChunkStream<S> {
-
+impl <S> ChunkStream<S> {
     pub fn new(input: S) -> Self {
         Self { input, chunker: Chunker::new(4 * 1024 * 1024), buffer: None, scan: None}
     }
 }
 
-impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
+impl <S> Stream for ChunkStream<S>
+    where S: Stream,
+          S::Item: AsRef<[u8]>,
+          S::Error: Into<Error>,
+{
 
     type Item = Vec<u8>;
     type Error = Error;
@@ -49,7 +52,7 @@ impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
 
             match self.input.poll() {
                 Err(err) => {
-                    return Err(err);
+                    return Err(err.into());
                 }
                 Ok(Async::NotReady) => {
                     return Ok(Async::NotReady);
@@ -66,7 +69,7 @@ impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
                 }
                 Ok(Async::Ready(Some(data))) => {
                     let scan = self.scan.get_or_insert_with(|| Vec::with_capacity(1024*1024));
-                    scan.extend(data);
+                    scan.extend(data.as_ref());
                 }
             }
         }
