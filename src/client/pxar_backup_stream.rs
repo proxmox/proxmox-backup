@@ -43,7 +43,9 @@ impl PxarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose) {
+            let no_xattrs = false;
+            let no_fcaps = false;
+            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, all_file_systems, verbose, no_xattrs, no_fcaps) {
                 eprintln!("pxar encode failed - {}", err);
             }
         });
