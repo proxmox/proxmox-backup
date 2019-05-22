@@ -154,7 +154,6 @@ pub struct CaFormatHeader {
 #[derive(Endian)]
 #[repr(C)]
 pub struct CaFormatEntry {
-    pub feature_flags: u64,
     pub mode: u64,
     pub flags: u64,
     pub uid: u64,
