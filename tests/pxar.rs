@@ -7,24 +7,30 @@ fn pxar_create_and_extract() {
     let src_dir = "./tests/catar_data/test_xattrs_src/";
     let dest_dir = "./tests/catar_data/test_xattrs_dest/";
 
-    println!("run pxar create archive.pxar '{}'", src_dir);
+    let exec_path = if cfg!(debug_assertions) {
+        "./target/debug/pxar"
+    } else {
+        "./target/release/pxar"
+    };
 
-    Command::new("./target/debug/pxar")
+    println!("run '{} create archive.pxar {}'", exec_path, src_dir);
+
+    Command::new(exec_path)
         .arg("create")
         .arg("./tests/archive.pxar")
         .arg(src_dir)
         .status()
         .unwrap_or_else(|err| {
-            panic!("Failed to invoke './target/debug/pxar': {}", err)
+            panic!("Failed to invoke '{}': {}", exec_path, err)
         });
 
-    Command::new("./target/debug/pxar")
+    Command::new(exec_path)
         .arg("extract")
         .arg("./tests/archive.pxar")
         .arg(dest_dir)
         .status()
         .unwrap_or_else(|err| {
-            panic!("Failed to invoke './target/debug/pxar': {}", err)
+            panic!("Failed to invoke '{}': {}", exec_path, err)
         });
 
     /* Use rsync with --dry-run and --itemize-changes to compare
