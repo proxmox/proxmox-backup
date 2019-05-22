@@ -25,6 +25,10 @@ else
 COMPILEDIR := target/debug
 endif
 
+ifeq ($(valgrind), yes)
+CARGO_BUILD_ARGS += --features valgrind
+endif
+
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 
