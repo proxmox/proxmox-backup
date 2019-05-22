@@ -5,12 +5,13 @@ extern crate libc;
 use std::os::unix::io::RawFd;
 use nix::errno::Errno;
 use crate::pxar::{CaFormatXAttr, CaFormatFCaps};
+use crate::tools::vec;
 
 pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
     // Initial buffer size for the attribute list, if content does not fit
     // it gets dynamically increased until big enough.
     let mut size = 256;
-    let mut buffer = vec![0u8; size];
+    let mut buffer = vec::undefined(size);
     let mut bytes = unsafe {
         libc::flistxattr(fd, buffer.as_mut_ptr() as *mut i8, buffer.len())
     };
@@ -37,7 +38,7 @@ pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
 
 pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
     let mut size = 256;
-    let mut buffer = vec![0u8; size];
+    let mut buffer = vec::undefined(size);
     let mut bytes = unsafe {
         libc::fgetxattr(fd, name.as_ptr() as *const i8, buffer.as_mut_ptr() as *mut core::ffi::c_void, buffer.len())
     };

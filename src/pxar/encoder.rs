@@ -24,6 +24,8 @@ use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::sys::stat::FileStat;
 
+use crate::tools::vec;
+
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit
 /// maximum memory usage.
@@ -480,7 +482,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
 
             } else if ifmt == libc::S_IFLNK {
-                let mut buffer = [0u8; libc::PATH_MAX as usize];
+                let mut buffer = vec::undefined(libc::PATH_MAX as usize);
 
                 let res = filename.with_nix_path(|cstr| {
                     unsafe { libc::readlinkat(rawfd, cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()-1) }

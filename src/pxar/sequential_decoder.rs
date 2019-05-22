@@ -20,6 +20,9 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::NixPath;
+
+use crate::tools::io::ops::*;
+use crate::tools::vec;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
@@ -34,7 +37,7 @@ const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 impl <'a, R: Read> SequentialDecoder<'a, R> {
 
     pub fn new(reader: &'a mut R, no_xattrs: bool, no_fcaps: bool) -> Self {
-        let skip_buffer = vec![0u8; 64*1024];
+        let skip_buffer = vec::undefined(64*1024);
         let mut feature_flags = CA_FORMAT_DEFAULT;
         if no_xattrs {
             feature_flags ^= CA_FORMAT_WITH_XATTRS;
@@ -78,8 +81,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             bail!("link target too long ({}).", target_len);
         }
 
-        let mut buffer = vec![0u8; target_len as usize];
-        self.reader.read_exact(&mut buffer)?;
+        let mut buffer = self.reader.read_exact_allocated(target_len as usize)?;
 
         let last_byte = buffer.pop().unwrap();
         if last_byte != 0u8 {
@@ -118,8 +120,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             bail!("filename too long ({}).", name_len);
         }
 
-        let mut buffer = vec![0u8; name_len as usize];
-        self.reader.read_exact(&mut buffer)?;
+        let mut buffer = self.reader.read_exact_allocated(name_len as usize)?;
 
         let last_byte = buffer.pop().unwrap();
         if last_byte != 0u8 {
@@ -147,8 +148,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     }
 
     fn read_xattr(&mut self, size: usize) -> Result<CaFormatXAttr, Error> {
-        let mut buffer = vec![0u8; size];
-        self.reader.read_exact(&mut buffer)?;
+        let buffer = self.reader.read_exact_allocated(size)?;
 
         match buffer.iter().position(|c| *c == '\0' as u8) {
             Some(pos) => {
@@ -172,8 +172,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     }
 
     fn read_fcaps(&mut self, size: usize) -> Result<CaFormatFCaps, Error> {
-        let mut buffer = vec![0u8; size];
-        self.reader.read_exact(&mut buffer)?;
+        let buffer = self.reader.read_exact_allocated(size)?;
 
         Ok(CaFormatFCaps { data: buffer })
     }

@@ -14,6 +14,9 @@ use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 //use chrono::{Local, TimeZone};
 
+use crate::tools::io::ops::*;
+use crate::tools::vec;
+
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
 pub struct DynamicIndexHeader {
@@ -67,10 +70,9 @@ impl DynamicIndexReader {
         // todo: use static assertion when available in rust
         if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
 
-        let mut buffer = vec![0u8; header_size];
-        file.read_exact(&mut buffer)?;
+        let buffer = file.read_exact_allocated(header_size)?;
 
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut DynamicIndexHeader) };
+        let header = unsafe { &* (buffer.as_ptr() as *const DynamicIndexHeader) };
 
         if header.magic != *b"PROXMOX-DIDX" {
             bail!("got unknown magic number for {:?}", path);
@@ -416,7 +418,7 @@ impl DynamicIndexWriter {
 
         let uuid = Uuid::new_v4();
 
-        let mut buffer = vec![0u8; header_size];
+        let mut buffer = vec::undefined(header_size);
         let header = crate::tools::map_struct_mut::<DynamicIndexHeader>(&mut buffer)?;
 
         header.magic = *b"PROXMOX-DIDX";

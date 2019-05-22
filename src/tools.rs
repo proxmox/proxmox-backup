@@ -302,7 +302,7 @@ pub fn file_chunker<C, R>(
 
     if chunk_size > READ_BUFFER_SIZE { bail!("chunk size too large!"); }
 
-    let mut buf = vec![0u8; READ_BUFFER_SIZE];
+    let mut buf = vec::undefined(READ_BUFFER_SIZE);
 
     let mut pos = 0;
     let mut file_pos = 0;
