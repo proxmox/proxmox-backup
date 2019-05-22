@@ -43,9 +43,14 @@ impl <S: Stream<Item=Vec<u8>, Error=Error>> Stream for ChunkStream<S> {
                         return Ok(Async::Ready(None));
                     }
                 }
-                Ok(Async::Ready(Some(mut data))) => {
+                Ok(Async::Ready(Some(data))) => {
 
-                    if let Some(rest) = self.rest.take() { data.extend(rest); }
+                    let data = if let Some(mut rest) = self.rest.take() {
+                        rest.extend(data);
+                        rest
+                    } else {
+                        data
+                    };
 
                     let buffer = self.buffer.get_or_insert_with(|| Vec::with_capacity(1024*1024));
                     let boundary = self.chunker.scan(&data);
