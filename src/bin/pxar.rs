@@ -25,7 +25,9 @@ fn print_filenames(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
+    let no_xattrs = true;
+    let no_fcaps = true;
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -47,7 +49,9 @@ fn dump_archive(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
+    let no_xattrs = true;
+    let no_fcaps = true;
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -69,12 +73,14 @@ fn extract_archive(
     let archive = tools::required_string_param(&param, "archive")?;
     let target = tools::required_string_param(&param, "target")?;
     let verbose = param["verbose"].as_bool().unwrap_or(false);
+    let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
+    let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
 
     let file = std::fs::File::open(archive)?;
 
     let mut reader = std::io::BufReader::new(file);
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
 
     decoder.restore(Path::new(target), & |path| {
         if verbose {
@@ -96,6 +102,8 @@ fn create_archive(
     let source = tools::required_string_param(&param, "source")?;
     let verbose = param["verbose"].as_bool().unwrap_or(false);
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
+    let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
+    let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
 
     let source = PathBuf::from(source);
 
@@ -109,7 +117,7 @@ fn create_archive(
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
 
-    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose)?;
+    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose, no_xattrs, no_fcaps)?;
 
     writer.flush()?;
 
@@ -126,6 +134,8 @@ fn main() {
                     .required("archive", StringSchema::new("Archive name"))
                     .required("source", StringSchema::new("Source directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
+                    .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
+                    .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
            ))
             .arg_param(vec!["archive", "source"])
@@ -140,6 +150,8 @@ fn main() {
                     .required("archive", StringSchema::new("Archive name."))
                     .required("target", StringSchema::new("Target directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
+                    .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
+                    .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
           ))
             .arg_param(vec!["archive", "target"])
             .completion_cb("archive", tools::complete_file_name)
