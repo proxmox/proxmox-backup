@@ -13,8 +13,7 @@ fn upload_speed() -> Result<usize, Error> {
 
     let mut client = HttpClient::new(host, username)?;
 
-    let param = json!({"backup-type": "host", "backup-id": "speedtest" });
-    let upgrade = client.h2upgrade(&format!("/api2/json/admin/datastore/{}/backup", datastore), Some(param));
+    let upgrade = client.start_backup(datastore, "host", "speedtest");
 
     let res = upgrade.and_then(|h2| {
         println!("start upload speed test");
