@@ -330,6 +330,30 @@ impl HttpClient {
         Box::new(login_future)
     }
 
+    fn api_response(response: Response<Body>) -> impl Future<Item=Value, Error=Error> {
+
+        let status = response.status();
+
+        response
+            .into_body()
+            .concat2()
+            .map_err(Error::from)
+            .and_then(move |data| {
+
+                let text = String::from_utf8(data.to_vec()).unwrap();
+                if status.is_success() {
+                    if text.len() > 0 {
+                        let value: Value = serde_json::from_str(&text)?;
+                        Ok(value)
+                    } else {
+                        Ok(Value::Null)
+                    }
+                } else {
+                    bail!("HTTP Error {}: {}", status, text);
+                }
+            })
+    }
+
     fn api_request(
         client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
         req: Request<Body>
@@ -337,29 +361,7 @@ impl HttpClient {
 
         client.request(req)
             .map_err(Error::from)
-            .and_then(|resp| {
-
-                let status = resp.status();
-
-                resp
-                    .into_body()
-                    .concat2()
-                    .map_err(Error::from)
-                    .and_then(move |data| {
-
-                        let text = String::from_utf8(data.to_vec()).unwrap();
-                        if status.is_success() {
-                            if text.len() > 0 {
-                                let value: Value = serde_json::from_str(&text)?;
-                                Ok(value)
-                            } else {
-                                Ok(Value::Null)
-                            }
-                        } else {
-                            bail!("HTTP Error {}: {}", status, text);
-                        }
-                    })
-            })
+            .and_then(Self::api_response)
     }
 
     pub fn request_builder(server: &str, method: &str, path: &str, data: Option<Value>) -> Result<Request<Body>, Error> {
@@ -550,7 +552,7 @@ impl BackupClient {
 
                 //upload_pxar(h2, known_chunks, &dir_path, wid).unwrap()
                 Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
-                    .and_then(move |size| {
+                    .and_then(move |_size| {
                         Self::h2post(h2_4, "dynamic_close", Some(json!({ "wid": wid })))
                     })
                     .map(|_| ())
