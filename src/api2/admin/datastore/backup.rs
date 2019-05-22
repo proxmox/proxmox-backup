@@ -143,22 +143,6 @@ fn upgrade_to_backup_protocol(
 
 fn backup_api() -> Router {
 
-    let test1 = Router::new()
-        .get(
-            ApiMethod::new(
-                test1_get,
-                ObjectSchema::new("Test sync callback.")
-            )
-        );
-
-    let test2 = Router::new()
-        .download(
-            ApiAsyncMethod::new(
-                test2_get,
-                ObjectSchema::new("Test async callback.")
-            )
-        );
-
     let router = Router::new()
         .subdir(
             "dynamic_chunk", Router::new()
@@ -187,8 +171,6 @@ fn backup_api() -> Router {
             "speedtest", Router::new()
                 .upload(api_method_upload_speedtest())
         )
-        .subdir("test1", test1)
-        .subdir("test2", test2)
         .list_subdirs();
 
     router
@@ -318,20 +300,6 @@ fn finish_backup (
     Ok(Value::Null)
 }
 
-fn test1_get (
-    _param: Value,
-    _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
-) -> Result<Value, Error> {
-
-
-    let env: &BackupEnvironment = rpcenv.as_ref();
-
-    env.log("Inside test1_get()");
-
-    Ok(Value::Null)
-}
-
 fn dynamic_chunk_index(
     _parts: Parts,
     _req_body: Body,
@@ -391,29 +359,4 @@ fn dynamic_chunk_index(
         .body(Body::wrap_stream(stream))?;
 
     Ok(Box::new(future::ok(response)))
-}
-
-fn test2_get(
-    _parts: Parts,
-    _req_body: Body,
-    _param: Value,
-    _info: &ApiAsyncMethod,
-    _rpcenv: Box<RpcEnvironment>,
-) -> Result<BoxFut, Error> {
-
-    let fut = tokio::timer::Interval::new_interval(std::time::Duration::from_millis(300))
-        .map_err(|err| http_err!(INTERNAL_SERVER_ERROR, format!("tokio timer interval error: {}", err)))
-        .take(50)
-        .for_each(|tv| {
-            println!("LOOP {:?}", tv);
-            Ok(())
-        })
-        .and_then(|_| {
-            println!("TASK DONE");
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())?)
-        });
-
-    Ok(Box::new(fut))
 }
