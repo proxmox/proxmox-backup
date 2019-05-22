@@ -37,6 +37,8 @@ pub mod read;
 pub mod write;
 pub mod acl;
 pub mod xattr;
+pub mod vec;
+pub mod io;
 
 mod process_locker;
 pub use process_locker::*;
