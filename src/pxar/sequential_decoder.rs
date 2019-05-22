@@ -25,6 +25,7 @@ use crate::tools::xattr;
 // This one need Read, but works without Seek
 pub struct SequentialDecoder<'a, R: Read> {
     reader: &'a mut R,
+    feature_flags: u64,
     skip_buffer: Vec<u8>,
 }
 
@@ -32,9 +33,21 @@ const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
 impl <'a, R: Read> SequentialDecoder<'a, R> {
 
-    pub fn new(reader: &'a mut R) -> Self {
+    pub fn new(reader: &'a mut R, no_xattrs: bool, no_fcaps: bool) -> Self {
         let skip_buffer = vec![0u8; 64*1024];
-        Self { reader, skip_buffer }
+        let mut feature_flags = CA_FORMAT_DEFAULT;
+        if no_xattrs {
+            feature_flags ^= CA_FORMAT_WITH_XATTRS;
+        }
+        if no_fcaps {
+            feature_flags ^= CA_FORMAT_WITH_FCAPS;
+        }
+
+        Self {
+            reader,
+            feature_flags,
+            skip_buffer
+        }
     }
 
     pub (crate) fn get_reader_mut(&mut self) -> & mut R {
@@ -129,6 +142,10 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         Ok(name)
     }
 
+    fn has_features(&self, feature_flags: u64) -> bool {
+        (self.feature_flags & feature_flags) == feature_flags
+    }
+
     fn read_xattr(&mut self, size: usize) -> Result<CaFormatXAttr, Error> {
         let mut buffer = vec![0u8; size];
         self.reader.read_exact(&mut buffer)?;
@@ -169,8 +186,20 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         let mut size = (head.size - HEADER_SIZE) as usize;
         loop {
             match head.htype {
-                CA_FORMAT_XATTR => xattrs.push(self.read_xattr(size)?),
-                CA_FORMAT_FCAPS => fcaps = Some(self.read_fcaps(size)?),
+                CA_FORMAT_XATTR => {
+                    if self.has_features(CA_FORMAT_WITH_XATTRS) {
+                        xattrs.push(self.read_xattr(size)?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_FCAPS => {
+                    if self.has_features(CA_FORMAT_WITH_FCAPS) {
+                        fcaps = Some(self.read_fcaps(size)?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
                 _ => break,
             }
             head = self.read_item()?;
