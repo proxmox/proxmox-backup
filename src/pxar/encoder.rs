@@ -45,6 +45,7 @@ pub struct Encoder<'a, W: Write> {
     all_file_systems: bool,
     root_st_dev: u64,
     verbose: bool,
+    feature_flags: u64,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
 }
 
@@ -61,6 +62,8 @@ impl <'a, W: Write> Encoder<'a, W> {
         writer: &'a mut W,
         all_file_systems: bool,
         verbose: bool,
+        no_xattrs: bool,
+        no_fcaps: bool,
     ) -> Result<(), Error> {
 
         const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
@@ -86,6 +89,13 @@ impl <'a, W: Write> Encoder<'a, W> {
         if is_virtual_file_system(magic) {
             bail!("backup virtual file systems is disabled!");
         }
+        let mut feature_flags = CA_FORMAT_DEFAULT;
+        if no_xattrs {
+            feature_flags ^= CA_FORMAT_WITH_XATTRS;
+        }
+        if no_fcaps {
+            feature_flags ^= CA_FORMAT_WITH_FCAPS;
+        }
 
         let mut me = Self {
             base_path: path,
@@ -97,6 +107,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             all_file_systems,
             root_st_dev: stat.st_dev,
             verbose,
+            feature_flags,
             hardlinks: HashMap::new(),
         };
 
@@ -165,7 +176,6 @@ impl <'a, W: Write> Encoder<'a, W> {
 
 
         let entry = CaFormatEntry {
-            feature_flags: CA_FORMAT_DEFAULT, // fixme: ??
             mode: mode,
             flags: 0,
             uid: stat.st_uid as u64,
@@ -214,12 +224,16 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
+    fn has_features(&self, feature_flags: u64) -> bool {
+        (self.feature_flags & feature_flags) == feature_flags
+    }
+
     fn read_xattrs(&self, fd: RawFd, stat: &FileStat, entry: &CaFormatEntry) -> Result<(Vec<CaFormatXAttr>, Option<CaFormatFCaps>), Error> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
 
         let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS;
-        if (entry.feature_flags & flags) == 0 { return Ok((xattrs, fcaps)); }
+        if !self.has_features(flags) { return Ok((xattrs, fcaps)); }
         // Should never be called on symlinks, just in case check anyway
         if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK { return Ok((xattrs, fcaps)); }
 
