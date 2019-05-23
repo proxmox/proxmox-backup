@@ -16,6 +16,12 @@ pub const CA_FORMAT_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
 pub const CA_FORMAT_SYMLINK: u64 = 0x664a6fb6830e0d6c;
 pub const CA_FORMAT_DEVICE: u64 = 0xac3dace369dfe643;
 pub const CA_FORMAT_XATTR: u64 = 0xb8157091f80bc486;
+pub const CA_FORMAT_ACL_USER: u64 = 0x297dc88b2ef12faf;
+pub const CA_FORMAT_ACL_GROUP: u64 = 0x36f2acb56cb3dd0b;
+pub const CA_FORMAT_ACL_GROUP_OBJ: u64 = 0x23047110441f38f3;
+pub const CA_FORMAT_ACL_DEFAULT: u64 = 0xfe3eeda6823c8cd0;
+pub const CA_FORMAT_ACL_DEFAULT_USER: u64 = 0xbdf03df9bd010a91;
+pub const CA_FORMAT_ACL_DEFAULT_GROUP: u64 = 0xa0cb1168782d1f51;
 pub const CA_FORMAT_FCAPS: u64 = 0xf7267db0afed0629;
 
 // compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
@@ -30,7 +36,7 @@ pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
 // Feature flags
 
-/// restrict UIDs toö 16 bit
+/// restrict UIDs to 16 bit
 pub const CA_FORMAT_WITH_16BIT_UIDS: u64       = 0x1;
 /// assume UIDs are 32 bit
 pub const CA_FORMAT_WITH_32BIT_UIDS: u64       = 0x2;
@@ -59,7 +65,7 @@ pub const CA_FORMAT_WITH_FLAG_SYSTEM: u64      = 0x4000;
 /// DOS file flag `ARCHIVE`
 pub const CA_FORMAT_WITH_FLAG_ARCHIVE: u64     = 0x8000;
 
-// chattr() flags#
+// chattr() flags
 /// Linux file attribute `APPEND`
 pub const CA_FORMAT_WITH_FLAG_APPEND: u64      = 0x10000;
 /// Linux file attribute `NOATIME`
@@ -87,7 +93,7 @@ pub const CA_FORMAT_WITH_SUBVOLUME: u64         = 0x4000000;
 // Include BTRFS read-only subvolume flag
 pub const CA_FORMAT_WITH_SUBVOLUME_RO: u64      = 0x8000000;
 
-/// Include Extended Attribute metadata */
+/// Include Extended Attribute metadata
 pub const CA_FORMAT_WITH_XATTRS: u64            = 0x10000000;
 /// Include Access Control List metadata
 pub const CA_FORMAT_WITH_ACL: u64               = 0x20000000;
@@ -108,6 +114,7 @@ pub const CA_FORMAT_EXCLUDE_SUBMOUNTS: u64      = 0x4000000000000000;
 /// Exclude entries with chattr flag NODUMP
 pub const CA_FORMAT_EXCLUDE_NODUMP: u64         = 0x8000000000000000;
 
+/// Default feature flags for encoder/decoder
 pub const CA_FORMAT_DEFAULT: u64 =
 CA_FORMAT_WITH_32BIT_UIDS |
 CA_FORMAT_WITH_USER_NAMES |
@@ -230,6 +237,96 @@ impl PartialEq for CaFormatXAttr {
 pub struct CaFormatFCaps {
     pub data: Vec<u8>,
 }
+
+#[derive(Debug, Endian, Eq)]
+#[repr(C)]
+pub struct CaFormatACLUser {
+    pub uid: u64,
+    pub permissions: u64,
+    //pub name: Vec<u64>, not impl for now
+}
+
+// TODO if also name is impl, sort by uid, then by name and last by permissions
+impl Ord for CaFormatACLUser {
+    fn cmp(&self, other: &CaFormatACLUser) -> Ordering {
+        match self.uid.cmp(&other.uid) {
+            // uids are equal, entries ordered by permissions
+            Ordering::Equal => self.permissions.cmp(&other.permissions),
+            // uids are different, entries ordered by uid
+            uid_order => uid_order,
+        }
+    }
+}
+
+impl PartialOrd for CaFormatACLUser {
+    fn partial_cmp(&self, other: &CaFormatACLUser) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for CaFormatACLUser {
+    fn eq(&self, other: &CaFormatACLUser) -> bool {
+        self.uid == other.uid && self.permissions == other.permissions
+    }
+}
+
+#[derive(Debug, Endian, Eq)]
+#[repr(C)]
+pub struct CaFormatACLGroup {
+    pub gid: u64,
+    pub permissions: u64,
+    //pub name: Vec<u64>, not impl for now
+}
+
+// TODO if also name is impl, sort by gid, then by name and last by permissions
+impl Ord for CaFormatACLGroup {
+    fn cmp(&self, other: &CaFormatACLGroup) -> Ordering {
+        match self.gid.cmp(&other.gid) {
+            // gids are equal, entries are ordered by permissions
+            Ordering::Equal => self.permissions.cmp(&other.permissions),
+            // gids are different, entries ordered by gid
+            gid_ordering => gid_ordering,
+        }
+    }
+}
+
+impl PartialOrd for CaFormatACLGroup {
+    fn partial_cmp(&self, other: &CaFormatACLGroup) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for CaFormatACLGroup {
+    fn eq(&self, other: &CaFormatACLGroup) -> bool {
+        self.gid == other.gid && self.permissions == other.permissions
+    }
+}
+
+#[derive(Debug, Endian)]
+#[repr(C)]
+pub struct CaFormatACLGroupObj {
+    pub permissions: u64,
+}
+
+#[derive(Debug, Endian)]
+#[repr(C)]
+pub struct CaFormatACLDefault {
+    pub user_obj_permissions: u64,
+    pub group_obj_permissions: u64,
+    pub other_permissions: u64,
+    pub mask_permissions: u64,
+}
+
+pub (crate) struct PxarACL {
+    pub users: Vec<CaFormatACLUser>,
+    pub groups: Vec<CaFormatACLGroup>,
+    pub group_obj: Option<CaFormatACLGroupObj>,
+    pub default: Option<CaFormatACLDefault>,
+}
+
+pub const CA_FORMAT_ACL_PERMISSION_READ: u64 = 4;
+pub const CA_FORMAT_ACL_PERMISSION_WRITE: u64 = 2;
+pub const CA_FORMAT_ACL_PERMISSION_EXECUTE: u64 = 1;
 
 /// Create SipHash values for goodby tables.
 //pub fn compute_goodbye_hash(name: &std::ffi::CStr) -> u64 {
