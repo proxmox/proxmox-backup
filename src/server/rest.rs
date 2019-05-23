@@ -239,10 +239,10 @@ pub fn handle_sync_api_request<Env: RpcEnvironment>(
     let resp = params
         .and_then(move |params| {
             let mut delay = false;
-            let resp = match (info.handler.as_ref().unwrap())(params, info, &mut rpcenv) {
+             let resp = match (info.handler.as_ref().unwrap())(params, info, &mut rpcenv) {
                 Ok(data) => (formatter.format_data)(data, &rpcenv),
                 Err(err) => {
-                    if let Some(httperr) = err.downcast_ref::<HttpError>() {
+                     if let Some(httperr) = err.downcast_ref::<HttpError>() {
                         if httperr.code == StatusCode::UNAUTHORIZED { delay = true; }
                     }
                     (formatter.format_error)(err)
@@ -258,6 +258,9 @@ pub fn handle_sync_api_request<Env: RpcEnvironment>(
             } else {
                 Either::B(future::ok(resp))
             }
+        })
+        .or_else(move |err| {
+            Ok((formatter.format_error)(err))
         });
 
     Box::new(resp)
