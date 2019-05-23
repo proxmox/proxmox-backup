@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
+use crate::tools::acl;
 use crate::tools::xattr;
 
 use std::io::Write;
@@ -270,6 +271,110 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok((xattrs, fcaps))
     }
 
+    fn read_acl(&self, fd: RawFd, stat: &FileStat, acl_type: acl::ACLType) -> Result<PxarACL, Error> {
+        let ret = PxarACL {
+            users: Vec::new(),
+            groups: Vec::new(),
+            group_obj: None,
+            default: None,
+        };
+
+        if !self.has_features(CA_FORMAT_WITH_ACL) {
+            return Ok(ret);
+        }
+        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+            return Ok(ret);
+        }
+        if acl_type == acl::ACL_TYPE_DEFAULT && (stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
+            bail!("ACL_TYPE_DEFAULT only defined for directories.");
+        }
+
+        // In order to be able to get ACLs with type ACL_TYPE_DEFAULT, we have
+        // to create a path for acl_get_file(). acl_get_fd() only allows to get
+        // ACL_TYPE_ACCESS attributes.
+        let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
+        let acl = acl::ACL::get_file(&proc_path, acl_type)
+            .map_err(|err| format_err!("error while reading ACL - {}", err))?;
+
+        self.process_acl(acl, acl_type)
+    }
+
+    fn process_acl(&self, acl: acl::ACL, acl_type: acl::ACLType) -> Result<PxarACL, Error> {
+        let mut acl_user = Vec::new();
+        let mut acl_group = Vec::new();
+        let mut acl_group_obj = None;
+        let mut acl_default = None;
+        let mut user_obj_permissions = None;
+        let mut group_obj_permissions = None;
+        let mut other_permissions = None;
+        let mut mask_permissions = None;
+
+        for entry in &mut acl.entries() {
+            let tag = entry.get_tag_type()?;
+            let permissions = entry.get_permissions()?;
+            match tag {
+                acl::ACL_USER_OBJ => user_obj_permissions = Some(permissions),
+                acl::ACL_GROUP_OBJ => group_obj_permissions = Some(permissions),
+                acl::ACL_OTHER => other_permissions = Some(permissions),
+                acl::ACL_MASK => mask_permissions = Some(permissions),
+                acl::ACL_USER => {
+                    acl_user.push(CaFormatACLUser {
+                        uid: entry.get_qualifier()?,
+                        permissions: permissions,
+                    });
+                },
+                acl::ACL_GROUP => {
+                    acl_group.push(CaFormatACLGroup {
+                        gid: entry.get_qualifier()?,
+                        permissions: permissions,
+                    });
+                },
+                _ => bail!("Unexpected ACL tag encountered!"),
+            }
+        }
+
+        acl_user.sort();
+        acl_group.sort();
+
+        match acl_type {
+            acl::ACL_TYPE_ACCESS => {
+                // The mask permissions are mapped to the stat group permissions
+                // in case that the ACL group permissions were set.
+                // Only in that case we need to store the group permissions,
+                // in the other cases they are identical to the stat group permissions.
+                if let (Some(gop), Some(_)) = (group_obj_permissions, mask_permissions) {
+                    acl_group_obj = Some(CaFormatACLGroupObj {
+                        permissions: gop,
+                    });
+                }
+            },
+            acl::ACL_TYPE_DEFAULT => {
+                if user_obj_permissions != None ||
+                   group_obj_permissions != None ||
+                   other_permissions != None ||
+                   mask_permissions != None
+                {
+                    acl_default = Some(CaFormatACLDefault {
+                        // The value is set to UINT64_MAX as placeholder if one
+                        // of the permissions is not set
+                        user_obj_permissions: user_obj_permissions.unwrap_or(std::u64::MAX),
+                        group_obj_permissions: group_obj_permissions.unwrap_or(std::u64::MAX),
+                        other_permissions: other_permissions.unwrap_or(std::u64::MAX),
+                        mask_permissions: mask_permissions.unwrap_or(std::u64::MAX),
+                    });
+                }
+            },
+            _ => bail!("Unexpected ACL type encountered"),
+        }
+
+        Ok(PxarACL {
+            users: acl_user,
+            groups: acl_group,
+            group_obj: acl_group_obj,
+            default: acl_default,
+        })
+    }
+
     fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
 
         self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
@@ -294,6 +399,48 @@ impl <'a, W: Write> Encoder<'a, W> {
             self.write_header(CA_FORMAT_FCAPS, size as u64)?;
             self.write(fcaps.data.as_slice())?;
         }
+
+        Ok(())
+    }
+
+    fn write_acl_user(&mut self, acl_user: CaFormatACLUser) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_USER,  std::mem::size_of::<CaFormatACLUser>() as u64)?;
+        self.write_item(acl_user)?;
+
+        Ok(())
+    }
+
+    fn write_acl_group(&mut self, acl_group: CaFormatACLGroup) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_GROUP,  std::mem::size_of::<CaFormatACLGroup>() as u64)?;
+        self.write_item(acl_group)?;
+
+        Ok(())
+    }
+
+    fn write_acl_group_obj(&mut self, acl_group_obj: CaFormatACLGroupObj) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_GROUP_OBJ,  std::mem::size_of::<CaFormatACLGroupObj>() as u64)?;
+        self.write_item(acl_group_obj)?;
+
+        Ok(())
+    }
+
+    fn write_acl_default(&mut self, acl_default: CaFormatACLDefault) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_DEFAULT,  std::mem::size_of::<CaFormatACLDefault>() as u64)?;
+        self.write_item(acl_default)?;
+
+        Ok(())
+    }
+
+    fn write_acl_default_user(&mut self, acl_default_user: CaFormatACLUser) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_DEFAULT_USER,  std::mem::size_of::<CaFormatACLUser>() as u64)?;
+        self.write_item(acl_default_user)?;
+
+        Ok(())
+    }
+
+    fn write_acl_default_group(&mut self, acl_default_group: CaFormatACLGroup) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_ACL_DEFAULT_GROUP,  std::mem::size_of::<CaFormatACLGroup>() as u64)?;
+        self.write_item(acl_default_group)?;
 
         Ok(())
     }
@@ -352,12 +499,34 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.read_chattr(rawfd, &mut dir_entry)?;
         self.read_fat_attr(rawfd, magic, &mut dir_entry)?;
         let (xattrs, fcaps) = self.read_xattrs(rawfd, &dir_stat)?;
+        let acl_access = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_ACCESS)?;
+        let acl_default = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_DEFAULT)?;
 
         self.write_entry(dir_entry)?;
         for xattr in xattrs {
             self.write_xattr(xattr)?;
         }
         self.write_fcaps(fcaps)?;
+
+        for user in acl_access.users {
+            self.write_acl_user(user)?;
+        }
+        for group in acl_access.groups {
+            self.write_acl_group(group)?;
+        }
+        if let Some(group_obj) = acl_access.group_obj {
+            self.write_acl_group_obj(group_obj)?;
+        }
+
+        for default_user in acl_default.users {
+            self.write_acl_default_user(default_user)?;
+        }
+        for default_group in acl_default.groups {
+            self.write_acl_default_group(default_group)?;
+        }
+        if let Some(default) = acl_default.default {
+            self.write_acl_default(default)?;
+        }
 
         let mut dir_count = 0;
 
@@ -544,12 +713,22 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.read_chattr(filefd, &mut entry)?;
         self.read_fat_attr(filefd, magic, &mut entry)?;
         let (xattrs, fcaps) = self.read_xattrs(filefd, &stat)?;
+        let acl_access = self.read_acl(filefd, &stat, acl::ACL_TYPE_ACCESS)?;
 
         self.write_entry(entry)?;
         for xattr in xattrs {
             self.write_xattr(xattr)?;
         }
         self.write_fcaps(fcaps)?;
+        for user in acl_access.users {
+            self.write_acl_user(user)?;
+        }
+        for group in acl_access.groups {
+            self.write_acl_group(group)?;
+        }
+        if let Some(group_obj) = acl_access.group_obj {
+            self.write_acl_group_obj(group_obj)?;
+        }
 
         let include_payload;
         if is_virtual_file_system(magic) {
