@@ -64,8 +64,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         writer: &'a mut W,
         all_file_systems: bool,
         verbose: bool,
-        no_xattrs: bool,
-        no_fcaps: bool,
+        feature_flags: u64,
     ) -> Result<(), Error> {
 
         const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
@@ -90,13 +89,6 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         if is_virtual_file_system(magic) {
             bail!("backup virtual file systems is disabled!");
-        }
-        let mut feature_flags = CA_FORMAT_DEFAULT;
-        if no_xattrs {
-            feature_flags ^= CA_FORMAT_WITH_XATTRS;
-        }
-        if no_fcaps {
-            feature_flags ^= CA_FORMAT_WITH_FCAPS;
         }
 
         let mut me = Self {

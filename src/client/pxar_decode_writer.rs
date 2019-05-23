@@ -31,9 +31,7 @@ impl PxarDecodeWriter {
         
         let child = thread::spawn(move|| {
             let mut reader = unsafe { std::fs::File::from_raw_fd(rx) };
-            let no_xattrs = false;
-            let no_fcaps = false;
-            let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
+            let mut decoder = pxar::SequentialDecoder::new(&mut reader, pxar::CA_FORMAT_DEFAULT);
           
             if let Err(err) = decoder.restore(&base, & |path| {
                 if verbose {

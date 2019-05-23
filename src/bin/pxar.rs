@@ -25,9 +25,10 @@ fn print_filenames(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let no_xattrs = true;
-    let no_fcaps = true;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
+    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+    feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -49,9 +50,10 @@ fn dump_archive(
 
     let mut reader = std::io::BufReader::new(file);
 
-    let no_xattrs = true;
-    let no_fcaps = true;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
+    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+    feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -79,8 +81,15 @@ fn extract_archive(
     let file = std::fs::File::open(archive)?;
 
     let mut reader = std::io::BufReader::new(file);
+    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    if no_xattrs {
+        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+    }
+    if no_fcaps {
+        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    }
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, no_xattrs, no_fcaps);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
 
     decoder.restore(Path::new(target), & |path| {
         if verbose {
@@ -116,8 +125,15 @@ fn create_archive(
         .open(archive)?;
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
+    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    if no_xattrs {
+        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+    }
+    if no_fcaps {
+        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    }
 
-    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose, no_xattrs, no_fcaps)?;
+    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose, feature_flags)?;
 
     writer.flush()?;
 

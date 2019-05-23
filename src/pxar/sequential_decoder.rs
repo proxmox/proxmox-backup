@@ -36,15 +36,8 @@ const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
 impl <'a, R: Read> SequentialDecoder<'a, R> {
 
-    pub fn new(reader: &'a mut R, no_xattrs: bool, no_fcaps: bool) -> Self {
+    pub fn new(reader: &'a mut R, feature_flags: u64) -> Self {
         let skip_buffer = vec::undefined(64*1024);
-        let mut feature_flags = CA_FORMAT_DEFAULT;
-        if no_xattrs {
-            feature_flags ^= CA_FORMAT_WITH_XATTRS;
-        }
-        if no_fcaps {
-            feature_flags ^= CA_FORMAT_WITH_FCAPS;
-        }
 
         Self {
             reader,
