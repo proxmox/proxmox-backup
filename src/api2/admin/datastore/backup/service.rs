@@ -99,11 +99,13 @@ impl hyper::service::Service for BackupService {
                 Err(err) => {
                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
+                        resp.extensions_mut().insert(ErrorMessageExtension(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
                         Self::log_response(worker, method, &path, &resp);
                         Ok(resp)
                     } else {
                         let mut resp = Response::new(Body::from(err.to_string()));
+                        resp.extensions_mut().insert(ErrorMessageExtension(err.to_string()));
                         *resp.status_mut() = StatusCode::BAD_REQUEST;
                         Self::log_response(worker, method, &path, &resp);
                         Ok(resp)
