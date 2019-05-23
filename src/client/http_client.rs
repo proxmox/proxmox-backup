@@ -21,6 +21,8 @@ use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
 use crate::tools::{self, BroadcastFuture, tty};
 use super::pipe_to_stream::*;
+use super::merge_known_chunks::*;
+
 
 #[derive(Clone)]
 struct AuthInfo {
@@ -405,11 +407,6 @@ pub struct BackupClient {
     h2: H2Client,
 }
 
-struct ChunkInfo {
-    digest: [u8; 32],
-    data: bytes::BytesMut,
-    offset: u64,
-}
 
 impl BackupClient {
 
@@ -562,31 +559,38 @@ impl BackupClient {
         let start_time = std::time::Instant::now();
 
         stream
-            .for_each(move |chunk_info| {
-                let h2 = h2.clone();
-
+            .map(move |chunk_info| {
                 repeat.fetch_add(1, Ordering::SeqCst);
                 stream_len.fetch_add(chunk_info.data.len(), Ordering::SeqCst);
+                chunk_info
+            })
+            .merge_known_chunks(known_chunks.clone())
+            .for_each(move |merged_chunk_info| {
+                let h2 = h2.clone();
 
                 let upload_queue = upload_queue.clone();
-
-                let mut known_chunks = known_chunks.lock().unwrap();
-                let chunk_is_known = known_chunks.contains(&chunk_info.digest);
 
                 let upload_data;
                 let request;
 
-                if chunk_is_known {
-                    println!("append existing chunk ({} bytes)", chunk_info.data.len());
-                    let param = json!({ "wid": wid, "digest": tools::digest_to_hex(&chunk_info.digest) });
-                    request = H2Client::request_builder("localhost", "PUT", "dynamic_index", Some(param)).unwrap();
-                    upload_data = None;
-                } else {
-                    println!("upload new chunk {} ({} bytes)", tools::digest_to_hex(&chunk_info.digest), chunk_info.data.len());
-                    known_chunks.insert(chunk_info.digest);
-                    let param = json!({ "wid": wid, "size" : chunk_info.data.len() });
-                    request = H2Client::request_builder("localhost", "POST", "dynamic_chunk", Some(param)).unwrap();
-                    upload_data = Some(chunk_info.data.freeze());
+                match merged_chunk_info {
+                    MergedChunkInfo::New(chunk_info) => {
+                        println!("upload new chunk {} ({} bytes)", tools::digest_to_hex(&chunk_info.digest), chunk_info.data.len());
+                        let param = json!({ "wid": wid, "size" : chunk_info.data.len() });
+                        request = H2Client::request_builder("localhost", "POST", "dynamic_chunk", Some(param)).unwrap();
+                        upload_data = Some(chunk_info.data.freeze());
+                    }
+                    MergedChunkInfo::Known(chunk_list) => {
+                        let mut digest_list = vec![];
+                        for chunk_info in chunk_list {
+                            //println!("append existing chunk ({} bytes)", chunk_info.data.len());
+                            digest_list.push(tools::digest_to_hex(&chunk_info.digest));
+                        }
+                        println!("append existing chunks ({})", digest_list.len());
+                        let param = json!({ "wid": wid, "digest-list": digest_list });
+                        request = H2Client::request_builder("localhost", "PUT", "dynamic_index", Some(param)).unwrap();
+                        upload_data = None;
+                    }
                 }
 
                 h2.send_request(request, upload_data)

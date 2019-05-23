@@ -230,7 +230,10 @@ pub fn api_method_dynamic_append() -> ApiMethod {
     ApiMethod::new(
         dynamic_append,
         ObjectSchema::new("Append chunk to dynamic index writer.")
-            .required("digest", StringSchema::new("Chunk digest."))
+            .required("digest-list", ArraySchema::new(
+                "Chunk digest list.",
+                StringSchema::new("Chunk digest.").into())
+            )
             .required("wid", IntegerSchema::new("Dynamic writer ID.")
                       .minimum(1)
                       .maximum(256)
@@ -245,16 +248,21 @@ fn dynamic_append (
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest_list = tools::required_array_param(&param, "digest-list")?;
+
+    println!("DIGEST LIST LEN {}", digest_list.len());
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let digest = crate::tools::hex_to_digest(digest_str)?;
-    let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
+    for item in digest_list {
+        let digest_str = item.as_str().unwrap();
+        let digest = crate::tools::hex_to_digest(digest_str)?;
+        let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
-    env.dynamic_writer_append_chunk(wid, size, &digest)?;
+        env.dynamic_writer_append_chunk(wid, size, &digest)?;
 
-    env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));
+        env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));
+    }
 
     Ok(Value::Null)
 }

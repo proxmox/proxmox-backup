@@ -4,6 +4,7 @@
 //! server using https.
 
 mod pipe_to_stream;
+mod merge_known_chunks;
 
 mod http_client;
 pub use  http_client::*;
