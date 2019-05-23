@@ -172,4 +172,17 @@ mod tests {
 
         std::fs::remove_file(&path).unwrap();
     }
+
+    #[test]
+    fn test_is_valid_xattr_name() {
+        let empty = Vec::new();
+        let too_long = vec![b'a'; 265];
+
+        assert!(!is_valid_xattr_name(empty.as_slice()));
+        assert!(!is_valid_xattr_name(too_long.as_slice()));
+        assert!(!is_valid_xattr_name(b"system.attr"));
+        assert!(is_valid_xattr_name(b"user.attr"));
+        assert!(is_valid_xattr_name(b"trusted.attr"));
+        assert!(is_valid_xattr_name(b"security.capability"));
+    }
 }
