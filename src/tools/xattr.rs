@@ -92,17 +92,20 @@ pub fn fsetxattr_fcaps(fd: RawFd, fcaps: CaFormatFCaps) -> Result<(), nix::errno
     Ok(())
 }
 
-pub fn security_capability(name: &[u8]) -> bool {
+pub fn is_security_capability(name: &[u8]) -> bool {
     name == b"security.capability"
 }
 
-pub fn name_store(name: &[u8]) -> bool {
-    if name.is_empty() { return false; }
-    if name.starts_with(b"user.") { return true; }
-    if name.starts_with(b"trusted.") { return true; }
-    if security_capability(name) { return true; }
-
-    false
+/// Check if the passed name buffer starts with a valid xattr namespace prefix
+/// and is within the length limit of 255 bytes
+pub fn is_valid_xattr_name(name: &[u8]) -> bool {
+    if name.is_empty() || name.len() > 255 {
+        return false;
+    }
+    if name.starts_with(b"user.") || name.starts_with(b"trusted.") {
+        return true;
+    }
+    is_security_capability(name)
 }
 
 #[cfg(test)]

@@ -150,25 +150,20 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     fn read_xattr(&mut self, size: usize) -> Result<CaFormatXAttr, Error> {
         let buffer = self.reader.read_exact_allocated(size)?;
 
-        match buffer.iter().position(|c| *c == '\0' as u8) {
-            Some(pos) => {
-                // pos needs to be within the first 256 bytes in order to
-                // terminate a valid xattr name
-                if pos > 255 {
-                    bail!("Invalid zero termination for xattr name.");
-                }
-                if !xattr::name_store(&buffer[0..pos]) || xattr::security_capability(&buffer[0..pos]) {
-                    bail!("Invalid name for xattr - {}.", String::from_utf8_lossy(&buffer[0..pos]));
-                }
-                let name = buffer[0..pos].to_vec();
-                let value = buffer[pos + 1..size].to_vec();
-                return Ok(CaFormatXAttr {
-                    name: name,
-                    value: value,
-                });
-            },
-            _ => bail!("Incorrect zero termination in xattr."),
+        let separator = buffer.iter().position(|c| *c == b'\0')
+            .ok_or_else(|| format_err!("no value found in xattr"))?;
+
+        let (name, value) = buffer.split_at(separator);
+        if !xattr::is_valid_xattr_name(name) ||
+            xattr::is_security_capability(name)
+        {
+            bail!("incorrect xattr name - {}.", String::from_utf8_lossy(name));
         }
+
+        Ok(CaFormatXAttr {
+            name: name.to_vec(),
+            value: value[1..].to_vec(),
+        })
     }
 
     fn read_fcaps(&mut self, size: usize) -> Result<CaFormatFCaps, Error> {
