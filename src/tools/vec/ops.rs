@@ -2,9 +2,10 @@
 //!
 //! Example:
 //! ```
-//! use crate::tools::vec::{self, ops::*};
+//! # use std::io::Read;
+//! use proxmox_backup::tools::vec::{self, ops::*};
 //!
-//! fn append_1024_to_vec<T: Read>(input: T, buffer: &mut Vec<u8>) -> std::io::Result<()> {
+//! fn append_1024_to_vec<T: Read>(mut input: T, buffer: &mut Vec<u8>) -> std::io::Result<()> {
 //!     input.read_exact(unsafe { buffer.grow_uninitialized(1024) })
 //! }
 //! ```
@@ -12,19 +13,22 @@
 /// Some additional byte vector operations useful for I/O code.
 /// Example:
 /// ```
-/// use crate::tools::vec::{self, ops::*};
+/// # use std::io::Read;
+/// # use proxmox_backup::tools::io::{self, ops::*};
+/// use proxmox_backup::tools::vec::{self, ops::*};
 ///
-/// let mut data = file.read_exact_allocated(1024)?;
-/// do_something();
+/// # fn code(mut file: std::fs::File, mut data: Vec<u8>) -> std::io::Result<()> {
 /// file.read_exact(unsafe {
-///     data.grow_uninitialized(1024);
+///     data.grow_uninitialized(1024)
 /// })?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// Note that this module also provides a safe alternative for the case where
 /// `grow_uninitialized()` is directly followed by a `read_exact()` call via the [`ReadExtOps`]
 /// trait:
-/// ```
+/// ```ignore
 /// file.append_to_vec(&mut data, 1024)?;
 /// ```
 ///
@@ -35,7 +39,7 @@ pub trait VecU8ExtOps {
     /// slice.
     ///
     /// This is a shortcut for:
-    /// ```
+    /// ```ignore
     /// vec.reserve(more);
     /// let total = vec.len() + more;
     /// unsafe {
@@ -45,12 +49,17 @@ pub trait VecU8ExtOps {
     ///
     /// This returns a mutable slice to the newly allocated space, so it can be used inline:
     /// ```
+    /// # use std::io::Read;
+    /// # use proxmox_backup::tools::vec::ops::*;
+    /// # fn test(mut file: std::fs::File, buffer: &mut Vec<u8>) -> std::io::Result<()> {
     /// file.read_exact(unsafe { buffer.grow_uninitialized(1024) })?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// Although for the above case it is recommended to use the even shorter version from the
     /// [`ReadExtOps`] trait:
-    /// ```
+    /// ```ignore
     /// // use crate::tools::vec::ops::ReadExtOps;
     /// file.append_to_vec(&mut buffer, 1024)?;
     /// ```
@@ -59,7 +68,7 @@ pub trait VecU8ExtOps {
     unsafe fn grow_uninitialized(&mut self, more: usize) -> &mut [u8];
 
     /// Resize a vector to a specific size without initializing its data. This is a shortcut for:
-    /// ```
+    /// ```ignore
     /// if new_size <= vec.len() {
     ///     vec.truncate(new_size);
     /// } else {

@@ -1,7 +1,7 @@
 //! Byte vector helpers.
 //!
 //! We have a lot of I/O code such as:
-//! ```
+//! ```ignore
 //! let mut buffer = vec![0u8; header_size];
 //! file.read_exact(&mut buffer)?;
 //! ```
@@ -16,16 +16,18 @@
 //! in the [`tools::io`](crate::tools::io) module.
 //!
 //! Examples:
-//! ```
-//! use crate::tools::vec::{self, ops::*};
+//! ```no_run
+//! use proxmox_backup::tools::vec::{self, ops::*};
 //!
+//! # let size = 64usize;
+//! # let more = 64usize;
 //! let mut buffer = vec::undefined(size); // A zero-initialized buffer with valgrind support
 //!
 //! let mut buffer = unsafe { vec::uninitialized(size) }; // an actually uninitialized buffer
 //! vec::clear(&mut buffer); // zero out an &mut [u8]
 //!
 //! vec::clear(unsafe {
-//!     buffer.grow_unintialized(more); // grow the buffer with uninitialized bytes
+//!     buffer.grow_uninitialized(more) // grow the buffer with uninitialized bytes
 //! });
 //! ```
 
@@ -34,8 +36,9 @@ pub mod ops;
 /// Create an uninitialized byte vector of a specific size.
 ///
 /// This is just a shortcut for:
-/// ```
-/// let mut v = Vec::with_capacity(len);
+/// ```no_run
+/// # let len = 64usize;
+/// let mut v = Vec::<u8>::with_capacity(len);
 /// unsafe {
 ///     v.set_len(len);
 /// }

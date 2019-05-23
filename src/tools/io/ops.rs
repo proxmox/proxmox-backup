@@ -15,22 +15,28 @@ use crate::tools::vec::{self, ops::*};
 /// values of a specific endianess (types implementing [`Endian`]).
 ///
 /// Examples:
-/// ```
-/// use crate::tools::io::ops::*;
+/// ```no_run
+/// use proxmox_backup::tools::io::ops::*;
 ///
+/// # fn code() -> std::io::Result<()> {
 /// let mut file = std::fs::File::open("some.data")?;
 ///
 /// // read some bytes into a newly allocated Vec<u8>:
-/// let mut data = file.read_exact_allocated(header.data_size as usize)?;
+/// let mut data = file.read_exact_allocated(64)?;
 ///
 /// // appending data to a vector:
-/// let actually_appended = file.append_to_vec(&mut data, length)?; // .read() version
-/// file.append_exact_to_vec(&mut data, length)?; // .read_exact() version
+/// let actually_appended = file.append_to_vec(&mut data, 64)?; // .read() version
+/// file.append_exact_to_vec(&mut data, 64)?; // .read_exact() version
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// Or for reading values of a defined representation and endianess:
 ///
-/// ```
+/// ```no_run
+/// # use endian_trait::Endian;
+/// # use proxmox_backup::tools::io::ops::*;
+///
 /// #[derive(Endian)]
 /// #[repr(C)]
 /// struct Header {
@@ -38,15 +44,18 @@ use crate::tools::vec::{self, ops::*};
 ///     data_size: u16,
 /// }
 ///
+/// # fn code(mut file: std::fs::File) -> std::io::Result<()> {
 /// // We have given `Header` a proper binary representation via `#[repr]`, so this is safe:
 /// let header: Header = unsafe { file.read_le_value()? };
 /// let mut blob = file.read_exact_allocated(header.data_size as usize)?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// [`Endian`]: https://docs.rs/endian_trait/0.6/endian_trait/trait.Endian.html
 pub trait ReadExtOps {
     /// Read data into a newly allocated vector. This is a shortcut for:
-    /// ```
+    /// ```ignore
     /// let mut data = Vec::with_capacity(len);
     /// unsafe {
     ///     data.set_len(len);
@@ -55,10 +64,12 @@ pub trait ReadExtOps {
     /// ```
     ///
     /// With this trait, we just use:
-    /// ```
-    /// use crate::tools::vec::ops::*;
-    ///
-    /// let data = reader.read_exact_allocated(len);
+    /// ```no_run
+    /// use proxmox_backup::tools::io::ops::*;
+    /// # fn code(mut reader: std::fs::File, len: usize) -> std::io::Result<()> {
+    /// let data = reader.read_exact_allocated(len)?;
+    /// # Ok(())
+    /// # }
     /// ```
     fn read_exact_allocated(&mut self, size: usize) -> io::Result<Vec<u8>>;
 
@@ -76,8 +87,9 @@ pub trait ReadExtOps {
     /// There's no way to directly depend on a type having a specific `#[repr(...)]`, therefore
     /// this is considered unsafe.
     ///
-    /// ```
-    /// use crate::tools::vec::ops::*;
+    /// ```no_run
+    /// # use endian_trait::Endian;
+    /// use proxmox_backup::tools::io::ops::*;
     ///
     /// #[derive(Endian)]
     /// #[repr(C, packed)]
@@ -86,10 +98,13 @@ pub trait ReadExtOps {
     ///     count: u32,
     /// }
     ///
+    /// # fn code() -> std::io::Result<()> {
     /// let mut file = std::fs::File::open("my-raw.dat")?;
     /// // We know `Data` has a safe binary representation (#[repr(C, packed)]), so we can
     /// // safely use our helper:
     /// let data: Data = unsafe { file.read_host_value()? };
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`Endian`]: https://docs.rs/endian_trait/0.6/endian_trait/trait.Endian.html
@@ -104,8 +119,9 @@ pub trait ReadExtOps {
     /// There's no way to directly depend on a type having a specific `#[repr(...)]`, therefore
     /// this is considered unsafe.
     ///
-    /// ```
-    /// use crate::tools::vec::ops::*;
+    /// ```no_run
+    /// # use endian_trait::Endian;
+    /// use proxmox_backup::tools::io::ops::*;
     ///
     /// #[derive(Endian)]
     /// #[repr(C, packed)]
@@ -114,10 +130,13 @@ pub trait ReadExtOps {
     ///     count: u32,
     /// }
     ///
+    /// # fn code() -> std::io::Result<()> {
     /// let mut file = std::fs::File::open("my-little-endian.dat")?;
     /// // We know `Data` has a safe binary representation (#[repr(C, packed)]), so we can
     /// // safely use our helper:
     /// let data: Data = unsafe { file.read_le_value()? };
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`Endian`]: https://docs.rs/endian_trait/0.6/endian_trait/trait.Endian.html
@@ -132,8 +151,9 @@ pub trait ReadExtOps {
     /// There's no way to directly depend on a type having a specific `#[repr(...)]`, therefore
     /// this is considered unsafe.
     ///
-    /// ```
-    /// use crate::tools::vec::ops::*;
+    /// ```no_run
+    /// # use endian_trait::Endian;
+    /// use proxmox_backup::tools::io::ops::*;
     ///
     /// #[derive(Endian)]
     /// #[repr(C, packed)]
@@ -142,10 +162,13 @@ pub trait ReadExtOps {
     ///     count: u32,
     /// }
     ///
+    /// # fn code() -> std::io::Result<()> {
     /// let mut file = std::fs::File::open("my-big-endian.dat")?;
     /// // We know `Data` has a safe binary representation (#[repr(C, packed)]), so we can
     /// // safely use our helper:
     /// let data: Data = unsafe { file.read_be_value()? };
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// [`Endian`]: https://docs.rs/endian_trait/0.6/endian_trait/trait.Endian.html

@@ -7,7 +7,7 @@
 //! implementing `AsyncRead`, which, however, without async/await cannot be methods due to them
 //! having non-static lifetimes in that case.
 //!
-//! ```
+//! ```ignore
 //! use std::io;
 //!
 //! use crate::tools::io::read_exact_allocated;
@@ -23,8 +23,8 @@
 //!             tokio::io::read_exact(file, unsafe { buffer.grow_uninitialized(1024) })
 //!         })
 //!         .and_then(|(_file, bigger_buffer)| {
-//!             use_the(bigger_buffer);
-//!             Ok(bigger_buffer)
+//!             // use bigger_buffer
+//!             Ok(())
 //!         });
 //! }
 //!
@@ -55,11 +55,14 @@ pub mod ops;
 ///
 /// Example:
 /// ```
+/// # use futures::future::Future;
+/// # use proxmox_backup::tools::io::*;
 /// tokio::fs::File::open("some.file")
 ///     .and_then(|file| read_exact_allocated(file, 1024))
 ///     .and_then(|(_file, data)| {
-///         use_the(data);
-///     })
+///         // use data
+///         Ok(())
+///     });
 /// ```
 pub fn read_exact_allocated<R: AsyncRead>(reader: R, size: usize) -> ReadExactAllocated<R> {
     ReadExactAllocated(Some(reader), None, size)
@@ -121,13 +124,16 @@ impl<R: AsyncRead> Future for ReadExactAllocated<R> {
 ///
 /// Example:
 /// ```
+/// # use futures::future::Future;
+/// # use proxmox_backup::tools::io::*;
 /// tokio::fs::File::open("some.file")
 ///     .and_then(|file| append_to_vec(file, Vec::new(), 1024))
 ///     .and_then(|(_file, data, size)| {
 ///         assert!(data.len() == size);
 ///         println!("Actually got {} bytes of data.", size);
-///         use_the(data);
-///     })
+///         // use the data
+///         Ok(())
+///     });
 /// ```
 pub fn append_to_vec<R, V>(reader: R, mut vector: V, size: usize) -> AppendToVec<R, V>
 where
@@ -188,13 +194,15 @@ where
 ///
 /// Example:
 /// ```
+/// # use futures::future::Future;
+/// # use proxmox_backup::tools::io::*;
 /// tokio::fs::File::open("some.file")
 ///     .and_then(|file| append_exact_to_vec(file, Vec::new(), 1024))
 ///     .and_then(|(_file, data)| {
-///         assert!(data.len() == size);
-///         println!("Actually got {} bytes of data.", size);
-///         use_the(data);
-///     })
+///         assert!(data.len() == 1024);
+///         // use data
+///         Ok(())
+///     });
 /// ```
 pub fn append_exact_to_vec<R, V>(reader: R, mut vector: V, size: usize) -> AppendExactToVec<R, V>
 where
