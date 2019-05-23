@@ -423,6 +423,39 @@ impl BackupClient {
         self.h2.post(path, param)
     }
 
+    pub fn finish(&self) -> impl Future<Item=(), Error=Error> {
+        self.h2.clone().post("finish", None).map(|_| ())
+    }
+
+    pub fn upload_dynamic_stream(
+        &self,
+        archive_name: &str,
+        stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
+    ) -> impl Future<Item=(), Error=Error> {
+
+        let known_chunks = Arc::new(Mutex::new(HashSet::new()));
+
+        let h2 = self.h2.clone();
+        let h2_2 = self.h2.clone();
+        let h2_3 = self.h2.clone();
+        let h2_4 = self.h2.clone();
+
+        let param = json!({ "archive-name": archive_name });
+
+        Self::download_chunk_list(h2, "dynamic_index", archive_name, known_chunks.clone())
+            .and_then(move |_| {
+                h2_2.post("dynamic_index", Some(param))
+            })
+            .and_then(move |res| {
+                let wid = res.as_u64().unwrap();
+                Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
+                    .and_then(move |_size| {
+                        h2_4.post("dynamic_close", Some(json!({ "wid": wid })))
+                    })
+                    .map(|_| ())
+            })
+    }
+
     fn response_queue() -> (
         mpsc::Sender<h2::client::ResponseFuture>,
         sync::oneshot::Receiver<Result<(), Error>>
@@ -488,39 +521,6 @@ impl BackupClient {
                                 Ok(())
                             })
                        })
-            })
-    }
-
-    pub fn finish(&self) -> impl Future<Item=(), Error=Error> {
-        self.h2.clone().post("finish", None).map(|_| ())
-    }
-
-    pub fn upload_dynamic_stream(
-        &self,
-        archive_name: &str,
-        stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
-    ) -> impl Future<Item=(), Error=Error> {
-
-        let known_chunks = Arc::new(Mutex::new(HashSet::new()));
-
-        let h2 = self.h2.clone();
-        let h2_2 = self.h2.clone();
-        let h2_3 = self.h2.clone();
-        let h2_4 = self.h2.clone();
-
-        let param = json!({ "archive-name": archive_name });
-
-        Self::download_chunk_list(h2, "dynamic_index", archive_name, known_chunks.clone())
-            .and_then(move |_| {
-                h2_2.post("dynamic_index", Some(param))
-            })
-            .and_then(move |res| {
-                let wid = res.as_u64().unwrap();
-                Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
-                    .and_then(move |_size| {
-                        h2_4.post("dynamic_close", Some(json!({ "wid": wid })))
-                    })
-                    .map(|_| ())
             })
     }
 
