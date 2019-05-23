@@ -33,7 +33,7 @@ pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
         ObjectSchema::new("Upgraded to backup protocol.")
             .required("store", StringSchema::new("Datastore name."))
             .required("backup-type", StringSchema::new("Backup type.")
-                      .format(Arc::new(ApiStringFormat::Enum(vec!["vm".into(), "ct".into(), "host".into()]))))
+                      .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
             .required("backup-id", StringSchema::new("Backup ID."))
     )
 }

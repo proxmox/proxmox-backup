@@ -372,7 +372,7 @@ impl From<ArraySchema> for Arc<Schema> {
 }
 
 pub enum ApiStringFormat {
-    Enum(Vec<String>),
+    Enum(&'static [&'static str]),
     Pattern(&'static Regex),
     Complex(Arc<Schema>),
     VerifyFn(fn(&str) -> Result<(), Error>),
@@ -744,7 +744,7 @@ fn test_query_string() {
     let schema = ObjectSchema::new("Parameters.")
         .required(
             "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Enum(vec!["ev1".into(), "ev2".into()])))
+                .format(Arc::new(ApiStringFormat::Enum(&["ev1", "ev2"])))
         );
 
     let res = parse_query_string("name=noenum", &schema, true);
@@ -873,7 +873,7 @@ fn test_verify_function() {
 fn test_verify_complex_object() {
 
     let nic_models = Arc::new(ApiStringFormat::Enum(
-        vec!["e1000".into(), "virtio".into()]));
+        &["e1000", "virtio"]));
 
     let param_schema: Arc<Schema> = ObjectSchema::new("Properties.")
         .default_key("model")

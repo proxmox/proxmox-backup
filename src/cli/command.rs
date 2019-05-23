@@ -409,7 +409,7 @@ fn print_property_completion(
     }
 
     if let Schema::String(StringSchema { format: Some(format),  ..} ) = schema {
-        if let ApiStringFormat::Enum(list) = format.as_ref() {
+        if let ApiStringFormat::Enum(list) = *format.as_ref() {
             for value in list {
                 if value.starts_with(arg) {
                     println!("{}", value);
