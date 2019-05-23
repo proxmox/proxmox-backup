@@ -23,6 +23,7 @@ use nix::NixPath;
 
 use crate::tools::io::ops::*;
 use crate::tools::vec;
+use crate::tools::acl;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
@@ -166,8 +167,16 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     }
 
     fn restore_attributes(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<CaFormatHeader, Error> {
-        let mut xattrs: Vec<CaFormatXAttr> = Vec::new();
-        let mut fcaps: Option<CaFormatFCaps> = None;
+        let mut xattrs = Vec::new();
+        let mut fcaps = None;
+
+        let mut acl_user = Vec::new();
+        let mut acl_group = Vec::new();
+        let mut acl_group_obj = None;
+
+        let mut acl_default = None;
+        let mut acl_default_user = Vec::new();
+        let mut acl_default_group = Vec::new();
 
         let mut head: CaFormatHeader = self.read_item()?;
         let mut size = (head.size - HEADER_SIZE) as usize;
@@ -187,12 +196,98 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                         self.skip_bytes(size)?;
                     }
                 },
+                CA_FORMAT_ACL_USER => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_user.push(self.read_item::<CaFormatACLUser>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_ACL_GROUP => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_group.push(self.read_item::<CaFormatACLGroup>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_ACL_GROUP_OBJ => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_group_obj = Some(self.read_item::<CaFormatACLGroupObj>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_ACL_DEFAULT => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_default = Some(self.read_item::<CaFormatACLDefault>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_ACL_DEFAULT_USER => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_default_user.push(self.read_item::<CaFormatACLUser>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
+                CA_FORMAT_ACL_DEFAULT_GROUP => {
+                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                        acl_default_group.push(self.read_item::<CaFormatACLGroup>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
                 _ => break,
             }
             head = self.read_item()?;
             size = (head.size - HEADER_SIZE) as usize;
         }
         self.restore_xattrs_fcaps_fd(fd, xattrs, fcaps)?;
+
+        let mut acl = acl::ACL::init(5)?;
+        acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
+        acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
+        match acl_group_obj {
+            Some(group_obj) => {
+                acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
+                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
+            },
+            None => {
+                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
+            },
+        }
+        for user in acl_user {
+            acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
+        }
+        for group in acl_group {
+            acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
+        }
+        let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
+        if !acl.is_valid() {
+            bail!("Error while restoring ACL - ACL invalid");
+        }
+        acl.set_file(&proc_path, acl::ACL_TYPE_ACCESS)?;
+
+        if let Some(default) = acl_default {
+            let mut acl = acl::ACL::init(5)?;
+            acl.add_entry_full(acl::ACL_USER_OBJ, None, default.user_obj_permissions)?;
+            acl.add_entry_full(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions)?;
+            acl.add_entry_full(acl::ACL_OTHER, None, default.other_permissions)?;
+            if default.mask_permissions != std::u64::MAX {
+                acl.add_entry_full(acl::ACL_MASK, None, default.mask_permissions)?;
+            }
+            for user in acl_default_user {
+                acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
+            }
+            for group in acl_default_group {
+                acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
+            }
+            if !acl.is_valid() {
+                bail!("Error while restoring ACL - ACL invalid");
+            }
+            acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
+        }
 
         Ok(head)
     }
@@ -580,7 +675,6 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         if verbose {
             println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
         }
-        // fixme: dump attributes (ACLs, ...)
 
         let ifmt = (entry.mode as u32) & libc::S_IFMT;
 
@@ -593,22 +687,16 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                 if verbose {
                     print_head(&head);
                 }
+
+                // This call covers all the cases of the match statement
+                // regarding extended attributes. These calls will never
+                // break on the loop and can therefore be handled separately.
+                // If the header was matched, true is returned and we can continue
+                if self.dump_if_attribute(&head, verbose)? {
+                    continue;
+                }
+
                 match head.htype {
-                    //TODO verify the correct order of occurrence
-                    CA_FORMAT_XATTR => {
-                        let size = (head.size - HEADER_SIZE) as usize;
-                        let xattr: CaFormatXAttr = self.read_xattr(size)?;
-                        if verbose {
-                            println!("XAttr: {:?}: {:?}", String::from_utf8_lossy(&xattr.name), String::from_utf8_lossy(&xattr.value));
-                        }
-                    }
-                    CA_FORMAT_FCAPS => {
-                        let size = (head.size - HEADER_SIZE) as usize;
-                        let fcaps: CaFormatFCaps = self.read_fcaps(size)?;
-                        if verbose {
-                            println!("FCaps: {:?}", fcaps);
-                        }
-                    }
                     CA_FORMAT_FILENAME =>  {
                         let name = self.read_filename(head.size)?;
                         if verbose { println!("Name: {:?}", name); }
@@ -616,7 +704,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                         path.push(&name);
                         self.dump_entry(path, verbose, output)?;
                         path.pop();
-                    }
+                    },
                     CA_FORMAT_GOODBYE => {
                         let table_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
@@ -626,10 +714,8 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                             self.skip_bytes(table_size)?;
                         }
                         break;
-                    }
-                    _ => {
-                        panic!("got unexpected header type inside directory");
-                    }
+                    },
+                    _ => panic!("got unexpected header type inside directory"),
                 }
             }
         } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) ||
@@ -641,36 +727,29 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                     print_head(&head);
                 }
 
-                match head.htype {
+                // This call covers all the cases of the match statement
+                // regarding extended attributes. These calls will never
+                // break on the loop and can therefore be handled separately.
+                // If the header was matched, true is returned and we can continue
+                if self.dump_if_attribute(&head, verbose)? {
+                    continue;
+                }
 
+                match head.htype {
                     CA_FORMAT_SYMLINK => {
                         let target = self.read_link(head.size)?;
                         if verbose {
                             println!("Symlink: {:?}", target);
                         }
                         break;
-                    }
+                    },
                     CA_FORMAT_DEVICE => {
                         let device: CaFormatDevice = self.read_item()?;
                         if verbose {
                             println!("Device: {}, {}", device.major, device.minor);
                         }
                         break;
-                    }
-                    CA_FORMAT_XATTR => {
-                        let size = (head.size - HEADER_SIZE) as usize;
-                        let xattr: CaFormatXAttr = self.read_xattr(size)?;
-                        if verbose {
-                            println!("XAttr: {:?}: {:?}", String::from_utf8_lossy(&xattr.name), String::from_utf8_lossy(&xattr.value));
-                        }
-                    }
-                    CA_FORMAT_FCAPS => {
-                        let size = (head.size - HEADER_SIZE) as usize;
-                        let fcaps: CaFormatFCaps = self.read_fcaps(size)?;
-                        if verbose {
-                            println!("FCaps: {:?}", fcaps);
-                        }
-                    }
+                    },
                     CA_FORMAT_PAYLOAD => {
                         let payload_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
@@ -696,6 +775,26 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             panic!("unknown st_mode");
         }
         Ok(())
+    }
+
+    fn dump_if_attribute(&mut self, header: &CaFormatHeader, verbose: bool) -> Result<bool, Error> {
+        let dump_string = match header.htype {
+            CA_FORMAT_XATTR => format!("XAttr: {:?}", self.read_xattr((header.size - HEADER_SIZE) as usize)?),
+            CA_FORMAT_FCAPS => format!("FCaps: {:?}", self.read_fcaps((header.size - HEADER_SIZE) as usize)?),
+            CA_FORMAT_ACL_USER => format!("ACLUser: {:?}", self.read_item::<CaFormatACLUser>()?),
+            CA_FORMAT_ACL_GROUP => format!("ACLGroup: {:?}", self.read_item::<CaFormatACLGroup>()?),
+            CA_FORMAT_ACL_GROUP_OBJ => format!("ACLGroupObj: {:?}", self.read_item::<CaFormatACLGroupObj>()?),
+            CA_FORMAT_ACL_DEFAULT => format!("ACLDefault: {:?}", self.read_item::<CaFormatACLDefault>()?),
+            CA_FORMAT_ACL_DEFAULT_USER => format!("ACLDefaultUser: {:?}", self.read_item::<CaFormatACLUser>()?),
+            CA_FORMAT_ACL_DEFAULT_GROUP => format!("ACLDefaultGroup: {:?}", self.read_item::<CaFormatACLGroup>()?),
+            _ => return Ok(false),
+        };
+        let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS | CA_FORMAT_WITH_ACL;
+        if verbose && self.has_features(flags) {
+            println!("{}", dump_string);
+        }
+
+        Ok(true)
     }
 
     fn dump_goodby_entries(
@@ -811,4 +910,16 @@ fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
     ];
 
     times
+}
+
+fn mode_user_to_acl_permissions(mode: u64) -> u64 {
+    return (mode >> 6) & 7;
+}
+
+fn mode_group_to_acl_permissions(mode: u64) -> u64 {
+    return (mode >> 3) & 7;
+}
+
+fn mode_other_to_acl_permissions(mode: u64) -> u64 {
+    return mode & 7;
 }
