@@ -204,8 +204,9 @@ fn create_dynamic_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+    let name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
+    let mut archive_name = name.clone();
     if !archive_name.ends_with(".pxar") {
         bail!("wrong archive extension");
     } else {
@@ -218,7 +219,7 @@ fn create_dynamic_index(
     let chunk_size = 4096*1024; // todo: ??
 
     let index = env.datastore.create_dynamic_writer(&path, chunk_size)?;
-    let wid = env.register_dynamic_writer(index)?;
+    let wid = env.register_dynamic_writer(index, name)?;
 
     env.log(format!("created new dynamic index {} ({:?})", wid, path));
 
@@ -266,6 +267,12 @@ pub fn api_method_close_dynamic_index() -> ApiMethod {
                       .minimum(1)
                       .maximum(256)
             )
+            .required("chunk-count", IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
+                      .minimum(1)
+            )
+            .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
+                      .minimum(1)
+            )
     )
 }
 
@@ -276,10 +283,12 @@ fn close_dynamic_index (
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
+    let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
+    let size = tools::required_integer_param(&param, "size")? as u64;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    env.dynamic_writer_close(wid)?;
+    env.dynamic_writer_close(wid, chunk_count, size)?;
 
     env.log(format!("sucessfully closed dynamic index {}", wid));
 

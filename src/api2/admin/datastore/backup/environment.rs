@@ -10,10 +10,18 @@ use crate::backup::*;
 use crate::server::formatter::*;
 use hyper::{Body, Response};
 
+
+struct DynamicWriterState {
+    name: String,
+    index: DynamicIndexWriter,
+    offset: u64,
+    chunk_count: u64,
+}
+
 struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
-    dynamic_writers: HashMap<usize, (u64 /* offset */, DynamicIndexWriter)>,
+    dynamic_writers: HashMap<usize, DynamicWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
 }
 
@@ -100,14 +108,16 @@ impl BackupEnvironment {
     }
 
     /// Store the writer with an unique ID
-    pub fn register_dynamic_writer(&self, writer: DynamicIndexWriter) -> Result<usize, Error> {
+    pub fn register_dynamic_writer(&self, index: DynamicIndexWriter, name: String) -> Result<usize, Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
 
         let uid = state.next_uid();
 
-        state.dynamic_writers.insert(uid, (0, writer));
+        state.dynamic_writers.insert(uid, DynamicWriterState {
+            index, name, offset: 0, chunk_count: 0,
+        });
 
         Ok(uid)
     }
@@ -123,15 +133,16 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
-        data.0 += size as u64;
+        data.offset += size as u64;
+        data.chunk_count += 1;
 
-        data.1.add_chunk(data.0, digest)?;
+        data.index.add_chunk(data.offset, digest)?;
 
         Ok(())
     }
 
     /// Close dynamic writer
-    pub fn dynamic_writer_close(&self, wid: usize) -> Result<(), Error> {
+    pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -141,7 +152,15 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
-        data.1.close()?;
+        if data.chunk_count != chunk_count {
+            bail!("dynamic writer '{}' close failed - unexpected chunk count ({} != {})", data.name, data.chunk_count, chunk_count);
+        }
+
+        if data.offset != size {
+            bail!("dynamic writer '{}' close failed - unexpected file size ({} != {})", data.name, data.offset, size);
+        }
+
+        data.index.close()?;
 
         Ok(())
     }

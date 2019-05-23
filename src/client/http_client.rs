@@ -449,8 +449,13 @@ impl BackupClient {
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
                 Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
-                    .and_then(move |_size| {
-                        h2_4.post("dynamic_close", Some(json!({ "wid": wid })))
+                    .and_then(move |(chunk_count, size, _speed)| {
+                        let param = json!({
+                            "wid": wid ,
+                            "chunk-count": chunk_count,
+                            "size": size,
+                        });
+                        h2_4.post("dynamic_close", Some(param))
                     })
                     .map(|_| ())
             })
@@ -529,7 +534,7 @@ impl BackupClient {
         wid: u64,
         stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
-    ) -> impl Future<Item=usize, Error=Error> {
+    ) -> impl Future<Item=(usize, usize, usize), Error=Error> {
 
         let repeat = std::sync::Arc::new(AtomicUsize::new(0));
         let repeat2 = repeat.clone();
@@ -593,7 +598,7 @@ impl BackupClient {
                     println!("Average chunk size was {} bytes.", stream_len/repeat);
                     println!("Time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
                 }
-                Ok(speed)
+                Ok((repeat, stream_len, speed))
             })
     }
 
