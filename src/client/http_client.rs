@@ -582,9 +582,9 @@ impl BackupClient {
                     }
                     MergedChunkInfo::Known(chunk_list) => {
                         let mut digest_list = vec![];
-                        for chunk_info in chunk_list {
+                        for (_offset, digest) in chunk_list {
                             //println!("append existing chunk ({} bytes)", chunk_info.data.len());
-                            digest_list.push(tools::digest_to_hex(&chunk_info.digest));
+                            digest_list.push(tools::digest_to_hex(&digest));
                         }
                         println!("append existing chunks ({})", digest_list.len());
                         let param = json!({ "wid": wid, "digest-list": digest_list });

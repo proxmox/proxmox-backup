@@ -10,7 +10,7 @@ pub struct ChunkInfo {
 }
 
 pub enum MergedChunkInfo {
-    Known(Vec<ChunkInfo>),
+    Known(Vec<(u64,[u8;32])>),
     New(ChunkInfo),
 }
 
@@ -65,11 +65,11 @@ impl <S> Stream for MergeKnownChunksQueue<S>
 
                         match last {
                             None => {
-                                self.buffer = Some(MergedChunkInfo::Known(vec![chunk_info]));
+                                self.buffer = Some(MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]));
                                 // continue
                             }
                             Some(MergedChunkInfo::Known(mut list)) => {
-                                list.push(chunk_info);
+                                list.push((chunk_info.offset, chunk_info.digest));
                                 let len = list.len();
                                 self.buffer = Some(MergedChunkInfo::Known(list));
 
@@ -80,7 +80,7 @@ impl <S> Stream for MergeKnownChunksQueue<S>
 
                             }
                             Some(MergedChunkInfo::New(_)) => {
-                                self.buffer = Some(MergedChunkInfo::Known(vec![chunk_info]));
+                                self.buffer = Some(MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]));
                                 return Ok(Async::Ready(last));
                             }
                         }
