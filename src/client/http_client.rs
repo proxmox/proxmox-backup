@@ -461,7 +461,7 @@ impl BackupClient {
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
                 Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
-                    .and_then(move |(chunk_count, size, _speed)| {
+                     .and_then(move |(chunk_count, size, _speed)| {
                         let param = json!({
                             "wid": wid ,
                             "chunk-count": chunk_count,
@@ -575,22 +575,26 @@ impl BackupClient {
 
                 match merged_chunk_info {
                     MergedChunkInfo::New(chunk_info) => {
-                        println!("upload new chunk {} ({} bytes)", tools::digest_to_hex(&chunk_info.digest), chunk_info.data.len());
-                        let param = json!({ "wid": wid, "size" : chunk_info.data.len() });
+                        println!("upload new chunk {} ({} bytes, offset {})", tools::digest_to_hex(&chunk_info.digest),
+                                 chunk_info.data.len(), chunk_info.offset);
+                        let param = json!({ "wid": wid, "offset": chunk_info.offset, "size" : chunk_info.data.len() });
                         request = H2Client::request_builder("localhost", "POST", "dynamic_chunk", Some(param)).unwrap();
                         upload_data = Some(chunk_info.data.freeze());
                     }
                     MergedChunkInfo::Known(chunk_list) => {
                         let mut digest_list = vec![];
-                        for (_offset, digest) in chunk_list {
-                            //println!("append existing chunk ({} bytes)", chunk_info.data.len());
+                        let mut offset_list = vec![];
+                        for (offset, digest) in chunk_list {
+                            println!("append chunk {} (offset {})", tools::digest_to_hex(&digest), offset);
                             digest_list.push(tools::digest_to_hex(&digest));
+                            offset_list.push(offset);
                         }
-                        println!("append existing chunks ({})", digest_list.len());
-                        let param = json!({ "wid": wid, "digest-list": digest_list });
+                        println!("append existing chunks list len ({})", digest_list.len());
+                        let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
                         request = H2Client::request_builder("localhost", "PUT", "dynamic_index", None).unwrap();
                         request.headers_mut().insert(hyper::header::CONTENT_TYPE,  HeaderValue::from_static("application/json"));
                         let param_data = bytes::Bytes::from(param.to_string().as_bytes());
+                        println!("DATALEN {}", param_data.len());
                         upload_data = Some(param_data);
                     }
                 }

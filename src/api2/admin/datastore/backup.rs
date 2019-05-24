@@ -230,13 +230,19 @@ pub fn api_method_dynamic_append() -> ApiMethod {
     ApiMethod::new(
         dynamic_append,
         ObjectSchema::new("Append chunk to dynamic index writer.")
+            .required("wid", IntegerSchema::new("Dynamic writer ID.")
+                      .minimum(1)
+                      .maximum(256)
+            )
             .required("digest-list", ArraySchema::new(
                 "Chunk digest list.",
                 StringSchema::new("Chunk digest.").into())
             )
-            .required("wid", IntegerSchema::new("Dynamic writer ID.")
-                      .minimum(1)
-                      .maximum(256)
+            .required("offset-list", ArraySchema::new(
+                "Chunk offset list.",
+                IntegerSchema::new("Corresponding chunk offsets.")
+                    .minimum(0)
+                    .into())
             )
     )
 }
@@ -249,17 +255,23 @@ fn dynamic_append (
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let digest_list = tools::required_array_param(&param, "digest-list")?;
+    let offset_list = tools::required_array_param(&param, "offset-list")?;
 
     println!("DIGEST LIST LEN {}", digest_list.len());
 
+    if offset_list.len() != digest_list.len() {
+        bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
+    }
+
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    for item in digest_list {
+    for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
         let digest = crate::tools::hex_to_digest(digest_str)?;
+        let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
-        env.dynamic_writer_append_chunk(wid, size, &digest)?;
+        env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
 
         env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));
     }

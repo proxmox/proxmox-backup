@@ -62,6 +62,9 @@ pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
                       .minimum(1)
                       .maximum(256)
             )
+            .required("offset", IntegerSchema::new("Chunk offset (end of chunk).")
+                      .minimum(0)
+            )
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
                       .maximum(1024*1024*16)
@@ -78,8 +81,10 @@ fn upload_dynamic_chunk(
 ) -> Result<BoxFut, Error> {
 
     let size = tools::required_integer_param(&param, "size")? as u32;
+    let offset = tools::required_integer_param(&param, "offset")? as u64;
     let wid = tools::required_integer_param(&param, "wid")? as usize;
 
+    println!("upload_dynamic_chunk: {} bytes, offset {}", size, offset);
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -91,7 +96,7 @@ fn upload_dynamic_chunk(
 
             let result = result.and_then(|(digest, size)| {
                 env.register_chunk(digest, size)?;
-                env.dynamic_writer_append_chunk(wid, size, &digest)?;
+                env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
                 Ok(json!(tools::digest_to_hex(&digest)))
             });
 

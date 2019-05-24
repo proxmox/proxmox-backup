@@ -123,7 +123,7 @@ impl BackupEnvironment {
     }
 
     /// Append chunk to dynamic writer
-    pub fn dynamic_writer_append_chunk(&self, wid: usize, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
+    pub fn dynamic_writer_append_chunk(&self, wid: usize, offset: u64, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -135,6 +135,11 @@ impl BackupEnvironment {
 
         data.offset += size as u64;
         data.chunk_count += 1;
+
+        if data.offset != offset {
+            bail!("dynamic writer '{}' append chunk failed - got strange chunk offset ({} != {})",
+                  data.name, data.offset, offset);
+        }
 
         data.index.add_chunk(data.offset, digest)?;
 
