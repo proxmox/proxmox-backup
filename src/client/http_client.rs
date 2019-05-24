@@ -571,7 +571,7 @@ impl BackupClient {
                 let upload_queue = upload_queue.clone();
 
                 let upload_data;
-                let request;
+                let mut request;
 
                 match merged_chunk_info {
                     MergedChunkInfo::New(chunk_info) => {
@@ -588,8 +588,10 @@ impl BackupClient {
                         }
                         println!("append existing chunks ({})", digest_list.len());
                         let param = json!({ "wid": wid, "digest-list": digest_list });
-                        request = H2Client::request_builder("localhost", "PUT", "dynamic_index", Some(param)).unwrap();
-                        upload_data = None;
+                        request = H2Client::request_builder("localhost", "PUT", "dynamic_index", None).unwrap();
+                        request.headers_mut().insert(hyper::header::CONTENT_TYPE,  HeaderValue::from_static("application/json"));
+                        let param_data = bytes::Bytes::from(param.to_string().as_bytes());
+                        upload_data = Some(param_data);
                     }
                 }
 
@@ -800,29 +802,32 @@ impl H2Client {
             })
     }
 
+    // Note: We always encode parameters with the url
     pub fn request_builder(server: &str, method: &str, path: &str, data: Option<Value>) -> Result<Request<()>, Error> {
         let path = path.trim_matches('/');
-        let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
 
         if let Some(data) = data {
             let query = tools::json_object_to_query(data)?;
+            // We detected problem with hyper around 6000 characters - seo we try to keep on the safe side
+            if query.len() > 4096 { bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len()); }
             let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
-            let request = Request::builder()
+             let request = Request::builder()
                 .method(method)
                 .uri(url)
                 .header("User-Agent", "proxmox-backup-client/1.0")
                 .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(())?;
             return Ok(request);
+        } else {
+            let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
+            let request = Request::builder()
+                .method(method)
+                .uri(url)
+                .header("User-Agent", "proxmox-backup-client/1.0")
+                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(())?;
+
+            Ok(request)
         }
-
-        let request = Request::builder()
-            .method(method)
-            .uri(url)
-            .header("User-Agent", "proxmox-backup-client/1.0")
-            .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(())?;
-
-        Ok(request)
     }
 }
