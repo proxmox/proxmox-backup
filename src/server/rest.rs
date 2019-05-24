@@ -155,6 +155,7 @@ fn get_request_parameters_async(
                         params[&k] = parse_simple_value(&v, prop_schema)?;
                     }
                 }
+                verify_json_object(&params, obj_schema)?;
                 return Ok(params);
             }
 
