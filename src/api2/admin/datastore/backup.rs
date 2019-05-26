@@ -270,7 +270,6 @@ fn dynamic_append (
         let digest = crate::tools::hex_to_digest(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
-
         env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
 
         env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));

@@ -96,7 +96,6 @@ fn upload_dynamic_chunk(
 
             let result = result.and_then(|(digest, size)| {
                 env.register_chunk(digest, size)?;
-                env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
                 Ok(json!(tools::digest_to_hex(&digest)))
             });
 
