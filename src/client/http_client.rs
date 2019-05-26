@@ -514,7 +514,6 @@ impl BackupClient {
         hyper::rt::spawn(
             verify_queue_rx
                 .map_err(Error::from)
-            //.for_each(|response: h2::client::ResponseFuture| {
                 .and_then(move |merged_chunk_info| {
                     match merged_chunk_info {
                         MergedChunkInfo::New(chunk_info) => {
@@ -544,6 +543,7 @@ impl BackupClient {
                         }
                     }
                 })
+                .merge_known_chunks()
                 .and_then(move |merged_chunk_info| {
                     match merged_chunk_info {
                         MergedChunkInfo::Known(chunk_list) => {
@@ -642,9 +642,17 @@ impl BackupClient {
             .map(move |chunk_info| {
                 repeat.fetch_add(1, Ordering::SeqCst);
                 stream_len.fetch_add(chunk_info.data.len(), Ordering::SeqCst);
-                chunk_info
+
+                let mut known_chunks = known_chunks.lock().unwrap();
+                let chunk_is_known = known_chunks.contains(&chunk_info.digest);
+                if chunk_is_known {
+                    MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)])
+                } else {
+                    known_chunks.insert(chunk_info.digest);
+                    MergedChunkInfo::New(chunk_info)
+                }
             })
-            .merge_known_chunks(known_chunks.clone())
+            .merge_known_chunks()
             .for_each(move |merged_chunk_info| {
                 upload_queue.clone().send(merged_chunk_info)
                     .map(|_| ()).map_err(Error::from)

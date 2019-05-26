@@ -1,7 +1,5 @@
 use failure::*;
 use futures::*;
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
 
 pub struct ChunkInfo {
     pub digest: [u8; 32],
@@ -15,25 +13,24 @@ pub enum MergedChunkInfo {
 }
 
 pub trait MergeKnownChunks: Sized {
-    fn merge_known_chunks(self, known_chunks: Arc<Mutex<HashSet<[u8;32]>>>) -> MergeKnownChunksQueue<Self>;
+    fn merge_known_chunks(self) -> MergeKnownChunksQueue<Self>;
 }
 
 pub struct MergeKnownChunksQueue<S> {
     input: S,
-    known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     buffer: Option<MergedChunkInfo>,
 }
 
 impl <S> MergeKnownChunks for S
-    where S: Stream<Item=ChunkInfo, Error=Error>,
+    where S: Stream<Item=MergedChunkInfo, Error=Error>,
 {
-    fn merge_known_chunks(self, known_chunks: Arc<Mutex<HashSet<[u8;32]>>>) -> MergeKnownChunksQueue<Self> {
-        MergeKnownChunksQueue { input: self, known_chunks, buffer: None }
+    fn merge_known_chunks(self) -> MergeKnownChunksQueue<Self> {
+        MergeKnownChunksQueue { input: self, buffer: None }
     }
 }
 
 impl <S> Stream for MergeKnownChunksQueue<S>
-    where S: Stream<Item=ChunkInfo, Error=Error>,
+    where S: Stream<Item=MergedChunkInfo, Error=Error>,
 {
     type Item = MergedChunkInfo;
     type Error = Error;
@@ -54,45 +51,42 @@ impl <S> Stream for MergeKnownChunksQueue<S>
                         return Ok(Async::Ready(None));
                     }
                 }
-                Ok(Async::Ready(Some(chunk_info))) => {
+                Ok(Async::Ready(Some(mergerd_chunk_info))) => {
 
-                    let mut known_chunks = self.known_chunks.lock().unwrap();
-                    let chunk_is_known = known_chunks.contains(&chunk_info.digest);
+                    match mergerd_chunk_info {
+                        MergedChunkInfo::Known(list) => {
 
-                    if chunk_is_known {
+                            let last = self.buffer.take();
 
-                        let last = self.buffer.take();
-
-                        match last {
-                            None => {
-                                self.buffer = Some(MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]));
-                                // continue
-                            }
-                            Some(MergedChunkInfo::Known(mut list)) => {
-                                list.push((chunk_info.offset, chunk_info.digest));
-                                let len = list.len();
-                                self.buffer = Some(MergedChunkInfo::Known(list));
-
-                                if len >= 64 {
-                                    return Ok(Async::Ready(self.buffer.take()));
+                            match last {
+                                None => {
+                                    self.buffer = Some(MergedChunkInfo::Known(list));
+                                    // continue
                                 }
-                                // continue
+                                Some(MergedChunkInfo::Known(mut last_list)) => {
+                                    last_list.extend_from_slice(&list);
+                                    let len = last_list.len();
+                                    self.buffer = Some(MergedChunkInfo::Known(last_list));
 
-                            }
-                            Some(MergedChunkInfo::New(_)) => {
-                                self.buffer = Some(MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]));
-                                return Ok(Async::Ready(last));
+                                    if len >= 64 {
+                                        return Ok(Async::Ready(self.buffer.take()));
+                                    }
+                                    // continue
+                                }
+                                Some(MergedChunkInfo::New(_)) => {
+                                    self.buffer = Some(MergedChunkInfo::Known(list));
+                                    return Ok(Async::Ready(last));
+                                }
                             }
                         }
-
-                    } else {
-                        known_chunks.insert(chunk_info.digest);
-                        let new = MergedChunkInfo::New(chunk_info);
-                        if let Some(last) = self.buffer.take() {
-                            self.buffer = Some(new);
-                            return Ok(Async::Ready(Some(last)));
-                        } else {
-                            return Ok(Async::Ready(Some(new)));
+                        MergedChunkInfo::New(chunk_info) => {
+                            let new = MergedChunkInfo::New(chunk_info);
+                            if let Some(last) = self.buffer.take() {
+                                self.buffer = Some(new);
+                                return Ok(Async::Ready(Some(last)));
+                            } else {
+                                return Ok(Async::Ready(Some(new)));
+                            }
                         }
                     }
                 }
