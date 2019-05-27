@@ -238,6 +238,10 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         let xattr_names = match xattr::flistxattr(fd) {
             Ok(names) => names,
+            // Do not bail if the underlying endpoint does not supports xattrs
+            Err(Errno::EOPNOTSUPP) => return Ok((xattrs, fcaps)),
+            // Do not bail if the endpoint cannot carry xattrs (such as symlinks)
+            Err(Errno::EBADF) => return Ok((xattrs, fcaps)),
             Err(err) => bail!("read_xattrs failed for {:?} - {}", self.full_path(), err),
         };
 
@@ -293,8 +297,16 @@ impl <'a, W: Write> Encoder<'a, W> {
         // to create a path for acl_get_file(). acl_get_fd() only allows to get
         // ACL_TYPE_ACCESS attributes.
         let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
-        let acl = acl::ACL::get_file(&proc_path, acl_type)
-            .map_err(|err| format_err!("error while reading ACL - {}", err))?;
+        let acl = match acl::ACL::get_file(&proc_path, acl_type) {
+            Ok(acl) => acl,
+            // Don't bail if underlying endpoint does not support acls
+            Err(Errno::EOPNOTSUPP) => return Ok(ret),
+            // Don't bail if the endpoint cannot carry acls
+            Err(Errno::EBADF) => return Ok(ret),
+            // Don't bail if there is no data
+            Err(Errno::ENODATA) => return Ok(ret),
+            Err(err) => bail!("error while reading ACL - {}", err),
+        };
 
         self.process_acl(acl, acl_type)
     }
