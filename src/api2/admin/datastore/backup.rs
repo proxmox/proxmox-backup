@@ -104,8 +104,9 @@ fn upgrade_to_backup_protocol(
                 let mut http = hyper::server::conn::Http::new();
                 http.http2_only(true);
                 // increase window size: todo - find optiomal size
-                http.http2_initial_stream_window_size( (1 << 31) - 2);
-                http.http2_initial_connection_window_size( (1 << 31) - 2);
+                let window_size = 32*1024*1024; // max = (1 << 31) - 2
+                http.http2_initial_stream_window_size(window_size);
+                http.http2_initial_connection_window_size(window_size);
 
                 http.serve_connection(conn, service)
                     .map_err(Error::from)

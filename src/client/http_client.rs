@@ -506,7 +506,7 @@ impl BackupClient {
         mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>,
         sync::oneshot::Receiver<Result<(), Error>>
     ) {
-        let (verify_queue_tx, verify_queue_rx) = mpsc::channel(100);
+        let (verify_queue_tx, verify_queue_rx) = mpsc::channel(64);
         let (verify_result_tx, verify_result_rx) = sync::oneshot::channel();
 
         let h2_2 = h2.clone();
@@ -521,7 +521,7 @@ impl BackupClient {
                                 response
                                     .map_err(Error::from)
                                     .and_then(H2Client::h2api_response)
-                                    .and_then(move |result| {
+                                    .and_then(move |_result| {
                                         Ok(MergedChunkInfo::Known(list))
                                     })
                             )
