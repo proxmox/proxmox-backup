@@ -587,13 +587,12 @@ impl BackupClient {
                     .map_err(Error::from)
                     .and_then(move |resp| {
                         let status = resp.status();
+
                         if !status.is_success() {
-                            bail!("download chunk list failed with status {}", status);
+                            future::Either::A(H2Client::h2api_response(resp).and_then(|_| { bail!("unknown error"); }))
+                        } else {
+                            future::Either::B(future::ok(resp.into_body()))
                         }
-
-                        let (_head, body) = resp.into_parts();
-
-                        Ok(body)
                     })
                     .and_then(move |mut body| {
 
