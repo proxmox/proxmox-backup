@@ -11,6 +11,8 @@ use serde_json::{Value};
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::fs::OpenOptions;
+use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox_backup::pxar;
 
@@ -119,9 +121,10 @@ fn create_archive(
     let mut dir = nix::dir::Dir::open(
         &source, nix::fcntl::OFlag::O_NOFOLLOW, nix::sys::stat::Mode::empty())?;
 
-    let file = std::fs::OpenOptions::new()
+    let file = OpenOptions::new()
         .create_new(true)
         .write(true)
+        .mode(0o640)
         .open(archive)?;
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
