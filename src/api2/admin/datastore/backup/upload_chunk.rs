@@ -54,17 +54,10 @@ impl Future for UploadChunk {
     }
 }
 
-pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
+pub fn api_method_upload_chunk() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        upload_dynamic_chunk,
-        ObjectSchema::new("Upload chunk for dynamic index writer (variable sized chunks).")
-            .required("wid", IntegerSchema::new("Dynamic writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("offset", IntegerSchema::new("Chunk offset (end of chunk).")
-                      .minimum(0)
-            )
+        upload_chunk,
+        ObjectSchema::new("Upload a new chunk.")
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
                       .maximum(1024*1024*16)
@@ -72,7 +65,7 @@ pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
     )
 }
 
-fn upload_dynamic_chunk(
+fn upload_chunk(
     _parts: Parts,
     req_body: Body,
     param: Value,
@@ -81,10 +74,8 @@ fn upload_dynamic_chunk(
 ) -> Result<BoxFut, Error> {
 
     let size = tools::required_integer_param(&param, "size")? as u32;
-    let offset = tools::required_integer_param(&param, "offset")? as u64;
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
 
-    println!("upload_dynamic_chunk: {} bytes, offset {}", size, offset);
+    println!("upload_chunk: {} bytes", size);
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 

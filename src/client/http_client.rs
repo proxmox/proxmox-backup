@@ -652,8 +652,8 @@ impl BackupClient {
                     println!("upload new chunk {} ({} bytes, offset {})", tools::digest_to_hex(&digest),
                              chunk_info.data.len(), offset);
 
-                    let param = json!({ "wid": wid, "offset": offset, "size" : chunk_info.data.len() });
-                    let request = H2Client::request_builder("localhost", "POST", "dynamic_chunk", Some(param)).unwrap();
+                    let param = json!({ "size" : chunk_info.data.len() });
+                    let request = H2Client::request_builder("localhost", "POST", "upload_chunk", Some(param)).unwrap();
                     let upload_data = Some(chunk_info.data.freeze());
 
                     let new_info = MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]);
