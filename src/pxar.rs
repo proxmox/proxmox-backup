@@ -61,3 +61,5 @@ pub use sequential_decoder::*;
 
 mod decoder;
 pub use decoder::*;
+
+mod helper;

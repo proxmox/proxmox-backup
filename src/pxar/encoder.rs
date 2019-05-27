@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
+use super::helper::*;
 use crate::tools::acl;
 use crate::tools::xattr;
 
@@ -82,7 +83,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             Err(err) => bail!("fstat {:?} failed - {}", path, err),
         };
 
-        if (stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
+        if !is_directory(&stat) {
             bail!("got unexpected file type {:?} (not a directory)", path);
         }
 
@@ -158,7 +159,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
     fn create_entry(&self, stat: &FileStat) -> Result<CaFormatEntry, Error> {
 
-        let mode = if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+        let mode = if is_symlink(&stat) {
             (libc::S_IFLNK | 0o777) as u64
         } else {
             (stat.st_mode & (libc::S_IFMT | 0o7777)) as u64
@@ -232,7 +233,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             return Ok((xattrs, fcaps));
         }
         // Should never be called on symlinks, just in case check anyway
-        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+        if is_symlink(&stat) {
             return Ok((xattrs, fcaps));
         }
 
@@ -286,10 +287,10 @@ impl <'a, W: Write> Encoder<'a, W> {
         if !self.has_features(CA_FORMAT_WITH_ACL) {
             return Ok(ret);
         }
-        if (stat.st_mode & libc::S_IFMT) == libc::S_IFLNK {
+        if is_symlink(&stat) {
             return Ok(ret);
         }
-        if acl_type == acl::ACL_TYPE_DEFAULT && (stat.st_mode & libc::S_IFMT) != libc::S_IFDIR {
+        if acl_type == acl::ACL_TYPE_DEFAULT && !is_directory(&stat) {
             bail!("ACL_TYPE_DEFAULT only defined for directories.");
         }
 
@@ -594,9 +595,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
             let start_pos = self.writer_pos;
 
-            let ifmt = stat.st_mode & libc::S_IFMT;
-
-            if ifmt == libc::S_IFDIR {
+            if is_directory(&stat) {
 
                 let mut dir = match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
                     Ok(dir) => dir,
@@ -616,7 +615,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 self.write_filename(&filename)?;
                 self.encode_dir(&mut dir, &stat, child_magic)?;
 
-            } else if ifmt == libc::S_IFREG {
+            } else if is_reg_file(&stat) {
 
                 let mut hardlink_target = None;
 
@@ -660,7 +659,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                     res?;
                 }
 
-            } else if ifmt == libc::S_IFLNK {
+            } else if is_symlink(&stat) {
                 let mut buffer = vec::undefined(libc::PATH_MAX as usize);
 
                 let res = filename.with_nix_path(|cstr| {
@@ -679,10 +678,10 @@ impl <'a, W: Write> Encoder<'a, W> {
                     }
                     Err(err) => bail!("readlink {:?} failed - {}", self.full_path(), err),
                 }
-            } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) {
+            } else if is_block_dev(&stat) || is_char_dev(&stat) {
                 self.write_filename(&filename)?;
                 self.encode_device(&stat)?;
-            } else if (ifmt == libc::S_IFIFO) || (ifmt == libc::S_IFSOCK) {
+            } else if is_fifo(&stat) || is_socket(&stat) {
                 self.write_filename(&filename)?;
                 self.encode_special(&stat)?;
             } else {
