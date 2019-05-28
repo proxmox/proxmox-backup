@@ -220,8 +220,14 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
+    /// True if all of the given feature flags are set in the Encoder, false otherwise
     fn has_features(&self, feature_flags: u64) -> bool {
         (self.feature_flags & feature_flags) == feature_flags
+    }
+
+    /// True if at least one of the given feature flags is set in the Encoder, false otherwise
+    fn has_some_features(&self, feature_flags: u64) -> bool {
+        (self.feature_flags & feature_flags) != 0
     }
 
     fn read_xattrs(&self, fd: RawFd, stat: &FileStat) -> Result<(Vec<CaFormatXAttr>, Option<CaFormatFCaps>), Error> {
@@ -229,7 +235,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         let mut fcaps = None;
 
         let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS;
-        if !self.has_features(flags) {
+        if !self.has_some_features(flags) {
             return Ok((xattrs, fcaps));
         }
         // Should never be called on symlinks, just in case check anyway
@@ -260,11 +266,13 @@ impl <'a, W: Write> Encoder<'a, W> {
             };
 
             if xattr::is_security_capability(&name) {
-                // fcaps are stored in own format within the archive
-                fcaps = Some(CaFormatFCaps {
-                    data: value,
-                });
-            } else {
+                if self.has_features(CA_FORMAT_WITH_FCAPS) {
+                    // fcaps are stored in own format within the archive
+                    fcaps = Some(CaFormatFCaps {
+                        data: value,
+                    });
+                }
+            } else if self.has_features(CA_FORMAT_WITH_XATTRS) {
                 xattrs.push(CaFormatXAttr {
                     name: name.to_vec(),
                     value: value,

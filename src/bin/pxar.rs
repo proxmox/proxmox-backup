@@ -48,13 +48,23 @@ fn dump_archive(
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
+    let with_xattrs = param["with-xattrs"].as_bool().unwrap_or(false);
+    let with_fcaps = param["with-fcaps"].as_bool().unwrap_or(false);
+    let with_acls = param["with-acls"].as_bool().unwrap_or(false);
     let file = std::fs::File::open(archive)?;
 
     let mut reader = std::io::BufReader::new(file);
 
     let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
-    feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
-    feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    if !with_xattrs {
+        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+    }
+    if !with_fcaps {
+        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    }
+    if !with_acls {
+        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
+    }
     let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
 
     let stdout = std::io::stdout();
@@ -79,6 +89,7 @@ fn extract_archive(
     let verbose = param["verbose"].as_bool().unwrap_or(false);
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
+    let no_acls = param["no-acls"].as_bool().unwrap_or(false);
 
     let file = std::fs::File::open(archive)?;
 
@@ -89,6 +100,9 @@ fn extract_archive(
     }
     if no_fcaps {
         feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    }
+    if no_acls {
+        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
     let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
@@ -115,6 +129,7 @@ fn create_archive(
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
+    let no_acls = param["no-acls"].as_bool().unwrap_or(false);
 
     let source = PathBuf::from(source);
 
@@ -134,6 +149,9 @@ fn create_archive(
     }
     if no_fcaps {
         feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+    }
+    if no_acls {
+        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
     pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose, feature_flags)?;
@@ -155,6 +173,7 @@ fn main() {
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
+                    .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
                     .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
            ))
             .arg_param(vec!["archive", "source"])
@@ -171,6 +190,7 @@ fn main() {
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
+                    .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
           ))
             .arg_param(vec!["archive", "target"])
             .completion_cb("archive", tools::complete_file_name)
@@ -192,6 +212,9 @@ fn main() {
                 dump_archive,
                 ObjectSchema::new("Textual dump of archive contents (debug toolkit).")
                     .required("archive", StringSchema::new("Archive name."))
+                    .optional("with-xattrs", BooleanSchema::new("Dump extended file attributes.").default(false))
+                    .optional("with-fcaps", BooleanSchema::new("Dump file capabilities.").default(false))
+                    .optional("with-acls", BooleanSchema::new("Dump access control list entries.").default(false))
             ))
             .arg_param(vec!["archive"])
             .completion_cb("archive", tools::complete_file_name)

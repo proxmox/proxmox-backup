@@ -778,20 +778,56 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     }
 
     fn dump_if_attribute(&mut self, header: &CaFormatHeader, verbose: bool) -> Result<bool, Error> {
-        let dump_string = match header.htype {
-            CA_FORMAT_XATTR => format!("XAttr: {:?}", self.read_xattr((header.size - HEADER_SIZE) as usize)?),
-            CA_FORMAT_FCAPS => format!("FCaps: {:?}", self.read_fcaps((header.size - HEADER_SIZE) as usize)?),
-            CA_FORMAT_ACL_USER => format!("ACLUser: {:?}", self.read_item::<CaFormatACLUser>()?),
-            CA_FORMAT_ACL_GROUP => format!("ACLGroup: {:?}", self.read_item::<CaFormatACLGroup>()?),
-            CA_FORMAT_ACL_GROUP_OBJ => format!("ACLGroupObj: {:?}", self.read_item::<CaFormatACLGroupObj>()?),
-            CA_FORMAT_ACL_DEFAULT => format!("ACLDefault: {:?}", self.read_item::<CaFormatACLDefault>()?),
-            CA_FORMAT_ACL_DEFAULT_USER => format!("ACLDefaultUser: {:?}", self.read_item::<CaFormatACLUser>()?),
-            CA_FORMAT_ACL_DEFAULT_GROUP => format!("ACLDefaultGroup: {:?}", self.read_item::<CaFormatACLGroup>()?),
+        match header.htype {
+            CA_FORMAT_XATTR => {
+                let xattr = self.read_xattr((header.size - HEADER_SIZE) as usize)?;
+                if verbose && self.has_features(CA_FORMAT_WITH_XATTRS) {
+                    println!("XAttr: {:?}", xattr);
+                }
+            },
+            CA_FORMAT_FCAPS => {
+                let fcaps = self.read_fcaps((header.size - HEADER_SIZE) as usize)?;
+                if verbose && self.has_features(CA_FORMAT_WITH_FCAPS) {
+                    println!("FCaps: {:?}", fcaps);
+                }
+            },
+            CA_FORMAT_ACL_USER => {
+                let user = self.read_item::<CaFormatACLUser>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLUser: {:?}", user);
+                }
+            },
+            CA_FORMAT_ACL_GROUP => {
+                let group = self.read_item::<CaFormatACLGroup>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLGroup: {:?}", group);
+                }
+            },
+            CA_FORMAT_ACL_GROUP_OBJ => {
+                let group_obj = self.read_item::<CaFormatACLGroupObj>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLGroupObj: {:?}", group_obj);
+                }
+            },
+            CA_FORMAT_ACL_DEFAULT => {
+                let default = self.read_item::<CaFormatACLDefault>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLDefault: {:?}", default);
+                }
+            },
+            CA_FORMAT_ACL_DEFAULT_USER => {
+                let default_user = self.read_item::<CaFormatACLUser>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLDefaultUser: {:?}", default_user);
+                }
+            },
+            CA_FORMAT_ACL_DEFAULT_GROUP => {
+                let default_group = self.read_item::<CaFormatACLGroup>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                    println!("ACLDefaultGroup: {:?}", default_group);
+                }
+            },
             _ => return Ok(false),
-        };
-        let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS | CA_FORMAT_WITH_ACL;
-        if verbose && self.has_features(flags) {
-            println!("{}", dump_string);
         }
 
         Ok(true)
