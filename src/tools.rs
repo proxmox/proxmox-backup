@@ -4,6 +4,7 @@
 use failure::*;
 use nix::unistd;
 use nix::sys::stat;
+use nix::{convert_ioctl_res, request_code_read, ioc};
 
 use lazy_static::lazy_static;
 
@@ -753,4 +754,34 @@ pub trait AsAny {
 
 impl<T: Any> AsAny for T {
     fn as_any(&self) -> &Any { self }
+}
+
+
+// /usr/include/linux/fs.h: #define BLKGETSIZE64 _IOR(0x12,114,size_t)
+// return device size in bytes (u64 *arg)
+nix::ioctl_read!(blkgetsize64, 0x12, 114, u64);
+
+/// Return file or block device size
+pub fn image_size(path: &Path) -> Result<u64, Error> {
+
+    use std::os::unix::io::AsRawFd;
+    use std::os::unix::fs::FileTypeExt;
+
+    let file = std::fs::File::open(path)?;
+    let metadata = file.metadata()?;
+    let file_type = metadata.file_type();
+
+    if file_type.is_block_device() {
+        let mut size : u64 = 0;
+        let res = unsafe { blkgetsize64(file.as_raw_fd(), &mut size) };
+
+        if let Err(err) = res {
+            bail!("blkgetsize64 failed for {:?} - {}", path, err);
+        }
+        Ok(size)
+    } else if file_type.is_file() {
+        Ok(metadata.len())
+    } else {
+        bail!("image size failed - got unexpected file type {:?}", file_type);
+    }
 }
