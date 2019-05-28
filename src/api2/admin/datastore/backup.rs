@@ -121,7 +121,7 @@ fn upgrade_to_backup_protocol(
             .then(move |result| {
                 if let Err(err) = result {
                     match env2.ensure_finished() {
-                        Ok(()) => {}, // ignorte error after finish
+                        Ok(()) => {}, // ignore error after finish
                         _ => {
                             env2.log(format!("backup failed: {}", err));
                             env2.log("removing failed backup");
