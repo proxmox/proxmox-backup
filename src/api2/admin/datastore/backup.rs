@@ -455,6 +455,7 @@ fn finish_backup (
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     env.finish_backup()?;
+    env.log("sucessfully finished backup");
 
     Ok(Value::Null)
 }
