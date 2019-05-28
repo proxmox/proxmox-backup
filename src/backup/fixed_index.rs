@@ -34,6 +34,7 @@ pub struct FixedIndexReader {
     filename: PathBuf,
     pub chunk_size: usize,
     pub size: usize,
+    index_length: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
     pub ctime: u64,
@@ -86,7 +87,8 @@ impl FixedIndexReader {
         let ctime = u64::from_le(header.ctime);
         let chunk_size = u64::from_le(header.chunk_size) as usize;
 
-        let index_size = ((size + chunk_size - 1)/chunk_size)*32;
+        let index_length = (size + chunk_size - 1)/chunk_size;
+        let index_size = index_length*32;
 
         let rawfd = file.as_raw_fd();
 
@@ -115,6 +117,7 @@ impl FixedIndexReader {
             _file: file,
             chunk_size,
             size,
+            index_length,
             index: data,
             ctime,
             uuid: header.uuid,
@@ -125,7 +128,7 @@ impl FixedIndexReader {
 
         if self.index == std::ptr::null_mut() { return Ok(()); }
 
-        let index_size = ((self.size + self.chunk_size - 1)/self.chunk_size)*32;
+        let index_size = self.index_length*32;
 
         if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
             bail!("unmap file {:?} failed - {}", self.filename, err);
@@ -140,12 +143,10 @@ impl FixedIndexReader {
 
         if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
 
-        let index_count = self.index_count();
+        status.used_bytes += self.index_length * self.chunk_size;
+        status.used_chunks += self.index_length;
 
-        status.used_bytes += index_count * self.chunk_size;
-        status.used_chunks += index_count;
-
-        for pos in 0..index_count {
+        for pos in 0..self.index_length {
 
             tools::fail_on_shutdown()?;
 
@@ -170,11 +171,11 @@ impl FixedIndexReader {
 
 impl IndexFile for FixedIndexReader {
     fn index_count(&self) -> usize {
-        (self.size + self.chunk_size - 1)/self.chunk_size
+        self.index_length
     }
 
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]> {
-        if pos >= self.index_count() {
+        if pos >= self.index_length {
             None
         } else {
             Some(unsafe { std::mem::transmute(self.index.add(pos*32)) })
@@ -192,6 +193,7 @@ pub struct FixedIndexWriter {
     stat: ChunkStat,
 
     size: usize,
+    index_length: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
     pub ctime: u64,
@@ -248,7 +250,8 @@ impl FixedIndexWriter {
 
         file.write_all(&buffer)?;
 
-        let index_size = ((size + chunk_size - 1)/chunk_size)*32;
+        let index_length = (size + chunk_size - 1)/chunk_size;
+        let index_size = index_length*32;
         nix::unistd::ftruncate(file.as_raw_fd(), (header_size + index_size) as i64)?;
 
         let data = unsafe { nix::sys::mman::mmap(
@@ -268,6 +271,7 @@ impl FixedIndexWriter {
             chunk_size,
             size,
             stat: ChunkStat::new(size as u64),
+            index_length,
             index: data,
             ctime,
             uuid: *uuid.as_bytes(),
@@ -278,7 +282,7 @@ impl FixedIndexWriter {
 
         if self.index == std::ptr::null_mut() { return Ok(()); }
 
-        let index_size = ((self.size + self.chunk_size - 1)/self.chunk_size)*32;
+        let index_size = self.index_length*32;
 
         if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
             bail!("unmap file {:?} failed - {}", self.tmp_filename, err);
