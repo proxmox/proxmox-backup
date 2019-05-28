@@ -32,7 +32,7 @@ pub struct FixedIndexReader {
     store: Arc<ChunkStore>,
     _file: File,
     filename: PathBuf,
-    chunk_size: usize,
+    pub chunk_size: usize,
     pub size: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
