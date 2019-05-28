@@ -231,9 +231,18 @@ impl BackupEnvironment {
         };
 
         if data.chunk_count != chunk_count {
-            bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, data.chunk_count, chunk_count);
+            bail!("fixed writer '{}' close failed - received wrong number of chunk ({} != {})", data.name, data.chunk_count, chunk_count);
         }
 
+        let expected_count = data.index.index_length();
+
+        if chunk_count != (expected_count as u64) {
+            bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, expected_count, chunk_count);
+        }
+
+        if size != (data.size as u64) {
+            bail!("fixed writer '{}' close failed - unexpected file size ({} != {})", data.name, data.size, size);
+        }
 
         data.index.close()?;
 

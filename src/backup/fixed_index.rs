@@ -278,6 +278,10 @@ impl FixedIndexWriter {
         })
     }
 
+    pub fn index_length(&self) -> usize {
+        self.index_length
+    }
+
     fn unmap(&mut self) -> Result<(), Error> {
 
         if self.index == std::ptr::null_mut() { return Ok(()); }
@@ -354,7 +358,6 @@ impl FixedIndexWriter {
     }
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {
-
         if index >= self.index_length {
             bail!("add digest failed - index out of range ({} >= {})", index, self.index_length);
         }
