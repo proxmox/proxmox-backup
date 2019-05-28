@@ -355,6 +355,10 @@ impl FixedIndexWriter {
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {
 
+        if index >= self.index_length {
+            bail!("add digest failed - index out of range ({} >= {})", index, self.index_length);
+        }
+
         let index_pos = index*32;
         unsafe {
             let dst = self.index.add(index_pos);
