@@ -665,7 +665,7 @@ impl BackupClient {
                     let request = H2Client::request_builder("localhost", "POST", "upload_chunk", Some(param)).unwrap();
                     let upload_data = Some(chunk_info.data.freeze());
 
-                    let new_info = MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)]);
+                    let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);
 
                     future::Either::A(
                         h2.send_request(request, upload_data)
