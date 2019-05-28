@@ -430,10 +430,12 @@ impl BackupClient {
         self.h2.clone().post("finish", None).map(|_| ())
     }
 
-    pub fn upload_dynamic_stream(
+    pub fn upload_stream(
         &self,
         archive_name: &str,
         stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
+        prefix: &str,
+        fixed_size: Option<u64>,
     ) -> impl Future<Item=(), Error=Error> {
 
         let known_chunks = Arc::new(Mutex::new(HashSet::new()));
@@ -452,23 +454,30 @@ impl BackupClient {
         let h2_3 = self.h2.clone();
         let h2_4 = self.h2.clone();
 
-        let param = json!({ "archive-name": archive_name });
+        let mut param = json!({ "archive-name": archive_name });
+        if let Some(size) = fixed_size {
+            param["size"] = size.into();
+        }
 
-        Self::download_chunk_list(h2, "dynamic_index", archive_name, known_chunks.clone())
+        let index_path = format!("{}_index", prefix);
+        let index_path2 = index_path.clone();
+        let close_path = format!("{}_close", prefix);
+
+        Self::download_chunk_list(h2, &index_path, archive_name, known_chunks.clone())
             .and_then(move |_| {
-                h2_2.post("dynamic_index", Some(param))
+                h2_2.post(&index_path, Some(param))
             })
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
-                Self::upload_stream(h2_3, wid, stream, known_chunks.clone())
+                Self::upload_chunk_info_stream(h2_3, wid, stream, &index_path2, known_chunks.clone())
                      .and_then(move |(chunk_count, size, _speed)| {
                         let param = json!({
                             "wid": wid ,
                             "chunk-count": chunk_count,
                             "size": size,
                         });
-                        h2_4.post("dynamic_close", Some(param))
-                    })
+                        h2_4.post(&close_path, Some(param))
+                     })
                     .map(|_| ())
             })
     }
@@ -502,7 +511,7 @@ impl BackupClient {
         (verify_queue_tx, verify_result_rx)
     }
 
-    fn upload_chunk_queue(h2: H2Client, wid: u64) -> (
+    fn upload_chunk_queue(h2: H2Client, wid: u64, path: String) -> (
         mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>,
         sync::oneshot::Receiver<Result<(), Error>>
     ) {
@@ -545,7 +554,7 @@ impl BackupClient {
                             }
                             println!("append chunks list len ({})", digest_list.len());
                             let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
-                            let mut request = H2Client::request_builder("localhost", "PUT", "dynamic_index", None).unwrap();
+                            let mut request = H2Client::request_builder("localhost", "PUT", &path, None).unwrap();
                             request.headers_mut().insert(hyper::header::CONTENT_TYPE,  HeaderValue::from_static("application/json"));
                             let param_data = bytes::Bytes::from(param.to_string().as_bytes());
                             let upload_data = Some(param_data);
@@ -609,10 +618,11 @@ impl BackupClient {
             })
     }
 
-    fn upload_stream(
+    fn upload_chunk_info_stream(
         h2: H2Client,
         wid: u64,
         stream: impl Stream<Item=ChunkInfo, Error=Error>,
+        path: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     ) -> impl Future<Item=(usize, usize, usize), Error=Error> {
 
@@ -622,7 +632,7 @@ impl BackupClient {
         let stream_len = std::sync::Arc::new(AtomicUsize::new(0));
         let stream_len2 = stream_len.clone();
 
-        let (upload_queue, upload_result) = Self::upload_chunk_queue(h2.clone(), wid);
+        let (upload_queue, upload_result) = Self::upload_chunk_queue(h2.clone(), wid, path.to_owned());
 
         let start_time = std::time::Instant::now();
 

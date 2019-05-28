@@ -18,10 +18,19 @@ struct DynamicWriterState {
     chunk_count: u64,
 }
 
+struct FixedWriterState {
+    name: String,
+    index: FixedIndexWriter,
+    size: usize,
+    chunk_size: u32,
+    chunk_count: u64,
+}
+
 struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
     dynamic_writers: HashMap<usize, DynamicWriterState>,
+    fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
 }
 
@@ -70,6 +79,7 @@ impl BackupEnvironment {
             finished: false,
             uid_counter: 0,
             dynamic_writers: HashMap::new(),
+            fixed_writers: HashMap::new(),
             known_chunks: HashMap::new(),
         };
 
@@ -122,6 +132,21 @@ impl BackupEnvironment {
         Ok(uid)
     }
 
+    /// Store the writer with an unique ID
+    pub fn register_fixed_writer(&self, index: FixedIndexWriter, name: String, size: usize, chunk_size: u32) -> Result<usize, Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let uid = state.next_uid();
+
+        state.fixed_writers.insert(uid, FixedWriterState {
+            index, name, chunk_count: 0, size, chunk_size,
+        });
+
+        Ok(uid)
+    }
+
     /// Append chunk to dynamic writer
     pub fn dynamic_writer_append_chunk(&self, wid: usize, offset: u64, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
@@ -146,6 +171,29 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    /// Append chunk to fixed writer
+    pub fn fixed_writer_append_chunk(&self, wid: usize, offset: u64, size: u32, digest: &[u8; 32]) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let mut data = match state.fixed_writers.get_mut(&wid) {
+            Some(data) => data,
+            None => bail!("fixed writer '{}' not registered", wid),
+        };
+
+        data.chunk_count += 1;
+
+        if size != data.chunk_size {
+            bail!("fixed writer '{}' - got unexpected chunk size ({} != {}", data.name, size, data.chunk_size);
+        }
+
+        let pos = (offset as usize)/(data.chunk_size as usize);
+        data.index.add_digest(pos, digest)?;
+
+        Ok(())
+    }
+
     /// Close dynamic writer
     pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
@@ -164,6 +212,27 @@ impl BackupEnvironment {
         if data.offset != size {
             bail!("dynamic writer '{}' close failed - unexpected file size ({} != {})", data.name, data.offset, size);
         }
+
+        data.index.close()?;
+
+        Ok(())
+    }
+
+    /// Close fixed writer
+    pub fn fixed_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let mut data = match state.fixed_writers.remove(&wid) {
+            Some(data) => data,
+            None => bail!("fixed writer '{}' not registered", wid),
+        };
+
+        if data.chunk_count != chunk_count {
+            bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, data.chunk_count, chunk_count);
+        }
+
 
         data.index.close()?;
 

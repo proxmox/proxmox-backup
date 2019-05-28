@@ -160,6 +160,16 @@ fn backup_api() -> Router {
                 .post(api_method_close_dynamic_index())
         )
         .subdir(
+            "fixed_index", Router::new()
+                .download(api_method_fixed_chunk_index())
+                .post(api_method_create_fixed_index())
+                .put(api_method_fixed_append())
+        )
+        .subdir(
+            "fixed_close", Router::new()
+                .post(api_method_close_fixed_index())
+        )
+        .subdir(
             "finish", Router::new()
                 .post(
                     ApiMethod::new(
@@ -175,18 +185,6 @@ fn backup_api() -> Router {
         .list_subdirs();
 
     router
-}
-
-pub fn api_method_dynamic_chunk_index() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        dynamic_chunk_index,
-        ObjectSchema::new(r###"
-Download the dynamic chunk index from the previous backup.
-Simply returns an empty list if this is the first backup.
-"###
-        )
-            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
-    )
 }
 
 pub fn api_method_create_dynamic_index() -> ApiMethod {
@@ -209,7 +207,7 @@ fn create_dynamic_index(
 
     let mut archive_name = name.clone();
     if !archive_name.ends_with(".pxar") {
-        bail!("wrong archive extension");
+        bail!("wrong archive extension: '{}'", archive_name);
     } else {
         archive_name.push_str(".didx");
     }
@@ -223,6 +221,50 @@ fn create_dynamic_index(
     let wid = env.register_dynamic_writer(index, name)?;
 
     env.log(format!("created new dynamic index {} ({:?})", wid, path));
+
+    Ok(json!(wid))
+}
+
+pub fn api_method_create_fixed_index() -> ApiMethod {
+    ApiMethod::new(
+        create_fixed_index,
+        ObjectSchema::new("Create fixed chunk index file.")
+            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+            .required("size", IntegerSchema::new("File size.")
+                      .minimum(1)
+            )
+    )
+}
+
+fn create_fixed_index(
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    println!("PARAM: {:?}", param);
+
+    let name = tools::required_string_param(&param, "archive-name")?.to_owned();
+    let size = tools::required_integer_param(&param, "size")? as usize;
+
+    let mut archive_name = name.clone();
+    if !archive_name.ends_with(".img") {
+        bail!("wrong archive extension: '{}'", archive_name);
+    } else {
+        archive_name.push_str(".fidx");
+    }
+
+    let mut path = env.backup_dir.relative_path();
+    path.push(archive_name);
+
+    let chunk_size = 4096*1024; // todo: ??
+
+    let index = env.datastore.create_fixed_writer(&path, size, chunk_size)?;
+    let wid = env.register_fixed_writer(index, name, size, chunk_size as u32)?;
+
+    env.log(format!("created new fixed index {} ({:?})", wid, path));
 
     Ok(json!(wid))
 }
@@ -279,6 +321,59 @@ fn dynamic_append (
     Ok(Value::Null)
 }
 
+pub fn api_method_fixed_append() -> ApiMethod {
+    ApiMethod::new(
+        fixed_append,
+        ObjectSchema::new("Append chunk to fixed index writer.")
+            .required("wid", IntegerSchema::new("Fixed writer ID.")
+                      .minimum(1)
+                      .maximum(256)
+            )
+            .required("digest-list", ArraySchema::new(
+                "Chunk digest list.",
+                StringSchema::new("Chunk digest.").into())
+            )
+            .required("offset-list", ArraySchema::new(
+                "Chunk offset list.",
+                IntegerSchema::new("Corresponding chunk offsets.")
+                    .minimum(0)
+                    .into())
+            )
+    )
+}
+
+fn fixed_append (
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let wid = tools::required_integer_param(&param, "wid")? as usize;
+    let digest_list = tools::required_array_param(&param, "digest-list")?;
+    let offset_list = tools::required_array_param(&param, "offset-list")?;
+
+    println!("DIGEST LIST LEN {}", digest_list.len());
+
+    if offset_list.len() != digest_list.len() {
+        bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
+    }
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    for (i, item) in digest_list.iter().enumerate() {
+        let digest_str = item.as_str().unwrap();
+        let digest = crate::tools::hex_to_digest(digest_str)?;
+        let offset = offset_list[i].as_u64().unwrap();
+        let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
+        println!("DEBUG {} {}", offset, size);
+        env.fixed_writer_append_chunk(wid, offset, size, &digest)?;
+
+        env.log(format!("sucessfully added chunk {} to fixed index {}", digest_str, wid));
+    }
+
+    Ok(Value::Null)
+}
+
 pub fn api_method_close_dynamic_index() -> ApiMethod {
     ApiMethod::new(
         close_dynamic_index,
@@ -315,6 +410,41 @@ fn close_dynamic_index (
     Ok(Value::Null)
 }
 
+pub fn api_method_close_fixed_index() -> ApiMethod {
+    ApiMethod::new(
+        close_fixed_index,
+        ObjectSchema::new("Close fixed index writer.")
+            .required("wid", IntegerSchema::new("Fixed writer ID.")
+                      .minimum(1)
+                      .maximum(256)
+            )
+            .required("chunk-count", IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
+                      .minimum(1)
+            )
+            .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
+                      .minimum(1)
+            )
+    )
+}
+
+fn close_fixed_index (
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let wid = tools::required_integer_param(&param, "wid")? as usize;
+    let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
+    let size = tools::required_integer_param(&param, "size")? as u64;
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    env.fixed_writer_close(wid, chunk_count, size)?;
+
+    env.log(format!("sucessfully closed fixed index {}", wid));
+
+    Ok(Value::Null)
+}
 
 fn finish_backup (
     _param: Value,
@@ -327,6 +457,18 @@ fn finish_backup (
     env.finish_backup()?;
 
     Ok(Value::Null)
+}
+
+pub fn api_method_dynamic_chunk_index() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        dynamic_chunk_index,
+        ObjectSchema::new(r###"
+Download the dynamic chunk index from the previous backup.
+Simply returns an empty list if this is the first backup.
+"###
+        )
+            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+    )
 }
 
 fn dynamic_chunk_index(
@@ -344,7 +486,7 @@ fn dynamic_chunk_index(
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
     if !archive_name.ends_with(".pxar") {
-        bail!("wrong archive extension");
+        bail!("wrong archive extension: '{}'", archive_name);
     } else {
         archive_name.push_str(".didx");
     }
@@ -376,6 +518,77 @@ fn dynamic_chunk_index(
         let (start, end, digest) = index.chunk_info(pos)?;
         let size = (end - start) as u32;
         env.register_chunk(digest, size)?;
+    }
+
+    let reader = DigestListEncoder::new(Box::new(index));
+
+    let stream = WrappedReaderStream::new(reader);
+
+    // fixme: set size, content type?
+    let response = http::Response::builder()
+        .status(200)
+        .body(Body::wrap_stream(stream))?;
+
+    Ok(Box::new(future::ok(response)))
+}
+
+pub fn api_method_fixed_chunk_index() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        fixed_chunk_index,
+        ObjectSchema::new(r###"
+Download the fixed chunk index from the previous backup.
+Simply returns an empty list if this is the first backup.
+"###
+        )
+            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+    )
+}
+
+fn fixed_chunk_index(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+
+    if !archive_name.ends_with(".img") {
+        bail!("wrong archive extension: '{}'", archive_name);
+    } else {
+        archive_name.push_str(".fidx");
+    }
+
+    let empty_response = {
+        Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::empty())?
+    };
+
+    let last_backup = match &env.last_backup {
+        Some(info) => info,
+        None => return Ok(Box::new(future::ok(empty_response))),
+    };
+
+    let mut path = last_backup.backup_dir.relative_path();
+    path.push(&archive_name);
+
+    let index = match env.datastore.open_fixed_reader(path) {
+        Ok(index) => index,
+        Err(_) => {
+            env.log(format!("there is no last backup for archive '{}'", archive_name));
+            return Ok(Box::new(future::ok(empty_response)));
+        }
+    };
+
+    let count = index.index_count();
+    for pos in 0..count {
+        let digest = index.index_digest(pos).unwrap();
+        let size = index.chunk_size as u32;
+        env.register_chunk(*digest, size)?;
     }
 
     let reader = DigestListEncoder::new(Box::new(index));
