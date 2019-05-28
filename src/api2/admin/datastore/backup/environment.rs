@@ -158,13 +158,14 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
-        data.offset += size as u64;
-        data.chunk_count += 1;
 
         if data.offset != offset {
             bail!("dynamic writer '{}' append chunk failed - got strange chunk offset ({} != {})",
                   data.name, data.offset, offset);
         }
+
+        data.offset += size as u64;
+        data.chunk_count += 1;
 
         data.index.add_chunk(data.offset, digest)?;
 

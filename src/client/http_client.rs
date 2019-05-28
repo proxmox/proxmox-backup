@@ -445,8 +445,9 @@ impl BackupClient {
         let stream = stream.
             map(move |data| {
                 let digest = openssl::sha::sha256(&data);
+                let offset = stream_len;
                 stream_len += data.len() as u64;
-                ChunkInfo { data, digest, offset: stream_len }
+                ChunkInfo { data, digest, offset }
             });
 
         let h2 = self.h2.clone();
