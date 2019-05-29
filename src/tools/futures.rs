@@ -18,15 +18,22 @@ use crate::tools::async_mutex::{AsyncMutex, AsyncLockGuard, LockFuture};
 /// ```no_run
 /// # use failure::Error;
 /// # use futures::Future;
-/// # fn doc<T: Future<Item = i32, Error = Error>>(future: T) {
-/// let cancel = Cancellable::new(future);
-/// let canceller = cancel.canceller(); // This is clonable!
-/// tokio::spawn(cancel.and_then(|res| match res {
-///     Some(value) => println!("Future finished with {}", value),
-///     None => println!("Future was cancelled"),
-/// });
+/// # use proxmox_backup::tools::futures::Cancellable;
+/// # fn doc<T>(future: T) -> Result<(), Error>
+/// # where
+/// #     T: Future<Item = i32, Error = ()> + Send + Sync + 'static,
+/// # {
+/// let (future, canceller) = Cancellable::new(future)?;
+/// tokio::spawn(future.and_then(|res| {
+///     match res {
+///         Some(value) => println!("Future finished with {}", value),
+///         None => println!("Future was cancelled"),
+///     }
+///     Ok(())
+/// }));
 /// // Do something
 /// canceller.cancel();
+/// # Ok(())
 /// # }
 /// ```
 pub struct Cancellable<T: Future> {
