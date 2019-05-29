@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use super::format_definition::*;
 use super::binary_search_tree::*;
 use super::helper::*;
+use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;
 
@@ -396,6 +397,34 @@ impl <'a, W: Write> Encoder<'a, W> {
         })
     }
 
+    /// Read the project quota id for an inode, supported on ext4/XFS/FUSE/(ZFS TODO impl) filesystems
+    fn read_quota_project_id(&self, fd: RawFd, magic: i64, stat: &FileStat) -> Result<Option<CaFormatQuotaProjID>, Error> {
+        if !(is_directory(&stat) || is_reg_file(&stat)) {
+            return Ok(None);
+        }
+        if !self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+            return Ok(None);
+        }
+        let projid = match magic {
+            //TODO ZFS quota
+            EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC => {
+                let mut fsxattr = fs::FSXAttr::default();
+                unsafe {
+                    fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
+                        .map_err(|err| format_err!("error while reading quota project id for {:#?} - {}", self.full_path(), err))?;
+                }
+                fsxattr.fsx_projid as u64
+            },
+            _ => return Ok(None),
+        };
+        println!("Encountered projid: {} for {:#?}", projid, self.full_path());
+        if projid == 0 {
+            return Ok(None);
+        }
+
+        Ok(Some(CaFormatQuotaProjID { projid }))
+    }
+
     fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
 
         self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
@@ -466,6 +495,13 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
+    fn write_quota_project_id(&mut self, projid: CaFormatQuotaProjID) -> Result<(), Error> {
+        self.write_header(CA_FORMAT_QUOTA_PROJID, std::mem::size_of::<CaFormatQuotaProjID>() as u64)?;
+        self.write_item(projid)?;
+
+        Ok(())
+    }
+
     fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &mut [CaFormatGoodbyeItem]) -> Result<(), Error> {
 
         goodbye_items.sort_unstable_by(|a, b| a.hash.cmp(&b.hash));
@@ -522,6 +558,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         let (xattrs, fcaps) = self.read_xattrs(rawfd, &dir_stat)?;
         let acl_access = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_ACCESS)?;
         let acl_default = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_DEFAULT)?;
+        let projid = self.read_quota_project_id(rawfd, magic, &dir_stat)?;
 
         self.write_entry(dir_entry)?;
         for xattr in xattrs {
@@ -547,6 +584,9 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
         if let Some(default) = acl_default.default {
             self.write_acl_default(default)?;
+        }
+        if let Some(projid) = projid {
+            self.write_quota_project_id(projid)?;
         }
 
         let mut dir_count = 0;
@@ -733,6 +773,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.read_fat_attr(filefd, magic, &mut entry)?;
         let (xattrs, fcaps) = self.read_xattrs(filefd, &stat)?;
         let acl_access = self.read_acl(filefd, &stat, acl::ACL_TYPE_ACCESS)?;
+        let projid = self.read_quota_project_id(filefd, magic, &stat)?;
 
         self.write_entry(entry)?;
         for xattr in xattrs {
@@ -747,6 +788,9 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
         if let Some(group_obj) = acl_access.group_obj {
             self.write_acl_group_obj(group_obj)?;
+        }
+        if let Some(projid) = projid {
+            self.write_quota_project_id(projid)?;
         }
 
         let include_payload;
@@ -912,6 +956,8 @@ pub const TMPFS_MAGIC: i64 =           0x01021994;
 pub const SYSFS_MAGIC: i64 =           0x62656572;
 pub const MSDOS_SUPER_MAGIC: i64 =     0x00004d44;
 pub const FUSE_SUPER_MAGIC: i64 =      0x65735546;
+pub const EXT4_SUPER_MAGIC: i64 =      0xEF53;
+pub const XFS_SUPER_MAGIC: i64 =       0x58465342;
 
 
 #[inline(always)]

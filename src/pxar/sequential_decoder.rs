@@ -23,6 +23,7 @@ use nix::NixPath;
 
 use crate::tools::io::ops::*;
 use crate::tools::vec;
+use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;
 
@@ -169,6 +170,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     fn restore_attributes(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<CaFormatHeader, Error> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
+        let mut quota_projid = None;
 
         let mut acl_user = Vec::new();
         let mut acl_group = Vec::new();
@@ -238,6 +240,13 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                         self.skip_bytes(size)?;
                     }
                 },
+                CA_FORMAT_QUOTA_PROJID => {
+                    if self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+                        quota_projid = Some(self.read_item::<CaFormatQuotaProjID>()?);
+                    } else {
+                        self.skip_bytes(size)?;
+                    }
+                },
                 _ => break,
             }
             head = self.read_item()?;
@@ -288,6 +297,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             }
             acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
         }
+        self.restore_quota_projid(fd, quota_projid)?;
 
         Ok(head)
     }
@@ -301,6 +311,23 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
         if let Some(fcaps) = fcaps {
             if let Err(err) = xattr::fsetxattr_fcaps(fd, fcaps) {
                 bail!("fsetxattr_fcaps failed with error: {}", err);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn restore_quota_projid(&mut self, fd: RawFd, projid: Option<CaFormatQuotaProjID>) -> Result<(), Error> {
+        if let Some(projid) = projid {
+            let mut fsxattr = fs::FSXAttr::default();
+            unsafe {
+                fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
+                    .map_err(|err| format_err!("error while getting fsxattr to restore quota project id - {}", err))?;
+            }
+            fsxattr.fsx_projid = projid.projid as u32;
+            unsafe {
+                fs::fs_ioc_fssetxattr(fd, &fsxattr)
+                    .map_err(|err| format_err!("error while setting fsxattr to restore quota project id - {}", err))?;
             }
         }
 
@@ -825,6 +852,12 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
                 let default_group = self.read_item::<CaFormatACLGroup>()?;
                 if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
                     println!("ACLDefaultGroup: {:?}", default_group);
+                }
+            },
+            CA_FORMAT_QUOTA_PROJID => {
+                let quota_projid = self.read_item::<CaFormatQuotaProjID>()?;
+                if verbose && self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+                    println!("Quota project id: {:?}", quota_projid);
                 }
             },
             _ => return Ok(false),
