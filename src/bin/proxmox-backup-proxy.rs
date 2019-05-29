@@ -84,7 +84,7 @@ fn run() -> Result<(), Error> {
 
     let identity = match native_tls::Identity::from_pkcs12(&raw_cert, "") {
         Ok(data) => data,
-        Err(err) => bail!("unabled to decode pkcs12 identity {} - {}", cert_path, err),
+        Err(err) => bail!("unable to decode pkcs12 identity {} - {}", cert_path, err),
     };
 
     let server = daemon::create_daemon(
