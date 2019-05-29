@@ -318,10 +318,8 @@ impl FixedIndexWriter {
         &self.stat
     }
 
-    // Note: We want to add data out of order, so do not assume and order here.
+    // Note: We want to add data out of order, so do not assume any order here.
     pub fn add_chunk(&mut self, pos: usize, chunk: &[u8]) -> Result<(), Error> {
-
-        if self.index == std::ptr::null_mut() { bail!("cannot write to closed index file."); }
 
         let end = pos + chunk.len();
 
@@ -335,10 +333,7 @@ impl FixedIndexWriter {
                 bail!("got chunk with wrong length ({} != {}", chunk.len(), self.chunk_size);
             }
 
-        if pos >= self.size { bail!("add chunk after end ({} >= {})", pos, self.size); }
-
         if pos & (self.chunk_size-1) != 0 { bail!("add unaligned chunk (pos = {})", pos); }
-
 
         let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(chunk)?;
 
@@ -358,9 +353,12 @@ impl FixedIndexWriter {
     }
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {
+
         if index >= self.index_length {
             bail!("add digest failed - index out of range ({} >= {})", index, self.index_length);
         }
+
+        if self.index == std::ptr::null_mut() { bail!("cannot write to closed index file."); }
 
         let index_pos = index*32;
         unsafe {
