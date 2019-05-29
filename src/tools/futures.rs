@@ -49,6 +49,8 @@ pub struct Cancellable<T: Future> {
 /// Reference to a cancellable future. Multiple instances may exist simultaneously.
 ///
 /// This allows cancelling another future. If the future already finished, nothing happens.
+///
+/// This can be cloned to be used in multiple places.
 #[derive(Clone)]
 pub struct Canceller(Arc<Mutex<Option<AsyncLockGuard<()>>>>);
 
@@ -76,7 +78,7 @@ impl<T: Future> Cancellable<T> {
         Ok((this, canceller))
     }
 
-    /// Create another `Canceller` for his future..
+    /// Create another `Canceller` for this future.
     pub fn canceller(&self) -> Canceller {
         Canceller(self.guard.clone())
     }
