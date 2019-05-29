@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use futures::Poll;
+use failure::{bail, Error};
+use futures::{Async, Poll};
 use futures::future::Future;
 use tokio::sync::lock::Lock as TokioLock;
 pub use tokio::sync::lock::LockGuard as AsyncLockGuard;
@@ -20,6 +21,15 @@ impl<T> AsyncMutex<T> {
             lock: self.0.clone(),
             _error: PhantomData,
         }
+    }
+
+    pub fn new_locked(value: T) -> Result<(Self, AsyncLockGuard<T>), Error> {
+        let mut this = Self::new(value);
+        let guard = match this.0.poll_lock() {
+            Async::Ready(guard) => guard,
+            _ => bail!("failed to create locked mutex"),
+        };
+        Ok((this, guard))
     }
 }
 
