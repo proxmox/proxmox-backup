@@ -189,9 +189,6 @@ pub struct FixedIndexWriter {
     filename: PathBuf,
     tmp_filename: PathBuf,
     chunk_size: usize,
-
-    stat: ChunkStat,
-
     size: usize,
     index_length: usize,
     index: *mut u8,
@@ -270,7 +267,6 @@ impl FixedIndexWriter {
             tmp_filename: tmp_path,
             chunk_size,
             size,
-            stat: ChunkStat::new(size as u64),
             index_length,
             index: data,
             ctime,
@@ -294,10 +290,6 @@ impl FixedIndexWriter {
 
         self.index = std::ptr::null_mut();
 
-        self.stat.disk_size += index_size as u64;
-
-        println!("STAT: {:?}", self.stat);
-
         Ok(())
     }
 
@@ -314,12 +306,8 @@ impl FixedIndexWriter {
         Ok(())
     }
 
-    pub fn stat(&self) -> &ChunkStat {
-        &self.stat
-    }
-
     // Note: We want to add data out of order, so do not assume any order here.
-    pub fn add_chunk(&mut self, pos: usize, chunk: &[u8]) -> Result<(), Error> {
+    pub fn add_chunk(&mut self, pos: usize, chunk: &[u8], stat: &mut ChunkStat) -> Result<(), Error> {
 
         let end = pos + chunk.len();
 
@@ -337,16 +325,16 @@ impl FixedIndexWriter {
 
         let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(chunk)?;
 
-        self.stat.chunk_count += 1;
-        self.stat.compressed_size += compressed_size;
+        stat.chunk_count += 1;
+        stat.compressed_size += compressed_size;
 
         println!("ADD CHUNK {} {} {}% {} {}", pos, chunk.len(),
                  (compressed_size*100)/(chunk.len() as u64), is_duplicate, tools::digest_to_hex(&digest));
 
         if is_duplicate {
-            self.stat.duplicate_chunks += 1;
+            stat.duplicate_chunks += 1;
         } else {
-            self.stat.disk_size += compressed_size;
+            stat.disk_size += compressed_size;
         }
 
         self.add_digest(pos / self.chunk_size, &digest)
