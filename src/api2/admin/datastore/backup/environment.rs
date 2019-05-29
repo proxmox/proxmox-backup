@@ -29,6 +29,7 @@ struct FixedWriterState {
 struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
+    file_counter: usize, // sucessfully uploaded files
     dynamic_writers: HashMap<usize, DynamicWriterState>,
     fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
@@ -79,6 +80,7 @@ impl BackupEnvironment {
         let state = SharedBackupState {
             finished: false,
             uid_counter: 0,
+            file_counter: 0,
             dynamic_writers: HashMap::new(),
             fixed_writers: HashMap::new(),
             known_chunks: HashMap::new(),
@@ -218,6 +220,8 @@ impl BackupEnvironment {
 
         data.index.close()?;
 
+        state.file_counter += 1;
+
         Ok(())
     }
 
@@ -248,6 +252,8 @@ impl BackupEnvironment {
 
         data.index.close()?;
 
+        state.file_counter += 1;
+
         Ok(())
     }
 
@@ -262,6 +268,10 @@ impl BackupEnvironment {
 
         if state.dynamic_writers.len() != 0 {
             bail!("found open index writer - unable to finish backup");
+        }
+
+        if state.file_counter == 0 {
+            bail!("backup does not contain valid files (file count == 0)");
         }
 
         Ok(())
