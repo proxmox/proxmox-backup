@@ -303,22 +303,23 @@ fn dynamic_append (
     let digest_list = tools::required_array_param(&param, "digest-list")?;
     let offset_list = tools::required_array_param(&param, "offset-list")?;
 
-    println!("DIGEST LIST LEN {}", digest_list.len());
-
     if offset_list.len() != digest_list.len() {
         bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
     }
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
+    env.debug(format!("dynamic_append {} chunks", digest_list.len()));
+
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
         let digest = crate::tools::hex_to_digest(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
+
         env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
 
-        env.log(format!("sucessfully added chunk {} to dynamic index {}", digest_str, wid));
+        env.debug(format!("sucessfully added chunk {} to dynamic index {} (offset {}, size {})", digest_str, wid, offset, size));
     }
 
     Ok(Value::Null)
@@ -355,23 +356,23 @@ fn fixed_append (
     let digest_list = tools::required_array_param(&param, "digest-list")?;
     let offset_list = tools::required_array_param(&param, "offset-list")?;
 
-    println!("DIGEST LIST LEN {}", digest_list.len());
-
     if offset_list.len() != digest_list.len() {
         bail!("offset list has wrong length ({} != {})", offset_list.len(), digest_list.len());
     }
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
+    env.debug(format!("fixed_append {} chunks", digest_list.len()));
+
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
         let digest = crate::tools::hex_to_digest(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
-        println!("DEBUG {} {}", offset, size);
+
         env.fixed_writer_append_chunk(wid, offset, size, &digest)?;
 
-        env.log(format!("sucessfully added chunk {} to fixed index {}", digest_str, wid));
+        env.debug(format!("sucessfully added chunk {} to fixed index {} (offset {}, size {})", digest_str, wid, offset, size));
     }
 
     Ok(Value::Null)
@@ -485,8 +486,6 @@ fn dynamic_chunk_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    println!("TEST CHUNK DOWNLOAD");
-
     let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
     if !archive_name.ends_with(".pxar") {
@@ -516,6 +515,8 @@ fn dynamic_chunk_index(
             return Ok(Box::new(future::ok(empty_response)));
         }
     };
+
+    env.log(format!("download last backup index for archive '{}'", archive_name));
 
     let count = index.index_count();
     for pos in 0..count {
@@ -587,6 +588,8 @@ fn fixed_chunk_index(
             return Ok(Box::new(future::ok(empty_response)));
         }
     };
+
+    env.log(format!("download last backup index for archive '{}'", archive_name));
 
     let count = index.index_count();
     for pos in 0..count {

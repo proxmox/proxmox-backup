@@ -75,8 +75,6 @@ fn upload_chunk(
 
     let size = tools::required_integer_param(&param, "size")? as u32;
 
-    println!("upload_chunk: {} bytes", size);
-
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     let upload = UploadChunk::new(req_body, env.datastore.clone(), size);
@@ -85,10 +83,12 @@ fn upload_chunk(
         .then(move |result| {
             let env: &BackupEnvironment = rpcenv.as_ref();
 
-            let result = result.and_then(|(digest, size)| {
-                env.register_chunk(digest, size)?;
-                Ok(json!(tools::digest_to_hex(&digest)))
-            });
+             let result = result.and_then(|(digest, size)| {
+                 env.register_chunk(digest, size)?;
+                 let digest_str = tools::digest_to_hex(&digest);
+                 env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
+                 Ok(json!(digest_str))
+             });
 
             Ok(env.format_response(result))
         });

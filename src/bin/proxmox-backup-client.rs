@@ -445,7 +445,7 @@ fn create_backup(
     println!("Client name: {}", tools::nodename());
     println!("Start Time: {}", backup_time.to_rfc3339());
 
-    let client = client.start_backup(repo.store(), "host", &backup_id).wait()?;
+    let client = client.start_backup(repo.store(), "host", &backup_id, verbose).wait()?;
 
     for (filename, target) in upload_list {
         println!("Upload '{}' to '{:?}' as {}", filename, repo, target);

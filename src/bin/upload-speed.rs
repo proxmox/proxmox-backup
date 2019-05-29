@@ -12,7 +12,7 @@ fn upload_speed() -> Result<usize, Error> {
 
     let client = HttpClient::new(host, username)?;
 
-    let client = client.start_backup(datastore, "host", "speedtest").wait()?;
+    let client = client.start_backup(datastore, "host", "speedtest", false).wait()?;
 
     println!("start upload speed test");
     let res = client.upload_speedtest().wait()?;

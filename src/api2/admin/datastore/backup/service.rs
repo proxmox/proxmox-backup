@@ -45,7 +45,7 @@ impl BackupService {
             Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
         };
 
-        self.debug(format!("REQUEST: {} {}", method, path));
+        self.debug(format!("{} {}", method, path));
 
         let mut uri_param = HashMap::new();
 
