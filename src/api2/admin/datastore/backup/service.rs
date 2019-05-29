@@ -18,16 +18,20 @@ lazy_static!{
     static ref BACKUP_ROUTER: Router = super::backup_api();
 }
 
-
 pub struct BackupService {
     rpcenv: BackupEnvironment,
     worker: Arc<WorkerTask>,
+    debug: bool,
 }
 
 impl BackupService {
 
-    pub fn new(rpcenv: BackupEnvironment, worker: Arc<WorkerTask>) -> Self {
-        Self { rpcenv, worker }
+    pub fn new(rpcenv: BackupEnvironment, worker: Arc<WorkerTask>, debug: bool) -> Self {
+        Self { rpcenv, worker, debug }
+    }
+
+    pub fn debug<S: AsRef<str>>(&self, msg: S) {
+        if self.debug { self.worker.log(msg); }
     }
 
     fn handle_request(&self, req: Request<Body>) -> BoxFut {
@@ -41,8 +45,7 @@ impl BackupService {
             Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
         };
 
-        self.worker.log(format!("H2 REQUEST {} {}", method, path));
-        self.worker.log(format!("H2 COMPO {:?}", components));
+        self.debug(format!("REQUEST: {} {}", method, path));
 
         let mut uri_param = HashMap::new();
 

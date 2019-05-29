@@ -35,6 +35,7 @@ pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
             .required("backup-type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
             .required("backup-id", StringSchema::new("Backup ID."))
+            .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
     )
 }
 
@@ -47,6 +48,8 @@ fn upgrade_to_backup_protocol(
 ) -> Result<BoxFut, Error> {
 
     static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
+
+    let debug = param["debug"].as_bool().unwrap_or(false);
 
     let store = tools::required_string_param(&param, "store")?.to_owned();
     let datastore = DataStore::lookup_datastore(&store)?;
@@ -85,21 +88,23 @@ fn upgrade_to_backup_protocol(
         let mut env = BackupEnvironment::new(
             env_type, username.clone(), worker.clone(), datastore, backup_dir);
 
+        env.debug = debug;
         env.last_backup = last_backup;
 
         env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
 
-        let service = BackupService::new(env.clone(), worker.clone());
+        let service = BackupService::new(env.clone(), worker.clone(), debug);
 
         let abort_future = worker.abort_future();
 
         let env2 = env.clone();
+        let env3 = env.clone();
 
         req_body
             .on_upgrade()
             .map_err(Error::from)
             .and_then(move |conn| {
-                worker.log("upgrade done");
+                env3.debug("protocol upgrade done");
 
                 let mut http = hyper::server::conn::Http::new();
                 http.http2_only(true);

@@ -58,6 +58,7 @@ pub struct BackupEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: HashMap<String, Value>,
     user: String,
+    pub debug: bool,
     pub formatter: &'static OutputFormatter,
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
@@ -89,6 +90,7 @@ impl BackupEnvironment {
             user,
             worker,
             datastore,
+            debug: false,
             formatter: &JSON_FORMATTER,
             backup_dir,
             last_backup: None,
@@ -267,6 +269,10 @@ impl BackupEnvironment {
 
     pub fn log<S: AsRef<str>>(&self, msg: S) {
         self.worker.log(msg);
+    }
+
+    pub fn debug<S: AsRef<str>>(&self, msg: S) {
+        if self.debug { self.worker.log(msg); }
     }
 
     pub fn format_response(&self, result: Result<Value, Error>) -> Response<Body> {
