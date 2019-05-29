@@ -292,12 +292,12 @@ impl Router {
             SubRoute::None => {},
             SubRoute::Hash(ref dirmap) => {
                 if let Some(ref router) = dirmap.get(dir) {
-                    println!("FOUND SUBDIR {}", dir);
+                    //println!("FOUND SUBDIR {}", dir);
                     return router.find_route(rest, uri_param);
                 }
             }
             SubRoute::MatchAll { ref router, ref param_name } => {
-                println!("URI PARAM {} = {}", param_name, dir); // fixme: store somewhere
+                //println!("URI PARAM {} = {}", param_name, dir); // fixme: store somewhere
                 uri_param.insert(param_name.clone(), dir.into());
                 return router.find_route(rest, uri_param);
             },
