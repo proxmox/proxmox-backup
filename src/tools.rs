@@ -40,6 +40,7 @@ pub mod acl;
 pub mod xattr;
 pub mod vec;
 pub mod io;
+pub mod futures;
 
 mod process_locker;
 pub use process_locker::*;
