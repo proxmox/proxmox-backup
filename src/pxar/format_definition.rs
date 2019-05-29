@@ -23,6 +23,7 @@ pub const CA_FORMAT_ACL_DEFAULT: u64 = 0xfe3eeda6823c8cd0;
 pub const CA_FORMAT_ACL_DEFAULT_USER: u64 = 0xbdf03df9bd010a91;
 pub const CA_FORMAT_ACL_DEFAULT_GROUP: u64 = 0xa0cb1168782d1f51;
 pub const CA_FORMAT_FCAPS: u64 = 0xf7267db0afed0629;
+pub const CA_FORMAT_QUOTA_PROJID:u64 = 0x161baf2d8772a72b;
 
 // compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
 pub const PXAR_FORMAT_HARDLINK: u64 = 0x2c5e06f634f65b86;
@@ -327,6 +328,12 @@ pub (crate) struct PxarACL {
 pub const CA_FORMAT_ACL_PERMISSION_READ: u64 = 4;
 pub const CA_FORMAT_ACL_PERMISSION_WRITE: u64 = 2;
 pub const CA_FORMAT_ACL_PERMISSION_EXECUTE: u64 = 1;
+
+#[derive(Debug, Endian)]
+#[repr(C)]
+pub struct CaFormatQuotaProjID {
+    pub projid: u64,
+}
 
 /// Create SipHash values for goodby tables.
 //pub fn compute_goodbye_hash(name: &std::ffi::CStr) -> u64 {
