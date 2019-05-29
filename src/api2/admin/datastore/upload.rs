@@ -153,7 +153,7 @@ impl pmx_server::HandleBackup for BackupHandler {
             None => {
                 path_str.push_str(".didx");
                 let path = PathBuf::from(path_str.as_str());
-                let writer = self.store.create_dynamic_writer(path, chunk_size)?;
+                let writer = self.store.create_dynamic_writer(path)?;
                 Ok(Box::new(DynamicFile {
                     writer: Some(writer),
                     path: path_str,

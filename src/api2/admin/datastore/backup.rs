@@ -215,9 +215,7 @@ fn create_dynamic_index(
     let mut path = env.backup_dir.relative_path();
     path.push(archive_name);
 
-    let chunk_size = 4096*1024; // todo: ??
-
-    let index = env.datastore.create_dynamic_writer(&path, chunk_size)?;
+    let index = env.datastore.create_dynamic_writer(&path)?;
     let wid = env.register_dynamic_writer(index, name)?;
 
     env.log(format!("created new dynamic index {} ({:?})", wid, path));

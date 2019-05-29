@@ -20,7 +20,7 @@ use hyper::http::request::Parts;
 
 pub struct UploadPxar {
     stream: Body,
-    index: DynamicIndexWriter,
+    index: DynamicChunkWriter,
     count: usize,
 }
 
@@ -88,7 +88,8 @@ fn upload_pxar(
 
     path.push(archive_name);
 
-    let index = datastore.create_dynamic_writer(path, chunk_size as usize)?;
+    let index = datastore.create_dynamic_writer(path)?;
+    let index = DynamicChunkWriter::new(index, chunk_size as usize);
 
     let upload = UploadPxar { stream: req_body, index, count: 0};
 

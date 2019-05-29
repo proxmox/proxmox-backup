@@ -101,11 +101,10 @@ impl DataStore {
 
     pub fn create_dynamic_writer<P: AsRef<Path>>(
         &self, filename: P,
-        chunk_size: usize
     ) -> Result<DynamicIndexWriter, Error> {
 
         let index = DynamicIndexWriter::create(
-            self.chunk_store.clone(), filename.as_ref(), chunk_size)?;
+            self.chunk_store.clone(), filename.as_ref())?;
 
         Ok(index)
     }
