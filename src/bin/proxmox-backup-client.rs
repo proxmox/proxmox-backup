@@ -166,32 +166,6 @@ fn backup_image<P: AsRef<Path>>(
     Ok(())
 }
 
-/****
-fn backup_image(datastore: &DataStore, file: &std::fs::File, size: usize, target: &str, chunk_size: usize) -> Result<(), Error> {
-
-    let mut target = PathBuf::from(target);
-
-    if let Some(ext) = target.extension() {
-        if ext != "fidx" {
-            bail!("got wrong file extension - expected '.fidx'");
-        }
-    } else {
-        target.set_extension("fidx");
-    }
-
-    let mut index = datastore.create_image_writer(&target, size, chunk_size)?;
-
-    tools::file_chunker(file, chunk_size, |pos, chunk| {
-        index.add_chunk(pos, chunk)?;
-        Ok(true)
-    })?;
-
-    index.close()?; // commit changes
-
-    Ok(())
-}
-*/
-
 fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
 
     let mut result = vec![];
