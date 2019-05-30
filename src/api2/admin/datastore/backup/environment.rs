@@ -10,12 +10,30 @@ use crate::backup::*;
 use crate::server::formatter::*;
 use hyper::{Body, Response};
 
+struct UploadStatistic {
+    count: u64,
+    size: u64,
+    compressed_size: u64,
+    duplicates: u64,
+}
+
+impl UploadStatistic {
+    fn new() -> Self {
+        Self {
+            count: 0,
+            size: 0,
+            compressed_size: 0,
+            duplicates: 0,
+        }
+    }
+}
 
 struct DynamicWriterState {
     name: String,
     index: DynamicIndexWriter,
     offset: u64,
     chunk_count: u64,
+    upload_stat: UploadStatistic,
 }
 
 struct FixedWriterState {
@@ -24,6 +42,7 @@ struct FixedWriterState {
     size: usize,
     chunk_size: u32,
     chunk_count: u64,
+    upload_stat: UploadStatistic,
 }
 
 struct SharedBackupState {
@@ -100,8 +119,10 @@ impl BackupEnvironment {
         }
     }
 
-    // Register a Chunk with associated length. A client may only use registered
-    // chunks (we do not trust clients that far ...)
+    /// Register a Chunk with associated length.
+    ///
+    /// We do not fully trust clients, so a client may only use registered
+    /// chunks. Please use this method to register chunks from previous backups.
     pub fn register_chunk(&self, digest: [u8; 32], length: u32) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
@@ -112,6 +133,10 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    /// Register fixed length chunks after upload.
+    ///
+    /// Like `register_chunk()`, but additionally record statistics for
+    /// the fixed index writer.
     pub fn register_fixed_chunk(
         &self,
         wid: usize,
@@ -133,11 +158,22 @@ impl BackupEnvironment {
             bail!("fixed writer '{}' - got unexpected chunk size ({} != {}", data.name, size, data.chunk_size);
         }
 
+        // record statistics
+        data.upload_stat.count += 1;
+        data.upload_stat.size += size as u64;
+        data.upload_stat.compressed_size += compressed_size as u64;
+        if is_duplicate { data.upload_stat.duplicates += 1; }
+
+        // register chunk
         state.known_chunks.insert(digest, size);
 
         Ok(())
     }
 
+    /// Register dynamic length chunks after upload.
+    ///
+    /// Like `register_chunk()`, but additionally record statistics for
+    /// the dynamic index writer.
     pub fn register_dynamic_chunk(
         &self,
         wid: usize,
@@ -155,6 +191,13 @@ impl BackupEnvironment {
             None => bail!("dynamic writer '{}' not registered", wid),
         };
 
+        // record statistics
+        data.upload_stat.count += 1;
+        data.upload_stat.size += size as u64;
+        data.upload_stat.compressed_size += compressed_size as u64;
+        if is_duplicate { data.upload_stat.duplicates += 1; }
+
+        // register chunk
         state.known_chunks.insert(digest, size);
 
         Ok(())
@@ -178,7 +221,7 @@ impl BackupEnvironment {
         let uid = state.next_uid();
 
         state.dynamic_writers.insert(uid, DynamicWriterState {
-            index, name, offset: 0, chunk_count: 0,
+            index, name, offset: 0, chunk_count: 0, upload_stat: UploadStatistic::new(),
         });
 
         Ok(uid)
@@ -193,7 +236,7 @@ impl BackupEnvironment {
         let uid = state.next_uid();
 
         state.fixed_writers.insert(uid, FixedWriterState {
-            index, name, chunk_count: 0, size, chunk_size,
+            index, name, chunk_count: 0, size, chunk_size, upload_stat: UploadStatistic::new(),
         });
 
         Ok(uid)
@@ -247,6 +290,16 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    fn log_upload_stat(&self, archive_name: &str, size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
+        self.log(format!("Upload statistics for '{}'", archive_name));
+        self.log(format!("Size: {}", size));
+        self.log(format!("Chunk count: {}", chunk_count));
+        self.log(format!("Upload size: {} ({}%)", upload_stat.size, (upload_stat.size*100)/size));
+        if upload_stat.size > 0 {
+            self.log(format!("Compression: {}%",  (upload_stat.compressed_size*100)/upload_stat.size));
+        }
+    }
+
     /// Close dynamic writer
     pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
@@ -267,6 +320,8 @@ impl BackupEnvironment {
         }
 
         data.index.close()?;
+
+        self.log_upload_stat(&data.name, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
 
@@ -299,6 +354,8 @@ impl BackupEnvironment {
         }
 
         data.index.close()?;
+
+        self.log_upload_stat(&data.name, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
 
