@@ -15,8 +15,8 @@ pub struct ChunkStream<S> {
 }
 
 impl <S> ChunkStream<S> {
-    pub fn new(input: S) -> Self {
-        Self { input, chunker: Chunker::new(4 * 1024 * 1024), buffer: BytesMut::new(), scan_pos: 0}
+    pub fn new(input: S, chunk_size: Option<usize>) -> Self {
+        Self { input, chunker: Chunker::new(chunk_size.unwrap_or(4*1024*1024)), buffer: BytesMut::new(), scan_pos: 0}
     }
 }
 

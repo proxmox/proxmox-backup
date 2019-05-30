@@ -27,7 +27,7 @@ fn main() {
             let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
                 .map(|bytes| bytes.to_vec()).map_err(Error::from);
             //let chunk_stream = FixedChunkStream::new(stream, 4*1024*1024);
-            let chunk_stream = ChunkStream::new(stream);
+            let chunk_stream = ChunkStream::new(stream, None);
 
             let start_time = std::time::Instant::now();
 

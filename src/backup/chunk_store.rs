@@ -42,9 +42,9 @@ pub struct ChunkStore {
 
 // TODO: what about sysctl setting vm.vfs_cache_pressure (0 - 100) ?
 
-pub fn verify_chunk_size(size: u64) -> Result<(), Error> {
+pub fn verify_chunk_size(size: usize) -> Result<(), Error> {
 
-    static SIZES: [u64; 7] = [64*1024, 128*1024, 256*1024, 512*1024, 1024*1024, 2048*1024, 4096*1024];
+    static SIZES: [usize; 7] = [64*1024, 128*1024, 256*1024, 512*1024, 1024*1024, 2048*1024, 4096*1024];
 
     if !SIZES.contains(&size) {
         bail!("Got unsupported chunk size '{}'", size);

@@ -110,17 +110,13 @@ fn backup_directory<P: AsRef<Path>>(
     client: &BackupClient,
     dir_path: P,
     archive_name: &str,
-    chunk_size: Option<u64>,
+    chunk_size: Option<usize>,
     all_file_systems: bool,
     verbose: bool,
 ) -> Result<(), Error> {
 
-    if let Some(_size) = chunk_size {
-        unimplemented!();
-    }
-
     let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
-    let chunk_stream = ChunkStream::new(pxar_stream);
+    let chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
 
@@ -144,7 +140,7 @@ fn backup_image<P: AsRef<Path>>(
     image_path: P,
     archive_name: &str,
     image_size: u64,
-    chunk_size: Option<u64>,
+    chunk_size: Option<usize>,
     verbose: bool,
 ) -> Result<(), Error> {
 
@@ -155,7 +151,7 @@ fn backup_image<P: AsRef<Path>>(
     let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
         .map_err(Error::from);
 
-    let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024) as usize);
+    let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
 
     client.upload_stream(archive_name, stream, "fixed", Some(image_size)).wait()?;
 
@@ -395,7 +391,7 @@ fn create_backup(
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
-    let chunk_size_opt = param["chunk-size"].as_u64().map(|v| v*1024);
+    let chunk_size_opt = param["chunk-size"].as_u64().map(|v| (v*1024) as usize);
 
     if let Some(size) = chunk_size_opt {
         verify_chunk_size(size)?;

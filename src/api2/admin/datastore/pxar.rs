@@ -78,7 +78,7 @@ fn upload_pxar(
         bail!("got wrong content-type for pxar archive upload");
     }
 
-    let chunk_size = param["chunk-size"].as_u64().unwrap_or(4096*1024);
+    let chunk_size = param["chunk-size"].as_u64().unwrap_or(4096*1024) as usize;
     verify_chunk_size(chunk_size)?;
 
     let datastore = DataStore::lookup_datastore(store)?;
