@@ -411,18 +411,23 @@ fn create_backup(
     for backupspec in backupspec_list {
         let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
 
-        let stat = match nix::sys::stat::stat(filename) {
-            Ok(s) => s,
+        use std::os::unix::fs::FileTypeExt;
+
+        let metadata = match std::fs::metadata(filename) {
+            Ok(m) => m,
             Err(err) => bail!("unable to access '{}' - {}", filename, err),
         };
+        let file_type = metadata.file_type();
 
-        if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
+        if file_type.is_dir() {
 
             upload_list.push((filename.to_owned(), target.to_owned()));
 
-        } else if (stat.st_mode & (libc::S_IFREG|libc::S_IFBLK)) != 0 {
-            if stat.st_size <= 0 { bail!("got strange file size '{}'", stat.st_size); }
-            let _size = stat.st_size as usize;
+        } else if file_type.is_file() || file_type.is_block_device() {
+
+            let size = tools::image_size(&PathBuf::from(filename))?;
+
+            if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
             panic!("implement me");
 
