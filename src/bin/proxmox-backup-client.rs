@@ -148,10 +148,6 @@ fn backup_image<P: AsRef<Path>>(
     verbose: bool,
 ) -> Result<(), Error> {
 
-    if let Some(_size) = chunk_size {
-        unimplemented!();
-    }
-
     let path = image_path.as_ref().to_owned();
 
     let file = tokio::fs::File::open(path).wait()?;
@@ -159,7 +155,7 @@ fn backup_image<P: AsRef<Path>>(
     let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
         .map_err(Error::from);
 
-    let stream = FixedChunkStream::new(stream, 4*1024*1024);
+    let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024) as usize);
 
     client.upload_stream(archive_name, stream, "fixed", Some(image_size)).wait()?;
 
