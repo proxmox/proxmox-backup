@@ -28,7 +28,7 @@ use futures::*;
 use tokio::sync::mpsc;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|raw)):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img)):(.+)$").unwrap();
 }
 
 
@@ -135,6 +135,33 @@ fn backup_directory<P: AsRef<Path>>(
     );
 
     client.upload_stream(archive_name, stream, "dynamic", None).wait()?;
+
+    Ok(())
+}
+
+fn backup_image<P: AsRef<Path>>(
+    client: &BackupClient,
+    image_path: P,
+    archive_name: &str,
+    image_size: u64,
+    chunk_size: Option<u64>,
+    verbose: bool,
+) -> Result<(), Error> {
+
+    if let Some(_size) = chunk_size {
+        unimplemented!();
+    }
+
+    let path = image_path.as_ref().to_owned();
+
+    let file = tokio::fs::File::open(path).wait()?;
+
+    let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+        .map_err(Error::from);
+
+    let stream = FixedChunkStream::new(stream, 4*1024*1024);
+
+    client.upload_stream(archive_name, stream, "fixed", Some(image_size)).wait()?;
 
     Ok(())
 }
@@ -408,6 +435,8 @@ fn create_backup(
 
     let mut upload_list = vec![];
 
+    enum BackupType { PXAR, IMAGE };
+
     for backupspec in backupspec_list {
         let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
 
@@ -421,7 +450,7 @@ fn create_backup(
 
         if file_type.is_dir() {
 
-            upload_list.push((filename.to_owned(), target.to_owned()));
+            upload_list.push((BackupType::PXAR, filename.to_owned(), target.to_owned(), 0));
 
         } else if file_type.is_file() || file_type.is_block_device() {
 
@@ -429,12 +458,7 @@ fn create_backup(
 
             if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
-            panic!("implement me");
-
-            //backup_image(&datastore, &file, size, &target, chunk_size)?;
-
-            // let idx = datastore.open_image_reader(target)?;
-            // idx.print_info();
+            upload_list.push((BackupType::IMAGE, filename.to_owned(), target.to_owned(), size));
 
         } else {
             bail!("unsupported file type (expected a directory, file or block device)");
@@ -452,9 +476,17 @@ fn create_backup(
 
     let client = client.start_backup(repo.store(), "host", &backup_id, verbose).wait()?;
 
-    for (filename, target) in upload_list {
-        println!("Upload '{}' to '{:?}' as {}", filename, repo, target);
-        backup_directory(&client, &filename, &target, chunk_size_opt, all_file_systems, verbose)?;
+    for (backup_type, filename, target, size) in upload_list {
+        match backup_type {
+            BackupType::PXAR => {
+                println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
+                backup_directory(&client, &filename, &target, chunk_size_opt, all_file_systems, verbose)?;
+            }
+            BackupType::IMAGE => {
+                println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
+                backup_image(&client, &filename, &target, size, chunk_size_opt, verbose)?;
+            }
+        }
     }
 
     client.finish().wait()?;
