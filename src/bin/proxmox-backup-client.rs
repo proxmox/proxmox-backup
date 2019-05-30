@@ -416,7 +416,7 @@ fn create_backup(
             Err(err) => bail!("unable to access '{}' - {}", filename, err),
         };
 
-        if (stat.st_mode & libc::S_IFDIR) != 0 {
+        if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
 
             upload_list.push((filename.to_owned(), target.to_owned()));
 
