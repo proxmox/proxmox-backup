@@ -85,7 +85,7 @@ impl BackupService {
 impl hyper::service::Service for BackupService {
     type ReqBody = Body;
     type ResBody = Body;
-    type Error = hyper::Error;
+    type Error = Error;
     type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
@@ -97,10 +97,10 @@ impl hyper::service::Service for BackupService {
             match result {
                 Ok(res) => {
                     Self::log_response(worker, method, &path, &res);
-                    Ok::<_, hyper::Error>(res)
+                    Ok::<_, Error>(res)
                 }
                 Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<HttpError>() {
+                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         resp.extensions_mut().insert(ErrorMessageExtension(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;

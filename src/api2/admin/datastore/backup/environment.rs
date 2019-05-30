@@ -112,6 +112,54 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    pub fn register_fixed_chunk(
+        &self,
+        wid: usize,
+        digest: [u8; 32],
+        size: u32,
+        compressed_size: u32,
+        is_duplicate: bool,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let mut data = match state.fixed_writers.get_mut(&wid) {
+            Some(data) => data,
+            None => bail!("fixed writer '{}' not registered", wid),
+        };
+
+        if size != data.chunk_size {
+            bail!("fixed writer '{}' - got unexpected chunk size ({} != {}", data.name, size, data.chunk_size);
+        }
+
+        state.known_chunks.insert(digest, size);
+
+        Ok(())
+    }
+
+    pub fn register_dynamic_chunk(
+        &self,
+        wid: usize,
+        digest: [u8; 32],
+        size: u32,
+        compressed_size: u32,
+        is_duplicate: bool,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().unwrap();
+
+        state.ensure_unfinished()?;
+
+        let mut data = match state.dynamic_writers.get_mut(&wid) {
+            Some(data) => data,
+            None => bail!("dynamic writer '{}' not registered", wid),
+        };
+
+        state.known_chunks.insert(digest, size);
+
+        Ok(())
+    }
+
     pub fn lookup_chunk(&self, digest: &[u8; 32]) -> Option<u32> {
         let state = self.state.lock().unwrap();
 

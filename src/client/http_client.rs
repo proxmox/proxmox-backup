@@ -462,8 +462,9 @@ impl BackupClient {
         }
 
         let index_path = format!("{}_index", prefix);
-        let index_path2 = index_path.clone();
         let close_path = format!("{}_close", prefix);
+
+        let prefix = prefix.to_owned();
 
         Self::download_chunk_list(h2, &index_path, archive_name, known_chunks.clone())
             .and_then(move |_| {
@@ -471,7 +472,7 @@ impl BackupClient {
             })
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
-                Self::upload_chunk_info_stream(h2_3, wid, stream, &index_path2, known_chunks.clone())
+                Self::upload_chunk_info_stream(h2_3, wid, stream, &prefix, known_chunks.clone())
                      .and_then(move |(chunk_count, size, _speed)| {
                         let param = json!({
                             "wid": wid ,
@@ -513,7 +514,7 @@ impl BackupClient {
         (verify_queue_tx, verify_result_rx)
     }
 
-    fn upload_chunk_queue(h2: H2Client, wid: u64, path: String) -> (
+    fn append_chunk_queue(h2: H2Client, wid: u64, path: String) -> (
         mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>,
         sync::oneshot::Receiver<Result<(), Error>>
     ) {
@@ -624,7 +625,7 @@ impl BackupClient {
         h2: H2Client,
         wid: u64,
         stream: impl Stream<Item=ChunkInfo, Error=Error>,
-        path: &str,
+        prefix: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     ) -> impl Future<Item=(usize, usize, usize), Error=Error> {
 
@@ -634,7 +635,10 @@ impl BackupClient {
         let stream_len = std::sync::Arc::new(AtomicUsize::new(0));
         let stream_len2 = stream_len.clone();
 
-        let (upload_queue, upload_result) = Self::upload_chunk_queue(h2.clone(), wid, path.to_owned());
+        let append_chunk_path = format!("{}_index", prefix);
+        let upload_chunk_path = format!("{}_chunk", prefix);
+
+        let (upload_queue, upload_result) = Self::append_chunk_queue(h2.clone(), wid, append_chunk_path.to_owned());
 
         let start_time = std::time::Instant::now();
 
@@ -663,8 +667,8 @@ impl BackupClient {
                     println!("upload new chunk {} ({} bytes, offset {})", tools::digest_to_hex(&digest),
                              chunk_info.data.len(), offset);
 
-                    let param = json!({ "size" : chunk_info.data.len() });
-                    let request = H2Client::request_builder("localhost", "POST", "upload_chunk", Some(param)).unwrap();
+                    let param = json!({ "wid": wid, "size" : chunk_info.data.len() });
+                    let request = H2Client::request_builder("localhost", "POST", &upload_chunk_path, Some(param)).unwrap();
                     let upload_data = Some(chunk_info.data.freeze());
 
                     let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);

@@ -151,8 +151,8 @@ fn backup_api() -> Router {
 
     let router = Router::new()
         .subdir(
-            "upload_chunk", Router::new()
-                .upload(api_method_upload_chunk())
+            "dynamic_chunk", Router::new()
+                .upload(api_method_upload_dynamic_chunk())
         )
         .subdir(
             "dynamic_index", Router::new()
@@ -163,6 +163,10 @@ fn backup_api() -> Router {
         .subdir(
             "dynamic_close", Router::new()
                 .post(api_method_close_dynamic_index())
+        )
+        .subdir(
+            "fixed_chunk", Router::new()
+                .upload(api_method_upload_fixed_chunk())
         )
         .subdir(
             "fixed_index", Router::new()
