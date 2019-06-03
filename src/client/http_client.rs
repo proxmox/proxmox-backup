@@ -431,6 +431,31 @@ impl BackupClient {
         self.h2.clone().post("finish", None).map(|_| ())
     }
 
+    pub fn upload_config(
+        &self,
+        file_name: &str,
+        src_path: std::path::PathBuf,
+    ) -> impl Future<Item=(), Error=Error> {
+
+        let h2 = self.h2.clone();
+        let file_name = file_name.to_owned();
+
+        let task = tokio::fs::File::open(src_path)
+            .map_err(Error::from)
+            .and_then(|file| {
+                let contents = vec![];
+                tokio::io::read_to_end(file, contents)
+                    .map_err(Error::from)
+                    .and_then(move |(_, contents)| {
+                        let param = json!({"size": contents.len(), "file-name": file_name });
+                        h2.upload("config", Some(param), contents)
+                            .map(|_| {})
+                    })
+            });
+
+        task
+    }
+
     pub fn upload_stream(
         &self,
         archive_name: &str,

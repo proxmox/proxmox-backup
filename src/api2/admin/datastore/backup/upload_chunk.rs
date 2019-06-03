@@ -185,3 +185,65 @@ fn upload_speedtest(
 
     Ok(Box::new(resp))
 }
+
+pub fn api_method_upload_config() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        upload_config,
+        ObjectSchema::new("Upload configuration file.")
+            .required("file-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+            .required("size", IntegerSchema::new("File size.")
+                      .minimum(1)
+                      .maximum(1024*1024*16)
+            )
+    )
+}
+
+fn upload_config(
+    _parts: Parts,
+    req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let mut file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+    let size = tools::required_integer_param(&param, "size")? as usize;
+
+    if !file_name.ends_with(".conf") {
+        bail!("wrong config file extension: '{}'", file_name);
+    } else {
+        file_name.push_str(".zstd");
+    }
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    let mut path = env.datastore.base_path();
+    path.push(env.backup_dir.relative_path());
+    path.push(&file_name);
+
+    let env2 = env.clone();
+    let env3 = env.clone();
+
+    let resp = req_body
+        .map_err(Error::from)
+        .concat2()
+        .and_then(move |data| {
+            if size != data.len() {
+                bail!("got configuration file with unexpected length ({} != {})", size, data.len());
+            }
+
+            let data = zstd::block::compress(&data, 0)?;
+
+            tools::file_set_contents(&path, &data, None)?;
+
+            env2.debug(format!("upload config {:?} ({} bytes, comp: {})", path, size, data.len()));
+
+            Ok(())
+        })
+        .and_then(move |_| {
+            Ok(env3.format_response(Ok(Value::Null)))
+        })
+        ;
+
+    Ok(Box::new(resp))
+}
