@@ -211,7 +211,6 @@ pub fn file_set_contents_full<P: AsRef<Path>>(
         }
     }
 
-    use std::os::unix::io::FromRawFd;
     let mut file = unsafe { File::from_raw_fd(fd) };
 
     if let Err(err) = file.write_all(data) {
@@ -765,7 +764,6 @@ nix::ioctl_read!(blkgetsize64, 0x12, 114, u64);
 /// Return file or block device size
 pub fn image_size(path: &Path) -> Result<u64, Error> {
 
-    use std::os::unix::io::AsRawFd;
     use std::os::unix::fs::FileTypeExt;
 
     let file = std::fs::File::open(path)?;

@@ -880,7 +880,7 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 use nix::{convert_ioctl_res, request_code_read, ioc};
 
 // /usr/include/linux/fs.h: #define FS_IOC_GETFLAGS _IOR('f', 1, long)
-/// read Linux file system attributes (see man chattr)
+// read Linux file system attributes (see man chattr)
 nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
 
 // /usr/include/linux/msdos_fs.h: #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, __u32)

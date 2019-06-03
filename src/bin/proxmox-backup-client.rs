@@ -2,7 +2,7 @@ extern crate proxmox_backup;
 
 use failure::*;
 //use std::os::unix::io::AsRawFd;
-use chrono::{DateTime, Local, TimeZone};
+use chrono::{Local, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ use proxmox_backup::backup::*;
 //use proxmox_backup::backup::datastore::*;
 
 use serde_json::{json, Value};
-use hyper::Body;
+//use hyper::Body;
 use std::sync::Arc;
 use regex::Regex;
 use xdg::BaseDirectories;
@@ -127,7 +127,7 @@ fn backup_directory<P: AsRef<Path>>(
     // spawn chunker inside a separate task so that it can run parallel
     tokio::spawn(
         tx.send_all(chunk_stream.then(|r| Ok(r)))
-            .map_err(|e| {}).map(|_| ())
+            .map_err(|_| {}).map(|_| ())
     );
 
     client.upload_stream(archive_name, stream, "dynamic", None).wait()?;
@@ -141,7 +141,7 @@ fn backup_image<P: AsRef<Path>>(
     archive_name: &str,
     image_size: u64,
     chunk_size: Option<usize>,
-    verbose: bool,
+    _verbose: bool,
 ) -> Result<(), Error> {
 
     let path = image_path.as_ref().to_owned();
