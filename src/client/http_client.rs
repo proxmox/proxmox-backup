@@ -441,8 +441,8 @@ impl BackupClient {
         let file_name = file_name.to_owned();
         let src_path = src_path.as_ref().to_owned();
 
-        let task = tokio::fs::File::open(src_path)
-            .map_err(Error::from)
+        let task = tokio::fs::File::open(src_path.clone())
+            .map_err(move |err| format_err!("unable to open file {:?} - {}", src_path, err))
             .and_then(|file| {
                 let contents = vec![];
                 tokio::io::read_to_end(file, contents)
