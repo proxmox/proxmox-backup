@@ -431,14 +431,15 @@ impl BackupClient {
         self.h2.clone().post("finish", None).map(|_| ())
     }
 
-    pub fn upload_config(
+    pub fn upload_config<P: AsRef<std::path::Path>>(
         &self,
+        src_path: P,
         file_name: &str,
-        src_path: std::path::PathBuf,
-    ) -> impl Future<Item=(), Error=Error> {
+     ) -> impl Future<Item=(), Error=Error> {
 
         let h2 = self.h2.clone();
         let file_name = file_name.to_owned();
+        let src_path = src_path.as_ref().to_owned();
 
         let task = tokio::fs::File::open(src_path)
             .map_err(Error::from)

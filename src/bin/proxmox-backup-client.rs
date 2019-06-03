@@ -28,7 +28,7 @@ use futures::*;
 use tokio::sync::mpsc;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img)):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf)):(.+)$").unwrap();
 }
 
 
@@ -401,7 +401,7 @@ fn create_backup(
 
     let mut upload_list = vec![];
 
-    enum BackupType { PXAR, IMAGE };
+    enum BackupType { PXAR, IMAGE, CONFIG };
 
     for backupspec in backupspec_list {
         let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
@@ -414,20 +414,36 @@ fn create_backup(
         };
         let file_type = metadata.file_type();
 
-        if file_type.is_dir() {
+        let extension = Path::new(target).extension().map(|s| s.to_str().unwrap()).unwrap();
 
-            upload_list.push((BackupType::PXAR, filename.to_owned(), target.to_owned(), 0));
+        match extension {
+            "pxar" => {
+                if !file_type.is_dir() {
+                    bail!("got unexpected file type (expected directory)");
+                }
+                upload_list.push((BackupType::PXAR, filename.to_owned(), target.to_owned(), 0));
+            }
+            "img" => {
 
-        } else if file_type.is_file() || file_type.is_block_device() {
+                if !(file_type.is_file() || file_type.is_block_device()) {
+                    bail!("got unexpected file type (expected file or block device)");
+                }
 
-            let size = tools::image_size(&PathBuf::from(filename))?;
+                let size = tools::image_size(&PathBuf::from(filename))?;
 
-            if size == 0 { bail!("got zero-sized file '{}'", filename); }
+                if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
-            upload_list.push((BackupType::IMAGE, filename.to_owned(), target.to_owned(), size));
-
-        } else {
-            bail!("unsupported file type (expected a directory, file or block device)");
+                upload_list.push((BackupType::IMAGE, filename.to_owned(), target.to_owned(), size));
+            }
+            "conf" => {
+                if !file_type.is_file() {
+                    bail!("got unexpected file type (expected regular file)");
+                }
+                upload_list.push((BackupType::CONFIG, filename.to_owned(), target.to_owned(), metadata.len()));
+            }
+            _ => {
+                bail!("got unknown archive extension '{}'", extension);
+            }
         }
     }
 
@@ -444,6 +460,10 @@ fn create_backup(
 
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
+            BackupType::CONFIG => {
+                println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
+                client.upload_config(&filename, &target).wait()?;
+            }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
                 backup_directory(&client, &filename, &target, chunk_size_opt, all_file_systems, verbose)?;
