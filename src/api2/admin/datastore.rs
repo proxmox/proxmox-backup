@@ -20,7 +20,7 @@ use crate::server::WorkerTask;
 
 mod pxar;
 mod upload;
-mod backup;
+pub mod backup;
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 

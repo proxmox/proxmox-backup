@@ -147,7 +147,7 @@ fn upgrade_to_backup_protocol(
     Ok(Box::new(futures::future::ok(response)))
 }
 
-fn backup_api() -> Router {
+pub fn backup_api() -> Router {
 
     let router = Router::new()
         .subdir(

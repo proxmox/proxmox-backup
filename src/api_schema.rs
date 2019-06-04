@@ -17,3 +17,4 @@ pub mod registry;
 #[macro_use]
 pub mod router;
 pub mod config;
+pub mod format;
