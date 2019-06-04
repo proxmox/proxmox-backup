@@ -22,6 +22,7 @@ Welcome to Proxmox Backup's documentation!
 
    command-syntax.rst
    file-formats.rst
+   backup-protocol.rst
    glossary.rst
 
 * :ref:`genindex`

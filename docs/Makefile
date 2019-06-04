@@ -7,7 +7,8 @@ COMPILEDIR := ../target/debug
 endif
 
 GENERATED_SYNOPSIS := 				\
-	proxmox-backup-client/synopsis.rst
+	proxmox-backup-client/synopsis.rst	\
+	backup-protocol-api.rst
 
 MANUAL_PAGES := 			\
 	proxmox-backup-proxy.1		\
@@ -29,6 +30,10 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 all: ${MANUAL_PAGES}
 
+# Extract backup protocol docs
+backup-protocol-api.rst: ${COMPILEDIR}/dump-backup-api
+	${COMPILEDIR}/dump-backup-api >$@
+
 # Build manual pages using rst2man
 
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
@@ -48,20 +53,20 @@ html: ${GENERATED_SYNOPSIS}
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
 .PHONY: latexpdf
-latexpdf:
+latexpdf: ${GENERATED_SYNOPSIS}
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo "Running LaTeX files through pdflatex..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf
 	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
 
 .PHONY: epub3
-epub3:
+epub3: ${GENERATED_SYNOPSIS}
 	$(SPHINXBUILD) -b epub3 $(ALLSPHINXOPTS) $(BUILDDIR)/epub3
 	@echo
 	@echo "Build finished. The epub3 file is in $(BUILDDIR)/epub3."
 
 clean:
-	rm -r -f *~ *.1 */synopsis.rst ${BUILDDIR}
+	rm -r -f *~ *.1 */synopsis.rst ${BUILDDIR} backup-protocol-api.rst
 
 install: ${MANUAL_PAGES}
 	install -dm755 $(DESTDIR)$(MAN1DIR)
