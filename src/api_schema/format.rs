@@ -21,6 +21,31 @@ pub enum DocumentationFormat {
     ReST,
 }
 
+/// line wrapping to form simple list of paragraphs
+pub fn wrap_text(initial_indent: &str, subsequent_indent: &str, text: &str, columns: usize) -> String {
+
+    let wrapper1 = textwrap::Wrapper::new(columns)
+        .initial_indent(initial_indent)
+        .subsequent_indent(subsequent_indent);
+
+    let wrapper2 = textwrap::Wrapper::new(columns)
+        .initial_indent(subsequent_indent)
+        .subsequent_indent(subsequent_indent);
+
+    text.split("\n\n")
+        .map(|p| p.trim())
+        .filter(|p| { p.len() != 0 })
+        .fold(String::new(), |mut acc, p| {
+            if acc.len() == 0 {
+                acc.push_str(&wrapper1.wrap(p).concat());
+            } else {
+                acc.push_str(&wrapper2.wrap(p).concat());
+            }
+            acc.push_str("\n\n");
+            acc
+        })
+}
+
 pub fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> String {
 
     let type_text = match schema {
@@ -79,7 +104,7 @@ pub fn get_property_description(
             }
         };
 
-        text.push_str(descr);
+        text.push_str(&wrap_text("", "", descr, 80));
         text.push('\n');
         text.push('\n');
 
@@ -99,12 +124,10 @@ pub fn get_property_description(
             }
         };
 
-        // fixme: wrap text
         let mut text = format!(" {:-10} {}{}", display_name, type_text, default_text);
         let indent = "             ";
         text.push('\n');
-        text.push_str(indent);
-        text.push_str(descr);
+        text.push_str(&wrap_text(indent, indent, descr, 80));
         text.push('\n');
         text.push('\n');
 
