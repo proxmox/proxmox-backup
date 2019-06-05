@@ -159,7 +159,11 @@ mod tests {
 
         assert!(fsetxattr(fd, valid_user).is_ok());
         assert!(fsetxattr(fd, valid_empty_value).is_ok());
-        assert_eq!(fsetxattr(fd, invalid_trusted), Err(Errno::EPERM));
+
+        if nix::unistd::Uid::current() != nix::unistd::ROOT {
+            assert_eq!(fsetxattr(fd, invalid_trusted), Err(Errno::EPERM));
+        }
+
         assert_eq!(fsetxattr(fd, invalid_name_prefix), Err(Errno::EOPNOTSUPP));
         assert_eq!(fsetxattr(fd, invalid_name_length), Err(Errno::ERANGE));
 
