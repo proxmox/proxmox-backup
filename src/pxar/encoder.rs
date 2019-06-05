@@ -619,16 +619,15 @@ impl <'a, W: Write> Encoder<'a, W> {
                           self.full_path(), MAX_DIRECTORY_ENTRIES);
                 }
 
-                let entry = match entry {
-                    Ok(entry) => entry,
-                    Err(err) => bail!("readir {:?} failed - {}", self.full_path(), err),
-                };
+                let entry =  entry.map_err(|err| {
+                    format_err!("readir {:?} failed - {}", self.full_path(), err)
+                })?;
                 let filename = entry.file_name().to_owned();
 
                 let name = filename.to_bytes_with_nul();
-                let name_len = name.len();
-                if name_len == 2 && name[0] == b'.' && name[1] == 0u8 { continue; }
-                if name_len == 3 && name[0] == b'.' && name[1] == b'.' && name[2] == 0u8 { continue; }
+                if name == b".\0" || name == b"..\0" {
+                    continue;
+                }
 
                 name_list.push(filename);
             }
