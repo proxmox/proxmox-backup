@@ -26,6 +26,10 @@ use service::*;
 mod upload_chunk;
 use upload_chunk::*;
 
+pub fn router() -> Router {
+    Router::new()
+        .upgrade(api_method_upgrade_backup())
+}
 
 pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(

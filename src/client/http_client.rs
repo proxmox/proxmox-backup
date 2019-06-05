@@ -258,9 +258,8 @@ impl HttpClient {
         debug: bool,
     ) -> impl Future<Item=BackupClient, Error=Error> {
 
-        let path = format!("/api2/json/admin/datastore/{}/backup", datastore);
-        let param = json!({"backup-type": backup_type, "backup-id": backup_id, "debug": debug});
-        let mut req = Self::request_builder(&self.server, "GET", &path, Some(param)).unwrap();
+        let param = json!({"backup-type": backup_type, "backup-id": backup_id, "store": datastore, "debug": debug});
+        let mut req = Self::request_builder(&self.server, "GET", "/api2/json/backup", Some(param)).unwrap();
 
         let login = self.auth.listen();
 

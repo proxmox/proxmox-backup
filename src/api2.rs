@@ -1,6 +1,7 @@
 pub mod types;
 pub mod config;
 pub mod admin;
+pub mod backup;
 pub mod node;
 mod version;
 mod subscription;
@@ -16,6 +17,7 @@ pub fn router() -> Router {
     let route = Router::new()
         .subdir("access", access::router())
         .subdir("admin", admin::router())
+        .subdir("backup", backup::router())
         .subdir("config", config::router())
         .subdir("nodes", nodes)
         .subdir("subscription", subscription::router())
