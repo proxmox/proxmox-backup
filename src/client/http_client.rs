@@ -428,10 +428,6 @@ impl BackupClient {
         }
     }
 
-    pub fn force_close(mut self) {
-        self.canceller.take().unwrap().cancel();
-    }
-
     pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
         self.h2.get(path, param)
     }
@@ -444,8 +440,16 @@ impl BackupClient {
         self.h2.post(path, param)
     }
 
-    pub fn finish(&self) -> impl Future<Item=(), Error=Error> {
-        self.h2.clone().post("finish", None).map(|_| ())
+    pub fn finish(mut self) -> impl Future<Item=(), Error=Error> {
+        let canceler = self.canceller.take().unwrap();
+        self.h2.clone().post("finish", None).map(move |_| {
+            canceler.cancel();
+            ()
+        })
+    }
+
+    pub fn force_close(mut self) {
+        self.canceller.take().unwrap().cancel();
     }
 
     pub fn upload_config<P: AsRef<std::path::Path>>(
