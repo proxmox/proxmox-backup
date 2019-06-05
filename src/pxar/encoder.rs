@@ -405,24 +405,37 @@ impl <'a, W: Write> Encoder<'a, W> {
         if !self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
             return Ok(None);
         }
-        let projid = match magic {
+
+        match magic {
             //TODO ZFS quota
             EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC => {
                 let mut fsxattr = fs::FSXAttr::default();
-                unsafe {
+                let res = unsafe {
                     fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
-                        .map_err(|err| format_err!("error while reading quota project id for {:#?} - {}", self.full_path(), err))?;
+                };
+
+                // On some FUSE filesystems it can happen that ioctl is not supported.
+                // For these cases projid is set to 0 while the error is ignored.
+                if let Err(err) = res {
+                    let errno = err.as_errno().ok_or_else(|| {
+                        format_err!("error while reading quota project id for {:#?}", self.full_path())
+                    })?;
+                    if errno_is_unsupported(errno) {
+                        return Ok(None);
+                    } else {
+                        bail!("error while reading quota project id for {:#?} - {}", self.full_path(), errno);
+                    }
                 }
-                fsxattr.fsx_projid as u64
+
+                let projid = fsxattr.fsx_projid as u64;
+                if projid == 0 {
+                    return Ok(None);
+                } else {
+                    return Ok(Some(CaFormatQuotaProjID { projid }));
+                }
             },
             _ => return Ok(None),
-        };
-        println!("Encountered projid: {} for {:#?}", projid, self.full_path());
-        if projid == 0 {
-            return Ok(None);
         }
-
-        Ok(Some(CaFormatQuotaProjID { projid }))
     }
 
     fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
