@@ -476,6 +476,7 @@ fn create_backup(
     }
 
     client.finish().wait()?;
+    client.force_close();
 
     let end_time = Local.timestamp(Local::now().timestamp(), 0);
     let elapsed = end_time.signed_duration_since(backup_time);
