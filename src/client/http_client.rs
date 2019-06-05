@@ -269,7 +269,7 @@ impl HttpClient {
 
             let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
             req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-            req.headers_mut().insert("UPGRADE", HeaderValue::from_str("proxmox-backup-protocol-h2").unwrap());
+            req.headers_mut().insert("UPGRADE", HeaderValue::from_str(crate::backup::PROXMOX_BACKUP_PROTOCOL_ID_V1).unwrap());
 
             client.request(req)
                 .map_err(Error::from)

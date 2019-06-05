@@ -51,8 +51,6 @@ fn upgrade_to_backup_protocol(
     rpcenv: Box<RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
-    static PROXMOX_BACKUP_PROTOCOL_ID: &str = "proxmox-backup-protocol-h2";
-
     let debug = param["debug"].as_bool().unwrap_or(false);
 
     let store = tools::required_string_param(&param, "store")?.to_owned();
@@ -68,7 +66,7 @@ fn upgrade_to_backup_protocol(
         .ok_or_else(|| format_err!("missing Upgrade header"))?
         .to_str()?;
 
-    if protocols != PROXMOX_BACKUP_PROTOCOL_ID {
+    if protocols != PROXMOX_BACKUP_PROTOCOL_ID_V1 {
         bail!("invalid protocol name");
     }
 
@@ -145,7 +143,7 @@ fn upgrade_to_backup_protocol(
 
     let response = Response::builder()
         .status(StatusCode::SWITCHING_PROTOCOLS)
-        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID))
+        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID_V1))
         .body(Body::empty())?;
 
     Ok(Box::new(futures::future::ok(response)))

@@ -102,6 +102,8 @@
 //!
 //! Not sure if this is better. TODO
 
+pub const PROXMOX_BACKUP_PROTOCOL_ID_V1: &str = "proxmox-backup-protocol-v1";
+
 mod chunk_stream;
 pub use chunk_stream::*;
 
