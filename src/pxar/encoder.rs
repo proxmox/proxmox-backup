@@ -956,7 +956,7 @@ pub const TMPFS_MAGIC: i64 =           0x01021994;
 pub const SYSFS_MAGIC: i64 =           0x62656572;
 pub const MSDOS_SUPER_MAGIC: i64 =     0x00004d44;
 pub const FUSE_SUPER_MAGIC: i64 =      0x65735546;
-pub const EXT4_SUPER_MAGIC: i64 =      0xEF53;
+pub const EXT4_SUPER_MAGIC: i64 =      0x0000EF53;
 pub const XFS_SUPER_MAGIC: i64 =       0x58465342;
 
 
