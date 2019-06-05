@@ -34,7 +34,7 @@ pub fn router() -> Router {
 pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
         upgrade_to_backup_protocol,
-        ObjectSchema::new("Upgraded to backup protocol.")
+        ObjectSchema::new(concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."))
             .required("store", StringSchema::new("Datastore name."))
             .required("backup-type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
@@ -66,7 +66,7 @@ fn upgrade_to_backup_protocol(
         .ok_or_else(|| format_err!("missing Upgrade header"))?
         .to_str()?;
 
-    if protocols != PROXMOX_BACKUP_PROTOCOL_ID_V1 {
+    if protocols != PROXMOX_BACKUP_PROTOCOL_ID_V1!() {
         bail!("invalid protocol name");
     }
 
@@ -143,7 +143,7 @@ fn upgrade_to_backup_protocol(
 
     let response = Response::builder()
         .status(StatusCode::SWITCHING_PROTOCOLS)
-        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID_V1))
+        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID_V1!()))
         .body(Body::empty())?;
 
     Ok(Box::new(futures::future::ok(response)))

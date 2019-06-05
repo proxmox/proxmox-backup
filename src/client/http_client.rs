@@ -23,6 +23,8 @@ use crate::tools::{self, BroadcastFuture, tty};
 use super::pipe_to_stream::*;
 use super::merge_known_chunks::*;
 
+use crate::backup::*;
+
 
 #[derive(Clone)]
 struct AuthInfo {
@@ -269,7 +271,7 @@ impl HttpClient {
 
             let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
             req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-            req.headers_mut().insert("UPGRADE", HeaderValue::from_str(crate::backup::PROXMOX_BACKUP_PROTOCOL_ID_V1).unwrap());
+            req.headers_mut().insert("UPGRADE", HeaderValue::from_str(PROXMOX_BACKUP_PROTOCOL_ID_V1!()).unwrap());
 
             client.request(req)
                 .map_err(Error::from)
@@ -635,7 +637,7 @@ impl BackupClient {
 
                         let mut release_capacity = body.release_capacity().clone();
 
-                        crate::backup::DigestListDecoder::new(body.map_err(Error::from))
+                        DigestListDecoder::new(body.map_err(Error::from))
                             .for_each(move |chunk| {
                                 let _ = release_capacity.release_capacity(chunk.len());
                                 println!("GOT DOWNLOAD {}", tools::digest_to_hex(&chunk));
