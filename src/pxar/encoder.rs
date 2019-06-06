@@ -50,7 +50,10 @@ pub struct Encoder<'a, W: Write> {
     all_file_systems: bool,
     root_st_dev: u64,
     verbose: bool,
+    // Flags set by the user
     feature_flags: u64,
+    // Flags signaling features supported by the filesystem
+    fs_feature_flags: u64,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
 }
 
@@ -94,6 +97,8 @@ impl <'a, W: Write> Encoder<'a, W> {
             bail!("backup virtual file systems is disabled!");
         }
 
+        let fs_feature_flags = feature_flags_from_magic(magic);
+
         let mut me = Self {
             base_path: path,
             relative_path: PathBuf::new(),
@@ -105,6 +110,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             root_st_dev: stat.st_dev,
             verbose,
             feature_flags,
+            fs_feature_flags,
             hardlinks: HashMap::new(),
         };
 
@@ -223,12 +229,12 @@ impl <'a, W: Write> Encoder<'a, W> {
 
     /// True if all of the given feature flags are set in the Encoder, false otherwise
     fn has_features(&self, feature_flags: u64) -> bool {
-        (self.feature_flags & feature_flags) == feature_flags
+        (self.feature_flags & self.fs_feature_flags & feature_flags) == feature_flags
     }
 
     /// True if at least one of the given feature flags is set in the Encoder, false otherwise
     fn has_some_features(&self, feature_flags: u64) -> bool {
-        (self.feature_flags & feature_flags) != 0
+        (self.feature_flags & self.fs_feature_flags & feature_flags) != 0
     }
 
     fn read_xattrs(&self, fd: RawFd, stat: &FileStat) -> Result<(Vec<CaFormatXAttr>, Option<CaFormatFCaps>), Error> {
@@ -568,6 +574,11 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         self.read_chattr(rawfd, &mut dir_entry)?;
         self.read_fat_attr(rawfd, magic, &mut dir_entry)?;
+
+        // for each node in the directory tree, the filesystem features are
+        // checked based on the fs magic number.
+        self.fs_feature_flags = feature_flags_from_magic(magic);
+
         let (xattrs, fcaps) = self.read_xattrs(rawfd, &dir_stat)?;
         let acl_access = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_ACCESS)?;
         let acl_default = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_DEFAULT)?;
@@ -932,35 +943,6 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 
     Ok(fs_stat.f_type)
 }
-
-
-// from /usr/include/linux/magic.h
-// and from casync util.h
-pub const BINFMTFS_MAGIC: i64 =        0x42494e4d;
-pub const CGROUP2_SUPER_MAGIC: i64 =   0x63677270;
-pub const CGROUP_SUPER_MAGIC: i64 =    0x0027e0eb;
-pub const CONFIGFS_MAGIC: i64 =        0x62656570;
-pub const DEBUGFS_MAGIC: i64 =         0x64626720;
-pub const DEVPTS_SUPER_MAGIC: i64 =    0x00001cd1;
-pub const EFIVARFS_MAGIC: i64 =        0xde5e81e4;
-pub const FUSE_CTL_SUPER_MAGIC: i64 =  0x65735543;
-pub const HUGETLBFS_MAGIC: i64 =       0x958458f6;
-pub const MQUEUE_MAGIC: i64 =          0x19800202;
-pub const NFSD_MAGIC: i64 =            0x6e667364;
-pub const PROC_SUPER_MAGIC: i64 =      0x00009fa0;
-pub const PSTOREFS_MAGIC: i64 =        0x6165676C;
-pub const RPCAUTH_GSSMAGIC: i64 =      0x67596969;
-pub const SECURITYFS_MAGIC: i64 =      0x73636673;
-pub const SELINUX_MAGIC: i64 =         0xf97cff8c;
-pub const SMACK_MAGIC: i64 =           0x43415d53;
-pub const RAMFS_MAGIC: i64 =           0x858458f6;
-pub const TMPFS_MAGIC: i64 =           0x01021994;
-pub const SYSFS_MAGIC: i64 =           0x62656572;
-pub const MSDOS_SUPER_MAGIC: i64 =     0x00004d44;
-pub const FUSE_SUPER_MAGIC: i64 =      0x65735546;
-pub const EXT4_SUPER_MAGIC: i64 =      0x0000EF53;
-pub const XFS_SUPER_MAGIC: i64 =       0x58465342;
-
 
 #[inline(always)]
 pub fn is_temporary_file_system(magic: i64) -> bool {
