@@ -187,7 +187,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         let mut attr: usize = 0;
 
-        let res = unsafe { read_attr_fd(fd, &mut attr)};
+        let res = unsafe { fs::read_attr_fd(fd, &mut attr)};
         if let Err(err) = res {
             if let nix::Error::Sys(errno) = err {
                 if errno_is_unsupported(errno) { return Ok(()) };
@@ -207,7 +207,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         let mut attr: u32 = 0;
 
-        let res = unsafe { read_fat_attr_fd(fd, &mut attr)};
+        let res = unsafe { fs::read_fat_attr_fd(fd, &mut attr)};
         if let Err(err) = res {
             if let nix::Error::Sys(errno) = err {
                 if errno_is_unsupported(errno) { return Ok(()) };
@@ -932,16 +932,6 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 
     Ok(fs_stat.f_type)
 }
-
-use nix::{convert_ioctl_res, request_code_read, ioc};
-
-// /usr/include/linux/fs.h: #define FS_IOC_GETFLAGS _IOR('f', 1, long)
-// read Linux file system attributes (see man chattr)
-nix::ioctl_read!(read_attr_fd, b'f', 1, usize);
-
-// /usr/include/linux/msdos_fs.h: #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, __u32)
-// read FAT file system attributes
-nix::ioctl_read!(read_fat_attr_fd, b'r', 0x10, u32);
 
 
 // from /usr/include/linux/magic.h
