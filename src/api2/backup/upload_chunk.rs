@@ -74,7 +74,7 @@ fn upload_fixed_chunk(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -121,7 +121,7 @@ fn upload_dynamic_chunk(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -160,7 +160,7 @@ fn upload_speedtest(
     req_body: Body,
     _param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let resp = req_body
@@ -203,7 +203,7 @@ fn upload_config(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let mut file_name = tools::required_string_param(&param, "file-name")?.to_owned();

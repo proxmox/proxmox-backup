@@ -10,7 +10,7 @@ use crate::api2::types::*;
 fn get_network_config(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     Ok(json!({}))

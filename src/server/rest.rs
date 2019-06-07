@@ -47,7 +47,7 @@ impl NewService for RestServer
     type Error = hyper::Error;
     type InitError = hyper::Error;
     type Service = ApiService;
-    type Future = Box<Future<Item = Self::Service, Error = Self::InitError> + Send>;
+    type Future = Box<dyn Future<Item = Self::Service, Error = Self::InitError> + Send>;
     fn new_service(&self) -> Self::Future {
         Box::new(future::ok(ApiService { api_config: self.api_config.clone() }))
     }
@@ -80,7 +80,7 @@ impl Service for ApiService {
     type ReqBody = Body;
     type ResBody = Body;
     type Error = hyper::Error;
-    type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
+    type Future = Box<dyn Future<Item = Response<Body>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         let path = req.uri().path().to_owned();
@@ -115,7 +115,7 @@ fn get_request_parameters_async(
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
-) -> Box<Future<Item = Value, Error = failure::Error> + Send>
+) -> Box<dyn Future<Item = Value, Error = failure::Error> + Send>
 {
     let mut is_json = false;
 

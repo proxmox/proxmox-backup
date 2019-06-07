@@ -18,7 +18,7 @@ pub fn get() -> ApiMethod {
 fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let config = datastore::config()?;
@@ -38,7 +38,7 @@ pub fn post() -> ApiMethod {
 fn create_datastore(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     // fixme: locking ?
@@ -75,7 +75,7 @@ pub fn delete() -> ApiMethod {
 fn delete_datastore(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     println!("This is a test {}", param);
 

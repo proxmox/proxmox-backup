@@ -19,7 +19,7 @@ use proxmox_backup::pxar;
 fn print_filenames(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
@@ -44,7 +44,7 @@ fn print_filenames(
 fn dump_archive(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
@@ -81,7 +81,7 @@ fn dump_archive(
 fn extract_archive(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
@@ -120,7 +120,7 @@ fn extract_archive(
 fn create_archive(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;

@@ -12,7 +12,7 @@ use hyper::http::request::Parts;
 
 use super::api_handler::*;
 
-pub type BoxFut = Box<Future<Item = Response<Body>, Error = failure::Error> + Send>;
+pub type BoxFut = Box<dyn Future<Item = Response<Body>, Error = failure::Error> + Send>;
 
 /// Abstract Interface for API methods to interact with the environment
 pub trait RpcEnvironment: std::any::Any + crate::tools::AsAny + Send {
@@ -75,7 +75,7 @@ macro_rules! http_err {
 }
 
 type ApiAsyncHandlerFn = Box<
-    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, Box<RpcEnvironment>) -> Result<BoxFut, Error>
+    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, Box<dyn RpcEnvironment>) -> Result<BoxFut, Error>
     + Send + Sync + 'static
 >;
 
@@ -152,7 +152,7 @@ impl ApiAsyncMethod {
 
     pub fn new<F>(handler: F, parameters: ObjectSchema) -> Self
     where
-        F: Fn(Parts, Body, Value, &ApiAsyncMethod, Box<RpcEnvironment>) -> Result<BoxFut, Error>
+        F: Fn(Parts, Body, Value, &ApiAsyncMethod, Box<dyn RpcEnvironment>) -> Result<BoxFut, Error>
             + Send + Sync + 'static,
     {
         Self {

@@ -94,7 +94,7 @@ fn json_service_state(service: &str, status: Value) -> Value {
 fn list_services(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let mut list = vec![];
@@ -117,7 +117,7 @@ fn list_services(
 fn get_service_state(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -162,7 +162,7 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
 fn start_service(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -175,7 +175,7 @@ fn start_service(
 fn stop_service(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -188,7 +188,7 @@ fn stop_service(
 fn restart_service(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;
@@ -206,7 +206,7 @@ fn restart_service(
 fn reload_service(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let service = tools::required_string_param(&param, "service")?;

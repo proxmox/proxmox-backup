@@ -54,7 +54,7 @@ impl <T: Clone> BroadcastData<T> {
 
 /// Broadcast future results to registered listeners
 pub struct BroadcastFuture<T> {
-    inner: Arc<Mutex<(BroadcastData<T>, Option<Box<Future<Item=T, Error=Error> + Send>>)>>,
+    inner: Arc<Mutex<(BroadcastData<T>, Option<Box<dyn Future<Item=T, Error=Error> + Send>>)>>,
 }
 
 impl <T: Clone + Send + 'static> BroadcastFuture<T> {
@@ -62,7 +62,7 @@ impl <T: Clone + Send + 'static> BroadcastFuture<T> {
     /// Create instance for specified source future.
     ///
     /// The result of the future is sent to all registered listeners.
-    pub fn new(source: Box<Future<Item=T, Error=Error> + Send>) -> Self {
+    pub fn new(source: Box<dyn Future<Item=T, Error=Error> + Send>) -> Self {
         Self { inner: Arc::new(Mutex::new((BroadcastData::new(), Some(source)))) }
     }
 
@@ -76,12 +76,12 @@ impl <T: Clone + Send + 'static> BroadcastFuture<T> {
         (Self::new(test), tx)
     }
 
-    fn notify_listeners(inner: Arc<Mutex<(BroadcastData<T>, Option<Box<Future<Item=T, Error=Error> + Send>>)>>, result: Result<T, String>) {
+    fn notify_listeners(inner: Arc<Mutex<(BroadcastData<T>, Option<Box<dyn Future<Item=T, Error=Error> + Send>>)>>, result: Result<T, String>) {
         let mut data = inner.lock().unwrap();
         data.0.notify_listeners(result);
     }
 
-    fn spawn(inner: Arc<Mutex<(BroadcastData<T>,  Option<Box<Future<Item=T, Error=Error> + Send>>)>>) -> impl Future<Item=T, Error=Error> {
+    fn spawn(inner: Arc<Mutex<(BroadcastData<T>,  Option<Box<dyn Future<Item=T, Error=Error> + Send>>)>>) -> impl Future<Item=T, Error=Error> {
 
         let mut data = inner.lock().unwrap();
 

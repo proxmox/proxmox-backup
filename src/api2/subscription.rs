@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 fn get_subscription(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let url = "https://www.proxmox.com/en/proxmox-backup-server/pricing";

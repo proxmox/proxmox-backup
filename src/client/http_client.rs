@@ -315,7 +315,7 @@ impl HttpClient {
         server: String,
         username: String,
         password: String,
-    ) -> Box<Future<Item=AuthInfo, Error=Error> + Send> {
+    ) -> Box<dyn Future<Item=AuthInfo, Error=Error> + Send> {
 
         let server2 = server.clone();
 

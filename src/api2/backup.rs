@@ -48,7 +48,7 @@ fn upgrade_to_backup_protocol(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let debug = param["debug"].as_bool().unwrap_or(false);
@@ -213,7 +213,7 @@ pub fn api_method_create_dynamic_index() -> ApiMethod {
 fn create_dynamic_index(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -252,7 +252,7 @@ pub fn api_method_create_fixed_index() -> ApiMethod {
 fn create_fixed_index(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -306,7 +306,7 @@ pub fn api_method_dynamic_append() -> ApiMethod {
 fn dynamic_append (
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -359,7 +359,7 @@ pub fn api_method_fixed_append() -> ApiMethod {
 fn fixed_append (
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -408,7 +408,7 @@ pub fn api_method_close_dynamic_index() -> ApiMethod {
 fn close_dynamic_index (
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -444,7 +444,7 @@ pub fn api_method_close_fixed_index() -> ApiMethod {
 fn close_fixed_index (
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -463,7 +463,7 @@ fn close_fixed_index (
 fn finish_backup (
     _param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -491,7 +491,7 @@ fn dynamic_chunk_index(
     _req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
@@ -564,7 +564,7 @@ fn fixed_chunk_index(
     _req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();

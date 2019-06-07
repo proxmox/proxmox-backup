@@ -51,7 +51,7 @@ fn upload_pxar(
     req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    rpcenv: Box<RpcEnvironment>,
+    rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
@@ -150,7 +150,7 @@ fn download_pxar(
     _req_body: Body,
     param: Value,
     _info: &ApiAsyncMethod,
-    _rpcenv: Box<RpcEnvironment>,
+    _rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;

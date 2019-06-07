@@ -76,7 +76,7 @@ fn dump_journal(
 fn get_syslog(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let (count, lines) = dump_journal(

@@ -179,7 +179,7 @@ fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
 fn list_backups(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -221,7 +221,7 @@ fn list_backups(
 fn list_backup_groups(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -278,7 +278,7 @@ fn list_backup_groups(
 fn list_snapshots(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -323,7 +323,7 @@ fn list_snapshots(
 fn forget_snapshots(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -350,7 +350,7 @@ fn forget_snapshots(
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -378,7 +378,7 @@ fn parse_backupspec(value: &str) -> Result<(&str, &str), Error> {
 fn create_backup(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -510,7 +510,7 @@ fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<Str
 fn restore(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;
@@ -577,7 +577,7 @@ fn restore(
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let repo_url = tools::required_string_param(&param, "repository")?;

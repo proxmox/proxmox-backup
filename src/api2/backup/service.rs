@@ -86,7 +86,7 @@ impl hyper::service::Service for BackupService {
     type ReqBody = Body;
     type ResBody = Body;
     type Error = Error;
-    type Future = Box<Future<Item = Response<Body>, Error = Self::Error> + Send>;
+    type Future = Box<dyn Future<Item = Response<Body>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         let path = req.uri().path().to_owned();

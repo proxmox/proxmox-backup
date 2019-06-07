@@ -37,7 +37,7 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 fn create_ticket(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let username = tools::required_string_param(&param, "username")?;

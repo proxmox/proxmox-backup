@@ -11,7 +11,7 @@ pub struct ErrorMessageExtension(pub String);
 
 pub struct OutputFormatter {
 
-    pub format_data: fn(data: Value, rpcenv: &RpcEnvironment) -> Response<Body>,
+    pub format_data: fn(data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body>,
 
     pub format_error: fn(err: Error) -> Response<Body>,
 }
@@ -39,7 +39,7 @@ pub fn json_data_response(data: Value) -> Response<Body> {
     response
 }
 
-fn json_format_data(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
+fn json_format_data(data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body> {
 
     let mut result = json!({
         "data": data
@@ -82,7 +82,7 @@ pub static JSON_FORMATTER: OutputFormatter = OutputFormatter {
     format_error: json_error_response,
 };
 
-fn extjs_format_data(data: Value, rpcenv: &RpcEnvironment) -> Response<Body> {
+fn extjs_format_data(data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body> {
 
     let mut result = json!({
         "data": data,

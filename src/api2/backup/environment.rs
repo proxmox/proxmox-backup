@@ -440,12 +440,13 @@ impl RpcEnvironment for BackupEnvironment {
     }
 }
 
-impl AsRef<BackupEnvironment> for RpcEnvironment {
+impl AsRef<BackupEnvironment> for dyn RpcEnvironment {
     fn as_ref(&self) -> &BackupEnvironment {
         self.as_any().downcast_ref::<BackupEnvironment>().unwrap()
     }
 }
-impl AsRef<BackupEnvironment> for Box<RpcEnvironment> {
+
+impl AsRef<BackupEnvironment> for Box<dyn RpcEnvironment> {
     fn as_ref(&self) -> &BackupEnvironment {
         self.as_any().downcast_ref::<BackupEnvironment>().unwrap()
     }

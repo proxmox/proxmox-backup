@@ -14,7 +14,7 @@ use crate::server::{self, UPID};
 fn get_task_status(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -56,7 +56,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
 fn read_task_log(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -96,7 +96,7 @@ fn read_task_log(
 fn stop_task(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -111,7 +111,7 @@ fn stop_task(
 fn list_tasks(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let start = param["start"].as_u64().unwrap_or(0);

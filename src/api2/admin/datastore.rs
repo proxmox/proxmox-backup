@@ -56,7 +56,7 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
 fn list_groups(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap();
@@ -91,7 +91,7 @@ fn list_groups(
 fn list_snapshot_files (
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
@@ -112,7 +112,7 @@ fn list_snapshot_files (
 fn delete_snapshots (
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
@@ -132,7 +132,7 @@ fn delete_snapshots (
 fn list_snapshots (
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
@@ -164,7 +164,7 @@ fn list_snapshots (
 fn prune(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap();
@@ -272,7 +272,7 @@ fn api_method_prune() -> ApiMethod {
 fn start_garbage_collection(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap().to_string();
@@ -304,7 +304,7 @@ pub fn api_method_start_garbage_collection() -> ApiMethod {
 fn garbage_collection_status(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let store = param["store"].as_str().unwrap();
@@ -329,7 +329,7 @@ pub fn api_method_garbage_collection_status() -> ApiMethod {
 fn get_backup_list(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     //let config = datastore::config()?;
@@ -359,7 +359,7 @@ fn get_backup_list(
 fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let config = datastore::config()?;

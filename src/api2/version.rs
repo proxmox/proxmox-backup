@@ -11,7 +11,7 @@ const PROXMOX_PKG_REPOID: &'static str = env!("PROXMOX_PKG_REPOID");
 fn get_version(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     Ok(json!({

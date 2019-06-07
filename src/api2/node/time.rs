@@ -35,7 +35,7 @@ fn read_etc_localtime() -> Result<String, Error> {
 fn get_time(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let datetime = Local::now();
@@ -53,7 +53,7 @@ fn get_time(
 fn set_timezone(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let timezone = tools::required_string_param(&param, "timezone")?;

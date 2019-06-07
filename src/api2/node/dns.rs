@@ -54,7 +54,7 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
 fn update_dns(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     lazy_static! {
@@ -100,7 +100,7 @@ fn update_dns(
 fn get_dns(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     read_etc_resolv_conf()
