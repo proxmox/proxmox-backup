@@ -388,10 +388,6 @@ pub fn router() -> Router {
                 .download(pxar::api_method_download_pxar())
                 .upload(pxar::api_method_upload_pxar()))
         .subdir(
-            "test-upload",
-            Router::new()
-                .upgrade(upload::api_method_upgrade_upload()))
-        .subdir(
             "gc",
             Router::new()
                 .get(api_method_garbage_collection_status())
