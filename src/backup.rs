@@ -107,6 +107,9 @@ macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
     () =>  { "proxmox-backup-protocol-v1" }
 }
 
+mod crypt_setup;
+pub use crypt_setup::*;
+
 mod chunk_stream;
 pub use chunk_stream::*;
 
