@@ -10,7 +10,8 @@ use failure::*;
 use proxmox::tools;
 use openssl::pkcs5::{pbkdf2_hmac, scrypt};
 use openssl::hash::MessageDigest;
-use openssl::symm::{encrypt_aead, decrypt_aead, Cipher};
+use openssl::symm::{Cipher, Crypter, Mode};
+use std::io::{Read, Write};
 
 /// Store data required for authenticated enryption
 pub struct CryptData {
@@ -96,53 +97,94 @@ impl CryptConfig {
         digest
     }
 
-    /// Encrypt data using a random 16 byte IV.
+    /// Compress and encrypt data using a random 16 byte IV.
     ///
-    /// Return the encrypted data, IV and MAC.
-    pub fn encrypt(&self, data: &[u8]) -> Result<(Vec<u8>, CryptData), Error> {
+    /// Return the encrypted data, including IV and MAC (MAGIC || IV || MAC || ENC_DATA).
+    pub fn encode_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
 
-        let mac = [0u8; 16];
-        let mut iv = [0u8; 16];
+        let iv = proxmox::sys::linux::random_data(16)?;
 
-        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+        let mut enc = Vec::with_capacity(data.len()+40+self.cipher.block_size());
 
-        let mut crypt_data = CryptData { mac: mac, iv: iv  };
+        enc.write_all(&super::ENCRYPTED_CHUNK_MAGIC_1_0)?;
+        enc.write_all(&iv)?;
+        enc.write_all(&[0u8;16])?; // dummy tag, update later
 
-        let enc_data = encrypt_aead(
-            self.cipher,
-            &self.enc_key,
-            Some(&iv),
-            b"", // no additional data
-            &data,
-            &mut crypt_data.mac)?;
+        let mut zstream = zstd::stream::read::Encoder::new(data, 1)?;
 
-        Ok((enc_data, crypt_data))
+        let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
+        c.aad_update(b"")?; //??
+
+        const BUFFER_SIZE: usize = 32*1024;
+
+        let mut comp_buf = [0u8; BUFFER_SIZE];
+        let mut encr_buf = [0u8; BUFFER_SIZE];
+
+        loop {
+            let bytes = zstream.read(&mut comp_buf)?;
+            if bytes == 0 { break; }
+
+            let count = c.update(&comp_buf[..bytes], &mut encr_buf)?;
+            enc.write_all(&encr_buf[..count])?;
+        }
+
+        let rest = c.finalize(&mut encr_buf)?;
+        if rest > 0 {  enc.write_all(&encr_buf[..rest])?; }
+
+        c.get_tag(&mut enc[24..40])?;
+
+        Ok(enc)
     }
 
-    /// Decrypt data, verify authentication.
+    /// Decompress and decrypt chunk, verify MAC.
     ///
-    /// You need to pass the IV and MAC from the entryption step in ``crypt_data``.
-    pub fn decrypt(&self, data: &[u8], crypt_data: &CryptData) -> Result<Vec<u8>, Error> {
+    /// Binrary ``data`` is expected to be in format returned by encode_chunk.
+    pub fn decode_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
 
-        let decrypt_result = decrypt_aead(
-            self.cipher,
-            &self.enc_key,
-            Some(&crypt_data.iv),
-            b"", // no additional data
-            data,
-            &crypt_data.mac);
+        if data.len() < 40 {
+            bail!("Invalid chunk len (<40)");
+        }
 
-        let raw_data = match decrypt_result {
-            Ok(data) => data,
-            Err(err) => {
-                // for unknown reason, openssl does not return useful errors (just empty array)
-                if err.errors().len() == 0 {
-                    bail!("unable to decyrpt chunk data");
-                }
-                bail!("unable to decyrpt data - {}", err);
+
+        let magic = &data[0..8];
+        let iv = &data[8..24];
+        let mac = &data[24..40];
+
+        if magic != super::ENCRYPTED_CHUNK_MAGIC_1_0 {
+            bail!("Invalid magic number (expected encrypted chunk).");
+        }
+
+        let dec = Vec::with_capacity(1024*1024);
+
+        let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
+
+        let mut c = Crypter::new(self.cipher, Mode::Decrypt, &self.enc_key, Some(iv))?;
+        c.aad_update(b"")?; //??
+
+        const BUFFER_SIZE: usize = 32*1024;
+
+        let mut decr_buf = [0u8; BUFFER_SIZE];
+        let max_decoder_input = BUFFER_SIZE - self.cipher.block_size();
+
+        let mut start = 40;
+        loop {
+            let mut end = start + max_decoder_input;
+            if end > data.len() { end = data.len(); }
+            if end > start {
+                let count = c.update(&data[start..end], &mut decr_buf)?;
+                decompressor.write_all(&decr_buf[0..count])?;
+                start = end;
+            } else {
+                break;
             }
-        };
+        }
 
-        Ok(raw_data)
+        c.set_tag(mac)?;
+        let rest = c.finalize(&mut decr_buf)?;
+        if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
+
+        decompressor.flush()?;
+
+        Ok(decompressor.into_inner())
     }
 }
