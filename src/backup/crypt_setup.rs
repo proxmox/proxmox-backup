@@ -13,14 +13,6 @@ use openssl::hash::MessageDigest;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::io::{Read, Write};
 
-/// Store data required for authenticated enryption
-pub struct CryptData {
-    /// A 16 byte IV
-    pub iv: [u8; 16],
-    /// A 16 byte message authentication code (MAC)
-    pub mac: [u8; 16],
-}
-
 /// Encryption Configuration with secret key
 ///
 /// This structure stores the secret key and provides helpers for
