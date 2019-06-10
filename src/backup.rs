@@ -109,12 +109,17 @@ macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
 
 // WARNING: PLEASE DO NOT MODIFY THOSE MAGIC VALUES
 
-// openssl::sha::sha256(b"Proxmox Backup encrypted chunk v1.0")[0..8])
+// openssl::sha::sha256(b"Proxmox Backup uncompressed chunk v1.0")[0..8]
+pub static UNCOMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [79, 127, 200, 4, 121, 74, 135, 239];
+
+// openssl::sha::sha256(b"Proxmox Backup encrypted chunk v1.0")[0..8]
 pub static ENCRYPTED_CHUNK_MAGIC_1_0: [u8; 8] = [8, 54, 114, 153, 70, 156, 26, 151];
 
 // openssl::sha::sha256(b"Proxmox Backup zstd compressed chunk v1.0")[0..8]
 pub static COMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [191, 237, 46, 195, 108, 17, 228, 235];
 
+// openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted chunk v1.0")[0..8]
+pub static ENCR_COMPR_CHUNK_MAGIC_1_0: [u8; 8] = [9, 40, 53, 200, 37, 150, 90, 196];
 
 mod crypt_setup;
 pub use crypt_setup::*;
