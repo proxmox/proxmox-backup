@@ -10,7 +10,7 @@ use failure::*;
 use proxmox::tools;
 use openssl::pkcs5::{pbkdf2_hmac, scrypt};
 use openssl::hash::MessageDigest;
-use openssl::symm::{encrypt_aead, decrypt_aead, Cipher, Crypter, Mode};
+use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
 use std::io::{Read, Write};
 
 /// Encryption Configuration with secret key
@@ -95,29 +95,24 @@ impl CryptConfig {
     pub fn encode_chunk(&self, data: &[u8], compress: bool) -> Result<Vec<u8>, Error> {
 
         let iv = proxmox::sys::linux::random_data(16)?;
+        let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
+        c.aad_update(b"")?; //??
 
-        let mut enc = Vec::with_capacity(data.len()+40+self.cipher.block_size());
+        let mut enc_data = if compress {
 
-        if compress {
+            let mut enc = Vec::with_capacity(data.len()+40+self.cipher.block_size());
+
             enc.write_all(&super::ENCR_COMPR_CHUNK_MAGIC_1_0)?;
-        } else {
-            enc.write_all(&super::ENCRYPTED_CHUNK_MAGIC_1_0)?;
-        }
 
-        enc.write_all(&iv)?;
-        enc.write_all(&[0u8;16])?; // dummy tag, update later
-
-        if compress {
-            let mut zstream = zstd::stream::read::Encoder::new(data, 1)?;
-
-            let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
-            c.aad_update(b"")?; //??
+            enc.write_all(&iv)?;
+            enc.write_all(&[0u8;16])?; // dummy tag, update later
 
             const BUFFER_SIZE: usize = 32*1024;
 
             let mut comp_buf = [0u8; BUFFER_SIZE];
             let mut encr_buf = [0u8; BUFFER_SIZE];
 
+            let mut zstream = zstd::stream::read::Encoder::new(data, 1)?;
             loop {
                 let bytes = zstream.read(&mut comp_buf)?;
                 if bytes == 0 { break; }
@@ -125,24 +120,25 @@ impl CryptConfig {
                 let count = c.update(&comp_buf[..bytes], &mut encr_buf)?;
                 enc.write_all(&encr_buf[..count])?;
             }
-
             let rest = c.finalize(&mut encr_buf)?;
             if rest > 0 {  enc.write_all(&encr_buf[..rest])?; }
-
-            c.get_tag(&mut enc[24..40])?;
-
-            Ok(enc)
+            enc
         } else {
-            encrypt_aead(
-                self.cipher,
-                &self.enc_key,
-                Some(&iv),
-                b"", //??
-                data,
-                &mut enc[24..40],
-            )?;
-            Ok(enc)
-        }
+
+            let mut enc = vec![0; data.len()+40+self.cipher.block_size()];
+
+            enc[0..8].copy_from_slice(&super::ENCRYPTED_CHUNK_MAGIC_1_0);
+            enc[8..24].copy_from_slice(&iv);
+
+            let count = c.update(data, &mut enc[40..])?;
+            let rest = c.finalize(&mut enc[(40+count)..])?;
+            enc.truncate(40 + count + rest);
+            enc
+        };
+
+        c.get_tag(&mut enc_data[24..40])?;
+
+        Ok(enc_data)
     }
 
     /// Decompress and decrypt chunk, verify MAC.
@@ -199,7 +195,7 @@ impl CryptConfig {
                 &self.enc_key,
                 Some(iv),
                 b"", //??
-                data,
+                &data[40..],
                 mac,
             )?;
             return Ok(decr_data);
