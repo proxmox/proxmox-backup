@@ -124,6 +124,9 @@ pub static ENCR_COMPR_CHUNK_MAGIC_1_0: [u8; 8] = [9, 40, 53, 200, 37, 150, 90, 1
 mod crypt_setup;
 pub use crypt_setup::*;
 
+mod data_chunk;
+pub use data_chunk::*;
+
 mod chunk_stream;
 pub use chunk_stream::*;
 
