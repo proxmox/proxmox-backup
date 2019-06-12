@@ -9,7 +9,7 @@ name = "proxmox_backup"
 path = "src/lib.rs"
 
 [dependencies]
-proxmox = { path = "../proxmox/proxmox" }
+proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1" }
 proxmox-protocol = { path = "proxmox-protocol" }
 log = "0.4"
 syslog = "4.0"
