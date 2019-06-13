@@ -11,7 +11,7 @@ use proxmox::tools;
 use openssl::pkcs5::{pbkdf2_hmac, scrypt};
 use openssl::hash::MessageDigest;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
-use std::io::{Read, Write};
+use std::io::Write;
 
 /// Encryption Configuration with secret key
 ///
@@ -99,47 +99,37 @@ impl CryptConfig {
         let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
         c.aad_update(b"")?; //??
 
-        let mut enc_data = if compress {
+        if compress {
+            let compr_data =  zstd::block::compress(data, 1)?;
+            // Note: We only use compression if result is shorter
+            if compr_data.len() < data.len() {
+                let mut enc = vec![0; compr_data.len()+40+self.cipher.block_size()];
 
-            let mut enc = Vec::with_capacity(data.len()+40+self.cipher.block_size());
+                enc[0..8].copy_from_slice(&super::ENCR_COMPR_CHUNK_MAGIC_1_0);
+                enc[8..24].copy_from_slice(&iv);
 
-            enc.write_all(&super::ENCR_COMPR_CHUNK_MAGIC_1_0)?;
+                let count = c.update(&compr_data, &mut enc[40..])?;
+                let rest = c.finalize(&mut enc[(40+count)..])?;
+                enc.truncate(40 + count + rest);
 
-            enc.write_all(&iv)?;
-            enc.write_all(&[0u8;16])?; // dummy tag, update later
+                c.get_tag(&mut enc[24..40])?;
 
-            const BUFFER_SIZE: usize = 32*1024;
-
-            let mut comp_buf = [0u8; BUFFER_SIZE];
-            let mut encr_buf = [0u8; BUFFER_SIZE];
-
-            let mut zstream = zstd::stream::read::Encoder::new(data, 1)?;
-            loop {
-                let bytes = zstream.read(&mut comp_buf)?;
-                if bytes == 0 { break; }
-
-                let count = c.update(&comp_buf[..bytes], &mut encr_buf)?;
-                enc.write_all(&encr_buf[..count])?;
+                return Ok(enc)
             }
-            let rest = c.finalize(&mut encr_buf)?;
-            if rest > 0 {  enc.write_all(&encr_buf[..rest])?; }
-            enc
-        } else {
+        }
 
-            let mut enc = vec![0; data.len()+40+self.cipher.block_size()];
+        let mut enc = vec![0; data.len()+40+self.cipher.block_size()];
 
-            enc[0..8].copy_from_slice(&super::ENCRYPTED_CHUNK_MAGIC_1_0);
-            enc[8..24].copy_from_slice(&iv);
+        enc[0..8].copy_from_slice(&super::ENCRYPTED_CHUNK_MAGIC_1_0);
+        enc[8..24].copy_from_slice(&iv);
 
-            let count = c.update(data, &mut enc[40..])?;
-            let rest = c.finalize(&mut enc[(40+count)..])?;
-            enc.truncate(40 + count + rest);
-            enc
-        };
+        let count = c.update(data, &mut enc[40..])?;
+        let rest = c.finalize(&mut enc[(40+count)..])?;
+        enc.truncate(40 + count + rest);
 
-        c.get_tag(&mut enc_data[24..40])?;
+        c.get_tag(&mut enc[24..40])?;
 
-        Ok(enc_data)
+        Ok(enc)
     }
 
     /// Decompress and decrypt chunk, verify MAC.
