@@ -27,6 +27,13 @@ lazy_static!{
         StringSchema::new("Prevent changes if current configuration file has different SHA256 digest. This can be used to prevent concurrent modifications.")
         .format(PVE_CONFIG_DIGEST_FORMAT.clone()).into();
 
+    pub static ref CHUNK_DIGEST_FORMAT: Arc<ApiStringFormat> =
+        ApiStringFormat::Pattern(&common_regex::SHA256_HEX_REGEX).into();
+
+    pub static ref CHUNK_DIGEST_SCHEMA: Arc<Schema> =
+        StringSchema::new("Chunk digest (SHA256).")
+        .format(CHUNK_DIGEST_FORMAT.clone()).into();
+
     pub static ref NODE_SCHEMA: Arc<Schema> = Arc::new(
         StringSchema::new("Node name (or 'localhost')")
             .format(

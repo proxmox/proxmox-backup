@@ -16,6 +16,7 @@ use crate::api_schema::router::*;
 use crate::api_schema::*;
 use crate::server::WorkerTask;
 use crate::backup::*;
+use crate::api2::types::*;
 
 mod environment;
 use environment::*;
@@ -291,8 +292,7 @@ pub fn api_method_dynamic_append() -> ApiMethod {
                       .maximum(256)
             )
             .required("digest-list", ArraySchema::new(
-                "Chunk digest list.",
-                StringSchema::new("Chunk digest.").into())
+                "Chunk digest list.", CHUNK_DIGEST_SCHEMA.clone())
             )
             .required("offset-list", ArraySchema::new(
                 "Chunk offset list.",
@@ -344,8 +344,7 @@ pub fn api_method_fixed_append() -> ApiMethod {
                       .maximum(256)
             )
             .required("digest-list", ArraySchema::new(
-                "Chunk digest list.",
-                StringSchema::new("Chunk digest.").into())
+                "Chunk digest list.", CHUNK_DIGEST_SCHEMA.clone())
             )
             .required("offset-list", ArraySchema::new(
                 "Chunk offset list.",
