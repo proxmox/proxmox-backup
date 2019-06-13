@@ -95,7 +95,7 @@ impl DataChunk {
     }
 
     /// Decode chunk data
-    pub fn decode(self, config: &CryptConfig) -> Result<Vec<u8>, Error> {
+    pub fn decode(self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
 
         let magic = self.magic();
 
@@ -107,10 +107,13 @@ impl DataChunk {
             return Ok(data);
 
         } else if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 || magic == &ENCRYPTED_CHUNK_MAGIC_1_0 {
+            if let Some(config) = config  {
+                let data = config.decode_chunk(&self.raw_data)?;
 
-            let data = config.decode_chunk(&self.raw_data)?;
-
-            return Ok(data);
+                return Ok(data);
+            } else {
+                bail!("unable to decrypt chunk - missing CryptConfig");
+            }
         } else {
             bail!("Invalid chunk magic number.");
         }
