@@ -66,7 +66,7 @@ impl DataChunk {
 
         if let Some(config) = config {
 
-            Let enc_data = config.encode_chunk(data, compress)?;
+            let enc_data = config.encode_chunk(data, compress)?;
             let chunk = DataChunk { digest, raw_data: enc_data };
 
             Ok(chunk)
