@@ -4,6 +4,12 @@ use std::io::Write;
 
 use super::*;
 
+/// Data chunk with positional information
+pub struct ChunkInfo {
+    pub chunk: DataChunk,
+    pub chunk_len: u64,
+    pub offset: u64,
+}
 
 /// Data chunk binary storage format
 ///
@@ -120,6 +126,12 @@ impl DataChunk {
         let mut data = Vec::with_capacity(1024*1024);
         reader.read_to_end(&mut data)?;
 
+        Self::from_raw(data, digest)
+    }
+
+    /// Create Instance from raw data
+    pub fn from_raw(data: Vec<u8>, digest: [u8;32]) -> Result<Self, Error> {
+
         if data.len() < 8 {
             bail!("chunk too small ({} bytes).", data.len());
         }
@@ -141,7 +153,7 @@ impl DataChunk {
 
             Ok(chunk)
         } else {
-            bail!("unable to load chunk - wrong magic");
+            bail!("unable to parse raw chunk - wrong magic");
         }
     }
 }
@@ -168,7 +180,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
             config: None,
             digest_computed: false,
             digest: [0u8; 32],
-            compress: false,
+            compress: true,
         }
     }
 

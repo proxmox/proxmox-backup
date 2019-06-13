@@ -1,11 +1,7 @@
 use failure::*;
 use futures::*;
 
-pub struct ChunkInfo {
-    pub digest: [u8; 32],
-    pub data: bytes::BytesMut,
-    pub offset: u64,
-}
+use crate::backup::ChunkInfo;
 
 pub enum MergedChunkInfo {
     Known(Vec<(u64,[u8;32])>),
