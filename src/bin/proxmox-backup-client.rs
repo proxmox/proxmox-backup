@@ -113,6 +113,7 @@ fn backup_directory<P: AsRef<Path>>(
     chunk_size: Option<usize>,
     all_file_systems: bool,
     verbose: bool,
+    crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<(), Error> {
 
     let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
@@ -130,7 +131,7 @@ fn backup_directory<P: AsRef<Path>>(
             .map_err(|_| {}).map(|_| ())
     );
 
-    client.upload_stream(archive_name, stream, "dynamic", None).wait()?;
+    client.upload_stream(archive_name, stream, "dynamic", None, crypt_config).wait()?;
 
     Ok(())
 }
@@ -142,6 +143,7 @@ fn backup_image<P: AsRef<Path>>(
     image_size: u64,
     chunk_size: Option<usize>,
     _verbose: bool,
+    crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<(), Error> {
 
     let path = image_path.as_ref().to_owned();
@@ -153,7 +155,7 @@ fn backup_image<P: AsRef<Path>>(
 
     let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
 
-    client.upload_stream(archive_name, stream, "fixed", Some(image_size)).wait()?;
+    client.upload_stream(archive_name, stream, "fixed", Some(image_size), crypt_config).wait()?;
 
     Ok(())
 }
@@ -456,6 +458,8 @@ fn create_backup(
     println!("Client name: {}", tools::nodename());
     println!("Start Time: {}", backup_time.to_rfc3339());
 
+    let crypt_config = None;
+
     let client = client.start_backup(repo.store(), "host", &backup_id, verbose).wait()?;
 
     for (backup_type, filename, target, size) in upload_list {
@@ -466,11 +470,27 @@ fn create_backup(
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
-                backup_directory(&client, &filename, &target, chunk_size_opt, all_file_systems, verbose)?;
+                backup_directory(
+                    &client,
+                    &filename,
+                    &target,
+                    chunk_size_opt,
+                    all_file_systems,
+                    verbose,
+                    crypt_config.clone(),
+                )?;
             }
             BackupType::IMAGE => {
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
-                backup_image(&client, &filename, &target, size, chunk_size_opt, verbose)?;
+                backup_image(
+                    &client,
+                    &filename,
+                    &target,
+                    size,
+                    chunk_size_opt,
+                    verbose,
+                    crypt_config.clone(),
+                )?;
             }
         }
     }

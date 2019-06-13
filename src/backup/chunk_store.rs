@@ -1,14 +1,13 @@
 use failure::*;
 
 use std::path::{Path, PathBuf};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
 use serde_derive::Serialize;
 
-use openssl::sha;
-
 use crate::tools;
+use super::DataChunk;
 
 #[derive(Clone, Serialize)]
 pub struct GarbageCollectionStatus {
@@ -173,21 +172,19 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn read_chunk(&self, digest:&[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn read_chunk(&self, digest:&[u8; 32]) -> Result<DataChunk, Error> {
 
         let mut chunk_path = self.chunk_dir.clone();
-        let prefix = digest_to_prefix(&digest);
+        let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
-        let digest_str = tools::digest_to_hex(&digest);
+        let digest_str = tools::digest_to_hex(digest);
         chunk_path.push(&digest_str);
 
-        buffer.clear();
-        let f = std::fs::File::open(&chunk_path)?;
-        let mut decoder = zstd::stream::Decoder::new(f)?;
+        let mut file = std::fs::File::open(&chunk_path)
+            .map_err(|err| format_err!(
+                "store '{}', unable to read chunk '{}' - {}", self.name, digest_str, err))?;
 
-        decoder.read_to_end(buffer)?;
-
-        Ok(())
+        DataChunk::load(&mut file, *digest)
     }
 
     pub fn get_chunk_iterator(
@@ -320,21 +317,14 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
-
-        // fixme: use Sha512/256 when available
-        let digest = sha::sha256(chunk);
-        let (new, csize) = self.insert_chunk_noverify(&digest, chunk)?;
-        Ok((new, digest, csize))
-    }
-
-    pub fn insert_chunk_noverify(
+    pub fn insert_chunk(
         &self,
-        digest: &[u8; 32],
-        chunk: &[u8],
+        chunk: &DataChunk,
     ) -> Result<(bool, u64), Error> {
 
-        //println!("DIGEST {}", tools::digest_to_hex(&digest));
+        let digest = chunk.digest();
+
+        //println!("DIGEST {}", tools::digest_to_hex(digest));
 
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
@@ -355,12 +345,12 @@ impl ChunkStore {
         let mut tmp_path = chunk_path.clone();
         tmp_path.set_extension("tmp");
 
-        let f = std::fs::File::create(&tmp_path)?;
+        let mut file = std::fs::File::create(&tmp_path)?;
 
-        let mut encoder = zstd::stream::Encoder::new(f, 1)?;
+        let raw_data = chunk.raw_data();
+        let encoded_size = raw_data.len() as u64;
 
-        encoder.write_all(chunk)?;
-        let f = encoder.finish()?;
+        file.write_all(raw_data)?;
 
         if let Err(err) = std::fs::rename(&tmp_path, &chunk_path) {
             if let Err(_) = std::fs::remove_file(&tmp_path)  { /* ignore */ }
@@ -372,15 +362,9 @@ impl ChunkStore {
             );
         }
 
-        // fixme: is there a better way to get the compressed size?
-        let stat = nix::sys::stat::fstat(f.as_raw_fd())?;
-        let compressed_size = stat.st_size as u64;
-
-        //println!("PATH {:?}", chunk_path);
-
         drop(lock);
 
-        Ok((false, compressed_size))
+        Ok((false, encoded_size))
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
@@ -416,10 +400,13 @@ fn test_chunk_store1() {
     assert!(chunk_store.is_err());
 
     let chunk_store = ChunkStore::create("test", &path).unwrap();
-    let (exists, _, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+
+    let chunk = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
+
+    let (exists, _) = chunk_store.insert_chunk(&chunk).unwrap();
     assert!(!exists);
 
-    let (exists, _, _) = chunk_store.insert_chunk(&[0u8, 1u8]).unwrap();
+    let (exists, _) = chunk_store.insert_chunk(&chunk).unwrap();
     assert!(exists);
 
 

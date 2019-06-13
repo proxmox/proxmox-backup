@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 use chrono::{Local, TimeZone};
+use super::ChunkInfo;
 
 /// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
@@ -307,29 +308,42 @@ impl FixedIndexWriter {
     }
 
     // Note: We want to add data out of order, so do not assume any order here.
-    pub fn add_chunk(&mut self, pos: usize, chunk: &[u8], stat: &mut ChunkStat) -> Result<(), Error> {
+    pub fn add_chunk(&mut self, chunk_info: &ChunkInfo, stat: &mut ChunkStat) -> Result<(), Error> {
 
-        let end = pos + chunk.len();
+        let chunk_len = chunk_info.chunk_len as usize;
+        let end = chunk_info.offset as usize;
+
+        if end < chunk_len {
+            bail!("got chunk with small offset ({} < {}", end, chunk_len);
+        }
+
+        let pos = end - chunk_len;
 
         if end > self.size {
             bail!("write chunk data exceeds size ({} >= {})", end, self.size);
         }
 
         // last chunk can be smaller
-        if ((end != self.size) && (chunk.len() != self.chunk_size)) ||
-            (chunk.len() > self.chunk_size) || (chunk.len() == 0) {
-                bail!("got chunk with wrong length ({} != {}", chunk.len(), self.chunk_size);
+        if ((end != self.size) && (chunk_len != self.chunk_size)) ||
+            (chunk_len > self.chunk_size) || (chunk_len == 0) {
+                bail!("got chunk with wrong length ({} != {}", chunk_len, self.chunk_size);
             }
 
         if pos & (self.chunk_size-1) != 0 { bail!("add unaligned chunk (pos = {})", pos); }
 
-        let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(chunk)?;
+        if (end as u64) != chunk_info.offset {
+            bail!("got chunk with wrong offset ({} != {}", end, chunk_info.offset);
+        }
+
+        let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk_info.chunk)?;
 
         stat.chunk_count += 1;
         stat.compressed_size += compressed_size;
 
-        println!("ADD CHUNK {} {} {}% {} {}", pos, chunk.len(),
-                 (compressed_size*100)/(chunk.len() as u64), is_duplicate, tools::digest_to_hex(&digest));
+        let digest = chunk_info.chunk.digest();
+
+        println!("ADD CHUNK {} {} {}% {} {}", pos, chunk_len,
+                 (compressed_size*100)/(chunk_len as u64), is_duplicate, tools::digest_to_hex(digest));
 
         if is_duplicate {
             stat.duplicate_chunks += 1;
@@ -337,7 +351,7 @@ impl FixedIndexWriter {
             stat.disk_size += compressed_size;
         }
 
-        self.add_digest(pos / self.chunk_size, &digest)
+        self.add_digest(pos / self.chunk_size, digest)
     }
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {

@@ -1,4 +1,5 @@
 use failure::*;
+use std::convert::TryInto;
 
 use crate::tools;
 use super::IndexFile;
@@ -16,6 +17,8 @@ use uuid::Uuid;
 
 use crate::tools::io::ops::*;
 use crate::tools::vec;
+
+use super::{DataChunk, DataChunkBuilder};
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
@@ -158,11 +161,12 @@ impl DynamicIndexReader {
     }
 
     #[inline]
-    fn chunk_digest(&self, pos: usize) -> &[u8] {
+    fn chunk_digest(&self, pos: usize) -> &[u8; 32] {
         if pos >= self.index_entries {
             panic!("chunk index out of range");
         }
-        unsafe {  std::slice::from_raw_parts(self.index.add(pos*40+8), 32) }
+        let slice = unsafe {  std::slice::from_raw_parts(self.index.add(pos*40+8), 32) };
+        slice.try_into().unwrap()
     }
 
     pub fn mark_used_chunks(&self, _status: &mut GarbageCollectionStatus) -> Result<(), Error> {
@@ -182,15 +186,14 @@ impl DynamicIndexReader {
 
     pub fn dump_pxar(&self, mut writer: Box<dyn Write>) -> Result<(), Error> {
 
-        let mut buffer = Vec::with_capacity(1024*1024);
-
         for pos in 0..self.index_entries {
             let _end = self.chunk_end(pos);
             let digest = self.chunk_digest(pos);
             //println!("Dump {:08x}", end );
-            self.store.read_chunk(digest, &mut buffer)?;
-            writer.write_all(&buffer)?;
-
+            let chunk = self.store.read_chunk(digest)?;
+            // fimxe: handle encrypted chunks
+            let data = chunk.decode(None)?;
+            writer.write_all(&data)?;
         }
 
         Ok(())
@@ -270,7 +273,14 @@ impl BufferedDynamicReader {
         let index = &self.index;
         let end = index.chunk_end(idx);
         let digest = index.chunk_digest(idx);
-        index.store.read_chunk(digest, &mut self.read_buffer)?;
+
+        let chunk = index.store.read_chunk(digest)?;
+        // fimxe: handle encrypted chunks
+        // fixme: avoid copy
+        let data = chunk.decode(None)?;
+
+        self.read_buffer.clear();
+        self.read_buffer.extend_from_slice(&data);
 
         self.buffered_chunk_idx = idx;
         self.buffered_chunk_start = end - (self.read_buffer.len() as u64);
@@ -433,7 +443,8 @@ impl DynamicIndexWriter {
         })
     }
 
-    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
+    // fixme: use add_chunk instead?
+    pub fn insert_chunk(&self, chunk: &DataChunk) -> Result<(bool, u64), Error> {
         self.store.insert_chunk(chunk)
     }
 
@@ -531,8 +542,14 @@ impl DynamicChunkWriter {
 
         self.last_chunk = self.chunk_offset;
 
-        match self.index.insert_chunk(&self.chunk_buffer) {
-            Ok((is_duplicate, digest, compressed_size)) => {
+        let chunk = DataChunkBuilder::new(&self.chunk_buffer)
+            .compress(true)
+            .build()?;
+
+        let digest = chunk.digest();
+
+        match self.index.insert_chunk(&chunk) {
+            Ok((is_duplicate, compressed_size)) => {
 
                 self.stat.compressed_size += compressed_size;
                 if is_duplicate {
@@ -542,7 +559,7 @@ impl DynamicChunkWriter {
                 }
 
                 println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,
-                         (compressed_size*100)/(chunk_size as u64), is_duplicate,  tools::digest_to_hex(&digest));
+                         (compressed_size*100)/(chunk_size as u64), is_duplicate,  tools::digest_to_hex(digest));
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);
                 return Ok(());

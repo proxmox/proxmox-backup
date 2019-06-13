@@ -10,20 +10,23 @@ use crate::tools;
 use crate::backup::*;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
+use crate::api2::types::*;
 
 use super::environment::*;
 
 pub struct UploadChunk {
     stream: Body,
     store: Arc<DataStore>,
+    digest: [u8; 32],
     size: u32,
-    chunk: Vec<u8>,
+    encoded_size: u32,
+    raw_data: Option<Vec<u8>>,
 }
 
 impl UploadChunk {
 
-    pub fn new(stream: Body,  store: Arc<DataStore>, size: u32) -> Self {
-        Self { stream, store, size, chunk: vec![] }
+    pub fn new(stream: Body,  store: Arc<DataStore>, digest: [u8; 32], size: u32, encoded_size: u32) -> Self {
+        Self { stream, store, size, encoded_size, raw_data: Some(vec![]), digest }
     }
 }
 
@@ -34,20 +37,30 @@ impl Future for UploadChunk {
     fn poll(&mut self) -> Poll<([u8; 32], u32, u32, bool), failure::Error> {
         loop {
             match try_ready!(self.stream.poll()) {
-                Some(chunk) => {
-                    if (self.chunk.len() + chunk.len()) > (self.size as usize) {
-                        bail!("uploaded chunk is larger than announced.");
+                Some(input) => {
+                    if let Some(ref mut raw_data) = self.raw_data {
+                        if (raw_data.len() + input.len()) > (self.encoded_size as usize) {
+                            bail!("uploaded chunk is larger than announced.");
+                        }
+                        raw_data.extend_from_slice(&input);
+                    } else {
+                        bail!("poll upload chunk stream failed - already finished.");
                     }
-                    self.chunk.extend_from_slice(&chunk);
                 }
                 None => {
-                    if self.chunk.len() != (self.size as usize) {
-                        bail!("uploaded chunk has unexpected size.");
+                    if let Some(raw_data) = self.raw_data.take() {
+                        if raw_data.len() != (self.encoded_size as usize) {
+                            bail!("uploaded chunk has unexpected size.");
+                        }
+
+                        let chunk = DataChunk::from_raw(raw_data, self.digest)?;
+
+                        let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk)?;
+
+                        return Ok(Async::Ready((self.digest, self.size, compressed_size as u32, is_duplicate)))
+                    } else {
+                        bail!("poll upload chunk stream failed - already finished.");
                     }
-
-                    let (is_duplicate, digest, compressed_size) = self.store.insert_chunk(&self.chunk)?;
-
-                    return Ok(Async::Ready((digest, self.size, compressed_size as u32, is_duplicate)))
                 }
             }
         }
@@ -62,9 +75,14 @@ pub fn api_method_upload_fixed_chunk() -> ApiAsyncMethod {
                       .minimum(1)
                       .maximum(256)
             )
+            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
                       .maximum(1024*1024*16)
+            )
+            .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
+                      .minimum(9)
+                      // fixme: .maximum(1024*1024*16+40)
             )
     )
 }
@@ -79,10 +97,14 @@ fn upload_fixed_chunk(
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let size = tools::required_integer_param(&param, "size")? as u32;
+    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+
+    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest = crate::tools::hex_to_digest(digest_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let upload = UploadChunk::new(req_body, env.datastore.clone(), size);
+    let upload = UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size);
 
     let resp = upload
         .then(move |result| {
@@ -109,9 +131,14 @@ pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
                       .minimum(1)
                       .maximum(256)
             )
+            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
             .required("size", IntegerSchema::new("Chunk size.")
                       .minimum(1)
                       .maximum(1024*1024*16)
+            )
+            .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
+                      .minimum(9)
+                      // fixme: .maximum(1024*1024*16+40)
             )
     )
 }
@@ -126,10 +153,14 @@ fn upload_dynamic_chunk(
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let size = tools::required_integer_param(&param, "size")? as u32;
+    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+
+    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest = crate::tools::hex_to_digest(digest_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let upload = UploadChunk::new(req_body, env.datastore.clone(), size);
+    let upload = UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size);
 
     let resp = upload
         .then(move |result| {

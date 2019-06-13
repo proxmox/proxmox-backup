@@ -484,19 +484,10 @@ impl BackupClient {
         stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
         prefix: &str,
         fixed_size: Option<u64>,
+        crypt_config: Option<Arc<CryptConfig>>,
     ) -> impl Future<Item=(), Error=Error> {
 
         let known_chunks = Arc::new(Mutex::new(HashSet::new()));
-
-        let mut stream_len = 0u64;
-
-        let stream = stream.
-            map(move |data| {
-                let digest = openssl::sha::sha256(&data);
-                let offset = stream_len;
-                stream_len += data.len() as u64;
-                ChunkInfo { data, digest, offset }
-            });
 
         let h2 = self.h2.clone();
         let h2_2 = self.h2.clone();
@@ -519,7 +510,7 @@ impl BackupClient {
             })
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
-                Self::upload_chunk_info_stream(h2_3, wid, stream, &prefix, known_chunks.clone())
+                Self::upload_chunk_info_stream(h2_3, wid, stream, &prefix, known_chunks.clone(), crypt_config)
                      .and_then(move |(chunk_count, size, _speed)| {
                         let param = json!({
                             "wid": wid ,
@@ -671,9 +662,10 @@ impl BackupClient {
     fn upload_chunk_info_stream(
         h2: H2Client,
         wid: u64,
-        stream: impl Stream<Item=ChunkInfo, Error=Error>,
+        stream: impl Stream<Item=bytes::BytesMut, Error=Error>,
         prefix: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
+        crypt_config: Option<Arc<CryptConfig>>,
     ) -> impl Future<Item=(usize, usize, usize), Error=Error> {
 
         let repeat = std::sync::Arc::new(AtomicUsize::new(0));
@@ -690,17 +682,29 @@ impl BackupClient {
         let start_time = std::time::Instant::now();
 
         stream
-            .map(move |chunk_info| {
+            .and_then(move |data| {
+
+                let chunk_len = data.len();
+
                 repeat.fetch_add(1, Ordering::SeqCst);
-                stream_len.fetch_add(chunk_info.data.len(), Ordering::SeqCst);
+                let offset = stream_len.fetch_add(chunk_len, Ordering::SeqCst) as u64;
+
+                let mut chunk_builder = DataChunkBuilder::new(data.as_ref())
+                    .compress(true);
+
+                if let Some(ref crypt_config) = crypt_config {
+                    chunk_builder = chunk_builder.crypt_config(crypt_config);
+                }
 
                 let mut known_chunks = known_chunks.lock().unwrap();
-                let chunk_is_known = known_chunks.contains(&chunk_info.digest);
+                let digest = chunk_builder.digest();
+                let chunk_is_known = known_chunks.contains(digest);
                 if chunk_is_known {
-                    MergedChunkInfo::Known(vec![(chunk_info.offset, chunk_info.digest)])
+                    Ok(MergedChunkInfo::Known(vec![(offset, *digest)]))
                 } else {
-                    known_chunks.insert(chunk_info.digest);
-                    MergedChunkInfo::New(chunk_info)
+                    known_chunks.insert(*digest);
+                    let chunk = chunk_builder.build()?;
+                    Ok(MergedChunkInfo::New(ChunkInfo { chunk, chunk_len: chunk_len as u64, offset }))
                 }
             })
             .merge_known_chunks()
@@ -708,15 +712,23 @@ impl BackupClient {
 
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
-                    let digest = chunk_info.digest;
+                    let digest = *chunk_info.chunk.digest();
+                    let digest_str = tools::digest_to_hex(&digest);
                     let upload_queue = upload_queue.clone();
 
-                    println!("upload new chunk {} ({} bytes, offset {})", tools::digest_to_hex(&digest),
-                             chunk_info.data.len(), offset);
+                    println!("upload new chunk {} ({} bytes, offset {})", digest_str,
+                             chunk_info.chunk_len, offset);
 
-                    let param = json!({ "wid": wid, "size" : chunk_info.data.len() });
+                    let chunk_data = chunk_info.chunk.raw_data();
+                    let param = json!({
+                        "wid": wid,
+                        "digest": digest_str,
+                        "size": chunk_info.chunk_len,
+                        "encoded-size": chunk_data.len(),
+                    });
+
                     let request = H2Client::request_builder("localhost", "POST", &upload_chunk_path, Some(param)).unwrap();
-                    let upload_data = Some(chunk_info.data.freeze());
+                    let upload_data = Some(bytes::Bytes::from(chunk_data));
 
                     let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);
 
@@ -883,7 +895,7 @@ impl H2Client {
             .and_then(move |mut send_request| {
                 if let Some(data) = data {
                     let (response, stream) = send_request.send_request(request, false).unwrap();
-                    future::Either::A(PipeToSendStream::new(bytes::Bytes::from(data), stream)
+                    future::Either::A(PipeToSendStream::new(data, stream)
                         .and_then(move |_| {
                             future::ok(response)
                         }))

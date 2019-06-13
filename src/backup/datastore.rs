@@ -13,6 +13,7 @@ use super::fixed_index::*;
 use super::dynamic_index::*;
 use super::index::*;
 use super::backup_info::*;
+use super::DataChunk;
 use crate::server::WorkerTask;
 
 lazy_static!{
@@ -256,15 +257,10 @@ impl DataStore {
         Ok(())
     }
 
-    pub fn insert_chunk(&self, chunk: &[u8]) -> Result<(bool, [u8; 32], u64), Error> {
-        self.chunk_store.insert_chunk(chunk)
-    }
-
-    pub fn insert_chunk_noverify(
+    pub fn insert_chunk(
         &self,
-        digest: &[u8; 32],
-        chunk: &[u8],
+        chunk: &DataChunk,
     ) -> Result<(bool, u64), Error> {
-        self.chunk_store.insert_chunk_noverify(digest, chunk)
+        self.chunk_store.insert_chunk(chunk)
     }
 }
