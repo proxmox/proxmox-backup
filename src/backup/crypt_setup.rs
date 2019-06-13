@@ -82,6 +82,7 @@ impl CryptConfig {
     /// chunk digest values do not clash with values computed for
     /// other sectret keys.
     pub fn compute_digest(&self, data: &[u8]) -> [u8; 32] {
+        // FIXME: use HMAC-SHA256 instead??
         let mut hasher = openssl::sha::Sha256::new();
         hasher.update(&self.id_key);
         hasher.update(data);
