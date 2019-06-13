@@ -2,7 +2,7 @@ use failure::*;
 
 //  chacha20-poly1305
 
-fn rate_test(name: &str, bench: & Fn() -> usize) {
+fn rate_test(name: &str, bench: &dyn Fn() -> usize) {
 
     let start = std::time::SystemTime::now();
     let duration = std::time::Duration::new(1, 0);
@@ -26,17 +26,20 @@ fn rate_test(name: &str, bench: & Fn() -> usize) {
 fn main() -> Result<(), Error> {
 
     let input = proxmox::sys::linux::random_data(1024*1024)?;
-    let key = proxmox::sys::linux::random_data(32)?;
 
-    let iv = proxmox::sys::linux::random_data(16)?;
-
-    let start = std::time::SystemTime::now();
-    let duration = std::time::Duration::new(1, 0);
+    rate_test("zstd", &|| {
+        zstd::block::compress(&input, 1).unwrap();
+        input.len()
+    });
 
     rate_test("sha256", &|| {
         openssl::sha::sha256(&input);
         input.len()
     });
+
+    let key = proxmox::sys::linux::random_data(32)?;
+
+    let iv = proxmox::sys::linux::random_data(16)?;
 
     let cipher =  openssl::symm::Cipher::aes_256_gcm();
 
