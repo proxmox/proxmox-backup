@@ -66,7 +66,7 @@ impl DataChunk {
 
         if let Some(config) = config {
 
-            let enc_data = config.encode_chunk(data, compress)?;
+            Let enc_data = config.encode_chunk(data, compress)?;
             let chunk = DataChunk { digest, raw_data: enc_data };
 
             Ok(chunk)
@@ -78,19 +78,19 @@ impl DataChunk {
                 comp_data.write_all(&COMPRESSED_CHUNK_MAGIC_1_0)?;
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
-                let chunk = DataChunk { digest, raw_data: comp_data };
-
-                return Ok(chunk);
-            } else {
-                // TODO: howto avoid data copy here?
-                let mut raw_data = Vec::with_capacity(data.len() + 8);
-
-                raw_data.write_all(&UNCOMPRESSED_CHUNK_MAGIC_1_0)?;
-                raw_data.extend_from_slice(data);
-
-                let chunk = DataChunk { digest, raw_data };
-                return Ok(chunk);
+                if comp_data.len() < (data.len() + 8) {
+                    let chunk = DataChunk { digest, raw_data: comp_data };
+                    return Ok(chunk);
+                }
             }
+
+            let mut raw_data = Vec::with_capacity(data.len() + 8);
+
+            raw_data.write_all(&UNCOMPRESSED_CHUNK_MAGIC_1_0)?;
+            raw_data.extend_from_slice(data);
+
+            let chunk = DataChunk { digest, raw_data };
+            return Ok(chunk);
         }
     }
 
