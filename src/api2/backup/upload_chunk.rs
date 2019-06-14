@@ -55,6 +55,8 @@ impl Future for UploadChunk {
 
                         let chunk = DataChunk::from_raw(raw_data, self.digest)?;
 
+                        chunk.verify_unencrypted(self.size as usize)?;
+
                         let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk)?;
 
                         return Ok(Async::Ready((self.digest, self.size, compressed_size as u32, is_duplicate)))

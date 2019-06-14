@@ -159,6 +159,35 @@ impl DataChunk {
             bail!("unable to parse raw chunk - wrong magic");
         }
     }
+
+    /// Verify digest and data length for unencrypted chunks.
+    ///
+    /// To do that, we need to decompress data first. Please note that
+    /// this is noth possible for encrypted chunks.
+    pub fn verify_unencrypted(&self, expected_chunk_size: usize) -> Result<(), Error> {
+
+        let magic = &self.raw_data[0..8];
+
+        let verify_raw_data = |data: &[u8]| {
+            if expected_chunk_size != data.len() {
+                bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
+            }
+            let digest = openssl::sha::sha256(data);
+            if digest != self.digest {
+                bail!("detected chunk with wrong digest.");
+            }
+            Ok(())
+        };
+
+        if magic == COMPRESSED_CHUNK_MAGIC_1_0 {
+           let data = zstd::block::decompress(&self.raw_data[8..], 16*1024*1024)?;
+           verify_raw_data(&data)?;
+        } else if magic == UNCOMPRESSED_CHUNK_MAGIC_1_0 {
+            verify_raw_data(&self.raw_data[8..])?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Builder for DataChunk
