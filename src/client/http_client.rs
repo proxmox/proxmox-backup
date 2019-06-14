@@ -589,8 +589,8 @@ impl BackupClient {
                             let mut digest_list = vec![];
                             let mut offset_list = vec![];
                             for (offset, digest) in chunk_list {
-                                //println!("append chunk {} (offset {})", tools::digest_to_hex(&digest), offset);
-                                digest_list.push(tools::digest_to_hex(&digest));
+                                //println!("append chunk {} (offset {})", proxmox::tools::digest_to_hex(&digest), offset);
+                                digest_list.push(proxmox::tools::digest_to_hex(&digest));
                                 offset_list.push(offset);
                             }
                             println!("append chunks list len ({})", digest_list.len());
@@ -651,7 +651,7 @@ impl BackupClient {
                         DigestListDecoder::new(body.map_err(Error::from))
                             .for_each(move |chunk| {
                                 let _ = release_capacity.release_capacity(chunk.len());
-                                println!("GOT DOWNLOAD {}", tools::digest_to_hex(&chunk));
+                                println!("GOT DOWNLOAD {}", proxmox::tools::digest_to_hex(&chunk));
                                 known_chunks.lock().unwrap().insert(chunk);
                                 Ok(())
                             })
@@ -713,7 +713,7 @@ impl BackupClient {
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
                     let digest = *chunk_info.chunk.digest();
-                    let digest_str = tools::digest_to_hex(&digest);
+                    let digest_str = proxmox::tools::digest_to_hex(&digest);
                     let upload_queue = upload_queue.clone();
 
                     println!("upload new chunk {} ({} bytes, offset {})", digest_str,

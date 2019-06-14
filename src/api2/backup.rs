@@ -323,7 +323,7 @@ fn dynamic_append (
 
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
-        let digest = crate::tools::hex_to_digest(digest_str)?;
+        let digest = proxmox::tools::hex_to_digest(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 
@@ -375,7 +375,7 @@ fn fixed_append (
 
     for (i, item) in digest_list.iter().enumerate() {
         let digest_str = item.as_str().unwrap();
-        let digest = crate::tools::hex_to_digest(digest_str)?;
+        let digest = proxmox::tools::hex_to_digest(digest_str)?;
         let offset = offset_list[i].as_u64().unwrap();
         let size = env.lookup_chunk(&digest).ok_or_else(|| format_err!("no such chunk {}", digest_str))?;
 

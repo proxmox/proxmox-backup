@@ -25,7 +25,7 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
 
-    result["digest"] = Value::from(tools::digest_to_hex(&sha::sha256(&raw)));
+    result["digest"] = Value::from(proxmox::tools::digest_to_hex(&sha::sha256(&raw)));
 
     let data = String::from_utf8(raw)?;
 
@@ -66,7 +66,7 @@ fn update_dns(
     let search = tools::required_string_param(&param, "search")?;
 
     let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
-    let old_digest = tools::digest_to_hex(&sha::sha256(&raw));
+    let old_digest = proxmox::tools::digest_to_hex(&sha::sha256(&raw));
 
     if let Some(digest) = param["digest"].as_str() {
         tools::assert_if_modified(&old_digest, &digest)?;

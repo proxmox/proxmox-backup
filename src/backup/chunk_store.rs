@@ -148,7 +148,7 @@ impl ChunkStore {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(&digest);
         chunk_path.push(&prefix);
-        let digest_str = tools::digest_to_hex(&digest);
+        let digest_str = proxmox::tools::digest_to_hex(&digest);
         chunk_path.push(&digest_str);
 
         const UTIME_NOW: i64 = ((1 << 30) - 1);
@@ -177,7 +177,7 @@ impl ChunkStore {
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
-        let digest_str = tools::digest_to_hex(digest);
+        let digest_str = proxmox::tools::digest_to_hex(digest);
         chunk_path.push(&digest_str);
 
         let mut file = std::fs::File::open(&chunk_path)
@@ -324,12 +324,12 @@ impl ChunkStore {
 
         let digest = chunk.digest();
 
-        //println!("DIGEST {}", tools::digest_to_hex(digest));
+        //println!("DIGEST {}", proxmox::tools::digest_to_hex(digest));
 
         let mut chunk_path = self.chunk_dir.clone();
         let prefix = digest_to_prefix(digest);
         chunk_path.push(&prefix);
-        let digest_str = tools::digest_to_hex(digest);
+        let digest_str = proxmox::tools::digest_to_hex(digest);
         chunk_path.push(&digest_str);
 
         let lock = self.mutex.lock();

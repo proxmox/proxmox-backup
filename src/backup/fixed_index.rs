@@ -158,7 +158,7 @@ impl FixedIndexReader {
             let digest = self.index_digest(pos).unwrap();
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
-                      tools::digest_to_hex(digest), self.filename, err);
+                      proxmox::tools::digest_to_hex(digest), self.filename, err);
             }
         }
 
@@ -361,7 +361,7 @@ impl FixedIndexWriter {
         let digest = chunk_info.chunk.digest();
 
         println!("ADD CHUNK {} {} {}% {} {}", pos, chunk_len,
-                 (compressed_size*100)/(chunk_len as u64), is_duplicate, tools::digest_to_hex(digest));
+                 (compressed_size*100)/(chunk_len as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));
 
         if is_duplicate {
             stat.duplicate_chunks += 1;

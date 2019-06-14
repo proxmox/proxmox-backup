@@ -102,7 +102,7 @@ fn upload_fixed_chunk(
     let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
 
     let digest_str = tools::required_string_param(&param, "digest")?;
-    let digest = crate::tools::hex_to_digest(digest_str)?;
+    let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -114,7 +114,7 @@ fn upload_fixed_chunk(
 
              let result = result.and_then(|(digest, size, compressed_size, is_duplicate)| {
                  env.register_fixed_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-                 let digest_str = tools::digest_to_hex(&digest);
+                 let digest_str = proxmox::tools::digest_to_hex(&digest);
                  env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
                  Ok(json!(digest_str))
              });
@@ -158,7 +158,7 @@ fn upload_dynamic_chunk(
     let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
 
     let digest_str = tools::required_string_param(&param, "digest")?;
-    let digest = crate::tools::hex_to_digest(digest_str)?;
+    let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -170,7 +170,7 @@ fn upload_dynamic_chunk(
 
              let result = result.and_then(|(digest, size, compressed_size, is_duplicate)| {
                  env.register_dynamic_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-                 let digest_str = tools::digest_to_hex(&digest);
+                 let digest_str = proxmox::tools::digest_to_hex(&digest);
                  env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
                  Ok(json!(digest_str))
              });

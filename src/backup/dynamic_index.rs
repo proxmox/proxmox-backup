@@ -182,7 +182,7 @@ impl DynamicIndexReader {
             let digest = self.chunk_digest(pos);
             if let Err(err) = self.store.touch_chunk(digest) {
                 bail!("unable to access chunk {}, required by {:?} - {}",
-                      tools::digest_to_hex(digest), self.filename, err);
+                      proxmox::tools::digest_to_hex(digest), self.filename, err);
             }
         }
         Ok(())
@@ -589,7 +589,7 @@ impl DynamicChunkWriter {
                 }
 
                 println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,
-                         (compressed_size*100)/(chunk_size as u64), is_duplicate,  tools::digest_to_hex(digest));
+                         (compressed_size*100)/(chunk_size as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);
                 return Ok(());

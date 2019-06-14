@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::tools;
+use proxmox::tools;
 
 use crate::api_schema::router::{RpcEnvironment, RpcEnvironmentType};
 use crate::server::WorkerTask;
