@@ -4,6 +4,8 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
+use crate::tools;
+
 use crate::api_schema::router::{RpcEnvironment, RpcEnvironmentType};
 use crate::server::WorkerTask;
 use crate::backup::*;
@@ -290,8 +292,10 @@ impl BackupEnvironment {
         Ok(())
     }
 
-    fn log_upload_stat(&self, archive_name: &str, size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
+    fn log_upload_stat(&self, archive_name:  &str, csum: &[u8; 32], uuid: &[u8; 16], size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
         self.log(format!("Upload statistics for '{}'", archive_name));
+        self.log(format!("UUID: {}", tools::digest_to_hex(uuid)));
+        self.log(format!("Checksum: {}", tools::digest_to_hex(csum)));
         self.log(format!("Size: {}", size));
         self.log(format!("Chunk count: {}", chunk_count));
 
@@ -333,9 +337,11 @@ impl BackupEnvironment {
             bail!("dynamic writer '{}' close failed - unexpected file size ({} != {})", data.name, data.offset, size);
         }
 
-        data.index.close()?;
+        let uuid = data.index.uuid;
 
-        self.log_upload_stat(&data.name, size, chunk_count, &data.upload_stat);
+        let csum = data.index.close()?;
+
+        self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
 
@@ -367,9 +373,11 @@ impl BackupEnvironment {
             bail!("fixed writer '{}' close failed - unexpected file size ({} != {})", data.name, data.size, size);
         }
 
-        data.index.close()?;
+        let uuid = data.index.uuid;
 
-        self.log_upload_stat(&data.name, size, chunk_count, &data.upload_stat);
+        let csum = data.index.close()?;
+
+        self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
 
