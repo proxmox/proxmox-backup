@@ -28,7 +28,9 @@ pub struct DynamicIndexHeader {
     pub version: u32,
     pub uuid: [u8; 16],
     pub ctime: u64,
-    reserved: [u8; 4056], // overall size is one page (4096 bytes)
+    /// Sha256 over the index ``SHA256(offset1||digest1||offset2||digest2||...)``
+    pub index_csum: [u8; 32],
+    reserved: [u8; 4024], // overall size is one page (4096 bytes)
 }
 
 
@@ -41,6 +43,7 @@ pub struct DynamicIndexReader {
     index_entries: usize,
     pub uuid: [u8; 16],
     pub ctime: u64,
+    pub index_csum: [u8; 32],
 }
 
 // `index` is mmap()ed which cannot be thread-local so should be sendable
@@ -119,6 +122,7 @@ impl DynamicIndexReader {
             index_entries: index_size/40,
             ctime,
             uuid: header.uuid,
+            index_csum: header.index_csum,
         })
     }
 
@@ -382,6 +386,7 @@ pub struct DynamicIndexWriter {
     closed: bool,
     filename: PathBuf,
     tmp_filename: PathBuf,
+    csum: Option<openssl::sha::Sha256>,
     pub uuid: [u8; 16],
     pub ctime: u64,
 }
@@ -429,7 +434,11 @@ impl DynamicIndexWriter {
         header.ctime = u64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
 
+        header.index_csum = [0u8; 32];
+
         writer.write_all(&buffer)?;
+
+        let csum = Some(openssl::sha::Sha256::new());
 
         Ok(Self {
             store,
@@ -440,6 +449,7 @@ impl DynamicIndexWriter {
             tmp_filename: tmp_path,
             ctime,
             uuid: *uuid.as_bytes(),
+            csum,
         })
     }
 
@@ -448,7 +458,7 @@ impl DynamicIndexWriter {
         self.store.insert_chunk(chunk)
     }
 
-    pub fn close(&mut self)  -> Result<(), Error> {
+    pub fn close(&mut self)  -> Result<[u8; 32], Error> {
 
         if self.closed {
             bail!("cannot close already closed archive index file {:?}", self.filename);
@@ -458,11 +468,23 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
+        use std::io::Seek;
+
+        let csum_offset = proxmox::tools::offsetof!(DynamicIndexHeader, index_csum);
+        self.writer.seek(std::io::SeekFrom::Start(csum_offset as u64))?;
+
+        let csum = self.csum.take().unwrap();
+        let index_csum = csum.finish();
+
+        self.writer.write_all(&index_csum)?;
+        self.writer.flush()?;
+
+
         if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
             bail!("Atomic rename file {:?} failed - {}", self.filename, err);
         }
 
-        Ok(())
+        Ok(index_csum)
     }
 
     // fixme: rename to add_digest
@@ -470,7 +492,15 @@ impl DynamicIndexWriter {
         if self.closed {
             bail!("cannot write to closed dynamic index file {:?}", self.filename);
         }
-        self.writer.write(unsafe { &std::mem::transmute::<u64, [u8;8]>(offset.to_le()) })?;
+
+        let offset_le: &[u8; 8] = unsafe { &std::mem::transmute::<u64, [u8;8]>(offset.to_le()) };
+
+        if let Some(ref mut csum) = self.csum {
+            csum.update(offset_le);
+            csum.update(digest);
+        }
+
+        self.writer.write(offset_le)?;
         self.writer.write(digest)?;
         Ok(())
     }
