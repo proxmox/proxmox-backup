@@ -24,13 +24,12 @@ use super::{DataChunk, DataChunkBuilder};
 #[repr(C)]
 pub struct DynamicIndexHeader {
     /// The string `PROXMOX-DIDX`
-    pub magic: [u8; 12],
-    pub version: u32,
+    pub magic: [u8; 8],
     pub uuid: [u8; 16],
     pub ctime: u64,
     /// Sha256 over the index ``SHA256(offset1||digest1||offset2||digest2||...)``
     pub index_csum: [u8; 32],
-    reserved: [u8; 4024], // overall size is one page (4096 bytes)
+    reserved: [u8; 4030], // overall size is one page (4096 bytes)
 }
 
 
@@ -80,13 +79,8 @@ impl DynamicIndexReader {
 
         let header = unsafe { &* (buffer.as_ptr() as *const DynamicIndexHeader) };
 
-        if header.magic != *b"PROXMOX-DIDX" {
+        if header.magic != super::DYNAMIC_SIZED_CHUNK_INDEX_1_0 {
             bail!("got unknown magic number for {:?}", path);
-        }
-
-        let version = u32::from_le(header.version);
-        if  version != 1 {
-            bail!("got unsupported version number ({}) for {:?}", version, path);
         }
 
         let ctime = u64::from_le(header.ctime);
@@ -429,8 +423,7 @@ impl DynamicIndexWriter {
         let mut buffer = vec::undefined(header_size);
         let header = crate::tools::map_struct_mut::<DynamicIndexHeader>(&mut buffer)?;
 
-        header.magic = *b"PROXMOX-DIDX";
-        header.version = u32::to_le(1);
+        header.magic = super::DYNAMIC_SIZED_CHUNK_INDEX_1_0;
         header.ctime = u64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
 

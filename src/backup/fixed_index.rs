@@ -17,16 +17,14 @@ use super::ChunkInfo;
 /// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
 pub struct FixedIndexHeader {
-    /// The string `PROXMOX-FIDX`
-    pub magic: [u8; 12],
-    pub version: u32,
+    pub magic: [u8; 8],
     pub uuid: [u8; 16],
     pub ctime: u64,
-    pub size: u64,
-    pub chunk_size: u64,
     /// Sha256 over the index ``SHA256(digest1||digest2||...)``
     pub index_csum: [u8; 32],
-    reserved: [u8; 4008], // overall size is one page (4096 bytes)
+    pub size: u64,
+    pub chunk_size: u64,
+    reserved: [u8; 4016], // overall size is one page (4096 bytes)
 }
 
 // split image into fixed size chunks
@@ -78,13 +76,8 @@ impl FixedIndexReader {
 
         let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
 
-        if header.magic != *b"PROXMOX-FIDX" {
+        if header.magic != super::FIXED_SIZED_CHUNK_INDEX_1_0 {
             bail!("got unknown magic number for {:?}", path);
-        }
-
-        let version = u32::from_le(header.version);
-        if  version != 1 {
-            bail!("got unsupported version number ({})", version);
         }
 
         let size = u64::from_le(header.size) as usize;
@@ -244,8 +237,7 @@ impl FixedIndexWriter {
         let buffer = vec![0u8; header_size];
         let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
 
-        header.magic = *b"PROXMOX-FIDX";
-        header.version = u32::to_le(1);
+        header.magic = super::FIXED_SIZED_CHUNK_INDEX_1_0;
         header.ctime = u64::to_le(ctime);
         header.size = u64::to_le(size as u64);
         header.chunk_size = u64::to_le(chunk_size as u64);

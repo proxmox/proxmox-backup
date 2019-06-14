@@ -121,6 +121,12 @@ pub static COMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [191, 237, 46, 195, 108, 17, 22
 // openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted chunk v1.0")[0..8]
 pub static ENCR_COMPR_CHUNK_MAGIC_1_0: [u8; 8] = [9, 40, 53, 200, 37, 150, 90, 196];
 
+// openssl::sha::sha256(b"Proxmox Backup fixed sized chunk index v1.0")[0..8]
+pub static FIXED_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [47, 127, 65, 237, 145, 253, 15, 205];
+
+// openssl::sha::sha256(b"Proxmox Backup dynamic sized chunk index v1.0")[0..8]
+pub static DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 179, 205];
+
 mod crypt_setup;
 pub use crypt_setup::*;
 
