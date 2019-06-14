@@ -24,7 +24,9 @@ pub struct FixedIndexHeader {
     pub ctime: u64,
     pub size: u64,
     pub chunk_size: u64,
-    reserved: [u8; 4040], // overall size is one page (4096 bytes)
+    /// Sha256 over the index ``SHA256(digest1||digest2||...)``
+    pub index_csum: [u8; 32],
+    reserved: [u8; 4008], // overall size is one page (4096 bytes)
 }
 
 // split image into fixed size chunks
@@ -39,6 +41,7 @@ pub struct FixedIndexReader {
     index: *mut u8,
     pub uuid: [u8; 16],
     pub ctime: u64,
+    pub index_csum: [u8; 32],
 }
 
 // `index` is mmap()ed which cannot be thread-local so should be sendable
@@ -122,6 +125,7 @@ impl FixedIndexReader {
             index: data,
             ctime,
             uuid: header.uuid,
+            index_csum: header.index_csum,
         })
     }
 
@@ -186,6 +190,7 @@ impl IndexFile for FixedIndexReader {
 
 pub struct FixedIndexWriter {
     store: Arc<ChunkStore>,
+    file: File,
     _lock: tools::ProcessLockSharedGuard,
     filename: PathBuf,
     tmp_filename: PathBuf,
@@ -246,6 +251,8 @@ impl FixedIndexWriter {
         header.chunk_size = u64::to_le(chunk_size as u64);
         header.uuid = *uuid.as_bytes();
 
+        header.index_csum = [0u8; 32];
+
         file.write_all(&buffer)?;
 
         let index_length = (size + chunk_size - 1)/chunk_size;
@@ -260,9 +267,9 @@ impl FixedIndexWriter {
             file.as_raw_fd(),
             header_size as i64) }? as *mut u8;
 
-
         Ok(Self {
             store,
+            file,
             _lock: shared_lock,
             filename: full_path,
             tmp_filename: tmp_path,
@@ -294,17 +301,28 @@ impl FixedIndexWriter {
         Ok(())
     }
 
-    pub fn close(&mut self)  -> Result<(), Error> {
+    pub fn close(&mut self)  -> Result<[u8; 32], Error> {
 
         if self.index == std::ptr::null_mut() { bail!("cannot close already closed index file."); }
 
+        let index_size = self.index_length*32;
+        let data = unsafe { std::slice::from_raw_parts(self.index, index_size) };
+        let index_csum =  openssl::sha::sha256(data);
+
         self.unmap()?;
+
+        use std::io::Seek;
+
+        let csum_offset = proxmox::tools::offsetof!(FixedIndexHeader, index_csum);
+        self.file.seek(std::io::SeekFrom::Start(csum_offset as u64))?;
+        self.file.write_all(&index_csum)?;
+        self.file.flush()?;
 
         if let Err(err) = std::fs::rename(&self.tmp_filename, &self.filename) {
             bail!("Atomic rename file {:?} failed - {}", self.filename, err);
         }
 
-        Ok(())
+        Ok(index_csum)
     }
 
     // Note: We want to add data out of order, so do not assume any order here.
