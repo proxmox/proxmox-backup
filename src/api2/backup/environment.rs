@@ -294,9 +294,23 @@ impl BackupEnvironment {
         self.log(format!("Upload statistics for '{}'", archive_name));
         self.log(format!("Size: {}", size));
         self.log(format!("Chunk count: {}", chunk_count));
+
+        if size == 0 || chunk_count == 0 {
+            return;
+        }
+
         self.log(format!("Upload size: {} ({}%)", upload_stat.size, (upload_stat.size*100)/size));
+
+        let client_side_duplicates = chunk_count - upload_stat.count;
+        let server_side_duplicates = upload_stat.duplicates;
+
+        if (client_side_duplicates + server_side_duplicates) > 0 {
+            let per = (client_side_duplicates + server_side_duplicates)*100/chunk_count;
+            self.log(format!("Duplicates: {}+{} ({}%)", client_side_duplicates, server_side_duplicates, per));
+        }
+
         if upload_stat.size > 0 {
-            self.log(format!("Compression: {}%",  (upload_stat.compressed_size*100)/upload_stat.size));
+            self.log(format!("Compression: {}%", (upload_stat.compressed_size*100)/upload_stat.size));
         }
     }
 
