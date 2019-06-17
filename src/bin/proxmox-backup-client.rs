@@ -803,31 +803,13 @@ fn get_encryption_key_password() -> Result<String, Error> {
     bail!("no password input mechanism available");
 }
 
-fn key_create(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
-
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
-
-    let repo = repo.to_string();
-
-    // usually $HOME/.config/proxmox-backup/xxx.enc_key
-    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
-
-    let password = get_encryption_key_password()?;
-
-    let raw_key = proxmox::sys::linux::random_data(32)?;
+fn key_store_with_password(path: &std::path::Path, raw_key: &[u8], password: &[u8], replace: bool) -> Result<(), Error> {
 
     let salt = proxmox::sys::linux::random_data(32)?;
 
     let scrypt_config = SCryptConfig { n: 65536, r: 8, p: 1, salt };
 
-    let derived_key = CryptConfig::derive_key_from_password(password.as_bytes(), &scrypt_config)?;
+    let derived_key = CryptConfig::derive_key_from_password(password, &scrypt_config)?;
 
     let cipher = openssl::symm::Cipher::aes_256_gcm();
 
@@ -862,15 +844,159 @@ fn key_create(
     let data = result.to_string();
 
     try_block!({
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)?;
+        if replace {
+            let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
+            crate::tools::file_set_contents(&path, data.as_bytes(), Some(mode))?;
+        } else {
+            use std::os::unix::fs::OpenOptionsExt;
 
-        file.write_all(data.as_bytes())?;
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .mode(0o0600)
+                .create_new(true)
+                .open(&path)?;
+
+            file.write_all(data.as_bytes())?;
+        }
 
         Ok(())
     }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
+
+    Ok(())
+}
+
+fn key_create(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo: BackupRepository = repo_url.parse()?;
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    let repo = repo.to_string();
+
+    // usually $HOME/.config/proxmox-backup/xxx.enc_key
+    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
+
+    let password = get_encryption_key_password()?;
+
+    let key = proxmox::sys::linux::random_data(32)?;
+
+    key_store_with_password(&path, &key, password.as_bytes(), false)?;
+
+    Ok(Value::Null)
+}
+
+fn key_load_and_decrtypt(path: &std::path::Path) -> Result<Vec<u8>, Error> {
+
+    let data = crate::tools::file_get_json(&path, None)?;
+    println!("DATA: {:?}", data);
+
+    match data["kdf"].as_str() {
+        Some(kdf) =>  {
+            if kdf != "scrypt" {
+                bail!("Unknown key derivation function '{}'", kdf);
+            }
+        },
+        None => bail!("missing property 'kdf'."),
+    }
+
+    let salt = match data["salt"].as_str() {
+        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
+        None => bail!("missing property 'salt'."),
+    };
+
+    let n = match data["n"].as_u64() {
+        Some(n) => n,
+        None => bail!("missing property 'n'."),
+    };
+
+    let r = match data["r"].as_u64() {
+        Some(r) => r,
+        None => bail!("missing property 'r'."),
+    };
+
+    let p = match data["p"].as_u64() {
+        Some(p) => p,
+        None => bail!("missing property 'p'."),
+    };
+
+    let scrypt_config = SCryptConfig { n, r, p, salt };
+
+    let password = get_encryption_key_password()?;
+    if password.len() < 5 {
+        bail!("Password is too short!");
+    }
+
+    let derived_key = CryptConfig::derive_key_from_password(password.as_bytes(), &scrypt_config)?;
+
+    let iv = match data["iv"].as_str() {
+        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
+        None => bail!("missing property 'iv'."),
+    };
+
+    let tag = match data["tag"].as_str() {
+        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
+        None => bail!("missing property 'tag'."),
+    };
+
+    let data = match data["data"].as_str() {
+        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
+        None => bail!("missing property 'data'."),
+    };
+
+    let cipher = openssl::symm::Cipher::aes_256_gcm();
+
+    let decr_data = openssl::symm::decrypt_aead(
+        cipher,
+        &derived_key,
+        Some(&iv),
+        b"", //??
+        &data,
+        &tag,
+    ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?;
+
+    Ok(decr_data)
+}
+
+fn key_change_passphrase(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo: BackupRepository = repo_url.parse()?;
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    let repo = repo.to_string();
+
+    // usually $HOME/.config/proxmox-backup/xxx.enc_key
+    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
+
+    // we need a TTY to query the new password
+    if !crate::tools::tty::stdin_isatty() {
+        bail!("unable to change passphrase - no tty");
+    }
+
+    let key = key_load_and_decrtypt(&path)?;
+
+    let new_pw = String::from_utf8(crate::tools::tty::read_password("New Password: ")?)?;
+    let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+
+    if new_pw != verify_pw {
+        bail!("Password verification fail!");
+    }
+
+    if new_pw.len() < 5 {
+        bail!("Password is too short!");
+    }
+
+    key_store_with_password(&path, &key, new_pw.as_bytes(), true)?;
 
     Ok(Value::Null)
 }
@@ -887,8 +1013,18 @@ fn key_mgmt_cli() -> CliCommandMap {
         .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
+    let key_change_passphrase_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            key_change_passphrase,
+            ObjectSchema::new("Change the passphrase required to decrypt the key.")
+                .required("repository", REPO_URL_SCHEMA.clone())
+        ))
+        .arg_param(vec!["repository"])
+        .completion_cb("repository", complete_repository);
+
     let cmd_def = CliCommandMap::new()
-        .insert("create".to_owned(), key_create_cmd_def.into());
+        .insert("create".to_owned(), key_create_cmd_def.into())
+        .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into());
 
     cmd_def
 }
