@@ -26,6 +26,13 @@ pub struct CryptConfig {
     enc_key: [u8; 32],
 }
 
+pub struct SCryptConfig {
+    pub n: u64,
+    pub r: u64,
+    pub p: u64,
+    pub salt: Vec<u8>,
+}
+
 impl CryptConfig {
 
     /// Create a new instance.
@@ -47,32 +54,19 @@ impl CryptConfig {
     }
 
     /// A simple key derivation function using scrypt
-    fn derive_key_from_password(password: &[u8]) -> Result<[u8; 32], Error> {
+    pub fn derive_key_from_password(password: &[u8], scrypt_config: &SCryptConfig) -> Result<[u8; 32], Error> {
 
         let mut key = [0u8; 32];
 
-        // estimated scrypt memory usage is N*2r*64
-        let n = 65536;
-        let r = 8;
-        let p = 1;
-
-        let salt = b""; // Salt??
+        // estimated scrypt memory usage is 128*r*n*p
 
         scrypt(
             password,
-            salt,
-            n, r, p, 128*1024*1024,
+            &scrypt_config.salt,
+            scrypt_config.n, scrypt_config.r, scrypt_config.p, 1025*1024*1024,
             &mut key)?;
 
         Ok(key)
-    }
-
-    /// Create a new instance, but derive key from password using scrypt.
-    pub fn with_password(password: &[u8]) -> Result<Self, Error> {
-
-        let enc_key = Self::derive_key_from_password(password)?;
-
-        Self::new(enc_key)
     }
 
     /// Compute a chunk digest using a secret name space.

@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate proxmox_backup;
 
 use failure::*;
@@ -29,6 +30,13 @@ use tokio::sync::mpsc;
 
 lazy_static! {
     static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf)):(.+)$").unwrap();
+
+    static ref REPO_URL_SCHEMA: Arc<Schema> = Arc::new(
+        StringSchema::new("Repository URL.")
+            .format(BACKUP_REPO_URL.clone())
+            .max_length(256)
+            .into()
+    );
 }
 
 
@@ -774,14 +782,119 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
-fn main() {
+fn get_encryption_key_password() -> Result<String, Error> {
 
-    let repo_url_schema: Arc<Schema> = Arc::new(
-        StringSchema::new("Repository URL.")
-            .format(BACKUP_REPO_URL.clone())
-            .max_length(256)
-            .into()
-    );
+    // fixme: implement other input methods
+
+    use std::env::VarError::*;
+    match std::env::var("PBS_ENCRYPTION_PASSWORD") {
+        Ok(p) => return Ok(p),
+        Err(NotUnicode(_)) => bail!("PBS_ENCRYPTION_PASSWORD contains bad characters"),
+        Err(NotPresent) => {
+            // Try another method
+        }
+    }
+
+    // If we're on a TTY, query the user for a password
+    if crate::tools::tty::stdin_isatty() {
+        return Ok(String::from_utf8(crate::tools::tty::read_password("Encryption Key Password: ")?)?);
+    }
+
+    bail!("no password input mechanism available");
+}
+
+fn key_create(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo: BackupRepository = repo_url.parse()?;
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    let repo = repo.to_string();
+
+    // usually $HOME/.config/proxmox-backup/xxx.enc_key
+    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
+
+    let password = get_encryption_key_password()?;
+
+    let raw_key = proxmox::sys::linux::random_data(32)?;
+
+    let salt = proxmox::sys::linux::random_data(32)?;
+
+    let scrypt_config = SCryptConfig { n: 65536, r: 8, p: 1, salt };
+
+    let derived_key = CryptConfig::derive_key_from_password(password.as_bytes(), &scrypt_config)?;
+
+    let cipher = openssl::symm::Cipher::aes_256_gcm();
+
+    let iv = proxmox::sys::linux::random_data(16)?;
+    let mut tag = [0u8; 16];
+
+    let encrypted_key = openssl::symm::encrypt_aead(
+        cipher,
+        &derived_key,
+        Some(&iv),
+        b"",
+        &raw_key,
+        &mut tag,
+    )?;
+
+    let created =  Local.timestamp(Local::now().timestamp(), 0);
+
+    let result = json!({
+        "kdf": "scrypt",
+        "created": created.to_rfc3339(),
+        "n": scrypt_config.n,
+        "r": scrypt_config.r,
+        "p": scrypt_config.p,
+        "salt": proxmox::tools::digest_to_hex(&scrypt_config.salt),
+        "iv":  proxmox::tools::digest_to_hex(&iv),
+        "tag":  proxmox::tools::digest_to_hex(&tag),
+        "data":  proxmox::tools::digest_to_hex(&encrypted_key),
+    });
+
+    use std::io::Write;
+
+    let data = result.to_string();
+
+    try_block!({
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)?;
+
+        file.write_all(data.as_bytes())?;
+
+        Ok(())
+    }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
+
+    Ok(Value::Null)
+}
+
+fn key_mgmt_cli() -> CliCommandMap {
+
+    // fixme: change-passphrase, import, export, list
+    let key_create_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            key_create,
+            ObjectSchema::new("Create a new encryption key.")
+                .required("repository", REPO_URL_SCHEMA.clone())
+        ))
+        .arg_param(vec!["repository"])
+        .completion_cb("repository", complete_repository);
+
+    let cmd_def = CliCommandMap::new()
+        .insert("create".to_owned(), key_create_cmd_def.into());
+
+    cmd_def
+}
+
+
+fn main() {
 
     let backup_source_schema: Arc<Schema> = Arc::new(
         StringSchema::new("Backup source specification ([<label>:<path>]).")
@@ -793,7 +906,7 @@ fn main() {
         ApiMethod::new(
             create_backup,
             ObjectSchema::new("Create (host) backup.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
                 .required(
                     "backupspec",
                     ArraySchema::new(
@@ -824,7 +937,7 @@ fn main() {
         ApiMethod::new(
             list_backup_groups,
             ObjectSchema::new("List backup groups.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
         ))
         .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
@@ -833,7 +946,7 @@ fn main() {
         ApiMethod::new(
             list_snapshots,
             ObjectSchema::new("List backup snapshots.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("group", StringSchema::new("Backup group."))
         ))
         .arg_param(vec!["repository", "group"])
@@ -844,7 +957,7 @@ fn main() {
         ApiMethod::new(
             forget_snapshots,
             ObjectSchema::new("Forget (remove) backup snapshots.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("snapshot", StringSchema::new("Snapshot path."))
         ))
         .arg_param(vec!["repository", "snapshot"])
@@ -855,7 +968,7 @@ fn main() {
         ApiMethod::new(
             start_garbage_collection,
             ObjectSchema::new("Start garbage collection for a specific repository.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
         ))
         .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
@@ -864,7 +977,7 @@ fn main() {
         ApiMethod::new(
             restore,
             ObjectSchema::new("Restore backup repository.")
-                .required("repository", repo_url_schema.clone())
+                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("snapshot", StringSchema::new("Group/Snapshot path."))
                 .required("archive-name", StringSchema::new("Backup archive name."))
                 .required("target", StringSchema::new("Target directory path."))
@@ -880,7 +993,7 @@ fn main() {
             prune,
             proxmox_backup::api2::admin::datastore::add_common_prune_prameters(
                 ObjectSchema::new("Prune backup repository.")
-                    .required("repository", repo_url_schema.clone())
+                    .required("repository", REPO_URL_SCHEMA.clone())
             )
         ))
         .arg_param(vec!["repository"])
@@ -893,7 +1006,8 @@ fn main() {
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
-        .insert("snapshots".to_owned(), snapshots_cmd_def.into());
+        .insert("snapshots".to_owned(), snapshots_cmd_def.into())
+        .insert("key".to_owned(), key_mgmt_cli().into());
 
     hyper::rt::run(futures::future::lazy(move || {
         run_cli_command(cmd_def.into());
