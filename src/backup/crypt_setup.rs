@@ -8,7 +8,7 @@
 //! for a short introduction.
 use failure::*;
 use proxmox::tools;
-use openssl::pkcs5::{pbkdf2_hmac, scrypt};
+use openssl::pkcs5::pbkdf2_hmac;
 use openssl::hash::MessageDigest;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
 use std::io::Write;
@@ -24,13 +24,6 @@ pub struct CryptConfig {
     id_key: Vec<u8>,
     // The private key used by the cipher.
     enc_key: [u8; 32],
-}
-
-pub struct SCryptConfig {
-    pub n: u64,
-    pub r: u64,
-    pub p: u64,
-    pub salt: Vec<u8>,
 }
 
 impl CryptConfig {
@@ -51,22 +44,6 @@ impl CryptConfig {
             &mut id_key)?;
 
         Ok(Self { id_key, enc_key, cipher: Cipher::aes_256_gcm() })
-    }
-
-    /// A simple key derivation function using scrypt
-    pub fn derive_key_from_password(password: &[u8], scrypt_config: &SCryptConfig) -> Result<[u8; 32], Error> {
-
-        let mut key = [0u8; 32];
-
-        // estimated scrypt memory usage is 128*r*n*p
-
-        scrypt(
-            password,
-            &scrypt_config.salt,
-            scrypt_config.n, scrypt_config.r, scrypt_config.p, 1025*1024*1024,
-            &mut key)?;
-
-        Ok(key)
     }
 
     /// Compute a chunk digest using a secret name space.

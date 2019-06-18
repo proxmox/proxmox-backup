@@ -1,4 +1,4 @@
-#[macro_use]
+//#[macro_use]
 extern crate proxmox_backup;
 
 use failure::*;
@@ -782,13 +782,13 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
-fn get_encryption_key_password() -> Result<String, Error> {
+fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
 
     // fixme: implement other input methods
 
     use std::env::VarError::*;
     match std::env::var("PBS_ENCRYPTION_PASSWORD") {
-        Ok(p) => return Ok(p),
+        Ok(p) => return Ok(p.as_bytes().to_vec()),
         Err(NotUnicode(_)) => bail!("PBS_ENCRYPTION_PASSWORD contains bad characters"),
         Err(NotPresent) => {
             // Try another method
@@ -797,72 +797,10 @@ fn get_encryption_key_password() -> Result<String, Error> {
 
     // If we're on a TTY, query the user for a password
     if crate::tools::tty::stdin_isatty() {
-        return Ok(String::from_utf8(crate::tools::tty::read_password("Encryption Key Password: ")?)?);
+        return Ok(crate::tools::tty::read_password("Encryption Key Password: ")?);
     }
 
     bail!("no password input mechanism available");
-}
-
-fn key_store_with_password(path: &std::path::Path, raw_key: &[u8], password: &[u8], replace: bool) -> Result<(), Error> {
-
-    let salt = proxmox::sys::linux::random_data(32)?;
-
-    let scrypt_config = SCryptConfig { n: 65536, r: 8, p: 1, salt };
-
-    let derived_key = CryptConfig::derive_key_from_password(password, &scrypt_config)?;
-
-    let cipher = openssl::symm::Cipher::aes_256_gcm();
-
-    let iv = proxmox::sys::linux::random_data(16)?;
-    let mut tag = [0u8; 16];
-
-    let encrypted_key = openssl::symm::encrypt_aead(
-        cipher,
-        &derived_key,
-        Some(&iv),
-        b"",
-        &raw_key,
-        &mut tag,
-    )?;
-
-    let created =  Local.timestamp(Local::now().timestamp(), 0);
-
-    let result = json!({
-        "kdf": "scrypt",
-        "created": created.to_rfc3339(),
-        "n": scrypt_config.n,
-        "r": scrypt_config.r,
-        "p": scrypt_config.p,
-        "salt": proxmox::tools::digest_to_hex(&scrypt_config.salt),
-        "iv":  proxmox::tools::digest_to_hex(&iv),
-        "tag":  proxmox::tools::digest_to_hex(&tag),
-        "data":  proxmox::tools::digest_to_hex(&encrypted_key),
-    });
-
-    use std::io::Write;
-
-    let data = result.to_string();
-
-    try_block!({
-        if replace {
-            let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-            crate::tools::file_set_contents(&path, data.as_bytes(), Some(mode))?;
-        } else {
-            use std::os::unix::fs::OpenOptionsExt;
-
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .mode(0o0600)
-                .create_new(true)
-                .open(&path)?;
-
-            file.write_all(data.as_bytes())?;
-        }
-
-        Ok(())
-    }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
-
-    Ok(())
 }
 
 fn key_create(
@@ -885,82 +823,11 @@ fn key_create(
 
     let key = proxmox::sys::linux::random_data(32)?;
 
-    key_store_with_password(&path, &key, password.as_bytes(), false)?;
+    store_key_with_passphrase(&path, &key, &password, false)?;
 
     Ok(Value::Null)
 }
 
-fn key_load_and_decrtypt(path: &std::path::Path) -> Result<Vec<u8>, Error> {
-
-    let data = crate::tools::file_get_json(&path, None)?;
-    println!("DATA: {:?}", data);
-
-    match data["kdf"].as_str() {
-        Some(kdf) =>  {
-            if kdf != "scrypt" {
-                bail!("Unknown key derivation function '{}'", kdf);
-            }
-        },
-        None => bail!("missing property 'kdf'."),
-    }
-
-    let salt = match data["salt"].as_str() {
-        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
-        None => bail!("missing property 'salt'."),
-    };
-
-    let n = match data["n"].as_u64() {
-        Some(n) => n,
-        None => bail!("missing property 'n'."),
-    };
-
-    let r = match data["r"].as_u64() {
-        Some(r) => r,
-        None => bail!("missing property 'r'."),
-    };
-
-    let p = match data["p"].as_u64() {
-        Some(p) => p,
-        None => bail!("missing property 'p'."),
-    };
-
-    let scrypt_config = SCryptConfig { n, r, p, salt };
-
-    let password = get_encryption_key_password()?;
-    if password.len() < 5 {
-        bail!("Password is too short!");
-    }
-
-    let derived_key = CryptConfig::derive_key_from_password(password.as_bytes(), &scrypt_config)?;
-
-    let iv = match data["iv"].as_str() {
-        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
-        None => bail!("missing property 'iv'."),
-    };
-
-    let tag = match data["tag"].as_str() {
-        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
-        None => bail!("missing property 'tag'."),
-    };
-
-    let data = match data["data"].as_str() {
-        Some(hex) => proxmox::tools::hex_to_bin(hex)?,
-        None => bail!("missing property 'data'."),
-    };
-
-    let cipher = openssl::symm::Cipher::aes_256_gcm();
-
-    let decr_data = openssl::symm::decrypt_aead(
-        cipher,
-        &derived_key,
-        Some(&iv),
-        b"", //??
-        &data,
-        &tag,
-    ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?;
-
-    Ok(decr_data)
-}
 
 fn key_change_passphrase(
     param: Value,
@@ -983,7 +850,7 @@ fn key_change_passphrase(
         bail!("unable to change passphrase - no tty");
     }
 
-    let key = key_load_and_decrtypt(&path)?;
+    let key = load_and_decrtypt_key(&path, get_encryption_key_password)?;
 
     let new_pw = String::from_utf8(crate::tools::tty::read_password("New Password: ")?)?;
     let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
@@ -996,7 +863,7 @@ fn key_change_passphrase(
         bail!("Password is too short!");
     }
 
-    key_store_with_password(&path, &key, new_pw.as_bytes(), true)?;
+    store_key_with_passphrase(&path, &key, new_pw.as_bytes(), true)?;
 
     Ok(Value::Null)
 }

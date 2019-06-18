@@ -130,6 +130,9 @@ pub static DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 
 mod crypt_setup;
 pub use crypt_setup::*;
 
+mod key_derivation;
+pub use key_derivation::*;
+
 mod data_chunk;
 pub use data_chunk::*;
 
