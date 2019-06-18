@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
-use serde_derive::Serialize;
+use serde::Serialize;
 
 use crate::tools;
 use super::DataChunk;
