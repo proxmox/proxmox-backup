@@ -809,15 +809,8 @@ fn key_create(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
-
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
-
-    let repo = repo.to_string();
-
-    // usually $HOME/.config/proxmox-backup/xxx.enc_key
-    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
+    let path = tools::required_string_param(&param, "path")?;
+    let path = PathBuf::from(path);
 
     // always read from tty
     if !crate::tools::tty::stdin_isatty() {
@@ -840,15 +833,8 @@ fn key_change_passphrase(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
-
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
-
-    let repo = repo.to_string();
-
-    // usually $HOME/.config/proxmox-backup/xxx.enc_key
-    let path = base.place_config_file(&format!("{}.enc_key", repo))?;
+    let path = tools::required_string_param(&param, "path")?;
+    let path = PathBuf::from(path);
 
     // we need a TTY to query the new password
     if !crate::tools::tty::stdin_isatty() {
@@ -880,19 +866,19 @@ fn key_mgmt_cli() -> CliCommandMap {
         ApiMethod::new(
             key_create,
             ObjectSchema::new("Create a new encryption key.")
-                .required("repository", REPO_URL_SCHEMA.clone())
+                .required("path", StringSchema::new("File system path."))
         ))
-        .arg_param(vec!["repository"])
-        .completion_cb("repository", complete_repository);
+        .arg_param(vec!["path"])
+        .completion_cb("path", tools::complete_file_name);
 
     let key_change_passphrase_cmd_def = CliCommand::new(
         ApiMethod::new(
             key_change_passphrase,
             ObjectSchema::new("Change the passphrase required to decrypt the key.")
-                .required("repository", REPO_URL_SCHEMA.clone())
-        ))
-        .arg_param(vec!["repository"])
-        .completion_cb("repository", complete_repository);
+                .required("path", StringSchema::new("File system path."))
+         ))
+        .arg_param(vec!["path"])
+        .completion_cb("path", tools::complete_file_name);
 
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), key_create_cmd_def.into())
