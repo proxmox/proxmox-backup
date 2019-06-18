@@ -819,7 +819,12 @@ fn key_create(
     // usually $HOME/.config/proxmox-backup/xxx.enc_key
     let path = base.place_config_file(&format!("{}.enc_key", repo))?;
 
-    let password = get_encryption_key_password()?;
+    // always read from tty
+    if !crate::tools::tty::stdin_isatty() {
+        bail!("unable to read passphrase - no tty");
+    }
+
+    let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
 
     let key = proxmox::sys::linux::random_data(32)?;
 
