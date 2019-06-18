@@ -57,13 +57,44 @@ impl KeyDerivationConfig {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KeyConfig {
-    kdf: Option<KeyDerivationConfig>,
+    pub kdf: Option<KeyDerivationConfig>,
     #[serde(with = "proxmox::tools::serde::date_time_as_rfc3339")]
-    created: DateTime<Local>,
+    pub created: DateTime<Local>,
     #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
-    data: Vec<u8>,
+    pub data: Vec<u8>,
  }
 
+pub fn store_key_config(
+    path: &std::path::Path,
+    replace: bool,
+    key_config: KeyConfig,
+) -> Result<(), Error> {
+
+    let data = serde_json::to_string(&key_config)?;
+
+    use std::io::Write;
+
+    try_block!({
+        if replace {
+            let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
+            crate::tools::file_set_contents(&path, data.as_bytes(), Some(mode))?;
+        } else {
+            use std::os::unix::fs::OpenOptionsExt;
+
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .mode(0o0600)
+                .create_new(true)
+                .open(&path)?;
+
+            file.write_all(data.as_bytes())?;
+        }
+
+        Ok(())
+    }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
+
+    Ok(())
+}
 
 pub fn store_key_with_passphrase(
     path: &std::path::Path,
@@ -104,37 +135,11 @@ pub fn store_key_with_passphrase(
 
     let created =  Local.timestamp(Local::now().timestamp(), 0);
 
-
-    let key_config = KeyConfig {
+    store_key_config(path, replace, KeyConfig {
         kdf: Some(kdf),
         created,
         data: enc_data,
-    };
-
-    let data = serde_json::to_string(&key_config)?;
-
-    use std::io::Write;
-
-    try_block!({
-        if replace {
-            let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-            crate::tools::file_set_contents(&path, data.as_bytes(), Some(mode))?;
-        } else {
-            use std::os::unix::fs::OpenOptionsExt;
-
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .mode(0o0600)
-                .create_new(true)
-                .open(&path)?;
-
-            file.write_all(data.as_bytes())?;
-        }
-
-        Ok(())
-    }).map_err(|err: Error| format_err!("Unable to create file {:?} - {}", path, err))?;
-
-    Ok(())
+    })
 }
 
 pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<Vec<u8>, Error> {

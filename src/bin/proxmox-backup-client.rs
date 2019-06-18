@@ -812,18 +812,34 @@ fn key_create(
     let path = tools::required_string_param(&param, "path")?;
     let path = PathBuf::from(path);
 
-    // always read from tty
-    if !crate::tools::tty::stdin_isatty() {
-        bail!("unable to read passphrase - no tty");
-    }
-
-    let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
+    let kdf = param["kdf"].as_str().unwrap_or("scrypt");
 
     let key = proxmox::sys::linux::random_data(32)?;
 
-    store_key_with_passphrase(&path, &key, &password, false)?;
+    if kdf == "scrypt" {
+        // always read passphrase from tty
+        if !crate::tools::tty::stdin_isatty() {
+            bail!("unable to read passphrase - no tty");
+        }
 
-    Ok(Value::Null)
+        let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
+
+        store_key_with_passphrase(&path, &key, &password, false)?;
+
+        Ok(Value::Null)
+    } else if kdf == "none" {
+        let created =  Local.timestamp(Local::now().timestamp(), 0);
+
+        store_key_config(&path, false, KeyConfig {
+            kdf: None,
+            created,
+            data: key,
+        })?;
+
+        Ok(Value::Null)
+    } else {
+        unreachable!();
+    }
 }
 
 
@@ -836,6 +852,8 @@ fn key_change_passphrase(
     let path = tools::required_string_param(&param, "path")?;
     let path = PathBuf::from(path);
 
+    let kdf = param["kdf"].as_str().unwrap_or("scrypt");
+
     // we need a TTY to query the new password
     if !crate::tools::tty::stdin_isatty() {
         bail!("unable to change passphrase - no tty");
@@ -843,23 +861,46 @@ fn key_change_passphrase(
 
     let key = load_and_decrtypt_key(&path, get_encryption_key_password)?;
 
-    let new_pw = String::from_utf8(crate::tools::tty::read_password("New Password: ")?)?;
-    let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+    if kdf == "scrypt" {
 
-    if new_pw != verify_pw {
-        bail!("Password verification fail!");
+        let new_pw = String::from_utf8(crate::tools::tty::read_password("New Password: ")?)?;
+        let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+
+        if new_pw != verify_pw {
+            bail!("Password verification fail!");
+        }
+
+        if new_pw.len() < 5 {
+            bail!("Password is too short!");
+        }
+
+        store_key_with_passphrase(&path, &key, new_pw.as_bytes(), true)?;
+
+        Ok(Value::Null)
+    } else if kdf == "none" {
+        // fixme: keep original creation time, add modified timestamp ??
+        let created =  Local.timestamp(Local::now().timestamp(), 0);
+
+        store_key_config(&path, true, KeyConfig {
+            kdf: None,
+            created,
+            data: key,
+        })?;
+
+        Ok(Value::Null)
+    } else {
+        unreachable!();
     }
-
-    if new_pw.len() < 5 {
-        bail!("Password is too short!");
-    }
-
-    store_key_with_passphrase(&path, &key, new_pw.as_bytes(), true)?;
-
-    Ok(Value::Null)
 }
 
 fn key_mgmt_cli() -> CliCommandMap {
+
+    let kdf_schema: Arc<Schema> = Arc::new(
+        StringSchema::new("Key derivation function. Choose 'none' to store the key unecrypted.")
+            .format(Arc::new(ApiStringFormat::Enum(&["scrypt", "none"])))
+            .default("scrypt")
+            .into()
+    );
 
     // fixme: change-passphrase, import, export, list
     let key_create_cmd_def = CliCommand::new(
@@ -867,6 +908,7 @@ fn key_mgmt_cli() -> CliCommandMap {
             key_create,
             ObjectSchema::new("Create a new encryption key.")
                 .required("path", StringSchema::new("File system path."))
+                .optional("kdf", kdf_schema.clone())
         ))
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -876,6 +918,7 @@ fn key_mgmt_cli() -> CliCommandMap {
             key_change_passphrase,
             ObjectSchema::new("Change the passphrase required to decrypt the key.")
                 .required("path", StringSchema::new("File system path."))
+                .optional("kdf", kdf_schema.clone())
          ))
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
