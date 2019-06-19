@@ -142,7 +142,7 @@ pub fn store_key_with_passphrase(
     })
 }
 
-pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<Vec<u8>, Error> {
+pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<[u8;32], Error> {
 
     let raw = crate::tools::file_get_contents(&path)?;
     let data = String::from_utf8(raw)?;
@@ -151,7 +151,7 @@ pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<
 
     let raw_data = key_config.data;
 
-    if let Some(kdf) = key_config.kdf {
+    let key = if let Some(kdf) = key_config.kdf {
 
         let passphrase = passphrase()?;
         if passphrase.len() < 5 {
@@ -178,8 +178,13 @@ pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<
             &tag,
         ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?;
 
-        Ok(decr_data)
+        decr_data
     } else {
-        Ok(raw_data)
-    }
+        raw_data
+    };
+
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&key);
+
+    Ok(result)
 }

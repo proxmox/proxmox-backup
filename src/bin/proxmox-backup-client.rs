@@ -407,6 +407,8 @@ fn create_backup(
         verify_chunk_size(size)?;
     }
 
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+
     let backup_id = param["host-id"].as_str().unwrap_or(&tools::nodename());
 
     let mut upload_list = vec![];
@@ -466,7 +468,13 @@ fn create_backup(
     println!("Client name: {}", tools::nodename());
     println!("Start Time: {}", backup_time.to_rfc3339());
 
-    let crypt_config = None;
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let key = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            Some(Arc::new(CryptConfig::new(key)?))
+        }
+    };
 
     let client = client.start_backup(repo.store(), "host", &backup_id, verbose).wait()?;
 
@@ -884,7 +892,7 @@ fn key_change_passphrase(
         store_key_config(&path, true, KeyConfig {
             kdf: None,
             created,
-            data: key,
+            data: key.to_vec(),
         })?;
 
         Ok(Value::Null)
@@ -952,6 +960,9 @@ fn main() {
                     ).min_length(1)
                 )
                 .optional(
+                    "keyfile",
+                    StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
+                .optional(
                     "verbose",
                     BooleanSchema::new("Verbose output.").default(false))
                 .optional(
@@ -968,6 +979,7 @@ fn main() {
         .arg_param(vec!["repository", "backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
+        .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
     let list_cmd_def = CliCommand::new(
