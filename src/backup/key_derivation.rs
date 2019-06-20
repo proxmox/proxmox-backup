@@ -60,6 +60,8 @@ pub struct KeyConfig {
     pub kdf: Option<KeyDerivationConfig>,
     #[serde(with = "proxmox::tools::serde::date_time_as_rfc3339")]
     pub created: DateTime<Local>,
+    #[serde(with = "proxmox::tools::serde::date_time_as_rfc3339")]
+    pub modified: DateTime<Local>,
     #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
     pub data: Vec<u8>,
  }
@@ -96,12 +98,10 @@ pub fn store_key_config(
     Ok(())
 }
 
-pub fn store_key_with_passphrase(
-    path: &std::path::Path,
+pub fn encrypt_key_with_passphrase(
     raw_key: &[u8],
     passphrase: &[u8],
-    replace: bool,
-) -> Result<(), Error> {
+) -> Result<KeyConfig, Error> {
 
     let salt = proxmox::sys::linux::random_data(32)?;
 
@@ -135,14 +135,15 @@ pub fn store_key_with_passphrase(
 
     let created =  Local.timestamp(Local::now().timestamp(), 0);
 
-    store_key_config(path, replace, KeyConfig {
+    Ok(KeyConfig {
         kdf: Some(kdf),
         created,
+        modified: created,
         data: enc_data,
     })
 }
 
-pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<[u8;32], Error> {
+pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<([u8;32], DateTime<Local>), Error> {
 
     let raw = crate::tools::file_get_contents(&path)?;
     let data = String::from_utf8(raw)?;
@@ -150,6 +151,7 @@ pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<
     let key_config: KeyConfig = serde_json::from_str(&data)?;
 
     let raw_data = key_config.data;
+    let created = key_config.created;
 
     let key = if let Some(kdf) = key_config.kdf {
 
@@ -186,5 +188,5 @@ pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<
     let mut result = [0u8; 32];
     result.copy_from_slice(&key);
 
-    Ok(result)
+    Ok((result, created))
 }

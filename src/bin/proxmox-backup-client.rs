@@ -471,7 +471,7 @@ fn create_backup(
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let key = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -832,7 +832,9 @@ fn key_create(
 
         let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
 
-        store_key_with_passphrase(&path, &key, &password, false)?;
+        let key_config = encrypt_key_with_passphrase(&key, &password)?;
+        
+        store_key_config(&path, false, key_config)?;
 
         Ok(Value::Null)
     } else if kdf == "none" {
@@ -841,6 +843,7 @@ fn key_create(
         store_key_config(&path, false, KeyConfig {
             kdf: None,
             created,
+            modified: created,
             data: key,
         })?;
 
@@ -867,7 +870,7 @@ fn key_change_passphrase(
         bail!("unable to change passphrase - no tty");
     }
 
-    let key = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+    let (key, created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
 
     if kdf == "scrypt" {
 
@@ -882,16 +885,19 @@ fn key_change_passphrase(
             bail!("Password is too short!");
         }
 
-        store_key_with_passphrase(&path, &key, new_pw.as_bytes(), true)?;
+        let mut new_key_config = encrypt_key_with_passphrase(&key, new_pw.as_bytes())?;
+        new_key_config.created = created; // keep original value
+
+        store_key_config(&path, true, new_key_config)?;
 
         Ok(Value::Null)
     } else if kdf == "none" {
-        // fixme: keep original creation time, add modified timestamp ??
-        let created =  Local.timestamp(Local::now().timestamp(), 0);
+        let modified =  Local.timestamp(Local::now().timestamp(), 0);
 
         store_key_config(&path, true, KeyConfig {
             kdf: None,
-            created,
+            created, // keep original value
+            modified,
             data: key.to_vec(),
         })?;
 
