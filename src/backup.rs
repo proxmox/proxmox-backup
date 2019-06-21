@@ -127,8 +127,8 @@ pub static FIXED_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [47, 127, 65, 237, 145, 253, 1
 // openssl::sha::sha256(b"Proxmox Backup dynamic sized chunk index v1.0")[0..8]
 pub static DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 179, 205];
 
-mod crypt_setup;
-pub use crypt_setup::*;
+mod crypt_config;
+pub use crypt_config::*;
 
 mod key_derivation;
 pub use key_derivation::*;
