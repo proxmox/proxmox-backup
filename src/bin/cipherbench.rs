@@ -27,6 +27,13 @@ fn main() -> Result<(), Error> {
 
     let input = proxmox::sys::linux::random_data(1024*1024)?;
 
+    rate_test("crc32", &|| {
+        let mut crchasher = crc32fast::Hasher::new();
+        crchasher.update(&input);
+        let _checksum = crchasher.finalize();
+        input.len()
+    });
+
     rate_test("zstd", &|| {
         zstd::block::compress(&input, 1).unwrap();
         input.len()
