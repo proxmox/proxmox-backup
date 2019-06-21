@@ -82,34 +82,36 @@ impl CryptConfig {
         c.aad_update(b"")?; //??
 
         if compress {
-            let compr_data =  zstd::block::compress(data, 1)?;
+            let compr_data = zstd::block::compress(data, 1)?;
             // Note: We only use compression if result is shorter
             if compr_data.len() < data.len() {
-                let mut enc = vec![0; compr_data.len()+40+self.cipher.block_size()];
+                let mut enc = vec![0; compr_data.len()+44+self.cipher.block_size()];
 
                 enc[0..8].copy_from_slice(comp_magic);
-                enc[8..24].copy_from_slice(&iv);
+                enc[8..12].copy_from_slice(&[0u8; 4]);
+                enc[12..28].copy_from_slice(&iv);
 
-                let count = c.update(&compr_data, &mut enc[40..])?;
-                let rest = c.finalize(&mut enc[(40+count)..])?;
-                enc.truncate(40 + count + rest);
+                let count = c.update(&compr_data, &mut enc[44..])?;
+                let rest = c.finalize(&mut enc[(44+count)..])?;
+                enc.truncate(44 + count + rest);
 
-                c.get_tag(&mut enc[24..40])?;
+                c.get_tag(&mut enc[28..44])?;
 
                 return Ok(enc)
             }
         }
 
-        let mut enc = vec![0; data.len()+40+self.cipher.block_size()];
+        let mut enc = vec![0; data.len()+44+self.cipher.block_size()];
 
         enc[0..8].copy_from_slice(uncomp_magic);
-        enc[8..24].copy_from_slice(&iv);
+        enc[8..12].copy_from_slice(&[0u8; 4]);
+        enc[12..28].copy_from_slice(&iv);
 
-        let count = c.update(data, &mut enc[40..])?;
-        let rest = c.finalize(&mut enc[(40+count)..])?;
-        enc.truncate(40 + count + rest);
+        let count = c.update(data, &mut enc[44..])?;
+        let rest = c.finalize(&mut enc[(44+count)..])?;
+        enc.truncate(44 + count + rest);
 
-        c.get_tag(&mut enc[24..40])?;
+        c.get_tag(&mut enc[28..44])?;
 
         Ok(enc)
     }
@@ -120,13 +122,14 @@ impl CryptConfig {
     /// is not used here.
     pub fn decode_compressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
 
-        if data.len() < 40 {
-            bail!("Invalid chunk len (<40)");
+        if data.len() < 44 {
+            bail!("Invalid chunk len (<44)");
         }
 
         // let magic = &data[0..8];
-        let iv = &data[8..24];
-        let mac = &data[24..40];
+        // let crc = &data[8..12];
+        let iv = &data[12..28];
+        let mac = &data[28..44];
 
         let dec = Vec::with_capacity(1024*1024);
 
@@ -140,7 +143,7 @@ impl CryptConfig {
         let mut decr_buf = [0u8; BUFFER_SIZE];
         let max_decoder_input = BUFFER_SIZE - self.cipher.block_size();
 
-        let mut start = 40;
+        let mut start = 44;
         loop {
             let mut end = start + max_decoder_input;
             if end > data.len() { end = data.len(); }
@@ -168,20 +171,21 @@ impl CryptConfig {
     /// is not used here.
     pub fn decode_uncompressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
 
-        if data.len() < 40 {
-            bail!("Invalid chunk len (<40)");
+        if data.len() < 44 {
+            bail!("Invalid chunk len (<44)");
         }
 
         // let magic = &data[0..8];
-        let iv = &data[8..24];
-        let mac = &data[24..40];
+        // let crc = &data[8..12];
+        let iv = &data[12..28];
+        let mac = &data[28..44];
 
         let decr_data = decrypt_aead(
             self.cipher,
             &self.enc_key,
             Some(iv),
             b"", //??
-            &data[40..],
+            &data[44..],
             mac,
         )?;
 
