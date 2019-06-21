@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use super::format_definition::*;
 use super::binary_search_tree::*;
 use super::helper::*;
+use super::exclude_pattern::*;
 use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;
@@ -116,7 +117,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         if verbose { println!("{:?}", me.full_path()); }
 
-        me.encode_dir(dir, &stat, magic)?;
+        me.encode_dir(dir, &stat, magic, Vec::new())?;
 
         Ok(())
     }
@@ -560,7 +561,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat, magic: i64)  -> Result<(), Error> {
+    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat, magic: i64, match_pattern: Vec<PxarExcludePattern>)  -> Result<(), Error> {
 
         //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
@@ -622,14 +623,19 @@ impl <'a, W: Write> Encoder<'a, W> {
             include_children = (self.root_st_dev == dir_stat.st_dev) || self.all_file_systems;
         }
 
+        // Expand the exclude match pattern inherited from the parent by local entries, if present
+        let mut local_match_pattern = match_pattern.clone();
+        let pxar_exclude = match PxarExcludePattern::from_file(rawfd, ".pxarexclude") {
+            Ok(Some((mut excludes, buffer, stat))) => {
+                local_match_pattern.append(&mut excludes);
+                Some((buffer, stat))
+            },
+            Ok(None) => None,
+            Err(err) => bail!("error while reading exclude file - {}", err),
+        };
+
         if include_children {
             for entry in dir.iter() {
-                dir_count += 1;
-                if dir_count > MAX_DIRECTORY_ENTRIES {
-                    bail!("too many directory items in {:?} (> {})",
-                          self.full_path(), MAX_DIRECTORY_ENTRIES);
-                }
-
                 let entry =  entry.map_err(|err| {
                     format_err!("readir {:?} failed - {}", self.full_path(), err)
                 })?;
@@ -640,29 +646,67 @@ impl <'a, W: Write> Encoder<'a, W> {
                     continue;
                 }
 
-                name_list.push(filename);
+                let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                    Ok(stat) => stat,
+                    Err(nix::Error::Sys(Errno::ENOENT)) => {
+                        let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
+                        self.report_vanished_file(&self.full_path().join(filename_osstr))?;
+                        continue;
+                    },
+                    Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
+                };
+
+                match self.match_exclude_pattern(&filename, &stat, &local_match_pattern) {
+                    (MatchType::Exclude, _) => {
+                        let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
+                        eprintln!("matched by .pxarexclude entry - skipping: {:?}", self.full_path().join(filename_osstr));
+                    },
+                    (_, pattern_list) => name_list.push((filename, stat, pattern_list)),
+                }
+
+                dir_count += 1;
+                if dir_count > MAX_DIRECTORY_ENTRIES {
+                    bail!("too many directory items in {:?} (> {})", self.full_path(), MAX_DIRECTORY_ENTRIES);
+                }
             }
         } else {
             eprintln!("skip mount point: {:?}", self.full_path());
         }
 
-        name_list.sort_unstable_by(|a, b| a.cmp(&b));
+        name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
         let mut goodbye_items = vec![];
 
-        for filename in &name_list {
+        for (filename, stat, exclude_list) in name_list {
+            if filename.as_bytes() == b".pxarexclude" {
+                if let Some((ref content, ref stat)) = pxar_exclude {
+                    let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                        Ok(filefd) => filefd,
+                        Err(nix::Error::Sys(Errno::ENOENT)) => {
+                            self.report_vanished_file(&self.full_path())?;
+                            continue;
+                        },
+                        Err(err) => {
+                            let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
+                            bail!("open file {:?} failed - {}", self.full_path().join(filename_osstr), err);
+                        },
+                    };
+
+                    let child_magic = if dir_stat.st_dev != stat.st_dev {
+                        detect_fs_type(filefd)?
+                    } else {
+                        magic
+                    };
+
+                    self.write_filename(&filename)?;
+                    self.encode_pxar_exclude(filefd, stat, child_magic, content)?;
+                    continue;
+                }
+            }
+
             self.relative_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
             if self.verbose { println!("{:?}", self.full_path()); }
-
-            let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                Ok(stat) => stat,
-                Err(nix::Error::Sys(Errno::ENOENT)) => {
-                    self.report_vanished_file(&self.full_path())?;
-                    continue;
-                }
-                Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
-            };
 
             let start_pos = self.writer_pos;
 
@@ -684,7 +728,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 };
 
                 self.write_filename(&filename)?;
-                self.encode_dir(&mut dir, &stat, child_magic)?;
+                self.encode_dir(&mut dir, &stat, child_magic, exclude_list)?;
 
             } else if is_reg_file(&stat) {
 
@@ -784,6 +828,36 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         //println!("encode_dir: {:?} end1 {}", self.full_path(), self.writer_pos);
         Ok(())
+    }
+
+    // If there is a match, an updated PxarExcludePattern list to pass to the matched child is returned.
+    fn match_exclude_pattern(&mut self, filename: &CStr, stat: &FileStat, match_pattern: &Vec<PxarExcludePattern>) -> (MatchType, Vec<PxarExcludePattern>) {
+        let mut child_pattern = Vec::new();
+        let mut match_type = MatchType::None;
+        let is_dir = is_directory(&stat);
+
+        for pattern in match_pattern {
+            match pattern.matches_filename(filename, is_dir) {
+                MatchType::None => {},
+                MatchType::Exclude => match_type = MatchType::Exclude,
+                MatchType::Include => match_type = MatchType::Include,
+                MatchType::PartialExclude => {
+                    if match_type != MatchType::Include && match_type != MatchType::Exclude {
+                        match_type = MatchType::PartialExclude;
+                    }
+                    child_pattern.push(pattern.get_rest_pattern());
+                },
+                MatchType::PartialInclude => {
+                    if match_type != MatchType::Include && match_type != MatchType::Exclude {
+                        // always include partial matches, as we need to match children to decide
+                        match_type = MatchType::PartialInclude;
+                    }
+                    child_pattern.push(pattern.get_rest_pattern());
+                },
+            }
+        }
+
+        (match_type, child_pattern)
     }
 
     fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64)  -> Result<(), Error> {
@@ -912,6 +986,54 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.write_header(PXAR_FORMAT_HARDLINK, (target.len() as u64) + 8)?;
         self.write_item(offset)?;
         self.write(target)?;
+
+        Ok(())
+    }
+
+    fn encode_pxar_exclude(&mut self, filefd: RawFd, stat: &FileStat, magic: i64, content: &[u8]) -> Result<(), Error> {
+        let mut entry = self.create_entry(&stat)?;
+
+        self.read_chattr(filefd, &mut entry)?;
+        self.read_fat_attr(filefd, magic, &mut entry)?;
+        let (xattrs, fcaps) = self.read_xattrs(filefd, &stat)?;
+        let acl_access = self.read_acl(filefd, &stat, acl::ACL_TYPE_ACCESS)?;
+        let projid = self.read_quota_project_id(filefd, magic, &stat)?;
+
+        self.write_entry(entry)?;
+        for xattr in xattrs {
+            self.write_xattr(xattr)?;
+        }
+        self.write_fcaps(fcaps)?;
+        for user in acl_access.users {
+            self.write_acl_user(user)?;
+        }
+        for group in acl_access.groups {
+            self.write_acl_group(group)?;
+        }
+        if let Some(group_obj) = acl_access.group_obj {
+            self.write_acl_group_obj(group_obj)?;
+        }
+        if let Some(projid) = projid {
+            self.write_quota_project_id(projid)?;
+        }
+
+        let include_payload;
+        if is_virtual_file_system(magic) {
+            include_payload = false;
+        } else {
+            include_payload = (stat.st_dev == self.root_st_dev) || self.all_file_systems;
+        }
+
+        if !include_payload {
+            eprintln!("skip content: {:?}", self.full_path());
+            self.write_header(CA_FORMAT_PAYLOAD, 0)?;
+            return Ok(());
+        }
+
+        let size = content.len();
+        self.write_header(CA_FORMAT_PAYLOAD, size as u64)?;
+        self.writer.write_all(content)?;
+        self.writer_pos += size;
 
         Ok(())
     }

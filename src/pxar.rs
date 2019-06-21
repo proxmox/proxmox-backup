@@ -62,4 +62,7 @@ pub use sequential_decoder::*;
 mod decoder;
 pub use decoder::*;
 
+mod exclude_pattern;
+pub use exclude_pattern::*;
+
 mod helper;
