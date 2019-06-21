@@ -853,6 +853,33 @@ fn key_create(
     }
 }
 
+fn key_import_master_pubkey(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let path = tools::required_string_param(&param, "path")?;
+    let path = PathBuf::from(path);
+
+    let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
+
+    if let Err(err) = openssl::pkey::PKey::public_key_from_pem(&pem_data) {
+        bail!("Unable to decode PEM data - {}", err);
+    }
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    // usually $HOME/.config/proxmox-backup/master-public.pem
+    let target_path = base.place_config_file("master-public.pem")?;
+
+    proxmox_backup::tools::file_set_contents(&target_path, &pem_data, None)?;
+
+    println!("Imported public master key to {:?}", target_path);
+
+    Ok(Value::Null)
+}
+
 fn key_create_master_key(
     _param: Value,
     _info: &ApiMethod,
@@ -981,9 +1008,19 @@ fn key_mgmt_cli() -> CliCommandMap {
             ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.")
         ));
 
+    let key_import_master_pubkey_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            key_import_master_pubkey,
+            ObjectSchema::new("Import a new RSA public key and use it as master key. The key is expected to be in '.pem' format.")
+                .required("path", StringSchema::new("File system path."))
+        ))
+        .arg_param(vec!["path"])
+        .completion_cb("path", tools::complete_file_name);
+
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), key_create_cmd_def.into())
         .insert("create-master-key".to_owned(), key_create_master_key_cmd_def.into())
+        .insert("import-master-pubkey".to_owned(), key_import_master_pubkey_cmd_def.into())
         .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into());
 
     cmd_def
