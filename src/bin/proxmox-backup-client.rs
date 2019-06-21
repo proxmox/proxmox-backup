@@ -833,7 +833,7 @@ fn key_create(
         let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
 
         let key_config = encrypt_key_with_passphrase(&key, &password)?;
-        
+
         store_key_config(&path, false, key_config)?;
 
         Ok(Value::Null)
@@ -853,6 +853,45 @@ fn key_create(
     }
 }
 
+fn key_create_master_key(
+    _param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    // we need a TTY to query the new password
+    if !crate::tools::tty::stdin_isatty() {
+        bail!("unable to create master key - no tty");
+    }
+
+    let rsa = openssl::rsa::Rsa::generate(4096)?;
+    let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
+
+    let new_pw = String::from_utf8(crate::tools::tty::read_password("Master Key Password: ")?)?;
+    let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+
+    if new_pw != verify_pw {
+        bail!("Password verification fail!");
+    }
+
+    if new_pw.len() < 5 {
+        bail!("Password is too short!");
+    }
+
+    let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
+    let filename_pub = "master-public.pem";
+    println!("Writing public master key to {}", filename_pub);
+    proxmox_backup::tools::file_set_contents(filename_pub, pub_key.as_slice(), None)?;
+
+    let cipher = openssl::symm::Cipher::aes_256_cbc();
+    let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, new_pw.as_bytes())?;
+
+    let filename_priv = "master-private.pem";
+    println!("Writing private master key to {}", filename_priv);
+    proxmox_backup::tools::file_set_contents(filename_priv, priv_key.as_slice(), None)?;
+
+    Ok(Value::Null)
+}
 
 fn key_change_passphrase(
     param: Value,
@@ -916,7 +955,6 @@ fn key_mgmt_cli() -> CliCommandMap {
             .into()
     );
 
-    // fixme: change-passphrase, import, export, list
     let key_create_cmd_def = CliCommand::new(
         ApiMethod::new(
             key_create,
@@ -937,8 +975,15 @@ fn key_mgmt_cli() -> CliCommandMap {
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
+    let key_create_master_key_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            key_create_master_key,
+            ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.")
+        ));
+
     let cmd_def = CliCommandMap::new()
         .insert("create".to_owned(), key_create_cmd_def.into())
+        .insert("create-master-key".to_owned(), key_create_master_key_cmd_def.into())
         .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into());
 
     cmd_def
