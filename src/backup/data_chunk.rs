@@ -66,7 +66,12 @@ impl DataChunk {
 
         if let Some(config) = config {
 
-            let enc_data = config.encode_chunk(data, compress)?;
+            let enc_data = config.encode_chunk(
+                data,
+                compress,
+                &ENCRYPTED_CHUNK_MAGIC_1_0,
+                &ENCR_COMPR_CHUNK_MAGIC_1_0,
+            )?;
             let chunk = DataChunk { digest, raw_data: enc_data };
 
             Ok(chunk)
@@ -108,8 +113,11 @@ impl DataChunk {
 
         } else if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 || magic == &ENCRYPTED_CHUNK_MAGIC_1_0 {
             if let Some(config) = config  {
-                let data = config.decode_chunk(&self.raw_data)?;
-
+                let data = if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 {
+                    config.decode_compressed_chunk(&self.raw_data)?
+                } else {
+                    config.decode_uncompressed_chunk(&self.raw_data)?
+                };
                 return Ok(data);
             } else {
                 bail!("unable to decrypt chunk - missing CryptConfig");

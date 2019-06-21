@@ -64,7 +64,18 @@ impl CryptConfig {
     /// Compress and encrypt data using a random 16 byte IV.
     ///
     /// Return the encrypted data, including IV and MAC (MAGIC || IV || MAC || ENC_DATA).
-    pub fn encode_chunk(&self, data: &[u8], compress: bool) -> Result<Vec<u8>, Error> {
+    /// If compression does not help, we return the uncompresssed, encrypted data.
+    pub fn encode_chunk(
+        &self,
+        // The data you want to encode
+        data: &[u8],
+        // Whether try to compress data before encryption
+        compress: bool,
+        // Magic number used for uncompressed results
+        uncomp_magic: &[u8; 8],
+        // Magic number used for compressed results
+        comp_magic: &[u8; 8],
+    ) -> Result<Vec<u8>, Error> {
 
         let iv = proxmox::sys::linux::random_data(16)?;
         let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
@@ -76,7 +87,7 @@ impl CryptConfig {
             if compr_data.len() < data.len() {
                 let mut enc = vec![0; compr_data.len()+40+self.cipher.block_size()];
 
-                enc[0..8].copy_from_slice(&super::ENCR_COMPR_CHUNK_MAGIC_1_0);
+                enc[0..8].copy_from_slice(comp_magic);
                 enc[8..24].copy_from_slice(&iv);
 
                 let count = c.update(&compr_data, &mut enc[40..])?;
@@ -91,7 +102,7 @@ impl CryptConfig {
 
         let mut enc = vec![0; data.len()+40+self.cipher.block_size()];
 
-        enc[0..8].copy_from_slice(&super::ENCRYPTED_CHUNK_MAGIC_1_0);
+        enc[0..8].copy_from_slice(uncomp_magic);
         enc[8..24].copy_from_slice(&iv);
 
         let count = c.update(data, &mut enc[40..])?;
@@ -105,64 +116,75 @@ impl CryptConfig {
 
     /// Decompress and decrypt chunk, verify MAC.
     ///
-    /// Binrary ``data`` is expected to be in format returned by encode_chunk.
-    pub fn decode_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
+    /// Binrary ``data`` is expected to be in format returned by encode_chunk. The magic number
+    /// is not used here.
+    pub fn decode_compressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
 
         if data.len() < 40 {
             bail!("Invalid chunk len (<40)");
         }
 
-        let magic = &data[0..8];
+        // let magic = &data[0..8];
         let iv = &data[8..24];
         let mac = &data[24..40];
 
-        if magic == super::ENCR_COMPR_CHUNK_MAGIC_1_0 {
+        let dec = Vec::with_capacity(1024*1024);
 
-            let dec = Vec::with_capacity(1024*1024);
+        let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
 
-            let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
+        let mut c = Crypter::new(self.cipher, Mode::Decrypt, &self.enc_key, Some(iv))?;
+        c.aad_update(b"")?; //??
 
-            let mut c = Crypter::new(self.cipher, Mode::Decrypt, &self.enc_key, Some(iv))?;
-            c.aad_update(b"")?; //??
+        const BUFFER_SIZE: usize = 32*1024;
 
-            const BUFFER_SIZE: usize = 32*1024;
+        let mut decr_buf = [0u8; BUFFER_SIZE];
+        let max_decoder_input = BUFFER_SIZE - self.cipher.block_size();
 
-            let mut decr_buf = [0u8; BUFFER_SIZE];
-            let max_decoder_input = BUFFER_SIZE - self.cipher.block_size();
-
-            let mut start = 40;
-            loop {
-                let mut end = start + max_decoder_input;
-                if end > data.len() { end = data.len(); }
-                if end > start {
-                    let count = c.update(&data[start..end], &mut decr_buf)?;
-                    decompressor.write_all(&decr_buf[0..count])?;
-                    start = end;
-                } else {
-                    break;
-                }
+        let mut start = 40;
+        loop {
+            let mut end = start + max_decoder_input;
+            if end > data.len() { end = data.len(); }
+            if end > start {
+                let count = c.update(&data[start..end], &mut decr_buf)?;
+                decompressor.write_all(&decr_buf[0..count])?;
+                start = end;
+            } else {
+                break;
             }
-
-            c.set_tag(mac)?;
-            let rest = c.finalize(&mut decr_buf)?;
-            if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
-
-            decompressor.flush()?;
-
-            return Ok(decompressor.into_inner());
-
-        } else if magic == super::ENCRYPTED_CHUNK_MAGIC_1_0 {
-            let decr_data = decrypt_aead(
-                self.cipher,
-                &self.enc_key,
-                Some(iv),
-                b"", //??
-                &data[40..],
-                mac,
-            )?;
-            return Ok(decr_data);
-        } else {
-            bail!("Invalid magic number (expected encrypted chunk).");
         }
+
+        c.set_tag(mac)?;
+        let rest = c.finalize(&mut decr_buf)?;
+        if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
+
+        decompressor.flush()?;
+
+        Ok(decompressor.into_inner())
+    }
+
+    /// Decrypt chunk, verify MAC.
+    ///
+    /// Binrary ``data`` is expected to be in format returned by encode_chunk. The magic number
+    /// is not used here.
+    pub fn decode_uncompressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
+
+        if data.len() < 40 {
+            bail!("Invalid chunk len (<40)");
+        }
+
+        // let magic = &data[0..8];
+        let iv = &data[8..24];
+        let mac = &data[24..40];
+
+        let decr_data = decrypt_aead(
+            self.cipher,
+            &self.enc_key,
+            Some(iv),
+            b"", //??
+            &data[40..],
+            mac,
+        )?;
+
+        Ok(decr_data)
     }
 }
