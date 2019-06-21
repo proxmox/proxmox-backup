@@ -121,6 +121,18 @@ pub static COMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [191, 237, 46, 195, 108, 17, 22
 // openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted chunk v1.0")[0..8]
 pub static ENCR_COMPR_CHUNK_MAGIC_1_0: [u8; 8] = [9, 40, 53, 200, 37, 150, 90, 196];
 
+// openssl::sha::sha256(b"Proxmox Backup uncompressed blob v1.0")[0..8]
+pub static UNCOMPRESSED_BLOB_MAGIC_1_0: [u8; 8] = [66, 171, 56, 7, 190, 131, 112, 161];
+
+//openssl::sha::sha256(b"Proxmox Backup zstd compressed blob v1.0")[0..8]
+pub static COMPRESSED_BLOB_MAGIC_1_0: [u8; 8] = [49, 185, 88, 66, 111, 182, 163, 127];
+
+// openssl::sha::sha256(b"Proxmox Backup encrypted blob v1.0")[0..8]
+pub static ENCRYPTED_BLOB_MAGIC_1_0: [u8; 8] = [123, 103, 133, 190, 34, 45, 76, 240];
+
+// openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted blob v1.0")[0..8]
+pub static ENCR_COMPR_BLOB_MAGIC_1_0: [u8; 8] = [230, 89, 27, 191, 11, 191, 216, 11];
+
 // openssl::sha::sha256(b"Proxmox Backup fixed sized chunk index v1.0")[0..8]
 pub static FIXED_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [47, 127, 65, 237, 145, 253, 15, 205];
 
@@ -135,6 +147,9 @@ pub use key_derivation::*;
 
 mod data_chunk;
 pub use data_chunk::*;
+
+mod data_blob;
+pub use data_blob::*;
 
 mod chunk_stream;
 pub use chunk_stream::*;
