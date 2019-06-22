@@ -77,13 +77,38 @@ impl DataBlob {
 
         if let Some(config) = config {
 
-            let enc_data = config.encode_chunk(
-                data,
-                compress,
-                &ENCRYPTED_BLOB_MAGIC_1_0,
-                &ENCR_COMPR_BLOB_MAGIC_1_0,
-            )?;
-            return Ok(DataBlob { raw_data: enc_data });
+            let compr_data;
+            let (_compress, data, magic) = if compress {
+                compr_data = zstd::block::compress(data, 1)?;
+                // Note: We only use compression if result is shorter
+                if compr_data.len() < data.len() {
+                    (true, &compr_data[..], ENCR_COMPR_BLOB_MAGIC_1_0)
+                } else {
+                    (false, data, ENCRYPTED_BLOB_MAGIC_1_0)
+                }
+            } else {
+                (false, data, ENCRYPTED_BLOB_MAGIC_1_0)
+            };
+
+            let header_len = std::mem::size_of::<EncryptedDataBlobHeader>();
+            let mut raw_data = Vec::with_capacity(data.len() + header_len);
+
+            let dummy_head = EncryptedDataBlobHeader {
+                head: DataBlobHeader { magic: [0u8; 8], crc: [0; 4] },
+                iv: [0u8; 16],
+                tag: [0u8; 16],
+            };
+            raw_data.write_value(&dummy_head)?;
+
+            let (iv, tag) = config.encrypt_to(data, &mut raw_data)?;
+
+            let head = EncryptedDataBlobHeader {
+                head: DataBlobHeader { magic, crc: [0; 4] }, iv, tag,
+            };
+
+            (&mut raw_data[0..header_len]).write_value(&head)?;
+
+            return Ok(DataBlob { raw_data });
         } else {
 
             let max_data_len = data.len() + std::mem::size_of::<DataBlobHeader>();

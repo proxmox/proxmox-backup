@@ -84,15 +84,38 @@ impl DataChunk {
 
         if let Some(config) = config {
 
-            let enc_data = config.encode_chunk(
-                data,
-                compress,
-                &ENCRYPTED_CHUNK_MAGIC_1_0,
-                &ENCR_COMPR_CHUNK_MAGIC_1_0,
-            )?;
-            let chunk = DataChunk { digest, raw_data: enc_data };
+            let compr_data;
+            let (_compress, data, magic) = if compress {
+                compr_data = zstd::block::compress(data, 1)?;
+                // Note: We only use compression if result is shorter
+                if compr_data.len() < data.len() {
+                    (true, &compr_data[..], ENCR_COMPR_CHUNK_MAGIC_1_0)
+                } else {
+                    (false, data, ENCRYPTED_CHUNK_MAGIC_1_0)
+                }
+            } else {
+                (false, data, ENCRYPTED_CHUNK_MAGIC_1_0)
+            };
 
-            Ok(chunk)
+            let header_len = std::mem::size_of::<EncryptedDataChunkHeader>();
+            let mut raw_data = Vec::with_capacity(data.len() + header_len);
+
+            let dummy_head = EncryptedDataChunkHeader {
+                head: DataChunkHeader { magic: [0u8; 8], crc: [0; 4] },
+                iv: [0u8; 16],
+                tag: [0u8; 16],
+            };
+            raw_data.write_value(&dummy_head)?;
+
+            let (iv, tag) = config.encrypt_to(data, &mut raw_data)?;
+
+            let head = EncryptedDataChunkHeader {
+                head: DataChunkHeader { magic, crc: [0; 4] }, iv, tag,
+            };
+
+            (&mut raw_data[0..header_len]).write_value(&head)?;
+
+            return Ok(DataChunk { digest, raw_data });
         } else {
 
             let max_data_len = data.len() + std::mem::size_of::<DataChunkHeader>();

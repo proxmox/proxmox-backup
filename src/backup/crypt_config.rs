@@ -106,61 +106,6 @@ impl CryptConfig {
         Ok((iv, tag))
     }
 
-    /// Compress and encrypt data using a random 16 byte IV.
-    ///
-    /// Return the encrypted data, including IV and MAC (MAGIC || IV || MAC || ENC_DATA).
-    /// If compression does not help, we return the uncompresssed, encrypted data.
-    pub fn encode_chunk(
-        &self,
-        // The data you want to encode
-        data: &[u8],
-        // Whether try to compress data before encryption
-        compress: bool,
-        // Magic number used for uncompressed results
-        uncomp_magic: &[u8; 8],
-        // Magic number used for compressed results
-        comp_magic: &[u8; 8],
-    ) -> Result<Vec<u8>, Error> {
-
-        let iv = proxmox::sys::linux::random_data(16)?;
-        let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
-        c.aad_update(b"")?; //??
-
-        if compress {
-            let compr_data = zstd::block::compress(data, 1)?;
-            // Note: We only use compression if result is shorter
-            if compr_data.len() < data.len() {
-                let mut enc = vec![0; compr_data.len()+44+self.cipher.block_size()];
-
-                enc[0..8].copy_from_slice(comp_magic);
-                enc[8..12].copy_from_slice(&[0u8; 4]);
-                enc[12..28].copy_from_slice(&iv);
-
-                let count = c.update(&compr_data, &mut enc[44..])?;
-                let rest = c.finalize(&mut enc[(44+count)..])?;
-                enc.truncate(44 + count + rest);
-
-                c.get_tag(&mut enc[28..44])?;
-
-                return Ok(enc)
-            }
-        }
-
-        let mut enc = vec![0; data.len()+44+self.cipher.block_size()];
-
-        enc[0..8].copy_from_slice(uncomp_magic);
-        enc[8..12].copy_from_slice(&[0u8; 4]);
-        enc[12..28].copy_from_slice(&iv);
-
-        let count = c.update(data, &mut enc[44..])?;
-        let rest = c.finalize(&mut enc[(44+count)..])?;
-        enc.truncate(44 + count + rest);
-
-        c.get_tag(&mut enc[28..44])?;
-
-        Ok(enc)
-    }
-
     /// Decompress and decrypt chunk, verify MAC.
     ///
     /// Binrary ``data`` is expected to be in format returned by encode_chunk. The magic number
