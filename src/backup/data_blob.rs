@@ -1,7 +1,7 @@
 use failure::*;
 use std::convert::TryInto;
-use std::io::Write;
 
+use crate::tools::write::*;
 use super::*;
 
 /// Data blob binary storage format
@@ -28,6 +28,7 @@ use super::*;
 ///
 /// This is basically the same format we use for ``DataChunk``, but
 /// with other magic numbers so that we can distinguish them.
+
 pub struct DataBlob {
     raw_data: Vec<u8>, // tagged, compressed, encryped data
 }
@@ -46,18 +47,21 @@ impl DataBlob {
 
     /// accessor to crc32 checksum
     pub fn crc(&self) -> u32 {
-        u32::from_le_bytes(self.raw_data[8..12].try_into().unwrap())
+        let crc_o = proxmox::tools::offsetof!(DataBlobHeader, crc);
+        u32::from_le_bytes(self.raw_data[crc_o..crc_o+4].try_into().unwrap())
     }
 
     // set the CRC checksum field
     pub fn set_crc(&mut self, crc: u32) {
-        self.raw_data[8..12].copy_from_slice(&crc.to_le_bytes());
+        let crc_o = proxmox::tools::offsetof!(DataBlobHeader, crc);
+        self.raw_data[crc_o..crc_o+4].copy_from_slice(&crc.to_le_bytes());
     }
 
     /// compute the CRC32 checksum
     pub fn compute_crc(&mut self) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
-        hasher.update(&self.raw_data[12..]);
+        let start = std::mem::size_of::<DataBlobHeader>(); // start after HEAD
+        hasher.update(&self.raw_data[start..]);
         hasher.finalize()
     }
 
@@ -82,23 +86,30 @@ impl DataBlob {
             return Ok(DataBlob { raw_data: enc_data });
         } else {
 
+            let max_data_len = data.len() + std::mem::size_of::<DataBlobHeader>();
             if compress {
-                let mut comp_data = Vec::with_capacity(data.len() + 8 + 4);
+                let mut comp_data = Vec::with_capacity(max_data_len);
 
-                comp_data.write_all(&COMPRESSED_BLOB_MAGIC_1_0)?;
-                comp_data.write_all(&[0u8, 4])?; // CRC set to 0
+                let head =  DataBlobHeader {
+                    magic: COMPRESSED_BLOB_MAGIC_1_0,
+                    crc: [0; 4],
+                };
+                comp_data.write_value(&head)?;
 
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
-                if comp_data.len() < (data.len() + 8 + 4) {
+                if comp_data.len() < max_data_len {
                     return Ok(DataBlob { raw_data: comp_data });
                 }
             }
 
-            let mut raw_data = Vec::with_capacity(data.len() + 8 + 4);
+            let mut raw_data = Vec::with_capacity(max_data_len);
 
-            raw_data.write_all(&UNCOMPRESSED_BLOB_MAGIC_1_0)?;
-            raw_data.write_all(&[0u8; 4])?;
+            let head =  DataBlobHeader {
+                magic: UNCOMPRESSED_BLOB_MAGIC_1_0,
+                crc: [0; 4],
+            };
+            raw_data.write_value(&head)?;
             raw_data.extend_from_slice(data);
 
             return Ok(DataBlob { raw_data });
@@ -111,12 +122,12 @@ impl DataBlob {
         let magic = self.magic();
 
         if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
-            return Ok(self.raw_data[12..].to_vec());
+            let data_start = std::mem::size_of::<DataBlobHeader>();
+            return Ok(self.raw_data[data_start..].to_vec());
         } else if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
-
-            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
+            let data_start = std::mem::size_of::<DataBlobHeader>();
+            let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
             return Ok(data);
-
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             if let Some(config) = config  {
                 let data = if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 {

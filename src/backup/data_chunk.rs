@@ -1,6 +1,6 @@
 use failure::*;
 use std::convert::TryInto;
-use std::io::Write;
+use crate::tools::write::*;
 
 use super::*;
 
@@ -57,22 +57,25 @@ impl DataChunk {
 
         /// accessor to crc32 checksum
     pub fn crc(&self) -> u32 {
-        u32::from_le_bytes(self.raw_data[8..12].try_into().unwrap())
+        let crc_o = proxmox::tools::offsetof!(DataChunkHeader, crc);
+        u32::from_le_bytes(self.raw_data[crc_o..crc_o+4].try_into().unwrap())
     }
 
     // set the CRC checksum field
     pub fn set_crc(&mut self, crc: u32) {
-        self.raw_data[8..12].copy_from_slice(&crc.to_le_bytes());
+        let crc_o = proxmox::tools::offsetof!(DataChunkHeader, crc);
+        self.raw_data[crc_o..crc_o+4].copy_from_slice(&crc.to_le_bytes());
     }
 
     /// compute the CRC32 checksum
     pub fn compute_crc(&mut self) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
-        hasher.update(&self.raw_data[12..]);
+        let start = std::mem::size_of::<DataChunkHeader>(); // start after HEAD
+        hasher.update(&self.raw_data[start..]);
         hasher.finalize()
     }
 
-    fn new(
+    fn encode(
         data: &[u8],
         config: Option<&CryptConfig>,
         digest: [u8;32],
@@ -92,23 +95,31 @@ impl DataChunk {
             Ok(chunk)
         } else {
 
+            let max_data_len = data.len() + std::mem::size_of::<DataChunkHeader>();
             if compress {
-                let mut comp_data = Vec::with_capacity(data.len() + 8 + 4);
+                let mut comp_data = Vec::with_capacity(max_data_len);
 
-                comp_data.write_all(&COMPRESSED_CHUNK_MAGIC_1_0)?;
-                comp_data.write_all(&[0u8, 4])?; // CRC set to 0
+                let head =  DataChunkHeader {
+                    magic: COMPRESSED_CHUNK_MAGIC_1_0,
+                    crc: [0; 4],
+                };
+                comp_data.write_value(&head)?;
+
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
-                if comp_data.len() < (data.len() + 8 + 4) {
+                if comp_data.len() < max_data_len {
                     let chunk = DataChunk { digest, raw_data: comp_data };
                     return Ok(chunk);
                 }
             }
 
-            let mut raw_data = Vec::with_capacity(data.len() + 8 + 4);
+            let mut raw_data = Vec::with_capacity(max_data_len);
 
-            raw_data.write_all(&UNCOMPRESSED_CHUNK_MAGIC_1_0)?;
-            raw_data.write_all(&[0u8, 4])?; // CRC set to 0
+            let head =  DataChunkHeader {
+                magic: UNCOMPRESSED_CHUNK_MAGIC_1_0,
+                crc: [0; 4],
+            };
+            raw_data.write_value(&head)?;
             raw_data.extend_from_slice(data);
 
             let chunk = DataChunk { digest, raw_data };
@@ -122,12 +133,12 @@ impl DataChunk {
         let magic = self.magic();
 
         if magic == &UNCOMPRESSED_CHUNK_MAGIC_1_0 {
-            return Ok(self.raw_data[12..].to_vec());
+            let data_start = std::mem::size_of::<DataChunkHeader>();
+            return Ok(self.raw_data[data_start..].to_vec());
         } else if magic == &COMPRESSED_CHUNK_MAGIC_1_0 {
-
-            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
+            let data_start = std::mem::size_of::<DataChunkHeader>();
+            let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
             return Ok(data);
-
         } else if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 || magic == &ENCRYPTED_CHUNK_MAGIC_1_0 {
             if let Some(config) = config  {
                 let data = if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 {
@@ -160,7 +171,7 @@ impl DataChunk {
     /// Create Instance from raw data
     pub fn from_raw(data: Vec<u8>, digest: [u8;32]) -> Result<Self, Error> {
 
-        if data.len() < 12 {
+        if data.len() < std::mem::size_of::<DataChunkHeader>() {
             bail!("chunk too small ({} bytes).", data.len());
         }
 
@@ -168,7 +179,7 @@ impl DataChunk {
 
         if magic == ENCR_COMPR_CHUNK_MAGIC_1_0 || magic == ENCRYPTED_CHUNK_MAGIC_1_0 {
 
-            if data.len() < 44 {
+            if data.len() < std::mem::size_of::<EncryptedDataChunkHeader>() {
                 bail!("encrypted chunk too small ({} bytes).", data.len());
             }
 
@@ -191,7 +202,7 @@ impl DataChunk {
     /// this is noth possible for encrypted chunks.
     pub fn verify_unencrypted(&self, expected_chunk_size: usize) -> Result<(), Error> {
 
-        let magic = &self.raw_data[0..8];
+        let magic = self.magic();
 
         let verify_raw_data = |data: &[u8]| {
             if expected_chunk_size != data.len() {
@@ -204,10 +215,10 @@ impl DataChunk {
             Ok(())
         };
 
-        if magic == COMPRESSED_CHUNK_MAGIC_1_0 {
+        if magic == &COMPRESSED_CHUNK_MAGIC_1_0 {
            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
            verify_raw_data(&data)?;
-        } else if magic == UNCOMPRESSED_CHUNK_MAGIC_1_0 {
+        } else if magic == &UNCOMPRESSED_CHUNK_MAGIC_1_0 {
             verify_raw_data(&self.raw_data[12..])?;
         }
 
@@ -288,7 +299,12 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
             self.compute_digest();
         }
 
-        let chunk = DataChunk::new(self.orig_data, self.config, self.digest, self.compress)?;
+        let chunk = DataChunk::encode(
+            self.orig_data,
+            self.config,
+            self.digest,
+            self.compress,
+        )?;
 
         Ok(chunk)
     }
