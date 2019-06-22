@@ -106,20 +106,13 @@ impl CryptConfig {
         Ok((iv, tag))
     }
 
-    /// Decompress and decrypt chunk, verify MAC.
-    ///
-    /// Binrary ``data`` is expected to be in format returned by encode_chunk. The magic number
-    /// is not used here.
-    pub fn decode_compressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
-
-        if data.len() < 44 {
-            bail!("Invalid chunk len (<44)");
-        }
-
-        // let magic = &data[0..8];
-        // let crc = &data[8..12];
-        let iv = &data[12..28];
-        let mac = &data[28..44];
+    /// Decompress and decrypt date, verify MAC.
+    pub fn decode_compressed_chunk(
+        &self,
+        data: &[u8],
+        iv: &[u8; 16],
+        tag: &[u8; 16],
+    ) -> Result<Vec<u8>, Error> {
 
         let dec = Vec::with_capacity(1024*1024);
 
@@ -133,7 +126,7 @@ impl CryptConfig {
         let mut decr_buf = [0u8; BUFFER_SIZE];
         let max_decoder_input = BUFFER_SIZE - self.cipher.block_size();
 
-        let mut start = 44;
+        let mut start = 0;
         loop {
             let mut end = start + max_decoder_input;
             if end > data.len() { end = data.len(); }
@@ -146,7 +139,7 @@ impl CryptConfig {
             }
         }
 
-        c.set_tag(mac)?;
+        c.set_tag(tag)?;
         let rest = c.finalize(&mut decr_buf)?;
         if rest > 0 { decompressor.write_all(&decr_buf[..rest])?; }
 
@@ -155,28 +148,21 @@ impl CryptConfig {
         Ok(decompressor.into_inner())
     }
 
-    /// Decrypt chunk, verify MAC.
-    ///
-    /// Binrary ``data`` is expected to be in format returned by encode_chunk. The magic number
-    /// is not used here.
-    pub fn decode_uncompressed_chunk(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
-
-        if data.len() < 44 {
-            bail!("Invalid chunk len (<44)");
-        }
-
-        // let magic = &data[0..8];
-        // let crc = &data[8..12];
-        let iv = &data[12..28];
-        let mac = &data[28..44];
+    /// Decrypt data, verify tag.
+    pub fn decode_uncompressed_chunk(
+        &self,
+        data: &[u8],
+        iv: &[u8; 16],
+        tag: &[u8; 16],
+    ) -> Result<Vec<u8>, Error> {
 
         let decr_data = decrypt_aead(
             self.cipher,
             &self.enc_key,
             Some(iv),
             b"", //??
-            &data[44..],
-            mac,
+            data,
+            tag,
         )?;
 
         Ok(decr_data)

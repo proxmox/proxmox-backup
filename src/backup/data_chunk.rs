@@ -1,6 +1,7 @@
 use failure::*;
 use std::convert::TryInto;
-use crate::tools::write::*;
+use crate::tools::read::ReadUtilOps;
+use crate::tools::write::WriteUtilOps;
 
 use super::*;
 
@@ -163,11 +164,14 @@ impl DataChunk {
             let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
             return Ok(data);
         } else if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 || magic == &ENCRYPTED_CHUNK_MAGIC_1_0 {
+            let header_len = std::mem::size_of::<EncryptedDataChunkHeader>();
+            let head = (&self.raw_data[..header_len]).read_value::<EncryptedDataChunkHeader>()?;
+
             if let Some(config) = config  {
                 let data = if magic == &ENCR_COMPR_CHUNK_MAGIC_1_0 {
-                    config.decode_compressed_chunk(&self.raw_data)?
+                    config.decode_compressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
                 } else {
-                    config.decode_uncompressed_chunk(&self.raw_data)?
+                    config.decode_uncompressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
                 };
                 return Ok(data);
             } else {
