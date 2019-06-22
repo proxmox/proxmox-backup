@@ -1,3 +1,5 @@
+use endian_trait::Endian;
+
 // WARNING: PLEASE DO NOT MODIFY THOSE MAGIC VALUES
 
 // openssl::sha::sha256(b"Proxmox Backup uncompressed chunk v1.0")[0..8]
@@ -44,6 +46,7 @@ pub static DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 
 ///
 /// This is basically the same format we use for chunks, but
 /// with other magic numbers so that we can distinguish them.
+#[derive(Endian)]
 #[repr(C,packed)]
 pub struct DataBlobHeader {
     pub magic: [u8; 8],
@@ -57,6 +60,7 @@ pub struct DataBlobHeader {
 /// tag, followed by the encrypted data:
 ///
 /// (MAGIC || CRC32 || IV || TAG || EncryptedData).
+#[derive(Endian)]
 #[repr(C,packed)]
 pub struct EncryptedDataBlobHeader {
     pub head: DataBlobHeader,
@@ -75,6 +79,7 @@ pub struct EncryptedDataBlobHeader {
 /// (compressed) data.
 ///
 /// (MAGIC || CRC32 || Data)
+#[derive(Endian)]
 #[repr(C,packed)]
 pub struct DataChunkHeader {
     pub magic: [u8; 8],
@@ -88,6 +93,7 @@ pub struct DataChunkHeader {
 /// tag, followed by the encrypted data:
 ///
 /// (MAGIC || CRC32 || IV || TAG || EncryptedData).
+#[derive(Endian)]
 #[repr(C,packed)]
 pub struct EncryptedDataChunkHeader {
     pub head: DataChunkHeader,

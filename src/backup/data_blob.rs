@@ -1,7 +1,7 @@
 use failure::*;
 use std::convert::TryInto;
 
-use crate::tools::read::ReadUtilOps;
+use proxmox::tools::io::ops::ReadExtOps;
 use crate::tools::write::WriteUtilOps;
 
 use super::*;
@@ -139,7 +139,9 @@ impl DataBlob {
             return Ok(data);
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             let header_len = std::mem::size_of::<EncryptedDataBlobHeader>();
-            let head = (&self.raw_data[..header_len]).read_value::<EncryptedDataBlobHeader>()?;
+            let head = unsafe {
+                (&self.raw_data[..header_len]).read_le_value::<EncryptedDataBlobHeader>()?
+            };
 
             if let Some(config) = config  {
                 let data = if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 {
