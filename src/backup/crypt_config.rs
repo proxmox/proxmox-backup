@@ -61,6 +61,51 @@ impl CryptConfig {
         digest
     }
 
+    /// Encrypt data using a random 16 byte IV.
+    ///
+    /// Writes encrypted data to ``output``, Return the used IV and computed MAC.
+    pub fn encrypt_to<W: Write>(
+        &self,
+        data: &[u8],
+        mut output: W,
+    ) -> Result<([u8;16], [u8;16]), Error> {
+
+        let mut iv = [0u8; 16];
+        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+
+        let mut tag = [0u8; 16];
+
+        let mut c = Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(&iv))?;
+        c.aad_update(b"")?; //??
+
+        const BUFFER_SIZE: usize = 32*1024;
+
+        let mut encr_buf = [0u8; BUFFER_SIZE];
+        let max_encoder_input = BUFFER_SIZE - self.cipher.block_size();
+
+        let mut start = 0;
+        loop {
+            let mut end = start + max_encoder_input;
+            if end > data.len() { end = data.len(); }
+            if end > start {
+                let count = c.update(&data[start..end], &mut encr_buf)?;
+                output.write_all(&encr_buf[..count])?;
+                start = end;
+            } else {
+                break;
+            }
+        }
+
+        let rest = c.finalize(&mut encr_buf)?;
+        if rest > 0 { output.write_all(&encr_buf[..rest])?; }
+
+        output.flush()?;
+
+        c.get_tag(&mut tag)?;
+
+        Ok((iv, tag))
+    }
+
     /// Compress and encrypt data using a random 16 byte IV.
     ///
     /// Return the encrypted data, including IV and MAC (MAGIC || IV || MAC || ENC_DATA).
