@@ -30,12 +30,33 @@ pub static FIXED_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [47, 127, 65, 237, 145, 253, 1
 // openssl::sha::sha256(b"Proxmox Backup dynamic sized chunk index v1.0")[0..8]
 pub static DYNAMIC_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [28, 145, 78, 165, 25, 186, 179, 205];
 
+/// Data blob binary storage format
+///
+/// The format start with a 8 byte magic number to identify the type,
+/// followed by a 4 byte CRC. This CRC is used on the server side to
+/// detect file corruption (computed when upload data), so there is
+/// usually no need to compute it on the client side.
+///
+/// Unencrypted blobs simply contain the CRC, followed by the
+/// (compressed) data.
+///
+/// (MAGIC || CRC32 || Data)
+///
+/// This is basically the same format we use for chunks, but
+/// with other magic numbers so that we can distinguish them.
 #[repr(C,packed)]
 pub struct DataBlobHeader {
     pub magic: [u8; 8],
     pub crc: [u8; 4],
 }
 
+/// Encrypted data blob binary storage format
+///
+/// The ``DataBlobHeader`` for encrypted blobs additionally contains
+/// a 16 byte IV, followed by a 16 byte Authenticated Encyrypten (AE)
+/// tag, followed by the encrypted data:
+///
+/// (MAGIC || CRC32 || IV || TAG || EncryptedData).
 #[repr(C,packed)]
 pub struct EncryptedDataBlobHeader {
     pub head: DataBlobHeader,
@@ -43,12 +64,30 @@ pub struct EncryptedDataBlobHeader {
     pub tag: [u8; 16],
 }
 
+/// Data chunk binary storage format
+///
+/// The format start with a 8 byte magic number to identify the type,
+/// followed by a 4 byte CRC. This CRC is used on the server side to
+/// detect file corruption (computed when upload data), so there is
+/// usually no need to compute it on the client side.
+///
+/// Unencrypted blobs simply contain the CRC, followed by the
+/// (compressed) data.
+///
+/// (MAGIC || CRC32 || Data)
 #[repr(C,packed)]
 pub struct DataChunkHeader {
     pub magic: [u8; 8],
     pub crc: [u8; 4],
 }
 
+/// Encrypted Data chunk binary storage format
+///
+/// The ``DataChunkHeader`` for encrypted chunks additionally contains
+/// a 16 byte IV, followed by a 16 byte Authenticated Encyrypten (AE)
+/// tag, followed by the encrypted data:
+///
+/// (MAGIC || CRC32 || IV || TAG || EncryptedData).
 #[repr(C,packed)]
 pub struct EncryptedDataChunkHeader {
     pub head: DataChunkHeader,

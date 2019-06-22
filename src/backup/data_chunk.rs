@@ -18,21 +18,6 @@ pub struct ChunkInfo {
 /// compressed and encrypted. A simply binary format is used to store
 /// them on disk or transfer them over the network.
 ///
-/// The format start with a 8 byte magic number to identify the type,
-/// followed by a 4 byte CRC. This CRC is used on the server side to
-/// detect file corruption (computed when upload data), so there is
-/// usually no need to compute it on the client side.
-///
-/// Encrypted chunks contain a 16 byte IV, followed by a 16 byte AD
-/// tag, followed by the encrypted data:
-///
-/// (MAGIC || CRC32 || IV || TAG || EncryptedData).
-///
-/// Unencrypted blobs simply contain the CRC, followed by the
-/// (compressed) data.
-///
-/// (MAGIC || CRC32 || Data)
-///
 /// Please use the ``DataChunkBuilder`` to create new instances.
 pub struct DataChunk {
     digest: [u8; 32],
