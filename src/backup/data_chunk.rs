@@ -54,7 +54,7 @@ impl DataChunk {
     }
 
     /// compute the CRC32 checksum
-    pub fn compute_crc(&mut self) -> u32 {
+    pub fn compute_crc(&self) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
         let start = std::mem::size_of::<DataChunkHeader>(); // start after HEAD
         hasher.update(&self.raw_data[start..]);
@@ -230,8 +230,8 @@ impl DataChunk {
         };
 
         if magic == &COMPRESSED_CHUNK_MAGIC_1_0 {
-           let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
-           verify_raw_data(&data)?;
+            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
+            verify_raw_data(&data)?;
         } else if magic == &UNCOMPRESSED_CHUNK_MAGIC_1_0 {
             verify_raw_data(&self.raw_data[12..])?;
         }

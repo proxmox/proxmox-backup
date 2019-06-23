@@ -53,9 +53,12 @@ impl Future for UploadChunk {
                             bail!("uploaded chunk has unexpected size.");
                         }
 
-                        let chunk = DataChunk::from_raw(raw_data, self.digest)?;
+                        let mut chunk = DataChunk::from_raw(raw_data, self.digest)?;
 
                         chunk.verify_unencrypted(self.size as usize)?;
+
+                        // always comput CRC at server side
+                        chunk.set_crc(chunk.compute_crc());
 
                         let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk)?;
 
