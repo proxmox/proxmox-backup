@@ -157,4 +157,33 @@ impl DataBlob {
             bail!("Invalid blob magic number.");
         }
     }
+
+    /// Create Instance from raw data
+    pub fn from_raw(data: Vec<u8>) -> Result<Self, Error> {
+
+        if data.len() < std::mem::size_of::<DataBlobHeader>() {
+            bail!("blob too small ({} bytes).", data.len());
+        }
+
+        let magic = &data[0..8];
+
+        if magic == ENCR_COMPR_BLOB_MAGIC_1_0 || magic == ENCRYPTED_BLOB_MAGIC_1_0 {
+
+            if data.len() < std::mem::size_of::<EncryptedDataBlobHeader>() {
+                bail!("encrypted blob too small ({} bytes).", data.len());
+            }
+
+            let blob = DataBlob { raw_data: data };
+
+            Ok(blob)
+        } else if magic == COMPRESSED_BLOB_MAGIC_1_0 || magic == UNCOMPRESSED_BLOB_MAGIC_1_0 {
+
+            let blob = DataBlob { raw_data: data };
+
+            Ok(blob)
+        } else {
+            bail!("unable to parse raw blob - wrong magic");
+        }
+    }
+
 }
