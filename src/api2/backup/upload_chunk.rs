@@ -86,8 +86,8 @@ pub fn api_method_upload_fixed_chunk() -> ApiAsyncMethod {
                       .maximum(1024*1024*16)
             )
             .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum(9)
-                      // fixme: .maximum(1024*1024*16+40)
+                      .minimum((std::mem::size_of::<DataChunkHeader>() as isize)+1)
+                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataChunkHeader>() as isize))
             )
     )
 }
@@ -142,8 +142,8 @@ pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
                       .maximum(1024*1024*16)
             )
             .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum(9)
-                      // fixme: .maximum(1024*1024*16+40)
+                      .minimum((std::mem::size_of::<DataChunkHeader>() as isize) +1)
+                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataChunkHeader>() as isize))
             )
     )
 }
@@ -222,19 +222,19 @@ fn upload_speedtest(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_config() -> ApiAsyncMethod {
+pub fn api_method_upload_blob() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
-        upload_config,
-        ObjectSchema::new("Upload configuration file.")
+        upload_blob,
+        ObjectSchema::new("Upload binary blob file.")
             .required("file-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
-            .required("size", IntegerSchema::new("File size.")
-                      .minimum(1)
-                      .maximum(1024*1024*16)
+            .required("encoded-size", IntegerSchema::new("Encoded blob size.")
+                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
+                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
             )
     )
 }
 
-fn upload_config(
+fn upload_blob(
     _parts: Parts,
     req_body: Body,
     param: Value,
@@ -243,13 +243,9 @@ fn upload_config(
 ) -> Result<BoxFut, Error> {
 
     let mut file_name = tools::required_string_param(&param, "file-name")?.to_owned();
-    let size = tools::required_integer_param(&param, "size")? as usize;
+    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
 
-    if !file_name.ends_with(".conf") {
-        bail!("wrong config file extension: '{}'", file_name);
-    } else {
-        file_name.push_str(".zstd");
-    }
+    file_name.push_str(".blob");
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -262,17 +258,24 @@ fn upload_config(
 
     let resp = req_body
         .map_err(Error::from)
-        .concat2()
+         .fold(Vec::new(), |mut acc, chunk| {
+            acc.extend_from_slice(&*chunk);
+            Ok::<_, Error>(acc)
+        })
         .and_then(move |data| {
-            if size != data.len() {
-                bail!("got configuration file with unexpected length ({} != {})", size, data.len());
+            if encoded_size != data.len() {
+                bail!("got blob with unexpected length ({} != {})", encoded_size, data.len());
             }
 
-            let data = zstd::block::compress(&data, 0)?;
+            let orig_len = data.len(); // fixme:
 
-            tools::file_set_contents(&path, &data, None)?;
+            let mut blob = DataBlob::from_raw(data)?;
+            // always comput CRC at server side
+            blob.set_crc(blob.compute_crc());
 
-            env2.debug(format!("upload config {:?} ({} bytes, comp: {})", path, size, data.len()));
+            tools::file_set_contents(&path, blob.raw_data(), None)?;
+
+            env2.debug(format!("upload blob {:?} ({} bytes, comp: {})", path, orig_len, encoded_size));
 
             Ok(())
         })

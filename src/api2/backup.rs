@@ -154,8 +154,8 @@ pub fn backup_api() -> Router {
 
     let router = Router::new()
         .subdir(
-            "config", Router::new()
-                .upload(api_method_upload_config())
+            "blob", Router::new()
+                .upload(api_method_upload_blob())
         )
         .subdir(
             "dynamic_chunk", Router::new()

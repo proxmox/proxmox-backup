@@ -452,10 +452,12 @@ impl BackupClient {
         self.canceller.take().unwrap().cancel();
     }
 
-    pub fn upload_config<P: AsRef<std::path::Path>>(
+    pub fn upload_blob<P: AsRef<std::path::Path>>(
         &self,
         src_path: P,
         file_name: &str,
+        crypt_config: Option<Arc<CryptConfig>>,
+        compress: bool,
      ) -> impl Future<Item=(), Error=Error> {
 
         let h2 = self.h2.clone();
@@ -464,13 +466,22 @@ impl BackupClient {
 
         let task = tokio::fs::File::open(src_path.clone())
             .map_err(move |err| format_err!("unable to open file {:?} - {}", src_path, err))
-            .and_then(|file| {
+            .and_then(move |file| {
                 let contents = vec![];
                 tokio::io::read_to_end(file, contents)
                     .map_err(Error::from)
                     .and_then(move |(_, contents)| {
-                        let param = json!({"size": contents.len(), "file-name": file_name });
-                        h2.upload("config", Some(param), contents)
+                        let blob = if let Some(ref crypt_config) = crypt_config {
+                            DataBlob::encode(&contents, Some(crypt_config), compress)?
+                        } else {
+                            DataBlob::encode(&contents, None, compress)?
+                        };
+                        let raw_data = blob.into_inner();
+                        Ok(raw_data)
+                    })
+                    .and_then(move |raw_data| {
+                        let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
+                        h2.upload("blob", Some(param), raw_data)
                             .map(|_| {})
                     })
             });

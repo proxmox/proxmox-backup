@@ -24,6 +24,11 @@ impl DataBlob {
         &self.raw_data
     }
 
+    /// Consume self and returns raw_data
+    pub fn into_inner(self) -> Vec<u8> {
+        self.raw_data
+    }
+
     /// accessor to chunk type (magic number)
     pub fn magic(&self) -> &[u8; 8] {
         self.raw_data[0..8].try_into().unwrap()
@@ -42,7 +47,7 @@ impl DataBlob {
     }
 
     /// compute the CRC32 checksum
-    pub fn compute_crc(&mut self) -> u32 {
+    pub fn compute_crc(&self) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
         let start = std::mem::size_of::<DataBlobHeader>(); // start after HEAD
         hasher.update(&self.raw_data[start..]);

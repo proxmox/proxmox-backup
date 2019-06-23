@@ -482,7 +482,7 @@ fn create_backup(
         match backup_type {
             BackupType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
-                client.upload_config(&filename, &target).wait()?;
+                client.upload_blob(&filename, &target, crypt_config.clone(), true).wait()?;
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
