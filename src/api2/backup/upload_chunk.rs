@@ -245,13 +245,10 @@ fn upload_blob(
     let mut file_name = tools::required_string_param(&param, "file-name")?.to_owned();
     let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
 
-    file_name.push_str(".blob");
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let mut path = env.datastore.base_path();
-    path.push(env.backup_dir.relative_path());
-    path.push(&file_name);
+    file_name.push_str(".blob");
 
     let env2 = env.clone();
     let env3 = env.clone();
@@ -267,15 +264,7 @@ fn upload_blob(
                 bail!("got blob with unexpected length ({} != {})", encoded_size, data.len());
             }
 
-            let orig_len = data.len(); // fixme:
-
-            let mut blob = DataBlob::from_raw(data)?;
-            // always comput CRC at server side
-            blob.set_crc(blob.compute_crc());
-
-            tools::file_set_contents(&path, blob.raw_data(), None)?;
-
-            env2.debug(format!("upload blob {:?} ({} bytes, comp: {})", path, orig_len, encoded_size));
+            env2.add_blob(&file_name, data)?;
 
             Ok(())
         })

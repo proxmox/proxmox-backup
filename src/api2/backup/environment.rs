@@ -384,6 +384,30 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    pub fn add_blob(&self, file_name: &str, data: Vec<u8>) -> Result<(), Error> {
+
+        let mut path = self.datastore.base_path();
+        path.push(self.backup_dir.relative_path());
+        path.push(file_name);
+
+        let blob_len = data.len();
+        let orig_len = data.len(); // fixme:
+
+        let mut blob = DataBlob::from_raw(data)?;
+        // always comput CRC at server side
+        blob.set_crc(blob.compute_crc());
+
+        let raw_data = blob.raw_data();
+        crate::tools::file_set_contents(&path, raw_data, None)?;
+
+        self.log(format!("add blob {:?} ({} bytes, comp: {})", path, orig_len, blob_len));
+
+        let mut state = self.state.lock().unwrap();
+        state.file_counter += 1;
+
+        Ok(())
+    }
+
     /// Mark backup as finished
     pub fn finish_backup(&self) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
