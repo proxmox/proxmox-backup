@@ -482,7 +482,7 @@ fn create_backup(
         match backup_type {
             BackupType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
-                client.upload_blob(&filename, &target, crypt_config.clone(), true).wait()?;
+                client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
@@ -508,6 +508,27 @@ fn create_backup(
                     crypt_config.clone(),
                 )?;
             }
+        }
+    }
+
+    if let Some(crypt_config) = crypt_config {
+        let path = master_pubkey_path()?;
+        if path.exists() {
+            let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
+            let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
+            let enc_key = crypt_config.generate_rsa_encoded_key(rsa)?;
+            let target = "rsa-encoded.key";
+            println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
+            client.upload_blob_from_data(enc_key, target, None, false).wait()?;
+
+            // openssl rsautl -decrypt -inkey master-private.pem -in mtest.enckey -out t
+            /*
+            let mut buffer2 = vec![0u8; rsa.size() as usize];
+            let pem_data = proxmox_backup::tools::file_get_contents("master-private.pem")?;
+            let rsa = openssl::rsa::Rsa::private_key_from_pem(&pem_data)?;
+            let len = rsa.private_decrypt(&buffer, &mut buffer2, openssl::rsa::Padding::PKCS1)?;
+            println!("TEST {} {:?}", len, buffer2);
+             */
         }
     }
 
@@ -853,6 +874,15 @@ fn key_create(
     }
 }
 
+fn master_pubkey_path() -> Result<PathBuf, Error> {
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    // usually $HOME/.config/proxmox-backup/master-public.pem
+    let path = base.place_config_file("master-public.pem")?;
+
+    Ok(path)
+}
+
 fn key_import_master_pubkey(
     param: Value,
     _info: &ApiMethod,
@@ -868,10 +898,7 @@ fn key_import_master_pubkey(
         bail!("Unable to decode PEM data - {}", err);
     }
 
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
-
-    // usually $HOME/.config/proxmox-backup/master-public.pem
-    let target_path = base.place_config_file("master-public.pem")?;
+    let target_path = master_pubkey_path()?;
 
     proxmox_backup::tools::file_set_contents(&target_path, &pem_data, None)?;
 

@@ -167,4 +167,17 @@ impl CryptConfig {
 
         Ok(decr_data)
     }
+
+    pub fn generate_rsa_encoded_key(
+        &self,
+        rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
+    ) -> Result<Vec<u8>, Error> {
+
+        let mut buffer = vec![0u8; rsa.size() as usize];
+        let len = rsa.public_encrypt(&self.enc_key, &mut buffer, openssl::rsa::Padding::PKCS1)?;
+        if len != buffer.len() {
+            bail!("got unexpected length from rsa.public_encrypt().");
+        }
+        Ok(buffer)
+    }
 }

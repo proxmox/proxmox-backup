@@ -452,7 +452,36 @@ impl BackupClient {
         self.canceller.take().unwrap().cancel();
     }
 
-    pub fn upload_blob<P: AsRef<std::path::Path>>(
+    pub fn upload_blob_from_data(
+        &self,
+        data: Vec<u8>,
+        file_name: &str,
+        crypt_config: Option<Arc<CryptConfig>>,
+        compress: bool,
+     ) -> impl Future<Item=(), Error=Error> {
+
+        let h2 = self.h2.clone();
+        let file_name = file_name.to_owned();
+
+        futures::future::ok(())
+            .and_then(move |_| {
+                let blob = if let Some(ref crypt_config) = crypt_config {
+                    DataBlob::encode(&data, Some(crypt_config), compress)?
+                } else {
+                    DataBlob::encode(&data, None, compress)?
+                };
+
+                let raw_data = blob.into_inner();
+                Ok(raw_data)
+            })
+            .and_then(move |raw_data| {
+                let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
+                h2.upload("blob", Some(param), raw_data)
+                    .map(|_| {})
+            })
+    }
+
+    pub fn upload_blob_from_file<P: AsRef<std::path::Path>>(
         &self,
         src_path: P,
         file_name: &str,
