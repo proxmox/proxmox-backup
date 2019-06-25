@@ -517,11 +517,11 @@ fn create_backup(
             let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
             let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
             let enc_key = crypt_config.generate_rsa_encoded_key(rsa)?;
-            let target = "rsa-encoded.key";
+            let target = "rsa-encrypted.key";
             println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
             client.upload_blob_from_data(enc_key, target, None, false).wait()?;
 
-            // openssl rsautl -decrypt -inkey master-private.pem -in mtest.enckey -out t
+            // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
             /*
             let mut buffer2 = vec![0u8; rsa.size() as usize];
             let pem_data = proxmox_backup::tools::file_get_contents("master-private.pem")?;
