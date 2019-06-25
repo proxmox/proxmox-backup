@@ -402,6 +402,9 @@ fn download_file(
 ) -> Result<BoxFut, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
     let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
@@ -413,10 +416,11 @@ fn download_file(
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
-    let mut path = backup_dir.relative_path();
+    let mut path = datastore.base_path();
+    path.push(backup_dir.relative_path());
     path.push(&file_name);
 
-    let response_future = tokio::fs::File::open(file_name)
+    let response_future = tokio::fs::File::open(path)
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(move |file| {
             let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
