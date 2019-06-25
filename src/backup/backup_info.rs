@@ -15,7 +15,7 @@ macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]
 
 lazy_static!{
     static ref BACKUP_FILE_REGEX: Regex = Regex::new(
-        r"^.*\.([fd]idx)$").unwrap();
+        r"^.*\.([fd]idx|blob)$").unwrap();
 
     static ref BACKUP_TYPE_REGEX: Regex = Regex::new(
         concat!(r"^(", BACKUP_TYPE_RE!(), r")$")).unwrap();
