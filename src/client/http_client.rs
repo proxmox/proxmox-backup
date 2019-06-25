@@ -224,16 +224,22 @@ impl HttpClient {
             client.request(req)
                 .map_err(Error::from)
                 .and_then(|resp| {
-
-                    let _status = resp.status(); // fixme: ??
-
-                    resp.into_body()
-                        .map_err(Error::from)
-                        .for_each(move |chunk| {
-                            output.write_all(&chunk)?;
-                            Ok(())
-                        })
-
+                    let status = resp.status();
+                    if !status.is_success() {
+                        future::Either::A(
+                            HttpClient::api_response(resp)
+                                .and_then(|_| { bail!("unknown error"); })
+                        )
+                    } else {
+                        future::Either::B(
+                            resp.into_body()
+                                .map_err(Error::from)
+                                .for_each(move |chunk| {
+                                    output.write_all(&chunk)?;
+                                    Ok(())
+                                })
+                        )
+                    }
                 })
         })
     }
