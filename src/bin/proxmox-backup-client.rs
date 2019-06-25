@@ -168,7 +168,7 @@ fn backup_image<P: AsRef<Path>>(
     Ok(())
 }
 
-fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
+fn strip_server_file_expenstions(list: Vec<String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -176,6 +176,8 @@ fn strip_chunked_file_expenstions(list: Vec<String>) -> Vec<String> {
         if file.ends_with(".didx") {
             result.push(file[..file.len()-5].to_owned());
         } else if file.ends_with(".fidx") {
+            result.push(file[..file.len()-5].to_owned());
+        } else if file.ends_with(".blob") {
             result.push(file[..file.len()-5].to_owned());
         } else {
             result.push(file); // should not happen
@@ -215,7 +217,7 @@ fn list_backups(
         let backup_dir = BackupDir::new(btype, id, epoch);
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_chunked_file_expenstions(files);
+        let files = strip_server_file_expenstions(files);
 
         for filename in files {
             let path = backup_dir.relative_path().to_str().unwrap().to_owned();
@@ -275,7 +277,7 @@ fn list_backup_groups(
         let path = group.group_path().to_str().unwrap().to_owned();
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_chunked_file_expenstions(files);
+        let files = strip_server_file_expenstions(files);
 
         println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
                  backup_count, tools::join(&files, ' '));
@@ -322,7 +324,7 @@ fn list_snapshots(
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_chunked_file_expenstions(files);
+        let files = strip_server_file_expenstions(files);
 
         println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
     }
@@ -794,7 +796,7 @@ fn complete_archive_name(_arg: &str, param: &HashMap<String, String>) -> Vec<Str
         }
     }
 
-    strip_chunked_file_expenstions(result)
+    strip_server_file_expenstions(result)
 }
 
 fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
