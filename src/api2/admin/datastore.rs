@@ -412,7 +412,7 @@ pub fn router() -> Router {
             "pxar",
             Router::new()
                 .download(pxar::api_method_download_pxar())
-                .upload(pxar::api_method_upload_pxar()))
+        )
         .subdir(
             "gc",
             Router::new()
