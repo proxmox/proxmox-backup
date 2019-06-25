@@ -694,11 +694,15 @@ fn download(
         .create(true)
         .create_new(true)
         .write(true)
-        .open(target)?;
+        .open(&target)?;
 
-    client.download(&path, Box::new(writer)).wait()?;
-
-    Ok(Value::Null)
+    match client.download(&path, Box::new(writer)).wait() {
+        Ok(_) => Ok(Value::Null),
+        Err(err) => {
+            let _ = std::fs::remove_file(&target);
+            Err(err)
+        }
+    }
 }
 
 fn prune(
@@ -1130,6 +1134,42 @@ fn key_mgmt_cli() -> CliCommandMap {
     cmd_def
 }
 
+fn blob_info(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let path = tools::required_string_param(&param, "path")?;
+    let data = crate::tools::file_get_contents(path)?;
+
+    let blob = DataBlob::from_raw(data)?;
+
+    let magic = blob.magic();
+    let test = u64::from_le_bytes(*magic);
+    println!("Magic: {:016x} {:?}", test, magic);
+
+    Ok(Value::Null)
+}
+
+fn blob_mgmt_cli() -> CliCommandMap {
+
+    let blob_info_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            blob_info,
+            ObjectSchema::new("Display Blob info.")
+                .required("path", StringSchema::new("File system path."))
+        ))
+        .arg_param(vec!["path"])
+        .completion_cb("path", tools::complete_file_name);
+    ;
+
+    let cmd_def = CliCommandMap::new()
+        .insert("info".to_owned(), blob_info_cmd_def.into());
+
+    cmd_def
+}
+
 
 fn main() {
 
@@ -1264,6 +1304,7 @@ fn main() {
         .insert("download".to_owned(), download_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
+        .insert("blob".to_owned(), blob_mgmt_cli().into())
         .insert("key".to_owned(), key_mgmt_cli().into());
 
     hyper::rt::run(futures::future::lazy(move || {
