@@ -411,7 +411,7 @@ impl WorkerTask {
         let upid_str = worker.upid.to_string();
 
         tokio::spawn(f(worker.clone()).then(move |result| {
-            worker.log_result(result);
+            worker.log_result(&result);
             Ok(())
         }));
 
@@ -451,7 +451,7 @@ impl WorkerTask {
                 }
             };
 
-            worker.log_result(result);
+            worker.log_result(&result);
             p.send(()).unwrap();
         });
 
@@ -461,7 +461,7 @@ impl WorkerTask {
     }
 
     /// Log task result, remove task from running list
-    pub fn log_result(&self, result: Result<(), Error>) {
+    pub fn log_result(&self, result: &Result<(), Error>) {
 
         if let Err(err) = result {
             self.log(&format!("TASK ERROR: {}", err));

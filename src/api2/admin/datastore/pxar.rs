@@ -106,8 +106,8 @@ fn upload_pxar(
         )
         .then(move |result| {
             match result {
-                Ok((result,_)) => worker.log_result(Ok(result)),
-                Err((err, _)) =>  worker.log_result(Err(err)),
+                Ok((result,_)) => worker.log_result(&Ok(result)),
+                Err((err, _)) =>  worker.log_result(&Err(err)),
             }
             Ok(())
         })

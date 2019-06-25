@@ -171,56 +171,82 @@ fn prune(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    println!("Starting prune on store {}", store);
+    let mut keep_all = true;
 
-    let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
+    for opt in &["keep-last", "keep-daily", "keep-weekly", "keep-weekly", "keep-yearly"] {
+        if !param[opt].is_null() {
+            keep_all = false;
+            break;
+        }
+    }
 
-    let group_hash = group_backups(backup_list);
-
-    for (_group_id, mut list) in group_hash {
-
-        let mut mark = HashSet::new();
-
-        BackupInfo::sort_list(&mut list, false);
-
-        if let Some(keep_last) = param["keep-last"].as_u64() {
-            list.iter().take(keep_last as usize).for_each(|info| {
-                mark.insert(info.backup_dir.relative_path());
-            });
+    let worker = WorkerTask::new("prune", Some(store.to_owned()), "root@pam", true)?;
+    let result = try_block! {
+        if keep_all {
+            worker.log("No selection - keeping all files.");
+            return Ok(());
+        } else {
+            worker.log(format!("Starting prune on store {}", store));
         }
 
-        if let Some(keep_daily) = param["keep-daily"].as_u64() {
-            mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
-                format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
-            });
+        let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
+
+        let group_hash = group_backups(backup_list);
+
+        for (_group_id, mut list) in group_hash {
+
+            let mut mark = HashSet::new();
+
+            BackupInfo::sort_list(&mut list, false);
+
+            if let Some(keep_last) = param["keep-last"].as_u64() {
+                list.iter().take(keep_last as usize).for_each(|info| {
+                    mark.insert(info.backup_dir.relative_path());
+                });
+            }
+
+            if let Some(keep_daily) = param["keep-daily"].as_u64() {
+                mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
+                    format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
+                });
+            }
+
+            if let Some(keep_weekly) = param["keep-weekly"].as_u64() {
+                mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
+                    format!("{}/{}", local_time.year(), local_time.iso_week().week())
+                });
+            }
+
+            if let Some(keep_monthly) = param["keep-monthly"].as_u64() {
+                mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
+                    format!("{}/{}", local_time.year(), local_time.month())
+                });
+            }
+
+            if let Some(keep_yearly) = param["keep-yearly"].as_u64() {
+                mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
+                    format!("{}/{}", local_time.year(), local_time.year())
+                });
+            }
+
+            let mut remove_list: Vec<BackupInfo> = list.into_iter()
+                .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
+
+            BackupInfo::sort_list(&mut remove_list, true);
+
+            for info in remove_list {
+                worker.log(format!("remove {:?}", info.backup_dir));
+                datastore.remove_backup_dir(&info.backup_dir)?;
+            }
         }
 
-        if let Some(keep_weekly) = param["keep-weekly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.iso_week().week())
-            });
-        }
+        Ok(())
+    };
 
-        if let Some(keep_monthly) = param["keep-monthly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.month())
-            });
-        }
+    worker.log_result(&result);
 
-        if let Some(keep_yearly) = param["keep-yearly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.year())
-            });
-        }
-
-        let mut remove_list: Vec<BackupInfo> = list.into_iter()
-            .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
-
-        BackupInfo::sort_list(&mut remove_list, true);
-
-        for info in remove_list {
-            datastore.remove_backup_dir(&info.backup_dir)?;
-        }
+    if let Err(err) = result {
+        bail!("prune failed - {}", err);
     }
 
     Ok(json!(null))
