@@ -69,7 +69,7 @@ fn generate_usage_str(
             options.push_str(&get_property_description(prop, &schema, ParameterDisplayStyle::Arg, format));
 
         } else {
-            args.push_str("--"); args.push_str(prop);
+            args.push_str(" --"); args.push_str(prop);
             args.push(' ');
             args.push_str(&type_text);
         }
@@ -90,7 +90,7 @@ fn generate_usage_str(
             format!("{}{}{}{}\n\n{}\n\n", indent, prefix, args, option_indicator, description)
         }
         DocumentationFormat::ReST => {
-            format!("``{} {}{}``\n\n{}\n\n", prefix, args.trim(), option_indicator, description)
+            format!("``{}{}{}``\n\n{}\n\n", prefix, args, option_indicator, description)
         }
     };
 
