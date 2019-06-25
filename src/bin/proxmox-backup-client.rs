@@ -633,6 +633,74 @@ fn restore(
     Ok(Value::Null)
 }
 
+fn download(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo: BackupRepository = repo_url.parse()?;
+
+    let file_name = tools::required_string_param(&param, "file-name")?;
+
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
+
+    record_repository(&repo);
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+
+    let query;
+
+    if path.matches('/').count() == 1 {
+        let group = BackupGroup::parse(path)?;
+
+        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+        let result = client.get(&path, Some(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+        }))).wait()?;
+
+        let list = result["data"].as_array().unwrap();
+        if list.len() == 0 {
+            bail!("backup group '{}' does not contain any snapshots:", path);
+        }
+
+        query = tools::json_object_to_query(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+            "backup-time": list[0]["backup-time"].as_i64().unwrap(),
+            "file-name": file_name,
+        }))?;
+    } else {
+        let snapshot = BackupDir::parse(path)?;
+
+        query = tools::json_object_to_query(json!({
+            "backup-type": snapshot.group().backup_type(),
+            "backup-id": snapshot.group().backup_id(),
+            "backup-time": snapshot.backup_time().timestamp(),
+            "file-name": file_name,
+        }))?;
+    }
+
+    let target = tools::required_string_param(&param, "target")?;
+
+    let path = format!("api2/json/admin/datastore/{}/download?{}", repo.store(), query);
+
+    println!("DOWNLOAD FILE {} to {}", path, target);
+
+    let target = PathBuf::from(target);
+    let writer = std::fs::OpenOptions::new()
+        .create(true)
+        .create_new(true)
+        .write(true)
+        .open(target)?;
+
+    client.download(&path, Box::new(writer)).wait()?;
+
+    Ok(Value::Null)
+}
+
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
@@ -759,7 +827,7 @@ fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec
     result
 }
 
-fn complete_archive_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
@@ -795,6 +863,13 @@ fn complete_archive_name(_arg: &str, param: &HashMap<String, String>) -> Vec<Str
             }
         }
     }
+
+    result
+}
+
+fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let result = complete_server_file_name(arg, param);
 
     strip_server_file_expenstions(result)
 }
@@ -1139,6 +1214,21 @@ fn main() {
         .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
+    let download_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            download,
+            ObjectSchema::new("Download data from backup repository.")
+                .required("repository", REPO_URL_SCHEMA.clone())
+                .required("snapshot", StringSchema::new("Group/Snapshot path."))
+                .required("file-name", StringSchema::new("File name."))
+                .required("target", StringSchema::new("Target directory path."))
+        ))
+        .arg_param(vec!["repository", "snapshot", "file-name", "target"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("file-name", complete_server_file_name)
+        .completion_cb("target", tools::complete_file_name);
+
     let restore_cmd_def = CliCommand::new(
         ApiMethod::new(
             restore,
@@ -1171,6 +1261,7 @@ fn main() {
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
+        .insert("download".to_owned(), download_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into());
