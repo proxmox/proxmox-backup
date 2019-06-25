@@ -1,4 +1,5 @@
 use failure::*;
+use futures::*;
 
 use crate::tools;
 use crate::api_schema::*;
@@ -6,19 +7,17 @@ use crate::api_schema::router::*;
 //use crate::server::rest::*;
 use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
 use std::sync::Arc;
-
-//use hyper::StatusCode;
-//use hyper::rt::{Future, Stream};
 
 use crate::config::datastore;
 
 use crate::backup::*;
 use crate::server::WorkerTask;
 
-mod pxar;
+use hyper::{header, Body, Response, StatusCode};
+use hyper::http::request::Parts;
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 
@@ -394,6 +393,64 @@ fn get_datastore_list(
 }
 
 
+fn download_file(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    _rpcenv: Box<dyn RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+    let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+
+    println!("Download {} from {} ({}/{}/{}/{})", file_name, store,
+             backup_type, backup_id, Local.timestamp(backup_time, 0), file_name);
+
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+    let mut path = backup_dir.relative_path();
+    path.push(&file_name);
+
+    let response_future = tokio::fs::File::open(file_name)
+        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
+        .and_then(move |file| {
+            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
+                map(|bytes| {
+                    //sigh - howto avoid copy here? or the whole map() ??
+                    hyper::Chunk::from(bytes.to_vec())
+                });
+            let body = Body::wrap_stream(payload);
+
+            // fixme: set other headers ?
+            Ok(Response::builder()
+               .status(StatusCode::OK)
+               .header(header::CONTENT_TYPE, "application/octet-stream")
+               .body(body)
+               .unwrap())
+        });
+
+    Ok(Box::new(response_future))
+}
+
+pub fn api_method_download_file() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        download_file,
+        ObjectSchema::new("Download single raw file from backup snapshot.")
+            .required("store", StringSchema::new("Datastore name."))
+            .required("backup-type", StringSchema::new("Backup type.")
+                      .format(Arc::new(ApiStringFormat::Enum(&["ct", "host"]))))
+            .required("backup-id", StringSchema::new("Backup ID."))
+            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
+                      .minimum(1547797308))
+            .required("file-name", StringSchema::new("Raw file name."))
+    )
+}
+
 pub fn router() -> Router {
 
     let store_schema: Arc<Schema> = Arc::new(
@@ -409,9 +466,9 @@ pub fn router() -> Router {
                     ObjectSchema::new("List backups.")
                         .required("store", store_schema.clone()))))
         .subdir(
-            "pxar",
+            "download",
             Router::new()
-                .download(pxar::api_method_download_pxar())
+                .download(api_method_download_file())
         )
         .subdir(
             "gc",
