@@ -12,6 +12,7 @@ use openssl::pkcs5::pbkdf2_hmac;
 use openssl::hash::MessageDigest;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
 use std::io::Write;
+use chrono::{Local, TimeZone, DateTime};
 
 /// Encryption Configuration with secret key
 ///
@@ -171,10 +172,15 @@ impl CryptConfig {
     pub fn generate_rsa_encoded_key(
         &self,
         rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
+        created: DateTime<Local>,
     ) -> Result<Vec<u8>, Error> {
 
+         let modified = Local.timestamp(Local::now().timestamp(), 0);
+        let key_config = super::KeyConfig { kdf: None, created, modified, data: self.enc_key.to_vec() };
+        let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
+
         let mut buffer = vec![0u8; rsa.size() as usize];
-        let len = rsa.public_encrypt(&self.enc_key, &mut buffer, openssl::rsa::Padding::PKCS1)?;
+        let len = rsa.public_encrypt(&data, &mut buffer, openssl::rsa::Padding::PKCS1)?;
         if len != buffer.len() {
             bail!("got unexpected length from rsa.public_encrypt().");
         }

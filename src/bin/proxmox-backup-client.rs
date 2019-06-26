@@ -470,11 +470,22 @@ fn create_backup(
     println!("Client name: {}", tools::nodename());
     println!("Start Time: {}", backup_time.to_rfc3339());
 
-    let crypt_config = match keyfile {
-        None => None,
+    let (crypt_config, rsa_encrypted_key) = match keyfile {
+        None => (None, None),
         Some(path) => {
-            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
-            Some(Arc::new(CryptConfig::new(key)?))
+            let (key, created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+
+            let crypt_config = CryptConfig::new(key)?;
+
+            let path = master_pubkey_path()?;
+            if path.exists() {
+                let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
+                let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
+                let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
+                (Some(Arc::new(crypt_config)), Some(enc_key))
+            } else {
+                (Some(Arc::new(crypt_config)), None)
+            }
         }
     };
 
@@ -513,25 +524,19 @@ fn create_backup(
         }
     }
 
-    if let Some(crypt_config) = crypt_config {
-        let path = master_pubkey_path()?;
-        if path.exists() {
-            let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
-            let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
-            let enc_key = crypt_config.generate_rsa_encoded_key(rsa)?;
-            let target = "rsa-encrypted.key";
-            println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
-            client.upload_blob_from_data(enc_key, target, None, false).wait()?;
+    if let Some(rsa_encrypted_key) = rsa_encrypted_key {
+        let target = "rsa-encrypted.key";
+        println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
+        client.upload_blob_from_data(rsa_encrypted_key, target, None, false).wait()?;
 
-            // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
-            /*
-            let mut buffer2 = vec![0u8; rsa.size() as usize];
-            let pem_data = proxmox_backup::tools::file_get_contents("master-private.pem")?;
-            let rsa = openssl::rsa::Rsa::private_key_from_pem(&pem_data)?;
-            let len = rsa.private_decrypt(&buffer, &mut buffer2, openssl::rsa::Padding::PKCS1)?;
-            println!("TEST {} {:?}", len, buffer2);
-             */
-        }
+        // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
+        /*
+        let mut buffer2 = vec![0u8; rsa.size() as usize];
+        let pem_data = proxmox_backup::tools::file_get_contents("master-private.pem")?;
+        let rsa = openssl::rsa::Rsa::private_key_from_pem(&pem_data)?;
+        let len = rsa.private_decrypt(&buffer, &mut buffer2, openssl::rsa::Padding::PKCS1)?;
+        println!("TEST {} {:?}", len, buffer2);
+         */
     }
 
     client.finish().wait()?;
