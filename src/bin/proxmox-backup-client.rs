@@ -649,6 +649,16 @@ fn download(
 
     let file_name = tools::required_string_param(&param, "file-name")?;
 
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            Some(CryptConfig::new(key)?)
+        }
+    };
+
     let mut client = HttpClient::new(repo.host(), repo.user())?;
 
     record_repository(&repo);
@@ -694,20 +704,19 @@ fn download(
 
     println!("DOWNLOAD FILE {} to {}", path, target);
 
-    let target = PathBuf::from(target);
-    let writer = std::fs::OpenOptions::new()
-        .create(true)
-        .create_new(true)
-        .write(true)
-        .open(&target)?;
+    if file_name.ends_with(".blob")  {
+        let writer = Vec::with_capacity(1024*1024);
+        let blob_data = client.download(&path, writer).wait()?;
+        let blob = DataBlob::from_raw(blob_data)?;
+        let raw_data = blob.decode(crypt_config.as_ref())?; // fixme
 
-    match client.download(&path, Box::new(writer)).wait() {
-        Ok(_) => Ok(Value::Null),
-        Err(err) => {
-            let _ = std::fs::remove_file(&target);
-            Err(err)
-        }
+        crate::tools::file_set_contents(target, &raw_data, None)?;
+
+     } else {
+        unimplemented!();
     }
+
+    Ok(Value::Null)
 }
 
 fn prune(
@@ -1139,43 +1148,6 @@ fn key_mgmt_cli() -> CliCommandMap {
     cmd_def
 }
 
-fn blob_info(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let path = tools::required_string_param(&param, "path")?;
-    let data = crate::tools::file_get_contents(path)?;
-
-    let blob = DataBlob::from_raw(data)?;
-
-    let magic = blob.magic();
-    let test = u64::from_le_bytes(*magic);
-    println!("Magic: {:016x} {:?}", test, magic);
-
-    Ok(Value::Null)
-}
-
-fn blob_mgmt_cli() -> CliCommandMap {
-
-    let blob_info_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            blob_info,
-            ObjectSchema::new("Display Blob info.")
-                .required("path", StringSchema::new("File system path."))
-        ))
-        .arg_param(vec!["path"])
-        .completion_cb("path", tools::complete_file_name);
-    ;
-
-    let cmd_def = CliCommandMap::new()
-        .insert("info".to_owned(), blob_info_cmd_def.into());
-
-    cmd_def
-}
-
-
 fn main() {
 
     let backup_source_schema: Arc<Schema> = Arc::new(
@@ -1267,11 +1239,13 @@ fn main() {
                 .required("snapshot", StringSchema::new("Group/Snapshot path."))
                 .required("file-name", StringSchema::new("File name."))
                 .required("target", StringSchema::new("Target directory path."))
+                .optional("keyfile", StringSchema::new("Path to encryption key."))
         ))
         .arg_param(vec!["repository", "snapshot", "file-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("file-name", complete_server_file_name)
+        .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("target", tools::complete_file_name);
 
     let restore_cmd_def = CliCommand::new(
@@ -1309,7 +1283,6 @@ fn main() {
         .insert("download".to_owned(), download_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
-        .insert("blob".to_owned(), blob_mgmt_cli().into())
         .insert("key".to_owned(), key_mgmt_cli().into());
 
     hyper::rt::run(futures::future::lazy(move || {
