@@ -19,6 +19,9 @@ pub use command_socket::*;
 mod worker_task;
 pub use worker_task::*;
 
+mod h2service;
+pub use h2service::*;
+
 pub mod formatter;
 
 #[macro_use]

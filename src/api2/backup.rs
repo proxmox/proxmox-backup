@@ -1,4 +1,5 @@
 use failure::*;
+use lazy_static::lazy_static;
 
 use std::sync::Arc;
 
@@ -14,15 +15,12 @@ use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
-use crate::server::WorkerTask;
+use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
 
 mod environment;
 use environment::*;
-
-mod service;
-use service::*;
 
 mod upload_chunk;
 use upload_chunk::*;
@@ -96,7 +94,7 @@ fn upgrade_to_backup_protocol(
 
         env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
 
-        let service = BackupService::new(env.clone(), worker.clone(), debug);
+        let service = H2Service::new(env.clone(), worker.clone(), &BACKUP_ROUTER, debug);
 
         let abort_future = worker.abort_future();
 
@@ -148,6 +146,10 @@ fn upgrade_to_backup_protocol(
         .body(Body::empty())?;
 
     Ok(Box::new(futures::future::ok(response)))
+}
+
+lazy_static!{
+    static ref BACKUP_ROUTER: Router = backup_api();
 }
 
 pub fn backup_api() -> Router {

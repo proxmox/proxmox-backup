@@ -1,5 +1,4 @@
 use failure::*;
-use lazy_static::lazy_static;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -12,22 +11,22 @@ use crate::api_schema::router::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
 
-use super::environment::*;
-
-lazy_static!{
-    static ref BACKUP_ROUTER: Router = super::backup_api();
-}
-
-pub struct BackupService {
-    rpcenv: BackupEnvironment,
+/// Hyper Service implementation to handle stateful H2 connections.
+///
+/// We use this kind of service to handle backup protocol
+/// connections. State is stored inside the generic ``rpcenv``. Logs
+/// goes into the ``WorkerTask`` log.
+pub struct H2Service<E> {
+    router: &'static Router,
+    rpcenv: E,
     worker: Arc<WorkerTask>,
     debug: bool,
 }
 
-impl BackupService {
+impl <E: RpcEnvironment + Clone> H2Service<E> {
 
-    pub fn new(rpcenv: BackupEnvironment, worker: Arc<WorkerTask>, debug: bool) -> Self {
-        Self { rpcenv, worker, debug }
+    pub fn new(rpcenv: E, worker: Arc<WorkerTask>, router: &'static Router, debug: bool) -> Self {
+        Self { rpcenv, worker, router, debug }
     }
 
     pub fn debug<S: AsRef<str>>(&self, msg: S) {
@@ -49,18 +48,20 @@ impl BackupService {
 
         let mut uri_param = HashMap::new();
 
-        match BACKUP_ROUTER.find_method(&components, method, &mut uri_param) {
+        let formatter = &JSON_FORMATTER;
+
+        match self.router.find_method(&components, method, &mut uri_param) {
             MethodDefinition::None => {
                 let err = http_err!(NOT_FOUND, "Path not found.".to_string());
-                return Box::new(future::ok((self.rpcenv.formatter.format_error)(err)));
+                return Box::new(future::ok((formatter.format_error)(err)));
             }
             MethodDefinition::Simple(api_method) => {
                 return crate::server::rest::handle_sync_api_request(
-                    self.rpcenv.clone(), api_method, self.rpcenv.formatter, parts, body, uri_param);
+                    self.rpcenv.clone(), api_method, formatter, parts, body, uri_param);
             }
             MethodDefinition::Async(async_method) => {
                 return crate::server::rest::handle_async_api_request(
-                    self.rpcenv.clone(), async_method, self.rpcenv.formatter, parts, body, uri_param);
+                    self.rpcenv.clone(), async_method, formatter, parts, body, uri_param);
             }
         }
     }
@@ -82,7 +83,7 @@ impl BackupService {
     }
 }
 
-impl hyper::service::Service for BackupService {
+impl <E: RpcEnvironment + Clone> hyper::service::Service for H2Service<E> {
     type ReqBody = Body;
     type ResBody = Body;
     type Error = Error;
