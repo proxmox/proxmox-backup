@@ -708,6 +708,7 @@ fn download(
         let writer = Vec::with_capacity(1024*1024);
         let blob_data = client.download(&path, writer).wait()?;
         let blob = DataBlob::from_raw(blob_data)?;
+        blob.verify_crc()?;
         let raw_data = blob.decode(crypt_config.as_ref())?; // fixme
 
         crate::tools::file_set_contents(target, &raw_data, None)?;

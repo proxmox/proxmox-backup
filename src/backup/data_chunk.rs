@@ -61,6 +61,15 @@ impl DataChunk {
         hasher.finalize()
     }
 
+    /// verify the CRC32 checksum
+    pub fn verify_crc(&self) -> Result<(), Error> {
+        let expected_crc = self.compute_crc();
+        if expected_crc != self.crc() {
+            bail!("Data chunk has wrong CRC checksum.");
+        }
+        Ok(())
+    }
+
     fn encode(
         data: &[u8],
         config: Option<&CryptConfig>,
