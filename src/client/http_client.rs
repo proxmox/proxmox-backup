@@ -7,6 +7,7 @@ use xdg::BaseDirectories;
 use chrono::Utc;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::io::Write;
 
 use http::{Request, Response};
 use http::header::HeaderValue;
@@ -208,7 +209,7 @@ impl HttpClient {
         self.request(req)
     }
 
-    pub fn download(&mut self, path: &str, mut output: Box<dyn std::io::Write + Send>) ->  impl Future<Item=(), Error=Error> {
+    pub fn download<W: Write>(&mut self, path: &str, output: W) ->  impl Future<Item=W, Error=Error> {
 
         let mut req = Self::request_builder(&self.server, "GET", path, None).unwrap();
 
@@ -234,9 +235,9 @@ impl HttpClient {
                         future::Either::B(
                             resp.into_body()
                                 .map_err(Error::from)
-                                .for_each(move |chunk| {
-                                    output.write_all(&chunk)?;
-                                    Ok(())
+                                .fold(output, move |mut acc, chunk| {
+                                    acc.write_all(&chunk)?;
+                                    Ok::<_, Error>(acc)
                                 })
                         )
                     }
