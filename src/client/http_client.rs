@@ -269,17 +269,26 @@ impl HttpClient {
     ) -> impl Future<Item=BackupClient, Error=Error> {
 
         let param = json!({"backup-type": backup_type, "backup-id": backup_id, "store": datastore, "debug": debug});
-        let mut req = Self::request_builder(&self.server, "GET", "/api2/json/backup", Some(param)).unwrap();
+        let req = Self::request_builder(&self.server, "GET", "/api2/json/backup", Some(param)).unwrap();
+
+        self.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!()))
+            .map(|(h2, canceller)| BackupClient::new(h2, canceller))
+    }
+
+    pub fn start_h2_connection(
+        &self,
+        mut req: Request<Body>,
+        protocol_name: String,
+    ) -> impl Future<Item=(H2Client, Canceller), Error=Error> {
 
         let login = self.auth.listen();
-
         let client = self.client.clone();
 
         login.and_then(move |auth| {
 
             let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
             req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-            req.headers_mut().insert("UPGRADE", HeaderValue::from_str(PROXMOX_BACKUP_PROTOCOL_ID_V1!()).unwrap());
+            req.headers_mut().insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
             client.request(req)
                 .map_err(Error::from)
@@ -310,8 +319,8 @@ impl HttpClient {
 
                     // Wait until the `SendRequest` handle has available capacity.
                     Ok(h2.ready()
-                        .map(move |c| BackupClient::new(c, canceller))
-                        .map_err(Error::from))
+                       .map(move |c| (H2Client::new(c), canceller))
+                       .map_err(Error::from))
                 })
                 .flatten()
         })
@@ -428,11 +437,8 @@ pub struct BackupClient {
 
 impl BackupClient {
 
-    pub fn new(h2: h2::client::SendRequest<bytes::Bytes>, canceller: Canceller) -> Self {
-        Self {
-            h2: H2Client::new(h2),
-            canceller: Some(canceller),
-        }
+    pub fn new(h2: H2Client, canceller: Canceller) -> Self {
+        Self { h2, canceller: Some(canceller) }
     }
 
     pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
