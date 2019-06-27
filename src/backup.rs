@@ -107,6 +107,11 @@ macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
     () =>  { "proxmox-backup-protocol-v1" }
 }
 
+#[macro_export]
+macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
+    () =>  { "proxmox-backup-reader-protocol-v1" }
+}
+
 mod file_formats;
 pub use file_formats::*;
 

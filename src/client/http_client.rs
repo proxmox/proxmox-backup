@@ -4,7 +4,7 @@ use http::Uri;
 use hyper::Body;
 use hyper::client::Client;
 use xdg::BaseDirectories;
-use chrono::Utc;
+use chrono::{DateTime, Local, Utc};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::io::Write;
@@ -275,6 +275,28 @@ impl HttpClient {
             .map(|(h2, canceller)| BackupClient::new(h2, canceller))
     }
 
+    pub fn start_backup_reader(
+        &self,
+        datastore: &str,
+        backup_type: &str,
+        backup_id: &str,
+        backup_time: DateTime<Local>,
+        debug: bool,
+    ) -> impl Future<Item=BackupReader, Error=Error> {
+
+        let param = json!({
+            "backup-type": backup_type,
+            "backup-id": backup_id,
+            "backup-time": backup_time.timestamp(),
+            "store": datastore,
+            "debug": debug,
+        });
+        let req = Self::request_builder(&self.server, "GET", "/api2/json/reader", Some(param)).unwrap();
+
+        self.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!()))
+            .map(|(h2, canceller)| BackupReader::new(h2, canceller))
+    }
+
     pub fn start_h2_connection(
         &self,
         mut req: Request<Body>,
@@ -428,12 +450,69 @@ impl HttpClient {
     }
 }
 
-//#[derive(Clone)]
+
+pub struct BackupReader {
+    h2: H2Client,
+    canceller: Option<Canceller>,
+}
+
+impl Drop for BackupReader {
+
+    fn drop(&mut self) {
+        if let Some(canceller) = self.canceller.take() {
+            canceller.cancel();
+        }
+    }
+}
+
+impl BackupReader {
+
+    pub fn new(h2: H2Client, canceller: Canceller) -> Self {
+        Self { h2, canceller: Some(canceller) }
+    }
+
+    pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
+        self.h2.get(path, param)
+    }
+
+    pub fn put(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
+        self.h2.put(path, param)
+    }
+
+    pub fn post(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
+        self.h2.post(path, param)
+    }
+
+    pub fn download<W: Write>(
+        &self,
+        file_name: &str,
+        output: W,
+    ) -> impl Future<Item=W, Error=Error> {
+        let path = "download";
+        let param = json!({ "file-name": file_name });
+        self.h2.download(path, Some(param), output)
+    }
+
+    pub fn force_close(mut self) {
+        if let Some(canceller) = self.canceller.take() {
+            canceller.cancel();
+        }
+    }
+}
+
 pub struct BackupClient {
     h2: H2Client,
     canceller: Option<Canceller>,
 }
 
+impl Drop for BackupClient {
+
+    fn drop(&mut self) {
+        if let Some(canceller) = self.canceller.take() {
+            canceller.cancel();
+        }
+    }
+}
 
 impl BackupClient {
 
@@ -462,7 +541,9 @@ impl BackupClient {
     }
 
     pub fn force_close(mut self) {
-        self.canceller.take().unwrap().cancel();
+        if let Some(canceller) = self.canceller.take() {
+            canceller.cancel();
+        }
     }
 
     pub fn upload_blob_from_data(
@@ -903,6 +984,34 @@ impl H2Client {
     pub fn post(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
         let req = Self::request_builder("localhost", "POST", path, param).unwrap();
         self.request(req)
+    }
+
+    pub fn download<W: Write>(&self, path: &str, param: Option<Value>, output: W) -> impl Future<Item=W, Error=Error> {
+        let request = Self::request_builder("localhost", "GET", path, param).unwrap();
+
+        self.send_request(request, None)
+            .and_then(move |response| {
+                response
+                    .map_err(Error::from)
+                    .and_then(move |resp| {
+                        let status = resp.status();
+                        if !status.is_success() {
+                            future::Either::A(
+                                H2Client::h2api_response(resp)
+                                    .and_then(|_| { bail!("unknown error"); })
+                            )
+                        } else {
+                            future::Either::B(
+                                resp.into_body()
+                                    .map_err(Error::from)
+                                    .fold(output, move |mut acc, chunk| {
+                                        acc.write_all(&chunk)?;
+                                        Ok::<_, Error>(acc)
+                                    })
+                            )
+                        }
+                    })
+            })
     }
 
     pub fn upload(&self, path: &str, param: Option<Value>, data: Vec<u8>) -> impl Future<Item=Value, Error=Error> {

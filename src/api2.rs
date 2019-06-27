@@ -2,6 +2,7 @@ pub mod types;
 pub mod config;
 pub mod admin;
 pub mod backup;
+pub mod reader;
 pub mod node;
 mod version;
 mod subscription;
@@ -18,6 +19,7 @@ pub fn router() -> Router {
         .subdir("access", access::router())
         .subdir("admin", admin::router())
         .subdir("backup", backup::router())
+        .subdir("reader", reader::router())
         .subdir("config", config::router())
         .subdir("nodes", nodes)
         .subdir("subscription", subscription::router())
