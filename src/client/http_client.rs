@@ -27,7 +27,6 @@ use super::merge_known_chunks::*;
 
 use crate::backup::*;
 
-
 #[derive(Clone)]
 struct AuthInfo {
     username: String,
@@ -163,7 +162,7 @@ impl HttpClient {
         builder.danger_accept_invalid_certs(true);
         let tlsconnector = builder.build().unwrap();
         let mut httpc = hyper::client::HttpConnector::new(1);
-        //httpc.set_nodelay(true); // not sure if this help?
+        httpc.set_nodelay(true); // important for h2 download performance!
         httpc.enforce_http(false); // we want https...
         let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
         https.https_only(true); // force it!
@@ -324,7 +323,14 @@ impl HttpClient {
                     }
                 })
                 .and_then(|upgraded| {
-                    h2::client::handshake(upgraded).map_err(Error::from)
+                    let window_size = 32*1024*1024; // max = (1 << 31) - 2
+
+                    h2::client::Builder::new()
+                        .max_frame_size(4*1024*1024)
+                        .initial_window_size(window_size)
+                        .initial_connection_window_size(window_size)
+                        .handshake(upgraded)
+                        .map_err(Error::from)
                 })
                 .and_then(|(h2, connection)| {
                     let connection = connection
@@ -451,6 +457,7 @@ impl HttpClient {
 }
 
 
+#[derive(Clone)]
 pub struct BackupReader {
     h2: H2Client,
     canceller: Option<Canceller>,
@@ -490,6 +497,16 @@ impl BackupReader {
     ) -> impl Future<Item=W, Error=Error> {
         let path = "download";
         let param = json!({ "file-name": file_name });
+        self.h2.download(path, Some(param), output)
+    }
+
+    pub fn download_chunk<W: Write>(
+        &self,
+        digest: &[u8; 32],
+        output: W,
+    ) -> impl Future<Item=W, Error=Error> {
+        let path = "chunk";
+        let param = json!({ "digest": proxmox::tools::digest_to_hex(digest) });
         self.h2.download(path, Some(param), output)
     }
 
