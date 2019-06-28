@@ -420,10 +420,7 @@ fn chuncked_static_file_download(filename: PathBuf) ->  BoxFut {
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(move |file| {
             let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
-                map(|bytes| {
-                    //sigh - howto avoid copy here? or the whole map() ??
-                    hyper::Chunk::from(bytes.to_vec())
-                });
+                map(|bytes| hyper::Chunk::from(bytes.freeze()));
             let body = Body::wrap_stream(payload);
 
             // fixme: set other headers ?

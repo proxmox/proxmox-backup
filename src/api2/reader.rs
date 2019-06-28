@@ -175,10 +175,8 @@ fn download_file(
         .and_then(move |file| {
             env2.log(format!("download {:?}", path3));
             let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
-                map(|bytes| {
-                    //sigh - howto avoid copy here? or the whole map() ??
-                    hyper::Chunk::from(bytes.to_vec())
-                });
+                map(|bytes| hyper::Chunk::from(bytes.freeze()));
+
             let body = Body::wrap_stream(payload);
 
             // fixme: set other headers ?
