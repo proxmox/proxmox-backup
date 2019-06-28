@@ -174,12 +174,7 @@ impl ChunkStore {
 
     pub fn read_chunk(&self, digest:&[u8; 32]) -> Result<DataChunk, Error> {
 
-        let mut chunk_path = self.chunk_dir.clone();
-        let prefix = digest_to_prefix(digest);
-        chunk_path.push(&prefix);
-        let digest_str = proxmox::tools::digest_to_hex(digest);
-        chunk_path.push(&digest_str);
-
+        let (chunk_path, digest_str) = self.chunk_path(digest);
         let mut file = std::fs::File::open(&chunk_path)
             .map_err(|err| format_err!(
                 "store '{}', unable to read chunk '{}' - {}", self.name, digest_str, err))?;
@@ -326,11 +321,7 @@ impl ChunkStore {
 
         //println!("DIGEST {}", proxmox::tools::digest_to_hex(digest));
 
-        let mut chunk_path = self.chunk_dir.clone();
-        let prefix = digest_to_prefix(digest);
-        chunk_path.push(&prefix);
-        let digest_str = proxmox::tools::digest_to_hex(digest);
-        chunk_path.push(&digest_str);
+        let (chunk_path, digest_str) = self.chunk_path(digest);
 
         let lock = self.mutex.lock();
 
@@ -365,6 +356,15 @@ impl ChunkStore {
         drop(lock);
 
         Ok((false, encoded_size))
+    }
+
+    pub fn chunk_path(&self, digest:&[u8; 32]) -> (PathBuf, String) {
+        let mut chunk_path = self.chunk_dir.clone();
+        let prefix = digest_to_prefix(digest);
+        chunk_path.push(&prefix);
+        let digest_str = proxmox::tools::digest_to_hex(digest);
+        chunk_path.push(&digest_str);
+        (chunk_path, digest_str)
     }
 
     pub fn relative_path(&self, path: &Path) -> PathBuf {
