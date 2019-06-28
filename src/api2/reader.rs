@@ -16,7 +16,7 @@ use crate::api_schema::router::*;
 use crate::api_schema::*;
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
-//use crate::api2::types::*;
+use crate::api2::types::*;
 
 mod environment;
 use environment::*;
@@ -135,8 +135,16 @@ pub fn reader_api() -> Router {
 
     let router = Router::new()
         .subdir(
+            "chunk", Router::new()
+                .download(api_method_download_chunk())
+        )
+        .subdir(
             "download", Router::new()
                 .download(api_method_download_file())
+        )
+        .subdir(
+            "speedtest", Router::new()
+                .download(api_method_speedtest())
         );
 
     router
@@ -188,4 +196,79 @@ fn download_file(
         });
 
     Ok(Box::new(response_future))
+}
+
+pub fn api_method_download_chunk() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        download_chunk,
+        ObjectSchema::new("Download specified chunk.")
+            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
+    )
+}
+
+fn download_chunk(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let env: &ReaderEnvironment = rpcenv.as_ref();
+    let env2 = env.clone();
+
+    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+
+    let (path, _) = env.datastore.chunk_path(&digest);
+
+    let path2 = path.clone();
+    let path3 = path.clone();
+
+    let response_future = tokio::fs::File::open(path)
+        .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
+        .and_then(move |file| {
+            env2.debug(format!("download chunk {:?}", path3));
+            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
+                map(|bytes| hyper::Chunk::from(bytes.freeze()));
+
+            let body = Body::wrap_stream(payload);
+
+            // fixme: set other headers ?
+            Ok(Response::builder()
+               .status(StatusCode::OK)
+               .header(header::CONTENT_TYPE, "application/octet-stream")
+               .body(body)
+               .unwrap())
+        });
+
+    Ok(Box::new(response_future))
+}
+
+pub fn api_method_speedtest() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        speedtest,
+        ObjectSchema::new("Test 4M block download speed.")
+    )
+}
+
+fn speedtest(
+    _parts: Parts,
+    _req_body: Body,
+    _param: Value,
+    _info: &ApiAsyncMethod,
+    _rpcenv: Box<dyn RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let buffer = vec![2u8; 8*1024*1024]; // nonsense [2,2,2,2,2...]
+
+    let body = Body::from(buffer);
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .body(body)
+        .unwrap();
+
+    Ok(Box::new(future::ok(response)))
 }
