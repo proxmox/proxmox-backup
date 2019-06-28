@@ -112,7 +112,9 @@ impl DataStore {
 
     pub fn open_dynamic_reader<P: AsRef<Path>>(&self, filename: P) -> Result<DynamicIndexReader, Error> {
 
-        let index = DynamicIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
+        let full_path =  self.chunk_store.relative_path(filename.as_ref());
+
+        let index = DynamicIndexReader::open(&full_path)?;
 
         Ok(index)
     }
@@ -255,6 +257,10 @@ impl DataStore {
         }
 
         Ok(())
+    }
+
+    pub fn chunk_path(&self, digest:&[u8; 32]) -> (PathBuf, String) {
+        self.chunk_store.chunk_path(digest)
     }
 
     pub fn insert_chunk(
