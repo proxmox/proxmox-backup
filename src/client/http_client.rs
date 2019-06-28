@@ -1001,10 +1001,14 @@ impl H2Client {
                                     .and_then(|_| { bail!("unknown error"); })
                             )
                         } else {
+                            let mut body = resp.into_body();
+                            let mut release_capacity = body.release_capacity().clone();
+
                             future::Either::B(
-                                resp.into_body()
+                                body
                                     .map_err(Error::from)
                                     .fold(output, move |mut acc, chunk| {
+                                        let _ = release_capacity.release_capacity(chunk.len());
                                         acc.write_all(&chunk)?;
                                         Ok::<_, Error>(acc)
                                     })
