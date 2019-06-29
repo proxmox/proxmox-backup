@@ -500,6 +500,13 @@ impl BackupReader {
         self.h2.download(path, Some(param), output)
     }
 
+    pub fn speedtest<W: Write>(
+        &self,
+        output: W,
+    ) -> impl Future<Item=W, Error=Error> {
+        self.h2.download("speedtest", None, output)
+    }
+
     pub fn download_chunk<W: Write>(
         &self,
         digest: &[u8; 32],

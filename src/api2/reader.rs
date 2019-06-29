@@ -260,7 +260,7 @@ fn speedtest(
     _rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
-    let buffer = vec![2u8; 8*1024*1024]; // nonsense [2,2,2,2,2...]
+    let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A...]
 
     let body = Body::from(buffer);
 
