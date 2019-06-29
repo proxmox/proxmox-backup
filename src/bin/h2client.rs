@@ -68,7 +68,11 @@ pub fn main() -> Result<(), Error> {
     let tcp = tcp_stream
         .map_err(Error::from)
         .and_then(|c| {
-            h2::client::handshake(c)
+            h2::client::Builder::new()
+                .initial_connection_window_size(1024*1024*1024)
+                .initial_window_size(1024*1024*1024)
+                .max_frame_size(4*1024*1024)
+                .handshake(c)
                 .map_err(Error::from)
         })
         .and_then(|(client, h2)| {
@@ -77,7 +81,7 @@ pub fn main() -> Result<(), Error> {
             tokio::spawn(h2.map_err(|e| println!("GOT ERR={:?}", e)));
 
             futures::stream::repeat(())
-                .take(10)
+                .take(2000)
                 .and_then(move |_| send_request(client.clone()))
                 .fold(0, move |mut acc, size| {
                     acc += size;
