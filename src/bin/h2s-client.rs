@@ -70,6 +70,8 @@ pub fn main() -> Result<(), Error> {
     let tcp = tcp_stream
         .map_err(Error::from)
         .and_then(|c| {
+            c.set_nodelay(true).unwrap();
+            c.set_recv_buffer_size(1024*1024).unwrap();
             let mut builder = native_tls::TlsConnector::builder();
             builder.danger_accept_invalid_certs(true);
             let connector = builder.build().unwrap();
