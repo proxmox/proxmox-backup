@@ -323,12 +323,12 @@ impl HttpClient {
                     }
                 })
                 .and_then(|upgraded| {
-                    let window_size = 32*1024*1024; // max = (1 << 31) - 2
+                   let max_window_size = (1 << 31) - 2;
 
                     h2::client::Builder::new()
+                        .initial_connection_window_size(max_window_size)
+                        .initial_window_size(max_window_size)
                         .max_frame_size(4*1024*1024)
-                        .initial_window_size(window_size)
-                        .initial_connection_window_size(window_size)
                         .handshake(upgraded)
                         .map_err(Error::from)
                 })
