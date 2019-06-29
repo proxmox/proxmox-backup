@@ -3,7 +3,7 @@
 //! This library implements the client side to access the backups
 //! server using https.
 
-mod pipe_to_stream;
+pub mod pipe_to_stream;
 mod merge_known_chunks;
 
 mod http_client;
