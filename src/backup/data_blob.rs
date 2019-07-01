@@ -1,8 +1,7 @@
 use failure::*;
 use std::convert::TryInto;
 
-use proxmox::tools::io::ops::ReadExtOps;
-use crate::tools::write::WriteUtilOps;
+use proxmox::tools::io::{ReadExt, WriteExt};
 
 use super::*;
 
@@ -96,7 +95,9 @@ impl DataBlob {
                 iv: [0u8; 16],
                 tag: [0u8; 16],
             };
-            raw_data.write_value(&dummy_head)?;
+            unsafe {
+                raw_data.write_le_value(dummy_head)?;
+            }
 
             let (iv, tag) = config.encrypt_to(data, &mut raw_data)?;
 
@@ -104,7 +105,9 @@ impl DataBlob {
                 head: DataBlobHeader { magic, crc: [0; 4] }, iv, tag,
             };
 
-            (&mut raw_data[0..header_len]).write_value(&head)?;
+            unsafe {
+                (&mut raw_data[0..header_len]).write_le_value(head)?;
+            }
 
             return Ok(DataBlob { raw_data });
         } else {
@@ -117,7 +120,9 @@ impl DataBlob {
                     magic: COMPRESSED_BLOB_MAGIC_1_0,
                     crc: [0; 4],
                 };
-                comp_data.write_value(&head)?;
+                unsafe {
+                    comp_data.write_le_value(head)?;
+                }
 
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
@@ -132,7 +137,9 @@ impl DataBlob {
                 magic: UNCOMPRESSED_BLOB_MAGIC_1_0,
                 crc: [0; 4],
             };
-            raw_data.write_value(&head)?;
+            unsafe {
+                raw_data.write_le_value(head)?;
+            }
             raw_data.extend_from_slice(data);
 
             return Ok(DataBlob { raw_data });
