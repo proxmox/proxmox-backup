@@ -9,10 +9,10 @@ use std::panic::UnwindSafe;
 use failure::*;
 use tokio::prelude::*;
 
+use proxmox::tools::io::{ReadExt, WriteExt};
+
 use crate::server;
 use crate::tools::{fd_change_cloexec, self};
-use crate::tools::read::*;
-use crate::tools::write::*;
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 pub type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
@@ -106,7 +106,7 @@ impl Reloader {
                                 std::fs::File::from_raw_fd(pout.into_raw_fd())
                             };
                             let pid = nix::unistd::Pid::this();
-                            if let Err(e) = pout.write_value(&pid.as_raw()) {
+                            if let Err(e) = unsafe { pout.write_host_value(pid.as_raw()) } {
                                 log::error!("failed to send new server PID to parent: {}", e);
                                 unsafe {
                                     libc::_exit(-1);
@@ -137,7 +137,7 @@ impl Reloader {
                 let mut pin = unsafe {
                     std::fs::File::from_raw_fd(pin.into_raw_fd())
                 };
-                let child = nix::unistd::Pid::from_raw(match pin.read_value() {
+                let child = nix::unistd::Pid::from_raw(match unsafe { pin.read_le_value() } {
                     Ok(v) => v,
                     Err(e) => {
                         log::error!("failed to receive pid of double-forked child process: {}", e);
