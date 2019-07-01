@@ -34,8 +34,6 @@ pub mod tty;
 pub mod signalfd;
 pub mod daemon;
 pub mod procfs;
-pub mod read;
-pub mod write;
 pub mod acl;
 pub mod xattr;
 pub mod vec;
