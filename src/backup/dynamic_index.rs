@@ -16,7 +16,8 @@ use std::os::unix::io::AsRawFd;
 use uuid::Uuid;
 //use chrono::{Local, TimeZone};
 
-use crate::tools::io::ops::*;
+use proxmox::tools::io::ReadExt;
+
 use crate::tools::vec;
 
 use super::{DataChunk, DataChunkBuilder};

@@ -21,7 +21,8 @@ use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::NixPath;
 
-use crate::tools::io::ops::*;
+use proxmox::tools::io::ReadExt;
+
 use crate::tools::vec;
 use crate::tools::fs;
 use crate::tools::acl;
