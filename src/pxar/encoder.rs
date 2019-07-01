@@ -83,10 +83,8 @@ impl <'a, W: Write> Encoder<'a, W> {
         // todo: use scandirat??
 
         let dir_fd = dir.as_raw_fd();
-        let stat = match nix::sys::stat::fstat(dir_fd) {
-            Ok(stat) => stat,
-            Err(err) => bail!("fstat {:?} failed - {}", path, err),
-        };
+        let stat = nix::sys::stat::fstat(dir_fd)
+            .map_err(|err| format_err!("fstat {:?} failed - {}", path, err))?;
 
         if !is_directory(&stat) {
             bail!("got unexpected file type {:?} (not a directory)", path);
