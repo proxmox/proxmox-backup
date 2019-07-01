@@ -460,10 +460,8 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
 
         let _ = std::fs::create_dir(path);
 
-        let dir = match nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty()) {
-            Ok(dir) => dir,
-            Err(err) => bail!("unable to open target directory {:?} - {}", path, err),
-        };
+        let dir = nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty())
+            .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
 
         let mut relative_path = PathBuf::new();
         self.restore_sequential(path, &mut relative_path, &OsString::new(), &dir, callback)
@@ -509,18 +507,14 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             if filename.is_empty() {
                 dir = nix::dir::Dir::openat(parent_fd, ".", OFlag::O_DIRECTORY,  Mode::empty())?;
              } else {
-                dir = match dir_mkdirat(parent_fd, filename, true) {
-                    Ok(dir) => dir,
-                    Err(err) => bail!("unable to open directory {:?} - {}", full_path, err),
-                };
+                dir = dir_mkdirat(parent_fd, filename, true)
+                    .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?;
             }
 
             self.restore_ugid(&entry, dir.as_raw_fd())?;
             // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            let mut head = match self.restore_attributes(&entry, dir.as_raw_fd()) {
-                Ok(head) => head,
-                Err(err) => bail!("Restoring of directory attributes failed - {}", err),
-            };
+            let mut head = self.restore_attributes(&entry, dir.as_raw_fd())
+                .map_err(|err| format_err!("Restoring of directory attributes failed - {}", err))?;
 
             while head.htype == CA_FORMAT_FILENAME {
                 let name = self.read_filename(head.size)?;
@@ -624,20 +618,16 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
             let open_mode =  Mode::from_bits_truncate(0o0600 | mode);
 
-            let mut file = match file_openat(parent_fd, filename, flags, open_mode) {
-                Ok(file) => file,
-                Err(err) => bail!("open file {:?} failed - {}", full_path, err),
-            };
+            let mut file = file_openat(parent_fd, filename, flags, open_mode)
+                .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
 
             self.restore_ugid(&entry, file.as_raw_fd())?;
             // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            let head = match self.restore_attributes(&entry, file.as_raw_fd()) {
-                Ok(head) => head,
-                Err(err) => bail!("Restoring of file attributes failed - {}", err),
-            };
+            let head = self.restore_attributes(&entry, file.as_raw_fd())
+                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
 
             if head.htype != CA_FORMAT_PAYLOAD {
-                  bail!("got unknown header type for file entry {:016x}", head.htype);
+                bail!("got unknown header type for file entry {:016x}", head.htype);
             }
 
             if head.size < HEADER_SIZE {
