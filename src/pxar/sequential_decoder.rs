@@ -123,8 +123,8 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             bail!("filename entry not nul terminated.");
         }
 
-        if (buffer.len() == 1 && buffer[0] == b'.') || (buffer.len() == 2 && buffer[0] == b'.' && buffer[1] == b'.') {
-            bail!("found invalid filename with slashes.");
+        if buffer == b"." || buffer == b".." {
+            bail!("found invalid filename '.' or '..'.");
         }
 
         if buffer.iter().find(|b| (**b == b'/')).is_some() {
