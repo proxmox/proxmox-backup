@@ -4,8 +4,10 @@ extern crate libc;
 
 use std::os::unix::io::RawFd;
 use nix::errno::Errno;
+
+use proxmox::tools::vec;
+
 use crate::pxar::{CaFormatXAttr, CaFormatFCaps};
-use crate::tools::vec;
 
 pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
     // Initial buffer size for the attribute list, if content does not fit

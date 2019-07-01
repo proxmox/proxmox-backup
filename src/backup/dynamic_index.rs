@@ -17,8 +17,7 @@ use uuid::Uuid;
 //use chrono::{Local, TimeZone};
 
 use proxmox::tools::io::ReadExt;
-
-use crate::tools::vec;
+use proxmox::tools::vec;
 
 use super::{DataChunk, DataChunkBuilder};
 

@@ -28,7 +28,7 @@ use nix::sys::stat::Mode;
 use nix::errno::Errno;
 use nix::sys::stat::FileStat;
 
-use crate::tools::vec;
+use proxmox::tools::vec;
 
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit

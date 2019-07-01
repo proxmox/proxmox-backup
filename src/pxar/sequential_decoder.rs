@@ -22,8 +22,8 @@ use nix::errno::Errno;
 use nix::NixPath;
 
 use proxmox::tools::io::ReadExt;
+use proxmox::tools::vec;
 
-use crate::tools::vec;
 use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;

@@ -22,6 +22,8 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
+use proxmox::tools::vec;
+
 pub mod async_mutex;
 pub mod timer;
 pub mod wrapped_reader_stream;
@@ -36,7 +38,6 @@ pub mod daemon;
 pub mod procfs;
 pub mod acl;
 pub mod xattr;
-pub mod vec;
 pub mod futures;
 
 mod process_locker;
