@@ -3,10 +3,6 @@ use futures::*;
 
 // Simple H2 client to test H2 download speed using h2s-server.rs
 
-use tokio::net::TcpStream;
-//use native_tls::TlsConnector;
-use std::io::{Read, Write};
-
 struct Process {
     body: h2::RecvStream,
     trailers: bool,
