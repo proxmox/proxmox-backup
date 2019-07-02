@@ -57,3 +57,5 @@ valgrind = ["valgrind_request"]
 
 [replace]
 "zstd-sys:1.4.10" = { path = "zstd-sys" }
+# include socket buffer size fix
+"hyper:0.12.31"  = { git = "https://github.com/hyperium/hyper.git" }

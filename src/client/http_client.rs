@@ -163,6 +163,7 @@ impl HttpClient {
         let tlsconnector = builder.build().unwrap();
         let mut httpc = hyper::client::HttpConnector::new(1);
         httpc.set_nodelay(true); // important for h2 download performance!
+        httpc.set_recv_buf_size(Some(1024*1024)); //important for h2 download performance!
         httpc.enforce_http(false); // we want https...
         let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
         https.https_only(true); // force it!
