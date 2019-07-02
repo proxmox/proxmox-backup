@@ -95,7 +95,12 @@ fn run() -> Result<(), Error> {
             let connections = listener
                 .incoming()
                 .map_err(Error::from)
-                .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
+                .and_then(move |sock| {
+                    sock.set_nodelay(true).unwrap();
+                    sock.set_send_buffer_size(1024*1024).unwrap();
+                    sock.set_recv_buffer_size(1024*1024).unwrap();
+                    acceptor.accept(sock).map_err(|e| e.into())
+                })
                 .then(|r| match r {
                     // accept()s can fail here with an Err() when eg. the client rejects
                     // the cert and closes the connection, so we follow up with mapping
