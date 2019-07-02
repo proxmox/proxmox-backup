@@ -16,6 +16,7 @@ use futures::*;
 use futures::stream::Stream;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
+use openssl::ssl::{SslConnector, SslMethod};
 
 use serde_json::{json, Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
@@ -36,7 +37,7 @@ struct AuthInfo {
 
 /// HTTP(S) API client
 pub struct HttpClient {
-    client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
+    client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     server: String,
     auth: BroadcastFuture<AuthInfo>,
 }
@@ -156,17 +157,19 @@ impl HttpClient {
         bail!("no password input mechanism available");
     }
 
-    fn build_client() -> Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>> {
-        let mut builder = native_tls::TlsConnector::builder();
-        // FIXME: We need a CLI option for this!
-        builder.danger_accept_invalid_certs(true);
-        let tlsconnector = builder.build().unwrap();
+    fn build_client() -> Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
+
+        let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
+
+        ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE); // fixme!
+
         let mut httpc = hyper::client::HttpConnector::new(1);
         httpc.set_nodelay(true); // important for h2 download performance!
         httpc.set_recv_buf_size(Some(1024*1024)); //important for h2 download performance!
         httpc.enforce_http(false); // we want https...
-        let mut https = hyper_tls::HttpsConnector::from((httpc, tlsconnector));
-        https.https_only(true); // force it!
+
+        let https = hyper_openssl::HttpsConnector::with_connector(httpc,  ssl_connector_builder).unwrap();
+
         Client::builder()
         //.http2_initial_stream_window_size( (1 << 31) - 2)
         //.http2_initial_connection_window_size( (1 << 31) - 2)
@@ -356,7 +359,7 @@ impl HttpClient {
     }
 
     fn credentials(
-        client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
+        client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
         server: String,
         username: String,
         password: String,
@@ -411,7 +414,7 @@ impl HttpClient {
     }
 
     fn api_request(
-        client: Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>,
+        client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
         req: Request<Body>
     ) -> impl Future<Item=Value, Error=Error> {
 
@@ -1045,7 +1048,6 @@ impl H2Client {
 
     pub fn upload(&self, path: &str, param: Option<Value>, data: Vec<u8>) -> impl Future<Item=Value, Error=Error> {
         let request = Self::request_builder("localhost", "POST", path, param).unwrap();
-
 
         self.h2.clone()
             .ready()

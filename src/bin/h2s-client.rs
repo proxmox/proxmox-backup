@@ -68,12 +68,17 @@ pub fn main() -> Result<(), Error> {
         .and_then(|c| {
             c.set_nodelay(true).unwrap();
             c.set_recv_buffer_size(1024*1024).unwrap();
-            let mut builder = native_tls::TlsConnector::builder();
-            builder.danger_accept_invalid_certs(true);
-            let connector = builder.build().unwrap();
-            let connector = tokio_tls::TlsConnector::from(connector);
-            connector.connect("localhost", c)
-                .map_err(Error::from)
+
+            use openssl::ssl::*;
+            use tokio_openssl::SslConnectorExt;
+
+            let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
+            ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
+
+            let connector = ssl_connector_builder.build();
+
+            connector.connect_async("localhost", c)
+                .map_err(|err| format_err!("connect failed - {}", err))
         })
         .map_err(Error::from)
         .and_then(|c| {

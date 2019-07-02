@@ -1,15 +1,16 @@
 use failure::*;
 use futures::*;
-use std::path::Path;
 
 // Simple H2 server to test H2 speed with h2s-client.rs
 
 use hyper::{Request, Response, Body};
 use tokio::net::TcpListener;
 
-use proxmox_backup::client::pipe_to_stream::*;
-use proxmox_backup::tools;
 use proxmox_backup::configdir;
+
+use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
+use std::sync::Arc;
+use tokio_openssl::SslAcceptorExt;
 
 pub fn main() -> Result<(), Error> {
 
@@ -18,39 +19,19 @@ pub fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn load_certificate<T: AsRef<Path>, U: AsRef<Path>>(
-    key: T,
-    cert: U,
-) -> Result<openssl::pkcs12::Pkcs12, Error> {
-    let key = tools::file_get_contents(key)?;
-    let cert = tools::file_get_contents(cert)?;
-
-    let key = openssl::pkey::PKey::private_key_from_pem(&key)?;
-    let cert = openssl::x509::X509::from_pem(&cert)?;
-
-    Ok(openssl::pkcs12::Pkcs12::builder()
-        .build("", "", &key, &cert)?)
-}
-
 pub fn start_h2_server() -> Result<(), Error> {
 
-    let cert_path = configdir!("/proxy.pfx");
-    let raw_cert = match std::fs::read(cert_path) {
-        Ok(pfx) => pfx,
-        Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
-            let pkcs12 = load_certificate(configdir!("/proxy.key"), configdir!("/proxy.pem"))?;
-            pkcs12.to_der()?
-        }
-        Err(err) => bail!("unable to read certificate file {} - {}", cert_path, err),
-    };
+    let key_path = configdir!("/proxy.key");
+    let cert_path = configdir!("/proxy.pem");
 
-    let identity = match native_tls::Identity::from_pkcs12(&raw_cert, "") {
-        Ok(data) => data,
-        Err(err) => bail!("unable to decode pkcs12 identity {} - {}", cert_path, err),
-    };
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    acceptor.set_private_key_file(key_path, SslFiletype::PEM)
+        .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
+    acceptor.set_certificate_chain_file(cert_path)
+        .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
+    acceptor.check_private_key().unwrap();
 
-    let acceptor = native_tls::TlsAcceptor::new(identity)?;
-    let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
+    let acceptor = Arc::new(acceptor.build());
 
     let listener = TcpListener::bind(&"127.0.0.1:8008".parse().unwrap()).unwrap();
 
@@ -59,7 +40,12 @@ pub fn start_h2_server() -> Result<(), Error> {
     let server = listener
         .incoming()
         .map_err(Error::from)
-        .and_then(move |sock| acceptor.accept(sock).map_err(|e| e.into()))
+        .and_then(move |sock| {
+            sock.set_nodelay(true).unwrap();
+            sock.set_send_buffer_size(1024*1024).unwrap();
+            sock.set_recv_buffer_size(1024*1024).unwrap();
+            acceptor.accept_async(sock).map_err(|e| e.into())
+        })
         .then(|r| match r {
             // accept()s can fail here with an Err() when eg. the client rejects
             // the cert and closes the connection, so we follow up with mapping
@@ -88,7 +74,7 @@ pub fn start_h2_server() -> Result<(), Error> {
             http.http2_initial_stream_window_size(max_window_size);
             http.http2_initial_connection_window_size(max_window_size);
 
-            let service = hyper::service::service_fn(|req: Request<Body>| {
+            let service = hyper::service::service_fn(|_req: Request<Body>| {
                 println!("Got request");
                 let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A,A...]
                 let body = Body::from(buffer);

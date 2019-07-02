@@ -1,9 +1,5 @@
-use std::io;
-use std::path::Path;
-
 use proxmox_backup::try_block;
 use proxmox_backup::configdir;
-use proxmox_backup::tools;
 use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::api_schema::router::*;
@@ -17,6 +13,10 @@ use lazy_static::lazy_static;
 use futures::*;
 use futures::stream::Stream;
 
+use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
+use std::sync::Arc;
+use tokio_openssl::SslAcceptorExt;
+
 use hyper;
 
 fn main() {
@@ -25,20 +25,6 @@ fn main() {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }
-}
-
-fn load_certificate<T: AsRef<Path>, U: AsRef<Path>>(
-    key: T,
-    cert: U,
-) -> Result<openssl::pkcs12::Pkcs12, Error> {
-    let key = tools::file_get_contents(key)?;
-    let cert = tools::file_get_contents(cert)?;
-
-    let key = openssl::pkey::PKey::private_key_from_pem(&key)?;
-    let cert = openssl::x509::X509::from_pem(&cert)?;
-
-    Ok(openssl::pkcs12::Pkcs12::builder()
-        .build("", "", &key, &cert)?)
 }
 
 fn run() -> Result<(), Error> {
@@ -72,26 +58,22 @@ fn run() -> Result<(), Error> {
 
     let rest_server = RestServer::new(config);
 
-    let cert_path = configdir!("/proxy.pfx");
-    let raw_cert = match std::fs::read(cert_path) {
-        Ok(pfx) => pfx,
-        Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
-            let pkcs12 = load_certificate(configdir!("/proxy.key"), configdir!("/proxy.pem"))?;
-            pkcs12.to_der()?
-        }
-        Err(err) => bail!("unable to read certificate file {} - {}", cert_path, err),
-    };
+    //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
+    let key_path = configdir!("/proxy.key");
+    let cert_path = configdir!("/proxy.pem");
 
-    let identity = match native_tls::Identity::from_pkcs12(&raw_cert, "") {
-        Ok(data) => data,
-        Err(err) => bail!("unable to decode pkcs12 identity {} - {}", cert_path, err),
-    };
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    acceptor.set_private_key_file(key_path, SslFiletype::PEM)
+        .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
+    acceptor.set_certificate_chain_file(cert_path)
+        .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
+    acceptor.check_private_key().unwrap();
+
+    let acceptor = Arc::new(acceptor.build());
 
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
         |listener| {
-            let acceptor = native_tls::TlsAcceptor::new(identity)?;
-            let acceptor = std::sync::Arc::new(tokio_tls::TlsAcceptor::from(acceptor));
             let connections = listener
                 .incoming()
                 .map_err(Error::from)
@@ -99,7 +81,7 @@ fn run() -> Result<(), Error> {
                     sock.set_nodelay(true).unwrap();
                     sock.set_send_buffer_size(1024*1024).unwrap();
                     sock.set_recv_buffer_size(1024*1024).unwrap();
-                    acceptor.accept(sock).map_err(|e| e.into())
+                    acceptor.accept_async(sock).map_err(|e| e.into())
                 })
                 .then(|r| match r {
                     // accept()s can fail here with an Err() when eg. the client rejects
