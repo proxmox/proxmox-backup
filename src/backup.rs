@@ -135,6 +135,9 @@ pub use chunk_stat::*;
 
 pub use proxmox_protocol::Chunker;
 
+mod read_chunk;
+pub use read_chunk::*;
+
 mod chunk_store;
 pub use chunk_store::*;
 

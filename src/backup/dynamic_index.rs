@@ -6,6 +6,7 @@ use crate::tools;
 use super::IndexFile;
 use super::chunk_stat::*;
 use super::chunk_store::*;
+use super::read_chunk::*;
 use proxmox_protocol::Chunker;
 
 use std::sync::Arc;
@@ -241,12 +242,6 @@ impl IndexFile for DynamicIndexReader {
             })
         }
     }
-}
-
-/// The ReadChunk trait allows reading backup data chunks (local or remote)
-pub trait ReadChunk {
-    /// Returns the decoded chunk data
-    fn read_chunk(&self, digest:&[u8; 32]) -> Result<Vec<u8>, Error>;
 }
 
 pub struct BufferedDynamicReader<S> {
