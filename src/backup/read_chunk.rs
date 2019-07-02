@@ -12,13 +12,13 @@ pub trait ReadChunk {
 }
 
 pub struct LocalChunkReader {
-    store: DataStore,
+    store: Arc<DataStore>,
     crypt_config: Option<Arc<CryptConfig>>,
 }
 
 impl LocalChunkReader {
 
-    pub fn new(store: DataStore, crypt_config: Option<Arc<CryptConfig>>) -> Self {
+    pub fn new(store: Arc<DataStore>, crypt_config: Option<Arc<CryptConfig>>) -> Self {
         Self { store, crypt_config }
     }
 }
