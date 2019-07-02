@@ -60,7 +60,8 @@ impl FixedIndexReader {
 
         let full_path = store.relative_path(path);
 
-        let mut file = File::open(&full_path)?;
+        let mut file = File::open(&full_path)
+            .map_err(|err| format_err!("Unable to open fixed index {:?} - {}", full_path, err))?;
 
         if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
             bail!("unable to get shared lock on {:?} - {}", full_path, err);
