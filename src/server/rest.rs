@@ -49,8 +49,14 @@ impl MakeService<&tokio_openssl::SslStream<tokio::net::TcpStream>> for RestServe
     type Service = ApiService;
     type Future = Box<dyn Future<Item = Self::Service, Error = Self::MakeError> + Send>;
     fn make_service(&mut self, ctx: &tokio_openssl::SslStream<tokio::net::TcpStream>) -> Self::Future {
-        let peer = ctx.get_ref().get_ref().peer_addr().unwrap();
-        Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
+        match ctx.get_ref().get_ref().peer_addr() {
+            Err(err) => {
+                Box::new(future::err(format_err!("unable to get peer address - {}", err)))
+            }
+            Ok(peer) => {
+                Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
+            }
+        }
     }
 }
 
@@ -63,8 +69,14 @@ impl MakeService<&tokio::net::TcpStream> for RestServer
     type Service = ApiService;
     type Future = Box<dyn Future<Item = Self::Service, Error = Self::MakeError> + Send>;
     fn make_service(&mut self, ctx: &tokio::net::TcpStream) -> Self::Future {
-        let peer = ctx.peer_addr().unwrap();
-        Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
+        match ctx.peer_addr() {
+            Err(err) => {
+                Box::new(future::err(format_err!("unable to get peer address - {}", err)))
+            }
+            Ok(peer) => {
+                Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
+            }
+        }
     }
 }
 
