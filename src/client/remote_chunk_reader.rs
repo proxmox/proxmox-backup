@@ -22,8 +22,6 @@ impl ReadChunk for RemoteChunkReader {
 
     fn read_chunk(&mut self, digest:&[u8; 32]) -> Result<Vec<u8>, Error> {
 
-        let digest_str = proxmox::tools::digest_to_hex(digest);
-
         let writer = Vec::with_capacity(4*1024*1024);
 
         let chunk_data = self.client.download_chunk(&digest, writer).wait()?;
