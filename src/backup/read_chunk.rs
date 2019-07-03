@@ -8,7 +8,7 @@ use super::data_chunk::*;
 /// The ReadChunk trait allows reading backup data chunks (local or remote)
 pub trait ReadChunk {
     /// Returns the decoded chunk data
-    fn read_chunk(&self, digest:&[u8; 32]) -> Result<Vec<u8>, Error>;
+    fn read_chunk(&mut self, digest:&[u8; 32]) -> Result<Vec<u8>, Error>;
 }
 
 pub struct LocalChunkReader {
@@ -25,7 +25,7 @@ impl LocalChunkReader {
 
 impl ReadChunk for LocalChunkReader {
 
-    fn read_chunk(&self, digest:&[u8; 32]) -> Result<Vec<u8>, Error> {
+    fn read_chunk(&mut self, digest:&[u8; 32]) -> Result<Vec<u8>, Error> {
 
         let digest_str = proxmox::tools::digest_to_hex(digest);
         println!("READ CHUNK {}", digest_str);
