@@ -518,7 +518,7 @@ impl BackupReader {
         self.h2.download(path, Some(param), output)
     }
 
-    pub fn force_close(mut self) {
+    pub fn force_close(self) {
         self.canceller.cancel();
     }
 }
