@@ -269,7 +269,7 @@ impl HttpClient {
         backup_type: &str,
         backup_id: &str,
         debug: bool,
-    ) -> impl Future<Item=BackupClient, Error=Error> {
+    ) -> impl Future<Item=Arc<BackupClient>, Error=Error> {
 
         let param = json!({"backup-type": backup_type, "backup-id": backup_id, "store": datastore, "debug": debug});
         let req = Self::request_builder(&self.server, "GET", "/api2/json/backup", Some(param)).unwrap();
@@ -285,7 +285,7 @@ impl HttpClient {
         backup_id: &str,
         backup_time: DateTime<Local>,
         debug: bool,
-    ) -> impl Future<Item=BackupReader, Error=Error> {
+    ) -> impl Future<Item=Arc<BackupReader>, Error=Error> {
 
         let param = json!({
             "backup-type": backup_type,
@@ -461,25 +461,22 @@ impl HttpClient {
 }
 
 
-#[derive(Clone)]
 pub struct BackupReader {
     h2: H2Client,
-    canceller: Option<Canceller>,
+    canceller: Canceller,
 }
 
 impl Drop for BackupReader {
 
     fn drop(&mut self) {
-        if let Some(canceller) = self.canceller.take() {
-            canceller.cancel();
-        }
+        self.canceller.cancel();
     }
 }
 
 impl BackupReader {
 
-    pub fn new(h2: H2Client, canceller: Canceller) -> Self {
-        Self { h2, canceller: Some(canceller) }
+    pub fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
+        Arc::new(Self { h2, canceller: canceller })
     }
 
     pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
@@ -522,30 +519,26 @@ impl BackupReader {
     }
 
     pub fn force_close(mut self) {
-        if let Some(canceller) = self.canceller.take() {
-            canceller.cancel();
-        }
+        self.canceller.cancel();
     }
 }
 
 pub struct BackupClient {
     h2: H2Client,
-    canceller: Option<Canceller>,
+    canceller: Canceller,
 }
 
 impl Drop for BackupClient {
 
     fn drop(&mut self) {
-        if let Some(canceller) = self.canceller.take() {
-            canceller.cancel();
-        }
+        self.canceller.cancel();
     }
 }
 
 impl BackupClient {
 
-    pub fn new(h2: H2Client, canceller: Canceller) -> Self {
-        Self { h2, canceller: Some(canceller) }
+    pub fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
+        Arc::new(Self { h2, canceller })
     }
 
     pub fn get(&self, path: &str, param: Option<Value>) -> impl Future<Item=Value, Error=Error> {
@@ -560,18 +553,16 @@ impl BackupClient {
         self.h2.post(path, param)
     }
 
-    pub fn finish(mut self) -> impl Future<Item=(), Error=Error> {
-        let canceler = self.canceller.take().unwrap();
+    pub fn finish(self: Arc<Self>) -> impl Future<Item=(), Error=Error> {
+        let canceller = self.canceller.clone();
         self.h2.clone().post("finish", None).map(move |_| {
-            canceler.cancel();
+            canceller.cancel();
             ()
         })
     }
 
-    pub fn force_close(mut self) {
-        if let Some(canceller) = self.canceller.take() {
-            canceller.cancel();
-        }
+    pub fn force_close(self) {
+        self.canceller.cancel();
     }
 
     pub fn upload_blob_from_data(
