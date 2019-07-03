@@ -13,6 +13,8 @@ use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
 use proxmox_backup::backup::*;
+use proxmox_backup::pxar;
+
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
 //use proxmox_backup::pxar::encoder::*;
@@ -580,17 +582,17 @@ fn restore(
     let repo_url = tools::required_string_param(&param, "repository")?;
     let repo: BackupRepository = repo_url.parse()?;
 
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user())?;
 
     record_repository(&repo);
 
     let path = tools::required_string_param(&param, "snapshot")?;
 
-    let query;
-
-    if path.matches('/').count() == 1 {
+    let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
 
         let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
@@ -604,36 +606,57 @@ fn restore(
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
-        query = tools::json_object_to_query(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-            "backup-time": list[0]["backup-time"].as_i64().unwrap(),
-            "archive-name": archive_name,
-        }))?;
+        let epoch = list[0]["backup-time"].as_i64().unwrap();
+        let backup_time = Local.timestamp(epoch, 0);
+        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
     } else {
         let snapshot = BackupDir::parse(path)?;
-
-        query = tools::json_object_to_query(json!({
-            "backup-type": snapshot.group().backup_type(),
-            "backup-id": snapshot.group().backup_id(),
-            "backup-time": snapshot.backup_time().timestamp(),
-            "archive-name": archive_name,
-        }))?;
-    }
+        (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
+    };
 
     let target = tools::required_string_param(&param, "target")?;
 
-    if archive_name.ends_with(".pxar") {
-        let path = format!("api2/json/admin/datastore/{}/pxar?{}", repo.store(), query);
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
-        println!("DOWNLOAD FILE {} to {}", path, target);
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            Some(Arc::new(CryptConfig::new(key)?))
+        }
+    };
 
-        let target = PathBuf::from(target);
-        let writer = PxarDecodeWriter::new(&target, true)?;
-        client.download(&path, Box::new(writer)).wait()?;
-    } else {
-        bail!("unknown file extensions - unable to download '{}'", archive_name);
+    if !archive_name.ends_with(".pxar") {
+        bail!("unknown file extensions - unable to restore '{}'", archive_name);
     }
+
+    let client = client.start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true).wait()?;
+
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let tmpfile = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
+
+    let tmpfile = client.download(&format!("{}.didx", archive_name), tmpfile).wait()?;
+
+    let index = DynamicIndexReader::new(tmpfile)?;
+
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config);
+
+    let mut reader = BufferedDynamicReader::new(index, chunk_reader);
+
+    let feature_flags = pxar::CA_FORMAT_DEFAULT;
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
+
+    decoder.restore(Path::new(target), & |path| {
+        if verbose {
+            println!("{:?}", path);
+        }
+        Ok(())
+    })?;
 
     Ok(Value::Null)
 }
@@ -1257,6 +1280,11 @@ fn main() {
                 .required("snapshot", StringSchema::new("Group/Snapshot path."))
                 .required("archive-name", StringSchema::new("Backup archive name."))
                 .required("target", StringSchema::new("Target directory path."))
+                .optional("keyfile", StringSchema::new("Path to encryption key."))
+                .optional(
+                    "verbose",
+                    BooleanSchema::new("Verbose output.").default(false)
+                )
         ))
         .arg_param(vec!["repository", "snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
