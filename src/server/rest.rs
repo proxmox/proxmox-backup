@@ -23,7 +23,7 @@ use tokio::fs::File;
 //use hyper::body::Payload;
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
-use hyper::service::{Service, NewService};
+use hyper::service::{Service, MakeService};
 use hyper::rt::{Future, Stream};
 use hyper::header;
 
@@ -40,24 +40,46 @@ impl RestServer {
     }
 }
 
-impl NewService for RestServer
+impl MakeService<&tokio_openssl::SslStream<tokio::net::TcpStream>> for RestServer
 {
     type ReqBody = Body;
     type ResBody = Body;
-    type Error = hyper::Error;
-    type InitError = hyper::Error;
+    type Error = Error;
+    type MakeError = Error;
     type Service = ApiService;
-    type Future = Box<dyn Future<Item = Self::Service, Error = Self::InitError> + Send>;
-    fn new_service(&self) -> Self::Future {
-        Box::new(future::ok(ApiService { api_config: self.api_config.clone() }))
+    type Future = Box<dyn Future<Item = Self::Service, Error = Self::MakeError> + Send>;
+    fn make_service(&mut self, ctx: &tokio_openssl::SslStream<tokio::net::TcpStream>) -> Self::Future {
+        let peer = ctx.get_ref().get_ref().peer_addr().unwrap();
+        Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
     }
 }
 
+impl MakeService<&tokio::net::TcpStream> for RestServer
+{
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = Error;
+    type MakeError = Error;
+    type Service = ApiService;
+    type Future = Box<dyn Future<Item = Self::Service, Error = Self::MakeError> + Send>;
+    fn make_service(&mut self, ctx: &tokio::net::TcpStream) -> Self::Future {
+        let peer = ctx.peer_addr().unwrap();
+        Box::new(future::ok(ApiService { peer, api_config: self.api_config.clone() }))
+    }
+}
+
+
 pub struct ApiService {
+    pub peer: std::net::SocketAddr,
     pub api_config: Arc<ApiConfig>,
 }
 
-fn log_response(method: hyper::Method, path: &str, resp: &Response<Body>) {
+fn log_response(
+    peer: &std::net::SocketAddr,
+    method: hyper::Method,
+    path: &str,
+    resp: &Response<Body>,
+) {
 
     if resp.extensions().get::<NoLogExtension>().is_some() { return; };
 
@@ -65,43 +87,43 @@ fn log_response(method: hyper::Method, path: &str, resp: &Response<Body>) {
 
     if !(status.is_success() || status.is_informational()) {
         let reason = status.canonical_reason().unwrap_or("unknown reason");
-        let client = "unknown"; // fixme: howto get peer_addr ?
 
         let mut message = "request failed";
         if let Some(data) = resp.extensions().get::<ErrorMessageExtension>() {
             message = &data.0;
         }
 
-        log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, client, message);
+        log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, peer, message);
     }
 }
 
 impl Service for ApiService {
     type ReqBody = Body;
     type ResBody = Body;
-    type Error = hyper::Error;
+    type Error = Error;
     type Future = Box<dyn Future<Item = Response<Body>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         let path = req.uri().path().to_owned();
         let method = req.method().clone();
 
+        let peer = self.peer.clone();
         Box::new(handle_request(self.api_config.clone(), req).then(move |result| {
             match result {
                 Ok(res) => {
-                    log_response(method, &path, &res);
-                    Ok::<_, hyper::Error>(res)
+                    log_response(&peer, method, &path, &res);
+                    Ok::<_, Self::Error>(res)
                 }
                 Err(err) => {
                     if let Some(apierr) = err.downcast_ref::<HttpError>() {
                         let mut resp = Response::new(Body::from(apierr.message.clone()));
                         *resp.status_mut() = apierr.code;
-                        log_response(method, &path, &resp);
+                        log_response(&peer, method, &path, &resp);
                         Ok(resp)
                     } else {
                         let mut resp = Response::new(Body::from(err.to_string()));
                         *resp.status_mut() = StatusCode::BAD_REQUEST;
-                        log_response(method, &path, &resp);
+                        log_response(&peer, method, &path, &resp);
                         Ok(resp)
                     }
                 }
