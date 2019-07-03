@@ -9,6 +9,9 @@ mod merge_known_chunks;
 mod http_client;
 pub use  http_client::*;
 
+mod remote_chunk_reader;
+pub use remote_chunk_reader::*;
+
 mod pxar_backup_stream;
 pub use pxar_backup_stream::*;
 
