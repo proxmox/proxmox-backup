@@ -298,33 +298,38 @@ impl FixedIndexWriter {
         Ok(index_csum)
     }
 
+    pub fn check_chunk_alignment(&self, offset: usize, chunk_len: usize) -> Result<usize, Error> {
+
+        if offset < chunk_len {
+            bail!("got chunk with small offset ({} < {}", offset, chunk_len);
+        }
+
+        let pos = offset - chunk_len;
+
+        if offset > self.size {
+            bail!("chunk data exceeds size ({} >= {})", offset, self.size);
+        }
+
+        // last chunk can be smaller
+        if ((offset != self.size) && (chunk_len != self.chunk_size)) ||
+            (chunk_len > self.chunk_size) || (chunk_len == 0) {
+                bail!("chunk with unexpected length ({} != {}", chunk_len, self.chunk_size);
+            }
+
+        if pos & (self.chunk_size-1) != 0 {
+            bail!("got unaligned chunk (pos = {})", pos);
+        }
+
+        Ok(pos / self.chunk_size)
+    }
+
     // Note: We want to add data out of order, so do not assume any order here.
     pub fn add_chunk(&mut self, chunk_info: &ChunkInfo, stat: &mut ChunkStat) -> Result<(), Error> {
 
         let chunk_len = chunk_info.chunk_len as usize;
-        let end = chunk_info.offset as usize;
+        let offset = chunk_info.offset as usize; // end of chunk
 
-        if end < chunk_len {
-            bail!("got chunk with small offset ({} < {}", end, chunk_len);
-        }
-
-        let pos = end - chunk_len;
-
-        if end > self.size {
-            bail!("write chunk data exceeds size ({} >= {})", end, self.size);
-        }
-
-        // last chunk can be smaller
-        if ((end != self.size) && (chunk_len != self.chunk_size)) ||
-            (chunk_len > self.chunk_size) || (chunk_len == 0) {
-                bail!("got chunk with wrong length ({} != {}", chunk_len, self.chunk_size);
-            }
-
-        if pos & (self.chunk_size-1) != 0 { bail!("add unaligned chunk (pos = {})", pos); }
-
-        if (end as u64) != chunk_info.offset {
-            bail!("got chunk with wrong offset ({} != {}", end, chunk_info.offset);
-        }
+        let idx = self.check_chunk_alignment(offset, chunk_len)?;
 
         let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk_info.chunk)?;
 
@@ -333,7 +338,7 @@ impl FixedIndexWriter {
 
         let digest = chunk_info.chunk.digest();
 
-        println!("ADD CHUNK {} {} {}% {} {}", pos, chunk_len,
+        println!("ADD CHUNK {} {} {}% {} {}", idx, chunk_len,
                  (compressed_size*100)/(chunk_len as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));
 
         if is_duplicate {
@@ -342,7 +347,7 @@ impl FixedIndexWriter {
             stat.disk_size += compressed_size;
         }
 
-        self.add_digest(pos / self.chunk_size, digest)
+        self.add_digest(idx, digest)
     }
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {

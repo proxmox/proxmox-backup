@@ -44,6 +44,7 @@ struct FixedWriterState {
     size: usize,
     chunk_size: u32,
     chunk_count: u64,
+    small_chunk_count: usize, // allow 0..1 small chunks (last chunk may be smaller)
     upload_stat: UploadStatistic,
 }
 
@@ -156,8 +157,13 @@ impl BackupEnvironment {
             None => bail!("fixed writer '{}' not registered", wid),
         };
 
-        if size != data.chunk_size {
-            bail!("fixed writer '{}' - got unexpected chunk size ({} != {}", data.name, size, data.chunk_size);
+        if size > data.chunk_size {
+            bail!("fixed writer '{}' - got large chunk ({} > {}", data.name, size, data.chunk_size);
+        } else if size < data.chunk_size {
+            data.small_chunk_count += 1;
+            if data.small_chunk_count > 1 {
+                bail!("fixed writer '{}' - detected multiple end chunks (chunk size too small)");
+            }
         }
 
         // record statistics
@@ -238,7 +244,7 @@ impl BackupEnvironment {
         let uid = state.next_uid();
 
         state.fixed_writers.insert(uid, FixedWriterState {
-            index, name, chunk_count: 0, size, chunk_size, upload_stat: UploadStatistic::new(),
+            index, name, chunk_count: 0, size, chunk_size, small_chunk_count: 0, upload_stat: UploadStatistic::new(),
         });
 
         Ok(uid)
@@ -280,14 +286,12 @@ impl BackupEnvironment {
             None => bail!("fixed writer '{}' not registered", wid),
         };
 
+        let end = (offset as usize) + (size as usize);
+        let idx = data.index.check_chunk_alignment(end, size as usize)?;
+
         data.chunk_count += 1;
 
-        if size != data.chunk_size {
-            bail!("fixed writer '{}' - got unexpected chunk size ({} != {}", data.name, size, data.chunk_size);
-        }
-
-        let pos = (offset as usize)/(data.chunk_size as usize);
-        data.index.add_digest(pos, digest)?;
+        data.index.add_digest(idx, digest)?;
 
         Ok(())
     }
