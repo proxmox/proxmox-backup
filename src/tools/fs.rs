@@ -93,7 +93,7 @@ impl Iterator for ReadDir {
 
 /// Create an iterator over sub directory entries.
 /// This uses `openat` on `dirfd`, so `path` can be relative to that or an absolute path.
-pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> Result<ReadDir, Error> {
+pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> nix::Result<ReadDir> {
     use nix::fcntl::OFlag;
     use nix::sys::stat::Mode;
 
