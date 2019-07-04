@@ -30,7 +30,7 @@ fn print_filenames(
     let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
     feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
     feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |_| Ok(()));
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -65,7 +65,7 @@ fn dump_archive(
     if !with_acls {
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |_| Ok(()));
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -105,14 +105,14 @@ fn extract_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
-
-    decoder.restore(Path::new(target), & |path| {
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
         if verbose {
             println!("{:?}", path);
         }
         Ok(())
-    })?;
+    });
+
+    decoder.restore(Path::new(target))?;
 
     Ok(Value::Null)
 }

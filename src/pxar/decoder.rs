@@ -21,22 +21,22 @@ pub struct CaDirectoryEntry {
 }
 
 // This one needs Read+Seek
-pub struct Decoder<'a, R: Read + Seek> {
-    inner: SequentialDecoder<'a, R>,
+pub struct Decoder<'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
+    inner: SequentialDecoder<'a, R, F>,
     root_start: u64,
     root_end: u64,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
-impl <'a, R: Read + Seek> Decoder<'a, R> {
+impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
-    pub fn new(reader: &'a mut R) -> Result<Self, Error> {
+    pub fn new(reader: &'a mut R, callback: F) -> Result<Self, Error> {
 
         let root_end = reader.seek(SeekFrom::End(0))?;
 
         Ok(Self {
-            inner: SequentialDecoder::new(reader, CA_FORMAT_DEFAULT),
+            inner: SequentialDecoder::new(reader, CA_FORMAT_DEFAULT, callback),
             root_start: 0,
             root_end: root_end,
         })
@@ -62,19 +62,16 @@ impl <'a, R: Read + Seek> Decoder<'a, R> {
         Ok(pos)
     }
 
-    pub fn restore<F>(
+    pub fn restore(
         &mut self,
         dir: &CaDirectoryEntry,
         path: &Path,
-        callback: F,
-    ) -> Result<(), Error>
-        where F: Fn(&Path) -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
         let start = dir.start;
 
         self.seek(SeekFrom::Start(start))?;
 
-        self.inner.restore(path, &callback)?;
+        self.inner.restore(path)?;
 
         Ok(())
     }

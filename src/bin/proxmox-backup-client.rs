@@ -649,14 +649,14 @@ fn restore(
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
     let feature_flags = pxar::CA_FORMAT_DEFAULT;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
-
-    decoder.restore(Path::new(target), & |path| {
+    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
         if verbose {
             println!("{:?}", path);
         }
         Ok(())
-    })?;
+    });
+
+    decoder.restore(Path::new(target))?;
 
     Ok(Value::Null)
 }

@@ -29,23 +29,25 @@ use crate::tools::acl;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
-pub struct SequentialDecoder<'a, R: Read> {
+pub struct SequentialDecoder<'a, R: Read, F: Fn(&Path) -> Result<(), Error>> {
     reader: &'a mut R,
     feature_flags: u64,
     skip_buffer: Vec<u8>,
+    callback: F,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
 
-impl <'a, R: Read> SequentialDecoder<'a, R> {
+impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F> {
 
-    pub fn new(reader: &'a mut R, feature_flags: u64) -> Self {
+    pub fn new(reader: &'a mut R, feature_flags: u64, callback: F) -> Self {
         let skip_buffer = vec::undefined(64*1024);
 
         Self {
             reader,
             feature_flags,
-            skip_buffer
+            skip_buffer,
+            callback,
         }
     }
 
@@ -450,13 +452,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
-    pub fn restore<F>(
-        &mut self,
-        path: &Path,
-        callback: &F,
-    ) -> Result<(), Error>
-        where F: Fn(&Path) -> Result<(), Error>
-    {
+    pub fn restore(&mut self, path: &Path) -> Result<(), Error> {
 
         let _ = std::fs::create_dir(path);
 
@@ -464,25 +460,22 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
 
         let mut relative_path = PathBuf::new();
-        self.restore_sequential(path, &mut relative_path, &OsString::new(), &dir, callback)
+        self.restore_sequential(path, &mut relative_path, &OsString::new(), &dir)
     }
 
-    fn restore_sequential<F>(
+    fn restore_sequential(
         &mut self,
         base_path: &Path,
         relative_path: &mut PathBuf,
         filename: &OsStr,  // repeats path last relative_path component
         parent: &nix::dir::Dir,
-        callback: &F,
-    ) -> Result<(), Error>
-        where F: Fn(&Path) -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
 
         let parent_fd = parent.as_raw_fd();
 
         let full_path = base_path.join(&relative_path);
 
-        (callback)(&full_path)?;
+        (self.callback)(&full_path)?;
 
         let head: CaFormatHeader = self.read_item()?;
 
@@ -519,7 +512,7 @@ impl <'a, R: Read> SequentialDecoder<'a, R> {
             while head.htype == CA_FORMAT_FILENAME {
                 let name = self.read_filename(head.size)?;
                 relative_path.push(&name);
-                self.restore_sequential(base_path, relative_path, &name, &dir, callback)?;
+                self.restore_sequential(base_path, relative_path, &name, &dir)?;
                 relative_path.pop();
 
                 head = self.read_item()?;
