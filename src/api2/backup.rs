@@ -603,9 +603,14 @@ fn fixed_chunk_index(
     env.log(format!("download last backup index for archive '{}'", archive_name));
 
     let count = index.index_count();
+    let image_size = index.index_bytes();
     for pos in 0..count {
         let digest = index.index_digest(pos).unwrap();
-        let size = index.chunk_size as u32;
+        // Note: last chunk can be smaller
+        let start = (pos*index.chunk_size) as u64;
+        let mut end = start + index.chunk_size as u64;
+        if end > image_size { end = image_size; }
+        let size = (end - start) as u32;
         env.register_chunk(*digest, size)?;
     }
 

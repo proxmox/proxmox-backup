@@ -32,7 +32,7 @@ pub struct FixedIndexHeader {
 pub struct FixedIndexReader {
     _file: File,
     pub chunk_size: usize,
-    pub size: usize,
+    pub size: u64,
     index_length: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
@@ -82,11 +82,11 @@ impl FixedIndexReader {
             bail!("got unknown magic number");
         }
 
-        let size = u64::from_le(header.size) as usize;
+        let size = u64::from_le(header.size);
         let ctime = u64::from_le(header.ctime);
-        let chunk_size = u64::from_le(header.chunk_size) as usize;
+        let chunk_size = u64::from_le(header.chunk_size);
 
-        let index_length = (size + chunk_size - 1)/chunk_size;
+        let index_length = ((size + chunk_size - 1)/chunk_size) as usize;
         let index_size = index_length*32;
 
         let rawfd = file.as_raw_fd();
@@ -111,7 +111,7 @@ impl FixedIndexReader {
 
         Ok(Self {
             _file: file,
-            chunk_size,
+            chunk_size: chunk_size as usize,
             size,
             index_length,
             index: data,
@@ -158,7 +158,7 @@ impl IndexFile for FixedIndexReader {
     }
 
     fn index_bytes(&self) -> u64 {
-        (self.index_length * self.chunk_size) as u64
+        self.size
     }
 }
 
