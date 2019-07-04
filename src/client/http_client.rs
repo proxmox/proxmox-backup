@@ -554,11 +554,11 @@ impl BackupClient {
     }
 
     pub fn finish(self: Arc<Self>) -> impl Future<Item=(), Error=Error> {
-        let canceller = self.canceller.clone();
-        self.h2.clone().post("finish", None).map(move |_| {
-            canceller.cancel();
-            ()
-        })
+        self.h2.clone()
+            .post("finish", None)
+            .map(move |_| {
+                self.canceller.cancel();
+            })
     }
 
     pub fn force_close(self) {
