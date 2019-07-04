@@ -200,40 +200,68 @@ impl ChunkStore {
                               self.name, self.chunk_dir, err),
         };
 
-        let mut verbose = true;
+        let mut done = false;
+        let mut inner: Option<tools::fs::ReadDir> = None;
+        let mut at = 0;
+        let mut percentage = 0;
+        Ok(std::iter::from_fn(move || {
+            if done {
+                return None;
+            }
 
-        Ok((0..0x10000).filter_map(move |index| {
-            let percentage = (index * 100) / 0x10000;
-            let subdir: &str = &format!("{:04x}", index);
-            match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
-                Err(e) => {
-                    if verbose {
-                        eprintln!("Error iterating through chunks: {}", e);
-                        verbose = false;
+            loop {
+                if let Some(ref mut inner) = inner {
+                    match inner.next() {
+                        Some(Ok(entry)) => {
+                            // skip files if they're not a hash
+                            let bytes = entry.file_name().to_bytes();
+                            if bytes.len() != 64 {
+                                continue;
+                            }
+                            if !bytes.iter().all(u8::is_ascii_hexdigit) {
+                                continue;
+                            }
+                            return Some((Ok(entry), percentage));
+                        }
+                        Some(Err(err)) => {
+                            // stop after first error
+                            done = true;
+                            // and pass the error through:
+                            return Some((Err(err), percentage));
+                        }
+                        None => (), // open next directory
                     }
-                    None
                 }
-                Ok(iter) => Some(iter.map(move |item| (item, percentage))),
-            }
-        })
-        .flatten()
-        .filter(|(entry, _percentage)| {
-            // Check that the file name is actually a hash! (64 hex digits)
-            let entry = match entry {
-                Err(_) => return true, // pass errors onwards
-                Ok(ref entry) => entry,
-            };
-            let bytes = entry.file_name().to_bytes();
-            if bytes.len() != 64 {
-                return false;
-            }
-            for b in bytes {
-                if !b.is_ascii_hexdigit() {
-                    return false;
+
+                inner = None;
+
+                if at == 0x10000 {
+                    done = true;
+                    return None;
+                }
+
+                let subdir: &str = &format!("{:04x}", at);
+                percentage = (at * 100) / 0x10000;
+                at += 1;
+                match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
+                    Ok(dir) => {
+                        inner = Some(dir);
+                        // start reading:
+                        continue;
+                    }
+                    Err(ref err) if err.as_errno() == Some(nix::errno::Errno::ENOENT) => {
+                        // non-existing directories are okay, just keep going:
+                        continue;
+                    }
+                    Err(err) => {
+                        // other errors are fatal, so end our iteration
+                        done = true;
+                        // and pass the error through:
+                        return Some((Err(err.into()), percentage));
+                    }
                 }
             }
-            true
-        }))
+        }).fuse())
     }
 
     pub fn oldest_writer(&self) -> Option<i64> {
