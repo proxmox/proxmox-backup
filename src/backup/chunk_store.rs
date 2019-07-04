@@ -257,7 +257,7 @@ impl ChunkStore {
                         // other errors are fatal, so end our iteration
                         done = true;
                         // and pass the error through:
-                        return Some((Err(err.into()), percentage));
+                        return Some((Err(format_err!("unable to read subdir '{}' - {}", subdir, err)), percentage));
                     }
                 }
             }
@@ -299,7 +299,7 @@ impl ChunkStore {
 
             let (dirfd, entry) = match entry {
                 Ok(entry) => (entry.parent_fd(), entry),
-                Err(_) => continue, // ignore errors
+                Err(err) => bail!("chunk iterator on chunk store '{}' failed - {}", self.name, err),
             };
 
             let file_type = match entry.file_type() {
