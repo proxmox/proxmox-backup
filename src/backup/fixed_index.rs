@@ -30,9 +30,7 @@ pub struct FixedIndexHeader {
 // split image into fixed size chunks
 
 pub struct FixedIndexReader {
-    store: Arc<ChunkStore>,
     _file: File,
-    filename: PathBuf,
     pub chunk_size: usize,
     pub size: usize,
     index_length: usize,
@@ -49,28 +47,31 @@ impl Drop for FixedIndexReader {
 
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
-            eprintln!("Unable to unmap file {:?} - {}", self.filename, err);
+            eprintln!("Unable to unmap file - {}", err);
         }
     }
 }
 
 impl FixedIndexReader {
 
-    pub fn open(store: Arc<ChunkStore>, path: &Path) -> Result<Self, Error> {
+    pub fn open(path: &Path) -> Result<Self, Error> {
 
-        let full_path = store.relative_path(path);
+        File::open(path)
+            .map_err(Error::from)
+            .and_then(|file| Self::new(file))
+            .map_err(|err| format_err!("Unable to open fixed index {:?} - {}", path, err))
+    }
 
-        let mut file = File::open(&full_path)
-            .map_err(|err| format_err!("Unable to open fixed index {:?} - {}", full_path, err))?;
+    pub fn new(mut file: std::fs::File) -> Result<Self, Error> {
 
         if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
-            bail!("unable to get shared lock on {:?} - {}", full_path, err);
+            bail!("unable to get shared lock - {}", err);
         }
 
         let header_size = std::mem::size_of::<FixedIndexHeader>();
 
         // todo: use static assertion when available in rust
-        if header_size != 4096 { bail!("got unexpected header size for {:?}", path); }
+        if header_size != 4096 { bail!("got unexpected header size"); }
 
         let mut buffer = vec![0u8; header_size];
         file.read_exact(&mut buffer)?;
@@ -78,7 +79,7 @@ impl FixedIndexReader {
         let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
 
         if header.magic != super::FIXED_SIZED_CHUNK_INDEX_1_0 {
-            bail!("got unknown magic number for {:?}", path);
+            bail!("got unknown magic number");
         }
 
         let size = u64::from_le(header.size) as usize;
@@ -92,13 +93,12 @@ impl FixedIndexReader {
 
         let stat = match nix::sys::stat::fstat(rawfd) {
             Ok(stat) => stat,
-            Err(err) => bail!("fstat {:?} failed - {}", path, err),
+            Err(err) => bail!("fstat failed - {}", err),
         };
 
         let expected_index_size = (stat.st_size as usize) - header_size;
         if index_size != expected_index_size {
-            bail!("got unexpected file size for {:?} ({} != {})",
-                  path, index_size, expected_index_size);
+            bail!("got unexpected file size ({} != {})", index_size, expected_index_size);
         }
 
         let data = unsafe { nix::sys::mman::mmap(
@@ -110,8 +110,6 @@ impl FixedIndexReader {
             header_size as i64) }? as *mut u8;
 
         Ok(Self {
-            store,
-            filename: full_path,
             _file: file,
             chunk_size,
             size,
@@ -130,7 +128,7 @@ impl FixedIndexReader {
         let index_size = self.index_length*32;
 
         if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
-            bail!("unmap file {:?} failed - {}", self.filename, err);
+            bail!("unmap file failed - {}", err);
         }
 
         self.index = std::ptr::null_mut();
@@ -139,7 +137,6 @@ impl FixedIndexReader {
     }
 
     pub fn print_info(&self) {
-        println!("Filename: {:?}", self.filename);
         println!("Size: {}", self.size);
         println!("ChunkSize: {}", self.chunk_size);
         println!("CTime: {}", Local.timestamp(self.ctime as i64, 0).format("%c"));

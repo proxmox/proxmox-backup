@@ -95,7 +95,9 @@ impl DataStore {
 
     pub fn open_fixed_reader<P: AsRef<Path>>(&self, filename: P) -> Result<FixedIndexReader, Error> {
 
-        let index = FixedIndexReader::open(self.chunk_store.clone(), filename.as_ref())?;
+        let full_path =  self.chunk_store.relative_path(filename.as_ref());
+
+        let index = FixedIndexReader::open(&full_path)?;
 
         Ok(index)
     }
