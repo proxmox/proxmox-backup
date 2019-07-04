@@ -61,17 +61,17 @@ impl DynamicIndexReader {
 
     pub fn open(path: &Path) -> Result<Self, Error> {
 
-        let file = std::fs::File::open(&path)
-            .map_err(|err| format_err!("Unable to open dynamic index {:?} - {}", path, err))?;
-
-        if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
-            bail!("unable to get shared lock on {:?} - {}", path, err);
-        }
-
-        Self::new(file)
+        File::open(path)
+            .map_err(Error::from)
+            .and_then(|file| Self::new(file))
+            .map_err(|err| format_err!("Unable to open dynamic index {:?} - {}", path, err))
     }
 
     pub fn new(mut file: std::fs::File) -> Result<Self, Error> {
+
+        if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
+            bail!("unable to get shared lock - {}", err);
+        }
 
         file.seek(SeekFrom::Start(0))?;
 
