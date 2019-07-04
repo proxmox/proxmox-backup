@@ -2,9 +2,13 @@ use failure::*;
 use futures::*;
 use bytes::{Bytes, BytesMut};
 
+/// Trait to get digest list from index files
+///
+/// To allow easy iteration over all used chunks.
 pub trait IndexFile: Send {
     fn index_count(&self) -> usize;
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
+    fn index_bytes(&self) -> u64;
 }
 
 /// Encode digest list from an `IndexFile` into a binary stream

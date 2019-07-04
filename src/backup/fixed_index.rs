@@ -138,27 +138,6 @@ impl FixedIndexReader {
         Ok(())
     }
 
-    pub fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
-
-        if self.index == std::ptr::null_mut() { bail!("detected closed index file."); }
-
-        status.used_bytes += self.index_length * self.chunk_size;
-        status.used_chunks += self.index_length;
-
-        for pos in 0..self.index_length {
-
-            tools::fail_on_shutdown()?;
-
-            let digest = self.index_digest(pos).unwrap();
-            if let Err(err) = self.store.touch_chunk(digest) {
-                bail!("unable to access chunk {}, required by {:?} - {}",
-                      proxmox::tools::digest_to_hex(digest), self.filename, err);
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn print_info(&self) {
         println!("Filename: {:?}", self.filename);
         println!("Size: {}", self.size);
@@ -179,6 +158,10 @@ impl IndexFile for FixedIndexReader {
         } else {
             Some(unsafe { std::mem::transmute(self.index.add(pos*32)) })
         }
+    }
+
+    fn index_bytes(&self) -> u64 {
+        (self.index_length * self.chunk_size) as u64
     }
 }
 

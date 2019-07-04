@@ -12,20 +12,24 @@ use super::DataChunk;
 #[derive(Clone, Serialize)]
 pub struct GarbageCollectionStatus {
     pub upid: Option<String>,
-    pub used_bytes: usize,
-    pub used_chunks: usize,
-    pub disk_bytes: usize,
+    pub index_file_count: usize,
+    pub index_data_bytes: u64,
+    pub disk_bytes: u64,
     pub disk_chunks: usize,
+    pub removed_bytes: u64,
+    pub removed_chunks: usize,
 }
 
 impl Default for GarbageCollectionStatus {
     fn default() -> Self {
         GarbageCollectionStatus {
             upid: None,
-            used_bytes: 0,
-            used_chunks: 0,
+            index_file_count: 0,
+            index_data_bytes: 0,
             disk_bytes: 0,
             disk_chunks: 0,
+            removed_bytes: 0,
+            removed_chunks: 0,
         }
     }
 }
@@ -143,13 +147,9 @@ impl ChunkStore {
         })
     }
 
-    pub fn touch_chunk(&self, digest:&[u8]) -> Result<(), Error> {
+    pub fn touch_chunk(&self, digest: &[u8; 32]) -> Result<(), Error> {
 
-        let mut chunk_path = self.chunk_dir.clone();
-        let prefix = digest_to_prefix(&digest);
-        chunk_path.push(&prefix);
-        let digest_str = proxmox::tools::digest_to_hex(&digest);
-        chunk_path.push(&digest_str);
+        let (chunk_path, _digest_str) = self.chunk_path(digest);
 
         const UTIME_NOW: i64 = ((1 << 30) - 1);
         const UTIME_OMIT: i64 = ((1 << 30) - 2);
@@ -172,7 +172,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn read_chunk(&self, digest:&[u8; 32]) -> Result<DataChunk, Error> {
+    pub fn read_chunk(&self, digest: &[u8; 32]) -> Result<DataChunk, Error> {
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
         let mut file = std::fs::File::open(&chunk_path)
@@ -302,9 +302,11 @@ impl ChunkStore {
                             err,
                         );
                     }
-                } else {
+                    status.removed_chunks += 1;
+                    status.removed_bytes += stat.st_size as u64;
+               } else {
                     status.disk_chunks += 1;
-                    status.disk_bytes += stat.st_size as usize;
+                    status.disk_bytes += stat.st_size as u64;
                 }
             }
             drop(lock);

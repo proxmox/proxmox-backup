@@ -201,6 +201,28 @@ impl DataStore {
         Ok(list)
     }
 
+    // mark chunks  used by ``index`` as used
+    fn index_mark_used_chunks<I: IndexFile>(
+        &self,
+        index: I,
+        file_name: &Path, // only used for error reporting
+        status: &mut GarbageCollectionStatus,
+    ) -> Result<(), Error> {
+
+        status.index_file_count += 1;
+        status.index_data_bytes += index.index_bytes();
+
+        for pos in 0..index.index_count() {
+            tools::fail_on_shutdown()?;
+            let digest = index.index_digest(pos).unwrap();
+            if let Err(err) = self.chunk_store.touch_chunk(digest) {
+                bail!("unable to access chunk {}, required by {:?} - {}",
+                      proxmox::tools::digest_to_hex(digest), file_name, err);
+            }
+        }
+        Ok(())
+    }
+
     fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
@@ -212,10 +234,10 @@ impl DataStore {
             if let Some(ext) = path.extension() {
                 if ext == "fidx" {
                     let index = self.open_fixed_reader(&path)?;
-                    index.mark_used_chunks(status)?;
+                    self.index_mark_used_chunks(index, &path, status)?;
                 } else if ext == "didx" {
                     let index = self.open_dynamic_reader(&path)?;
-                    index.mark_used_chunks(status)?;
+                    self.index_mark_used_chunks(index, &path, status)?;
                 }
             }
         }
@@ -245,10 +267,14 @@ impl DataStore {
             worker.log("Start GC phase2 (sweep unused chunks)");
             self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status)?;
 
-            worker.log(&format!("Used bytes: {}", gc_status.used_bytes));
-            worker.log(&format!("Used chunks: {}", gc_status.used_chunks));
-            worker.log(&format!("Disk bytes: {}", gc_status.disk_bytes));
+            worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
+            worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
+            worker.log(&format!("Original data bytes: {}", gc_status.index_data_bytes));
+            let comp_per = (gc_status.disk_bytes*100)/gc_status.index_data_bytes;
+            worker.log(&format!("Disk bytes: {} ({} %)", gc_status.disk_bytes, comp_per));
             worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
+            let avg_chunk = gc_status.index_data_bytes/(gc_status.disk_chunks as u64);
+            worker.log(&format!("Average chunk size: {}", avg_chunk));
 
             *self.last_gc_status.lock().unwrap() = gc_status;
 

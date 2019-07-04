@@ -167,25 +167,7 @@ impl DynamicIndexReader {
         slice.try_into().unwrap()
     }
 
-    pub fn mark_used_chunks(&self, _status: &mut GarbageCollectionStatus) -> Result<(), Error> {
-        unimplemented!();
-    }
     /*
-    pub fn mark_used_chunks(&self, _status: &mut GarbageCollectionStatus) -> Result<(), Error> {
-
-        for pos in 0..self.index_entries {
-
-            tools::fail_on_shutdown()?;
-
-            let digest = self.chunk_digest(pos);
-            if let Err(err) = self.store.touch_chunk(digest) {
-                bail!("unable to access chunk {}, required by {:?} - {}",
-                      proxmox::tools::digest_to_hex(digest), self.filename, err);
-            }
-        }
-        Ok(())
-    }
-
     pub fn dump_pxar(&self, mut writer: Box<dyn Write>) -> Result<(), Error> {
 
         for pos in 0..self.index_entries {
@@ -200,7 +182,7 @@ impl DynamicIndexReader {
 
         Ok(())
     }
-     */
+    */
 
     fn binary_search(
         &self,
@@ -241,6 +223,14 @@ impl IndexFile for DynamicIndexReader {
             Some(unsafe {
                 std::mem::transmute(self.chunk_digest(pos).as_ptr())
             })
+        }
+    }
+
+    fn index_bytes(&self) -> u64 {
+        if self.index_entries == 0 {
+            0
+        } else {
+            self.chunk_end((self.index_entries - 1) as usize)
         }
     }
 }
