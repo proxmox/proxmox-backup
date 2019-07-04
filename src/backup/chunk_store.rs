@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::tools;
 use super::DataChunk;
+use crate::server::WorkerTask;
 
 #[derive(Clone, Serialize)]
 pub struct GarbageCollectionStatus {
@@ -184,9 +185,8 @@ impl ChunkStore {
 
     pub fn get_chunk_iterator(
         &self,
-        print_percentage: bool,
     ) -> Result<
-        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>> + std::iter::FusedIterator,
+        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize)> + std::iter::FusedIterator,
         Error
     > {
         use nix::dir::Dir;
@@ -201,16 +201,9 @@ impl ChunkStore {
         };
 
         let mut verbose = true;
-        let mut last_percentage = 0;
 
         Ok((0..0x10000).filter_map(move |index| {
-            if print_percentage {
-                let percentage = (index * 100) / 0x10000;
-                if last_percentage != percentage {
-                    last_percentage = percentage;
-                    eprintln!("percentage done: {}", percentage);
-                }
-            }
+            let percentage = (index * 100) / 0x10000;
             let subdir: &str = &format!("{:04x}", index);
             match tools::fs::read_subdir(base_handle.as_raw_fd(), subdir) {
                 Err(e) => {
@@ -220,11 +213,11 @@ impl ChunkStore {
                     }
                     None
                 }
-                Ok(iter) => Some(iter),
+                Ok(iter) => Some(iter.map(move |item| (item, percentage))),
             }
         })
         .flatten()
-        .filter(|entry| {
+        .filter(|(entry, _percentage)| {
             // Check that the file name is actually a hash! (64 hex digits)
             let entry = match entry {
                 Err(_) => return true, // pass errors onwards
@@ -250,7 +243,8 @@ impl ChunkStore {
     pub fn sweep_unused_chunks(
         &self,
         oldest_writer: Option<i64>,
-        status: &mut GarbageCollectionStatus
+        status: &mut GarbageCollectionStatus,
+        worker: Arc<WorkerTask>,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
 
@@ -266,7 +260,12 @@ impl ChunkStore {
 
         min_atime -= 300; // add 5 mins gap for safety
 
-        for entry in self.get_chunk_iterator(true)? {
+        let mut last_percentage = 0;
+        for (entry, percentage) in self.get_chunk_iterator()? {
+            if last_percentage != percentage {
+                last_percentage = percentage;
+                worker.log(format!("percentage done: {}", percentage));
+            }
 
             tools::fail_on_shutdown()?;
 
@@ -311,6 +310,7 @@ impl ChunkStore {
             }
             drop(lock);
         }
+
         Ok(())
     }
 

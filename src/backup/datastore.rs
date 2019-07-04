@@ -78,12 +78,11 @@ impl DataStore {
 
     pub fn get_chunk_iterator(
         &self,
-        print_percentage: bool,
     ) -> Result<
-        impl Iterator<Item = Result<tools::fs::ReadDirEntry, Error>>,
+        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize)>,
         Error
     > {
-        self.chunk_store.get_chunk_iterator(print_percentage)
+        self.chunk_store.get_chunk_iterator()
     }
 
     pub fn create_fixed_writer<P: AsRef<Path>>(&self, filename: P, size: usize, chunk_size: usize) -> Result<FixedIndexWriter, Error> {
@@ -267,7 +266,7 @@ impl DataStore {
             self.mark_used_chunks(&mut gc_status)?;
 
             worker.log("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status)?;
+            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status, worker.clone())?;
 
             worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
