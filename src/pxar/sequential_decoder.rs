@@ -449,6 +449,172 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
+    fn restore_symlink(
+        &mut self,
+        parent_fd: RawFd,
+        full_path: &PathBuf,
+        entry: &CaFormatEntry,
+        filename: &OsStr
+    ) -> Result<(), Error> {
+        //fixme: create symlink
+        //fixme: restore permission, acls, xattr, ...
+
+        let head: CaFormatHeader = self.read_item()?;
+        match head.htype {
+            CA_FORMAT_SYMLINK => {
+                let target = self.read_link(head.size)?;
+                //println!("TARGET: {:?}", target);
+                if let Err(err) = symlinkat(&target, parent_fd, filename) {
+                    bail!("create symlink {:?} failed - {}", full_path, err);
+                }
+            }
+             _ => {
+                 bail!("got unknown header type inside symlink entry {:016x}", head.htype);
+             }
+        }
+
+        // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
+        self.restore_ugid_at(&entry, parent_fd, filename)?;
+        self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+        Ok(())
+    }
+
+    fn restore_socket(
+        &mut self,
+        parent_fd: RawFd,
+        entry: &CaFormatEntry,
+        filename: &OsStr
+    ) -> Result<(), Error> {
+        self.restore_socket_at(parent_fd, filename)?;
+        self.restore_mode_at(&entry, parent_fd, filename)?;
+        self.restore_ugid_at(&entry, parent_fd, filename)?;
+        self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+        Ok(())
+    }
+
+    fn restore_fifo(
+        &mut self,
+        parent_fd: RawFd,
+        entry: &CaFormatEntry,
+        filename: &OsStr
+    ) -> Result<(), Error> {
+        self.restore_fifo_at(parent_fd, filename)?;
+        self.restore_mode_at(&entry, parent_fd, filename)?;
+        self.restore_ugid_at(&entry, parent_fd, filename)?;
+        self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+        Ok(())
+    }
+
+    fn restore_device(
+        &mut self,
+        parent_fd: RawFd,
+        entry: &CaFormatEntry,
+        filename: &OsStr
+    ) -> Result<(), Error> {
+        let head: CaFormatHeader = self.read_item()?;
+        if head.htype != CA_FORMAT_DEVICE {
+            bail!("got unknown header type inside device entry {:016x}", head.htype);
+        }
+        let device: CaFormatDevice = self.read_item()?;
+        self.restore_device_at(&entry, parent_fd, filename, &device)?;
+        self.restore_mode_at(&entry, parent_fd, filename)?;
+        self.restore_ugid_at(&entry, parent_fd, filename)?;
+        self.restore_mtime_at(&entry, parent_fd, filename)?;
+
+        Ok(())
+    }
+
+    fn restore_regular_file(
+        &mut self,
+        parent_fd: RawFd,
+        full_path: &PathBuf,
+        entry: &CaFormatEntry,
+        filename: &OsStr
+    ) -> Result<(), Error> {
+        let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
+
+        let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
+        let open_mode =  Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
+
+        let mut file = file_openat(parent_fd, filename, flags, open_mode)
+            .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
+
+        self.restore_ugid(&entry, file.as_raw_fd())?;
+        // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+        let head = self.restore_attributes(&entry, file.as_raw_fd())
+            .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
+
+        if head.htype != CA_FORMAT_PAYLOAD {
+              bail!("got unknown header type for file entry {:016x}", head.htype);
+        }
+
+        if head.size < HEADER_SIZE {
+            bail!("detected short payload");
+        }
+        let need = (head.size - HEADER_SIZE) as usize;
+        //self.reader.seek(SeekFrom::Current(need as i64))?;
+
+        let mut done = 0;
+        while done < need  {
+            let todo = need - done;
+            let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
+            let data = &mut read_buffer[..n];
+            self.reader.read_exact(data)?;
+            file.write_all(data)?;
+            done += n;
+        }
+
+        self.restore_mode(&entry, file.as_raw_fd())?;
+        self.restore_mtime(&entry, file.as_raw_fd())?;
+
+        Ok(())
+    }
+
+    fn restore_dir_sequential(
+        &mut self,
+        base_path: &Path,
+        relative_path: &mut PathBuf,
+        full_path: &PathBuf,
+        parent_fd: RawFd,
+        entry: &CaFormatEntry,
+        filename: &OsStr,
+    ) -> Result<(), Error> {
+        let dir = if filename.is_empty() {
+            nix::dir::Dir::openat(parent_fd, ".", OFlag::O_DIRECTORY,  Mode::empty())?
+        } else {
+            dir_mkdirat(parent_fd, filename, true)
+                .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?
+        };
+
+        self.restore_ugid(&entry, dir.as_raw_fd())?;
+        // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+        let mut head = self.restore_attributes(&entry, dir.as_raw_fd())
+            .map_err(|err| format_err!("Restoring of directory attributes failed - {}", err))?;
+
+        while head.htype == CA_FORMAT_FILENAME {
+            let name = self.read_filename(head.size)?;
+            relative_path.push(&name);
+            self.restore_sequential(base_path, relative_path, &name, &dir)?;
+            relative_path.pop();
+            head = self.read_item()?;
+        }
+
+        if head.htype != CA_FORMAT_GOODBYE {
+            bail!("got unknown header type inside directory entry {:016x}", head.htype);
+        }
+
+        //println!("Skip Goodbye");
+        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+        self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
+        self.restore_mode(&entry, dir.as_raw_fd())?;
+        self.restore_mtime(&entry, dir.as_raw_fd())?;
+
+        Ok(())
+    }
+
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
@@ -470,15 +636,12 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         filename: &OsStr,  // repeats path last relative_path component
         parent: &nix::dir::Dir,
     ) -> Result<(), Error> {
-
         let parent_fd = parent.as_raw_fd();
-
         let full_path = base_path.join(&relative_path);
 
         (self.callback)(&full_path)?;
 
         let head: CaFormatHeader = self.read_item()?;
-
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
@@ -490,162 +653,24 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
-
         let mode = entry.mode as u32; //fixme: upper 32bits?
-
         let ifmt = mode & libc::S_IFMT;
-
         if ifmt == libc::S_IFDIR {
-            let dir;
-            if filename.is_empty() {
-                dir = nix::dir::Dir::openat(parent_fd, ".", OFlag::O_DIRECTORY,  Mode::empty())?;
-             } else {
-                dir = dir_mkdirat(parent_fd, filename, true)
-                    .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?;
-            }
-
-            self.restore_ugid(&entry, dir.as_raw_fd())?;
-            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            let mut head = self.restore_attributes(&entry, dir.as_raw_fd())
-                .map_err(|err| format_err!("Restoring of directory attributes failed - {}", err))?;
-
-            while head.htype == CA_FORMAT_FILENAME {
-                let name = self.read_filename(head.size)?;
-                relative_path.push(&name);
-                self.restore_sequential(base_path, relative_path, &name, &dir)?;
-                relative_path.pop();
-
-                head = self.read_item()?;
-            }
-
-            if head.htype != CA_FORMAT_GOODBYE {
-                bail!("got unknown header type inside directory entry {:016x}", head.htype);
-            }
-
-            //println!("Skip Goodbye");
-            if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
-
-            self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
-
-            self.restore_mode(&entry, dir.as_raw_fd())?;
-            self.restore_mtime(&entry, dir.as_raw_fd())?;
-
-            return Ok(());
+            return self.restore_dir_sequential(base_path, relative_path, &full_path, parent_fd, &entry, &filename);
         }
 
         if filename.is_empty() {
-            bail!("got empty file name at {:?}", full_path)
+            bail!("got empty file name at {:?}", full_path);
         }
 
-        if ifmt == libc::S_IFLNK {
-            // fixme: create symlink
-            //fixme: restore permission, acls, xattr, ...
-
-            let head: CaFormatHeader = self.read_item()?;
-            match head.htype {
-                CA_FORMAT_SYMLINK => {
-                    let target = self.read_link(head.size)?;
-                    //println!("TARGET: {:?}", target);
-                    if let Err(err) = symlinkat(&target, parent_fd, filename) {
-                        bail!("create symlink {:?} failed - {}", full_path, err);
-                    }
-                }
-                 _ => {
-                     bail!("got unknown header type inside symlink entry {:016x}", head.htype);
-                 }
-            }
-
-            // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
-            self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry, parent_fd, filename)?;
-
-            return Ok(());
+        match ifmt {
+            libc::S_IFLNK => self.restore_symlink(parent_fd, &full_path, &entry, &filename),
+            libc::S_IFSOCK => self.restore_socket(parent_fd, &entry, &filename),
+            libc::S_IFIFO  => self.restore_fifo(parent_fd, &entry, &filename),
+            libc::S_IFBLK | libc::S_IFCHR => self.restore_device(parent_fd, &entry, &filename),
+            libc::S_IFREG => self.restore_regular_file(parent_fd, &full_path, &entry, &filename),
+            _ => Ok(()),
         }
-
-        if ifmt == libc::S_IFSOCK  {
-
-            self.restore_socket_at(parent_fd, filename)?;
-
-            self.restore_mode_at(&entry, parent_fd, filename)?;
-            self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry, parent_fd, filename)?;
-
-            return Ok(());
-        }
-
-        if ifmt == libc::S_IFIFO  {
-
-            self.restore_fifo_at(parent_fd, filename)?;
-
-            self.restore_mode_at(&entry, parent_fd, filename)?;
-            self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry, parent_fd, filename)?;
-
-            return Ok(());
-        }
-
-        if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR)  {
-
-            let head: CaFormatHeader = self.read_item()?;
-            match head.htype {
-                CA_FORMAT_DEVICE => {
-                    let device: CaFormatDevice = self.read_item()?;
-                    self.restore_device_at(&entry, parent_fd, filename, &device)?;
-                }
-                _ => {
-                    bail!("got unknown header type inside device entry {:016x}", head.htype);
-                }
-            }
-
-            self.restore_mode_at(&entry, parent_fd, filename)?;
-            self.restore_ugid_at(&entry, parent_fd, filename)?;
-            self.restore_mtime_at(&entry, parent_fd, filename)?;
-
-            return Ok(());
-        }
-
-        if ifmt == libc::S_IFREG {
-
-            let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
-
-            let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
-            let open_mode =  Mode::from_bits_truncate(0o0600 | mode);
-
-            let mut file = file_openat(parent_fd, filename, flags, open_mode)
-                .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
-
-            self.restore_ugid(&entry, file.as_raw_fd())?;
-            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            let head = self.restore_attributes(&entry, file.as_raw_fd())
-                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
-
-            if head.htype != CA_FORMAT_PAYLOAD {
-                bail!("got unknown header type for file entry {:016x}", head.htype);
-            }
-
-            if head.size < HEADER_SIZE {
-                bail!("detected short payload");
-            }
-            let need = (head.size - HEADER_SIZE) as usize;
-            //self.reader.seek(SeekFrom::Current(need as i64))?;
-
-            let mut done = 0;
-            while done < need  {
-                let todo = need - done;
-                let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
-                let data = &mut read_buffer[..n];
-                self.reader.read_exact(data)?;
-                file.write_all(data)?;
-                done += n;
-            }
-
-            self.restore_mode(&entry, file.as_raw_fd())?;
-            self.restore_mtime(&entry, file.as_raw_fd())?;
-
-            return Ok(());
-        }
-
-        Ok(())
     }
 
     /// List/Dump archive content.
