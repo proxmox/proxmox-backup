@@ -177,8 +177,14 @@ impl ChunkStore {
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
         let mut file = std::fs::File::open(&chunk_path)
-            .map_err(|err| format_err!(
-                "store '{}', unable to read chunk '{}' - {}", self.name, digest_str, err))?;
+            .map_err(|err| {
+                format_err!(
+                    "store '{}', unable to read chunk '{}' - {}",
+                    self.name,
+                    digest_str,
+                    err,
+                )
+            })?;
 
         DataChunk::load(&mut file, *digest)
     }
@@ -193,12 +199,15 @@ impl ChunkStore {
         use nix::fcntl::OFlag;
         use nix::sys::stat::Mode;
 
-        let base_handle = match Dir::open(
-            &self.chunk_dir, OFlag::O_RDONLY, Mode::empty()) {
-            Ok(h) => h,
-            Err(err) => bail!("unable to open store '{}' chunk dir {:?} - {}",
-                              self.name, self.chunk_dir, err),
-        };
+        let base_handle = Dir::open(&self.chunk_dir, OFlag::O_RDONLY, Mode::empty())
+            .map_err(|err| {
+                format_err!(
+                    "unable to open store '{}' chunk dir {:?} - {}",
+                    self.name,
+                    self.chunk_dir,
+                    err,
+                )
+            })?;
 
         let mut done = false;
         let mut inner: Option<tools::fs::ReadDir> = None;
