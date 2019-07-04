@@ -289,10 +289,12 @@ impl ChunkStore {
         min_atime -= 300; // add 5 mins gap for safety
 
         let mut last_percentage = 0;
+        let mut chunk_count = 0;
+
         for (entry, percentage) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
-                worker.log(format!("percentage done: {}", percentage));
+                worker.log(format!("percentage done: {}, chunk count: {}", percentage, chunk_count));
             }
 
             tools::fail_on_shutdown()?;
@@ -309,6 +311,8 @@ impl ChunkStore {
             if file_type != nix::dir::Type::File {
                 continue;
             }
+
+            chunk_count += 1;
 
             let filename = entry.file_name();
 
