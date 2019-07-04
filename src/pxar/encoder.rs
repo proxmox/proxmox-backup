@@ -676,6 +676,8 @@ impl <'a, W: Write> Encoder<'a, W> {
         let mut goodbye_items = vec![];
 
         for (filename, stat, exclude_list) in name_list {
+            let start_pos = self.writer_pos;
+
             if filename.as_bytes() == b".pxarexclude" {
                 if let Some((ref content, ref stat)) = pxar_exclude {
                     let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
@@ -705,8 +707,6 @@ impl <'a, W: Write> Encoder<'a, W> {
             self.relative_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
             if self.verbose { println!("{:?}", self.full_path()); }
-
-            let start_pos = self.writer_pos;
 
             if is_directory(&stat) {
 
