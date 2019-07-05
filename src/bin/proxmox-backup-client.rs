@@ -626,11 +626,16 @@ fn restore(
         }
     };
 
-    if !archive_name.ends_with(".pxar") {
-        bail!("unknown file extensions - unable to restore '{}'", archive_name);
-    }
+    let server_archive_name = if archive_name.ends_with(".pxar") {
+        format!("{}.didx", archive_name)
+    } else if archive_name.ends_with(".img") {
+        format!("{}.fidx", archive_name)
+    } else {
+        bail!("unknown archive file extension (expected .pxar of .img)");
+    };
 
     let client = client.start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true).wait()?;
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config);
 
     use std::os::unix::fs::OpenOptionsExt;
 
@@ -640,23 +645,42 @@ fn restore(
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let tmpfile = client.download(&format!("{}.didx", archive_name), tmpfile).wait()?;
+    if server_archive_name.ends_with(".didx") {
+        let tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
 
-    let index = DynamicIndexReader::new(tmpfile)?;
+        let index = DynamicIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", archive_name, err))?;
 
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config);
+        let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
-    let mut reader = BufferedDynamicReader::new(index, chunk_reader);
+        let feature_flags = pxar::CA_FORMAT_DEFAULT;
+        let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
+            if verbose {
+                println!("{:?}", path);
+            }
+            Ok(())
+        });
 
-    let feature_flags = pxar::CA_FORMAT_DEFAULT;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
-        if verbose {
-            println!("{:?}", path);
-        }
-        Ok(())
-    });
+        decoder.restore(Path::new(target))?;
 
-    decoder.restore(Path::new(target))?;
+    } else if server_archive_name.ends_with(".fidx") {
+        let tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
+
+        let index = FixedIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read fixed index '{}' - {}", archive_name, err))?;
+
+        let mut reader = BufferedFixedReader::new(index, chunk_reader);
+
+        let mut writer = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .create_new(true)
+            .open(target)
+            .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
+
+        std::io::copy(&mut reader, &mut writer)
+            .map_err(|err| format_err!("unable to store data - {}", err))?;
+    }
 
     Ok(Value::Null)
 }
