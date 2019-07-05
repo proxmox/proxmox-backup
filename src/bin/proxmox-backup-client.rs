@@ -6,6 +6,7 @@ use failure::*;
 use chrono::{Local, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::io::Write;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
@@ -615,6 +616,7 @@ fn restore(
     };
 
     let target = tools::required_string_param(&param, "target")?;
+    let target = if target == "-" { None } else { Some(target) };
 
     let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
@@ -656,7 +658,14 @@ fn restore(
             None => blob.decode(None)?,
         };
 
-        crate::tools::file_set_contents(target, &raw_data, None)?;
+        if let Some(target) = target {
+            crate::tools::file_set_contents(target, &raw_data, None)?;
+        } else {
+            let stdout = std::io::stdout();
+            let mut writer = stdout.lock();
+            writer.write_all(&raw_data)
+                .map_err(|err| format_err!("unable to pipe data - {}", err))?;
+        }
 
     } else if server_archive_name.ends_with(".didx") {
         let tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
@@ -670,16 +679,24 @@ fn restore(
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
-        let feature_flags = pxar::CA_FORMAT_DEFAULT;
-        let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
-            if verbose {
-                println!("{:?}", path);
-            }
-            Ok(())
-        });
+        if let Some(target) = target {
 
-        decoder.restore(Path::new(target))?;
+            let feature_flags = pxar::CA_FORMAT_DEFAULT;
+            let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
+                if verbose {
+                    println!("{:?}", path);
+                }
+                Ok(())
+            });
 
+            decoder.restore(Path::new(target))?;
+        } else {
+            let stdout = std::io::stdout();
+            let mut writer = stdout.lock();
+
+            std::io::copy(&mut reader, &mut writer)
+                .map_err(|err| format_err!("unable to pipe data - {}", err))?;
+        }
     } else if server_archive_name.ends_with(".fidx") {
         let tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
 
@@ -692,15 +709,23 @@ fn restore(
 
         let mut reader = BufferedFixedReader::new(index, chunk_reader);
 
-        let mut writer = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .create_new(true)
-            .open(target)
-            .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
+        if let Some(target) = target {
+            let mut writer = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .create_new(true)
+                .open(target)
+                .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
 
-        std::io::copy(&mut reader, &mut writer)
-            .map_err(|err| format_err!("unable to store data - {}", err))?;
+            std::io::copy(&mut reader, &mut writer)
+                .map_err(|err| format_err!("unable to store data - {}", err))?;
+        } else {
+            let stdout = std::io::stdout();
+            let mut writer = stdout.lock();
+
+            std::io::copy(&mut reader, &mut writer)
+                .map_err(|err| format_err!("unable to pipe data - {}", err))?;
+        }
     } else {
         bail!("unknown archive file extension (expected .pxar of .img)");
     }
@@ -1227,7 +1252,12 @@ fn main() {
                 .required("repository", REPO_URL_SCHEMA.clone())
                 .required("snapshot", StringSchema::new("Group/Snapshot path."))
                 .required("archive-name", StringSchema::new("Backup archive name."))
-                .required("target", StringSchema::new("Target directory path."))
+                .required("target", StringSchema::new(r###"Target directory path. Use '-' to write to stdandard output.
+
+We do not extraxt '.pxar' archives when writing to stdandard output.
+
+"###
+                ))
                 .optional("keyfile", StringSchema::new("Path to encryption key."))
                 .optional(
                     "verbose",
