@@ -1,6 +1,7 @@
 use failure::*;
 use futures::*;
 use bytes::{Bytes, BytesMut};
+use std::collections::HashMap;
 
 /// Trait to get digest list from index files
 ///
@@ -9,6 +10,38 @@ pub trait IndexFile: Send {
     fn index_count(&self) -> usize;
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
     fn index_bytes(&self) -> u64;
+
+    /// Returns most often used chunks
+    fn find_most_used_chunks(&self, max: usize) -> HashMap<[u8; 32], usize> {
+        let mut map = HashMap::new();
+
+        for pos in 0..self.index_count() {
+            let digest = self.index_digest(pos).unwrap();
+
+            let count = map.entry(*digest).or_insert(0);
+            *count += 1;
+        }
+
+        let mut most_used = Vec::new();
+
+        for (digest, count) in map {
+            if count <= 1 { continue; }
+            match most_used.binary_search_by_key(&count, |&(_digest, count)| count) {
+                Ok(p) => most_used.insert(p, (digest, count)),
+                Err(p) => most_used.insert(p, (digest, count)),
+            }
+
+            if most_used.len() > max { let _ = most_used.pop(); }
+        }
+
+        let mut map = HashMap::new();
+
+        for data in most_used {
+            map.insert(data.0, data.1);
+        }
+
+        map
+    }
 }
 
 /// Encode digest list from an `IndexFile` into a binary stream

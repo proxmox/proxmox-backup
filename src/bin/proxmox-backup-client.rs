@@ -635,7 +635,6 @@ fn restore(
     };
 
     let client = client.start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true).wait()?;
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config);
 
     use std::os::unix::fs::OpenOptionsExt;
 
@@ -650,6 +649,10 @@ fn restore(
 
         let index = DynamicIndexReader::new(tmpfile)
             .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", archive_name, err))?;
+
+        let most_used = index.find_most_used_chunks(8);
+
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
@@ -668,6 +671,10 @@ fn restore(
 
         let index = FixedIndexReader::new(tmpfile)
             .map_err(|err| format_err!("unable to read fixed index '{}' - {}", archive_name, err))?;
+
+        let most_used = index.find_most_used_chunks(8);
+
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
 
         let mut reader = BufferedFixedReader::new(index, chunk_reader);
 
