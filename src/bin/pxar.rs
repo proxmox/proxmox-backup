@@ -84,9 +84,22 @@ fn dump_archive(
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
         dump_archive_from_reader(&mut reader, feature_flags)?;
-    };
+    }
 
     Ok(Value::Null)
+}
+
+fn extract_archive_from_reader<R: std::io::Read>(reader: &mut R, target: &str, feature_flags: u64, verbose: bool) -> Result<(), Error> {
+    let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |path| {
+        if verbose {
+            println!("{:?}", path);
+        }
+        Ok(())
+    });
+
+    decoder.restore(Path::new(target))?;
+
+    Ok(())
 }
 
 fn extract_archive(
@@ -102,9 +115,6 @@ fn extract_archive(
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
 
-    let file = std::fs::File::open(archive)?;
-
-    let mut reader = std::io::BufReader::new(file);
     let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
     if no_xattrs {
         feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
@@ -116,14 +126,16 @@ fn extract_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
-        if verbose {
-            println!("{:?}", path);
-        }
-        Ok(())
-    });
-
-    decoder.restore(Path::new(target))?;
+    if archive == "-" {
+        let stdin = std::io::stdin();
+        let mut reader = stdin.lock();
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose)?;
+    } else {
+        println!("PXAR dump: {}", archive);
+        let file = std::fs::File::open(archive)?;
+        let mut reader = std::io::BufReader::new(file);
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose)?;
+    }
 
     Ok(Value::Null)
 }
