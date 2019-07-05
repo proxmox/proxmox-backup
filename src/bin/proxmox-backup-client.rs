@@ -631,7 +631,7 @@ fn restore(
     } else if archive_name.ends_with(".img") {
         format!("{}.fidx", archive_name)
     } else {
-        bail!("unknown archive file extension (expected .pxar of .img)");
+        format!("{}.blob", archive_name)
     };
 
     let client = client.start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true).wait()?;
@@ -644,7 +644,21 @@ fn restore(
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    if server_archive_name.ends_with(".didx") {
+    if server_archive_name.ends_with(".blob") {
+
+        let writer = Vec::with_capacity(1024*1024);
+        let blob_data = client.download(&server_archive_name, writer).wait()?;
+        let blob = DataBlob::from_raw(blob_data)?;
+        blob.verify_crc()?;
+
+        let raw_data = match crypt_config {
+            Some(ref crypt_config) => blob.decode(Some(crypt_config))?,
+            None => blob.decode(None)?,
+        };
+
+        crate::tools::file_set_contents(target, &raw_data, None)?;
+
+    } else if server_archive_name.ends_with(".didx") {
         let tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
 
         let index = DynamicIndexReader::new(tmpfile)
@@ -687,88 +701,8 @@ fn restore(
 
         std::io::copy(&mut reader, &mut writer)
             .map_err(|err| format_err!("unable to store data - {}", err))?;
-    }
-
-    Ok(Value::Null)
-}
-
-fn download(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
-
-    let file_name = tools::required_string_param(&param, "file-name")?;
-
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
-
-    let crypt_config = match keyfile {
-        None => None,
-        Some(path) => {
-            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
-            Some(CryptConfig::new(key)?)
-        }
-    };
-
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
-
-    record_repository(&repo);
-
-    let path = tools::required_string_param(&param, "snapshot")?;
-
-    let query;
-
-    if path.matches('/').count() == 1 {
-        let group = BackupGroup::parse(path)?;
-
-        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let result = client.get(&path, Some(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-        }))).wait()?;
-
-        let list = result["data"].as_array().unwrap();
-        if list.len() == 0 {
-            bail!("backup group '{}' does not contain any snapshots:", path);
-        }
-
-        query = tools::json_object_to_query(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-            "backup-time": list[0]["backup-time"].as_i64().unwrap(),
-            "file-name": file_name,
-        }))?;
     } else {
-        let snapshot = BackupDir::parse(path)?;
-
-        query = tools::json_object_to_query(json!({
-            "backup-type": snapshot.group().backup_type(),
-            "backup-id": snapshot.group().backup_id(),
-            "backup-time": snapshot.backup_time().timestamp(),
-            "file-name": file_name,
-        }))?;
-    }
-
-    let target = tools::required_string_param(&param, "target")?;
-
-    let path = format!("api2/json/admin/datastore/{}/download?{}", repo.store(), query);
-
-    println!("DOWNLOAD FILE {} to {}", path, target);
-
-    if file_name.ends_with(".blob")  {
-        let writer = Vec::with_capacity(1024*1024);
-        let blob_data = client.download(&path, writer).wait()?;
-        let blob = DataBlob::from_raw(blob_data)?;
-        blob.verify_crc()?;
-        let raw_data = blob.decode(crypt_config.as_ref())?; // fixme
-
-        crate::tools::file_set_contents(target, &raw_data, None)?;
-
-     } else {
-        unimplemented!();
+        bail!("unknown archive file extension (expected .pxar of .img)");
     }
 
     Ok(Value::Null)
@@ -1286,23 +1220,6 @@ fn main() {
         .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
-    let download_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            download,
-            ObjectSchema::new("Download data from backup repository.")
-                .required("repository", REPO_URL_SCHEMA.clone())
-                .required("snapshot", StringSchema::new("Group/Snapshot path."))
-                .required("file-name", StringSchema::new("File name."))
-                .required("target", StringSchema::new("Target directory path."))
-                .optional("keyfile", StringSchema::new("Path to encryption key."))
-        ))
-        .arg_param(vec!["repository", "snapshot", "file-name", "target"])
-        .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_group_or_snapshot)
-        .completion_cb("file-name", complete_server_file_name)
-        .completion_cb("keyfile", tools::complete_file_name)
-        .completion_cb("target", tools::complete_file_name);
-
     let restore_cmd_def = CliCommand::new(
         ApiMethod::new(
             restore,
@@ -1340,7 +1257,6 @@ fn main() {
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
-        .insert("download".to_owned(), download_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into());
