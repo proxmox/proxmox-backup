@@ -313,7 +313,7 @@ pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
 
 pub fn check_ca_header<T>(head: &CaFormatHeader, htype: u64) -> Result<(), Error> {
     if head.htype != htype {
-        bail!("got wrong header type ({:016x} != {:016x}", head.htype, htype);
+        bail!("got wrong header type ({:016x} != {:016x})", head.htype, htype);
     }
     if head.size != (std::mem::size_of::<T>() + std::mem::size_of::<CaFormatHeader>()) as u64 {
         bail!("got wrong header size for type {:016x}", htype);
