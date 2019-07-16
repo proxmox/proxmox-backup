@@ -294,6 +294,10 @@ fn list_backup_groups(
         }
     });
 
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let mut result = vec![];
+
     for item in list {
 
         let id = item["backup-id"].as_str().unwrap();
@@ -309,11 +313,22 @@ fn list_backup_groups(
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
         let files = strip_server_file_expenstions(files);
 
-        println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
-                 backup_count, tools::join(&files, ' '));
+        if output_format == "text" {
+            println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
+                     backup_count, tools::join(&files, ' '));
+        } else {
+            result.push(json!({
+                "backup-type": btype,
+                "backup-id": id,
+                "last-backup": epoch,
+                "backup-count": backup_count,
+                "files": files,
+            }));
+        }
     }
 
-    //Ok(result)
+    if output_format != "text" { format_and_print_result(result.into(), &output_format); }
+
     Ok(Value::Null)
 }
 
@@ -328,6 +343,8 @@ fn list_snapshots(
     let path = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(path)?;
 
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
     let client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
@@ -339,8 +356,9 @@ fn list_snapshots(
 
     record_repository(&repo);
 
-    // fixme: implement and use output formatter instead ..
     let list = result["data"].as_array().unwrap();
+
+    let mut result = vec![];
 
     for item in list {
 
@@ -355,8 +373,19 @@ fn list_snapshots(
         let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
         let files = strip_server_file_expenstions(files);
 
-        println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
+        if output_format == "text" {
+            println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
+        } else {
+            result.push(json!({
+                "backup-type": btype,
+                "backup-id": id,
+                "backup-time": epoch,
+                "files": files,
+            }));
+        }
     }
+
+    if output_format != "text" { format_and_print_result(result.into(), &output_format); }
 
     Ok(Value::Null)
 }
@@ -773,6 +802,45 @@ fn prune(
     record_repository(&repo);
 
     Ok(result)
+}
+
+fn status(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let client = HttpClient::new(repo.host(), repo.user())?;
+
+    let path = format!("api2/json/admin/datastore/{}/status", repo.store());
+
+    let result = client.get(&path, None).wait()?;
+    let data = &result["data"];
+
+    record_repository(&repo);
+
+    if output_format == "text" {
+        let total = data["total"].as_u64().unwrap();
+        let used = data["used"].as_u64().unwrap();
+        let avail = data["avail"].as_u64().unwrap();
+        let roundup = total/200;
+
+        println!(
+            "total: {} used: {} ({} %) available: {}",
+            total,
+            used,
+            ((used+roundup)*100)/total,
+            avail,
+        );
+    } else {
+        format_and_print_result(result, &output_format);
+    }
+
+    Ok(Value::Null)
 }
 
 // like get, but simply ignore errors and return Null instead
@@ -1215,6 +1283,7 @@ fn main() {
             list_backup_groups,
             ObjectSchema::new("List backup groups.")
                 .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional("output-format", OUTPUT_FORMAT.clone())
         ))
         .completion_cb("repository", complete_repository);
 
@@ -1224,6 +1293,7 @@ fn main() {
             ObjectSchema::new("List backup snapshots.")
                 .required("group", StringSchema::new("Backup group."))
                 .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional("output-format", OUTPUT_FORMAT.clone())
         ))
         .arg_param(vec!["group"])
         .completion_cb("group", complete_backup_group)
@@ -1283,6 +1353,15 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         ))
         .completion_cb("repository", complete_repository);
 
+    let status_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            status,
+            ObjectSchema::new("Get repository status.")
+                .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional("output-format", OUTPUT_FORMAT.clone())
+        ))
+        .completion_cb("repository", complete_repository);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
@@ -1291,6 +1370,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("prune".to_owned(), prune_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
+        .insert("status".to_owned(), status_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into());
 
     hyper::rt::run(futures::future::lazy(move || {
