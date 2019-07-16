@@ -6,6 +6,7 @@ use failure::*;
 use endian_trait::Endian;
 
 use super::format_definition::*;
+use super::exclude_pattern::*;
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -13,7 +14,8 @@ use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::os::unix::io::FromRawFd;
-use std::os::unix::ffi::{OsStringExt};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::ffi::CString;
 use std::ffi::{OsStr, OsString};
 
 use nix::fcntl::OFlag;
@@ -904,6 +906,44 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
 
         Ok(())
     }
+}
+
+fn match_filename(
+    filename: &OsStr,
+    is_dir: bool,
+    match_pattern: &Vec<PxarExcludePattern>
+) ->  (MatchType, Vec<PxarExcludePattern>) {
+    let mut child_pattern = Vec::new();
+    let mut match_state = MatchType::None;
+    // read_filename() checks for nul bytes, so it is save to unwrap here
+    let name = CString::new(filename.as_bytes()).unwrap();
+
+    for pattern in match_pattern {
+        match pattern.matches_filename(&name, is_dir) {
+            MatchType::None =>  {},
+            // The logic is inverted here, since PxarExcludePattern assumes excludes not includes
+            MatchType::Exclude => {
+                match_state = MatchType::Include;
+                let incl_pattern = PxarExcludePattern::from_line(b"**/*").unwrap().unwrap();
+                child_pattern.push(incl_pattern.get_rest_pattern());
+            },
+            MatchType::Include =>  match_state = MatchType::Exclude,
+            MatchType::PartialExclude =>  {
+                if match_state != MatchType::Include && match_state != MatchType::Exclude {
+                    match_state = MatchType::PartialInclude;
+                }
+                child_pattern.push(pattern.get_rest_pattern());
+            },
+            MatchType::PartialInclude =>  {
+                if match_state == MatchType::PartialInclude {
+                    match_state = MatchType::PartialExclude;
+                }
+                child_pattern.push(pattern.get_rest_pattern());
+            },
+        }
+    }
+
+    (match_state, child_pattern)
 }
 
 fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {
