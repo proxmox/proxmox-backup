@@ -1,6 +1,9 @@
 use failure::*;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use lazy_static::lazy_static;
+use std::sync::Arc;
+use serde_json::Value;
+
+use std::collections::{HashMap, HashSet};
 
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -10,6 +13,30 @@ use super::environment::CliEnvironment;
 
 use super::getopts;
 
+lazy_static!{
+
+    pub static ref OUTPUT_FORMAT: Arc<Schema> =
+        StringSchema::new("Output format.")
+        .format(Arc::new(ApiStringFormat::Enum(&["text", "json", "json-pretty"])))
+        .into();
+
+}
+
+/// Helper function to format and print result
+///
+/// This is implemented for machine generatable formats 'json' and
+/// 'json-pretty'. The 'text' format needs to be handled somewhere
+/// else.
+pub fn format_and_print_result(result: Value, output_format: &str) {
+
+    if output_format == "json-pretty" {
+        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+    } else if output_format == "json" {
+        println!("{}", serde_json::to_string(&result).unwrap());
+    } else {
+        unimplemented!();
+    }
+}
 
 fn generate_usage_str(
     prefix: &str,
@@ -179,7 +206,9 @@ fn handle_simple_command(
 
     match (cli_cmd.info.handler.as_ref().unwrap())(params, &cli_cmd.info, &mut rpcenv) {
         Ok(value) => {
-            println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
+            if value != Value::Null {
+                println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
+            }
         }
         Err(err) => {
             eprintln!("Error: {}", err);
