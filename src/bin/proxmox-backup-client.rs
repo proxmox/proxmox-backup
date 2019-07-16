@@ -43,6 +43,35 @@ lazy_static! {
 }
 
 
+fn get_default_repository() -> Option<String> {
+    std::env::var("PBS_REPOSITORY").ok()
+}
+
+fn extract_repository_from_value(
+    param: &Value,
+) -> Result<BackupRepository, Error> {
+
+    let repo_url = param["repository"]
+        .as_str()
+        .map(String::from)
+        .or_else(get_default_repository)
+        .ok_or_else(|| format_err!("unable to get (default) repository"))?;
+
+    let repo: BackupRepository = repo_url.parse()?;
+
+    Ok(repo)
+}
+
+fn extract_repository_from_map(
+    param: &HashMap<String, String>,
+) -> Option<BackupRepository> {
+
+    param.get("repository")
+        .map(String::from)
+        .or_else(get_default_repository)
+        .and_then(|repo_url| repo_url.parse::<BackupRepository>().ok())
+}
+
 fn record_repository(repo: &BackupRepository) {
 
     let base = match BaseDirectories::with_prefix("proxmox-backup") {
@@ -197,8 +226,7 @@ fn list_backups(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let mut client = HttpClient::new(repo.host(), repo.user())?;
 
@@ -239,8 +267,7 @@ fn list_backup_groups(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let client = HttpClient::new(repo.host(), repo.user())?;
 
@@ -296,8 +323,7 @@ fn list_snapshots(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let path = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(path)?;
@@ -341,8 +367,7 @@ fn forget_snapshots(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
@@ -368,8 +393,7 @@ fn start_garbage_collection(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let mut client = HttpClient::new(repo.host(), repo.user())?;
 
@@ -396,11 +420,9 @@ fn create_backup(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
+    let repo = extract_repository_from_value(&param)?;
 
     let backupspec_list = tools::required_array_param(&param, "backupspec")?;
-
-    let repo: BackupRepository = repo_url.parse()?;
 
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
@@ -580,8 +602,7 @@ fn restore(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
@@ -739,8 +760,7 @@ fn prune(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let repo_url = tools::required_string_param(&param, "repository")?;
-    let repo: BackupRepository = repo_url.parse()?;
+    let repo = extract_repository_from_value(&param)?;
 
     let mut client = HttpClient::new(repo.host(), repo.user())?;
 
@@ -776,26 +796,11 @@ fn try_get(repo: &BackupRepository, url: &str) -> Value {
     Value::Null
 }
 
-fn extract_repo(param: &HashMap<String, String>) -> Option<BackupRepository> {
-
-    let repo_url = match param.get("repository") {
-        Some(v) => v,
-        _ => return None,
-    };
-
-    let repo: BackupRepository = match repo_url.parse() {
-        Ok(v) => v,
-        _ => return None,
-    };
-
-    Some(repo)
-}
-
 fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
-    let repo = match extract_repo(param) {
+    let repo = match extract_repository_from_map(param) {
         Some(v) => v,
         _ => return result,
     };
@@ -821,7 +826,7 @@ fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec
 
     let mut result = vec![];
 
-     let repo = match extract_repo(param) {
+     let repo = match extract_repository_from_map(param) {
         Some(v) => v,
         _ => return result,
     };
@@ -863,7 +868,7 @@ fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec
 
     let mut result = vec![];
 
-    let repo = match extract_repo(param) {
+    let repo = match extract_repository_from_map(param) {
         Some(v) => v,
         _ => return result,
     };
@@ -1174,7 +1179,6 @@ fn main() {
         ApiMethod::new(
             create_backup,
             ObjectSchema::new("Create (host) backup.")
-                .required("repository", REPO_URL_SCHEMA.clone())
                 .required(
                     "backupspec",
                     ArraySchema::new(
@@ -1182,6 +1186,7 @@ fn main() {
                         backup_source_schema,
                     ).min_length(1)
                 )
+                .optional("repository", REPO_URL_SCHEMA.clone())
                 .optional(
                     "keyfile",
                     StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
@@ -1199,7 +1204,7 @@ fn main() {
                         .default(4096)
                 )
         ))
-        .arg_param(vec!["repository", "backupspec"])
+        .arg_param(vec!["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
         .completion_cb("keyfile", tools::complete_file_name)
@@ -1209,19 +1214,18 @@ fn main() {
         ApiMethod::new(
             list_backup_groups,
             ObjectSchema::new("List backup groups.")
-                .required("repository", REPO_URL_SCHEMA.clone())
+                .optional("repository", REPO_URL_SCHEMA.clone())
         ))
-        .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
     let snapshots_cmd_def = CliCommand::new(
         ApiMethod::new(
             list_snapshots,
             ObjectSchema::new("List backup snapshots.")
-                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("group", StringSchema::new("Backup group."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
         ))
-        .arg_param(vec!["repository", "group"])
+        .arg_param(vec!["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
@@ -1229,10 +1233,10 @@ fn main() {
         ApiMethod::new(
             forget_snapshots,
             ObjectSchema::new("Forget (remove) backup snapshots.")
-                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("snapshot", StringSchema::new("Snapshot path."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
         ))
-        .arg_param(vec!["repository", "snapshot"])
+        .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot);
 
@@ -1240,16 +1244,14 @@ fn main() {
         ApiMethod::new(
             start_garbage_collection,
             ObjectSchema::new("Start garbage collection for a specific repository.")
-                .required("repository", REPO_URL_SCHEMA.clone())
+                .optional("repository", REPO_URL_SCHEMA.clone())
         ))
-        .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
     let restore_cmd_def = CliCommand::new(
         ApiMethod::new(
             restore,
             ObjectSchema::new("Restore backup repository.")
-                .required("repository", REPO_URL_SCHEMA.clone())
                 .required("snapshot", StringSchema::new("Group/Snapshot path."))
                 .required("archive-name", StringSchema::new("Backup archive name."))
                 .required("target", StringSchema::new(r###"Target directory path. Use '-' to write to stdandard output.
@@ -1258,13 +1260,14 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
 "###
                 ))
+                .optional("repository", REPO_URL_SCHEMA.clone())
                 .optional("keyfile", StringSchema::new("Path to encryption key."))
                 .optional(
                     "verbose",
                     BooleanSchema::new("Verbose output.").default(false)
                 )
         ))
-        .arg_param(vec!["repository", "snapshot", "archive-name", "target"])
+        .arg_param(vec!["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
@@ -1275,10 +1278,9 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             prune,
             proxmox_backup::api2::admin::datastore::add_common_prune_prameters(
                 ObjectSchema::new("Prune backup repository.")
-                    .required("repository", REPO_URL_SCHEMA.clone())
+                    .optional("repository", REPO_URL_SCHEMA.clone())
             )
         ))
-        .arg_param(vec!["repository"])
         .completion_cb("repository", complete_repository);
 
     let cmd_def = CliCommandMap::new()
