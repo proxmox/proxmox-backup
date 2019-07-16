@@ -129,8 +129,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("found invalid filename '.' or '..'.");
         }
 
-        if buffer.iter().find(|b| (**b == b'/')).is_some() {
-            bail!("found invalid filename with slashes.");
+        if buffer.iter().find(|b| (**b == b'/' || **b == b'\0')).is_some() {
+            bail!("found invalid filename with slashes or nul bytes.");
         }
 
         let name = std::ffi::OsString::from_vec(buffer);
