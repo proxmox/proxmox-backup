@@ -555,7 +555,6 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("detected short payload");
         }
         let need = (head.size - HEADER_SIZE) as usize;
-        //self.reader.seek(SeekFrom::Current(need as i64))?;
 
         let mut done = 0;
         while done < need  {
@@ -645,25 +644,14 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
-            //println!("HARDLINK: {} {:?} -> {:?}", offset, full_path, target_path);
             hardlink(&target_path, &full_path)?;
             return Ok(());
         }
 
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
-
-        let mode = entry.mode as u32; //fixme: upper 32bits?
-        let ifmt = mode & libc::S_IFMT;
-        if ifmt == libc::S_IFDIR {
-            return self.restore_dir_sequential(base_path, relative_path, &full_path, parent_fd, &entry, &filename);
-        }
-
-        if filename.is_empty() {
-            bail!("got empty file name at {:?}", full_path);
-        }
-
-        match ifmt {
+        match entry.mode as u32 & libc::S_IFMT {
+            libc::S_IFDIR => self.restore_dir_sequential(base_path, relative_path, &full_path, parent_fd, &entry, &filename),
             libc::S_IFLNK => self.restore_symlink(parent_fd, &full_path, &entry, &filename),
             libc::S_IFSOCK => self.restore_socket(parent_fd, &entry, &filename),
             libc::S_IFIFO  => self.restore_fifo(parent_fd, &entry, &filename),
