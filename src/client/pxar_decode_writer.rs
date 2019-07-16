@@ -38,7 +38,7 @@ impl PxarDecodeWriter {
                 Ok(())
             });
 
-            if let Err(err) = decoder.restore(&base) {
+            if let Err(err) = decoder.restore(&base, &Vec::new()) {
                 eprintln!("pxar decode failed - {}", err);
             }
         });

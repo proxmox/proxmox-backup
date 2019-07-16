@@ -71,7 +71,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
         self.seek(SeekFrom::Start(start))?;
 
-        self.inner.restore(path)?;
+        self.inner.restore(path, &Vec::new())?;
 
         Ok(())
     }

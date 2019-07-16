@@ -739,7 +739,7 @@ fn restore(
                 Ok(())
             });
 
-            decoder.restore(Path::new(target))?;
+            decoder.restore(Path::new(target), &Vec::new())?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
