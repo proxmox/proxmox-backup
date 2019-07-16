@@ -652,12 +652,12 @@ impl <'a, W: Write> Encoder<'a, W> {
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
-                match self.match_exclude_pattern(&filename, &stat, &local_match_pattern) {
+                match match_exclude_pattern(&filename, &stat, &local_match_pattern) {
                     (MatchType::Exclude, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         eprintln!("matched by .pxarexclude entry - skipping: {:?}", self.full_path().join(filename_osstr));
                     },
-                    (_, pattern_list) => name_list.push((filename, stat, pattern_list)),
+                    (_, child_pattern) => name_list.push((filename, stat, child_pattern)),
                 }
 
                 if name_list.len() > MAX_DIRECTORY_ENTRIES {
@@ -823,36 +823,6 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         //println!("encode_dir: {:?} end1 {}", self.full_path(), self.writer_pos);
         Ok(())
-    }
-
-    // If there is a match, an updated PxarExcludePattern list to pass to the matched child is returned.
-    fn match_exclude_pattern(&mut self, filename: &CStr, stat: &FileStat, match_pattern: &Vec<PxarExcludePattern>) -> (MatchType, Vec<PxarExcludePattern>) {
-        let mut child_pattern = Vec::new();
-        let mut match_type = MatchType::None;
-        let is_dir = is_directory(&stat);
-
-        for pattern in match_pattern {
-            match pattern.matches_filename(filename, is_dir) {
-                MatchType::None => {},
-                MatchType::Exclude => match_type = MatchType::Exclude,
-                MatchType::Include => match_type = MatchType::Include,
-                MatchType::PartialExclude => {
-                    if match_type != MatchType::Include && match_type != MatchType::Exclude {
-                        match_type = MatchType::PartialExclude;
-                    }
-                    child_pattern.push(pattern.get_rest_pattern());
-                },
-                MatchType::PartialInclude => {
-                    if match_type != MatchType::Include && match_type != MatchType::Exclude {
-                        // always include partial matches, as we need to match children to decide
-                        match_type = MatchType::PartialInclude;
-                    }
-                    child_pattern.push(pattern.get_rest_pattern());
-                },
-            }
-        }
-
-        (match_type, child_pattern)
     }
 
     fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64)  -> Result<(), Error> {
@@ -1041,6 +1011,38 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         Ok(())
     }
+}
+
+// If there is a match, an updated PxarExcludePattern list to pass to the matched child is returned.
+fn match_exclude_pattern(
+    filename: &CStr,
+    stat: &FileStat,
+    match_pattern: &Vec<PxarExcludePattern>
+) ->  (MatchType, Vec<PxarExcludePattern>) {
+    let mut child_pattern = Vec::new();
+    let mut match_state = MatchType::None;
+
+    for pattern in match_pattern {
+        match pattern.matches_filename(filename, is_directory(&stat)) {
+            MatchType::None =>  {},
+            MatchType::Exclude =>  match_state = MatchType::Exclude,
+            MatchType::Include =>  match_state = MatchType::Include,
+            MatchType::PartialExclude =>  {
+                if match_state != MatchType::Exclude && match_state != MatchType::Include {
+                    match_state = MatchType::PartialExclude;
+                }
+                child_pattern.push(pattern.get_rest_pattern());
+            },
+            MatchType::PartialInclude =>  {
+                if match_state != MatchType::Exclude && match_state != MatchType::Include {
+                    match_state = MatchType::PartialInclude;
+                }
+                child_pattern.push(pattern.get_rest_pattern());
+            },
+        }
+    }
+
+    (match_state, child_pattern)
 }
 
 fn errno_is_unsupported(errno: Errno) -> bool {
