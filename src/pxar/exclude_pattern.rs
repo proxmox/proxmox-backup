@@ -174,6 +174,10 @@ impl PxarExcludePattern {
             res = MatchType::None;
         }
 
+        if !is_dir && (res == MatchType::PartialInclude || res == MatchType::PartialExclude) {
+            res = MatchType::None;
+        }
+
         res
     }
 }
