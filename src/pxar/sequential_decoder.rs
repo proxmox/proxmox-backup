@@ -172,7 +172,11 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(CaFormatFCaps { data: buffer })
     }
 
-    fn restore_attributes(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<CaFormatHeader, Error> {
+    fn restore_attributes(
+        &mut self,
+        entry: &CaFormatEntry,
+        fd: Option<RawFd>
+    ) -> Result<CaFormatHeader, Error> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
         let mut quota_projid = None;
@@ -257,57 +261,67 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             head = self.read_item()?;
             size = (head.size - HEADER_SIZE) as usize;
         }
-        self.restore_xattrs_fcaps_fd(fd, xattrs, fcaps)?;
+        // If fd is None, this indicates that we just want to skip over these entries (no restore).
+        // If on the other hand there is Some(fd), restore the attributes on it.
+        if let Some(fd) = fd {
+            self.restore_xattrs_fcaps_fd(fd, xattrs, fcaps)?;
 
-        let mut acl = acl::ACL::init(5)?;
-        acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
-        acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
-        match acl_group_obj {
-            Some(group_obj) => {
-                acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
-                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
-            },
-            None => {
-                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
-            },
-        }
-        for user in acl_user {
-            acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
-        }
-        for group in acl_group {
-            acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
-        }
-        let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
-        if !acl.is_valid() {
-            bail!("Error while restoring ACL - ACL invalid");
-        }
-        acl.set_file(&proc_path, acl::ACL_TYPE_ACCESS)?;
-
-        if let Some(default) = acl_default {
             let mut acl = acl::ACL::init(5)?;
-            acl.add_entry_full(acl::ACL_USER_OBJ, None, default.user_obj_permissions)?;
-            acl.add_entry_full(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions)?;
-            acl.add_entry_full(acl::ACL_OTHER, None, default.other_permissions)?;
-            if default.mask_permissions != std::u64::MAX {
-                acl.add_entry_full(acl::ACL_MASK, None, default.mask_permissions)?;
+            acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
+            acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
+            match acl_group_obj {
+                Some(group_obj) => {
+                    acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
+                    acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
+                },
+                None => {
+                    acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
+                },
             }
-            for user in acl_default_user {
+            for user in acl_user {
                 acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
             }
-            for group in acl_default_group {
+            for group in acl_group {
                 acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
             }
+            let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
             if !acl.is_valid() {
                 bail!("Error while restoring ACL - ACL invalid");
             }
-            acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
+            acl.set_file(&proc_path, acl::ACL_TYPE_ACCESS)?;
+
+            if let Some(default) = acl_default {
+                let mut acl = acl::ACL::init(5)?;
+                acl.add_entry_full(acl::ACL_USER_OBJ, None, default.user_obj_permissions)?;
+                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions)?;
+                acl.add_entry_full(acl::ACL_OTHER, None, default.other_permissions)?;
+                if default.mask_permissions != std::u64::MAX {
+                    acl.add_entry_full(acl::ACL_MASK, None, default.mask_permissions)?;
+                }
+                for user in acl_default_user {
+                    acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
+                }
+                for group in acl_default_group {
+                    acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
+                }
+                if !acl.is_valid() {
+                    bail!("Error while restoring ACL - ACL invalid");
+                }
+                acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
+            }
+            self.restore_quota_projid(fd, quota_projid)?;
         }
-        self.restore_quota_projid(fd, quota_projid)?;
 
         Ok(head)
     }
 
-    fn restore_xattrs_fcaps_fd(&mut self, fd: RawFd, xattrs: Vec<CaFormatXAttr>, fcaps: Option<CaFormatFCaps>) -> Result<(), Error> {
+    // Restore xattrs and fcaps to the given RawFd.
+    fn restore_xattrs_fcaps_fd(
+        &mut self,
+        fd: RawFd,
+        xattrs: Vec<CaFormatXAttr>,
+        fcaps: Option<CaFormatFCaps>
+    ) -> Result<(), Error> {
         for xattr in xattrs {
             if let Err(err) = xattr::fsetxattr(fd, xattr) {
                 bail!("fsetxattr failed with error: {}", err);
@@ -322,7 +336,11 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_quota_projid(&mut self, fd: RawFd, projid: Option<CaFormatQuotaProjID>) -> Result<(), Error> {
+    fn restore_quota_projid(
+        &mut self,
+        fd: RawFd,
+        projid: Option<CaFormatQuotaProjID>
+    ) -> Result<(), Error> {
         if let Some(projid) = projid {
             let mut fsxattr = fs::FSXAttr::default();
             unsafe {
@@ -453,7 +471,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
 
     fn restore_symlink(
         &mut self,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         full_path: &PathBuf,
         entry: &CaFormatEntry,
         filename: &OsStr
@@ -466,8 +484,10 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             CA_FORMAT_SYMLINK => {
                 let target = self.read_link(head.size)?;
                 //println!("TARGET: {:?}", target);
-                if let Err(err) = symlinkat(&target, parent_fd, filename) {
-                    bail!("create symlink {:?} failed - {}", full_path, err);
+                if let Some(fd) = parent_fd {
+                    if let Err(err) = symlinkat(&target, fd, filename) {
+                        bail!("create symlink {:?} failed - {}", full_path, err);
+                    }
                 }
             }
              _ => {
@@ -475,44 +495,50 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
              }
         }
 
-        // self.restore_mode_at(&entry, parent_fd, filename)?; //not supported on symlinks
-        self.restore_ugid_at(&entry, parent_fd, filename)?;
-        self.restore_mtime_at(&entry, parent_fd, filename)?;
+        if let Some(fd) = parent_fd {
+            // self.restore_mode_at(&entry, fd, filename)?; //not supported on symlinks
+            self.restore_ugid_at(&entry, fd, filename)?;
+            self.restore_mtime_at(&entry, fd, filename)?;
+        }
 
         Ok(())
     }
 
     fn restore_socket(
         &mut self,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        self.restore_socket_at(parent_fd, filename)?;
-        self.restore_mode_at(&entry, parent_fd, filename)?;
-        self.restore_ugid_at(&entry, parent_fd, filename)?;
-        self.restore_mtime_at(&entry, parent_fd, filename)?;
+        if let Some(fd) = parent_fd {
+            self.restore_socket_at(fd, filename)?;
+            self.restore_mode_at(&entry, fd, filename)?;
+            self.restore_ugid_at(&entry, fd, filename)?;
+            self.restore_mtime_at(&entry, fd, filename)?;
+        }
 
         Ok(())
     }
 
     fn restore_fifo(
         &mut self,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        self.restore_fifo_at(parent_fd, filename)?;
-        self.restore_mode_at(&entry, parent_fd, filename)?;
-        self.restore_ugid_at(&entry, parent_fd, filename)?;
-        self.restore_mtime_at(&entry, parent_fd, filename)?;
+        if let Some(fd) = parent_fd {
+            self.restore_fifo_at(fd, filename)?;
+            self.restore_mode_at(&entry, fd, filename)?;
+            self.restore_ugid_at(&entry, fd, filename)?;
+            self.restore_mtime_at(&entry, fd, filename)?;
+        }
 
         Ok(())
     }
 
     fn restore_device(
         &mut self,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
@@ -521,55 +547,72 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("got unknown header type inside device entry {:016x}", head.htype);
         }
         let device: CaFormatDevice = self.read_item()?;
-        self.restore_device_at(&entry, parent_fd, filename, &device)?;
-        self.restore_mode_at(&entry, parent_fd, filename)?;
-        self.restore_ugid_at(&entry, parent_fd, filename)?;
-        self.restore_mtime_at(&entry, parent_fd, filename)?;
+        if let Some(fd) = parent_fd {
+            self.restore_device_at(&entry, fd, filename, &device)?;
+            self.restore_mode_at(&entry, fd, filename)?;
+            self.restore_ugid_at(&entry, fd, filename)?;
+            self.restore_mtime_at(&entry, fd, filename)?;
+        }
 
         Ok(())
     }
 
+    /// Restores a regular file with its content and associated attributes to the
+    /// folder provided by the raw filedescriptor.
+    /// If None is passed instead of a filedescriptor, the file is not restored but
+    /// the archive reader is skipping over it instead.
     fn restore_regular_file(
         &mut self,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         full_path: &PathBuf,
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
         let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
 
-        let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
-        let open_mode =  Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
+        if let Some(fd) = parent_fd {
+            let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
+            let open_mode =  Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
+            let mut file = file_openat(fd, filename, flags, open_mode)
+                .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
 
-        let mut file = file_openat(parent_fd, filename, flags, open_mode)
-            .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
+            self.restore_ugid(&entry, file.as_raw_fd())?;
+            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+            let head = self.restore_attributes(&entry, Some(file.as_raw_fd()))
+                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
 
-        self.restore_ugid(&entry, file.as_raw_fd())?;
-        // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-        let head = self.restore_attributes(&entry, file.as_raw_fd())
-            .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
+            if head.htype != CA_FORMAT_PAYLOAD {
+                  bail!("got unknown header type for file entry {:016x}", head.htype);
+            }
 
-        if head.htype != CA_FORMAT_PAYLOAD {
-              bail!("got unknown header type for file entry {:016x}", head.htype);
+            if head.size < HEADER_SIZE {
+                bail!("detected short payload");
+            }
+            let need = (head.size - HEADER_SIZE) as usize;
+
+            let mut done = 0;
+            while done < need  {
+                let todo = need - done;
+                let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
+                let data = &mut read_buffer[..n];
+                self.reader.read_exact(data)?;
+                file.write_all(data)?;
+                done += n;
+            }
+
+            self.restore_mode(&entry, file.as_raw_fd())?;
+            self.restore_mtime(&entry, file.as_raw_fd())?;
+        } else {
+            let head = self.restore_attributes(&entry, None)
+                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
+            if head.htype != CA_FORMAT_PAYLOAD {
+                  bail!("got unknown header type for file entry {:016x}", head.htype);
+            }
+            if head.size < HEADER_SIZE {
+                bail!("detected short payload");
+            }
+            self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
         }
-
-        if head.size < HEADER_SIZE {
-            bail!("detected short payload");
-        }
-        let need = (head.size - HEADER_SIZE) as usize;
-
-        let mut done = 0;
-        while done < need  {
-            let todo = need - done;
-            let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
-            let data = &mut read_buffer[..n];
-            self.reader.read_exact(data)?;
-            file.write_all(data)?;
-            done += n;
-        }
-
-        self.restore_mode(&entry, file.as_raw_fd())?;
-        self.restore_mtime(&entry, file.as_raw_fd())?;
 
         Ok(())
     }
@@ -579,26 +622,35 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         base_path: &Path,
         relative_path: &mut PathBuf,
         full_path: &PathBuf,
-        parent_fd: RawFd,
+        parent_fd: Option<RawFd>,
         entry: &CaFormatEntry,
         filename: &OsStr,
+        match_pattern: &Vec<PxarExcludePattern>,
     ) -> Result<(), Error> {
-        let dir = if filename.is_empty() {
-            nix::dir::Dir::openat(parent_fd, ".", OFlag::O_DIRECTORY,  Mode::empty())?
+        // By passing back Some(dir) we assure the fd stays open and in scope
+        let (fd, _dir) = if let Some(pfd) = parent_fd {
+            let dir = if filename.is_empty() {
+                nix::dir::Dir::openat(pfd, ".", OFlag::O_DIRECTORY,  Mode::empty())?
+            } else {
+                dir_mkdirat(pfd, filename, true)
+                    .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?
+            };
+            (Some(dir.as_raw_fd()), Some(dir))
         } else {
-            dir_mkdirat(parent_fd, filename, true)
-                .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?
+            (None, None)
         };
 
-        self.restore_ugid(&entry, dir.as_raw_fd())?;
+        if let Some(fd) = fd {
+            self.restore_ugid(&entry, fd)?;
+        }
         // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-        let mut head = self.restore_attributes(&entry, dir.as_raw_fd())
+        let mut head = self.restore_attributes(&entry, fd)
             .map_err(|err| format_err!("Restoring of directory attributes failed - {}", err))?;
 
         while head.htype == CA_FORMAT_FILENAME {
             let name = self.read_filename(head.size)?;
             relative_path.push(&name);
-            self.restore_sequential(base_path, relative_path, &name, &dir)?;
+            self.restore_sequential(base_path, relative_path, &name, fd, match_pattern)?;
             relative_path.pop();
             head = self.read_item()?;
         }
@@ -610,8 +662,12 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         //println!("Skip Goodbye");
         if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
         self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
-        self.restore_mode(&entry, dir.as_raw_fd())?;
-        self.restore_mtime(&entry, dir.as_raw_fd())?;
+
+        // Only restore if we want to restore this part of the archive
+        if let Some(fd) = fd {
+            self.restore_mode(&entry, fd)?;
+            self.restore_mtime(&entry, fd)?;
+        }
 
         Ok(())
     }
@@ -619,15 +675,16 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
-    pub fn restore(&mut self, path: &Path) -> Result<(), Error> {
+    pub fn restore(&mut self, path: &Path, match_pattern: &Vec<PxarExcludePattern>) -> Result<(), Error> {
 
         let _ = std::fs::create_dir(path);
 
         let dir = nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty())
             .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
+        let fd = Some(dir.as_raw_fd());
 
         let mut relative_path = PathBuf::new();
-        self.restore_sequential(path, &mut relative_path, &OsString::new(), &dir)
+        self.restore_sequential(path, &mut relative_path, &OsString::new(), fd, match_pattern)
     }
 
     fn restore_sequential(
@@ -635,9 +692,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         base_path: &Path,
         relative_path: &mut PathBuf,
         filename: &OsStr,  // repeats path last relative_path component
-        parent: &nix::dir::Dir,
+        parent_fd: Option<RawFd>,
+        match_pattern: &Vec<PxarExcludePattern>,
     ) -> Result<(), Error> {
-        let parent_fd = parent.as_raw_fd();
         let full_path = base_path.join(&relative_path);
 
         (self.callback)(&full_path)?;
@@ -646,19 +703,36 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
-            hardlink(&target_path, &full_path)?;
+            if let Some(_) = parent_fd {
+                hardlink(&target_path, &full_path)?;
+            }
             return Ok(());
         }
 
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
+
+        let mut fd = parent_fd;
+        let mut child_pattern = Vec::new();
+        if match_pattern.len() > 0 {
+            if filename.is_empty() {
+                child_pattern = match_pattern.clone();
+            } else {
+                match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern) {
+                    (MatchType::None, _) => fd = None,
+                    (MatchType::Exclude, _) => fd = None,
+                    (_, pattern) => child_pattern = pattern,
+                }
+            }
+        }
+
         match entry.mode as u32 & libc::S_IFMT {
-            libc::S_IFDIR => self.restore_dir_sequential(base_path, relative_path, &full_path, parent_fd, &entry, &filename),
-            libc::S_IFLNK => self.restore_symlink(parent_fd, &full_path, &entry, &filename),
-            libc::S_IFSOCK => self.restore_socket(parent_fd, &entry, &filename),
-            libc::S_IFIFO  => self.restore_fifo(parent_fd, &entry, &filename),
-            libc::S_IFBLK | libc::S_IFCHR => self.restore_device(parent_fd, &entry, &filename),
-            libc::S_IFREG => self.restore_regular_file(parent_fd, &full_path, &entry, &filename),
+            libc::S_IFDIR => self.restore_dir_sequential(base_path, relative_path, &full_path, fd, &entry, &filename, &child_pattern),
+            libc::S_IFLNK => self.restore_symlink(fd, &full_path, &entry, &filename),
+            libc::S_IFSOCK => self.restore_socket(fd, &entry, &filename),
+            libc::S_IFIFO => self.restore_fifo(fd, &entry, &filename),
+            libc::S_IFBLK | libc::S_IFCHR => self.restore_device(fd, &entry, &filename),
+            libc::S_IFREG => self.restore_regular_file(fd, &full_path, &entry, &filename),
             _ => Ok(()),
         }
     }
