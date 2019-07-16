@@ -48,7 +48,7 @@ fn dump_archive(
         let mut reader = stdin.lock();
         dump_archive_from_reader(&mut reader, feature_flags, verbose)?;
     } else {
-        println!("PXAR dump: {}", archive);
+        if verbose { println!("PXAR dump: {}", archive); }
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
         dump_archive_from_reader(&mut reader, feature_flags, verbose)?;
