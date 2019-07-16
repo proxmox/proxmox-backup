@@ -16,39 +16,18 @@ use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox_backup::pxar;
 
-fn print_filenames(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let archive = tools::required_string_param(&param, "archive")?;
-    let file = std::fs::File::open(archive)?;
-
-    let mut reader = std::io::BufReader::new(file);
-
-    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
-    feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
-    feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
-    let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |_| Ok(()));
-
-    let stdout = std::io::stdout();
-    let mut out = stdout.lock();
-
-    let mut path = PathBuf::from(".");
-    decoder.dump_entry(&mut path, false, &mut out)?;
-
-    Ok(Value::Null)
-}
-
-fn dump_archive_from_reader<R: std::io::Read>(reader: &mut R, feature_flags: u64) -> Result<(), Error> {
+fn dump_archive_from_reader<R: std::io::Read>(
+    reader: &mut R,
+    feature_flags: u64,
+    verbose: bool,
+) -> Result<(), Error> {
     let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |_| Ok(()));
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
 
     let mut path = PathBuf::new();
-    decoder.dump_entry(&mut path, true, &mut out)?;
+    decoder.dump_entry(&mut path, verbose, &mut out)?;
 
     Ok(())
 }
@@ -60,30 +39,19 @@ fn dump_archive(
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
-    let with_xattrs = param["with-xattrs"].as_bool().unwrap_or(false);
-    let with_fcaps = param["with-fcaps"].as_bool().unwrap_or(false);
-    let with_acls = param["with-acls"].as_bool().unwrap_or(false);
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
 
-    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
-    if !with_xattrs {
-        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
-    }
-    if !with_fcaps {
-        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
-    }
-    if !with_acls {
-        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
-    }
+    let feature_flags = pxar::CA_FORMAT_DEFAULT;
 
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
-        dump_archive_from_reader(&mut reader, feature_flags)?;
+        dump_archive_from_reader(&mut reader, feature_flags, verbose)?;
     } else {
         println!("PXAR dump: {}", archive);
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
-        dump_archive_from_reader(&mut reader, feature_flags)?;
+        dump_archive_from_reader(&mut reader, feature_flags, verbose)?;
     }
 
     Ok(Value::Null)
@@ -222,22 +190,10 @@ fn main() {
         )
         .insert("list", CliCommand::new(
             ApiMethod::new(
-                print_filenames,
+                dump_archive,
                 ObjectSchema::new("List the contents of an archive.")
                     .required("archive", StringSchema::new("Archive name."))
-            ))
-            .arg_param(vec!["archive"])
-            .completion_cb("archive", tools::complete_file_name)
-            .into()
-        )
-        .insert("dump", CliCommand::new(
-            ApiMethod::new(
-                dump_archive,
-                ObjectSchema::new("Textual dump of archive contents (debug toolkit).")
-                    .required("archive", StringSchema::new("Archive name."))
-                    .optional("with-xattrs", BooleanSchema::new("Dump extended file attributes.").default(false))
-                    .optional("with-fcaps", BooleanSchema::new("Dump file capabilities.").default(false))
-                    .optional("with-acls", BooleanSchema::new("Dump access control list entries.").default(false))
+                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
             ))
             .arg_param(vec!["archive"])
             .completion_cb("archive", tools::complete_file_name)
