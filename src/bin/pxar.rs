@@ -77,7 +77,7 @@ fn extract_archive(
 ) -> Result<Value, Error> {
 
     let archive = tools::required_string_param(&param, "archive")?;
-    let target = tools::required_string_param(&param, "target")?;
+    let target = param["target"].as_str().unwrap_or(".");
     let verbose = param["verbose"].as_bool().unwrap_or(false);
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
@@ -177,13 +177,13 @@ fn main() {
                 extract_archive,
                 ObjectSchema::new("Extract an archive.")
                     .required("archive", StringSchema::new("Archive name."))
-                    .required("target", StringSchema::new("Target directory."))
+                    .optional("target", StringSchema::new("Target directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
           ))
-            .arg_param(vec!["archive", "target"])
+            .arg_param(vec!["archive"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .into()

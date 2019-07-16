@@ -27,6 +27,7 @@ fn pxar_create_and_extract() {
     Command::new(exec_path)
         .arg("extract")
         .arg("./tests/archive.pxar")
+        .arg("--target")
         .arg(dest_dir)
         .status()
         .unwrap_or_else(|err| {
