@@ -160,6 +160,46 @@ fn list_snapshots (
     Ok(json!(snapshots))
 }
 
+fn status(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = param["store"].as_str().unwrap();
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let base_path = datastore.base_path();
+
+    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
+
+    use nix::NixPath;
+
+    let res = base_path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
+    nix::errno::Errno::result(res)?;
+
+    let bsize = stat.f_bsize as u64;
+    Ok(json!({
+        "total": stat.f_blocks*bsize,
+        "used": (stat.f_blocks-stat.f_bfree)*bsize,
+        "avail": stat.f_bavail*bsize,
+    }))
+}
+
+fn api_method_status() -> ApiMethod {
+    ApiMethod::new(
+        status,
+        add_common_prune_prameters(
+            ObjectSchema::new("Get datastore status.")
+                .required(
+                    "store",
+                    StringSchema::new("Datastore name.")
+                )
+        )
+    )
+}
+
 fn prune(
     param: Value,
     _info: &ApiMethod,
@@ -526,6 +566,11 @@ pub fn router() -> Router {
             "prune",
             Router::new()
                 .post(api_method_prune())
+        )
+        .subdir(
+            "status",
+            Router::new()
+                .get(api_method_status())
         )
         .list_subdirs();
 
