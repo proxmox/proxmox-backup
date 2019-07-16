@@ -13,6 +13,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 
 use proxmox_backup::pxar;
 
@@ -57,7 +58,13 @@ fn dump_archive(
     Ok(Value::Null)
 }
 
-fn extract_archive_from_reader<R: std::io::Read>(reader: &mut R, target: &str, feature_flags: u64, verbose: bool) -> Result<(), Error> {
+fn extract_archive_from_reader<R: std::io::Read>(
+    reader: &mut R,
+    target: &str,
+    feature_flags: u64,
+    verbose: bool,
+    pattern: Option<Vec<pxar::PxarExcludePattern>>
+) -> Result<(), Error> {
     let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |path| {
         if verbose {
             println!("{:?}", path);
@@ -65,7 +72,8 @@ fn extract_archive_from_reader<R: std::io::Read>(reader: &mut R, target: &str, f
         Ok(())
     });
 
-    decoder.restore(Path::new(target))?;
+    let pattern = pattern.unwrap_or(Vec::new());
+    decoder.restore(Path::new(target), &pattern)?;
 
     Ok(())
 }
@@ -82,6 +90,7 @@ fn extract_archive(
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
+    let files_from = param["files-from"].as_str();
 
     let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
     if no_xattrs {
@@ -94,15 +103,26 @@ fn extract_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
+    let pattern = match files_from {
+        Some(filename) =>  {
+            let dir = nix::dir::Dir::open("./", nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty())?;
+            let fd = dir.as_raw_fd();
+
+            pxar::PxarExcludePattern::from_file(fd, filename)?
+                .and_then(|(pattern, _, _)| Some(pattern))
+        },
+        None =>  None,
+    };
+
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
     } else {
         println!("PXAR dump: {}", archive);
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
     }
 
     Ok(Value::Null)
@@ -182,10 +202,12 @@ fn main() {
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
+                    .optional("files-from", StringSchema::new("Match pattern for files to restore."))
           ))
             .arg_param(vec!["archive"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
+            .completion_cb("files-from", tools::complete_file_name)
             .into()
         )
         .insert("list", CliCommand::new(
