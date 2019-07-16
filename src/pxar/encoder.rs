@@ -612,8 +612,6 @@ impl <'a, W: Write> Encoder<'a, W> {
             self.write_quota_project_id(projid)?;
         }
 
-        let mut dir_count = 0;
-
         let include_children;
         if is_virtual_file_system(magic) {
             include_children = false;
@@ -662,8 +660,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                     (_, pattern_list) => name_list.push((filename, stat, pattern_list)),
                 }
 
-                dir_count += 1;
-                if dir_count > MAX_DIRECTORY_ENTRIES {
+                if name_list.len() > MAX_DIRECTORY_ENTRIES {
                     bail!("too many directory items in {:?} (> {})", self.full_path(), MAX_DIRECTORY_ENTRIES);
                 }
             }
