@@ -212,6 +212,7 @@ fn handle_simple_command(
         }
         Err(err) => {
             eprintln!("Error: {}", err);
+            std::process::exit(-1);
         }
     }
 }
