@@ -12,6 +12,7 @@ use serde_json::{Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
+use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 
@@ -91,6 +92,8 @@ fn extract_archive(
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
     let files_from = param["files-from"].as_str();
+    let empty = Vec::new();
+    let arg_pattern = param["pattern"].as_array().unwrap_or(&empty);
 
     let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
     if no_xattrs {
@@ -103,15 +106,25 @@ fn extract_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
-    let pattern = match files_from {
-        Some(filename) =>  {
-            let dir = nix::dir::Dir::open("./", nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty())?;
-            let fd = dir.as_raw_fd();
+    let mut pattern_list = Vec::new();
+    if let Some(filename) = files_from {
+        let dir = nix::dir::Dir::open("./", nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty())?;
+        if let Some((mut pattern, _, _)) = pxar::PxarExcludePattern::from_file(dir.as_raw_fd(), filename)? {
+            pattern_list.append(&mut pattern);
+        }
+    }
 
-            pxar::PxarExcludePattern::from_file(fd, filename)?
-                .and_then(|(pattern, _, _)| Some(pattern))
-        },
-        None =>  None,
+    for s in arg_pattern {
+        let l = s.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
+        let p = pxar::PxarExcludePattern::from_line(l.as_bytes())?
+            .ok_or_else(|| format_err!("Invalid match pattern in arguments"))?;
+        pattern_list.push(p);
+    }
+
+    let pattern = if pattern_list.len() > 0 {
+        Some(pattern_list)
+    } else {
+        None
     };
 
     if archive == "-" {
@@ -186,25 +199,31 @@ fn main() {
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
                     .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
-           ))
+            ))
             .arg_param(vec!["archive", "source"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
-           .into()
+            .into()
         )
         .insert("extract", CliCommand::new(
             ApiMethod::new(
                 extract_archive,
                 ObjectSchema::new("Extract an archive.")
                     .required("archive", StringSchema::new("Archive name."))
+                    .optional("pattern", Arc::new(
+                        ArraySchema::new(
+                            "List of paths or pattern matching files to restore",
+                            Arc::new(StringSchema::new("Path or pattern matching files to restore.").into())
+                        ).into()
+                    ))
                     .optional("target", StringSchema::new("Target directory."))
                     .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
                     .optional("files-from", StringSchema::new("Match pattern for files to restore."))
-          ))
-            .arg_param(vec!["archive"])
+            ))
+            .arg_param(vec!["archive", "pattern"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .completion_cb("files-from", tools::complete_file_name)
