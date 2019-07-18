@@ -27,7 +27,7 @@ lazy_static!{
 /// This is implemented for machine generatable formats 'json' and
 /// 'json-pretty'. The 'text' format needs to be handled somewhere
 /// else.
-pub fn format_and_print_result(result: Value, output_format: &str) {
+pub fn format_and_print_result(result: &Value, output_format: &str) {
 
     if output_format == "json-pretty" {
         println!("{}", serde_json::to_string_pretty(&result).unwrap());

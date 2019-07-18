@@ -285,7 +285,7 @@ fn list_backup_groups(
         }
     }
 
-    if output_format != "text" { format_and_print_result(result.into(), &output_format); }
+    if output_format != "text" { format_and_print_result(&(result.into()), &output_format); }
 
     Ok(Value::Null)
 }
@@ -344,7 +344,7 @@ fn list_snapshots(
         }
     }
 
-    if output_format != "text" { format_and_print_result(result.into(), &output_format); }
+    if output_format != "text" { format_and_print_result(&result.into(), &output_format); }
 
     Ok(Value::Null)
 }
@@ -796,7 +796,7 @@ fn status(
             avail,
         );
     } else {
-        format_and_print_result(result, &output_format);
+        format_and_print_result(data, &output_format);
     }
 
     Ok(Value::Null)
