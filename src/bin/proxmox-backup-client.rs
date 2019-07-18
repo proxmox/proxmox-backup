@@ -285,7 +285,7 @@ fn list_backup_groups(
         }
     }
 
-    if output_format != "text" { format_and_print_result(&(result.into()), &output_format); }
+    if output_format != "text" { format_and_print_result(&result.into(), &output_format); }
 
     Ok(Value::Null)
 }
