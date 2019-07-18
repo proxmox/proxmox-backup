@@ -219,48 +219,6 @@ fn strip_server_file_expenstions(list: Vec<String>) -> Vec<String> {
     result
 }
 
-/* not used:
-fn list_backups(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let repo = extract_repository_from_value(&param)?;
-
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
-
-    let path = format!("api2/json/admin/datastore/{}/backups", repo.store());
-
-    let result = client.get(&path, None)?;
-
-    record_repository(&repo);
-
-    // fixme: implement and use output formatter instead ..
-    let list = result["data"].as_array().unwrap();
-
-    for item in list {
-
-        let id = item["backup-id"].as_str().unwrap();
-        let btype = item["backup-type"].as_str().unwrap();
-        let epoch = item["backup-time"].as_i64().unwrap();
-
-        let backup_dir = BackupDir::new(btype, id, epoch);
-
-        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_server_file_expenstions(files);
-
-        for filename in files {
-            let path = backup_dir.relative_path().to_str().unwrap().to_owned();
-            println!("{} | {}/{}", backup_dir.backup_time().format("%c"), path, filename);
-        }
-    }
-
-    //Ok(result)
-    Ok(Value::Null)
-}
- */
-
 fn list_backup_groups(
     param: Value,
     _info: &ApiMethod,
@@ -340,19 +298,20 @@ fn list_snapshots(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let path = tools::required_string_param(&param, "group")?;
-    let group = BackupGroup::parse(path)?;
-
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
     let client = HttpClient::new(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
-    let result = client.get(&path, Some(json!({
-        "backup-type": group.backup_type(),
-        "backup-id": group.backup_id(),
-    }))).wait()?;
+    let mut args = json!({});
+    if let Some(path) = param["group"].as_str() {
+        let group = BackupGroup::parse(path)?;
+        args["backup-type"] = group.backup_type().into();
+        args["backup-id"] = group.backup_id().into();
+    }
+
+    let result = client.get(&path, Some(args)).wait()?;
 
     record_repository(&repo);
 
@@ -1291,7 +1250,7 @@ fn main() {
         ApiMethod::new(
             list_snapshots,
             ObjectSchema::new("List backup snapshots.")
-                .required("group", StringSchema::new("Backup group."))
+                .optional("group", StringSchema::new("Backup group."))
                 .optional("repository", REPO_URL_SCHEMA.clone())
                 .optional("output-format", OUTPUT_FORMAT.clone())
         ))

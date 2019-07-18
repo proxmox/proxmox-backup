@@ -135,20 +135,25 @@ fn list_snapshots (
 ) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-
-    let group = BackupGroup::new(backup_type, backup_id);
+    let backup_type = param["backup-type"].as_str();
+    let backup_id = param["backup-id"].as_str();
 
     let datastore = DataStore::lookup_datastore(store)?;
 
     let base_path = datastore.base_path();
 
-    let backup_list = group.list_backups(&base_path)?;
+    let backup_list = BackupInfo::list_backups(&base_path)?;
 
     let mut snapshots = vec![];
 
     for info in backup_list {
+        let group = info.backup_dir.group();
+        if let Some(backup_type) = backup_type {
+            if backup_type != group.backup_type() { continue; }
+        }
+       if let Some(backup_id) = backup_id {
+            if backup_id != group.backup_id() { continue; }
+        }
         snapshots.push(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
@@ -391,36 +396,6 @@ pub fn api_method_garbage_collection_status() -> ApiMethod {
     )
 }
 
-fn get_backup_list(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    //let config = datastore::config()?;
-
-    let store = param["store"].as_str().unwrap();
-
-    let datastore = DataStore::lookup_datastore(store)?;
-
-    let mut list = vec![];
-
-    let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
-
-    for info in backup_list {
-        list.push(json!({
-            "backup-type": info.backup_dir.group().backup_type(),
-            "backup-id": info.backup_dir.group().backup_id(),
-            "backup-time": info.backup_dir.backup_time().timestamp(),
-            "files": info.files,
-        }));
-    }
-
-    let result = json!(list);
-
-    Ok(result)
-}
-
 fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
@@ -500,13 +475,6 @@ pub fn router() -> Router {
 
     let datastore_info = Router::new()
         .subdir(
-            "backups",
-            Router::new()
-                .get(ApiMethod::new(
-                    get_backup_list,
-                    ObjectSchema::new("List backups.")
-                        .required("store", store_schema.clone()))))
-        .subdir(
             "download",
             Router::new()
                 .download(api_method_download_file())
@@ -546,8 +514,8 @@ pub fn router() -> Router {
                         list_snapshots,
                         ObjectSchema::new("List backup groups.")
                             .required("store", store_schema.clone())
-                            .required("backup-type", StringSchema::new("Backup type."))
-                            .required("backup-id", StringSchema::new("Backup ID."))
+                            .optional("backup-type", StringSchema::new("Backup type."))
+                            .optional("backup-id", StringSchema::new("Backup ID."))
                     )
                 )
                 .delete(
