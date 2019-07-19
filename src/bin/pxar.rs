@@ -132,6 +132,7 @@ fn extract_archive(
         let mut reader = stdin.lock();
         extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
     } else {
+        if verbose { println!("PXAR extract: {}", archive); }
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
         extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
