@@ -697,13 +697,12 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     ) -> Result<(), Error> {
         let full_path = base_path.join(&relative_path);
 
-        (self.callback)(&full_path)?;
-
         let head: CaFormatHeader = self.read_item()?;
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
             if let Some(_) = parent_fd {
+                (self.callback)(&full_path)?;
                 hardlink(&target_path, &full_path)?;
             }
             return Ok(());
@@ -724,6 +723,10 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                     (_, pattern) => child_pattern = pattern,
                 }
             }
+        }
+
+        if fd.is_some() {
+            (self.callback)(&full_path)?;
         }
 
         match entry.mode as u32 & libc::S_IFMT {
