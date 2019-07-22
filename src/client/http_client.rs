@@ -4,7 +4,7 @@ use http::Uri;
 use hyper::Body;
 use hyper::client::Client;
 use xdg::BaseDirectories;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::io::Write;
@@ -283,7 +283,7 @@ impl HttpClient {
         datastore: &str,
         backup_type: &str,
         backup_id: &str,
-        backup_time: DateTime<Local>,
+        backup_time: DateTime<Utc>,
         debug: bool,
     ) -> impl Future<Item=Arc<BackupReader>, Error=Error> {
 

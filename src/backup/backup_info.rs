@@ -4,14 +4,14 @@ use failure::*;
 use regex::Regex;
 use std::os::unix::io::RawFd;
 
-use chrono::{DateTime, TimeZone, Local};
+use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
 
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
 
 macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
-macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{10}") }
+macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z") }
 
 lazy_static!{
     static ref BACKUP_FILE_REGEX: Regex = Regex::new(
@@ -89,8 +89,8 @@ impl BackupGroup {
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-            let timestamp = backup_time.parse::<i64>()?;
-            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), timestamp);
+            let dt = backup_time.parse::<DateTime<Utc>>()?;
+            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), dt.timestamp());
             let files = list_backup_files(l2_fd, backup_time)?;
 
             list.push(BackupInfo { backup_dir, files });
@@ -109,7 +109,7 @@ pub struct BackupDir {
     /// Backup group
     group: BackupGroup,
     /// Backup timestamp
-    backup_time: DateTime<Local>,
+    backup_time: DateTime<Utc>,
 }
 
 impl BackupDir {
@@ -122,18 +122,18 @@ impl BackupDir {
         // Note: makes sure that nanoseconds is 0
         Self {
             group: BackupGroup::new(backup_type.into(), backup_id.into()),
-            backup_time: Local.timestamp(timestamp, 0),
+            backup_time: Utc.timestamp(timestamp, 0),
         }
     }
     pub fn new_with_group(group: BackupGroup, timestamp: i64) -> Self {
-        Self { group, backup_time: Local.timestamp(timestamp, 0) }
+        Self { group, backup_time: Utc.timestamp(timestamp, 0) }
     }
 
     pub fn group(&self) -> &BackupGroup {
         &self.group
     }
 
-    pub fn backup_time(&self) -> DateTime<Local> {
+    pub fn backup_time(&self) -> DateTime<Utc> {
         self.backup_time
     }
 
@@ -143,23 +143,27 @@ impl BackupDir {
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
         let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
-        let backup_time = cap.get(3).unwrap().as_str().parse::<i64>()?;
-        Ok(BackupDir::from((group, backup_time)))
+        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Utc>>()?;
+        Ok(BackupDir::from((group, backup_time.timestamp())))
     }
 
     pub fn relative_path(&self) ->  PathBuf  {
 
         let mut relative_path = self.group.group_path();
 
-        relative_path.push(self.backup_time.timestamp().to_string());
+        relative_path.push(Self::backup_time_to_string(self.backup_time));
 
         relative_path
+    }
+
+    pub fn backup_time_to_string(backup_time: DateTime<Utc>) -> String {
+        backup_time.to_rfc3339_opts(SecondsFormat::Secs, true)
     }
 }
 
 impl From<(BackupGroup, i64)> for BackupDir {
     fn from((group, timestamp): (BackupGroup, i64)) -> Self {
-        Self { group, backup_time: Local.timestamp(timestamp, 0) }
+        Self { group, backup_time: Utc.timestamp(timestamp, 0) }
     }
 }
 
@@ -207,8 +211,8 @@ impl BackupInfo {
                 tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-                    let timestamp = backup_time.parse::<i64>()?;
-                    let backup_dir = BackupDir::new(backup_type, backup_id, timestamp);
+                    let dt = backup_time.parse::<DateTime<Utc>>()?;
+                    let backup_dir = BackupDir::new(backup_type, backup_id, dt.timestamp());
 
                     let files = list_backup_files(l2_fd, backup_time)?;
 

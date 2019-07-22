@@ -3,7 +3,7 @@ extern crate proxmox_backup;
 
 use failure::*;
 //use std::os::unix::io::AsRawFd;
-use chrono::{Local, TimeZone};
+use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::io::Write;
@@ -261,7 +261,7 @@ fn list_backup_groups(
         let id = item["backup-id"].as_str().unwrap();
         let btype = item["backup-type"].as_str().unwrap();
         let epoch = item["last-backup"].as_i64().unwrap();
-        let last_backup = Local.timestamp(epoch, 0);
+        let last_backup = Utc.timestamp(epoch, 0);
         let backup_count = item["backup-count"].as_u64().unwrap();
 
         let group = BackupGroup::new(btype, id);
@@ -272,8 +272,13 @@ fn list_backup_groups(
         let files = strip_server_file_expenstions(files);
 
         if output_format == "text" {
-            println!("{:20} | {} | {:5} | {}", path, last_backup.format("%c"),
-                     backup_count, tools::join(&files, ' '));
+            println!(
+                "{:20} | {} | {:5} | {}",
+                path,
+                BackupDir::backup_time_to_string(last_backup),
+                backup_count,
+                tools::join(&files, ' '),
+            );
         } else {
             result.push(json!({
                 "backup-type": btype,
@@ -333,7 +338,7 @@ fn list_snapshots(
         let files = strip_server_file_expenstions(files);
 
         if output_format == "text" {
-            println!("{} | {} | {}", path, snapshot.backup_time().format("%c"), tools::join(&files, ' '));
+            println!("{} | {}", path, tools::join(&files, ' '));
         } else {
             result.push(json!({
                 "backup-type": btype,
@@ -474,7 +479,7 @@ fn create_backup(
         }
     }
 
-    let backup_time = Local.timestamp(Local::now().timestamp(), 0);
+    let backup_time = Utc.timestamp(Utc::now().timestamp(), 0);
 
     let client = HttpClient::new(repo.host(), repo.user())?;
     record_repository(&repo);
@@ -554,7 +559,7 @@ fn create_backup(
 
     client.finish().wait()?;
 
-    let end_time = Local.timestamp(Local::now().timestamp(), 0);
+    let end_time = Utc.timestamp(Utc::now().timestamp(), 0);
     let elapsed = end_time.signed_duration_since(backup_time);
     println!("Duration: {}", elapsed);
 
@@ -617,7 +622,7 @@ fn restore(
         }
 
         let epoch = list[0]["backup-time"].as_i64().unwrap();
-        let backup_time = Local.timestamp(epoch, 0);
+        let backup_time = Utc.timestamp(epoch, 0);
         (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
     } else {
         let snapshot = BackupDir::parse(path)?;

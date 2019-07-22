@@ -4,7 +4,7 @@ use std::io::Write;
 
 //use std::sync::Arc;
 //use serde_json::Value;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Utc};
 
 //use proxmox_backup::tools;
 //use proxmox_backup::backup::*;
@@ -37,7 +37,7 @@ fn run() -> Result<(), Error> {
 
     let client = HttpClient::new(host, username)?;
 
-    let backup_time = "2019-06-28T10:49:48+02:00".parse::<DateTime<Local>>()?;
+    let backup_time = "2019-06-28T10:49:48Z".parse::<DateTime<Utc>>()?;
 
     let client = client.start_backup_reader("store2", "host", "elsa", backup_time, true).wait()?;
 
