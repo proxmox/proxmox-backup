@@ -11,7 +11,7 @@ use lazy_static::lazy_static;
 
 macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
-macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}") }
+macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{10}") }
 
 lazy_static!{
     static ref BACKUP_FILE_REGEX: Regex = Regex::new(
@@ -89,8 +89,8 @@ impl BackupGroup {
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-            let dt = backup_time.parse::<DateTime<Local>>()?;
-            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), dt.timestamp());
+            let timestamp = backup_time.parse::<i64>()?;
+            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), timestamp);
             let files = list_backup_files(l2_fd, backup_time)?;
 
             list.push(BackupInfo { backup_dir, files });
@@ -143,15 +143,15 @@ impl BackupDir {
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
         let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
-        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Local>>()?;
-        Ok(BackupDir::from((group, backup_time.timestamp())))
+        let backup_time = cap.get(3).unwrap().as_str().parse::<i64>()?;
+        Ok(BackupDir::from((group, backup_time)))
     }
 
     pub fn relative_path(&self) ->  PathBuf  {
 
         let mut relative_path = self.group.group_path();
 
-        relative_path.push(self.backup_time.to_rfc3339());
+        relative_path.push(self.backup_time.timestamp().to_string());
 
         relative_path
     }
@@ -207,8 +207,8 @@ impl BackupInfo {
                 tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-                    let dt = backup_time.parse::<DateTime<Local>>()?;
-                    let backup_dir = BackupDir::new(backup_type, backup_id, dt.timestamp());
+                    let timestamp = backup_time.parse::<i64>()?;
+                    let backup_dir = BackupDir::new(backup_type, backup_id, timestamp);
 
                     let files = list_backup_files(l2_fd, backup_time)?;
 
