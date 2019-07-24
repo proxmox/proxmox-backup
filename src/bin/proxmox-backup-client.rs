@@ -153,10 +153,11 @@ fn backup_directory<P: AsRef<Path>>(
     chunk_size: Option<usize>,
     device_set: Option<HashSet<u64>>,
     verbose: bool,
+    skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<(), Error> {
 
-    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose)?;
+    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found)?;
     let chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
@@ -419,6 +420,8 @@ fn create_backup(
 
     let all_file_systems = param["all-file-systems"].as_bool().unwrap_or(false);
 
+    let skip_lost_and_found = param["skip-lost-and-found"].as_bool().unwrap_or(false);
+
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
     let chunk_size_opt = param["chunk-size"].as_u64().map(|v| (v*1024) as usize);
@@ -543,6 +546,7 @@ fn create_backup(
                     chunk_size_opt,
                     devices.clone(),
                     verbose,
+                    skip_lost_and_found,
                     crypt_config.clone(),
                 )?;
             }
@@ -1251,6 +1255,9 @@ fn main() {
                 .optional(
                     "verbose",
                     BooleanSchema::new("Verbose output.").default(false))
+                .optional(
+                    "skip-lost-and-found",
+                    BooleanSchema::new("Skip lost+found directory").default(false))
                 .optional(
                     "host-id",
                     StringSchema::new("Use specified ID for the backup group name ('host/<id>'). The default is the system hostname."))

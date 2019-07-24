@@ -79,6 +79,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         writer: &'a mut W,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
+        skip_lost_and_found: bool, // fixme: should be a feature flag ??
         feature_flags: u64,
     ) -> Result<(), Error> {
 
@@ -127,7 +128,11 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         if verbose { println!("{:?}", me.full_path()); }
 
-        me.encode_dir(dir, &stat, magic, Vec::new())?;
+        let mut excludes = Vec::new();
+        if skip_lost_and_found {
+            excludes.push(PxarExcludePattern::from_line(b"**/lost+found").unwrap().unwrap());
+        }
+        me.encode_dir(dir, &stat, magic, excludes)?;
 
         Ok(())
     }

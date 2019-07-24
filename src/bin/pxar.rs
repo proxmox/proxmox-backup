@@ -181,7 +181,7 @@ fn create_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
-    pxar::Encoder::encode(source, &mut dir, &mut writer, devices, verbose, feature_flags)?;
+    pxar::Encoder::encode(source, &mut dir, &mut writer, devices, verbose, false, feature_flags)?;
 
     writer.flush()?;
 

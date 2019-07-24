@@ -37,7 +37,7 @@ impl Drop for PxarBackupStream {
 
 impl PxarBackupStream {
 
-    pub fn new(mut dir: Dir, path: PathBuf, device_set: Option<HashSet<u64>>, verbose: bool) -> Result<Self, Error> {
+    pub fn new(mut dir: Dir, path: PathBuf, device_set: Option<HashSet<u64>>, verbose: bool, skip_lost_and_found: bool) -> Result<Self, Error> {
 
         let (rx, tx) = nix::unistd::pipe()?;
 
@@ -49,7 +49,7 @@ impl PxarBackupStream {
 
         let child = thread::spawn(move|| {
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, device_set, verbose, pxar::CA_FORMAT_DEFAULT) {
+            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, device_set, verbose, skip_lost_and_found, pxar::CA_FORMAT_DEFAULT) {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
             }
@@ -65,12 +65,12 @@ impl PxarBackupStream {
         })
     }
 
-    pub fn open(dirname: &Path, device_set: Option<HashSet<u64>>, verbose: bool) -> Result<Self, Error> {
+    pub fn open(dirname: &Path, device_set: Option<HashSet<u64>>, verbose: bool, skip_lost_and_found: bool) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, device_set, verbose)
+        Self::new(dir, path, device_set, verbose, skip_lost_and_found)
     }
 }
 
