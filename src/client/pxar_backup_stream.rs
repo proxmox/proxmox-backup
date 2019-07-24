@@ -80,9 +80,11 @@ impl Stream for PxarBackupStream {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Option<Vec<u8>>, Error> {
-        let error = self.error.lock().unwrap();
-        if let Some(ref msg) = *error {
-            return Err(format_err!("{}", msg));
+        { // limit lock scope
+            let error = self.error.lock().unwrap();
+            if let Some(ref msg) = *error {
+                return Err(format_err!("{}", msg));
+            }
         }
         self.stream.as_mut().unwrap().poll().map_err(Error::from)
     }
