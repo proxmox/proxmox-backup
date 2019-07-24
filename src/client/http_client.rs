@@ -901,7 +901,7 @@ impl BackupClient {
                 }
             })
             .then(move |result| {
-                println!("RESULT {:?}", result);
+                //println!("RESULT {:?}", result);
                 upload_result.map_err(Error::from).and_then(|upload1_result| {
                     Ok(upload1_result.and(result))
                 })
