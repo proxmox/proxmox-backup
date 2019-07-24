@@ -5,7 +5,7 @@ use failure::*;
 //use std::os::unix::io::AsRawFd;
 use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::io::Write;
 
 use proxmox_backup::tools;
@@ -151,12 +151,12 @@ fn backup_directory<P: AsRef<Path>>(
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
-    all_file_systems: bool,
+    device_set: Option<HashSet<u64>>,
     verbose: bool,
     crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<(), Error> {
 
-    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), all_file_systems, verbose)?;
+    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose)?;
     let chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
@@ -431,6 +431,25 @@ fn create_backup(
 
     let backup_id = param["host-id"].as_str().unwrap_or(&tools::nodename());
 
+    let include_dev = param["include-dev"].as_array();
+
+    let mut devices = if all_file_systems { None } else { Some(HashSet::new()) };
+
+    if let Some(include_dev) = include_dev {
+        if all_file_systems {
+            bail!("option 'all-file-systems' conflicts with option 'include-dev'");
+        }
+
+        let mut set = HashSet::new();
+        for path in include_dev {
+            let path = path.as_str().unwrap();
+            let stat = nix::sys::stat::stat(path)
+                .map_err(|err| format_err!("fstat {:?} failed - {}", path, err))?;
+            set.insert(stat.st_dev);
+        }
+        devices = Some(set);
+    }
+
     let mut upload_list = vec![];
 
     enum BackupType { PXAR, IMAGE, CONFIG };
@@ -522,7 +541,7 @@ fn create_backup(
                     &filename,
                     &target,
                     chunk_size_opt,
-                    all_file_systems,
+                    devices.clone(),
                     verbose,
                     crypt_config.clone(),
                 )?;
@@ -1219,6 +1238,13 @@ fn main() {
                     ).min_length(1)
                 )
                 .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional(
+                    "include-dev",
+                    ArraySchema::new(
+                        "Include mountpoints with same st_dev number (see ``man fstat``) as specified files.",
+                        StringSchema::new("Path to file.").into()
+                    )
+                )
                 .optional(
                     "keyfile",
                     StringSchema::new("Path to encryption key. All data will be encrypted using this key."))

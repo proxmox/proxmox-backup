@@ -4,7 +4,7 @@
 
 use failure::*;
 use endian_trait::Endian;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
 use super::format_definition::*;
 use super::binary_search_tree::*;
@@ -48,8 +48,7 @@ pub struct Encoder<'a, W: Write> {
     writer_pos: usize,
     _size: usize,
     file_copy_buffer: Vec<u8>,
-    all_file_systems: bool,
-    root_st_dev: u64,
+    device_set: Option<HashSet<u64>>,
     verbose: bool,
     // Flags set by the user
     feature_flags: u64,
@@ -65,11 +64,20 @@ impl <'a, W: Write> Encoder<'a, W> {
         self.base_path.join(&self.relative_path)
     }
 
+    /// Create archive, write result data to ``writer``.
+    ///
+    /// The ``device_set`` can be use used to limit included mount points.
+    ///
+    /// - ``None``: include all mount points
+    /// - ``Some(set)``: only include devices listed in this set (the
+    ///   root path device is automathically added to this list, so
+    ///   you can pass an empty set if you want to archive a single
+    ///   mount point.)
     pub fn encode(
         path: PathBuf,
         dir: &mut nix::dir::Dir,
         writer: &'a mut W,
-        all_file_systems: bool,
+        device_set: Option<HashSet<u64>>,
         verbose: bool,
         feature_flags: u64,
     ) -> Result<(), Error> {
@@ -90,6 +98,11 @@ impl <'a, W: Write> Encoder<'a, W> {
             bail!("got unexpected file type {:?} (not a directory)", path);
         }
 
+        let mut device_set = device_set.clone();
+        if let Some(ref mut set) = device_set {
+            set.insert(stat.st_dev);
+        }
+
         let magic = detect_fs_type(dir_fd)?;
 
         if is_virtual_file_system(magic) {
@@ -105,8 +118,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             writer_pos: 0,
             _size: 0,
             file_copy_buffer,
-            all_file_systems,
-            root_st_dev: stat.st_dev,
+            device_set,
             verbose,
             feature_flags,
             fs_feature_flags,
@@ -616,7 +628,11 @@ impl <'a, W: Write> Encoder<'a, W> {
         if is_virtual_file_system(magic) {
             include_children = false;
         } else {
-            include_children = (self.root_st_dev == dir_stat.st_dev) || self.all_file_systems;
+            if let Some(set) = &self.device_set {
+                include_children = set.contains(&dir_stat.st_dev);
+            } else {
+                include_children = true;
+            }
         }
 
         // Expand the exclude match pattern inherited from the parent by local entries, if present
@@ -859,7 +875,11 @@ impl <'a, W: Write> Encoder<'a, W> {
         if is_virtual_file_system(magic) {
             include_payload = false;
         } else {
-            include_payload = (stat.st_dev == self.root_st_dev) || self.all_file_systems;
+            if let Some(ref set) = &self.device_set {
+                include_payload = set.contains(&stat.st_dev);
+            } else {
+                include_payload = true;
+            }
         }
 
         if !include_payload {
@@ -986,7 +1006,11 @@ impl <'a, W: Write> Encoder<'a, W> {
         if is_virtual_file_system(magic) {
             include_payload = false;
         } else {
-            include_payload = (stat.st_dev == self.root_st_dev) || self.all_file_systems;
+            if let Some(set) = &self.device_set {
+                include_payload = set.contains(&stat.st_dev);
+            } else {
+                include_payload = true;
+            }
         }
 
         if !include_payload {

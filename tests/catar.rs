@@ -26,7 +26,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    Encoder::encode(path, &mut dir, &mut writer, false, false, CA_FORMAT_DEFAULT)?;
+    Encoder::encode(path, &mut dir, &mut writer, None, false, CA_FORMAT_DEFAULT)?;
 
     Command::new("cmp")
         .arg("--verbose")

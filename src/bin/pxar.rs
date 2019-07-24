@@ -15,6 +15,7 @@ use std::fs::OpenOptions;
 use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
+use std::collections::HashSet;
 
 use proxmox_backup::pxar;
 
@@ -155,6 +156,8 @@ fn create_archive(
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
 
+    let devices = if all_file_systems { None } else { Some(HashSet::new()) };
+
     let source = PathBuf::from(source);
 
     let mut dir = nix::dir::Dir::open(
@@ -178,7 +181,7 @@ fn create_archive(
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
 
-    pxar::Encoder::encode(source, &mut dir, &mut writer, all_file_systems, verbose, feature_flags)?;
+    pxar::Encoder::encode(source, &mut dir, &mut writer, devices, verbose, feature_flags)?;
 
     writer.flush()?;
 
