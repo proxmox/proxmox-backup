@@ -32,7 +32,7 @@ use futures::*;
 use tokio::sync::mpsc;
 
 lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf)):(.+)$").unwrap();
+    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$").unwrap();
 
     static ref REPO_URL_SCHEMA: Arc<Schema> = Arc::new(
         StringSchema::new("Repository URL.")
@@ -455,7 +455,7 @@ fn create_backup(
 
     let mut upload_list = vec![];
 
-    enum BackupType { PXAR, IMAGE, CONFIG };
+    enum BackupType { PXAR, IMAGE, CONFIG, LOGFILE };
 
     for backupspec in backupspec_list {
         let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
@@ -494,6 +494,12 @@ fn create_backup(
                     bail!("got unexpected file type (expected regular file)");
                 }
                 upload_list.push((BackupType::CONFIG, filename.to_owned(), target.to_owned(), metadata.len()));
+            }
+            "log" => {
+                if !file_type.is_file() {
+                    bail!("got unexpected file type (expected regular file)");
+                }
+                upload_list.push((BackupType::LOGFILE, filename.to_owned(), target.to_owned(), metadata.len()));
             }
             _ => {
                 bail!("got unknown archive extension '{}'", extension);
@@ -535,6 +541,10 @@ fn create_backup(
         match backup_type {
             BackupType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
+                client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
+            }
+            BackupType::LOGFILE => {
+                println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
             }
             BackupType::PXAR => {
