@@ -467,6 +467,70 @@ pub fn api_method_download_file() -> ApiAsyncMethod {
     )
 }
 
+fn upload_backup_log(
+    _parts: Parts,
+    req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    _rpcenv: Box<dyn RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let store = tools::required_string_param(&param, "store")?;
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    //let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+
+    let file_name = "client.log";
+
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+    println!("Upload backup log to {}/{}/{}/{}/{}", store,
+             backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
+
+    let mut path = datastore.base_path();
+    path.push(backup_dir.relative_path());
+    path.push(&file_name);
+
+    let resp = req_body
+        .map_err(Error::from)
+         .fold(Vec::new(), |mut acc, chunk| {
+            acc.extend_from_slice(&*chunk);
+            Ok::<_, Error>(acc)
+        })
+        .and_then(move |data| {
+            let mut blob = DataBlob::from_raw(data)?;
+            // always comput CRC at server side
+            blob.set_crc(blob.compute_crc());
+            let raw_data = blob.raw_data();
+            crate::tools::file_set_contents(&path, raw_data, None)?;
+            Ok(())
+        })
+        .and_then(move |_| {
+            Ok(crate::server::formatter::json_response(Ok(Value::Null)))
+        })
+        ;
+
+    Ok(Box::new(resp))
+}
+
+pub fn api_method_upload_backup_log() -> ApiAsyncMethod {
+    ApiAsyncMethod::new(
+        upload_backup_log,
+        ObjectSchema::new("Download single raw file from backup snapshot.")
+            .required("store", StringSchema::new("Datastore name."))
+            .required("backup-type", StringSchema::new("Backup type.")
+                      .format(Arc::new(ApiStringFormat::Enum(&["ct", "host"]))))
+            .required("backup-id", StringSchema::new("Backup ID."))
+            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
+                      .minimum(1547797308))
+    )
+}
+
 pub fn router() -> Router {
 
     let store_schema: Arc<Schema> = Arc::new(
@@ -478,6 +542,11 @@ pub fn router() -> Router {
             "download",
             Router::new()
                 .download(api_method_download_file())
+        )
+        .subdir(
+            "upload-backup-log",
+            Router::new()
+                .upload(api_method_upload_backup_log())
         )
         .subdir(
             "gc",
