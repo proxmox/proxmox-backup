@@ -248,10 +248,24 @@ impl HttpClient {
         })
     }
 
-    pub fn upload(&mut self, content_type: &str, body: Body, path: &str) -> impl Future<Item=Value, Error=Error> {
+    pub fn upload(
+        &mut self,
+        content_type: &str,
+        body: Body,
+        path: &str,
+        data: Option<Value>,
+    ) -> impl Future<Item=Value, Error=Error> {
 
         let path = path.trim_matches('/');
-        let url: Uri = format!("https://{}:8007/{}", &self.server, path).parse().unwrap();
+        let mut url = format!("https://{}:8007/{}", &self.server, path);
+
+        if let Some(data) = data {
+            let query = tools::json_object_to_query(data).unwrap();
+            url.push('?');
+            url.push_str(&query);
+        }
+
+        let url: Uri = url.parse().unwrap();
 
         let req = Request::builder()
             .method("POST")
