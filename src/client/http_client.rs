@@ -282,10 +282,18 @@ impl HttpClient {
         datastore: &str,
         backup_type: &str,
         backup_id: &str,
+        backup_time: DateTime<Utc>,
         debug: bool,
     ) -> impl Future<Item=Arc<BackupClient>, Error=Error> {
 
-        let param = json!({"backup-type": backup_type, "backup-id": backup_id, "store": datastore, "debug": debug});
+        let param = json!({
+            "backup-type": backup_type,
+            "backup-id": backup_id,
+            "backup-time": backup_time.timestamp(),
+            "store": datastore,
+            "debug": debug
+        });
+
         let req = Self::request_builder(&self.server, "GET", "/api2/json/backup", Some(param)).unwrap();
 
         self.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!()))

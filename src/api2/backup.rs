@@ -7,7 +7,6 @@ use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
 use hyper::{Body, Response, StatusCode};
 use hyper::http::request::Parts;
-use chrono::{Local, TimeZone};
 
 use serde_json::{json, Value};
 
@@ -38,6 +37,8 @@ pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
             .required("backup-type", StringSchema::new("Backup type.")
                       .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
             .required("backup-id", StringSchema::new("Backup ID."))
+            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
+                      .minimum(1547797308))
             .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
     )
 }
@@ -57,7 +58,7 @@ fn upgrade_to_backup_protocol(
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = Local.timestamp(Local::now().timestamp(), 0);
+    let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
     let protocols = parts
         .headers
@@ -80,7 +81,13 @@ fn upgrade_to_backup_protocol(
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group).unwrap_or(None);
-    let backup_dir = BackupDir::new_with_group(backup_group, backup_time.timestamp());
+    let backup_dir = BackupDir::new_with_group(backup_group, backup_time);
+
+    if let Some(last) = &last_backup {
+        if backup_dir.backup_time() <= last.backup_dir.backup_time() {
+            bail!("backup timestamp is older than last backup.");
+        }
+    }
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directorty already exists."); }

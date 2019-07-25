@@ -424,6 +424,8 @@ fn create_backup(
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
+    let backup_time_opt = param["backup-time"].as_i64();
+
     let chunk_size_opt = param["chunk-size"].as_u64().map(|v| (v*1024) as usize);
 
     if let Some(size) = chunk_size_opt {
@@ -433,6 +435,8 @@ fn create_backup(
     let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
     let backup_id = param["host-id"].as_str().unwrap_or(&tools::nodename());
+
+    let backup_type = "host";
 
     let include_dev = param["include-dev"].as_array();
 
@@ -507,14 +511,18 @@ fn create_backup(
         }
     }
 
-    let backup_time = Utc.timestamp(Utc::now().timestamp(), 0);
+    let backup_time = Utc.timestamp(backup_time_opt.unwrap_or(Utc::now().timestamp()), 0);
 
     let client = HttpClient::new(repo.host(), repo.user())?;
     record_repository(&repo);
 
-    println!("Starting backup");
+    println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time));
+
     println!("Client name: {}", tools::nodename());
-    println!("Start Time: {}", backup_time.to_rfc3339());
+
+    let start_time = Local::now();
+
+    println!("Starting protocol: {}", start_time.to_rfc3339());
 
     let (crypt_config, rsa_encrypted_key) = match keyfile {
         None => (None, None),
@@ -535,7 +543,7 @@ fn create_backup(
         }
     };
 
-    let client = client.start_backup(repo.store(), "host", &backup_id, verbose).wait()?;
+    let client = client.start_backup(repo.store(), backup_type, &backup_id, backup_time, verbose).wait()?;
 
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
@@ -543,7 +551,7 @@ fn create_backup(
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
             }
-            BackupType::LOGFILE => {
+            BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
             }
@@ -592,8 +600,8 @@ fn create_backup(
 
     client.finish().wait()?;
 
-    let end_time = Utc.timestamp(Utc::now().timestamp(), 0);
-    let elapsed = end_time.signed_duration_since(backup_time);
+    let end_time = Local.timestamp(Local::now().timestamp(), 0);
+    let elapsed = end_time.signed_duration_since(start_time);
     println!("Duration: {}", elapsed);
 
     println!("End Time: {}", end_time.to_rfc3339());
@@ -1321,6 +1329,11 @@ fn main() {
                 .optional(
                     "host-id",
                     StringSchema::new("Use specified ID for the backup group name ('host/<id>'). The default is the system hostname."))
+                .optional(
+                    "backup-time",
+                    IntegerSchema::new("Backup time (Unix epoch.)")
+                        .minimum(1547797308)
+                )
                 .optional(
                     "chunk-size",
                     IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
