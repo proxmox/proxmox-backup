@@ -479,9 +479,7 @@ fn upload_backup_log(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    //let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
-
-    let file_name = "client.log";
+    let file_name = "client.log.blob";
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
