@@ -780,6 +780,56 @@ fn restore(
     Ok(Value::Null)
 }
 
+fn upload_log(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let logfile = tools::required_string_param(&param, "logfile")?;
+    let repo = extract_repository_from_value(&param)?;
+
+    let snapshot = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = BackupDir::parse(snapshot)?;
+
+    let mut client = HttpClient::new(repo.host(), repo.user())?;
+
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let crypt_config = CryptConfig::new(key)?;
+            Some(crypt_config)
+        }
+    };
+
+    let data = crate::tools::file_get_contents(logfile)?;
+
+    let blob = if let Some(ref crypt_config) = crypt_config {
+        DataBlob::encode(&data, Some(crypt_config), true)?
+    } else {
+        DataBlob::encode(&data, None, true)?
+    };
+
+    let raw_data = blob.into_inner();
+
+    let path = format!("api2/json/admin/datastore/{}/upload-backup-log", repo.store());
+
+    let args = json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id":  snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time().timestamp(),
+    });
+
+    let body = hyper::Body::from(raw_data);
+
+    let result = client.upload("application/octet-stream", body, &path, Some(args)).wait()?;
+
+    Ok(result)
+}
+
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
@@ -1285,6 +1335,23 @@ fn main() {
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
+    let upload_log_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            upload_log,
+            ObjectSchema::new("Upload backup log file.")
+                .required("snapshot", StringSchema::new("Snapshot path."))
+                .required("logfile", StringSchema::new("The path to the log file you want to upload."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional(
+                    "keyfile",
+                    StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
+        ))
+        .arg_param(vec!["snapshot", "logfile"])
+        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("logfile", tools::complete_file_name)
+        .completion_cb("keyfile", tools::complete_file_name)
+        .completion_cb("repository", complete_repository);
+
     let list_cmd_def = CliCommand::new(
         ApiMethod::new(
             list_backup_groups,
@@ -1371,6 +1438,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
+        .insert("upload-log".to_owned(), upload_log_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
