@@ -487,12 +487,16 @@ fn upload_backup_log(
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
-    println!("Upload backup log to {}/{}/{}/{}/{}", store,
-             backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
-
     let mut path = datastore.base_path();
     path.push(backup_dir.relative_path());
     path.push(&file_name);
+
+    if path.exists() {
+        bail!("backup already contains a log.");
+    }
+
+    println!("Upload backup log to {}/{}/{}/{}/{}", store,
+             backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
 
     let resp = req_body
         .map_err(Error::from)
