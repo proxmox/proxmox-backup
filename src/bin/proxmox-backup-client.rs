@@ -523,7 +523,7 @@ fn create_backup(
 
     let start_time = Local::now();
 
-    println!("Starting protocol: {}", start_time.to_rfc3339());
+    println!("Starting protocol: {}", start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false));
 
     let (crypt_config, rsa_encrypted_key) = match keyfile {
         None => (None, None),
@@ -601,11 +601,11 @@ fn create_backup(
 
     client.finish().wait()?;
 
-    let end_time = Local.timestamp(Local::now().timestamp(), 0);
+    let end_time = Local::now();
     let elapsed = end_time.signed_duration_since(start_time);
     println!("Duration: {}", elapsed);
 
-    println!("End Time: {}", end_time.to_rfc3339());
+    println!("End Time: {}", end_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false));
 
     Ok(Value::Null)
 }
