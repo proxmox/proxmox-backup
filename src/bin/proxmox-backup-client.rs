@@ -10,6 +10,7 @@ use std::io::Write;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
+use proxmox_backup::api2::types::*;
 use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
@@ -434,9 +435,9 @@ fn create_backup(
 
     let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
-    let backup_id = param["host-id"].as_str().unwrap_or(&tools::nodename());
+    let backup_id = param["backup-id"].as_str().unwrap_or(&tools::nodename());
 
-    let backup_type = "host";
+    let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
     let include_dev = param["include-dev"].as_array();
 
@@ -1327,12 +1328,16 @@ fn main() {
                     "skip-lost-and-found",
                     BooleanSchema::new("Skip lost+found directory").default(false))
                 .optional(
-                    "host-id",
-                    StringSchema::new("Use specified ID for the backup group name ('host/<id>'). The default is the system hostname."))
+                    "backup-type",
+                    BACKUP_TYPE_SCHEMA.clone()
+                )
+                .optional(
+                    "backup-id",
+                    BACKUP_ID_SCHEMA.clone()
+                )
                 .optional(
                     "backup-time",
-                    IntegerSchema::new("Backup time (Unix epoch.)")
-                        .minimum(1547797308)
+                    BACKUP_TIME_SCHEMA.clone()
                 )
                 .optional(
                     "chunk-size",

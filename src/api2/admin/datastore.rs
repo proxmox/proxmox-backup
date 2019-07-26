@@ -2,6 +2,7 @@ use failure::*;
 use futures::*;
 
 use crate::tools;
+use crate::api2::types::*;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 //use crate::server::rest::*;
@@ -458,12 +459,10 @@ pub fn api_method_download_file() -> ApiAsyncMethod {
         download_file,
         ObjectSchema::new("Download single raw file from backup snapshot.")
             .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", StringSchema::new("Backup type.")
-                      .format(Arc::new(ApiStringFormat::Enum(&["ct", "host"]))))
-            .required("backup-id", StringSchema::new("Backup ID."))
-            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                      .minimum(1547797308))
-            .required("file-name", StringSchema::new("Raw file name."))
+            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
+            .required("backup-id", BACKUP_ID_SCHEMA.clone())
+            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
+            .required("file-name", StringSchema::new("Raw file name.").format(FILENAME_FORMAT.clone()))
     )
 }
 
@@ -525,11 +524,9 @@ pub fn api_method_upload_backup_log() -> ApiAsyncMethod {
         upload_backup_log,
         ObjectSchema::new("Download single raw file from backup snapshot.")
             .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", StringSchema::new("Backup type.")
-                      .format(Arc::new(ApiStringFormat::Enum(&["ct", "host"]))))
-            .required("backup-id", StringSchema::new("Backup ID."))
-            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                      .minimum(1547797308))
+            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
+            .required("backup-id", BACKUP_ID_SCHEMA.clone())
+            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
     )
 }
 
@@ -563,10 +560,9 @@ pub fn router() -> Router {
                         list_snapshot_files,
                         ObjectSchema::new("List snapshot files.")
                             .required("store", store_schema.clone())
-                            .required("backup-type", StringSchema::new("Backup type."))
-                            .required("backup-id", StringSchema::new("Backup ID."))
-                            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                                      .minimum(1547797308))
+                            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
+                            .required("backup-id", BACKUP_ID_SCHEMA.clone())
+                            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
                     )
                 )
         )
@@ -585,8 +581,8 @@ pub fn router() -> Router {
                         list_snapshots,
                         ObjectSchema::new("List backup groups.")
                             .required("store", store_schema.clone())
-                            .optional("backup-type", StringSchema::new("Backup type."))
-                            .optional("backup-id", StringSchema::new("Backup ID."))
+                            .optional("backup-type", BACKUP_TYPE_SCHEMA.clone())
+                            .optional("backup-id", BACKUP_ID_SCHEMA.clone())
                     )
                 )
                 .delete(
@@ -594,11 +590,10 @@ pub fn router() -> Router {
                         delete_snapshots,
                         ObjectSchema::new("Delete backup snapshot.")
                             .required("store", store_schema.clone())
-                            .required("backup-type", StringSchema::new("Backup type."))
-                            .required("backup-id", StringSchema::new("Backup ID."))
-                            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                                      .minimum(1547797308))
-                    )
+                            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
+                            .required("backup-id", BACKUP_ID_SCHEMA.clone())
+                            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
+                   )
                 )
         )
         .subdir(

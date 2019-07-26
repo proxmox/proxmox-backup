@@ -1,7 +1,7 @@
 use failure::*;
 use lazy_static::lazy_static;
 
-use std::sync::Arc;
+//use std::sync::Arc;
 
 use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
@@ -34,11 +34,9 @@ pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
         upgrade_to_backup_protocol,
         ObjectSchema::new(concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."))
             .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", StringSchema::new("Backup type.")
-                      .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
-            .required("backup-id", StringSchema::new("Backup ID."))
-            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                      .minimum(1547797308))
+            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
+            .required("backup-id", BACKUP_ID_SCHEMA.clone())
+            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
             .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
     )
 }

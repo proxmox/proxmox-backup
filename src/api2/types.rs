@@ -67,4 +67,19 @@ lazy_static!{
         StringSchema::new("Backup archive name.")
         .format(FILENAME_FORMAT.clone()).into();
 
+    pub static ref BACKUP_TYPE_SCHEMA: Arc<Schema> =
+        StringSchema::new("Backup type.")
+        .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"])))
+        .into();
+
+    pub static ref BACKUP_ID_SCHEMA: Arc<Schema> =
+        StringSchema::new("Backup ID.")
+        .format(FILENAME_FORMAT.clone())
+        .into();
+
+    pub static ref BACKUP_TIME_SCHEMA: Arc<Schema> =
+        IntegerSchema::new("Backup time (Unix epoch.)")
+        .minimum(1547797308)
+        .into();
+
 }
