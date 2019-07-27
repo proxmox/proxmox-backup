@@ -840,7 +840,7 @@ fn upload_log(
 }
 
 fn prune(
-    mut param: Value,
+    param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -851,9 +851,14 @@ fn prune(
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
-    param.as_object_mut().unwrap().remove("repository");
+    let group = tools::required_string_param(&param, "group")?;
+    let group = BackupGroup::parse(group)?;
 
-    let result = client.post(&path, Some(param)).wait()?;
+    let mut args = json!({});
+    args["backup-type"] = group.backup_type().into();
+    args["backup-id"] = group.backup_id().into();
+
+    let result = client.post(&path, Some(args)).wait()?;
 
     record_repository(&repo);
 
@@ -1440,9 +1445,12 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             prune,
             proxmox_backup::api2::admin::datastore::add_common_prune_prameters(
                 ObjectSchema::new("Prune backup repository.")
+                    .required("group", StringSchema::new("Backup group."))
                     .optional("repository", REPO_URL_SCHEMA.clone())
             )
         ))
+        .arg_param(vec!["group"])
+        .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
     let status_cmd_def = CliCommand::new(
