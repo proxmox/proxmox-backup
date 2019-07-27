@@ -840,7 +840,7 @@ fn upload_log(
 }
 
 fn prune(
-    param: Value,
+    mut param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -854,11 +854,13 @@ fn prune(
     let group = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(group)?;
 
-    let mut args = json!({});
-    args["backup-type"] = group.backup_type().into();
-    args["backup-id"] = group.backup_id().into();
+    param.as_object_mut().unwrap().remove("repository");
+    param.as_object_mut().unwrap().remove("group");
 
-    let result = client.post(&path, Some(args)).wait()?;
+    param["backup-type"] = group.backup_type().into();
+    param["backup-id"] = group.backup_id().into();
+
+    let result = client.post(&path, Some(param)).wait()?;
 
     record_repository(&repo);
 
