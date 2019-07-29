@@ -641,6 +641,8 @@ fn restore(
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
+    let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
+
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
     let client = HttpClient::new(repo.host(), repo.user())?;
@@ -736,6 +738,10 @@ fn restore(
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
         if let Some(target) = target {
+
+            if allow_existing_dirs {
+                unimplemented!();
+            }
 
             let feature_flags = pxar::CA_FORMAT_DEFAULT;
             let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
@@ -1429,6 +1435,9 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
 "###
                 ))
+                .optional(
+                    "allow-existing-dirs",
+                    BooleanSchema::new("Do not fail if directories already exists.").default(false))
                 .optional("repository", REPO_URL_SCHEMA.clone())
                 .optional("keyfile", StringSchema::new("Path to encryption key."))
                 .optional(
