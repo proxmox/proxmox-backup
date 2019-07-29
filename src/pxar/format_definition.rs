@@ -409,6 +409,7 @@ pub const BTRFS_SUPER_MAGIC: i64 =     0x9123683E;
 pub const FUSE_SUPER_MAGIC: i64 =      0x65735546;
 pub const EXT4_SUPER_MAGIC: i64 =      0x0000EF53;
 pub const XFS_SUPER_MAGIC: i64 =       0x58465342;
+pub const ZFS_SUPER_MAGIC: i64 =       0x2FC12FC1;
 
 /// Definitions of typical feature flags for the *pxar* encoder/decoder.
 /// By this expensive syscalls for unsupported features are avoided.
@@ -534,6 +535,32 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_FLAG_APPEND|
             CA_FORMAT_WITH_FLAG_NOATIME|
             CA_FORMAT_WITH_FLAG_NODUMP|
+            CA_FORMAT_WITH_FLAG_IMMUTABLE|
+            CA_FORMAT_WITH_FLAG_SYNC|
+            CA_FORMAT_WITH_XATTRS|
+            CA_FORMAT_WITH_ACL|
+            CA_FORMAT_WITH_SELINUX|
+            CA_FORMAT_WITH_FCAPS|
+            CA_FORMAT_WITH_QUOTA_PROJID
+        },
+        ZFS_SUPER_MAGIC => {
+            CA_FORMAT_WITH_16BIT_UIDS|
+            CA_FORMAT_WITH_32BIT_UIDS|
+            CA_FORMAT_WITH_USER_NAMES|
+            CA_FORMAT_WITH_SEC_TIME|
+            CA_FORMAT_WITH_USEC_TIME|
+            CA_FORMAT_WITH_NSEC_TIME|
+            CA_FORMAT_WITH_2SEC_TIME|
+            CA_FORMAT_WITH_READ_ONLY|
+            CA_FORMAT_WITH_PERMISSIONS|
+            CA_FORMAT_WITH_SYMLINKS|
+            CA_FORMAT_WITH_DEVICE_NODES|
+            CA_FORMAT_WITH_FIFOS|
+            CA_FORMAT_WITH_SOCKETS|
+            CA_FORMAT_WITH_FLAG_APPEND|
+            CA_FORMAT_WITH_FLAG_NOATIME|
+            CA_FORMAT_WITH_FLAG_NODUMP|
+            CA_FORMAT_WITH_FLAG_DIRSYNC|
             CA_FORMAT_WITH_FLAG_IMMUTABLE|
             CA_FORMAT_WITH_FLAG_SYNC|
             CA_FORMAT_WITH_XATTRS|

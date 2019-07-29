@@ -419,7 +419,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         })
     }
 
-    /// Read the project quota id for an inode, supported on ext4/XFS/FUSE/(ZFS TODO impl) filesystems
+    /// Read the quota project id for an inode, supported on ext4/XFS/FUSE/ZFS filesystems
     fn read_quota_project_id(&self, fd: RawFd, magic: i64, stat: &FileStat) -> Result<Option<CaFormatQuotaProjID>, Error> {
         if !(is_directory(&stat) || is_reg_file(&stat)) {
             return Ok(None);
@@ -429,8 +429,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
 
         match magic {
-            //TODO ZFS quota
-            EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC => {
+            EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC | ZFS_SUPER_MAGIC => {
                 let mut fsxattr = fs::FSXAttr::default();
                 let res = unsafe {
                     fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
