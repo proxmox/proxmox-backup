@@ -739,10 +739,6 @@ fn restore(
 
         if let Some(target) = target {
 
-            if allow_existing_dirs {
-                unimplemented!();
-            }
-
             let feature_flags = pxar::CA_FORMAT_DEFAULT;
             let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
                 if verbose {
@@ -750,6 +746,8 @@ fn restore(
                 }
                 Ok(())
             });
+            decoder.set_allow_existing_dirs(allow_existing_dirs);
+
 
             decoder.restore(Path::new(target), &Vec::new())?;
         } else {

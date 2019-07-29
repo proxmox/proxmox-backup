@@ -64,6 +64,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
     target: &str,
     feature_flags: u64,
+    allow_existing_dirs: bool,
     verbose: bool,
     pattern: Option<Vec<pxar::PxarExcludePattern>>
 ) -> Result<(), Error> {
@@ -73,6 +74,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
         }
         Ok(())
     });
+    decoder.set_allow_existing_dirs(allow_existing_dirs);
 
     let pattern = pattern.unwrap_or(Vec::new());
     decoder.restore(Path::new(target), &pattern)?;
@@ -92,6 +94,7 @@ fn extract_archive(
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
+    let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
     let files_from = param["files-from"].as_str();
     let empty = Vec::new();
     let arg_pattern = param["pattern"].as_array().unwrap_or(&empty);
@@ -131,12 +134,12 @@ fn extract_archive(
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, allow_existing_dirs, verbose, pattern)?;
     } else {
         if verbose { println!("PXAR extract: {}", archive); }
         let file = std::fs::File::open(archive)?;
         let mut reader = std::io::BufReader::new(file);
-        extract_archive_from_reader(&mut reader, target, feature_flags, verbose, pattern)?;
+        extract_archive_from_reader(&mut reader, target, feature_flags, allow_existing_dirs, verbose, pattern)?;
     }
 
     Ok(Value::Null)
@@ -224,6 +227,7 @@ fn main() {
                     .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
+                    .optional("allow-existing-dirs", BooleanSchema::new("Allows directories to already exist on restore.").default(false))
                     .optional("files-from", StringSchema::new("Match pattern for files to restore."))
             ))
             .arg_param(vec!["archive", "pattern"])

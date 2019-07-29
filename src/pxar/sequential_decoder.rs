@@ -34,6 +34,7 @@ use crate::tools::xattr;
 pub struct SequentialDecoder<'a, R: Read, F: Fn(&Path) -> Result<(), Error>> {
     reader: &'a mut R,
     feature_flags: u64,
+    allow_existing_dirs: bool,
     skip_buffer: Vec<u8>,
     callback: F,
 }
@@ -48,9 +49,14 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Self {
             reader,
             feature_flags,
+            allow_existing_dirs: false,
             skip_buffer,
             callback,
         }
+    }
+
+    pub fn set_allow_existing_dirs(&mut self, allow: bool) {
+        self.allow_existing_dirs = allow;
     }
 
     pub (crate) fn get_reader_mut(&mut self) -> & mut R {
@@ -632,7 +638,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             let dir = if filename.is_empty() {
                 nix::dir::Dir::openat(pfd, ".", OFlag::O_DIRECTORY,  Mode::empty())?
             } else {
-                dir_mkdirat(pfd, filename, true)
+                dir_mkdirat(pfd, filename, !self.allow_existing_dirs)
                     .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?
             };
             (Some(dir.as_raw_fd()), Some(dir))
