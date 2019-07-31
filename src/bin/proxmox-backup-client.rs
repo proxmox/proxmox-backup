@@ -864,11 +864,11 @@ fn prune(
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    let result = client.post(&path, Some(param)).wait()?;
+    let _result = client.post(&path, Some(param)).wait()?;
 
     record_repository(&repo);
 
-    Ok(result)
+    Ok(Value::Null)
 }
 
 fn status(
