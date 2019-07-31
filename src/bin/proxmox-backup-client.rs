@@ -202,23 +202,17 @@ fn backup_image<P: AsRef<Path>>(
     Ok(())
 }
 
-fn strip_server_file_expenstions(list: Vec<String>) -> Vec<String> {
+fn strip_server_file_expenstion(name: &str) -> String {
 
-    let mut result = vec![];
-
-    for file in list.into_iter() {
-        if file.ends_with(".didx") {
-            result.push(file[..file.len()-5].to_owned());
-        } else if file.ends_with(".fidx") {
-            result.push(file[..file.len()-5].to_owned());
-        } else if file.ends_with(".blob") {
-            result.push(file[..file.len()-5].to_owned());
-        } else {
-            result.push(file); // should not happen
-        }
+    if name.ends_with(".didx") {
+        return name[..name.len()-5].to_owned();
+    } else if name.ends_with(".fidx") {
+        return name[..name.len()-5].to_owned();
+    } else if name.ends_with(".blob") {
+        return name[..name.len()-5].to_owned();
+    } else {
+        return name.to_owned(); // should not happen
     }
-
-    result
 }
 
 fn list_backup_groups(
@@ -270,8 +264,8 @@ fn list_backup_groups(
 
         let path = group.group_path().to_str().unwrap().to_owned();
 
-        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_server_file_expenstions(files);
+        let files = item["files"].as_array().unwrap().iter()
+            .map(|v| strip_server_file_expenstion(v.as_str().unwrap())).collect();
 
         if output_format == "text" {
             println!(
@@ -336,8 +330,8 @@ fn list_snapshots(
 
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
-        let files = item["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_owned()).collect();
-        let files = strip_server_file_expenstions(files);
+        let files = item["files"].as_array().unwrap().iter()
+            .map(|v|  strip_server_file_expenstion(v.as_str().unwrap())).collect();
 
         if output_format == "text" {
             println!("{} | {}", path, tools::join(&files, ' '));
@@ -380,6 +374,45 @@ fn forget_snapshots(
     record_repository(&repo);
 
     Ok(result)
+}
+
+fn list_snapshot_files(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = BackupDir::parse(path)?;
+
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let client = HttpClient::new(repo.host(), repo.user())?;
+
+    let path = format!("api2/json/admin/datastore/{}/files", repo.store());
+
+    let result = client.get(&path, Some(json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time().timestamp(),
+    }))).wait()?;
+
+    record_repository(&repo);
+
+    let list: Vec<String> = result["data"].as_array().unwrap().iter()
+        .map(|v| strip_server_file_expenstion(v.as_str().unwrap())).collect();
+
+    if output_format == "text" {
+        for file in list {
+            println!("{}", file);
+        }
+    } else {
+        format_and_print_result(&list.into(), &output_format);
+    }
+
+    Ok(Value::Null)
 }
 
 fn start_garbage_collection(
@@ -1041,9 +1074,8 @@ fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec
 
 fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
-    let result = complete_server_file_name(arg, param);
-
-    strip_server_file_expenstions(result)
+    complete_server_file_name(arg, param)
+        .iter().map(|v| strip_server_file_expenstion(&v)).collect()
 }
 
 fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
@@ -1449,6 +1481,17 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
+    let files_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            list_snapshot_files,
+            ObjectSchema::new("List snapshot files.")
+                .required("snapshot", StringSchema::new("Snapshot path."))
+                .optional("output-format", OUTPUT_FORMAT.clone())
+        ))
+        .arg_param(vec!["snapshot"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot);
+
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
             prune,
@@ -1480,6 +1523,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("prune".to_owned(), prune_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
+        .insert("files".to_owned(), files_cmd_def.into())
         .insert("status".to_owned(), status_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into());
 
