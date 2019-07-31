@@ -197,9 +197,11 @@ pub fn file_set_contents_full<P: AsRef<Path>>(
         stat::Mode::S_IRGRP | stat::Mode::S_IROTH
     ));
 
-    if let Err(err) = stat::fchmod(fd, mode) {
-        let _ = unistd::unlink(tmp_path);
-        bail!("fchmod {:?} failed: {}", tmp_path, err);
+    if perm != None {
+        if let Err(err) = stat::fchmod(fd, mode) {
+            let _ = unistd::unlink(tmp_path);
+            bail!("fchmod {:?} failed: {}", tmp_path, err);
+        }
     }
 
     if owner != None || group != None {
