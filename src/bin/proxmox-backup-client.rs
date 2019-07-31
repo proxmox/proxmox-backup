@@ -1486,6 +1486,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             list_snapshot_files,
             ObjectSchema::new("List snapshot files.")
                 .required("snapshot", StringSchema::new("Snapshot path."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
                 .optional("output-format", OUTPUT_FORMAT.clone())
         ))
         .arg_param(vec!["snapshot"])
