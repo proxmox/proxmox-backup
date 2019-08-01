@@ -94,6 +94,9 @@ fn extract_archive(
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
+    let no_device_nodes = param["no-device-nodes"].as_bool().unwrap_or(false);
+    let no_fifos = param["no-fifos"].as_bool().unwrap_or(false);
+    let no_sockets = param["no-sockets"].as_bool().unwrap_or(false);
     let allow_existing_dirs = param["allow-existing-dirs"].as_bool().unwrap_or(false);
     let files_from = param["files-from"].as_str();
     let empty = Vec::new();
@@ -108,6 +111,15 @@ fn extract_archive(
     }
     if no_acls {
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
+    }
+    if no_device_nodes {
+        feature_flags ^= pxar::CA_FORMAT_WITH_DEVICE_NODES;
+    }
+    if no_fifos {
+        feature_flags ^= pxar::CA_FORMAT_WITH_FIFOS;
+    }
+    if no_sockets {
+        feature_flags ^= pxar::CA_FORMAT_WITH_SOCKETS;
     }
 
     let mut pattern_list = Vec::new();
@@ -158,6 +170,9 @@ fn create_archive(
     let no_xattrs = param["no-xattrs"].as_bool().unwrap_or(false);
     let no_fcaps = param["no-fcaps"].as_bool().unwrap_or(false);
     let no_acls = param["no-acls"].as_bool().unwrap_or(false);
+    let no_device_nodes = param["no-device-nodes"].as_bool().unwrap_or(false);
+    let no_fifos = param["no-fifos"].as_bool().unwrap_or(false);
+    let no_sockets = param["no-sockets"].as_bool().unwrap_or(false);
 
     let devices = if all_file_systems { None } else { Some(HashSet::new()) };
 
@@ -183,6 +198,15 @@ fn create_archive(
     if no_acls {
         feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
     }
+    if no_device_nodes {
+        feature_flags ^= pxar::CA_FORMAT_WITH_DEVICE_NODES;
+    }
+    if no_fifos {
+        feature_flags ^= pxar::CA_FORMAT_WITH_FIFOS;
+    }
+    if no_sockets {
+        feature_flags ^= pxar::CA_FORMAT_WITH_SOCKETS;
+    }
 
     pxar::Encoder::encode(source, &mut dir, &mut writer, devices, verbose, false, feature_flags)?;
 
@@ -205,6 +229,9 @@ fn main() {
                     .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
                     .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
+                    .optional("no-device-nodes", BooleanSchema::new("Ignore device nodes.").default(false))
+                    .optional("no-fifos", BooleanSchema::new("Ignore fifos.").default(false))
+                    .optional("no-sockets", BooleanSchema::new("Ignore sockets.").default(false))
             ))
             .arg_param(vec!["archive", "source"])
             .completion_cb("archive", tools::complete_file_name)
@@ -229,6 +256,9 @@ fn main() {
                     .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
                     .optional("allow-existing-dirs", BooleanSchema::new("Allows directories to already exist on restore.").default(false))
                     .optional("files-from", StringSchema::new("Match pattern for files to restore."))
+                    .optional("no-device-nodes", BooleanSchema::new("Ignore device nodes.").default(false))
+                    .optional("no-fifos", BooleanSchema::new("Ignore fifos.").default(false))
+                    .optional("no-sockets", BooleanSchema::new("Ignore sockets.").default(false))
             ))
             .arg_param(vec!["archive", "pattern"])
             .completion_cb("archive", tools::complete_file_name)

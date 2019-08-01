@@ -508,6 +508,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
+        if !self.has_features(CA_FORMAT_WITH_SOCKETS) {
+            return Ok(());
+        }
         if let Some(fd) = parent_fd {
             self.restore_socket_at(fd, filename)?;
             self.restore_mode_at(&entry, fd, filename)?;
@@ -524,6 +527,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
+        if !self.has_features(CA_FORMAT_WITH_FIFOS) {
+            return Ok(());
+        }
         if let Some(fd) = parent_fd {
             self.restore_fifo_at(fd, filename)?;
             self.restore_mode_at(&entry, fd, filename)?;
@@ -545,6 +551,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("got unknown header type inside device entry {:016x}", head.htype);
         }
         let device: CaFormatDevice = self.read_item()?;
+        if !self.has_features(CA_FORMAT_WITH_DEVICE_NODES) {
+            return Ok(());
+        }
         if let Some(fd) = parent_fd {
             self.restore_device_at(&entry, fd, filename, &device)?;
             self.restore_mode_at(&entry, fd, filename)?;

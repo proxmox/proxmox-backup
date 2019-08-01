@@ -809,11 +809,26 @@ impl <'a, W: Write> Encoder<'a, W> {
                     Err(err) => bail!("readlink {:?} failed - {}", self.full_path(), err),
                 }
             } else if is_block_dev(&stat) || is_char_dev(&stat) {
-                self.write_filename(&filename)?;
-                self.encode_device(&stat)?;
-            } else if is_fifo(&stat) || is_socket(&stat) {
-                self.write_filename(&filename)?;
-                self.encode_special(&stat)?;
+                if self.has_features(CA_FORMAT_WITH_DEVICE_NODES) {
+                    self.write_filename(&filename)?;
+                    self.encode_device(&stat)?;
+                } else {
+                    eprintln!("skip device node: {:?}", self.full_path());
+                }
+            } else if is_fifo(&stat) {
+                if self.has_features(CA_FORMAT_WITH_FIFOS) {
+                    self.write_filename(&filename)?;
+                    self.encode_special(&stat)?;
+                } else {
+                    eprintln!("skip fifo: {:?}", self.full_path());
+                }
+            } else if is_socket(&stat) {
+                if self.has_features(CA_FORMAT_WITH_SOCKETS) {
+                    self.write_filename(&filename)?;
+                    self.encode_special(&stat)?;
+                } else {
+                    eprintln!("skip socket: {:?}", self.full_path());
+                }
             } else {
                 bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.full_path());
             }
