@@ -65,4 +65,7 @@ pub use decoder::*;
 mod exclude_pattern;
 pub use exclude_pattern::*;
 
+mod dir_buffer;
+pub use dir_buffer::*;
+
 mod helper;
