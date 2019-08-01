@@ -1073,29 +1073,6 @@ fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Res
     Ok(file)
 }
 
-fn dir_mkdirat(parent: RawFd, filename: &OsStr, create_new: bool) -> Result<nix::dir::Dir, nix::Error> {
-
-    // call mkdirat first
-    let res = filename.with_nix_path(|cstr| unsafe {
-        libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU)
-    })?;
-
-    match Errno::result(res) {
-        Ok(_) => {},
-        Err(err) => {
-            if err == nix::Error::Sys(nix::errno::Errno::EEXIST) {
-                if create_new { return Err(err); }
-            } else {
-                return Err(err);
-            }
-        }
-    }
-
-    let dir = nix::dir::Dir::openat(parent, filename, OFlag::O_DIRECTORY,  Mode::empty())?;
-
-    Ok(dir)
-}
-
 fn hardlink(oldpath: &Path, newpath: &Path) -> Result<(), Error> {
     oldpath.with_nix_path(|oldpath| {
         newpath.with_nix_path(|newpath| {
