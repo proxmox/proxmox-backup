@@ -16,7 +16,7 @@ extern "C" {
     fn fnmatch(pattern: *const c_char, string: *const c_char, flags: c_int) -> c_int;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MatchType {
     None,
     Exclude,
