@@ -7,6 +7,7 @@ use endian_trait::Endian;
 
 use super::format_definition::*;
 use super::exclude_pattern::*;
+use super::dir_buffer::*;
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -612,38 +613,27 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_dir_sequential(
+    fn restore_dir(
         &mut self,
         base_path: &Path,
-        relative_path: &mut PathBuf,
-        full_path: &PathBuf,
-        parent_fd: Option<RawFd>,
-        entry: &CaFormatEntry,
+        dirs: &mut PxarDirBuf,
+        entry: CaFormatEntry,
         filename: &OsStr,
+        matched: MatchType,
         match_pattern: &Vec<PxarExcludePattern>,
     ) -> Result<(), Error> {
-        // By passing back Some(dir) we assure the fd stays open and in scope
-        let (fd, _dir) = if let Some(pfd) = parent_fd {
-            let dir = if filename.is_empty() {
-                nix::dir::Dir::openat(pfd, ".", OFlag::O_DIRECTORY,  Mode::empty())?
-            } else {
-                dir_mkdirat(pfd, filename, !self.allow_existing_dirs)
-                    .map_err(|err| format_err!("unable to open directory {:?} - {}", full_path, err))?
-            };
-            (Some(dir.as_raw_fd()), Some(dir))
-        } else {
-            (None, None)
-        };
-
         let (mut head, attr) = self.read_attributes()
             .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
 
+        let dir = PxarDir::new(filename, entry, attr);
+        dirs.push(dir);
+        if matched == MatchType::Include {
+            dirs.create_all_dirs(!self.allow_existing_dirs)?;
+        }
 
         while head.htype == CA_FORMAT_FILENAME {
             let name = self.read_filename(head.size)?;
-            relative_path.push(&name);
-            self.restore_sequential(base_path, relative_path, &name, fd, match_pattern)?;
-            relative_path.pop();
+            self.restore_dir_entry(base_path, dirs, &name, matched, match_pattern)?;
             head = self.read_item()?;
         }
 
@@ -651,17 +641,18 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("got unknown header type inside directory entry {:016x}", head.htype);
         }
 
-        //println!("Skip Goodbye");
         if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
         self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
 
-        // Only restore if we want to restore this part of the archive
-        if let Some(fd) = fd {
-            self.restore_ugid(&entry, fd)?;
+        let last = dirs.pop()
+            .ok_or_else(|| format_err!("Tried to pop beyond dir root - this should not happen!"))?;
+        if let Some(d) = last.dir {
+            let fd = d.as_raw_fd();
+            self.restore_ugid(&last.entry, fd)?;
             // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            self.restore_attributes(fd, &attr, &entry)?;
-            self.restore_mode(&entry, fd)?;
-            self.restore_mtime(&entry, fd)?;
+            self.restore_attributes(fd, &last.attr, &last.entry)?;
+            self.restore_mode(&last.entry, fd)?;
+            self.restore_mtime(&last.entry, fd)?;
         }
 
         Ok(())
@@ -670,33 +661,70 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
-    pub fn restore(&mut self, path: &Path, match_pattern: &Vec<PxarExcludePattern>) -> Result<(), Error> {
+    pub fn restore(
+        &mut self,
+        path: &Path,
+        match_pattern: &Vec<PxarExcludePattern>
+    ) -> Result<(), Error> {
 
         let _ = std::fs::create_dir(path);
 
         let dir = nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty())
             .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
-        let fd = Some(dir.as_raw_fd());
+        let fd = dir.as_raw_fd();
+        let mut dirs = PxarDirBuf::new(fd);
+        // An empty match pattern list indicates to restore the full archive.
+        let matched = if match_pattern.len() == 0 {
+            MatchType::Include
+        } else {
+            MatchType::None
+        };
 
-        let mut relative_path = PathBuf::new();
-        self.restore_sequential(path, &mut relative_path, &OsString::new(), fd, match_pattern)
+        let header: CaFormatHeader = self.read_item()?;
+        check_ca_header::<CaFormatEntry>(&header, CA_FORMAT_ENTRY)?;
+        let entry: CaFormatEntry = self.read_item()?;
+
+        let (mut head, attr) = self.read_attributes()
+            .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
+
+        while head.htype == CA_FORMAT_FILENAME {
+            let name = self.read_filename(head.size)?;
+            self.restore_dir_entry(path, &mut dirs, &name, matched, match_pattern)?;
+            head = self.read_item()?;
+        }
+
+        if head.htype != CA_FORMAT_GOODBYE {
+            bail!("got unknown header type inside directory entry {:016x}", head.htype);
+        }
+
+        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+        self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
+
+        self.restore_ugid(&entry, fd)?;
+        // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+        self.restore_attributes(fd, &attr, &entry)?;
+        self.restore_mode(&entry, fd)?;
+        self.restore_mtime(&entry, fd)?;
+
+        Ok(())
     }
 
-    fn restore_sequential(
+    fn restore_dir_entry(
         &mut self,
         base_path: &Path,
-        relative_path: &mut PathBuf,
-        filename: &OsStr,  // repeats path last relative_path component
-        parent_fd: Option<RawFd>,
+        dirs: &mut PxarDirBuf,
+        filename: &OsStr,
+        parent_matched: MatchType,
         match_pattern: &Vec<PxarExcludePattern>,
     ) -> Result<(), Error> {
-        let full_path = base_path.join(&relative_path);
+        let relative_path = dirs.as_path_buf();
+        let full_path = base_path.join(&relative_path).join(filename);
 
         let head: CaFormatHeader = self.read_item()?;
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
-            if let Some(_) = parent_fd {
+            if dirs.last_dir_fd().is_some() {
                 (self.callback)(&full_path)?;
                 hardlink(&target_path, &full_path)?;
             }
@@ -706,26 +734,42 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
         let entry: CaFormatEntry = self.read_item()?;
 
-        let mut fd = parent_fd;
         let mut child_pattern = Vec::new();
+        // If parent was a match, then children should be assumed to match too
+        // This is especially the case when the full archive is restored and
+        // there are no match pattern.
+        let mut matched = parent_matched;
         if match_pattern.len() > 0 {
-            if filename.is_empty() {
-                child_pattern = match_pattern.clone();
-            } else {
-                match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern) {
-                    (MatchType::None, _) => fd = None,
-                    (MatchType::Exclude, _) => fd = None,
-                    (_, pattern) => child_pattern = pattern,
-                }
+            match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern) {
+                (MatchType::Include, pattern) => {
+                    matched = MatchType::Include;
+                    child_pattern = pattern;
+                },
+                (MatchType::None, _) => matched = MatchType::None,
+                (MatchType::Exclude, _) => matched = MatchType::Exclude,
+                (MatchType::PartialExclude, pattern) => {
+                    matched = MatchType::PartialExclude;
+                    child_pattern = pattern;
+                },
+                (MatchType::PartialInclude, pattern) => {
+                    matched = MatchType::PartialInclude;
+                    child_pattern = pattern;
+                },
             }
         }
+
+        let fd = if matched == MatchType::Include {
+            Some(dirs.create_all_dirs(!self.allow_existing_dirs)?)
+        } else {
+            None
+        };
 
         if fd.is_some() {
             (self.callback)(&full_path)?;
         }
 
         match entry.mode as u32 & libc::S_IFMT {
-            libc::S_IFDIR => self.restore_dir_sequential(base_path, relative_path, &full_path, fd, &entry, &filename, &child_pattern),
+            libc::S_IFDIR => self.restore_dir(base_path, dirs, entry, &filename, matched, &child_pattern),
             libc::S_IFLNK => self.restore_symlink(fd, &full_path, &entry, &filename),
             libc::S_IFSOCK => self.restore_socket(fd, &entry, &filename),
             libc::S_IFIFO => self.restore_fifo(fd, &entry, &filename),
