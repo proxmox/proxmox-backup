@@ -301,6 +301,35 @@ pub struct CaFormatQuotaProjID {
     pub projid: u64,
 }
 
+#[derive(Debug)]
+pub struct PxarAttributes {
+    pub xattrs: Vec<CaFormatXAttr>,
+    pub fcaps: Option<CaFormatFCaps>,
+    pub quota_projid: Option<CaFormatQuotaProjID>,
+    pub acl_user: Vec<CaFormatACLUser>,
+    pub acl_group: Vec<CaFormatACLGroup>,
+    pub acl_group_obj: Option<CaFormatACLGroupObj>,
+    pub acl_default: Option<CaFormatACLDefault>,
+    pub acl_default_user: Vec<CaFormatACLUser>,
+    pub acl_default_group: Vec<CaFormatACLGroup>,
+}
+
+impl PxarAttributes {
+    pub fn new() -> Self {
+        Self {
+            xattrs: Vec::new(),
+            fcaps: None,
+            quota_projid: None,
+            acl_user: Vec::new(),
+            acl_group: Vec::new(),
+            acl_group_obj: None,
+            acl_default: None,
+            acl_default_user: Vec::new(),
+            acl_default_group: Vec::new(),
+        }
+    }
+}
+
 /// Create SipHash values for goodby tables.
 //pub fn compute_goodbye_hash(name: &std::ffi::CStr) -> u64 {
 pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
