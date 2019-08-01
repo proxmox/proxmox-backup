@@ -178,86 +178,71 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(CaFormatFCaps { data: buffer })
     }
 
-    fn restore_attributes(
-        &mut self,
-        entry: &CaFormatEntry,
-        fd: Option<RawFd>
-    ) -> Result<CaFormatHeader, Error> {
-        let mut xattrs = Vec::new();
-        let mut fcaps = None;
-        let mut quota_projid = None;
-
-        let mut acl_user = Vec::new();
-        let mut acl_group = Vec::new();
-        let mut acl_group_obj = None;
-
-        let mut acl_default = None;
-        let mut acl_default_user = Vec::new();
-        let mut acl_default_group = Vec::new();
-
+    fn read_attributes(&mut self) -> Result<(CaFormatHeader, PxarAttributes), Error> {
+        let mut attr = PxarAttributes::new();
         let mut head: CaFormatHeader = self.read_item()?;
         let mut size = (head.size - HEADER_SIZE) as usize;
         loop {
             match head.htype {
                 CA_FORMAT_XATTR => {
                     if self.has_features(CA_FORMAT_WITH_XATTRS) {
-                        xattrs.push(self.read_xattr(size)?);
+                        attr.xattrs.push(self.read_xattr(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_FCAPS => {
                     if self.has_features(CA_FORMAT_WITH_FCAPS) {
-                        fcaps = Some(self.read_fcaps(size)?);
+                        attr.fcaps = Some(self.read_fcaps(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_USER => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_user.push(self.read_item::<CaFormatACLUser>()?);
+                        attr.acl_user.push(self.read_item::<CaFormatACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_GROUP => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_group.push(self.read_item::<CaFormatACLGroup>()?);
+                        attr.acl_group.push(self.read_item::<CaFormatACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_GROUP_OBJ => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_group_obj = Some(self.read_item::<CaFormatACLGroupObj>()?);
+                        attr.acl_group_obj = Some(self.read_item::<CaFormatACLGroupObj>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_default = Some(self.read_item::<CaFormatACLDefault>()?);
+                        attr.acl_default = Some(self.read_item::<CaFormatACLDefault>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT_USER => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_default_user.push(self.read_item::<CaFormatACLUser>()?);
+                        attr.acl_default_user.push(self.read_item::<CaFormatACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT_GROUP => {
                     if self.has_features(CA_FORMAT_WITH_ACL) {
-                        acl_default_group.push(self.read_item::<CaFormatACLGroup>()?);
+                        attr.acl_default_group.push(self.read_item::<CaFormatACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_QUOTA_PROJID => {
                     if self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
-                        quota_projid = Some(self.read_item::<CaFormatQuotaProjID>()?);
+                        attr.quota_projid = Some(self.read_item::<CaFormatQuotaProjID>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
@@ -267,58 +252,64 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             head = self.read_item()?;
             size = (head.size - HEADER_SIZE) as usize;
         }
-        // If fd is None, this indicates that we just want to skip over these entries (no restore).
-        // If on the other hand there is Some(fd), restore the attributes on it.
-        if let Some(fd) = fd {
-            self.restore_xattrs_fcaps_fd(fd, &xattrs, &fcaps)?;
 
+        Ok((head, attr))
+    }
+
+    fn restore_attributes(
+        &mut self,
+        fd: RawFd,
+        attr: &PxarAttributes,
+        entry: &CaFormatEntry,
+    ) -> Result<(), Error> {
+        self.restore_xattrs_fcaps_fd(fd, &attr.xattrs, &attr.fcaps)?;
+
+        let mut acl = acl::ACL::init(5)?;
+        acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
+        acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
+        match &attr.acl_group_obj {
+            Some(group_obj) => {
+                acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
+                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
+            },
+            None => {
+                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
+            },
+        }
+        for user in &attr.acl_user {
+            acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
+        }
+        for group in &attr.acl_group {
+            acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
+        }
+        let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
+        if !acl.is_valid() {
+            bail!("Error while restoring ACL - ACL invalid");
+        }
+        acl.set_file(&proc_path, acl::ACL_TYPE_ACCESS)?;
+
+        if let Some(default) = &attr.acl_default {
             let mut acl = acl::ACL::init(5)?;
-            acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
-            acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
-            match acl_group_obj {
-                Some(group_obj) => {
-                    acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
-                    acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
-                },
-                None => {
-                    acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
-                },
+            acl.add_entry_full(acl::ACL_USER_OBJ, None, default.user_obj_permissions)?;
+            acl.add_entry_full(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions)?;
+            acl.add_entry_full(acl::ACL_OTHER, None, default.other_permissions)?;
+            if default.mask_permissions != std::u64::MAX {
+                acl.add_entry_full(acl::ACL_MASK, None, default.mask_permissions)?;
             }
-            for user in acl_user {
+            for user in &attr.acl_default_user {
                 acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
             }
-            for group in acl_group {
+            for group in &attr.acl_default_group {
                 acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
             }
-            let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
             if !acl.is_valid() {
                 bail!("Error while restoring ACL - ACL invalid");
             }
-            acl.set_file(&proc_path, acl::ACL_TYPE_ACCESS)?;
-
-            if let Some(default) = acl_default {
-                let mut acl = acl::ACL::init(5)?;
-                acl.add_entry_full(acl::ACL_USER_OBJ, None, default.user_obj_permissions)?;
-                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions)?;
-                acl.add_entry_full(acl::ACL_OTHER, None, default.other_permissions)?;
-                if default.mask_permissions != std::u64::MAX {
-                    acl.add_entry_full(acl::ACL_MASK, None, default.mask_permissions)?;
-                }
-                for user in acl_default_user {
-                    acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
-                }
-                for group in acl_default_group {
-                    acl.add_entry_full(acl::ACL_GROUP, Some(group.gid), group.permissions)?;
-                }
-                if !acl.is_valid() {
-                    bail!("Error while restoring ACL - ACL invalid");
-                }
-                acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
-            }
-            self.restore_quota_projid(fd, &quota_projid)?;
+            acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
         }
+        self.restore_quota_projid(fd, &attr.quota_projid)?;
 
-        Ok(head)
+        Ok(())
     }
 
     // Restore xattrs and fcaps to the given RawFd.
@@ -575,17 +566,14 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         filename: &OsStr
     ) -> Result<(), Error> {
         let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
+        let (head, attr) = self.read_attributes()
+            .map_err(|err| format_err!("Reading of file attributes failed - {}", err))?;
 
         if let Some(fd) = parent_fd {
             let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
             let open_mode =  Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
             let mut file = file_openat(fd, filename, flags, open_mode)
                 .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
-
-            self.restore_ugid(&entry, file.as_raw_fd())?;
-            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-            let head = self.restore_attributes(&entry, Some(file.as_raw_fd()))
-                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
 
             if head.htype != CA_FORMAT_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
@@ -606,11 +594,12 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                 done += n;
             }
 
+            self.restore_ugid(&entry, file.as_raw_fd())?;
+            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+            self.restore_attributes(file.as_raw_fd(), &attr, &entry)?;
             self.restore_mode(&entry, file.as_raw_fd())?;
             self.restore_mtime(&entry, file.as_raw_fd())?;
         } else {
-            let head = self.restore_attributes(&entry, None)
-                .map_err(|err| format_err!("Restoring of file attributes failed - {}", err))?;
             if head.htype != CA_FORMAT_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
             }
@@ -646,12 +635,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             (None, None)
         };
 
-        if let Some(fd) = fd {
-            self.restore_ugid(&entry, fd)?;
-        }
-        // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
-        let mut head = self.restore_attributes(&entry, fd)
-            .map_err(|err| format_err!("Restoring of directory attributes failed - {}", err))?;
+        let (mut head, attr) = self.read_attributes()
+            .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
+
 
         while head.htype == CA_FORMAT_FILENAME {
             let name = self.read_filename(head.size)?;
@@ -671,6 +657,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
 
         // Only restore if we want to restore this part of the archive
         if let Some(fd) = fd {
+            self.restore_ugid(&entry, fd)?;
+            // fcaps have to be restored after restore_ugid as chown clears security.capability xattr, see CVE-2015-1350
+            self.restore_attributes(fd, &attr, &entry)?;
             self.restore_mode(&entry, fd)?;
             self.restore_mtime(&entry, fd)?;
         }
