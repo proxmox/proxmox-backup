@@ -37,12 +37,6 @@ pub const CA_FORMAT_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
 // Feature flags
 
-/// restrict UIDs to 16 bit
-pub const CA_FORMAT_WITH_16BIT_UIDS: u64       = 0x1;
-/// assume UIDs are 32 bit
-pub const CA_FORMAT_WITH_32BIT_UIDS: u64       = 0x2;
-/// include user and group name
-pub const CA_FORMAT_WITH_USER_NAMES: u64       = 0x4;
 pub const CA_FORMAT_WITH_SEC_TIME: u64         = 0x8;
 pub const CA_FORMAT_WITH_USEC_TIME: u64        = 0x10;
 pub const CA_FORMAT_WITH_NSEC_TIME: u64        = 0x20;
@@ -448,8 +442,6 @@ pub const CA_FORMAT_WITH_FAT_ATTRS: u64 =
 
 /// All bits that may also be exposed via fuse
 pub const CA_FORMAT_WITH_FUSE: u64 =
-    CA_FORMAT_WITH_16BIT_UIDS|
-    CA_FORMAT_WITH_32BIT_UIDS|
     CA_FORMAT_WITH_SEC_TIME|
     CA_FORMAT_WITH_USEC_TIME|
     CA_FORMAT_WITH_NSEC_TIME|
@@ -466,8 +458,6 @@ pub const CA_FORMAT_WITH_FUSE: u64 =
 
 /// Default feature flags for encoder/decoder
 pub const CA_FORMAT_DEFAULT: u64 =
-    CA_FORMAT_WITH_32BIT_UIDS|
-    CA_FORMAT_WITH_USER_NAMES|
     CA_FORMAT_WITH_NSEC_TIME|
     CA_FORMAT_WITH_SYMLINKS|
     CA_FORMAT_WITH_DEVICE_NODES|
@@ -506,9 +496,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_FAT_ATTRS
         },
         EXT4_SUPER_MAGIC => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
@@ -532,9 +519,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_QUOTA_PROJID
         },
         XFS_SUPER_MAGIC => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
@@ -557,9 +541,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_QUOTA_PROJID
         },
         ZFS_SUPER_MAGIC => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
@@ -583,9 +564,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_QUOTA_PROJID
         },
         BTRFS_SUPER_MAGIC => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
@@ -613,9 +591,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_FCAPS
         },
         TMPFS_MAGIC => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
@@ -635,9 +610,6 @@ pub fn feature_flags_from_magic(magic: i64) -> u64 {
             CA_FORMAT_WITH_FUSE
         },
         _ => {
-            CA_FORMAT_WITH_16BIT_UIDS|
-            CA_FORMAT_WITH_32BIT_UIDS|
-            CA_FORMAT_WITH_USER_NAMES|
             CA_FORMAT_WITH_SEC_TIME|
             CA_FORMAT_WITH_USEC_TIME|
             CA_FORMAT_WITH_NSEC_TIME|
