@@ -557,6 +557,10 @@ impl Drop for BackupClient {
     }
 }
 
+pub struct BackupStats {
+    pub size: u64,
+}
+
 impl BackupClient {
 
     pub fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
@@ -593,10 +597,11 @@ impl BackupClient {
         file_name: &str,
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
-     ) -> impl Future<Item=(), Error=Error> {
+     ) -> impl Future<Item=BackupStats, Error=Error> {
 
         let h2 = self.h2.clone();
         let file_name = file_name.to_owned();
+        let size = data.len() as u64;
 
         futures::future::ok(())
             .and_then(move |_| {
@@ -612,7 +617,9 @@ impl BackupClient {
             .and_then(move |raw_data| {
                 let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
                 h2.upload("blob", Some(param), raw_data)
-                    .map(|_| {})
+                    .map(move |_| {
+                        BackupStats { size: size }
+                    })
             })
     }
 
@@ -622,7 +629,7 @@ impl BackupClient {
         file_name: &str,
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
-     ) -> impl Future<Item=(), Error=Error> {
+     ) -> impl Future<Item=BackupStats, Error=Error> {
 
         let h2 = self.h2.clone();
         let file_name = file_name.to_owned();
@@ -641,12 +648,14 @@ impl BackupClient {
                             DataBlob::encode(&contents, None, compress)?
                         };
                         let raw_data = blob.into_inner();
-                        Ok(raw_data)
+                        Ok((raw_data, contents.len()))
                     })
-                    .and_then(move |raw_data| {
+                    .and_then(move |(raw_data, size)| {
                         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
                         h2.upload("blob", Some(param), raw_data)
-                            .map(|_| {})
+                            .map(move |_| {
+                                BackupStats { size: size as u64 }
+                            })
                     })
             });
 
@@ -660,7 +669,7 @@ impl BackupClient {
         prefix: &str,
         fixed_size: Option<u64>,
         crypt_config: Option<Arc<CryptConfig>>,
-    ) -> impl Future<Item=(), Error=Error> {
+    ) -> impl Future<Item=BackupStats, Error=Error> {
 
         let known_chunks = Arc::new(Mutex::new(HashSet::new()));
 
@@ -686,15 +695,17 @@ impl BackupClient {
             .and_then(move |res| {
                 let wid = res.as_u64().unwrap();
                 Self::upload_chunk_info_stream(h2_3, wid, stream, &prefix, known_chunks.clone(), crypt_config)
-                     .and_then(move |(chunk_count, size, _speed)| {
+                    .and_then(move |(chunk_count, size, _speed)| {
                         let param = json!({
                             "wid": wid ,
                             "chunk-count": chunk_count,
                             "size": size,
                         });
                         h2_4.post(&close_path, Some(param))
-                     })
-                    .map(|_| ())
+                            .map(move |_| {
+                                BackupStats { size: size as u64 }
+                            })
+                    })
             })
     }
 
