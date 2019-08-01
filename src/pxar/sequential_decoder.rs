@@ -270,7 +270,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         // If fd is None, this indicates that we just want to skip over these entries (no restore).
         // If on the other hand there is Some(fd), restore the attributes on it.
         if let Some(fd) = fd {
-            self.restore_xattrs_fcaps_fd(fd, xattrs, fcaps)?;
+            self.restore_xattrs_fcaps_fd(fd, &xattrs, &fcaps)?;
 
             let mut acl = acl::ACL::init(5)?;
             acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
@@ -315,7 +315,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                 }
                 acl.set_file(&proc_path, acl::ACL_TYPE_DEFAULT)?;
             }
-            self.restore_quota_projid(fd, quota_projid)?;
+            self.restore_quota_projid(fd, &quota_projid)?;
         }
 
         Ok(head)
@@ -325,16 +325,16 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_xattrs_fcaps_fd(
         &mut self,
         fd: RawFd,
-        xattrs: Vec<CaFormatXAttr>,
-        fcaps: Option<CaFormatFCaps>
+        xattrs: &Vec<CaFormatXAttr>,
+        fcaps: &Option<CaFormatFCaps>
     ) -> Result<(), Error> {
         for xattr in xattrs {
-            if let Err(err) = xattr::fsetxattr(fd, xattr) {
+            if let Err(err) = xattr::fsetxattr(fd, &xattr) {
                 bail!("fsetxattr failed with error: {}", err);
             }
         }
         if let Some(fcaps) = fcaps {
-            if let Err(err) = xattr::fsetxattr_fcaps(fd, fcaps) {
+            if let Err(err) = xattr::fsetxattr_fcaps(fd, &fcaps) {
                 bail!("fsetxattr_fcaps failed with error: {}", err);
             }
         }
@@ -345,7 +345,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_quota_projid(
         &mut self,
         fd: RawFd,
-        projid: Option<CaFormatQuotaProjID>
+        projid: &Option<CaFormatQuotaProjID>
     ) -> Result<(), Error> {
         if let Some(projid) = projid {
             let mut fsxattr = fs::FSXAttr::default();

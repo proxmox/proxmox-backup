@@ -64,7 +64,7 @@ pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
     Ok(buffer)
 }
 
-pub fn fsetxattr(fd: RawFd, xattr: CaFormatXAttr) -> Result<(), nix::errno::Errno> {
+pub fn fsetxattr(fd: RawFd, xattr: &CaFormatXAttr) -> Result<(), nix::errno::Errno> {
     let mut name = xattr.name.clone();
     name.push('\0' as u8);
     let flags = 0 as libc::c_int;
@@ -79,7 +79,7 @@ pub fn fsetxattr(fd: RawFd, xattr: CaFormatXAttr) -> Result<(), nix::errno::Errn
     Ok(())
 }
 
-pub fn fsetxattr_fcaps(fd: RawFd, fcaps: CaFormatFCaps) -> Result<(), nix::errno::Errno> {
+pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &CaFormatFCaps) -> Result<(), nix::errno::Errno> {
     // TODO casync checks and removes capabilities if they are set
     let name = b"security.capability\0";
     let flags = 0 as libc::c_int;
@@ -159,15 +159,15 @@ mod tests {
             value: b"err".to_vec(),
         };
 
-        assert!(fsetxattr(fd, valid_user).is_ok());
-        assert!(fsetxattr(fd, valid_empty_value).is_ok());
+        assert!(fsetxattr(fd, &valid_user).is_ok());
+        assert!(fsetxattr(fd, &valid_empty_value).is_ok());
 
         if nix::unistd::Uid::current() != nix::unistd::ROOT {
-            assert_eq!(fsetxattr(fd, invalid_trusted), Err(Errno::EPERM));
+            assert_eq!(fsetxattr(fd, &invalid_trusted), Err(Errno::EPERM));
         }
 
-        assert_eq!(fsetxattr(fd, invalid_name_prefix), Err(Errno::EOPNOTSUPP));
-        assert_eq!(fsetxattr(fd, invalid_name_length), Err(Errno::ERANGE));
+        assert_eq!(fsetxattr(fd, &invalid_name_prefix), Err(Errno::EOPNOTSUPP));
+        assert_eq!(fsetxattr(fd, &invalid_name_length), Err(Errno::ERANGE));
 
         let v0 = fgetxattr(fd, b"user.attribute0\0".as_ref()).unwrap();
         let v1 = fgetxattr(fd, b"user.empty\0".as_ref()).unwrap();
