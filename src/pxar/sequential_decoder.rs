@@ -41,7 +41,7 @@ pub struct SequentialDecoder<'a, R: Read, F: Fn(&Path) -> Result<(), Error>> {
     callback: F,
 }
 
-const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
+const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
 impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F> {
 
@@ -155,7 +155,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         (self.feature_flags & feature_flags) == feature_flags
     }
 
-    fn read_xattr(&mut self, size: usize) -> Result<CaFormatXAttr, Error> {
+    fn read_xattr(&mut self, size: usize) -> Result<PxarXAttr, Error> {
         let buffer = self.reader.read_exact_allocated(size)?;
 
         let separator = buffer.iter().position(|c| *c == b'\0')
@@ -168,83 +168,83 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("incorrect xattr name - {}.", String::from_utf8_lossy(name));
         }
 
-        Ok(CaFormatXAttr {
+        Ok(PxarXAttr {
             name: name.to_vec(),
             value: value[1..].to_vec(),
         })
     }
 
-    fn read_fcaps(&mut self, size: usize) -> Result<CaFormatFCaps, Error> {
+    fn read_fcaps(&mut self, size: usize) -> Result<PxarFCaps, Error> {
         let buffer = self.reader.read_exact_allocated(size)?;
 
-        Ok(CaFormatFCaps { data: buffer })
+        Ok(PxarFCaps { data: buffer })
     }
 
-    fn read_attributes(&mut self) -> Result<(CaFormatHeader, PxarAttributes), Error> {
+    fn read_attributes(&mut self) -> Result<(PxarHeader, PxarAttributes), Error> {
         let mut attr = PxarAttributes::default();
-        let mut head: CaFormatHeader = self.read_item()?;
+        let mut head: PxarHeader = self.read_item()?;
         let mut size = (head.size - HEADER_SIZE) as usize;
         loop {
             match head.htype {
-                CA_FORMAT_XATTR => {
+                PXAR_XATTR => {
                     if self.has_features(flags::WITH_XATTRS) {
                         attr.xattrs.push(self.read_xattr(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_FCAPS => {
+                PXAR_FCAPS => {
                     if self.has_features(flags::WITH_FCAPS) {
                         attr.fcaps = Some(self.read_fcaps(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_USER => {
+                PXAR_ACL_USER => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_user.push(self.read_item::<CaFormatACLUser>()?);
+                        attr.acl_user.push(self.read_item::<PxarACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_GROUP => {
+                PXAR_ACL_GROUP => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_group.push(self.read_item::<CaFormatACLGroup>()?);
+                        attr.acl_group.push(self.read_item::<PxarACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_GROUP_OBJ => {
+                PXAR_ACL_GROUP_OBJ => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_group_obj = Some(self.read_item::<CaFormatACLGroupObj>()?);
+                        attr.acl_group_obj = Some(self.read_item::<PxarACLGroupObj>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_DEFAULT => {
+                PXAR_ACL_DEFAULT => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_default = Some(self.read_item::<CaFormatACLDefault>()?);
+                        attr.acl_default = Some(self.read_item::<PxarACLDefault>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_DEFAULT_USER => {
+                PXAR_ACL_DEFAULT_USER => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_default_user.push(self.read_item::<CaFormatACLUser>()?);
+                        attr.acl_default_user.push(self.read_item::<PxarACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_ACL_DEFAULT_GROUP => {
+                PXAR_ACL_DEFAULT_GROUP => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_default_group.push(self.read_item::<CaFormatACLGroup>()?);
+                        attr.acl_default_group.push(self.read_item::<PxarACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
-                CA_FORMAT_QUOTA_PROJID => {
+                PXAR_QUOTA_PROJID => {
                     if self.has_features(flags::WITH_QUOTA_PROJID) {
-                        attr.quota_projid = Some(self.read_item::<CaFormatQuotaProjID>()?);
+                        attr.quota_projid = Some(self.read_item::<PxarQuotaProjID>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
@@ -262,7 +262,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         &mut self,
         fd: RawFd,
         attr: &PxarAttributes,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
     ) -> Result<(), Error> {
         self.restore_xattrs_fcaps_fd(fd, &attr.xattrs, &attr.fcaps)?;
 
@@ -318,8 +318,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_xattrs_fcaps_fd(
         &mut self,
         fd: RawFd,
-        xattrs: &Vec<CaFormatXAttr>,
-        fcaps: &Option<CaFormatFCaps>
+        xattrs: &Vec<PxarXAttr>,
+        fcaps: &Option<PxarFCaps>
     ) -> Result<(), Error> {
         for xattr in xattrs {
             if let Err(err) = xattr::fsetxattr(fd, &xattr) {
@@ -338,7 +338,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_quota_projid(
         &mut self,
         fd: RawFd,
-        projid: &Option<CaFormatQuotaProjID>
+        projid: &Option<PxarQuotaProjID>
     ) -> Result<(), Error> {
         if let Some(projid) = projid {
             let mut fsxattr = fs::FSXAttr::default();
@@ -356,7 +356,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_mode(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+    fn restore_mode(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
 
         let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
 
@@ -365,7 +365,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_mode_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+    fn restore_mode_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
 
         let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
 
@@ -376,7 +376,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_ugid(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+    fn restore_ugid(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
 
         let uid = entry.uid as u32;
         let gid = entry.gid as u32;
@@ -387,10 +387,10 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_ugid_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd,  filename: &OsStr) -> Result<(), Error> {
+    fn restore_ugid_at(&mut self, entry: &PxarEntry, dirfd: RawFd,  filename: &OsStr) -> Result<(), Error> {
 
-        let uid = entry.uid as u32;
-        let gid = entry.gid as u32;
+        let uid = entry.uid;
+        let gid = entry.gid;
 
         let res = filename.with_nix_path(|cstr| unsafe {
             libc::fchownat(dirfd, cstr.as_ptr(), uid, gid, libc::AT_SYMLINK_NOFOLLOW)
@@ -400,7 +400,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_mtime(&mut self, entry: &CaFormatEntry, fd: RawFd) -> Result<(), Error> {
+    fn restore_mtime(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
 
         let times = nsec_to_update_timespec(entry.mtime);
 
@@ -410,7 +410,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_mtime_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
+    fn restore_mtime_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
 
         let times = nsec_to_update_timespec(entry.mtime);
 
@@ -422,7 +422,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn restore_device_at(&mut self, entry: &CaFormatEntry, dirfd: RawFd, filename: &OsStr, device: &CaFormatDevice) -> Result<(), Error> {
+    fn restore_device_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr, device: &PxarDevice) -> Result<(), Error> {
 
         let rdev = nix::sys::stat::makedev(device.major, device.minor);
         let mode = ((entry.mode as u32) & libc::S_IFMT) | 0o0600;
@@ -472,15 +472,15 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         &mut self,
         parent_fd: Option<RawFd>,
         full_path: &PathBuf,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
         //fixme: create symlink
         //fixme: restore permission, acls, xattr, ...
 
-        let head: CaFormatHeader = self.read_item()?;
+        let head: PxarHeader = self.read_item()?;
         match head.htype {
-            CA_FORMAT_SYMLINK => {
+            PXAR_SYMLINK => {
                 let target = self.read_link(head.size)?;
                 //println!("TARGET: {:?}", target);
                 if let Some(fd) = parent_fd {
@@ -506,7 +506,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_socket(
         &mut self,
         parent_fd: Option<RawFd>,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
         if !self.has_features(flags::WITH_SOCKETS) {
@@ -525,7 +525,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_fifo(
         &mut self,
         parent_fd: Option<RawFd>,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
         if !self.has_features(flags::WITH_FIFOS) {
@@ -544,14 +544,14 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_device(
         &mut self,
         parent_fd: Option<RawFd>,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        let head: CaFormatHeader = self.read_item()?;
-        if head.htype != CA_FORMAT_DEVICE {
+        let head: PxarHeader = self.read_item()?;
+        if head.htype != PXAR_DEVICE {
             bail!("got unknown header type inside device entry {:016x}", head.htype);
         }
-        let device: CaFormatDevice = self.read_item()?;
+        let device: PxarDevice = self.read_item()?;
         if !self.has_features(flags::WITH_DEVICE_NODES) {
             return Ok(());
         }
@@ -573,7 +573,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         &mut self,
         parent_fd: Option<RawFd>,
         full_path: &PathBuf,
-        entry: &CaFormatEntry,
+        entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
         let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
@@ -586,7 +586,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             let mut file = file_openat(fd, filename, flags, open_mode)
                 .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
 
-            if head.htype != CA_FORMAT_PAYLOAD {
+            if head.htype != PXAR_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
             }
 
@@ -611,7 +611,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             self.restore_mode(&entry, file.as_raw_fd())?;
             self.restore_mtime(&entry, file.as_raw_fd())?;
         } else {
-            if head.htype != CA_FORMAT_PAYLOAD {
+            if head.htype != PXAR_PAYLOAD {
                   bail!("got unknown header type for file entry {:016x}", head.htype);
             }
             if head.size < HEADER_SIZE {
@@ -627,7 +627,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         &mut self,
         base_path: &Path,
         dirs: &mut PxarDirBuf,
-        entry: CaFormatEntry,
+        entry: PxarEntry,
         filename: &OsStr,
         matched: MatchType,
         match_pattern: &Vec<PxarExcludePattern>,
@@ -641,13 +641,13 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             dirs.create_all_dirs(!self.allow_existing_dirs)?;
         }
 
-        while head.htype == CA_FORMAT_FILENAME {
+        while head.htype == PXAR_FILENAME {
             let name = self.read_filename(head.size)?;
             self.restore_dir_entry(base_path, dirs, &name, matched, match_pattern)?;
             head = self.read_item()?;
         }
 
-        if head.htype != CA_FORMAT_GOODBYE {
+        if head.htype != PXAR_GOODBYE {
             bail!("got unknown header type inside directory entry {:016x}", head.htype);
         }
 
@@ -690,20 +690,20 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             MatchType::None
         };
 
-        let header: CaFormatHeader = self.read_item()?;
-        check_ca_header::<CaFormatEntry>(&header, CA_FORMAT_ENTRY)?;
-        let entry: CaFormatEntry = self.read_item()?;
+        let header: PxarHeader = self.read_item()?;
+        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.read_item()?;
 
         let (mut head, attr) = self.read_attributes()
             .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
 
-        while head.htype == CA_FORMAT_FILENAME {
+        while head.htype == PXAR_FILENAME {
             let name = self.read_filename(head.size)?;
             self.restore_dir_entry(path, &mut dirs, &name, matched, match_pattern)?;
             head = self.read_item()?;
         }
 
-        if head.htype != CA_FORMAT_GOODBYE {
+        if head.htype != PXAR_GOODBYE {
             bail!("got unknown header type inside directory entry {:016x}", head.htype);
         }
 
@@ -730,7 +730,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         let relative_path = dirs.as_path_buf();
         let full_path = base_path.join(&relative_path).join(filename);
 
-        let head: CaFormatHeader = self.read_item()?;
+        let head: PxarHeader = self.read_item()?;
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
@@ -741,8 +741,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             return Ok(());
         }
 
-        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
-        let entry: CaFormatEntry = self.read_item()?;
+        check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.read_item()?;
 
         let mut child_pattern = Vec::new();
         // If parent was a match, then children should be assumed to match too
@@ -800,12 +800,12 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         output: &mut W,
     ) -> Result<(), Error> {
 
-        let print_head = |head: &CaFormatHeader| {
+        let print_head = |head: &PxarHeader| {
             println!("Type: {:016x}", head.htype);
             println!("Size: {}", head.size);
         };
 
-        let head: CaFormatHeader = self.read_item()?;
+        let head: PxarHeader = self.read_item()?;
         if verbose {
             println!("Path: {:?}", path);
             print_head(&head);
@@ -821,8 +821,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             return Ok(());
         }
 
-        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
-        let entry: CaFormatEntry = self.read_item()?;
+        check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.read_item()?;
 
         if verbose {
             println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
@@ -835,7 +835,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             let mut entry_count = 0;
 
             loop {
-                let head: CaFormatHeader = self.read_item()?;
+                let head: PxarHeader = self.read_item()?;
                 if verbose {
                     print_head(&head);
                 }
@@ -849,7 +849,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                 }
 
                 match head.htype {
-                    CA_FORMAT_FILENAME =>  {
+                    PXAR_FILENAME =>  {
                         let name = self.read_filename(head.size)?;
                         if verbose { println!("Name: {:?}", name); }
                         entry_count += 1;
@@ -857,7 +857,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                         self.dump_entry(path, verbose, output)?;
                         path.pop();
                     },
-                    CA_FORMAT_GOODBYE => {
+                    PXAR_GOODBYE => {
                         let table_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
                             println!("Goodbye: {:?}", path);
@@ -874,7 +874,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             (ifmt == libc::S_IFLNK) || (ifmt == libc::S_IFREG)
         {
             loop {
-                let head: CaFormatHeader = self.read_item()?;
+                let head: PxarHeader = self.read_item()?;
                 if verbose {
                     print_head(&head);
                 }
@@ -888,21 +888,21 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
                 }
 
                 match head.htype {
-                    CA_FORMAT_SYMLINK => {
+                    PXAR_SYMLINK => {
                         let target = self.read_link(head.size)?;
                         if verbose {
                             println!("Symlink: {:?}", target);
                         }
                         break;
                     },
-                    CA_FORMAT_DEVICE => {
-                        let device: CaFormatDevice = self.read_item()?;
+                    PXAR_DEVICE => {
+                        let device: PxarDevice = self.read_item()?;
                         if verbose {
                             println!("Device: {}, {}", device.major, device.minor);
                         }
                         break;
                     },
-                    CA_FORMAT_PAYLOAD => {
+                    PXAR_PAYLOAD => {
                         let payload_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
                             println!("Payload: {}", payload_size);
@@ -929,58 +929,58 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         Ok(())
     }
 
-    fn dump_if_attribute(&mut self, header: &CaFormatHeader, verbose: bool) -> Result<bool, Error> {
+    fn dump_if_attribute(&mut self, header: &PxarHeader, verbose: bool) -> Result<bool, Error> {
         match header.htype {
-            CA_FORMAT_XATTR => {
+            PXAR_XATTR => {
                 let xattr = self.read_xattr((header.size - HEADER_SIZE) as usize)?;
                 if verbose && self.has_features(flags::WITH_XATTRS) {
                     println!("XAttr: {:?}", xattr);
                 }
             },
-            CA_FORMAT_FCAPS => {
+            PXAR_FCAPS => {
                 let fcaps = self.read_fcaps((header.size - HEADER_SIZE) as usize)?;
                 if verbose && self.has_features(flags::WITH_FCAPS) {
                     println!("FCaps: {:?}", fcaps);
                 }
             },
-            CA_FORMAT_ACL_USER => {
-                let user = self.read_item::<CaFormatACLUser>()?;
+            PXAR_ACL_USER => {
+                let user = self.read_item::<PxarACLUser>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLUser: {:?}", user);
                 }
             },
-            CA_FORMAT_ACL_GROUP => {
-                let group = self.read_item::<CaFormatACLGroup>()?;
+            PXAR_ACL_GROUP => {
+                let group = self.read_item::<PxarACLGroup>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroup: {:?}", group);
                 }
             },
-            CA_FORMAT_ACL_GROUP_OBJ => {
-                let group_obj = self.read_item::<CaFormatACLGroupObj>()?;
+            PXAR_ACL_GROUP_OBJ => {
+                let group_obj = self.read_item::<PxarACLGroupObj>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroupObj: {:?}", group_obj);
                 }
             },
-            CA_FORMAT_ACL_DEFAULT => {
-                let default = self.read_item::<CaFormatACLDefault>()?;
+            PXAR_ACL_DEFAULT => {
+                let default = self.read_item::<PxarACLDefault>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefault: {:?}", default);
                 }
             },
-            CA_FORMAT_ACL_DEFAULT_USER => {
-                let default_user = self.read_item::<CaFormatACLUser>()?;
+            PXAR_ACL_DEFAULT_USER => {
+                let default_user = self.read_item::<PxarACLUser>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultUser: {:?}", default_user);
                 }
             },
-            CA_FORMAT_ACL_DEFAULT_GROUP => {
-                let default_group = self.read_item::<CaFormatACLGroup>()?;
+            PXAR_ACL_DEFAULT_GROUP => {
+                let default_group = self.read_item::<PxarACLGroup>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultGroup: {:?}", default_group);
                 }
             },
-            CA_FORMAT_QUOTA_PROJID => {
-                let quota_projid = self.read_item::<CaFormatQuotaProjID>()?;
+            PXAR_QUOTA_PROJID => {
+                let quota_projid = self.read_item::<PxarQuotaProjID>()?;
                 if verbose && self.has_features(flags::WITH_QUOTA_PROJID) {
                     println!("Quota project id: {:?}", quota_projid);
                 }
@@ -997,7 +997,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         table_size: usize,
     ) -> Result<(), Error> {
 
-        const GOODBYE_ITEM_SIZE: usize = std::mem::size_of::<CaFormatGoodbyeItem>();
+        const GOODBYE_ITEM_SIZE: usize = std::mem::size_of::<PxarGoodbyeItem>();
 
         if table_size < GOODBYE_ITEM_SIZE {
             bail!("Goodbye table to small ({} < {})", table_size, GOODBYE_ITEM_SIZE);
@@ -1015,9 +1015,9 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         let mut count = 0;
 
         loop {
-            let item: CaFormatGoodbyeItem = self.read_item()?;
+            let item: PxarGoodbyeItem = self.read_item()?;
             count += 1;
-            if item.hash == CA_FORMAT_GOODBYE_TAIL_MARKER {
+            if item.hash == PXAR_GOODBYE_TAIL_MARKER {
                 if count != entries {
                     bail!("unexpected goodbye tail marker");
                 }

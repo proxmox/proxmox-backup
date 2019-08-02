@@ -166,8 +166,8 @@ impl <'a, W: Write> Encoder<'a, W> {
 
     fn write_header(&mut self, htype: u64, size: u64) -> Result<(), Error> {
 
-        let size = size + (std::mem::size_of::<CaFormatHeader>() as u64);
-        self.write_item(CaFormatHeader { size, htype })?;
+        let size = size + (std::mem::size_of::<PxarHeader>() as u64);
+        self.write_item(PxarHeader { size, htype })?;
 
         Ok(())
     }
@@ -175,13 +175,13 @@ impl <'a, W: Write> Encoder<'a, W> {
     fn write_filename(&mut self, name: &CStr) -> Result<(), Error> {
 
         let buffer = name.to_bytes_with_nul();
-        self.write_header(CA_FORMAT_FILENAME, buffer.len() as u64)?;
+        self.write_header(PXAR_FILENAME, buffer.len() as u64)?;
         self.write(buffer)?;
 
         Ok(())
     }
 
-    fn create_entry(&self, stat: &FileStat) -> Result<CaFormatEntry, Error> {
+    fn create_entry(&self, stat: &FileStat) -> Result<PxarEntry, Error> {
 
         let mode = if is_symlink(&stat) {
             (libc::S_IFLNK | 0o777) as u64
@@ -195,7 +195,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
 
 
-        let entry = CaFormatEntry {
+        let entry = PxarEntry {
             mode: mode,
             flags: 0,
             uid: stat.st_uid as u64,
@@ -206,7 +206,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(entry)
     }
 
-    fn read_chattr(&self, fd: RawFd, entry: &mut CaFormatEntry) -> Result<(), Error> {
+    fn read_chattr(&self, fd: RawFd, entry: &mut PxarEntry) -> Result<(), Error> {
 
         let mut attr: usize = 0;
 
@@ -224,7 +224,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
-    fn read_fat_attr(&self, fd: RawFd, magic: i64, entry: &mut CaFormatEntry) -> Result<(), Error> {
+    fn read_fat_attr(&self, fd: RawFd, magic: i64, entry: &mut PxarEntry) -> Result<(), Error> {
         use fs::magic::*;
 
         if magic != MSDOS_SUPER_MAGIC && magic != FUSE_SUPER_MAGIC {
@@ -257,7 +257,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         (self.feature_flags & self.fs_feature_flags & feature_flags) != 0
     }
 
-    fn read_xattrs(&self, fd: RawFd, stat: &FileStat) -> Result<(Vec<CaFormatXAttr>, Option<CaFormatFCaps>), Error> {
+    fn read_xattrs(&self, fd: RawFd, stat: &FileStat) -> Result<(Vec<PxarXAttr>, Option<PxarFCaps>), Error> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
 
@@ -295,12 +295,12 @@ impl <'a, W: Write> Encoder<'a, W> {
             if xattr::is_security_capability(&name) {
                 if self.has_features(flags::WITH_FCAPS) {
                     // fcaps are stored in own format within the archive
-                    fcaps = Some(CaFormatFCaps {
+                    fcaps = Some(PxarFCaps {
                         data: value,
                     });
                 }
             } else if self.has_features(flags::WITH_XATTRS) {
-                xattrs.push(CaFormatXAttr {
+                xattrs.push(PxarXAttr {
                     name: name.to_vec(),
                     value: value,
                 });
@@ -366,13 +366,13 @@ impl <'a, W: Write> Encoder<'a, W> {
                 acl::ACL_OTHER => other_permissions = Some(permissions),
                 acl::ACL_MASK => mask_permissions = Some(permissions),
                 acl::ACL_USER => {
-                    acl_user.push(CaFormatACLUser {
+                    acl_user.push(PxarACLUser {
                         uid: entry.get_qualifier()?,
                         permissions: permissions,
                     });
                 },
                 acl::ACL_GROUP => {
-                    acl_group.push(CaFormatACLGroup {
+                    acl_group.push(PxarACLGroup {
                         gid: entry.get_qualifier()?,
                         permissions: permissions,
                     });
@@ -391,7 +391,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 // Only in that case we need to store the group permissions,
                 // in the other cases they are identical to the stat group permissions.
                 if let (Some(gop), Some(_)) = (group_obj_permissions, mask_permissions) {
-                    acl_group_obj = Some(CaFormatACLGroupObj {
+                    acl_group_obj = Some(PxarACLGroupObj {
                         permissions: gop,
                     });
                 }
@@ -402,7 +402,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                    other_permissions != None ||
                    mask_permissions != None
                 {
-                    acl_default = Some(CaFormatACLDefault {
+                    acl_default = Some(PxarACLDefault {
                         // The value is set to UINT64_MAX as placeholder if one
                         // of the permissions is not set
                         user_obj_permissions: user_obj_permissions.unwrap_or(std::u64::MAX),
@@ -424,7 +424,7 @@ impl <'a, W: Write> Encoder<'a, W> {
     }
 
     /// Read the quota project id for an inode, supported on ext4/XFS/FUSE/ZFS filesystems
-    fn read_quota_project_id(&self, fd: RawFd, magic: i64, stat: &FileStat) -> Result<Option<CaFormatQuotaProjID>, Error> {
+    fn read_quota_project_id(&self, fd: RawFd, magic: i64, stat: &FileStat) -> Result<Option<PxarQuotaProjID>, Error> {
         if !(is_directory(&stat) || is_reg_file(&stat)) {
             return Ok(None);
         }
@@ -459,24 +459,24 @@ impl <'a, W: Write> Encoder<'a, W> {
                 if projid == 0 {
                     return Ok(None);
                 } else {
-                    return Ok(Some(CaFormatQuotaProjID { projid }));
+                    return Ok(Some(PxarQuotaProjID { projid }));
                 }
             },
             _ => return Ok(None),
         }
     }
 
-    fn write_entry(&mut self, entry: CaFormatEntry) -> Result<(), Error> {
+    fn write_entry(&mut self, entry: PxarEntry) -> Result<(), Error> {
 
-        self.write_header(CA_FORMAT_ENTRY, std::mem::size_of::<CaFormatEntry>() as u64)?;
+        self.write_header(PXAR_ENTRY, std::mem::size_of::<PxarEntry>() as u64)?;
         self.write_item(entry)?;
 
         Ok(())
     }
 
-    fn write_xattr(&mut self, xattr: CaFormatXAttr) -> Result<(), Error> {
+    fn write_xattr(&mut self, xattr: PxarXAttr) -> Result<(), Error> {
         let size = xattr.name.len() + xattr.value.len() + 1; // +1 for '\0' separating name and value
-        self.write_header(CA_FORMAT_XATTR, size as u64)?;
+        self.write_header(PXAR_XATTR, size as u64)?;
         self.write(xattr.name.as_slice())?;
         self.write(&[0])?;
         self.write(xattr.value.as_slice())?;
@@ -484,74 +484,74 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
-    fn write_fcaps(&mut self, fcaps: Option<CaFormatFCaps>) -> Result<(), Error> {
+    fn write_fcaps(&mut self, fcaps: Option<PxarFCaps>) -> Result<(), Error> {
         if let Some(fcaps) = fcaps {
             let size = fcaps.data.len();
-            self.write_header(CA_FORMAT_FCAPS, size as u64)?;
+            self.write_header(PXAR_FCAPS, size as u64)?;
             self.write(fcaps.data.as_slice())?;
         }
 
         Ok(())
     }
 
-    fn write_acl_user(&mut self, acl_user: CaFormatACLUser) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_USER,  std::mem::size_of::<CaFormatACLUser>() as u64)?;
+    fn write_acl_user(&mut self, acl_user: PxarACLUser) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_USER,  std::mem::size_of::<PxarACLUser>() as u64)?;
         self.write_item(acl_user)?;
 
         Ok(())
     }
 
-    fn write_acl_group(&mut self, acl_group: CaFormatACLGroup) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_GROUP,  std::mem::size_of::<CaFormatACLGroup>() as u64)?;
+    fn write_acl_group(&mut self, acl_group: PxarACLGroup) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_GROUP,  std::mem::size_of::<PxarACLGroup>() as u64)?;
         self.write_item(acl_group)?;
 
         Ok(())
     }
 
-    fn write_acl_group_obj(&mut self, acl_group_obj: CaFormatACLGroupObj) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_GROUP_OBJ,  std::mem::size_of::<CaFormatACLGroupObj>() as u64)?;
+    fn write_acl_group_obj(&mut self, acl_group_obj: PxarACLGroupObj) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_GROUP_OBJ,  std::mem::size_of::<PxarACLGroupObj>() as u64)?;
         self.write_item(acl_group_obj)?;
 
         Ok(())
     }
 
-    fn write_acl_default(&mut self, acl_default: CaFormatACLDefault) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_DEFAULT,  std::mem::size_of::<CaFormatACLDefault>() as u64)?;
+    fn write_acl_default(&mut self, acl_default: PxarACLDefault) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_DEFAULT,  std::mem::size_of::<PxarACLDefault>() as u64)?;
         self.write_item(acl_default)?;
 
         Ok(())
     }
 
-    fn write_acl_default_user(&mut self, acl_default_user: CaFormatACLUser) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_DEFAULT_USER,  std::mem::size_of::<CaFormatACLUser>() as u64)?;
+    fn write_acl_default_user(&mut self, acl_default_user: PxarACLUser) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_DEFAULT_USER,  std::mem::size_of::<PxarACLUser>() as u64)?;
         self.write_item(acl_default_user)?;
 
         Ok(())
     }
 
-    fn write_acl_default_group(&mut self, acl_default_group: CaFormatACLGroup) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_ACL_DEFAULT_GROUP,  std::mem::size_of::<CaFormatACLGroup>() as u64)?;
+    fn write_acl_default_group(&mut self, acl_default_group: PxarACLGroup) -> Result<(), Error> {
+        self.write_header(PXAR_ACL_DEFAULT_GROUP,  std::mem::size_of::<PxarACLGroup>() as u64)?;
         self.write_item(acl_default_group)?;
 
         Ok(())
     }
 
-    fn write_quota_project_id(&mut self, projid: CaFormatQuotaProjID) -> Result<(), Error> {
-        self.write_header(CA_FORMAT_QUOTA_PROJID, std::mem::size_of::<CaFormatQuotaProjID>() as u64)?;
+    fn write_quota_project_id(&mut self, projid: PxarQuotaProjID) -> Result<(), Error> {
+        self.write_header(PXAR_QUOTA_PROJID, std::mem::size_of::<PxarQuotaProjID>() as u64)?;
         self.write_item(projid)?;
 
         Ok(())
     }
 
-    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &mut [CaFormatGoodbyeItem]) -> Result<(), Error> {
+    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &mut [PxarGoodbyeItem]) -> Result<(), Error> {
 
         goodbye_items.sort_unstable_by(|a, b| a.hash.cmp(&b.hash));
 
         let item_count = goodbye_items.len();
 
-        let goodbye_table_size = (item_count + 1)*std::mem::size_of::<CaFormatGoodbyeItem>();
+        let goodbye_table_size = (item_count + 1)*std::mem::size_of::<PxarGoodbyeItem>();
 
-        self.write_header(CA_FORMAT_GOODBYE, goodbye_table_size as u64)?;
+        self.write_header(PXAR_GOODBYE, goodbye_table_size as u64)?;
 
         if self.file_copy_buffer.len() < goodbye_table_size {
             let need = goodbye_table_size - self.file_copy_buffer.len();
@@ -563,19 +563,19 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         copy_binary_search_tree(item_count, |s, d| {
             let item = &goodbye_items[s];
-            let offset = d*std::mem::size_of::<CaFormatGoodbyeItem>();
-            let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
+            let offset = d*std::mem::size_of::<PxarGoodbyeItem>();
+            let dest = crate::tools::map_struct_mut::<PxarGoodbyeItem>(&mut buffer[offset..]).unwrap();
             dest.offset = u64::to_le(item.offset);
             dest.size = u64::to_le(item.size);
             dest.hash = u64::to_le(item.hash);
         });
 
-        // append CaFormatGoodbyeTail as last item
-        let offset = item_count*std::mem::size_of::<CaFormatGoodbyeItem>();
-        let dest = crate::tools::map_struct_mut::<CaFormatGoodbyeItem>(&mut buffer[offset..]).unwrap();
+        // append PxarGoodbyeTail as last item
+        let offset = item_count*std::mem::size_of::<PxarGoodbyeItem>();
+        let dest = crate::tools::map_struct_mut::<PxarGoodbyeItem>(&mut buffer[offset..]).unwrap();
         dest.offset = u64::to_le(goodbye_offset as u64);
-        dest.size = u64::to_le((goodbye_table_size + std::mem::size_of::<CaFormatHeader>()) as u64);
-        dest.hash = u64::to_le(CA_FORMAT_GOODBYE_TAIL_MARKER);
+        dest.size = u64::to_le((goodbye_table_size + std::mem::size_of::<PxarHeader>()) as u64);
+        dest.hash = u64::to_le(PXAR_GOODBYE_TAIL_MARKER);
 
         self.flush_copy_buffer(goodbye_table_size)?;
 
@@ -842,7 +842,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
             let end_pos = self.writer_pos;
 
-            goodbye_items.push(CaFormatGoodbyeItem {
+            goodbye_items.push(PxarGoodbyeItem {
                 offset: start_pos as u64,
                 size: (end_pos - start_pos) as u64,
                 hash: compute_goodbye_hash(filename.to_bytes()),
@@ -910,13 +910,13 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         if !include_payload {
             eprintln!("skip content: {:?}", self.full_path());
-            self.write_header(CA_FORMAT_PAYLOAD, 0)?;
+            self.write_header(PXAR_PAYLOAD, 0)?;
             return Ok(());
         }
 
         let size = stat.st_size as u64;
 
-        self.write_header(CA_FORMAT_PAYLOAD, size)?;
+        self.write_header(PXAR_PAYLOAD, size)?;
 
         let mut pos: u64 = 0;
         loop {
@@ -960,8 +960,8 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         //println!("encode_device: {:?} {} {} {}", self.full_path(), stat.st_rdev, major, minor);
 
-        self.write_header(CA_FORMAT_DEVICE, std::mem::size_of::<CaFormatDevice>() as u64)?;
-        self.write_item(CaFormatDevice { major, minor })?;
+        self.write_header(PXAR_DEVICE, std::mem::size_of::<PxarDevice>() as u64)?;
+        self.write_item(PxarDevice { major, minor })?;
 
         Ok(())
     }
@@ -983,7 +983,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         let entry = self.create_entry(&stat)?;
         self.write_entry(entry)?;
 
-        self.write_header(CA_FORMAT_SYMLINK, target.len() as u64)?;
+        self.write_header(PXAR_SYMLINK, target.len() as u64)?;
         self.write(target)?;
 
         Ok(())
@@ -1041,12 +1041,12 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         if !include_payload {
             eprintln!("skip content: {:?}", self.full_path());
-            self.write_header(CA_FORMAT_PAYLOAD, 0)?;
+            self.write_header(PXAR_PAYLOAD, 0)?;
             return Ok(());
         }
 
         let size = content.len();
-        self.write_header(CA_FORMAT_PAYLOAD, size as u64)?;
+        self.write_header(PXAR_PAYLOAD, size as u64)?;
         self.writer.write_all(content)?;
         self.writer_pos += size;
 

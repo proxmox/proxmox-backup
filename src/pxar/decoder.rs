@@ -17,7 +17,7 @@ pub struct CaDirectoryEntry {
     start: u64,
     end: u64,
     pub filename: OsString,
-    pub entry: CaFormatEntry,
+    pub entry: PxarEntry,
 }
 
 // This one needs Read+Seek
@@ -27,7 +27,7 @@ pub struct Decoder<'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
     root_end: u64,
 }
 
-const HEADER_SIZE: u64 = std::mem::size_of::<CaFormatHeader>() as u64;
+const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
 impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
@@ -47,7 +47,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
             start: self.root_start,
             end: self.root_end,
             filename: OsString::new(), // Empty
-            entry: CaFormatEntry {
+            entry: PxarEntry {
                 mode: 0,
                 flags: 0,
                 uid: 0,
@@ -80,9 +80,9 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
         self.seek(SeekFrom::Start(start))?;
 
-        let head: CaFormatHeader = self.inner.read_item()?;
+        let head: PxarHeader = self.inner.read_item()?;
 
-        if head.htype != CA_FORMAT_FILENAME {
+        if head.htype != PXAR_FILENAME {
             bail!("wrong filename header type for object [{}..{}]", start, end);
         }
 
@@ -90,9 +90,9 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
         let filename = self.inner.read_filename(head.size)?;
 
-        let head: CaFormatHeader = self.inner.read_item()?;
-        check_ca_header::<CaFormatEntry>(&head, CA_FORMAT_ENTRY)?;
-        let entry: CaFormatEntry = self.inner.read_item()?;
+        let head: PxarHeader = self.inner.read_item()?;
+        check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.inner.read_item()?;
 
         Ok(CaDirectoryEntry {
             start: entry_start,
@@ -104,7 +104,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
     pub fn list_dir(&mut self, dir: &CaDirectoryEntry) -> Result<Vec<CaDirectoryEntry>, Error> {
 
-        const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<CaFormatGoodbyeItem>() as u64;
+        const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
         let start = dir.start;
         let end = dir.end;
@@ -117,9 +117,9 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
         self.seek(SeekFrom::Start(end - GOODBYE_ITEM_SIZE))?;
 
-        let item: CaFormatGoodbyeItem = self.inner.read_item()?;
+        let item: PxarGoodbyeItem = self.inner.read_item()?;
 
-        if item.hash != CA_FORMAT_GOODBYE_TAIL_MARKER {
+        if item.hash != PXAR_GOODBYE_TAIL_MARKER {
             bail!("missing goodbye tail marker for object [{}..{}]", start, end);
         }
 
@@ -141,9 +141,9 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         }
 
         self.seek(SeekFrom::Start(goodbye_start))?;
-        let head: CaFormatHeader = self.inner.read_item()?;
+        let head: PxarHeader = self.inner.read_item()?;
 
-        if head.htype != CA_FORMAT_GOODBYE {
+        if head.htype != PXAR_GOODBYE {
             bail!("wrong goodbye table header type for entry [{}..{}]", start, end);
         }
 
@@ -154,7 +154,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         let mut range_list = Vec::new();
 
         for i in 0..goodbye_inner_size/GOODBYE_ITEM_SIZE {
-            let item: CaFormatGoodbyeItem = self.inner.read_item()?;
+            let item: PxarGoodbyeItem = self.inner.read_item()?;
 
             if item.offset > (goodbye_start - start) {
                 bail!("goodbye entry {} offset out of range [{}..{}] {} {} {}",

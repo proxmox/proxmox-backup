@@ -7,7 +7,7 @@ use nix::errno::Errno;
 
 use proxmox::tools::vec;
 
-use crate::pxar::{CaFormatXAttr, CaFormatFCaps};
+use crate::pxar::{PxarXAttr, PxarFCaps};
 
 pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
     // Initial buffer size for the attribute list, if content does not fit
@@ -64,7 +64,7 @@ pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
     Ok(buffer)
 }
 
-pub fn fsetxattr(fd: RawFd, xattr: &CaFormatXAttr) -> Result<(), nix::errno::Errno> {
+pub fn fsetxattr(fd: RawFd, xattr: &PxarXAttr) -> Result<(), nix::errno::Errno> {
     let mut name = xattr.name.clone();
     name.push('\0' as u8);
     let flags = 0 as libc::c_int;
@@ -79,7 +79,7 @@ pub fn fsetxattr(fd: RawFd, xattr: &CaFormatXAttr) -> Result<(), nix::errno::Err
     Ok(())
 }
 
-pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &CaFormatFCaps) -> Result<(), nix::errno::Errno> {
+pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &PxarFCaps) -> Result<(), nix::errno::Errno> {
     // TODO casync checks and removes capabilities if they are set
     let name = b"security.capability\0";
     let flags = 0 as libc::c_int;
@@ -129,22 +129,22 @@ mod tests {
 
         let fd = file.as_raw_fd();
 
-        let valid_user = CaFormatXAttr {
+        let valid_user = PxarXAttr {
             name: b"user.attribute0".to_vec(),
             value: b"value0".to_vec(),
         };
 
-        let valid_empty_value = CaFormatXAttr {
+        let valid_empty_value = PxarXAttr {
             name: b"user.empty".to_vec(),
             value: Vec::new(),
         };
 
-        let invalid_trusted = CaFormatXAttr {
+        let invalid_trusted = PxarXAttr {
             name: b"trusted.attribute0".to_vec(),
             value: b"value0".to_vec(),
         };
 
-        let invalid_name_prefix = CaFormatXAttr {
+        let invalid_name_prefix = PxarXAttr {
             name: b"users.attribte0".to_vec(),
             value: b"value".to_vec(),
         };
@@ -154,7 +154,7 @@ mod tests {
             name.push(b'a');
         }
 
-        let invalid_name_length = CaFormatXAttr {
+        let invalid_name_length = PxarXAttr {
             name: name,
             value: b"err".to_vec(),
         };

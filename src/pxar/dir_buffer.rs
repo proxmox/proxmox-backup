@@ -12,7 +12,7 @@ use nix::NixPath;
 
 pub struct PxarDir {
     pub filename: OsString,
-    pub entry: CaFormatEntry,
+    pub entry: PxarEntry,
     pub attr: PxarAttributes,
     pub dir: Option<nix::dir::Dir>,
 }
@@ -23,7 +23,7 @@ pub struct PxarDirBuf {
 }
 
 impl PxarDir {
-    pub fn new(filename: &OsStr, entry: CaFormatEntry, attr: PxarAttributes) -> Self {
+    pub fn new(filename: &OsStr, entry: PxarEntry, attr: PxarAttributes) -> Self {
         Self {
             filename: filename.to_os_string(),
             entry,
