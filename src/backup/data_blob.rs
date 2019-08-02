@@ -62,6 +62,7 @@ impl DataBlob {
         Ok(())
     }
 
+    /// Create a DataBlob, optionally compressed and/or encrypted
     pub fn encode(
         data: &[u8],
         config: Option<&CryptConfig>,
@@ -174,9 +175,70 @@ impl DataBlob {
             } else {
                 bail!("unable to decrypt blob - missing CryptConfig");
             }
+        } else if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 || magic == &AUTHENTICATED_BLOB_MAGIC_1_0 {
+            let header_len = std::mem::size_of::<AuthenticatedDataBlobHeader>();
+            let head = unsafe {
+                (&self.raw_data[..header_len]).read_le_value::<AuthenticatedDataBlobHeader>()?
+            };
+
+            let data_start = std::mem::size_of::<AuthenticatedDataBlobHeader>();
+
+            // Note: only verify if we have a crypt config
+            if let Some(config) = config  {
+                let signature = config.compute_auth_tag(&self.raw_data[data_start..]);
+                if signature != head.tag {
+                    bail!("verifying blob signature failed");
+                }
+            }
+
+            if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 {
+                let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
+                return Ok(data);
+            } else {
+                return Ok(self.raw_data[data_start..].to_vec());
+            }
         } else {
             bail!("Invalid blob magic number.");
         }
+    }
+
+    /// Create a signed DataBlob, optionally compressed
+    pub fn create_signed(
+        data: &[u8],
+        config: &CryptConfig,
+        compress: bool,
+    ) -> Result<Self, Error> {
+
+        if data.len() > 16*1024*1024 {
+            bail!("data blob too large ({} bytes).", data.len());
+        }
+
+        let compr_data;
+        let (_compress, data, magic) = if compress {
+            compr_data = zstd::block::compress(data, 1)?;
+            // Note: We only use compression if result is shorter
+            if compr_data.len() < data.len() {
+                (true, &compr_data[..], AUTH_COMPR_BLOB_MAGIC_1_0)
+            } else {
+                (false, data, AUTHENTICATED_BLOB_MAGIC_1_0)
+            }
+        } else {
+            (false, data, AUTHENTICATED_BLOB_MAGIC_1_0)
+        };
+
+        let header_len = std::mem::size_of::<AuthenticatedDataBlobHeader>();
+        let mut raw_data = Vec::with_capacity(data.len() + header_len);
+
+        let head = AuthenticatedDataBlobHeader {
+            head: DataBlobHeader { magic, crc: [0; 4] },
+            tag: config.compute_auth_tag(data),
+        };
+        unsafe {
+            raw_data.write_le_value(head)?;
+        }
+        raw_data.extend_from_slice(data);
+
+        return Ok(DataBlob { raw_data });
     }
 
     /// Create Instance from raw data
@@ -198,6 +260,14 @@ impl DataBlob {
 
             Ok(blob)
         } else if magic == COMPRESSED_BLOB_MAGIC_1_0 || magic == UNCOMPRESSED_BLOB_MAGIC_1_0 {
+
+            let blob = DataBlob { raw_data: data };
+
+            Ok(blob)
+        } else if magic == AUTH_COMPR_BLOB_MAGIC_1_0 || magic == AUTHENTICATED_BLOB_MAGIC_1_0 {
+            if data.len() < std::mem::size_of::<AuthenticatedDataBlobHeader>() {
+                bail!("authenticated blob too small ({} bytes).", data.len());
+            }
 
             let blob = DataBlob { raw_data: data };
 
