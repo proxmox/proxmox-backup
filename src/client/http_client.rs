@@ -597,6 +597,7 @@ impl BackupClient {
         file_name: &str,
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
+        sign_only: bool,
      ) -> impl Future<Item=BackupStats, Error=Error> {
 
         let h2 = self.h2.clone();
@@ -606,7 +607,11 @@ impl BackupClient {
         futures::future::ok(())
             .and_then(move |_| {
                 let blob = if let Some(ref crypt_config) = crypt_config {
-                    DataBlob::encode(&data, Some(crypt_config), compress)?
+                    if sign_only {
+                        DataBlob::create_signed(&data, crypt_config, compress)?
+                    } else {
+                        DataBlob::encode(&data, Some(crypt_config), compress)?
+                    }
                 } else {
                     DataBlob::encode(&data, None, compress)?
                 };

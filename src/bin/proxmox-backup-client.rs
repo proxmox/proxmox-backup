@@ -626,7 +626,7 @@ fn create_backup(
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
         let target = "rsa-encrypted.key";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
-        let stats = client.upload_blob_from_data(rsa_encrypted_key, target, None, false).wait()?;
+        let stats = client.upload_blob_from_data(rsa_encrypted_key, target, None, false, false).wait()?;
         file_list.push((target.to_owned(), stats));
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
@@ -657,7 +657,7 @@ fn create_backup(
 
     println!("Upload index.json to '{:?}'", repo);
     let index_data = serde_json::to_string_pretty(&index)?.into();
-    client.upload_blob_from_data(index_data, "index.json", crypt_config.clone(), true).wait()?;
+    client.upload_blob_from_data(index_data, "index.json", crypt_config.clone(), true, true).wait()?;
 
     client.finish().wait()?;
 
