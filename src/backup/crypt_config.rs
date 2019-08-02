@@ -62,6 +62,19 @@ impl CryptConfig {
         digest
     }
 
+    /// Compute authentication tag (hmac/sha256)
+    ///
+    /// Computes an SHA256 HMAC using some secret data (derived
+    /// from the secret key) and the provided data.
+    pub fn compute_auth_tag(&self, data: &[u8]) -> [u8; 32] {
+        let key = openssl::pkey::PKey::hmac(&self.id_key).unwrap();
+        let mut signer = openssl::sign::Signer::new(MessageDigest::sha256(), &key).unwrap();
+        signer.update(data).unwrap();
+        let mut tag = [0u8; 32];
+        signer.sign(&mut tag).unwrap();
+        tag
+    }
+
     /// Encrypt data using a random 16 byte IV.
     ///
     /// Writes encrypted data to ``output``, Return the used IV and computed MAC.
