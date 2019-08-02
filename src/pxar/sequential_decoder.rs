@@ -5,6 +5,7 @@
 use failure::*;
 use endian_trait::Endian;
 
+use super::flags;
 use super::format_definition::*;
 use super::exclude_pattern::*;
 use super::dir_buffer::*;
@@ -186,63 +187,63 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         loop {
             match head.htype {
                 CA_FORMAT_XATTR => {
-                    if self.has_features(CA_FORMAT_WITH_XATTRS) {
+                    if self.has_features(flags::WITH_XATTRS) {
                         attr.xattrs.push(self.read_xattr(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_FCAPS => {
-                    if self.has_features(CA_FORMAT_WITH_FCAPS) {
+                    if self.has_features(flags::WITH_FCAPS) {
                         attr.fcaps = Some(self.read_fcaps(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_USER => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_user.push(self.read_item::<CaFormatACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_GROUP => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_group.push(self.read_item::<CaFormatACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_GROUP_OBJ => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_group_obj = Some(self.read_item::<CaFormatACLGroupObj>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_default = Some(self.read_item::<CaFormatACLDefault>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT_USER => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_default_user.push(self.read_item::<CaFormatACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_ACL_DEFAULT_GROUP => {
-                    if self.has_features(CA_FORMAT_WITH_ACL) {
+                    if self.has_features(flags::WITH_ACL) {
                         attr.acl_default_group.push(self.read_item::<CaFormatACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
                 },
                 CA_FORMAT_QUOTA_PROJID => {
-                    if self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+                    if self.has_features(flags::WITH_QUOTA_PROJID) {
                         attr.quota_projid = Some(self.read_item::<CaFormatQuotaProjID>()?);
                     } else {
                         self.skip_bytes(size)?;
@@ -508,7 +509,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        if !self.has_features(CA_FORMAT_WITH_SOCKETS) {
+        if !self.has_features(flags::WITH_SOCKETS) {
             return Ok(());
         }
         if let Some(fd) = parent_fd {
@@ -527,7 +528,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         entry: &CaFormatEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        if !self.has_features(CA_FORMAT_WITH_FIFOS) {
+        if !self.has_features(flags::WITH_FIFOS) {
             return Ok(());
         }
         if let Some(fd) = parent_fd {
@@ -551,7 +552,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
             bail!("got unknown header type inside device entry {:016x}", head.htype);
         }
         let device: CaFormatDevice = self.read_item()?;
-        if !self.has_features(CA_FORMAT_WITH_DEVICE_NODES) {
+        if !self.has_features(flags::WITH_DEVICE_NODES) {
             return Ok(());
         }
         if let Some(fd) = parent_fd {
@@ -932,55 +933,55 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         match header.htype {
             CA_FORMAT_XATTR => {
                 let xattr = self.read_xattr((header.size - HEADER_SIZE) as usize)?;
-                if verbose && self.has_features(CA_FORMAT_WITH_XATTRS) {
+                if verbose && self.has_features(flags::WITH_XATTRS) {
                     println!("XAttr: {:?}", xattr);
                 }
             },
             CA_FORMAT_FCAPS => {
                 let fcaps = self.read_fcaps((header.size - HEADER_SIZE) as usize)?;
-                if verbose && self.has_features(CA_FORMAT_WITH_FCAPS) {
+                if verbose && self.has_features(flags::WITH_FCAPS) {
                     println!("FCaps: {:?}", fcaps);
                 }
             },
             CA_FORMAT_ACL_USER => {
                 let user = self.read_item::<CaFormatACLUser>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLUser: {:?}", user);
                 }
             },
             CA_FORMAT_ACL_GROUP => {
                 let group = self.read_item::<CaFormatACLGroup>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroup: {:?}", group);
                 }
             },
             CA_FORMAT_ACL_GROUP_OBJ => {
                 let group_obj = self.read_item::<CaFormatACLGroupObj>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroupObj: {:?}", group_obj);
                 }
             },
             CA_FORMAT_ACL_DEFAULT => {
                 let default = self.read_item::<CaFormatACLDefault>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefault: {:?}", default);
                 }
             },
             CA_FORMAT_ACL_DEFAULT_USER => {
                 let default_user = self.read_item::<CaFormatACLUser>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultUser: {:?}", default_user);
                 }
             },
             CA_FORMAT_ACL_DEFAULT_GROUP => {
                 let default_group = self.read_item::<CaFormatACLGroup>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_ACL) {
+                if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultGroup: {:?}", default_group);
                 }
             },
             CA_FORMAT_QUOTA_PROJID => {
                 let quota_projid = self.read_item::<CaFormatQuotaProjID>()?;
-                if verbose && self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+                if verbose && self.has_features(flags::WITH_QUOTA_PROJID) {
                     println!("Quota project id: {:?}", quota_projid);
                 }
             },

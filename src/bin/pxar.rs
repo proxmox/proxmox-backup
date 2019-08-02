@@ -44,7 +44,7 @@ fn dump_archive(
     let archive = tools::required_string_param(&param, "archive")?;
     let verbose = param["verbose"].as_bool().unwrap_or(false);
 
-    let feature_flags = pxar::CA_FORMAT_DEFAULT;
+    let feature_flags = pxar::flags::DEFAULT;
 
     if archive == "-" {
         let stdin = std::io::stdin();
@@ -102,24 +102,24 @@ fn extract_archive(
     let empty = Vec::new();
     let arg_pattern = param["pattern"].as_array().unwrap_or(&empty);
 
-    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    let mut feature_flags = pxar::flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+        feature_flags ^= pxar::flags::WITH_XATTRS;
     }
     if no_fcaps {
-        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+        feature_flags ^= pxar::flags::WITH_FCAPS;
     }
     if no_acls {
-        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
+        feature_flags ^= pxar::flags::WITH_ACL;
     }
     if no_device_nodes {
-        feature_flags ^= pxar::CA_FORMAT_WITH_DEVICE_NODES;
+        feature_flags ^= pxar::flags::WITH_DEVICE_NODES;
     }
     if no_fifos {
-        feature_flags ^= pxar::CA_FORMAT_WITH_FIFOS;
+        feature_flags ^= pxar::flags::WITH_FIFOS;
     }
     if no_sockets {
-        feature_flags ^= pxar::CA_FORMAT_WITH_SOCKETS;
+        feature_flags ^= pxar::flags::WITH_SOCKETS;
     }
 
     let mut pattern_list = Vec::new();
@@ -188,24 +188,24 @@ fn create_archive(
         .open(archive)?;
 
     let mut writer = std::io::BufWriter::with_capacity(1024*1024, file);
-    let mut feature_flags = pxar::CA_FORMAT_DEFAULT;
+    let mut feature_flags = pxar::flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= pxar::CA_FORMAT_WITH_XATTRS;
+        feature_flags ^= pxar::flags::WITH_XATTRS;
     }
     if no_fcaps {
-        feature_flags ^= pxar::CA_FORMAT_WITH_FCAPS;
+        feature_flags ^= pxar::flags::WITH_FCAPS;
     }
     if no_acls {
-        feature_flags ^= pxar::CA_FORMAT_WITH_ACL;
+        feature_flags ^= pxar::flags::WITH_ACL;
     }
     if no_device_nodes {
-        feature_flags ^= pxar::CA_FORMAT_WITH_DEVICE_NODES;
+        feature_flags ^= pxar::flags::WITH_DEVICE_NODES;
     }
     if no_fifos {
-        feature_flags ^= pxar::CA_FORMAT_WITH_FIFOS;
+        feature_flags ^= pxar::flags::WITH_FIFOS;
     }
     if no_sockets {
-        feature_flags ^= pxar::CA_FORMAT_WITH_SOCKETS;
+        feature_flags ^= pxar::flags::WITH_SOCKETS;
     }
 
     pxar::Encoder::encode(source, &mut dir, &mut writer, devices, verbose, false, feature_flags)?;

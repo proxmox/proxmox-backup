@@ -799,7 +799,7 @@ fn restore(
 
         if let Some(target) = target {
 
-            let feature_flags = pxar::CA_FORMAT_DEFAULT;
+            let feature_flags = pxar::flags::DEFAULT;
             let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
                 if verbose {
                     println!("{:?}", path);

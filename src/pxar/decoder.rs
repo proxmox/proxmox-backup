@@ -36,7 +36,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         let root_end = reader.seek(SeekFrom::End(0))?;
 
         Ok(Self {
-            inner: SequentialDecoder::new(reader, CA_FORMAT_DEFAULT, callback),
+            inner: SequentialDecoder::new(reader, super::flags::DEFAULT, callback),
             root_start: 0,
             root_end: root_end,
         })

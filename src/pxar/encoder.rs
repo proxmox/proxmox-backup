@@ -6,6 +6,7 @@ use failure::*;
 use endian_trait::Endian;
 use std::collections::{HashSet, HashMap};
 
+use super::flags;
 use super::format_definition::*;
 use super::binary_search_tree::*;
 use super::helper::*;
@@ -110,7 +111,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             bail!("backup virtual file systems is disabled!");
         }
 
-        let fs_feature_flags = feature_flags_from_magic(magic);
+        let fs_feature_flags = flags::feature_flags_from_magic(magic);
 
         let mut me = Self {
             base_path: path,
@@ -217,7 +218,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             bail!("read_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
 
-        let flags = ca_feature_flags_from_chattr(attr as u32);
+        let flags = flags::feature_flags_from_chattr(attr as u32);
         entry.flags = entry.flags | flags;
 
         Ok(())
@@ -240,7 +241,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             bail!("read_fat_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
 
-        let flags = ca_feature_flags_from_fat_attr(attr);
+        let flags = flags::feature_flags_from_fat_attr(attr);
         entry.flags = entry.flags | flags;
 
         Ok(())
@@ -260,7 +261,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
 
-        let flags = CA_FORMAT_WITH_XATTRS | CA_FORMAT_WITH_FCAPS;
+        let flags = flags::WITH_XATTRS | flags::WITH_FCAPS;
         if !self.has_some_features(flags) {
             return Ok((xattrs, fcaps));
         }
@@ -292,13 +293,13 @@ impl <'a, W: Write> Encoder<'a, W> {
             };
 
             if xattr::is_security_capability(&name) {
-                if self.has_features(CA_FORMAT_WITH_FCAPS) {
+                if self.has_features(flags::WITH_FCAPS) {
                     // fcaps are stored in own format within the archive
                     fcaps = Some(CaFormatFCaps {
                         data: value,
                     });
                 }
-            } else if self.has_features(CA_FORMAT_WITH_XATTRS) {
+            } else if self.has_features(flags::WITH_XATTRS) {
                 xattrs.push(CaFormatXAttr {
                     name: name.to_vec(),
                     value: value,
@@ -318,7 +319,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             default: None,
         };
 
-        if !self.has_features(CA_FORMAT_WITH_ACL) {
+        if !self.has_features(flags::WITH_ACL) {
             return Ok(ret);
         }
         if is_symlink(&stat) {
@@ -427,7 +428,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         if !(is_directory(&stat) || is_reg_file(&stat)) {
             return Ok(None);
         }
-        if !self.has_features(CA_FORMAT_WITH_QUOTA_PROJID) {
+        if !self.has_features(flags::WITH_QUOTA_PROJID) {
             return Ok(None);
         }
 
@@ -598,7 +599,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         // for each node in the directory tree, the filesystem features are
         // checked based on the fs magic number.
-        self.fs_feature_flags = feature_flags_from_magic(magic);
+        self.fs_feature_flags = flags::feature_flags_from_magic(magic);
 
         let (xattrs, fcaps) = self.read_xattrs(rawfd, &dir_stat)?;
         let acl_access = self.read_acl(rawfd, &dir_stat, acl::ACL_TYPE_ACCESS)?;
@@ -815,21 +816,21 @@ impl <'a, W: Write> Encoder<'a, W> {
                     Err(err) => bail!("readlink {:?} failed - {}", self.full_path(), err),
                 }
             } else if is_block_dev(&stat) || is_char_dev(&stat) {
-                if self.has_features(CA_FORMAT_WITH_DEVICE_NODES) {
+                if self.has_features(flags::WITH_DEVICE_NODES) {
                     self.write_filename(&filename)?;
                     self.encode_device(&stat)?;
                 } else {
                     eprintln!("skip device node: {:?}", self.full_path());
                 }
             } else if is_fifo(&stat) {
-                if self.has_features(CA_FORMAT_WITH_FIFOS) {
+                if self.has_features(flags::WITH_FIFOS) {
                     self.write_filename(&filename)?;
                     self.encode_special(&stat)?;
                 } else {
                     eprintln!("skip fifo: {:?}", self.full_path());
                 }
             } else if is_socket(&stat) {
-                if self.has_features(CA_FORMAT_WITH_SOCKETS) {
+                if self.has_features(flags::WITH_SOCKETS) {
                     self.write_filename(&filename)?;
                     self.encode_special(&stat)?;
                 } else {
