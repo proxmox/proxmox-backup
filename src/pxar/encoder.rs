@@ -198,8 +198,8 @@ impl <'a, W: Write> Encoder<'a, W> {
         let entry = PxarEntry {
             mode: mode,
             flags: 0,
-            uid: stat.st_uid as u64,
-            gid: stat.st_gid as u64,
+            uid: stat.st_uid,
+            gid: stat.st_gid,
             mtime: mtime as u64,
         };
 

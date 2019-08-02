@@ -378,8 +378,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
 
     fn restore_ugid(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
 
-        let uid = entry.uid as u32;
-        let gid = entry.gid as u32;
+        let uid = entry.uid;
+        let gid = entry.gid;
 
         let res = unsafe { libc::fchown(fd, uid, gid) };
         Errno::result(res)?;

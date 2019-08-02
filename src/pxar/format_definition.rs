@@ -51,8 +51,8 @@ pub struct PxarHeader {
 pub struct PxarEntry {
     pub mode: u64,
     pub flags: u64,
-    pub uid: u64,
-    pub gid: u64,
+    pub uid: u32,
+    pub gid: u32,
     pub mtime: u64,
 }
 
