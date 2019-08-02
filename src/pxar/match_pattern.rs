@@ -5,12 +5,14 @@ use std::os::unix::io::{FromRawFd, RawFd};
 
 use failure::*;
 use libc::{c_char, c_int};
-use nix::fcntl::OFlag;
+use nix::fcntl;
+use nix::fcntl::{AtFlags, OFlag};
 use nix::errno::Errno;
 use nix::NixPath;
+use nix::sys::stat;
 use nix::sys::stat::{FileStat, Mode};
 
-pub const FNM_NOMATCH:  c_int = 1;
+pub const FNM_NOMATCH: c_int = 1;
 
 extern "C" {
     fn fnmatch(pattern: *const c_char, string: *const c_char, flags: c_int) -> c_int;
@@ -19,29 +21,33 @@ extern "C" {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MatchType {
     None,
-    Exclude,
-    Include,
-    PartialExclude,
-    PartialInclude,
+    Positive,
+    Negative,
+    PartialPositive,
+    PartialNegative,
 }
 
 #[derive(Clone)]
-pub struct PxarExcludePattern {
+pub struct MatchPattern {
     pattern: CString,
-    match_exclude: bool,
+    match_positive: bool,
     match_dir_only: bool,
     split_pattern: (CString, CString),
 }
 
-impl PxarExcludePattern {
-    pub fn from_file<P: ?Sized + NixPath>(parent_fd: RawFd, filename: &P) -> Result<Option<(Vec<PxarExcludePattern>, Vec<u8>, FileStat)>, Error> {
-        let stat = match nix::sys::stat::fstatat(parent_fd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+impl MatchPattern {
+    pub fn from_file<P: ?Sized + NixPath>(
+        parent_fd: RawFd,
+        filename: &P,
+    ) -> Result<Option<(Vec<MatchPattern>, Vec<u8>, FileStat)>, Error> {
+
+        let stat = match stat::fstatat(parent_fd, filename, AtFlags::AT_SYMLINK_NOFOLLOW) {
             Ok(stat) => stat,
             Err(nix::Error::Sys(Errno::ENOENT)) => return Ok(None),
             Err(err) => bail!("stat failed - {}", err),
         };
 
-        let filefd = nix::fcntl::openat(parent_fd, filename, OFlag::O_NOFOLLOW, Mode::empty())?;
+        let filefd = fcntl::openat(parent_fd, filename, OFlag::O_NOFOLLOW, Mode::empty())?;
         let mut file = unsafe {
             File::from_raw_fd(filefd)
         };
@@ -49,27 +55,27 @@ impl PxarExcludePattern {
         let mut content_buffer = Vec::new();
         let _bytes = file.read_to_end(&mut content_buffer)?;
 
-        let mut exclude_pattern = Vec::new();
+        let mut match_pattern = Vec::new();
         for line in content_buffer.split(|&c| c == b'\n') {
             if line.is_empty() {
                 continue;
             }
             if let Some(pattern) = Self::from_line(line)? {
-                exclude_pattern.push(pattern);
+                match_pattern.push(pattern);
             }
         }
 
-        Ok(Some((exclude_pattern, content_buffer, stat)))
+        Ok(Some((match_pattern, content_buffer, stat)))
     }
 
-    pub fn from_line(line: &[u8]) -> Result<Option<PxarExcludePattern>, Error> {
+    pub fn from_line(line: &[u8]) -> Result<Option<MatchPattern>, Error> {
         let mut input = line;
 
         if input.starts_with(b"#") {
             return Ok(None);
         }
 
-        let match_exclude = if input.starts_with(b"!") {
+        let match_positive = if input.starts_with(b"!") {
             // Reduce slice view to exclude "!"
             input = &input[1..];
             false
@@ -100,36 +106,36 @@ impl PxarExcludePattern {
         let pattern = CString::new(input)?;
         let split_pattern = split_at_slash(&pattern);
 
-        Ok(Some(PxarExcludePattern {
+        Ok(Some(MatchPattern {
             pattern,
-            match_exclude,
+            match_positive,
             match_dir_only,
             split_pattern,
         }))
     }
 
-    pub fn get_front_pattern(&self) -> PxarExcludePattern {
+    pub fn get_front_pattern(&self) -> MatchPattern {
         let pattern = split_at_slash(&self.split_pattern.0);
-        PxarExcludePattern {
+        MatchPattern {
             pattern: self.split_pattern.0.clone(),
-            match_exclude: self.match_exclude,
+            match_positive: self.match_positive,
             match_dir_only: self.match_dir_only,
             split_pattern: pattern,
         }
     }
 
-    pub fn get_rest_pattern(&self) -> PxarExcludePattern {
+    pub fn get_rest_pattern(&self) -> MatchPattern {
         let pattern = split_at_slash(&self.split_pattern.1);
-        PxarExcludePattern {
+        MatchPattern {
             pattern: self.split_pattern.1.clone(),
-            match_exclude: self.match_exclude,
+            match_positive: self.match_positive,
             match_dir_only: self.match_dir_only,
             split_pattern: pattern,
         }
     }
 
     pub fn dump(&self) {
-        match (self.match_exclude, self.match_dir_only) {
+        match (self.match_positive, self.match_dir_only) {
             (true, true) => println!("{:#?}/", self.pattern),
             (true, false) => println!("{:#?}", self.pattern),
             (false, true) => println!("!{:#?}/", self.pattern),
@@ -142,14 +148,16 @@ impl PxarExcludePattern {
         let (front, _) = &self.split_pattern;
 
         let fnmatch_res = unsafe {
-            fnmatch(front.as_ptr() as *const libc::c_char, filename.as_ptr() as *const libc::c_char, 0)
+            let front_ptr = front.as_ptr() as *const libc::c_char;
+            let filename_ptr = filename.as_ptr() as *const libc::c_char;
+            fnmatch(front_ptr, filename_ptr , 0)
         };
         // TODO error cases
         if fnmatch_res == 0 {
-            res = if self.match_exclude {
-                MatchType::PartialExclude
+            res = if self.match_positive {
+                MatchType::PartialPositive
             } else {
-                MatchType::PartialInclude
+                MatchType::PartialNegative
             };
         }
 
@@ -159,14 +167,16 @@ impl PxarExcludePattern {
             CString::new(&self.pattern.to_bytes()[..]).unwrap()
         };
         let fnmatch_res = unsafe {
-            fnmatch(full.as_ptr() as *const libc::c_char, filename.as_ptr() as *const libc::c_char, 0)
+            let full_ptr = full.as_ptr() as *const libc::c_char;
+            let filename_ptr = filename.as_ptr() as *const libc::c_char;
+            fnmatch(full_ptr, filename_ptr, 0)
         };
         // TODO error cases
         if fnmatch_res == 0 {
-            res = if self.match_exclude {
-                MatchType::Exclude
+            res = if self.match_positive {
+                MatchType::Positive
             } else {
-                MatchType::Include
+                MatchType::Negative
             };
         }
 
@@ -174,7 +184,7 @@ impl PxarExcludePattern {
             res = MatchType::None;
         }
 
-        if !is_dir && (res == MatchType::PartialInclude || res == MatchType::PartialExclude) {
+        if !is_dir && (res == MatchType::PartialPositive || res == MatchType::PartialNegative) {
             res = MatchType::None;
         }
 

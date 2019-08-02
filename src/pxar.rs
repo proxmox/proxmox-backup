@@ -65,8 +65,8 @@ pub use sequential_decoder::*;
 mod decoder;
 pub use decoder::*;
 
-mod exclude_pattern;
-pub use exclude_pattern::*;
+mod match_pattern;
+pub use match_pattern::*;
 
 mod dir_stack;
 pub use dir_stack::*;

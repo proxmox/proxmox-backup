@@ -7,7 +7,7 @@ use endian_trait::Endian;
 
 use super::flags;
 use super::format_definition::*;
-use super::exclude_pattern::*;
+use super::match_pattern::*;
 use super::dir_stack::*;
 
 use std::io::{Read, Write};
@@ -630,14 +630,14 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         entry: PxarEntry,
         filename: &OsStr,
         matched: MatchType,
-        match_pattern: &Vec<PxarExcludePattern>,
+        match_pattern: &Vec<MatchPattern>,
     ) -> Result<(), Error> {
         let (mut head, attr) = self.read_attributes()
             .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
 
         let dir = PxarDir::new(filename, entry, attr);
         dirs.push(dir);
-        if matched == MatchType::Include {
+        if matched == MatchType::Positive {
             dirs.create_all_dirs(!self.allow_existing_dirs)?;
         }
 
@@ -674,7 +674,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     pub fn restore(
         &mut self,
         path: &Path,
-        match_pattern: &Vec<PxarExcludePattern>
+        match_pattern: &Vec<MatchPattern>
     ) -> Result<(), Error> {
 
         let _ = std::fs::create_dir(path);
@@ -685,7 +685,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         let mut dirs = PxarDirStack::new(fd);
         // An empty match pattern list indicates to restore the full archive.
         let matched = if match_pattern.len() == 0 {
-            MatchType::Include
+            MatchType::Positive
         } else {
             MatchType::None
         };
@@ -725,7 +725,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         dirs: &mut PxarDirStack,
         filename: &OsStr,
         parent_matched: MatchType,
-        match_pattern: &Vec<PxarExcludePattern>,
+        match_pattern: &Vec<MatchPattern>,
     ) -> Result<(), Error> {
         let relative_path = dirs.as_path_buf();
         let full_path = base_path.join(&relative_path).join(filename);
@@ -751,24 +751,16 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         let mut matched = parent_matched;
         if match_pattern.len() > 0 {
             match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern) {
-                (MatchType::Include, pattern) => {
-                    matched = MatchType::Include;
-                    child_pattern = pattern;
-                },
                 (MatchType::None, _) => matched = MatchType::None,
-                (MatchType::Exclude, _) => matched = MatchType::Exclude,
-                (MatchType::PartialExclude, pattern) => {
-                    matched = MatchType::PartialExclude;
-                    child_pattern = pattern;
-                },
-                (MatchType::PartialInclude, pattern) => {
-                    matched = MatchType::PartialInclude;
+                (MatchType::Negative, _) => matched = MatchType::Negative,
+                (match_type, pattern) => {
+                    matched = match_type;
                     child_pattern = pattern;
                 },
             }
         }
 
-        let fd = if matched == MatchType::Include {
+        let fd = if matched == MatchType::Positive {
             Some(dirs.create_all_dirs(!self.allow_existing_dirs)?)
         } else {
             None
@@ -1037,8 +1029,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
 fn match_filename(
     filename: &OsStr,
     is_dir: bool,
-    match_pattern: &Vec<PxarExcludePattern>
-) ->  (MatchType, Vec<PxarExcludePattern>) {
+    match_pattern: &Vec<MatchPattern>
+) ->  (MatchType, Vec<MatchPattern>) {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
     // read_filename() checks for nul bytes, so it is save to unwrap here
@@ -1047,22 +1039,21 @@ fn match_filename(
     for pattern in match_pattern {
         match pattern.matches_filename(&name, is_dir) {
             MatchType::None =>  {},
-            // The logic is inverted here, since PxarExcludePattern assumes excludes not includes
-            MatchType::Exclude => {
-                match_state = MatchType::Include;
-                let incl_pattern = PxarExcludePattern::from_line(b"**/*").unwrap().unwrap();
+            MatchType::Positive => {
+                match_state = MatchType::Positive;
+                let incl_pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
                 child_pattern.push(incl_pattern.get_rest_pattern());
             },
-            MatchType::Include =>  match_state = MatchType::Exclude,
-            MatchType::PartialExclude =>  {
-                if match_state != MatchType::Include && match_state != MatchType::Exclude {
-                    match_state = MatchType::PartialInclude;
+            MatchType::Negative =>  match_state = MatchType::Negative,
+            MatchType::PartialPositive =>  {
+                if match_state != MatchType::Negative && match_state != MatchType::Positive {
+                    match_state = MatchType::PartialPositive;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
             },
-            MatchType::PartialInclude =>  {
-                if match_state == MatchType::PartialInclude {
-                    match_state = MatchType::PartialExclude;
+            MatchType::PartialNegative =>  {
+                if match_state == MatchType::PartialPositive {
+                    match_state = MatchType::PartialNegative;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
             },

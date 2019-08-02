@@ -66,7 +66,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     feature_flags: u64,
     allow_existing_dirs: bool,
     verbose: bool,
-    pattern: Option<Vec<pxar::PxarExcludePattern>>
+    pattern: Option<Vec<pxar::MatchPattern>>
 ) -> Result<(), Error> {
     let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |path| {
         if verbose {
@@ -125,14 +125,14 @@ fn extract_archive(
     let mut pattern_list = Vec::new();
     if let Some(filename) = files_from {
         let dir = nix::dir::Dir::open("./", nix::fcntl::OFlag::O_RDONLY, nix::sys::stat::Mode::empty())?;
-        if let Some((mut pattern, _, _)) = pxar::PxarExcludePattern::from_file(dir.as_raw_fd(), filename)? {
+        if let Some((mut pattern, _, _)) = pxar::MatchPattern::from_file(dir.as_raw_fd(), filename)? {
             pattern_list.append(&mut pattern);
         }
     }
 
     for s in arg_pattern {
         let l = s.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
-        let p = pxar::PxarExcludePattern::from_line(l.as_bytes())?
+        let p = pxar::MatchPattern::from_line(l.as_bytes())?
             .ok_or_else(|| format_err!("Invalid match pattern in arguments"))?;
         pattern_list.push(p);
     }

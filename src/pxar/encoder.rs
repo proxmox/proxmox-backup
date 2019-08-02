@@ -10,7 +10,7 @@ use super::flags;
 use super::format_definition::*;
 use super::binary_search_tree::*;
 use super::helper::*;
-use super::exclude_pattern::*;
+use super::match_pattern::*;
 use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;
@@ -131,7 +131,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         let mut excludes = Vec::new();
         if skip_lost_and_found {
-            excludes.push(PxarExcludePattern::from_line(b"**/lost+found").unwrap().unwrap());
+            excludes.push(MatchPattern::from_line(b"**/lost+found").unwrap().unwrap());
         }
         me.encode_dir(dir, &stat, magic, excludes)?;
 
@@ -582,7 +582,13 @@ impl <'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
-    fn encode_dir(&mut self, dir: &mut nix::dir::Dir, dir_stat: &FileStat, magic: i64, match_pattern: Vec<PxarExcludePattern>)  -> Result<(), Error> {
+    fn encode_dir(
+        &mut self,
+        dir: &mut nix::dir::Dir,
+        dir_stat: &FileStat,
+        magic: i64,
+        match_pattern: Vec<MatchPattern>,
+    ) -> Result<(), Error> {
 
         //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
@@ -648,7 +654,7 @@ impl <'a, W: Write> Encoder<'a, W> {
 
         // Expand the exclude match pattern inherited from the parent by local entries, if present
         let mut local_match_pattern = match_pattern.clone();
-        let pxar_exclude = match PxarExcludePattern::from_file(rawfd, ".pxarexclude") {
+        let pxar_exclude = match MatchPattern::from_file(rawfd, ".pxarexclude") {
             Ok(Some((mut excludes, buffer, stat))) => {
                 local_match_pattern.append(&mut excludes);
                 Some((buffer, stat))
@@ -679,8 +685,8 @@ impl <'a, W: Write> Encoder<'a, W> {
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
-                match match_exclude_pattern(&filename, &stat, &local_match_pattern) {
-                    (MatchType::Exclude, _) => {
+                match match_filename(&filename, &stat, &local_match_pattern) {
+                    (MatchType::Positive, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         eprintln!("matched by .pxarexclude entry - skipping: {:?}", self.full_path().join(filename_osstr));
                     },
@@ -1063,29 +1069,23 @@ impl <'a, W: Write> Encoder<'a, W> {
     }
 }
 
-// If there is a match, an updated PxarExcludePattern list to pass to the matched child is returned.
-fn match_exclude_pattern(
+// If there is a match, an updated MatchPattern list to pass to the matched child is returned.
+fn match_filename(
     filename: &CStr,
     stat: &FileStat,
-    match_pattern: &Vec<PxarExcludePattern>
-) ->  (MatchType, Vec<PxarExcludePattern>) {
+    match_pattern: &Vec<MatchPattern>
+) ->  (MatchType, Vec<MatchPattern>) {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
 
     for pattern in match_pattern {
         match pattern.matches_filename(filename, is_directory(&stat)) {
             MatchType::None =>  {},
-            MatchType::Exclude =>  match_state = MatchType::Exclude,
-            MatchType::Include =>  match_state = MatchType::Include,
-            MatchType::PartialExclude =>  {
-                if match_state != MatchType::Exclude && match_state != MatchType::Include {
-                    match_state = MatchType::PartialExclude;
-                }
-                child_pattern.push(pattern.get_rest_pattern());
-            },
-            MatchType::PartialInclude =>  {
-                if match_state != MatchType::Exclude && match_state != MatchType::Include {
-                    match_state = MatchType::PartialInclude;
+            MatchType::Positive =>  match_state = MatchType::Positive,
+            MatchType::Negative =>  match_state = MatchType::Negative,
+            match_type => {
+                if match_state != MatchType::Positive && match_state != MatchType::Negative {
+                    match_state = match_type;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
             },
