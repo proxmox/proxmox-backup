@@ -67,8 +67,6 @@ pub const WITH_QUOTA_PROJID: u64                = 0x100000000;
 
 /// Support ".pxarexclude" files
 pub const EXCLUDE_FILE: u64                     = 0x1000000000000000;
-/// the purpose of this flag is still unclear
-pub const SHA512_256: u64                       = 0x2000000000000000;
 /// Exclude submounts
 pub const EXCLUDE_SUBMOUNTS: u64                = 0x4000000000000000;
 /// Exclude entries with chattr flag NODUMP
@@ -137,8 +135,7 @@ pub const DEFAULT: u64 =
     WITH_FCAPS|
     WITH_QUOTA_PROJID|
     EXCLUDE_NODUMP|
-    EXCLUDE_FILE|
-    SHA512_256;
+    EXCLUDE_FILE;
 
 // form /usr/include/linux/fs.h
 const FS_APPEND_FL: u32 =      0x00000020;
