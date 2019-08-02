@@ -107,7 +107,7 @@ impl CryptConfig {
         Ok((iv, tag))
     }
 
-    /// Decompress and decrypt date, verify MAC.
+    /// Decompress and decrypt data, verify MAC.
     pub fn decode_compressed_chunk(
         &self,
         data: &[u8],
