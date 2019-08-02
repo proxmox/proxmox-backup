@@ -179,7 +179,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     }
 
     fn read_attributes(&mut self) -> Result<(CaFormatHeader, PxarAttributes), Error> {
-        let mut attr = PxarAttributes::new();
+        let mut attr = PxarAttributes::default();
         let mut head: CaFormatHeader = self.read_item()?;
         let mut size = (head.size - HEADER_SIZE) as usize;
         loop {
