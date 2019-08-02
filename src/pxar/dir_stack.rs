@@ -17,7 +17,7 @@ pub struct PxarDir {
     pub dir: Option<nix::dir::Dir>,
 }
 
-pub struct PxarDirBuf {
+pub struct PxarDirStack {
     root: RawFd,
     data: Vec<PxarDir>,
 }
@@ -56,7 +56,7 @@ impl PxarDir {
     }
 }
 
-impl PxarDirBuf {
+impl PxarDirStack {
     pub fn new(parent: RawFd) -> Self {
         Self {
             root: parent,

@@ -8,7 +8,7 @@ use endian_trait::Endian;
 use super::flags;
 use super::format_definition::*;
 use super::exclude_pattern::*;
-use super::dir_buffer::*;
+use super::dir_stack::*;
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -626,7 +626,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_dir(
         &mut self,
         base_path: &Path,
-        dirs: &mut PxarDirBuf,
+        dirs: &mut PxarDirStack,
         entry: PxarEntry,
         filename: &OsStr,
         matched: MatchType,
@@ -682,7 +682,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         let dir = nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty())
             .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
         let fd = dir.as_raw_fd();
-        let mut dirs = PxarDirBuf::new(fd);
+        let mut dirs = PxarDirStack::new(fd);
         // An empty match pattern list indicates to restore the full archive.
         let matched = if match_pattern.len() == 0 {
             MatchType::Include
@@ -722,7 +722,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
     fn restore_dir_entry(
         &mut self,
         base_path: &Path,
-        dirs: &mut PxarDirBuf,
+        dirs: &mut PxarDirStack,
         filename: &OsStr,
         parent_matched: MatchType,
         match_pattern: &Vec<PxarExcludePattern>,
