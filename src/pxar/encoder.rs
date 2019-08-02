@@ -224,8 +224,11 @@ impl <'a, W: Write> Encoder<'a, W> {
     }
 
     fn read_fat_attr(&self, fd: RawFd, magic: i64, entry: &mut CaFormatEntry) -> Result<(), Error> {
+        use fs::magic::*;
 
-        if magic != MSDOS_SUPER_MAGIC && magic != FUSE_SUPER_MAGIC { return Ok(()); }
+        if magic != MSDOS_SUPER_MAGIC && magic != FUSE_SUPER_MAGIC {
+            return Ok(());
+        }
 
         let mut attr: u32 = 0;
 
@@ -429,7 +432,10 @@ impl <'a, W: Write> Encoder<'a, W> {
         }
 
         match magic {
-            EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC | ZFS_SUPER_MAGIC => {
+            fs::magic::EXT4_SUPER_MAGIC |
+            fs::magic::XFS_SUPER_MAGIC |
+            fs::magic::FUSE_SUPER_MAGIC |
+            fs::magic::ZFS_SUPER_MAGIC => {
                 let mut fsxattr = fs::FSXAttr::default();
                 let res = unsafe {
                     fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
@@ -1108,10 +1114,12 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
 
 #[inline(always)]
 pub fn is_temporary_file_system(magic: i64) -> bool {
+    use fs::magic::*;
     magic == RAMFS_MAGIC || magic == TMPFS_MAGIC
 }
 
 pub fn is_virtual_file_system(magic: i64) -> bool {
+    use fs::magic::*;
 
     match magic {
         BINFMTFS_MAGIC |
