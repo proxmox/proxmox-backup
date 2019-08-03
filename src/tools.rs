@@ -30,7 +30,6 @@ pub mod fs;
 pub mod tty;
 pub mod signalfd;
 pub mod daemon;
-pub mod procfs;
 pub mod acl;
 pub mod xattr;
 pub mod futures;

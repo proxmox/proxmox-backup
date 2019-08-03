@@ -62,7 +62,7 @@ impl UPID {
 
         Ok(UPID {
             pid,
-            pstart: tools::procfs::read_proc_starttime(pid)?,
+            pstart: proxmox::sys::linux::procfs::read_proc_starttime(pid)?,
             starttime: Local::now().timestamp(),
             task_id,
             worker_type: worker_type.to_owned(),

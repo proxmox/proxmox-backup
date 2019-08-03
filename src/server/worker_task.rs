@@ -36,7 +36,7 @@ lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
 
     static ref MY_PID: i32 = unsafe { libc::getpid() };
-    static ref MY_PID_PSTART: u64 = crate::tools::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
+    static ref MY_PID_PSTART: u64 = proxmox::sys::linux::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
 }
 
 /// Test if the task is still running
@@ -49,7 +49,7 @@ pub fn worker_is_active(upid: &UPID) -> bool {
             false
         }
     } else {
-        match crate::tools::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
+        match proxmox::sys::linux::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
             Some(_) => true,
             _ => false,
         }
