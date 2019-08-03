@@ -198,7 +198,7 @@ pub fn feature_flags_from_fat_attr(attr: u32) -> u64 {
 
 /// Return the supported *pxar* feature flags based on the magic number of the filesystem.
 pub fn feature_flags_from_magic(magic: i64) -> u64 {
-    use crate::tools::fs::magic::*;
+    use proxmox::sys::linux::magic::*;
     match magic {
         MSDOS_SUPER_MAGIC => {
             WITH_2SEC_TIME|

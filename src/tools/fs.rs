@@ -259,5 +259,3 @@ impl Default for FSXAttr {
         }
     }
 }
-
-pub (crate) mod magic;
