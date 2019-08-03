@@ -13,9 +13,14 @@ use std::panic::UnwindSafe;
 
 use serde_json::{json, Value};
 
+use proxmox::tools::{
+    try_block,
+    fs::{create_dir_chown, file_set_contents_full},
+};
+
 use super::UPID;
 
-use crate::tools::{self, FileLogger};
+use crate::tools::FileLogger;
 
 macro_rules! PROXMOX_BACKUP_VAR_RUN_DIR_M { () => ("/var/run/proxmox-backup") }
 macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
@@ -31,7 +36,7 @@ lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
 
     static ref MY_PID: i32 = unsafe { libc::getpid() };
-    static ref MY_PID_PSTART: u64 = tools::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
+    static ref MY_PID_PSTART: u64 = crate::tools::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
 }
 
 /// Test if the task is still running
@@ -44,7 +49,7 @@ pub fn worker_is_active(upid: &UPID) -> bool {
             false
         }
     } else {
-        match tools::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
+        match crate::tools::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
             Some(_) => true,
             _ => false,
         }
@@ -136,13 +141,13 @@ fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<(i64, St
 pub fn create_task_log_dirs() -> Result<(), Error> {
 
     try_block!({
-        let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
         let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
         let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-        tools::create_dir_chown(PROXMOX_BACKUP_LOG_DIR, None, uid, gid)?;
-        tools::create_dir_chown(PROXMOX_BACKUP_TASK_DIR, None, uid, gid)?;
-        tools::create_dir_chown(PROXMOX_BACKUP_VAR_RUN_DIR, None, uid, gid)?;
+        create_dir_chown(PROXMOX_BACKUP_LOG_DIR, None, uid, gid)?;
+        create_dir_chown(PROXMOX_BACKUP_TASK_DIR, None, uid, gid)?;
+        create_dir_chown(PROXMOX_BACKUP_VAR_RUN_DIR, None, uid, gid)?;
         Ok(())
     }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))?;
 
@@ -204,11 +209,11 @@ pub struct TaskListInfo {
 // Returns a sorted list of known tasks,
 fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, Error> {
 
-    let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
     let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
     let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-    let lock = tools::open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0))?;
+    let lock = crate::tools::open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0))?;
     nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, uid, gid)?;
 
     let reader = match File::open(PROXMOX_BACKUP_ACTIVE_TASK_FN) {
@@ -303,7 +308,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
         }
     }
 
-    tools::file_set_contents_full(PROXMOX_BACKUP_ACTIVE_TASK_FN, raw.as_bytes(), None, uid, gid)?;
+    file_set_contents_full(PROXMOX_BACKUP_ACTIVE_TASK_FN, raw.as_bytes(), None, uid, gid)?;
 
     drop(lock);
 
@@ -363,11 +368,11 @@ impl WorkerTask {
 
         path.push(format!("{:02X}", upid.pstart % 256));
 
-        let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
         let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
         let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-        tools::create_dir_chown(&path, None, uid, gid)?;
+        create_dir_chown(&path, None, uid, gid)?;
 
         path.push(upid.to_string());
 

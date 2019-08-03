@@ -1,4 +1,3 @@
-use proxmox_backup::try_block;
 use proxmox_backup::configdir;
 use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
@@ -8,6 +7,7 @@ use proxmox_backup::server::rest::*;
 use proxmox_backup::auth_helpers::*;
 
 use failure::*;
+use proxmox::tools::try_block;
 use lazy_static::lazy_static;
 
 use futures::*;

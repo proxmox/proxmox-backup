@@ -5,7 +5,8 @@ use std::io::Read;
 use std::collections::HashMap;
 
 //use std::sync::Arc;
-use crate::tools;
+use proxmox::tools::{try_block, fs::file_set_contents};
+
 use crate::api_schema::*;
 
 use crate::section_config::*;
@@ -61,7 +62,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
 
-    tools::file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
+    file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
 
     Ok(())
 }

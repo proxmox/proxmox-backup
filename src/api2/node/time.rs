@@ -1,6 +1,6 @@
 use failure::*;
+use proxmox::tools::fs::{file_read_firstline, file_set_contents};
 
-use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 use crate::api2::types::*;
@@ -11,7 +11,7 @@ use chrono::prelude::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
     // use /etc/timezone
-    if let Ok(line) = tools::file_read_firstline("/etc/timezone") {
+    if let Ok(line) = file_read_firstline("/etc/timezone") {
         return Ok(line.trim().to_owned());
     }
 
@@ -56,7 +56,7 @@ fn set_timezone(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let timezone = tools::required_string_param(&param, "timezone")?;
+    let timezone = crate::tools::required_string_param(&param, "timezone")?;
 
     let path = std::path::PathBuf::from(format!("/usr/share/zoneinfo/{}", timezone));
 
@@ -64,7 +64,7 @@ fn set_timezone(
         bail!("No such timezone.");
     }
 
-    tools::file_set_contents("/etc/timezone", timezone.as_bytes(), None)?;
+    file_set_contents("/etc/timezone", timezone.as_bytes(), None)?;
 
     let _ = std::fs::remove_file("/etc/localtime");
 

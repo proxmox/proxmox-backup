@@ -12,6 +12,8 @@ use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use proxmox::tools::{try_block, fs::file_set_contents};
+
 use crate::config::datastore;
 
 use crate::backup::*;
@@ -510,7 +512,7 @@ fn upload_backup_log(
             // always comput CRC at server side
             blob.set_crc(blob.compute_crc());
             let raw_data = blob.raw_data();
-            crate::tools::file_set_contents(&path, raw_data, None)?;
+            file_set_contents(&path, raw_data, None)?;
             Ok(())
         })
         .and_then(move |_| {

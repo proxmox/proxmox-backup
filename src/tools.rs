@@ -2,14 +2,9 @@
 //!
 //! This is a collection of small and useful tools.
 use failure::*;
-use nix::unistd;
-use nix::sys::stat;
-use nix::{convert_ioctl_res, request_code_read, ioc};
-
 use lazy_static::lazy_static;
 
 use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::Path;
 use std::io::Read;
 use std::io::ErrorKind;
@@ -50,28 +45,6 @@ pub use file_logger::*;
 mod broadcast_future;
 pub use broadcast_future::*;
 
-/// Macro to write error-handling blocks (like perl eval {})
-///
-/// #### Example:
-/// ```
-/// # #[macro_use] extern crate proxmox_backup;
-/// # use failure::*;
-/// # let some_condition = false;
-/// let result = try_block!({
-///     if (some_condition) {
-///         bail!("some error");
-///     }
-///     Ok(())
-/// })
-/// .map_err(|e| format_err!("my try block returned an error - {}", e));
-/// ```
-
-#[macro_export]
-macro_rules! try_block {
-    { $($token:tt)* } => {{ (|| -> Result<_,_> { $($token)* })() }}
-}
-
-
 /// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
 /// purpose of this traid is to avoid unnecessary data copies.
@@ -108,123 +81,6 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
 }
 
-pub fn file_read_firstline<P: AsRef<Path>>(path: P) -> Result<String, Error> {
-
-    let path = path.as_ref();
-
-    try_block!({
-        let file = std::fs::File::open(path)?;
-
-        use std::io::{BufRead, BufReader};
-
-        let mut reader = BufReader::new(file);
-
-        let mut line = String::new();
-
-        let _ = reader.read_line(&mut line)?;
-
-        Ok(line)
-    }).map_err(|err: Error| format_err!("unable to read {:?} - {}", path, err))
-}
-
-pub fn file_get_contents<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
-
-    let path = path.as_ref();
-
-    try_block!({
-        std::fs::read(path)
-    }).map_err(|err| format_err!("unable to read {:?} - {}", path, err))
-}
-
-pub fn file_get_json<P: AsRef<Path>>(path: P, default: Option<Value>) -> Result<Value, Error> {
-
-    let path = path.as_ref();
-
-    let raw = match std::fs::read(path) {
-        Ok(v) => v,
-        Err(err) => {
-            if err.kind() ==  std::io::ErrorKind::NotFound {
-                if let Some(v) = default {
-                    return Ok(v);
-                }
-            }
-            bail!("unable to read json {:?} - {}", path, err);
-        }
-    };
-
-    try_block!({
-        let data = String::from_utf8(raw)?;
-        let json = serde_json::from_str(&data)?;
-        Ok(json)
-    }).map_err(|err: Error| format_err!("unable to parse json from {:?} - {}", path, err))
-}
-
-/// Atomically write a file
-///
-/// We first create a temporary file, which is then renamed.
-pub fn file_set_contents<P: AsRef<Path>>(
-    path: P,
-    data: &[u8],
-    perm: Option<stat::Mode>,
-) -> Result<(), Error> {
-    file_set_contents_full(path, data, perm, None, None)
-}
-
-/// Atomically write a file with owner and group
-pub fn file_set_contents_full<P: AsRef<Path>>(
-    path: P,
-    data: &[u8],
-    perm: Option<stat::Mode>,
-    owner: Option<unistd::Uid>,
-    group: Option<unistd::Gid>,
-) -> Result<(), Error> {
-
-    let path = path.as_ref();
-
-    // Note: we use mkstemp heŕe, because this worka with different
-    // processes, threads, and even tokio tasks.
-    let mut template = path.to_owned();
-    template.set_extension("tmp_XXXXXX");
-    let (fd, tmp_path) = match unistd::mkstemp(&template) {
-        Ok((fd, path)) => (fd, path),
-        Err(err) => bail!("mkstemp {:?} failed: {}", template, err),
-    };
-
-    let tmp_path = tmp_path.as_path();
-
-    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from(
-        stat::Mode::S_IRUSR | stat::Mode::S_IWUSR |
-        stat::Mode::S_IRGRP | stat::Mode::S_IROTH
-    ));
-
-    if perm != None {
-        if let Err(err) = stat::fchmod(fd, mode) {
-            let _ = unistd::unlink(tmp_path);
-            bail!("fchmod {:?} failed: {}", tmp_path, err);
-        }
-    }
-
-    if owner != None || group != None {
-        if let Err(err) = fchown(fd, owner, group) {
-            let _ = unistd::unlink(tmp_path);
-            bail!("fchown {:?} failed: {}", tmp_path, err);
-        }
-    }
-
-    let mut file = unsafe { File::from_raw_fd(fd) };
-
-    if let Err(err) = file.write_all(data) {
-        let _ = unistd::unlink(tmp_path);
-        bail!("write failed: {}", err);
-    }
-
-    if let Err(err) = std::fs::rename(tmp_path, path) {
-        let _ = unistd::unlink(tmp_path);
-        bail!("Atomic rename failed for file {:?} - {}", path, err);
-    }
-
-    Ok(())
-}
 
 /// Create a file lock using fntl. This function allows you to specify
 /// a timeout if you want to avoid infinite blocking.
@@ -360,52 +216,6 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     let info = unsafe { *info };
 
     Ok((info.pw_uid, info.pw_gid))
-}
-
-/// Creates directory at the provided path with specified ownership
-///
-/// Simply returns if the directory already exists.
-pub fn create_dir_chown<P: AsRef<Path>>(
-    path: P,
-    perm: Option<stat::Mode>,
-    owner: Option<unistd::Uid>,
-    group: Option<unistd::Gid>,
-) -> Result<(), nix::Error>
-{
-    let mode : stat::Mode = perm.unwrap_or(stat::Mode::from_bits_truncate(0o770));
-
-    let path = path.as_ref();
-
-    match nix::unistd::mkdir(path, mode) {
-        Ok(()) => {},
-        Err(nix::Error::Sys(nix::errno::Errno::EEXIST)) => {
-            return Ok(());
-        },
-        err => return err,
-    }
-
-    unistd::chown(path, owner, group)?;
-
-    Ok(())
-}
-
-/// Change ownership of an open file handle
-pub fn fchown(
-    fd: RawFd,
-    owner: Option<nix::unistd::Uid>,
-    group: Option<nix::unistd::Gid>
-) -> Result<(), Error> {
-
-    // According to the POSIX specification, -1 is used to indicate that owner and group
-    // are not to be changed.  Since uid_t and gid_t are unsigned types, we have to wrap
-    // around to get -1 (copied fron nix crate).
-    let uid = owner.map(Into::into).unwrap_or((0 as libc::uid_t).wrapping_sub(1));
-    let gid = group.map(Into::into).unwrap_or((0 as libc::gid_t).wrapping_sub(1));
-
-    let res = unsafe { libc::fchown(fd, uid, gid) };
-    nix::errno::Errno::result(res)?;
-
-    Ok(())
 }
 
 // Returns the hosts node name (UTS node name)
@@ -561,7 +371,7 @@ pub fn get_hardware_address() -> Result<String, Error> {
 
     static FILENAME: &str = "/etc/ssh/ssh_host_rsa_key.pub";
 
-    let contents = file_get_contents(FILENAME)?;
+    let contents = proxmox::tools::fs::file_get_contents(FILENAME)?;
     let digest = md5::compute(contents);
 
     Ok(format!("{:0x}", digest))
@@ -716,31 +526,3 @@ impl<T: Any> AsAny for T {
     fn as_any(&self) -> &dyn Any { self }
 }
 
-
-// /usr/include/linux/fs.h: #define BLKGETSIZE64 _IOR(0x12,114,size_t)
-// return device size in bytes (u64 *arg)
-nix::ioctl_read!(blkgetsize64, 0x12, 114, u64);
-
-/// Return file or block device size
-pub fn image_size(path: &Path) -> Result<u64, Error> {
-
-    use std::os::unix::fs::FileTypeExt;
-
-    let file = std::fs::File::open(path)?;
-    let metadata = file.metadata()?;
-    let file_type = metadata.file_type();
-
-    if file_type.is_block_device() {
-        let mut size : u64 = 0;
-        let res = unsafe { blkgetsize64(file.as_raw_fd(), &mut size) };
-
-        if let Err(err) = res {
-            bail!("blkgetsize64 failed for {:?} - {}", path, err);
-        }
-        Ok(size)
-    } else if file_type.is_file() {
-        Ok(metadata.len())
-    } else {
-        bail!("image size failed - got unexpected file type {:?}", file_type);
-    }
-}

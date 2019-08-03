@@ -1,5 +1,4 @@
 //use proxmox_backup::tools;
-use proxmox_backup::try_block;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
@@ -10,6 +9,7 @@ use proxmox_backup::config;
 
 use failure::*;
 use lazy_static::lazy_static;
+use proxmox::tools::try_block;
 
 use futures::*;
 use futures::future::Future;

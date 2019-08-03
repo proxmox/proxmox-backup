@@ -1,5 +1,3 @@
-use crate::tools;
-
 use failure::*;
 use lazy_static::lazy_static;
 
@@ -8,6 +6,11 @@ use openssl::pkey::{PKey, Public, Private};
 use openssl::sha;
 
 use std::path::PathBuf;
+
+use proxmox::tools::{
+    try_block,
+    fs::{file_get_contents, file_set_contents, file_set_contents_full},
+};
 
 fn compute_csrf_secret_digest(
     timestamp: i64,
@@ -94,11 +97,11 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    let (_, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
     let uid = Some(nix::unistd::ROOT);
     let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-    tools::file_set_contents_full(
+    file_set_contents_full(
         &path, &pem, Some(Mode::from_bits_truncate(0o0640)), uid, gid)?;
 
     Ok(())
@@ -119,13 +122,13 @@ pub fn generate_auth_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    tools::file_set_contents(
+    file_set_contents(
         &priv_path, &priv_pem, Some(Mode::from_bits_truncate(0o0600)))?;
 
 
     let public_pem = rsa.public_key_to_pem()?;
 
-    tools::file_set_contents(&public_path, &public_pem, None)?;
+    file_set_contents(&public_path, &public_pem, None)?;
 
     Ok(())
 }
@@ -134,7 +137,7 @@ pub fn csrf_secret() -> &'static [u8] {
 
     lazy_static! {
         static ref SECRET: Vec<u8> =
-            tools::file_get_contents(configdir!("/csrf.key")).unwrap();
+            file_get_contents(configdir!("/csrf.key")).unwrap();
     }
 
     &SECRET
@@ -142,7 +145,7 @@ pub fn csrf_secret() -> &'static [u8] {
 
 fn load_private_auth_key() -> Result<PKey<Private>, Error> {
 
-    let pem = tools::file_get_contents(configdir!("/authkey.key"))?;
+    let pem = file_get_contents(configdir!("/authkey.key"))?;
     let rsa = Rsa::private_key_from_pem(&pem)?;
     let key = PKey::from_rsa(rsa)?;
 
@@ -160,7 +163,7 @@ pub fn private_auth_key() -> &'static PKey<Private> {
 
 fn load_public_auth_key() -> Result<PKey<Public>, Error> {
 
-    let pem = tools::file_get_contents(configdir!("/authkey.pub"))?;
+    let pem = file_get_contents(configdir!("/authkey.pub"))?;
     let rsa = Rsa::public_key_from_pem(&pem)?;
     let key = PKey::from_rsa(rsa)?;
 

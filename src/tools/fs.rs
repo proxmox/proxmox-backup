@@ -220,8 +220,6 @@ where
     }
 }
 
-use nix::{convert_ioctl_res, request_code_read, request_code_write, ioc};
-
 // /usr/include/linux/fs.h: #define FS_IOC_GETFLAGS _IOR('f', 1, long)
 // read Linux file system attributes (see man chattr)
 nix::ioctl_read!(read_attr_fd, b'f', 1, usize);

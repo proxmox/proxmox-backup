@@ -1,7 +1,6 @@
 use failure::*;
 
-
-use crate::tools;
+use proxmox::tools::fs::{file_get_contents, file_set_contents};
 use crate::api2::*;
 use crate::api_schema::*;
 //use crate::api_schema::router::*;
@@ -23,7 +22,7 @@ fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let mut nscount = 0;
 
-    let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
+    let raw = file_get_contents(RESOLV_CONF_FN)?;
 
     result["digest"] = Value::from(proxmox::tools::digest_to_hex(&sha::sha256(&raw)));
 
@@ -63,13 +62,13 @@ fn update_dns(
 
     let _guard = MUTEX.lock();
 
-    let search = tools::required_string_param(&param, "search")?;
+    let search = crate::tools::required_string_param(&param, "search")?;
 
-    let raw = tools::file_get_contents(RESOLV_CONF_FN)?;
+    let raw = file_get_contents(RESOLV_CONF_FN)?;
     let old_digest = proxmox::tools::digest_to_hex(&sha::sha256(&raw));
 
     if let Some(digest) = param["digest"].as_str() {
-        tools::assert_if_modified(&old_digest, &digest)?;
+        crate::tools::assert_if_modified(&old_digest, &digest)?;
     }
 
     let old_data = String::from_utf8(raw)?;
@@ -92,7 +91,7 @@ fn update_dns(
         data.push('\n');
     }
 
-    tools::file_set_contents(RESOLV_CONF_FN, data.as_bytes(), None)?;
+    file_set_contents(RESOLV_CONF_FN, data.as_bytes(), None)?;
 
     Ok(Value::Null)
 }

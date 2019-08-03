@@ -7,6 +7,7 @@ use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
 use std::io::Write;
+use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
@@ -86,7 +87,7 @@ fn record_repository(repo: &BackupRepository) {
         _ => return,
     };
 
-    let mut data = tools::file_get_json(&path, None).unwrap_or(json!({}));
+    let mut data = file_get_json(&path, None).unwrap_or(json!({}));
 
     let repo = repo.to_string();
 
@@ -118,7 +119,7 @@ fn record_repository(repo: &BackupRepository) {
 
     let new_data = json!(map);
 
-    let _ = tools::file_set_contents(path, new_data.to_string().as_bytes(), None);
+    let _ = file_set_contents(path, new_data.to_string().as_bytes(), None);
 }
 
 fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
@@ -136,7 +137,7 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
         _ => return result,
     };
 
-    let data = tools::file_get_json(&path, None).unwrap_or(json!({}));
+    let data = file_get_json(&path, None).unwrap_or(json!({}));
 
     if let Some(map) = data.as_object() {
         for (repo, _count) in map {
@@ -521,7 +522,7 @@ fn create_backup(
                     bail!("got unexpected file type (expected file or block device)");
                 }
 
-                let size = tools::image_size(&PathBuf::from(filename))?;
+                let size = image_size(&PathBuf::from(filename))?;
 
                 if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
@@ -567,7 +568,7 @@ fn create_backup(
 
             let path = master_pubkey_path()?;
             if path.exists() {
-                let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
+                let pem_data = file_get_contents(&path)?;
                 let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
                 let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
                 (Some(Arc::new(crypt_config)), Some(enc_key))
@@ -632,7 +633,7 @@ fn create_backup(
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*
         let mut buffer2 = vec![0u8; rsa.size() as usize];
-        let pem_data = proxmox_backup::tools::file_get_contents("master-private.pem")?;
+        let pem_data = file_get_contents("master-private.pem")?;
         let rsa = openssl::rsa::Rsa::private_key_from_pem(&pem_data)?;
         let len = rsa.private_decrypt(&buffer, &mut buffer2, openssl::rsa::Padding::PKCS1)?;
         println!("TEST {} {:?}", len, buffer2);
@@ -777,7 +778,7 @@ fn restore(
         };
 
         if let Some(target) = target {
-            crate::tools::file_set_contents(target, &raw_data, None)?;
+            file_set_contents(target, &raw_data, None)?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
@@ -878,7 +879,7 @@ fn upload_log(
         }
     };
 
-    let data = crate::tools::file_get_contents(logfile)?;
+    let data = file_get_contents(logfile)?;
 
     let blob = if let Some(ref crypt_config) = crypt_config {
         DataBlob::encode(&data, Some(crypt_config), true)?
@@ -1200,7 +1201,7 @@ fn key_import_master_pubkey(
     let path = tools::required_string_param(&param, "path")?;
     let path = PathBuf::from(path);
 
-    let pem_data = proxmox_backup::tools::file_get_contents(&path)?;
+    let pem_data = file_get_contents(&path)?;
 
     if let Err(err) = openssl::pkey::PKey::public_key_from_pem(&pem_data) {
         bail!("Unable to decode PEM data - {}", err);
@@ -1208,7 +1209,7 @@ fn key_import_master_pubkey(
 
     let target_path = master_pubkey_path()?;
 
-    proxmox_backup::tools::file_set_contents(&target_path, &pem_data, None)?;
+    file_set_contents(&target_path, &pem_data, None)?;
 
     println!("Imported public master key to {:?}", target_path);
 
@@ -1243,14 +1244,14 @@ fn key_create_master_key(
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
     println!("Writing public master key to {}", filename_pub);
-    proxmox_backup::tools::file_set_contents(filename_pub, pub_key.as_slice(), None)?;
+    file_set_contents(filename_pub, pub_key.as_slice(), None)?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, new_pw.as_bytes())?;
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
-    proxmox_backup::tools::file_set_contents(filename_priv, priv_key.as_slice(), None)?;
+    file_set_contents(filename_priv, priv_key.as_slice(), None)?;
 
     Ok(Value::Null)
 }

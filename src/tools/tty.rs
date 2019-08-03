@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 
 use failure::*;
 
-use crate::try_block;
+use proxmox::tools::try_block;
 
 /// Returns whether the current stdin is a tty .
 pub fn stdin_isatty() -> bool {

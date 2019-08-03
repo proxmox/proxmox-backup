@@ -31,7 +31,7 @@ impl ReadChunk for LocalChunkReader {
         println!("READ CHUNK {}", digest_str);
 
         let (path, _) = self.store.chunk_path(digest);
-        let raw_data = crate::tools::file_get_contents(&path)?;
+        let raw_data = proxmox::tools::fs::file_get_contents(&path)?;
         let chunk = DataChunk::from_raw(raw_data, *digest)?;
         chunk.verify_crc()?;
 

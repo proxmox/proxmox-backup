@@ -4,7 +4,10 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use proxmox::tools;
+use proxmox::tools::{
+    digest_to_hex,
+    fs::file_set_contents,
+};
 
 use crate::api_schema::router::{RpcEnvironment, RpcEnvironmentType};
 use crate::server::WorkerTask;
@@ -298,8 +301,8 @@ impl BackupEnvironment {
 
     fn log_upload_stat(&self, archive_name:  &str, csum: &[u8; 32], uuid: &[u8; 16], size: u64, chunk_count: u64, upload_stat: &UploadStatistic) {
         self.log(format!("Upload statistics for '{}'", archive_name));
-        self.log(format!("UUID: {}", tools::digest_to_hex(uuid)));
-        self.log(format!("Checksum: {}", tools::digest_to_hex(csum)));
+        self.log(format!("UUID: {}", digest_to_hex(uuid)));
+        self.log(format!("Checksum: {}", digest_to_hex(csum)));
         self.log(format!("Size: {}", size));
         self.log(format!("Chunk count: {}", chunk_count));
 
@@ -402,7 +405,7 @@ impl BackupEnvironment {
         blob.set_crc(blob.compute_crc());
 
         let raw_data = blob.raw_data();
-        crate::tools::file_set_contents(&path, raw_data, None)?;
+        file_set_contents(&path, raw_data, None)?;
 
         self.log(format!("add blob {:?} ({} bytes, comp: {})", path, orig_len, blob_len));
 

@@ -6,7 +6,7 @@ use std::io::{BufRead, BufReader};
 use std::collections::HashSet;
 use std::process;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use crate::tools;
+use proxmox::tools::fs::file_read_firstline;
 use lazy_static::lazy_static;
 use regex::Regex;
 use libc;
@@ -32,7 +32,7 @@ pub struct ProcFsPidStat {
 
 pub fn read_proc_pid_stat(pid: libc::pid_t) -> Result<ProcFsPidStat, Error> {
 
-    let statstr = tools::file_read_firstline(format!("/proc/{}/stat", pid))?;
+    let statstr = file_read_firstline(format!("/proc/{}/stat", pid))?;
 
     lazy_static! {
         static ref REGEX: Regex = Regex::new(concat!(
@@ -89,7 +89,7 @@ pub fn check_process_running_pstart(pid: libc::pid_t, pstart: u64) -> Option<Pro
 
 pub fn read_proc_uptime() -> Result<(f64, f64), Error> {
     let path = "/proc/uptime";
-    let line = tools::file_read_firstline(&path)?;
+    let line = file_read_firstline(&path)?;
     let mut values = line.split_whitespace().map(|v| v.parse::<f64>());
 
     match (values.next(), values.next()) {
@@ -152,7 +152,7 @@ pub fn read_meminfo() -> Result<ProcFsMemInfo, Error> {
 
     meminfo.swapused = meminfo.swaptotal - meminfo.swapfree;
 
-    let spages_line = tools::file_read_firstline("/sys/kernel/mm/ksm/pages_sharing")?;
+    let spages_line = file_read_firstline("/sys/kernel/mm/ksm/pages_sharing")?;
     meminfo.memshared = spages_line.trim_end().parse::<u64>()? * 4096;
 
     Ok(meminfo)
@@ -221,7 +221,7 @@ pub struct ProcFsMemUsage {
 
 pub fn read_memory_usage() -> Result<ProcFsMemUsage, Error> {
     let path = format!("/proc/{}/statm", process::id());
-    let line = tools::file_read_firstline(&path)?;
+    let line = file_read_firstline(&path)?;
     let mut values = line.split_whitespace().map(|v| v.parse::<u64>());
 
     let ps = 4096;

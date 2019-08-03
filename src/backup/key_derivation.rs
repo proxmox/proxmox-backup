@@ -3,6 +3,11 @@ use failure::*;
 use serde::{Deserialize, Serialize};
 use chrono::{Local, TimeZone, DateTime};
 
+use proxmox::tools::{
+    try_block,
+    fs::{file_get_contents, file_set_contents},
+};
+
 #[derive(Deserialize, Serialize, Debug)]
 pub enum KeyDerivationConfig {
     Scrypt {
@@ -79,7 +84,7 @@ pub fn store_key_config(
     try_block!({
         if replace {
             let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-            crate::tools::file_set_contents(&path, data.as_bytes(), Some(mode))?;
+            file_set_contents(&path, data.as_bytes(), Some(mode))?;
         } else {
             use std::os::unix::fs::OpenOptionsExt;
 
@@ -145,7 +150,7 @@ pub fn encrypt_key_with_passphrase(
 
 pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: fn() -> Result<Vec<u8>, Error>) -> Result<([u8;32], DateTime<Local>), Error> {
 
-    let raw = crate::tools::file_get_contents(&path)?;
+    let raw = file_get_contents(&path)?;
     let data = String::from_utf8(raw)?;
 
     let key_config: KeyConfig = serde_json::from_str(&data)?;

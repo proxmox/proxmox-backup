@@ -7,6 +7,9 @@ use std::collections::VecDeque;
 use serde_json::{json, Value};
 
 use std::sync::Arc;
+
+use proxmox::tools::try_block;
+
 use crate::api_schema::*;
 
 pub struct SectionConfigPlugin {

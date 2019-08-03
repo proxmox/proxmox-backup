@@ -21,6 +21,11 @@ use openssl::ssl::{SslConnector, SslMethod};
 use serde_json::{json, Value};
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
 
+use proxmox::tools::{
+    digest_to_hex,
+    fs::{file_get_json, file_set_contents},
+};
+
 use crate::tools::{self, BroadcastFuture, tty};
 use crate::tools::futures::{cancellable, Canceller};
 use super::pipe_to_stream::*;
@@ -51,7 +56,7 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
 
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
 
-    let mut data = tools::file_get_json(&path, Some(json!({})))?;
+    let mut data = file_get_json(&path, Some(json!({})))?;
 
     let now = Utc::now().timestamp();
 
@@ -73,7 +78,7 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
         }
     }
 
-    tools::file_set_contents(path, new_data.to_string().as_bytes(), Some(mode))?;
+    file_set_contents(path, new_data.to_string().as_bytes(), Some(mode))?;
 
     Ok(())
 }
@@ -90,7 +95,7 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
         _ => return None,
     };
 
-    let data = match tools::file_get_json(&path, None) {
+    let data = match file_get_json(&path, None) {
         Ok(v) => v,
         _ => return None,
     };
@@ -536,7 +541,7 @@ impl BackupReader {
         output: W,
     ) -> impl Future<Item=W, Error=Error> {
         let path = "chunk";
-        let param = json!({ "digest": proxmox::tools::digest_to_hex(digest) });
+        let param = json!({ "digest": digest_to_hex(digest) });
         self.h2.download(path, Some(param), output)
     }
 
@@ -781,7 +786,7 @@ impl BackupClient {
                             let mut offset_list = vec![];
                             for (offset, digest) in chunk_list {
                                 //println!("append chunk {} (offset {})", proxmox::tools::digest_to_hex(&digest), offset);
-                                digest_list.push(proxmox::tools::digest_to_hex(&digest));
+                                digest_list.push(digest_to_hex(&digest));
                                 offset_list.push(offset);
                             }
                             println!("append chunks list len ({})", digest_list.len());
@@ -842,7 +847,7 @@ impl BackupClient {
                         DigestListDecoder::new(body.map_err(Error::from))
                             .for_each(move |chunk| {
                                 let _ = release_capacity.release_capacity(chunk.len());
-                                println!("GOT DOWNLOAD {}", proxmox::tools::digest_to_hex(&chunk));
+                                println!("GOT DOWNLOAD {}", digest_to_hex(&chunk));
                                 known_chunks.lock().unwrap().insert(chunk);
                                 Ok(())
                             })
@@ -904,7 +909,7 @@ impl BackupClient {
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
                     let digest = *chunk_info.chunk.digest();
-                    let digest_str = proxmox::tools::digest_to_hex(&digest);
+                    let digest_str = digest_to_hex(&digest);
                     let upload_queue = upload_queue.clone();
 
                     println!("upload new chunk {} ({} bytes, offset {})", digest_str,

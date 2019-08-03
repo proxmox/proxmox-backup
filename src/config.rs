@@ -7,7 +7,8 @@ use failure::*;
 
 pub mod datastore;
 
-use crate::tools;
+use proxmox::tools::try_block;
+
 use crate::buildcfg;
 
 /// Check configuration directory permissions
@@ -18,7 +19,7 @@ use crate::buildcfg;
 pub fn check_configdir_permissions() -> Result<(), Error> {
 
     let cfgdir = buildcfg::CONFIGDIR;
-    let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
 
     try_block!({
         let stat = nix::sys::stat::stat(cfgdir)?;
@@ -43,7 +44,7 @@ pub fn create_configdir() -> Result<(), Error> {
     use nix::sys::stat::Mode;
 
     let cfgdir = buildcfg::CONFIGDIR;
-    let (backup_uid, backup_gid) = tools::getpwnam_ugid("backup")?;
+    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
 
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
         Ok(()) => {},

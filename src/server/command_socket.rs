@@ -14,6 +14,8 @@ use std::sync::Arc;
 use std::os::unix::io::AsRawFd;
 use nix::sys::socket;
 
+use proxmox::tools::try_block;
+
 /// Listens on a Unix Socket to handle simple command asynchronously
 pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Item=(), Error=()>, Error>
     where P: Into<PathBuf>,
