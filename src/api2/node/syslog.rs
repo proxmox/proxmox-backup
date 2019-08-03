@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use std::sync::Arc;
 use lazy_static::lazy_static;
-use crate::tools::common_regex;
+use proxmox::tools::common_regex;
 use std::process::{Command, Stdio};
 
 fn dump_journal(

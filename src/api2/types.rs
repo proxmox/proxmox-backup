@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use std::sync::Arc;
 
 use crate::api_schema::*;
-use crate::tools::{self, common_regex};
+use proxmox::tools::common_regex;
 
 lazy_static!{
 
@@ -38,7 +38,7 @@ lazy_static!{
         StringSchema::new("Node name (or 'localhost')")
             .format(
                 Arc::new(ApiStringFormat::VerifyFn(|node| {
-                    if node == "localhost" || node == tools::nodename() {
+                    if node == "localhost" || node == crate::tools::nodename() {
                         Ok(())
                     } else {
                         bail!("no such node '{}'", node);

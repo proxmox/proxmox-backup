@@ -22,8 +22,6 @@ use proxmox::tools::vec;
 pub mod async_mutex;
 pub mod timer;
 pub mod wrapped_reader_stream;
-#[macro_use]
-pub mod common_regex;
 pub mod ticket;
 pub mod borrow;
 pub mod fs;

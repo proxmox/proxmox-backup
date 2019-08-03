@@ -1,6 +1,8 @@
 use failure::*;
 
 use proxmox::tools::fs::{file_get_contents, file_set_contents};
+use proxmox::tools::*; // required to use IPRE!() macro ???
+
 use crate::api2::*;
 use crate::api_schema::*;
 //use crate::api_schema::router::*;
