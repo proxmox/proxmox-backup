@@ -38,7 +38,7 @@ lazy_static!{
         StringSchema::new("Node name (or 'localhost')")
             .format(
                 Arc::new(ApiStringFormat::VerifyFn(|node| {
-                    if node == "localhost" || node == crate::tools::nodename() {
+                    if node == "localhost" || node == proxmox::tools::nodename() {
                         Ok(())
                     } else {
                         bail!("no such node '{}'", node);

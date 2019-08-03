@@ -2,7 +2,6 @@
 //!
 //! This is a collection of small and useful tools.
 use failure::*;
-use lazy_static::lazy_static;
 
 use std::fs::{File, OpenOptions};
 use std::path::Path;
@@ -215,23 +214,6 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     Ok((info.pw_uid, info.pw_gid))
 }
 
-// Returns the hosts node name (UTS node name)
-pub fn nodename() -> &'static str {
-
-    lazy_static!{
-        static ref NODENAME: String = {
-
-            nix::sys::utsname::uname()
-                .nodename()
-                .split('.')
-                .next()
-                .unwrap()
-                .to_owned()
-        };
-    }
-
-    &NODENAME
-}
 
 pub fn json_object_to_query(data: Value) -> Result<String, Error> {
 

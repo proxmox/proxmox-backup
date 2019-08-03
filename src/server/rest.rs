@@ -343,7 +343,7 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
 
 fn get_index(username: Option<String>, token: Option<String>) ->  Response<Body> {
 
-    let nodename = tools::nodename();
+    let nodename = proxmox::tools::nodename();
     let username = username.unwrap_or(String::from(""));
 
     let token = token.unwrap_or(String::from(""));

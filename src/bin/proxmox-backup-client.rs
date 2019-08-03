@@ -469,7 +469,7 @@ fn create_backup(
 
     let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
-    let backup_id = param["backup-id"].as_str().unwrap_or(&tools::nodename());
+    let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
     let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
@@ -553,7 +553,7 @@ fn create_backup(
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time));
 
-    println!("Client name: {}", tools::nodename());
+    println!("Client name: {}", proxmox::tools::nodename());
 
     let start_time = Local::now();
 

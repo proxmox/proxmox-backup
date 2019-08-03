@@ -5,8 +5,6 @@ use chrono::Local;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::tools;
-
 /// Unique Process/Task Identifier
 ///
 /// We use this to uniquely identify worker task. UPIDs have a short
@@ -68,7 +66,7 @@ impl UPID {
             worker_type: worker_type.to_owned(),
             worker_id,
             username: username.to_owned(),
-            node: tools::nodename().to_owned(),
+            node: proxmox::tools::nodename().to_owned(),
         })
     }
 
