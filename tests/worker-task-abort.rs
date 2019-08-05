@@ -8,9 +8,10 @@ extern crate nix;
 
 use tokio::prelude::future::lazy;
 
+use proxmox::tools::try_block;
+
 use proxmox_backup::server;
 use proxmox_backup::tools;
-
 
 fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 
