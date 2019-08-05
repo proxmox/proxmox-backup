@@ -12,7 +12,7 @@ use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use proxmox::tools::{try_block, fs::file_set_contents};
+use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
 
 use crate::config::datastore;
 
@@ -21,6 +21,25 @@ use crate::server::WorkerTask;
 
 use hyper::{header, Body, Response, StatusCode};
 use hyper::http::request::Parts;
+
+fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Value, Error> {
+
+    let mut path = store.base_path();
+    path.push(backup_dir.relative_path());
+    path.push("index.json.blob");
+
+    let raw_data = file_get_contents(&path)?;
+    let data = DataBlob::from_raw(raw_data)?.decode(None)?;
+    let mut result: Value = serde_json::from_reader(&mut &data[..])?;
+
+    let result = result["files"].take();
+
+    if result == Value::Null {
+        bail!("missing 'files' property in backup index {:?}", path);
+    }
+
+    Ok(result)
+}
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 
@@ -105,10 +124,9 @@ fn list_snapshot_files (
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let path = datastore.base_path();
-    let files = BackupInfo::list_files(&path, &snapshot)?;
+    let files = read_backup_index(&datastore, &snapshot)?;
 
-    Ok(json!(files))
+    Ok(files)
 }
 
 fn delete_snapshots (

@@ -394,7 +394,7 @@ fn list_snapshot_files(
 
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
-    let result = client.get(&path, Some(json!({
+    let mut result = client.get(&path, Some(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
         "backup-time": snapshot.backup_time().timestamp(),
@@ -402,15 +402,18 @@ fn list_snapshot_files(
 
     record_repository(&repo);
 
-    let list: Vec<String> = result["data"].as_array().unwrap().iter()
-        .map(|v| strip_server_file_expenstion(v.as_str().unwrap())).collect();
+    let list: Value = result["data"].take();
 
     if output_format == "text" {
-        for file in list {
-            println!("{}", file);
+        for item in list.as_array().unwrap().iter() {
+            println!(
+                "{} {}",
+                strip_server_file_expenstion(item["filename"].as_str().unwrap()),
+                item["size"].as_u64().unwrap_or(0),
+            );
         }
     } else {
-        format_and_print_result(&list.into(), &output_format);
+        format_and_print_result(&list, &output_format);
     }
 
     Ok(Value::Null)
@@ -642,10 +645,11 @@ fn create_backup(
 
     // create index.json
     let file_list = file_list.iter()
-        .fold(json!({}), |mut acc, (filename, stats)| {
-            acc[filename] = json!({
+        .fold(vec![], |mut acc, (filename, stats)| {
+            acc.push(json!({
+                "filename": filename,
                 "size": stats.size,
-            });
+            }));
             acc
         });
 
