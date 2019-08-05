@@ -687,7 +687,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
-                match match_filename(&filename, &stat, &local_match_pattern) {
+                match match_filename(&filename, &stat, &local_match_pattern)? {
                     (MatchType::Positive, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         eprintln!("matched by .pxarexclude entry - skipping: {:?}", self.full_path().join(filename_osstr));
@@ -1076,12 +1076,12 @@ fn match_filename(
     filename: &CStr,
     stat: &FileStat,
     match_pattern: &Vec<MatchPattern>
-) ->  (MatchType, Vec<MatchPattern>) {
+) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
 
     for pattern in match_pattern {
-        match pattern.matches_filename(filename, is_directory(&stat)) {
+        match pattern.matches_filename(filename, is_directory(&stat))? {
             MatchType::None =>  {},
             MatchType::Positive =>  match_state = MatchType::Positive,
             MatchType::Negative =>  match_state = MatchType::Negative,
@@ -1094,7 +1094,7 @@ fn match_filename(
         }
     }
 
-    (match_state, child_pattern)
+    Ok((match_state, child_pattern))
 }
 
 fn errno_is_unsupported(errno: Errno) -> bool {

@@ -750,7 +750,7 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         // there are no match pattern.
         let mut matched = parent_matched;
         if match_pattern.len() > 0 {
-            match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern) {
+            match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern)? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
                 (match_type, pattern) => {
@@ -1030,14 +1030,14 @@ fn match_filename(
     filename: &OsStr,
     is_dir: bool,
     match_pattern: &Vec<MatchPattern>
-) ->  (MatchType, Vec<MatchPattern>) {
+) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
     // read_filename() checks for nul bytes, so it is save to unwrap here
     let name = CString::new(filename.as_bytes()).unwrap();
 
     for pattern in match_pattern {
-        match pattern.matches_filename(&name, is_dir) {
+        match pattern.matches_filename(&name, is_dir)? {
             MatchType::None =>  {},
             MatchType::Positive => {
                 match_state = MatchType::Positive;
@@ -1060,7 +1060,7 @@ fn match_filename(
         }
     }
 
-    (match_state, child_pattern)
+    Ok((match_state, child_pattern))
 }
 
 fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {

@@ -143,7 +143,7 @@ impl MatchPattern {
         }
     }
 
-    pub fn matches_filename(&self, filename: &CStr, is_dir: bool) -> MatchType {
+    pub fn matches_filename(&self, filename: &CStr, is_dir: bool) -> Result<MatchType, Error> {
         let mut res = MatchType::None;
         let (front, _) = &self.split_pattern;
 
@@ -152,7 +152,9 @@ impl MatchPattern {
             let filename_ptr = filename.as_ptr() as *const libc::c_char;
             fnmatch(front_ptr, filename_ptr , 0)
         };
-        // TODO error cases
+        if fnmatch_res < 0 {
+            bail!("error in fnmatch inside of MatchPattern");
+        }
         if fnmatch_res == 0 {
             res = if self.match_positive {
                 MatchType::PartialPositive
@@ -171,7 +173,9 @@ impl MatchPattern {
             let filename_ptr = filename.as_ptr() as *const libc::c_char;
             fnmatch(full_ptr, filename_ptr, 0)
         };
-        // TODO error cases
+        if fnmatch_res < 0 {
+            bail!("error in fnmatch inside of MatchPattern");
+        }
         if fnmatch_res == 0 {
             res = if self.match_positive {
                 MatchType::Positive
@@ -188,7 +192,7 @@ impl MatchPattern {
             res = MatchType::None;
         }
 
-        res
+        Ok(res)
     }
 }
 
