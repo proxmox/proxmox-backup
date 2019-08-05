@@ -1,3 +1,10 @@
+//! `MatchPattern` defines a match pattern used to match filenames encountered
+//! during encoding or decoding of a `pxar` archive.
+//! `fnmatch` is used internally to match filenames against the patterns.
+//! Shell wildcard pattern can be used to match multiple filenames, see manpage
+//! `glob(7)`.
+//! `**` is treated special, as it matches multiple directories in a path.
+
 use std::io::Read;
 use std::ffi::{CStr, CString};
 use std::fs::File;
@@ -27,6 +34,32 @@ pub enum MatchType {
     PartialNegative,
 }
 
+/// `MatchPattern` provides functionality for filename glob pattern matching
+/// based on glibc's `fnmatch`.
+/// Positive matches return `MatchType::PartialPositive` or `MatchType::Positive`.
+/// Patterns starting with `!` are interpreted as negation, meaning they will
+/// return `MatchType::PartialNegative` or `MatchType::Negative`.
+/// No matches result in `MatchType::None`.
+/// # Examples:
+/// ```
+/// # use std::ffi::CString;
+/// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+/// # fn main() -> Result<(), failure::Error> {
+/// let filename = CString::new("some.conf")?;
+/// let is_dir = false;
+///
+/// /// Positive match of any file ending in `.conf` in any subdirectory
+/// let positive = MatchPattern::from_line(b"**/*.conf")?.unwrap();
+/// let m_positive = positive.matches_filename(&filename, is_dir)?;
+/// assert!(m_positive == MatchType::Positive);
+///
+/// /// Negative match of filenames starting with `s`
+/// let negative = MatchPattern::from_line(b"![s]*")?.unwrap();
+/// let m_negative = negative.matches_filename(&filename, is_dir)?;
+/// assert!(m_negative == MatchType::Negative);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct MatchPattern {
     pattern: CString,
@@ -36,6 +69,17 @@ pub struct MatchPattern {
 }
 
 impl MatchPattern {
+    /// Read a list of `MatchPattern` from file.
+    /// The file is read line by line (lines terminated by newline character),
+    /// each line may only contain one pattern.
+    /// Leading `/` are ignored and lines starting with `#` are interpreted as
+    /// comments and not included in the resulting list.
+    /// Patterns ending in `/` will match only directories.
+    ///
+    /// On success, a list of match pattern is returned as well as the raw file
+    /// byte buffer together with the files stats.
+    /// This is done in order to avoid reading the file more than once during
+    /// encoding of the archive.
     pub fn from_file<P: ?Sized + NixPath>(
         parent_fd: RawFd,
         filename: &P,
@@ -68,6 +112,13 @@ impl MatchPattern {
         Ok(Some((match_pattern, content_buffer, stat)))
     }
 
+    /// Interprete a byte buffer as a sinlge line containing a valid
+    /// `MatchPattern`.
+    /// Pattern starting with `#` are interpreted as comments, returning `Ok(None)`.
+    /// Pattern starting with '!' are interpreted as negative match pattern.
+    /// Pattern with trailing `/` match only against directories.
+    /// `.` as well as `..` and any pattern containing `\0` are invalid and will
+    /// result in an error.
     pub fn from_line(line: &[u8]) -> Result<Option<MatchPattern>, Error> {
         let mut input = line;
 
@@ -114,6 +165,19 @@ impl MatchPattern {
         }))
     }
 
+    /// Returns the pattern before the first `/` encountered as `MatchPattern`.
+    /// If no slash is encountered, the `MatchPattern` will be a copy of the
+    /// original pattern.
+    /// ```
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
+    /// let front = pattern.get_front_pattern();
+    /// /// ... will be the same as ...
+    /// let front_pattern = MatchPattern::from_line(b"some")?.unwrap();
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn get_front_pattern(&self) -> MatchPattern {
         let pattern = split_at_slash(&self.split_pattern.0);
         MatchPattern {
@@ -124,6 +188,18 @@ impl MatchPattern {
         }
     }
 
+    /// Returns the pattern after the first encountered `/` as `MatchPattern`.
+    /// If no slash is encountered, the `MatchPattern` will be empty.
+    /// ```
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
+    /// let rest = pattern.get_rest_pattern();
+    /// /// ... will be the same as ...
+    /// let rest_pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn get_rest_pattern(&self) -> MatchPattern {
         let pattern = split_at_slash(&self.split_pattern.1);
         MatchPattern {
@@ -134,6 +210,8 @@ impl MatchPattern {
         }
     }
 
+    /// Dump the content of the `MatchPattern` to stdout.
+    /// Intended for debugging purposes only.
     pub fn dump(&self) {
         match (self.match_positive, self.match_dir_only) {
             (true, true) => println!("{:#?}/", self.pattern),
@@ -143,6 +221,15 @@ impl MatchPattern {
         }
     }
 
+    /// Match the given filename against this `MatchPattern`.
+    /// If the filename matches the pattern completely, `MatchType::Positive` or
+    /// `MatchType::Negative` is returned, depending if the match pattern is was
+    /// declared as positive (no `!` prefix) or negative (`!` prefix).
+    /// If the pattern matched only up to the first slash of the pattern,
+    /// `MatchType::PartialPositive` or `MatchType::PartialNegatie` is returned.
+    /// If the pattern was postfixed by a trailing `/` a match is only valid if
+    /// the parameter `is_dir` equals `true`.
+    /// No match results in `MatchType::None`.
     pub fn matches_filename(&self, filename: &CStr, is_dir: bool) -> Result<MatchType, Error> {
         let mut res = MatchType::None;
         let (front, _) = &self.split_pattern;
@@ -196,6 +283,13 @@ impl MatchPattern {
     }
 }
 
+// Splits the `CStr` slice at the first slash encountered and returns the
+// content before (front pattern) and after the slash (rest pattern),
+// omitting the slash itself.
+// Slices starting with `**/` are an exception to this, as the corresponding
+// `MatchPattern` is intended to match multiple directories.
+// These pattern slices therefore return a `*` as front pattern and the original
+// pattern itself as rest pattern.
 fn split_at_slash(match_pattern: &CStr) -> (CString, CString) {
     let match_pattern = match_pattern.to_bytes();
 
