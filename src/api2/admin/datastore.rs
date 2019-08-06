@@ -539,9 +539,9 @@ fn upload_backup_log(
             Ok::<_, Error>(acc)
         })
         .and_then(move |data| {
-            let mut blob = DataBlob::from_raw(data)?;
-            // always comput CRC at server side
-            blob.set_crc(blob.compute_crc());
+            let blob = DataBlob::from_raw(data)?;
+            // always verify CRC at server side
+            blob.verify_crc()?;
             let raw_data = blob.raw_data();
             file_set_contents(&path, raw_data, None)?;
             Ok(())

@@ -73,7 +73,7 @@ impl DataBlob {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
-        if let Some(config) = config {
+        let mut blob = if let Some(config) = config {
 
             let compr_data;
             let (_compress, data, magic) = if compress {
@@ -110,7 +110,7 @@ impl DataBlob {
                 (&mut raw_data[0..header_len]).write_le_value(head)?;
             }
 
-            return Ok(DataBlob { raw_data });
+            DataBlob { raw_data }
         } else {
 
             let max_data_len = data.len() + std::mem::size_of::<DataBlobHeader>();
@@ -143,8 +143,12 @@ impl DataBlob {
             }
             raw_data.extend_from_slice(data);
 
-            return Ok(DataBlob { raw_data });
-        }
+            DataBlob { raw_data }
+        };
+
+        blob.set_crc(blob.compute_crc());
+
+        Ok(blob)
     }
 
     /// Decode blob data
@@ -238,7 +242,10 @@ impl DataBlob {
         }
         raw_data.extend_from_slice(data);
 
-        return Ok(DataBlob { raw_data });
+        let mut blob = DataBlob { raw_data };
+        blob.set_crc(blob.compute_crc());
+
+        return Ok(blob);
     }
 
     /// Create Instance from raw data
