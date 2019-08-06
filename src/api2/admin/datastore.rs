@@ -172,15 +172,28 @@ fn list_snapshots (
         if let Some(backup_type) = backup_type {
             if backup_type != group.backup_type() { continue; }
         }
-       if let Some(backup_id) = backup_id {
+        if let Some(backup_id) = backup_id {
             if backup_id != group.backup_id() { continue; }
         }
-        snapshots.push(json!({
+
+        let mut result_item = json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
             "backup-time": info.backup_dir.backup_time().timestamp(),
             "files": info.files,
-        }));
+        });
+
+        if let Ok(index) = read_backup_index(&datastore, &info.backup_dir) {
+            let mut backup_size = 0;
+            for item in index.as_array().unwrap().iter() {
+                if let Some(item_size) = item["size"].as_u64() {
+                    backup_size += item_size;
+                }
+            }
+            result_item["size"] = backup_size.into();
+        }
+
+        snapshots.push(result_item);
     }
 
     Ok(json!(snapshots))

@@ -335,14 +335,23 @@ fn list_snapshots(
             .map(|v|  strip_server_file_expenstion(v.as_str().unwrap())).collect();
 
         if output_format == "text" {
-            println!("{} | {}", path, tools::join(&files, ' '));
+            let size_str = if let Some(size) = item["size"].as_u64() {
+                size.to_string()
+            } else {
+                String::from("-")
+            };
+            println!("{} | {} | {}", path, size_str, tools::join(&files, ' '));
         } else {
-            result.push(json!({
+            let mut data = json!({
                 "backup-type": btype,
                 "backup-id": id,
                 "backup-time": epoch,
                 "files": files,
-            }));
+            });
+            if let Some(size) = item["size"].as_u64() {
+                data["size"] = size.into();
+            }
+            result.push(data);
         }
     }
 
