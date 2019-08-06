@@ -564,6 +564,7 @@ impl Drop for BackupClient {
 
 pub struct BackupStats {
     pub size: u64,
+    pub csum: [u8; 32],
 }
 
 impl BackupClient {
@@ -625,10 +626,11 @@ impl BackupClient {
                 Ok(raw_data)
             })
             .and_then(move |raw_data| {
+                let csum = openssl::sha::sha256(&raw_data);
                 let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
                 h2.upload("blob", Some(param), raw_data)
                     .map(move |_| {
-                        BackupStats { size: size }
+                        BackupStats { size, csum }
                     })
             })
     }
@@ -661,10 +663,11 @@ impl BackupClient {
                         Ok((raw_data, contents.len()))
                     })
                     .and_then(move |(raw_data, size)| {
+                        let csum = openssl::sha::sha256(&raw_data);
                         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
                         h2.upload("blob", Some(param), raw_data)
                             .map(move |_| {
-                                BackupStats { size: size as u64 }
+                                BackupStats { size: size as u64, csum }
                             })
                     })
             });
@@ -713,7 +716,7 @@ impl BackupClient {
                         });
                         h2_4.post(&close_path, Some(param))
                             .map(move |_| {
-                                BackupStats { size: size as u64 }
+                                BackupStats { size: size as u64, csum: [0u8; 32] }
                             })
                     })
             })

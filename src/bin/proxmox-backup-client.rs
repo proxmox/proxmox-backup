@@ -658,6 +658,7 @@ fn create_backup(
             acc.push(json!({
                 "filename": filename,
                 "size": stats.size,
+                "csum": proxmox::tools::digest_to_hex(&stats.csum),
             }));
             acc
         });
