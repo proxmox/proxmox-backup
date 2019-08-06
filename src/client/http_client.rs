@@ -660,14 +660,14 @@ impl BackupClient {
                             DataBlob::encode(&contents, None, compress)?
                         };
                         let raw_data = blob.into_inner();
-                        Ok((raw_data, contents.len()))
+                        Ok((raw_data, contents.len() as u64))
                     })
                     .and_then(move |(raw_data, size)| {
                         let csum = openssl::sha::sha256(&raw_data);
                         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
                         h2.upload("blob", Some(param), raw_data)
                             .map(move |_| {
-                                BackupStats { size: size as u64, csum }
+                                BackupStats { size, csum }
                             })
                     })
             });
