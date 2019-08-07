@@ -128,7 +128,9 @@ impl DataBlob {
                 zstd::stream::copy_encode(data, &mut comp_data, 1)?;
 
                 if comp_data.len() < max_data_len {
-                    return Ok(DataBlob { raw_data: comp_data });
+                    let mut blob = DataBlob { raw_data: comp_data };
+                    blob.set_crc(blob.compute_crc());
+                    return Ok(blob);
                 }
             }
 
