@@ -178,6 +178,15 @@ pub struct BackupInfo {
 
 impl BackupInfo {
 
+    pub fn new(base_path: &Path, backup_dir: BackupDir) -> Result<BackupInfo, Error> {
+        let mut path = base_path.to_owned();
+        path.push(backup_dir.relative_path());
+
+        let files = list_backup_files(libc::AT_FDCWD, &path)?;
+
+        Ok(BackupInfo { backup_dir, files })
+    }
+
     /// Finds the latest backup inside a backup group
     pub fn last_backup(base_path: &Path, group: &BackupGroup) -> Result<Option<BackupInfo>, Error> {
         let backups = group.list_backups(base_path)?;
