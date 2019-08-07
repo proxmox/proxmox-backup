@@ -600,12 +600,12 @@ fn create_backup(
             BackupType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
-                file_list.push((format!("{}.blob", target), stats));
+                file_list.push((target, stats));
             }
             BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
-                file_list.push((format!("{}.blob", target), stats));
+                file_list.push((target, stats));
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
@@ -619,7 +619,7 @@ fn create_backup(
                     skip_lost_and_found,
                     crypt_config.clone(),
                 )?;
-                file_list.push((format!("{}.didx", target), stats));
+                file_list.push((target, stats));
             }
             BackupType::IMAGE => {
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
@@ -632,7 +632,7 @@ fn create_backup(
                     verbose,
                     crypt_config.clone(),
                 )?;
-                file_list.push((format!("{}.fidx", target), stats));
+                file_list.push((target, stats));
             }
         }
     }
