@@ -519,14 +519,15 @@ fn create_backup(
         };
         let file_type = metadata.file_type();
 
-        let extension = Path::new(target).extension().map(|s| s.to_str().unwrap()).unwrap();
+        let extension = target.rsplit('.').next()
+            .ok_or(format_err!("missing target file extenion '{}'", target))?;
 
         match extension {
             "pxar" => {
                 if !file_type.is_dir() {
                     bail!("got unexpected file type (expected directory)");
                 }
-                upload_list.push((BackupType::PXAR, filename.to_owned(), target.to_owned(), 0));
+                upload_list.push((BackupType::PXAR, filename.to_owned(), format!("{}.didx", target), 0));
             }
             "img" => {
 
@@ -538,19 +539,19 @@ fn create_backup(
 
                 if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
-                upload_list.push((BackupType::IMAGE, filename.to_owned(), target.to_owned(), size));
+                upload_list.push((BackupType::IMAGE, filename.to_owned(), format!("{}.fidx", target), size));
             }
             "conf" => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupType::CONFIG, filename.to_owned(), target.to_owned(), metadata.len()));
+                upload_list.push((BackupType::CONFIG, filename.to_owned(), format!("{}.blob", target), metadata.len()));
             }
             "log" => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupType::LOGFILE, filename.to_owned(), target.to_owned(), metadata.len()));
+                upload_list.push((BackupType::LOGFILE, filename.to_owned(), format!("{}.blob", target), metadata.len()));
             }
             _ => {
                 bail!("got unknown archive extension '{}'", extension);
@@ -599,12 +600,12 @@ fn create_backup(
             BackupType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
-                file_list.push((target, stats));
+                file_list.push((format!("{}.blob", target), stats));
             }
             BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client.upload_blob_from_file(&filename, &target, crypt_config.clone(), true).wait()?;
-                file_list.push((target, stats));
+                file_list.push((format!("{}.blob", target), stats));
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
@@ -618,7 +619,7 @@ fn create_backup(
                     skip_lost_and_found,
                     crypt_config.clone(),
                 )?;
-                file_list.push((target, stats));
+                file_list.push((format!("{}.didx", target), stats));
             }
             BackupType::IMAGE => {
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
@@ -631,7 +632,7 @@ fn create_backup(
                     verbose,
                     crypt_config.clone(),
                 )?;
-                file_list.push((target, stats));
+                file_list.push((format!("{}.fidx", target), stats));
             }
         }
     }
@@ -640,7 +641,7 @@ fn create_backup(
         let target = "rsa-encrypted.key";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client.upload_blob_from_data(rsa_encrypted_key, target, None, false, false).wait()?;
-        file_list.push((target.to_owned(), stats));
+        file_list.push((format!("{}.blob", target), stats));
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*
@@ -672,7 +673,7 @@ fn create_backup(
 
     println!("Upload index.json to '{:?}'", repo);
     let index_data = serde_json::to_string_pretty(&index)?.into();
-    client.upload_blob_from_data(index_data, "index.json", crypt_config.clone(), true, true).wait()?;
+    client.upload_blob_from_data(index_data, "index.json.blob", crypt_config.clone(), true, true).wait()?;
 
     client.finish().wait()?;
 

@@ -242,13 +242,15 @@ fn upload_blob(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
-    let mut file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+    let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
     let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
 
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    file_name.push_str(".blob");
+    if !file_name.ends_with(".blob") {
+        bail!("wrong blob file extension: '{}'", file_name);
+    }
 
     let env2 = env.clone();
     let env3 = env.clone();

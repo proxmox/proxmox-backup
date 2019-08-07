@@ -228,11 +228,9 @@ fn create_dynamic_index(
 
     let name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    let mut archive_name = name.clone();
-    if !archive_name.ends_with(".pxar") {
+    let archive_name = name.clone();
+    if !archive_name.ends_with(".pxar.didx") {
         bail!("wrong archive extension: '{}'", archive_name);
-    } else {
-        archive_name.push_str(".didx");
     }
 
     let mut path = env.backup_dir.relative_path();
@@ -270,11 +268,9 @@ fn create_fixed_index(
     let name = tools::required_string_param(&param, "archive-name")?.to_owned();
     let size = tools::required_integer_param(&param, "size")? as usize;
 
-    let mut archive_name = name.clone();
-    if !archive_name.ends_with(".img") {
+    let archive_name = name.clone();
+    if !archive_name.ends_with(".img.fidx") {
         bail!("wrong archive extension: '{}'", archive_name);
-    } else {
-        archive_name.push_str(".fidx");
     }
 
     let mut path = env.backup_dir.relative_path();
@@ -502,12 +498,10 @@ fn dynamic_chunk_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+    let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".pxar") {
+    if !archive_name.ends_with(".pxar.didx") {
         bail!("wrong archive extension: '{}'", archive_name);
-    } else {
-        archive_name.push_str(".didx");
     }
 
     let empty_response = {
@@ -575,12 +569,10 @@ fn fixed_chunk_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let mut archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+    let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".img") {
+    if !archive_name.ends_with(".img.fidx") {
         bail!("wrong archive extension: '{}'", archive_name);
-    } else {
-        archive_name.push_str(".fidx");
     }
 
     let empty_response = {
