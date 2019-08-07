@@ -120,11 +120,22 @@ fn list_snapshot_files (
     let backup_id = tools::required_string_param(&param, "backup-id")?;
     let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
+    let datastore = DataStore::lookup_datastore(store)?;
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
-    let datastore = DataStore::lookup_datastore(store)?;
+    let mut files = read_backup_index(&datastore, &snapshot)?;
 
-    let files = read_backup_index(&datastore, &snapshot)?;
+    let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
+
+    let file_set = files.as_array().unwrap().iter().fold(HashSet::new(), |mut acc, item| {
+        acc.insert(item["filename"].as_str().unwrap().to_owned());
+        acc
+    });
+
+    for file in info.files {
+        if file_set.contains(&file) { continue; }
+        files.as_array_mut().unwrap().push(json!({ "filename": file }));
+    }
 
     Ok(files)
 }
