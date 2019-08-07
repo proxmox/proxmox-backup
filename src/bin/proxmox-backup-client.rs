@@ -1105,7 +1105,7 @@ fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec
 
     if let Some(list) = data.as_array() {
         for item in list {
-            if let Some(filename) = item.as_str() {
+            if let Some(filename) = item["filename"].as_str() {
                 result.push(filename.to_owned());
             }
         }
