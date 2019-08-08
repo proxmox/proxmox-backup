@@ -12,6 +12,7 @@ use serde_json::{Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
+use std::ffi::OsStr;
 use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
@@ -216,6 +217,27 @@ fn create_archive(
     Ok(Value::Null)
 }
 
+/// Mount the archive to the provided mountpoint via FUSE.
+fn mount_archive(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let archive = tools::required_string_param(&param, "archive")?;
+    let mountpoint = tools::required_string_param(&param, "mountpoint")?;
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+
+    let archive = Path::new(archive);
+    let mountpoint = Path::new(mountpoint);
+    let options = OsStr::new("ro,default_permissions");
+    let mut session = pxar::fuse::Session::new(&archive, &options, verbose)
+        .map_err(|err| format_err!("pxar mount failed: {}", err))?;
+    session.mount(&mountpoint)?;
+    session.run_loop()?;
+
+    Ok(Value::Null)
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -265,6 +287,19 @@ fn main() {
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .completion_cb("files-from", tools::complete_file_name)
+            .into()
+        )
+        .insert("mount", CliCommand::new(
+            ApiMethod::new(
+                mount_archive,
+                ObjectSchema::new("Mount the archive as filesystem via FUSE.")
+                    .required("archive", StringSchema::new("Archive name."))
+                    .required("mountpoint", StringSchema::new("Mountpoint for the filesystem root."))
+                    .optional("verbose", BooleanSchema::new("Verbose output, keeps process running in foreground.").default(false))
+            ))
+            .arg_param(vec!["archive", "mountpoint"])
+            .completion_cb("archive", tools::complete_file_name)
+            .completion_cb("mountpoint", tools::complete_file_name)
             .into()
         )
         .insert("list", CliCommand::new(
