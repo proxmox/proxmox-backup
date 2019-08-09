@@ -1055,15 +1055,9 @@ fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<Str
 
 fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
-    let mut result = vec![];
-
-     let repo = match extract_repository_from_map(param) {
-        Some(v) => v,
-        _ => return result,
-    };
-
     if arg.matches('/').count() < 2 {
         let groups = complete_backup_group(arg, param);
+        let mut result = vec![];
         for group in groups {
             result.push(group.to_string());
             result.push(format!("{}/", group));
@@ -1071,13 +1065,19 @@ fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec
         return result;
     }
 
-    let mut parts = arg.split('/');
-    let query = tools::json_object_to_query(json!({
-        "backup-type": parts.next().unwrap(),
-        "backup-id": parts.next().unwrap(),
-    })).unwrap();
+    complete_backup_snapshot(arg, param)
+}
 
-    let path = format!("api2/json/admin/datastore/{}/snapshots?{}", repo.store(), query);
+fn complete_backup_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let repo = match extract_repository_from_map(param) {
+        Some(v) => v,
+        _ => return result,
+    };
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
     let data = try_get(&repo, &path);
 
@@ -1471,7 +1471,7 @@ fn main() {
                     StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
         ))
         .arg_param(vec!["snapshot", "logfile"])
-        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("snapshot", complete_backup_snapshot)
         .completion_cb("logfile", tools::complete_file_name)
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("repository", complete_repository);
@@ -1506,7 +1506,7 @@ fn main() {
         ))
         .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_group_or_snapshot);
+        .completion_cb("snapshot", complete_backup_snapshot);
 
     let garbage_collect_cmd_def = CliCommand::new(
         ApiMethod::new(
@@ -1554,7 +1554,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         ))
         .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_group_or_snapshot);
+        .completion_cb("snapshot", complete_backup_snapshot);
 
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
