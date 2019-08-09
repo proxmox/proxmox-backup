@@ -1068,7 +1068,7 @@ fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec
     complete_backup_snapshot(arg, param)
 }
 
-fn complete_backup_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+fn complete_backup_snapshot(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
 
