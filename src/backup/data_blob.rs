@@ -3,6 +3,8 @@ use std::convert::TryInto;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
+const MAX_BLOB_SIZE: usize = 128*1024*1024;
+
 use super::*;
 
 /// Data blob binary storage format
@@ -69,7 +71,7 @@ impl DataBlob {
         compress: bool,
     ) -> Result<Self, Error> {
 
-        if data.len() > 128*1024*1024 {
+        if data.len() > MAX_BLOB_SIZE {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
@@ -163,7 +165,7 @@ impl DataBlob {
             return Ok(self.raw_data[data_start..].to_vec());
         } else if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
-            let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
+            let data = zstd::block::decompress(&self.raw_data[data_start..], MAX_BLOB_SIZE)?;
             return Ok(data);
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             let header_len = std::mem::size_of::<EncryptedDataBlobHeader>();
@@ -215,7 +217,7 @@ impl DataBlob {
         compress: bool,
     ) -> Result<Self, Error> {
 
-        if data.len() > 128*1024*1024 {
+        if data.len() > MAX_BLOB_SIZE {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
