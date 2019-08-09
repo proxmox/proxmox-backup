@@ -5,8 +5,7 @@
 
 use failure::*;
 
-use std::io::{Read, BufRead, Write, BufReader};
-use std::fs::File;
+use std::io::{Read, BufRead, Write};
 use std::convert::TryFrom;
 
 use std::ffi::{CStr, CString};
@@ -139,18 +138,16 @@ impl BackupCatalogWriter for SimpleCatalog {
     }
 }
 
-pub struct SimpleCatalogReader {
-    reader: BufReader<File>,
+pub struct SimpleCatalogReader<R> {
+    reader: R,
     dir_stack: Vec<CString>,
 }
 
-impl SimpleCatalogReader {
+impl <R: Read + BufRead> SimpleCatalogReader<R> {
 
-    pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
-        let file = std::fs::File::open(path)?;
-        let reader = BufReader::new(file);
+    pub fn new(reader: R) -> Self {
         let dir_stack = Vec::new();
-        Ok(Self { reader, dir_stack })
+        Self { reader, dir_stack }
     }
 
     fn read_filename(&mut self) ->  Result<std::ffi::CString, Error> {

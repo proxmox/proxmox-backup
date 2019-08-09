@@ -389,6 +389,55 @@ fn forget_snapshots(
     Ok(result)
 }
 
+fn dump_catalog(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let snapshot = BackupDir::parse(path)?;
+
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            Some(Arc::new(CryptConfig::new(key)?))
+        }
+    };
+
+    let client = HttpClient::new(repo.host(), repo.user())?;
+
+    let client = client.start_backup_reader(
+        repo.store(),
+        &snapshot.group().backup_type(),
+        &snapshot.group().backup_id(),
+        snapshot.backup_time(), true).wait()?;
+
+    let writer = Vec::with_capacity(1024*1024);
+    let blob_data = client.download("catalog.blob", writer).wait()?;
+    let blob = DataBlob::from_raw(blob_data)?;
+    blob.verify_crc()?;
+
+    let raw_data = match crypt_config {
+        Some(ref crypt_config) => blob.decode(Some(crypt_config))?,
+        None => blob.decode(None)?,
+    };
+
+    let slice = &raw_data[..];
+    let mut catalog_reader = pxar::catalog::SimpleCatalogReader::new(slice);
+
+    catalog_reader.dump()?;
+
+    record_repository(&repo);
+
+    Ok(Value::Null)
+}
+
 fn list_snapshot_files(
     param: Value,
     _info: &ApiMethod,
@@ -616,8 +665,8 @@ fn create_backup(
             }
             BackupType::PXAR => {
                 upload_catalog = true;
-                catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
+                catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
                     &client,
                     &filename,
@@ -1558,6 +1607,17 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
+    let catalog_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            dump_catalog,
+            ObjectSchema::new("Dump catalog.")
+                .required("snapshot", StringSchema::new("Snapshot path."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
+        ))
+        .arg_param(vec!["snapshot"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_backup_snapshot);
+
     let prune_cmd_def = CliCommand::new(
         ApiMethod::new(
             prune,
@@ -1584,6 +1644,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("upload-log".to_owned(), upload_log_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
+        .insert("catalog".to_owned(), catalog_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
