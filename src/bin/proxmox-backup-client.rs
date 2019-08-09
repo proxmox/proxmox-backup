@@ -18,7 +18,7 @@ use proxmox_backup::api_schema::*;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
 use proxmox_backup::backup::*;
-use proxmox_backup::pxar;
+use proxmox_backup::pxar::{ self, catalog::* };
 
 //use proxmox_backup::backup::image_index::*;
 //use proxmox_backup::config::datastore;
@@ -159,7 +159,7 @@ fn backup_directory<P: AsRef<Path>>(
     verbose: bool,
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
-    catalog: Arc<Mutex<pxar::catalog::SimpleCatalog>>,
+    catalog: Arc<Mutex<SimpleCatalog>>,
 ) -> Result<BackupStats, Error> {
 
     let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found, catalog)?;
@@ -599,7 +599,7 @@ fn create_backup(
     let mut file_list = vec![];
 
     let catalog_filename = format!("/tmp/pbs-catalog-{}.cat", std::process::id());
-    let catalog = Arc::new(Mutex::new(pxar::catalog::SimpleCatalog::new(&catalog_filename)?));
+    let catalog = Arc::new(Mutex::new(SimpleCatalog::new(&catalog_filename)?));
     let mut upload_catalog = false;
 
     for (backup_type, filename, target, size) in upload_list {
@@ -616,6 +616,7 @@ fn create_backup(
             }
             BackupType::PXAR => {
                 upload_catalog = true;
+                catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_directory(
                     &client,
@@ -629,6 +630,7 @@ fn create_backup(
                     catalog.clone(),
                 )?;
                 file_list.push((target, stats));
+                catalog.lock().unwrap().end_directory()?;
             }
             BackupType::IMAGE => {
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
