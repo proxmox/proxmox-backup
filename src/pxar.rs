@@ -71,6 +71,9 @@ pub use match_pattern::*;
 mod dir_stack;
 pub use dir_stack::*;
 
+pub mod fuse;
+pub use fuse::*;
+
 pub mod catalog;
 
 mod helper;
