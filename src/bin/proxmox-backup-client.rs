@@ -7,6 +7,8 @@ use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
 use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
+
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
 
 use proxmox_backup::tools;
@@ -25,7 +27,7 @@ use proxmox_backup::pxar;
 
 use serde_json::{json, Value};
 //use hyper::Body;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use regex::Regex;
 use xdg::BaseDirectories;
 
@@ -157,9 +159,10 @@ fn backup_directory<P: AsRef<Path>>(
     verbose: bool,
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
+    catalog: Arc<Mutex<pxar::catalog::SimpleCatalog>>,
 ) -> Result<BackupStats, Error> {
 
-    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found)?;
+    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found, catalog)?;
     let chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
@@ -595,6 +598,10 @@ fn create_backup(
 
     let mut file_list = vec![];
 
+    let catalog_filename = format!("/tmp/pbs-catalog-{}.cat", std::process::id());
+    let catalog = Arc::new(Mutex::new(pxar::catalog::SimpleCatalog::new(&catalog_filename)?));
+    let mut upload_catalog = false;
+
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
             BackupType::CONFIG => {
@@ -608,6 +615,7 @@ fn create_backup(
                 file_list.push((target, stats));
             }
             BackupType::PXAR => {
+                upload_catalog = true;
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_directory(
                     &client,
@@ -618,6 +626,7 @@ fn create_backup(
                     verbose,
                     skip_lost_and_found,
                     crypt_config.clone(),
+                    catalog.clone(),
                 )?;
                 file_list.push((target, stats));
             }
@@ -635,6 +644,19 @@ fn create_backup(
                 file_list.push((target, stats));
             }
         }
+    }
+
+    // finalize and upload catalog
+    if upload_catalog {
+        let mutex = Arc::try_unwrap(catalog)
+            .map_err(|_| format_err!("unable to get catalog (still used)"))?;
+        drop(mutex); // close catalog
+
+        let target = "catalog.blob";
+        let stats = client.upload_blob_from_file(&catalog_filename, target, crypt_config.clone(), true).wait()?;
+        file_list.push((target.to_owned(), stats));
+
+        let _ = std::fs::remove_file(&catalog_filename);
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
@@ -771,8 +793,6 @@ fn restore(
     };
 
     let client = client.start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true).wait()?;
-
-    use std::os::unix::fs::OpenOptionsExt;
 
     let tmpfile = std::fs::OpenOptions::new()
         .write(true)

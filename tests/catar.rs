@@ -26,7 +26,8 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    Encoder::encode(path, &mut dir, &mut writer, None, false, false, flags::DEFAULT)?;
+    let catalog = None::<&mut catalog::SimpleCatalog>;
+    Encoder::encode(path, &mut dir, &mut writer, catalog, None, false, false, flags::DEFAULT)?;
 
     Command::new("cmp")
         .arg("--verbose")

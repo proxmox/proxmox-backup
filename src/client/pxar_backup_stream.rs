@@ -37,7 +37,14 @@ impl Drop for PxarBackupStream {
 
 impl PxarBackupStream {
 
-    pub fn new(mut dir: Dir, path: PathBuf, device_set: Option<HashSet<u64>>, verbose: bool, skip_lost_and_found: bool) -> Result<Self, Error> {
+    pub fn new(
+        mut dir: Dir,
+        path: PathBuf,
+        device_set: Option<HashSet<u64>>,
+        verbose: bool,
+        skip_lost_and_found: bool,
+        catalog: Arc<Mutex<crate::pxar::catalog::SimpleCatalog>>,
+    ) -> Result<Self, Error> {
 
         let (rx, tx) = nix::unistd::pipe()?;
 
@@ -47,9 +54,11 @@ impl PxarBackupStream {
         let error = Arc::new(Mutex::new(None));
         let error2 = error.clone();
 
-        let child = thread::spawn(move|| {
+        let catalog = catalog.clone();
+        let child = thread::spawn(move || {
+            let mut guard = catalog.lock().unwrap();
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, device_set, verbose, skip_lost_and_found, pxar::flags::DEFAULT) {
+            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, Some(&mut *guard), device_set, verbose, skip_lost_and_found, pxar::flags::DEFAULT) {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
             }
@@ -65,12 +74,18 @@ impl PxarBackupStream {
         })
     }
 
-    pub fn open(dirname: &Path, device_set: Option<HashSet<u64>>, verbose: bool, skip_lost_and_found: bool) -> Result<Self, Error> {
+    pub fn open(
+        dirname: &Path,
+        device_set: Option<HashSet<u64>>,
+        verbose: bool,
+        skip_lost_and_found: bool,
+        catalog: Arc<Mutex<crate::pxar::catalog::SimpleCatalog>>,
+    ) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, device_set, verbose, skip_lost_and_found)
+        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog)
     }
 }
 

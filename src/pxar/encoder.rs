@@ -11,6 +11,8 @@ use super::format_definition::*;
 use super::binary_search_tree::*;
 use super::helper::*;
 use super::match_pattern::*;
+use super::catalog::BackupCatalogWriter;
+
 use crate::tools::fs;
 use crate::tools::acl;
 use crate::tools::xattr;
@@ -42,11 +44,12 @@ struct HardLinkInfo {
     st_ino: u64,
 }
 
-pub struct Encoder<'a, W: Write> {
+pub struct Encoder<'a, W: Write, C: BackupCatalogWriter> {
     base_path: PathBuf,
     relative_path: PathBuf,
     writer: &'a mut W,
     writer_pos: usize,
+    catalog: Option<&'a mut C>,
     _size: usize,
     file_copy_buffer: Vec<u8>,
     device_set: Option<HashSet<u64>>,
@@ -58,7 +61,7 @@ pub struct Encoder<'a, W: Write> {
     hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
 }
 
-impl <'a, W: Write> Encoder<'a, W> {
+impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
     // used for error reporting
     fn full_path(&self) ->  PathBuf {
@@ -78,6 +81,7 @@ impl <'a, W: Write> Encoder<'a, W> {
         path: PathBuf,
         dir: &mut nix::dir::Dir,
         writer: &'a mut W,
+        catalog: Option<&'a mut C>,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool, // fixme: should be a feature flag ??
@@ -118,6 +122,7 @@ impl <'a, W: Write> Encoder<'a, W> {
             relative_path: PathBuf::new(),
             writer: writer,
             writer_pos: 0,
+            catalog,
             _size: 0,
             file_copy_buffer,
             device_set,
@@ -758,7 +763,13 @@ impl <'a, W: Write> Encoder<'a, W> {
                 };
 
                 self.write_filename(&filename)?;
+                if let Some(ref mut catalog) = self.catalog {
+                    catalog.start_directory(&filename)?;
+                }
                 self.encode_dir(&mut dir, &stat, child_magic, exclude_list)?;
+                if let Some(ref mut catalog) = self.catalog {
+                    catalog.end_directory()?;
+                }
 
             } else if is_reg_file(&stat) {
 
@@ -777,7 +788,9 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
 
                 if let Some((target, offset)) = hardlink_target {
-
+                    if let Some(ref mut catalog) = self.catalog {
+                        catalog.add_hardlink(&filename)?;
+                    }
                     self.write_filename(&filename)?;
                     self.encode_hardlink(target.as_bytes(), offset)?;
 
@@ -792,6 +805,9 @@ impl <'a, W: Write> Encoder<'a, W> {
                         Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
                     };
 
+                    if let Some(ref mut catalog) = self.catalog {
+                        catalog.add_file(&filename, stat.st_size as u64, stat.st_mtime as u64)?;
+                    }
                     let child_magic = if dir_stat.st_dev != stat.st_dev {
                         detect_fs_type(filefd)?
                     } else {
@@ -805,6 +821,7 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
 
             } else if is_symlink(&stat) {
+
                 let mut buffer = vec::undefined(libc::PATH_MAX as usize);
 
                 let res = filename.with_nix_path(|cstr| {
@@ -813,6 +830,9 @@ impl <'a, W: Write> Encoder<'a, W> {
 
                 match Errno::result(res) {
                     Ok(len) => {
+                        if let Some(ref mut catalog) = self.catalog {
+                            catalog.add_symlink(&filename)?;
+                        }
                         buffer[len as usize] = 0u8; // add Nul byte
                         self.write_filename(&filename)?;
                         self.encode_symlink(&buffer[..((len+1) as usize)], &stat)?
@@ -825,6 +845,13 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
             } else if is_block_dev(&stat) || is_char_dev(&stat) {
                 if self.has_features(flags::WITH_DEVICE_NODES) {
+                    if let Some(ref mut catalog) = self.catalog {
+                        if is_block_dev(&stat) {
+                            catalog.add_block_device(&filename)?;
+                        } else {
+                            catalog.add_char_device(&filename)?;
+                        }
+                    }
                     self.write_filename(&filename)?;
                     self.encode_device(&stat)?;
                 } else {
@@ -832,6 +859,9 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
             } else if is_fifo(&stat) {
                 if self.has_features(flags::WITH_FIFOS) {
+                    if let Some(ref mut catalog) = self.catalog {
+                        catalog.add_fifo(&filename)?;
+                    }
                     self.write_filename(&filename)?;
                     self.encode_special(&stat)?;
                 } else {
@@ -839,6 +869,9 @@ impl <'a, W: Write> Encoder<'a, W> {
                 }
             } else if is_socket(&stat) {
                 if self.has_features(flags::WITH_SOCKETS) {
+                    if let Some(ref mut catalog) = self.catalog {
+                        catalog.add_socket(&filename)?;
+                    }
                     self.write_filename(&filename)?;
                     self.encode_special(&stat)?;
                 } else {
