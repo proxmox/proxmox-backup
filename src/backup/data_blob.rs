@@ -7,7 +7,7 @@ use super::*;
 
 /// Data blob binary storage format
 ///
-/// Data blobs store arbitrary binary data (< 16MB), and can be
+/// Data blobs store arbitrary binary data (< 128MB), and can be
 /// compressed and encrypted. A simply binary format is used to store
 /// them on disk or transfer them over the network. Please use index
 /// files to store large data files (".fidx" of ".didx").
@@ -69,7 +69,7 @@ impl DataBlob {
         compress: bool,
     ) -> Result<Self, Error> {
 
-        if data.len() > 16*1024*1024 {
+        if data.len() > 128*1024*1024 {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
@@ -215,7 +215,7 @@ impl DataBlob {
         compress: bool,
     ) -> Result<Self, Error> {
 
-        if data.len() > 16*1024*1024 {
+        if data.len() > 128*1024*1024 {
             bail!("data blob too large ({} bytes).", data.len());
         }
 
