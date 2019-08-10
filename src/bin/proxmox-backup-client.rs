@@ -389,6 +389,35 @@ fn forget_snapshots(
     Ok(result)
 }
 
+fn api_login(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let client = HttpClient::new(repo.host(), repo.user())?;
+    client.login().wait()?;
+
+    record_repository(&repo);
+
+    Ok(Value::Null)
+}
+
+fn api_logout(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    delete_ticket_info(repo.host(), repo.user())?;
+
+    Ok(Value::Null)
+}
+
 fn dump_catalog(
     param: Value,
     _info: &ApiMethod,
@@ -1640,6 +1669,22 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         ))
         .completion_cb("repository", complete_repository);
 
+    let login_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            api_login,
+            ObjectSchema::new("Try to login. If successful, store ticket.")
+                .optional("repository", REPO_URL_SCHEMA.clone())
+        ))
+        .completion_cb("repository", complete_repository);
+
+    let logout_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            api_logout,
+            ObjectSchema::new("Logout (delete stored ticket).")
+                .optional("repository", REPO_URL_SCHEMA.clone())
+        ))
+        .completion_cb("repository", complete_repository);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("upload-log".to_owned(), upload_log_cmd_def.into())
@@ -1647,6 +1692,8 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("catalog".to_owned(), catalog_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
+        .insert("login".to_owned(), login_cmd_def.into())
+        .insert("logout".to_owned(), logout_cmd_def.into())
         .insert("prune".to_owned(), prune_cmd_def.into())
         .insert("restore".to_owned(), restore_cmd_def.into())
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())

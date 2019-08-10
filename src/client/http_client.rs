@@ -34,7 +34,7 @@ use super::merge_known_chunks::*;
 use crate::backup::*;
 
 #[derive(Clone)]
-struct AuthInfo {
+pub struct AuthInfo {
     username: String,
     ticket: String,
     token: String,
@@ -45,6 +45,27 @@ pub struct HttpClient {
     client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     server: String,
     auth: BroadcastFuture<AuthInfo>,
+}
+
+/// Delete stored ticket data (logout)
+pub fn delete_ticket_info(server: &str, username: &str) -> Result<(), Error> {
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    // usually /run/user/<uid>/...
+    let path = base.place_runtime_file("tickets")?;
+
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
+
+    let mut data = file_get_json(&path, Some(json!({})))?;
+
+    if let Some(map) = data[server].as_object_mut() {
+        map.remove(username);
+    }
+
+    file_set_contents(path, data.to_string().as_bytes(), Some(mode))?;
+
+    Ok(())
 }
 
 fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
@@ -142,6 +163,14 @@ impl HttpClient {
             server: String::from(server),
             auth: BroadcastFuture::new(login),
         })
+    }
+
+    /// Login future
+    ///
+    /// Login is done on demand, so this is onyl required if you need
+    /// access to authentication data in 'AuthInfo'.
+    pub fn login(&self) -> impl Future<Item=AuthInfo, Error=Error> {
+        self.auth.listen()
     }
 
     fn get_password(_username: &str) -> Result<String, Error> {
