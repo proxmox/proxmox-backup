@@ -294,52 +294,97 @@ impl DataBlob {
 
 use std::io::{Read, BufRead, Write, Seek, SeekFrom};
 
-/// Write compressed data blobs
-pub struct CompressedDataBlobWriter<W: Write> {
-    compr: Option<zstd::stream::write::Encoder<W>>,
-    hasher: crc32fast::Hasher,
+enum BlobWriterState<W: Write> {
+    Uncompressed { writer: W, hasher: crc32fast::Hasher },
+    Compressed { compr: zstd::stream::write::Encoder<W>, hasher: crc32fast::Hasher },
 }
 
-impl <W: Write + Seek> CompressedDataBlobWriter<W> {
+/// Write compressed data blobs
+pub struct DataBlobWriter<W: Write> {
+    state: BlobWriterState<W>,
+}
 
-    pub fn new(mut out: W) -> Result<Self, Error> {
-        out.seek(SeekFrom::Start(0))?;
+impl <W: Write + Seek> DataBlobWriter<W> {
+
+    pub fn new_uncompressed(mut writer: W) -> Result<Self, Error> {
+        let hasher = crc32fast::Hasher::new();
+        writer.seek(SeekFrom::Start(0))?;
+        let head = DataBlobHeader { magic: UNCOMPRESSED_BLOB_MAGIC_1_0, crc: [0; 4] };
+        unsafe {
+            writer.write_le_value(head)?;
+        }
+        let state = BlobWriterState::Uncompressed { writer, hasher };
+        Ok(Self { state })
+    }
+
+    pub fn new_compressed(mut writer: W) -> Result<Self, Error> {
+        let hasher = crc32fast::Hasher::new();
+        writer.seek(SeekFrom::Start(0))?;
         let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: [0; 4] };
         unsafe {
-            out.write_le_value(head)?;
+            writer.write_le_value(head)?;
         }
-        let compr = zstd::stream::write::Encoder::new(out, 1)?;
-        Ok(Self { compr: Some(compr), hasher: crc32fast::Hasher::new() })
+        let compr = zstd::stream::write::Encoder::new(writer, 1)?;
+        let state = BlobWriterState::Compressed { compr, hasher };
+        Ok(Self { state })
     }
 
-    pub fn finish(mut self) -> Result<W, Error> {
-        let compr = self.compr.take().expect("blob writer already finished");
-        let mut out = compr.finish()?;
+    pub fn finish(self) -> Result<W, Error> {
+        match self.state {
+            BlobWriterState::Uncompressed { mut writer, hasher } => {
+                // write CRC
+                let crc = hasher.finalize();
+                let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
 
-        // write CRC
-        let crc = self.hasher.finalize();
-        let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
+                writer.seek(SeekFrom::Start(0))?;
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
 
-        out.seek(SeekFrom::Start(0))?;
-        unsafe {
-            out.write_le_value(head)?;
+                return Ok(writer)
+            }
+            BlobWriterState::Compressed { compr, hasher } => {
+                let mut writer = compr.finish()?;
+
+                // write CRC
+                let crc = hasher.finalize();
+                let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
+
+                writer.seek(SeekFrom::Start(0))?;
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
+
+                return Ok(writer)
+            }
         }
-
-        Ok(out)
     }
 }
 
-impl <W: Write + Seek> Write for CompressedDataBlobWriter<W> {
+impl <W: Write + Seek> Write for DataBlobWriter<W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        let compr = self.compr.as_mut().expect("blob writer already finished");
-        self.hasher.update(buf);
-        compr.write(buf)
+        match self.state {
+            BlobWriterState::Uncompressed { ref mut writer, ref mut hasher } => {
+                hasher.update(buf);
+                writer.write(buf)
+            }
+            BlobWriterState::Compressed { ref mut compr, ref mut hasher } => {
+                hasher.update(buf);
+                compr.write(buf)
+            }
+        }
     }
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
-        let compr = self.compr.as_mut().expect("blob writer already finished");
-        compr.flush()
+        match self.state {
+            BlobWriterState::Uncompressed { ref mut writer, .. } => {
+                writer.flush()
+            }
+            BlobWriterState::Compressed { ref mut compr, .. } => {
+                compr.flush()
+            }
+        }
     }
 }
 
