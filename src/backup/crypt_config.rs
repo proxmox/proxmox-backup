@@ -7,7 +7,6 @@
 //! encryption](https://en.wikipedia.org/wiki/Authenticated_encryption)
 //! for a short introduction.
 use failure::*;
-use proxmox::tools;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::hash::MessageDigest;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
@@ -22,9 +21,12 @@ pub struct CryptConfig {
     // the Cipher
     cipher: Cipher,
     // A secrect key use to provide the chunk digest name space.
-    id_key: Vec<u8>,
+    id_key: [u8; 32],
+    // Openssl hmac PKey of id_key
+    id_pkey: openssl::pkey::PKey<openssl::pkey::Private>,
     // The private key used by the cipher.
     enc_key: [u8; 32],
+
 }
 
 impl CryptConfig {
@@ -35,7 +37,7 @@ impl CryptConfig {
     /// key is used in compute_digest.
     pub fn new(enc_key: [u8; 32]) -> Result<Self, Error> {
 
-        let mut id_key = tools::vec::undefined(32);
+        let mut id_key = [0u8; 32];
 
         pbkdf2_hmac(
             &enc_key,
@@ -44,7 +46,9 @@ impl CryptConfig {
             MessageDigest::sha256(),
             &mut id_key)?;
 
-        Ok(Self { id_key, enc_key, cipher: Cipher::aes_256_gcm() })
+        let id_pkey = openssl::pkey::PKey::hmac(&id_key).unwrap();
+
+        Ok(Self { id_key, id_pkey, enc_key, cipher: Cipher::aes_256_gcm() })
     }
 
     /// Compute a chunk digest using a secret name space.
@@ -62,13 +66,16 @@ impl CryptConfig {
         digest
     }
 
+    pub fn data_signer(&self) -> openssl::sign::Signer {
+        openssl::sign::Signer::new(MessageDigest::sha256(), &self.id_pkey).unwrap()
+    }
+
     /// Compute authentication tag (hmac/sha256)
     ///
     /// Computes an SHA256 HMAC using some secret data (derived
     /// from the secret key) and the provided data.
     pub fn compute_auth_tag(&self, data: &[u8]) -> [u8; 32] {
-        let key = openssl::pkey::PKey::hmac(&self.id_key).unwrap();
-        let mut signer = openssl::sign::Signer::new(MessageDigest::sha256(), &key).unwrap();
+        let mut signer = self.data_signer();
         signer.update(data).unwrap();
         let mut tag = [0u8; 32];
         signer.sign(&mut tag).unwrap();
