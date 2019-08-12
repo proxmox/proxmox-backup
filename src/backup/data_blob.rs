@@ -294,14 +294,56 @@ impl DataBlob {
 
 use std::io::{Read, BufRead, Write, Seek, SeekFrom};
 
+struct ChecksumWriter<'a, W> {
+    writer: W,
+    hasher: crc32fast::Hasher,
+    signer: Option<openssl::sign::Signer<'a>>,
+}
+
+impl <'a, W: Write> ChecksumWriter<'a, W> {
+
+    fn new(writer: W, signer: Option<openssl::sign::Signer<'a>>) -> Self {
+        let hasher = crc32fast::Hasher::new();
+        Self { writer, hasher, signer }
+    }
+
+    pub fn finish(mut self) -> Result<(W, u32, Option<[u8; 32]>), Error> {
+        let crc = self.hasher.finalize();
+
+        if let Some(ref mut signer) = self.signer {
+            let mut tag = [0u8; 32];
+            signer.sign(&mut tag)?;
+            Ok((self.writer, crc, Some(tag)))
+        } else {
+            Ok((self.writer, crc, None))
+        }
+    }
+}
+
+impl <'a, W: Write> Write for ChecksumWriter<'a, W> {
+
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.hasher.update(buf);
+        if let Some(ref mut signer) = self.signer {
+            signer.update(buf).
+                map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("hmac update failed - {}", err))
+                })?;
+        }
+        self.writer.write(buf)
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        self.writer.flush()
+    }
+}
+
 enum BlobWriterState<'a, W: Write> {
-    Uncompressed { writer: W, hasher: crc32fast::Hasher },
-    Compressed { compr: zstd::stream::write::Encoder<W>, hasher: crc32fast::Hasher },
-    Signed {
-        writer: W,
-        hasher: crc32fast::Hasher,
-        signer: openssl::sign::Signer<'a>,
-    },
+    Uncompressed { csum_writer: ChecksumWriter<'a, W> },
+    Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
+    Signed { csum_writer: ChecksumWriter<'a, W> },
 }
 
 /// Write compressed data blobs
@@ -312,30 +354,27 @@ pub struct DataBlobWriter<'a, W: Write> {
 impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
     pub fn new_uncompressed(mut writer: W) -> Result<Self, Error> {
-        let hasher = crc32fast::Hasher::new();
         writer.seek(SeekFrom::Start(0))?;
         let head = DataBlobHeader { magic: UNCOMPRESSED_BLOB_MAGIC_1_0, crc: [0; 4] };
         unsafe {
             writer.write_le_value(head)?;
         }
-        let state = BlobWriterState::Uncompressed { writer, hasher };
-        Ok(Self { state })
+        let csum_writer = ChecksumWriter::new(writer, None);
+        Ok(Self { state: BlobWriterState::Uncompressed { csum_writer }})
     }
 
     pub fn new_compressed(mut writer: W) -> Result<Self, Error> {
-        let hasher = crc32fast::Hasher::new();
-        writer.seek(SeekFrom::Start(0))?;
+         writer.seek(SeekFrom::Start(0))?;
         let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: [0; 4] };
         unsafe {
             writer.write_le_value(head)?;
         }
-        let compr = zstd::stream::write::Encoder::new(writer, 1)?;
-        let state = BlobWriterState::Compressed { compr, hasher };
-        Ok(Self { state })
+        let csum_writer = ChecksumWriter::new(writer, None);
+        let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
+        Ok(Self { state: BlobWriterState::Compressed { compr }})
     }
 
     pub fn new_signed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
-        let hasher = crc32fast::Hasher::new();
         writer.seek(SeekFrom::Start(0))?;
         let head = AuthenticatedDataBlobHeader {
             head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: [0; 4] },
@@ -345,16 +384,15 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
             writer.write_le_value(head)?;
         }
         let signer = config.data_signer();
-
-        let state = BlobWriterState::Signed { writer, hasher, signer };
-        Ok(Self { state })
+        let csum_writer = ChecksumWriter::new(writer, Some(signer));
+        Ok(Self { state:  BlobWriterState::Signed { csum_writer }})
     }
 
     pub fn finish(self) -> Result<W, Error> {
         match self.state {
-            BlobWriterState::Uncompressed { mut writer, hasher } => {
+            BlobWriterState::Uncompressed { csum_writer } => {
                 // write CRC
-                let crc = hasher.finalize();
+                let (mut writer, crc, _) = csum_writer.finish()?;
                 let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
 
                 writer.seek(SeekFrom::Start(0))?;
@@ -364,11 +402,10 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
                 return Ok(writer)
             }
-            BlobWriterState::Compressed { compr, hasher } => {
-                let mut writer = compr.finish()?;
+            BlobWriterState::Compressed { compr } => {
+                let csum_writer = compr.finish()?;
+                let (mut writer, crc, _) = csum_writer.finish()?;
 
-                // write CRC
-                let crc = hasher.finalize();
                 let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
 
                 writer.seek(SeekFrom::Start(0))?;
@@ -378,15 +415,13 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
                 return Ok(writer)
             }
-            BlobWriterState::Signed { mut writer, hasher, signer, .. } => {
-                // write CRC and hmac
-                let crc = hasher.finalize();
+            BlobWriterState::Signed { csum_writer } => {
+                let (mut writer, crc, tag) = csum_writer.finish()?;
 
-                let mut head = AuthenticatedDataBlobHeader {
+                let head = AuthenticatedDataBlobHeader {
                     head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
-                    tag: [0u8; 32],
+                    tag: tag.unwrap(),
                 };
-                signer.sign(&mut head.tag)?;
 
                 writer.seek(SeekFrom::Start(0))?;
                 unsafe {
@@ -403,37 +438,28 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         match self.state {
-            BlobWriterState::Uncompressed { ref mut writer, ref mut hasher } => {
-                hasher.update(buf);
-                writer.write(buf)
+            BlobWriterState::Uncompressed { ref mut csum_writer } => {
+                csum_writer.write(buf)
             }
-            BlobWriterState::Compressed { ref mut compr, ref mut hasher } => {
-                hasher.update(buf);
+            BlobWriterState::Compressed { ref mut compr } => {
                 compr.write(buf)
             }
-            BlobWriterState::Signed { ref mut writer, ref mut hasher, ref mut signer, .. } => {
-                hasher.update(buf);
-                signer.update(buf).
-                    map_err(|err| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("hmac update failed - {}", err))
-                    })?;
-                writer.write(buf)
-             }
+            BlobWriterState::Signed { ref mut csum_writer } => {
+                csum_writer.write(buf)
+            }
         }
     }
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
         match self.state {
-            BlobWriterState::Uncompressed { ref mut writer, .. } => {
-                writer.flush()
+            BlobWriterState::Uncompressed { ref mut csum_writer } => {
+                csum_writer.flush()
             }
-            BlobWriterState::Compressed { ref mut compr, .. } => {
+            BlobWriterState::Compressed { ref mut compr } => {
                 compr.flush()
             }
-            BlobWriterState::Signed { ref mut writer, .. } => {
-                writer.flush()
+            BlobWriterState::Signed { ref mut csum_writer } => {
+                csum_writer.flush()
             }
         }
     }
