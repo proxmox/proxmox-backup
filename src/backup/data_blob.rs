@@ -399,6 +399,7 @@ enum BlobWriterState<'a, W: Write> {
     Signed { csum_writer: ChecksumWriter<'a, W> },
     SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
     Encrypted { crypt_writer: CryptWriter<ChecksumWriter<'a, W>> },
+    EncryptedCompressed { compr: zstd::stream::write::Encoder<CryptWriter<ChecksumWriter<'a, W>>> },
 }
 
 /// Write compressed data blobs
@@ -474,6 +475,23 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         Ok(Self { state: BlobWriterState::Encrypted { crypt_writer }})
     }
 
+    pub fn new_encrypted_compressed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+        writer.seek(SeekFrom::Start(0))?;
+        let head = EncryptedDataBlobHeader {
+            head: DataBlobHeader { magic: ENCR_COMPR_BLOB_MAGIC_1_0, crc: [0; 4] },
+            iv: [0u8; 16],
+            tag: [0u8; 16],
+        };
+        unsafe {
+            writer.write_le_value(head)?;
+        }
+
+        let csum_writer = ChecksumWriter::new(writer, None);
+        let crypt_writer =  CryptWriter::new(csum_writer, config)?;
+        let compr = zstd::stream::write::Encoder::new(crypt_writer, 1)?;
+        Ok(Self { state: BlobWriterState::EncryptedCompressed { compr }})
+    }
+
     pub fn finish(self) -> Result<W, Error> {
         match self.state {
             BlobWriterState::Uncompressed { csum_writer } => {
@@ -545,6 +563,20 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
                 }
                 return Ok(writer)
             }
+            BlobWriterState::EncryptedCompressed { compr } => {
+                let crypt_writer = compr.finish()?;
+                let (csum_writer, iv, tag) = crypt_writer.finish()?;
+                let (mut writer, crc, _) = csum_writer.finish()?;
+
+                let head = EncryptedDataBlobHeader {
+                    head: DataBlobHeader { magic: ENCR_COMPR_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
+                    iv, tag,
+                };
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
+                return Ok(writer)
+            }
         }
     }
 }
@@ -568,6 +600,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             BlobWriterState::Encrypted { ref mut crypt_writer } => {
                 crypt_writer.write(buf)
             }
+            BlobWriterState::EncryptedCompressed { ref mut compr } => {
+                compr.write(buf)
+            }
         }
     }
 
@@ -587,6 +622,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             }
             BlobWriterState::Encrypted { ref mut crypt_writer } => {
                crypt_writer.flush()
+            }
+            BlobWriterState::EncryptedCompressed { ref mut compr } => {
+                compr.flush()
             }
         }
     }
