@@ -344,6 +344,7 @@ enum BlobWriterState<'a, W: Write> {
     Uncompressed { csum_writer: ChecksumWriter<'a, W> },
     Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
     Signed { csum_writer: ChecksumWriter<'a, W> },
+    SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
 }
 
 /// Write compressed data blobs
@@ -388,6 +389,21 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         Ok(Self { state:  BlobWriterState::Signed { csum_writer }})
     }
 
+    pub fn new_signed_compressed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+        writer.seek(SeekFrom::Start(0))?;
+        let head = AuthenticatedDataBlobHeader {
+            head: DataBlobHeader { magic: AUTH_COMPR_BLOB_MAGIC_1_0, crc: [0; 4] },
+            tag: [0u8; 32],
+        };
+        unsafe {
+            writer.write_le_value(head)?;
+        }
+        let signer = config.data_signer();
+        let csum_writer = ChecksumWriter::new(writer, Some(signer));
+        let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
+        Ok(Self { state: BlobWriterState::SignedCompressed { compr }})
+    }
+
     pub fn finish(self) -> Result<W, Error> {
         match self.state {
             BlobWriterState::Uncompressed { csum_writer } => {
@@ -430,6 +446,22 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
                 return Ok(writer)
             }
+            BlobWriterState::SignedCompressed { compr } => {
+                let csum_writer = compr.finish()?;
+                let (mut writer, crc, tag) = csum_writer.finish()?;
+
+                let head = AuthenticatedDataBlobHeader {
+                    head: DataBlobHeader { magic: AUTH_COMPR_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
+                    tag: tag.unwrap(),
+                };
+
+                writer.seek(SeekFrom::Start(0))?;
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
+
+                return Ok(writer)
+            }
         }
     }
 }
@@ -447,6 +479,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             BlobWriterState::Signed { ref mut csum_writer } => {
                 csum_writer.write(buf)
             }
+            BlobWriterState::SignedCompressed { ref mut compr } => {
+               compr.write(buf)
+            }
         }
     }
 
@@ -460,6 +495,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             }
             BlobWriterState::Signed { ref mut csum_writer } => {
                 csum_writer.flush()
+            }
+            BlobWriterState::SignedCompressed { ref mut compr } => {
+                compr.flush()
             }
         }
     }
