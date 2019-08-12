@@ -695,6 +695,7 @@ impl <'a, R: Read> Read for ChecksumReader<'a, R> {
 enum BlobReaderState<'a, R: Read> {
     Uncompressed { expected_crc: u32, csum_reader: ChecksumReader<'a, R> },
     Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
+    Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<'a, R> },
 }
 
 /// Read data blobs
@@ -704,7 +705,7 @@ pub struct DataBlobReader<'a, R: Read> {
 
 impl <'a, R: Read> DataBlobReader<'a, R> {
 
-    pub fn new(mut reader: R) -> Result<Self, Error> {
+    pub fn new(mut reader: R, config: Option<&'a CryptConfig>) -> Result<Self, Error> {
 
         let head: DataBlobHeader = unsafe { reader.read_le_value()? };
         match head.magic {
@@ -720,28 +721,48 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 let decompr = zstd::stream::read::Decoder::new(csum_reader)?;
                 Ok(Self { state: BlobReaderState::Compressed { expected_crc, decompr }})
             }
+            AUTHENTICATED_BLOB_MAGIC_1_0 => {
+                let expected_crc = u32::from_le_bytes(head.crc);
+                let mut expected_hmac = [0u8; 32];
+                reader.read_exact(&mut expected_hmac)?;
+                let signer = config.map(|c| c.data_signer());
+                let csum_reader = ChecksumReader::new(reader, signer);
+                Ok(Self { state: BlobReaderState::Signed { expected_crc, expected_hmac, csum_reader }})
+            }
             _ => bail!("got wrong magic number {:?}", head.magic)
         }
     }
 
     pub fn finish(self) -> Result<R, Error> {
-       match self.state {
-           BlobReaderState::Uncompressed { csum_reader, expected_crc } => {
-               let (reader, crc, _) = csum_reader.finish()?;
-               if crc != expected_crc {
-                   bail!("blob crc check failed");
-               }
-               Ok(reader)
-           }
-           BlobReaderState::Compressed { expected_crc, decompr } => {
-               let csum_reader = decompr.finish().into_inner();
-               let (reader, crc, _) = csum_reader.finish()?;
-               if crc != expected_crc {
-                   bail!("blob crc check failed");
-               }
-               Ok(reader)
-           }
-       }
+        match self.state {
+            BlobReaderState::Uncompressed { csum_reader, expected_crc } => {
+                let (reader, crc, _) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                Ok(reader)
+            }
+            BlobReaderState::Compressed { expected_crc, decompr } => {
+                let csum_reader = decompr.finish().into_inner();
+                let (reader, crc, _) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                Ok(reader)
+            }
+            BlobReaderState::Signed { csum_reader, expected_crc, expected_hmac } => {
+                let (reader, crc, hmac) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                if let Some(hmac) = hmac {
+                    if hmac != expected_hmac {
+                        bail!("blob signature check failed");
+                    }
+                }
+                Ok(reader)
+            }
+        }
     }
 }
 
@@ -754,6 +775,9 @@ impl <'a, R: BufRead> Read for DataBlobReader<'a, R> {
             }
             BlobReaderState::Compressed { decompr, .. } => {
                 decompr.read(buf)
+            }
+            BlobReaderState::Signed { csum_reader, .. } => {
+                csum_reader.read(buf)
             }
         }
     }
