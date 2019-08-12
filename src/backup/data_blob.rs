@@ -497,7 +497,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
             BlobWriterState::Uncompressed { csum_writer } => {
                 // write CRC
                 let (mut writer, crc, _) = csum_writer.finish()?;
-                let head = DataBlobHeader { magic: COMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
+                let head = DataBlobHeader { magic: UNCOMPRESSED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() };
 
                 writer.seek(SeekFrom::Start(0))?;
                 unsafe {
