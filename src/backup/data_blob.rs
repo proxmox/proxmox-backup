@@ -307,8 +307,6 @@ impl DataBlob {
 
 }
 
-// TODO: impl. other blob types
-
 use std::io::{Read, BufRead, Write, Seek, SeekFrom};
 
 struct CryptWriter<W> {
@@ -324,7 +322,7 @@ impl <W: Write> CryptWriter<W> {
         let mut iv = [0u8; 16];
         proxmox::sys::linux::fill_with_random_data(&mut iv)?;
 
-        let crypter = config.data_crypter(&iv)?;
+        let crypter = config.data_crypter(&iv, openssl::symm::Mode::Encrypt)?;
 
         Ok(Self { writer, iv, crypter, encr_buf: [0u8; 64*1024] })
     }
@@ -575,6 +573,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
                     head: DataBlobHeader { magic: ENCRYPTED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
                     iv, tag,
                 };
+                writer.seek(SeekFrom::Start(0))?;
                 unsafe {
                     writer.write_le_value(head)?;
                 }
@@ -589,6 +588,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
                     head: DataBlobHeader { magic: ENCR_COMPR_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
                     iv, tag,
                 };
+                writer.seek(SeekFrom::Start(0))?;
                 unsafe {
                     writer.write_le_value(head)?;
                 }

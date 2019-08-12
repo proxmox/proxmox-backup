@@ -82,8 +82,8 @@ impl CryptConfig {
         tag
     }
 
-    pub fn data_crypter(&self, iv: &[u8; 16]) -> Result<Crypter, Error>  {
-        let mut crypter = openssl::symm::Crypter::new(self.cipher, Mode::Encrypt, &self.enc_key, Some(iv))?;
+    pub fn data_crypter(&self, iv: &[u8; 16], mode: Mode) -> Result<Crypter, Error>  {
+        let mut crypter = openssl::symm::Crypter::new(self.cipher, mode, &self.enc_key, Some(iv))?;
         crypter.aad_update(b"")?; //??
         Ok(crypter)
     }
@@ -102,7 +102,7 @@ impl CryptConfig {
 
         let mut tag = [0u8; 16];
 
-        let mut c = self.data_crypter(&iv)?;
+        let mut c = self.data_crypter(&iv, Mode::Encrypt)?;
 
         const BUFFER_SIZE: usize = 32*1024;
 
@@ -144,7 +144,7 @@ impl CryptConfig {
 
         let mut decompressor = zstd::stream::write::Decoder::new(dec)?;
 
-        let mut c = self.data_crypter(iv)?;
+        let mut c = self.data_crypter(iv, Mode::Decrypt)?;
 
         const BUFFER_SIZE: usize = 32*1024;
 
