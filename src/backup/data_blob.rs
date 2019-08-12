@@ -20,6 +20,23 @@ pub struct DataBlob {
 
 impl DataBlob {
 
+    pub fn header_size(magic: &[u8; 8]) -> usize {
+        match magic {
+            &UNCOMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
+            &COMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
+            &ENCRYPTED_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
+            &ENCR_COMPR_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
+
+            &UNCOMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+            &COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+            &ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+            &ENCR_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+            &AUTHENTICATED_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
+            &AUTH_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
+            _ => panic!("unknown blob magic"),
+        }
+    }
+
     /// accessor to raw_data field
     pub fn raw_data(&self) -> &[u8]  {
         &self.raw_data
@@ -50,7 +67,7 @@ impl DataBlob {
     /// compute the CRC32 checksum
     pub fn compute_crc(&self) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
-        let start = std::mem::size_of::<DataBlobHeader>(); // start after HEAD
+        let start = Self::header_size(self.magic()); // start after HEAD
         hasher.update(&self.raw_data[start..]);
         hasher.finalize()
     }
