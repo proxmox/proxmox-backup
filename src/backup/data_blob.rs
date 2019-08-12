@@ -696,6 +696,7 @@ enum BlobReaderState<'a, R: Read> {
     Uncompressed { expected_crc: u32, csum_reader: ChecksumReader<'a, R> },
     Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
     Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<'a, R> },
+    SignedCompressed { expected_crc: u32, expected_hmac: [u8; 32], decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
 }
 
 /// Read data blobs
@@ -728,6 +729,16 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 let signer = config.map(|c| c.data_signer());
                 let csum_reader = ChecksumReader::new(reader, signer);
                 Ok(Self { state: BlobReaderState::Signed { expected_crc, expected_hmac, csum_reader }})
+            }
+            AUTH_COMPR_BLOB_MAGIC_1_0 => {
+                let expected_crc = u32::from_le_bytes(head.crc);
+                let mut expected_hmac = [0u8; 32];
+                reader.read_exact(&mut expected_hmac)?;
+                let signer = config.map(|c| c.data_signer());
+                let csum_reader = ChecksumReader::new(reader, signer);
+
+                let decompr = zstd::stream::read::Decoder::new(csum_reader)?;
+                Ok(Self { state: BlobReaderState::SignedCompressed { expected_crc, expected_hmac, decompr }})
             }
             _ => bail!("got wrong magic number {:?}", head.magic)
         }
@@ -762,6 +773,19 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 }
                 Ok(reader)
             }
+            BlobReaderState::SignedCompressed { expected_crc, expected_hmac, decompr } => {
+                let csum_reader = decompr.finish().into_inner();
+                let (reader, crc, hmac) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                if let Some(hmac) = hmac {
+                    if hmac != expected_hmac {
+                        bail!("blob signature check failed");
+                    }
+                }
+                Ok(reader)
+            }
         }
     }
 }
@@ -778,6 +802,9 @@ impl <'a, R: BufRead> Read for DataBlobReader<'a, R> {
             }
             BlobReaderState::Signed { csum_reader, .. } => {
                 csum_reader.read(buf)
+            }
+            BlobReaderState::SignedCompressed { decompr, .. } => {
+                decompr.read(buf)
             }
         }
     }
