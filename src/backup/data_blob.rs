@@ -294,6 +294,59 @@ impl DataBlob {
 
 use std::io::{Read, BufRead, Write, Seek, SeekFrom};
 
+struct CryptWriter<W> {
+    writer: W,
+    encr_buf: [u8; 64*1024],
+    iv: [u8; 16],
+    crypter: openssl::symm::Crypter,
+}
+
+impl <W: Write> CryptWriter<W> {
+
+    fn new(writer: W, config: &CryptConfig) -> Result<Self, Error> {
+        let mut iv = [0u8; 16];
+        proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+
+        let crypter = config.data_crypter(&iv)?;
+
+        Ok(Self { writer, iv, crypter, encr_buf: [0u8; 64*1024] })
+    }
+
+    fn finish(mut self) ->  Result<(W, [u8; 16], [u8; 16]), Error> {
+        let rest = self.crypter.finalize(&mut self.encr_buf)?;
+        if rest > 0 {
+            self.writer.write_all(&self.encr_buf[..rest])?;
+        }
+
+        self.writer.flush()?;
+
+        let mut tag = [0u8; 16];
+        self.crypter.get_tag(&mut tag)?;
+
+        Ok((self.writer, self.iv, tag))
+    }
+}
+
+impl <W: Write> Write for CryptWriter<W> {
+
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        let count = self.crypter.update(buf, &mut self.encr_buf)
+            .map_err(|err| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("crypter update failed - {}", err))
+            })?;
+
+        self.writer.write_all(&self.encr_buf[..count])?;
+
+        Ok(count)
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+}
+
 struct ChecksumWriter<'a, W> {
     writer: W,
     hasher: crc32fast::Hasher,
@@ -325,8 +378,8 @@ impl <'a, W: Write> Write for ChecksumWriter<'a, W> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.hasher.update(buf);
         if let Some(ref mut signer) = self.signer {
-            signer.update(buf).
-                map_err(|err| {
+            signer.update(buf)
+                .map_err(|err| {
                     std::io::Error::new(
                         std::io::ErrorKind::Other,
                         format!("hmac update failed - {}", err))
@@ -345,6 +398,7 @@ enum BlobWriterState<'a, W: Write> {
     Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
     Signed { csum_writer: ChecksumWriter<'a, W> },
     SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
+    Encrypted { crypt_writer: CryptWriter<ChecksumWriter<'a, W>> },
 }
 
 /// Write compressed data blobs
@@ -402,6 +456,22 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         let csum_writer = ChecksumWriter::new(writer, Some(signer));
         let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
         Ok(Self { state: BlobWriterState::SignedCompressed { compr }})
+    }
+
+    pub fn new_encrypted(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+        writer.seek(SeekFrom::Start(0))?;
+        let head = EncryptedDataBlobHeader {
+            head: DataBlobHeader { magic: ENCRYPTED_BLOB_MAGIC_1_0, crc: [0; 4] },
+            iv: [0u8; 16],
+            tag: [0u8; 16],
+        };
+        unsafe {
+            writer.write_le_value(head)?;
+        }
+
+        let csum_writer = ChecksumWriter::new(writer, None);
+        let crypt_writer =  CryptWriter::new(csum_writer, config)?;
+        Ok(Self { state: BlobWriterState::Encrypted { crypt_writer }})
     }
 
     pub fn finish(self) -> Result<W, Error> {
@@ -462,6 +532,19 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
                 return Ok(writer)
             }
+            BlobWriterState::Encrypted { crypt_writer } => {
+                let (csum_writer, iv, tag) = crypt_writer.finish()?;
+                let (mut writer, crc, _) = csum_writer.finish()?;
+
+                let head = EncryptedDataBlobHeader {
+                    head: DataBlobHeader { magic: ENCRYPTED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
+                    iv, tag,
+                };
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
+                return Ok(writer)
+            }
         }
     }
 }
@@ -482,6 +565,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             BlobWriterState::SignedCompressed { ref mut compr } => {
                compr.write(buf)
             }
+            BlobWriterState::Encrypted { ref mut crypt_writer } => {
+                crypt_writer.write(buf)
+            }
         }
     }
 
@@ -498,6 +584,9 @@ impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
             }
             BlobWriterState::SignedCompressed { ref mut compr } => {
                 compr.flush()
+            }
+            BlobWriterState::Encrypted { ref mut crypt_writer } => {
+               crypt_writer.flush()
             }
         }
     }
