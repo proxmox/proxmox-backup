@@ -294,17 +294,22 @@ impl DataBlob {
 
 use std::io::{Read, BufRead, Write, Seek, SeekFrom};
 
-enum BlobWriterState<W: Write> {
+enum BlobWriterState<'a, W: Write> {
     Uncompressed { writer: W, hasher: crc32fast::Hasher },
     Compressed { compr: zstd::stream::write::Encoder<W>, hasher: crc32fast::Hasher },
+    Signed {
+        writer: W,
+        hasher: crc32fast::Hasher,
+        signer: openssl::sign::Signer<'a>,
+    },
 }
 
 /// Write compressed data blobs
-pub struct DataBlobWriter<W: Write> {
-    state: BlobWriterState<W>,
+pub struct DataBlobWriter<'a, W: Write> {
+    state: BlobWriterState<'a, W>,
 }
 
-impl <W: Write + Seek> DataBlobWriter<W> {
+impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
 
     pub fn new_uncompressed(mut writer: W) -> Result<Self, Error> {
         let hasher = crc32fast::Hasher::new();
@@ -326,6 +331,22 @@ impl <W: Write + Seek> DataBlobWriter<W> {
         }
         let compr = zstd::stream::write::Encoder::new(writer, 1)?;
         let state = BlobWriterState::Compressed { compr, hasher };
+        Ok(Self { state })
+    }
+
+    pub fn new_signed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+        let hasher = crc32fast::Hasher::new();
+        writer.seek(SeekFrom::Start(0))?;
+        let head = AuthenticatedDataBlobHeader {
+            head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: [0; 4] },
+            tag: [0u8; 32],
+        };
+        unsafe {
+            writer.write_le_value(head)?;
+        }
+        let signer = config.data_signer();
+
+        let state = BlobWriterState::Signed { writer, hasher, signer };
         Ok(Self { state })
     }
 
@@ -357,11 +378,28 @@ impl <W: Write + Seek> DataBlobWriter<W> {
 
                 return Ok(writer)
             }
+            BlobWriterState::Signed { mut writer, hasher, signer, .. } => {
+                // write CRC and hmac
+                let crc = hasher.finalize();
+
+                let mut head = AuthenticatedDataBlobHeader {
+                    head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
+                    tag: [0u8; 32],
+                };
+                signer.sign(&mut head.tag)?;
+
+                writer.seek(SeekFrom::Start(0))?;
+                unsafe {
+                    writer.write_le_value(head)?;
+                }
+
+                return Ok(writer)
+            }
         }
     }
 }
 
-impl <W: Write + Seek> Write for DataBlobWriter<W> {
+impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         match self.state {
@@ -373,6 +411,16 @@ impl <W: Write + Seek> Write for DataBlobWriter<W> {
                 hasher.update(buf);
                 compr.write(buf)
             }
+            BlobWriterState::Signed { ref mut writer, ref mut hasher, ref mut signer, .. } => {
+                hasher.update(buf);
+                signer.update(buf).
+                    map_err(|err| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("hmac update failed - {}", err))
+                    })?;
+                writer.write(buf)
+             }
         }
     }
 
@@ -383,6 +431,9 @@ impl <W: Write + Seek> Write for DataBlobWriter<W> {
             }
             BlobWriterState::Compressed { ref mut compr, .. } => {
                 compr.flush()
+            }
+            BlobWriterState::Signed { ref mut writer, .. } => {
+                writer.flush()
             }
         }
     }
