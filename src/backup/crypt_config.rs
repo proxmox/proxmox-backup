@@ -51,6 +51,11 @@ impl CryptConfig {
         Ok(Self { id_key, id_pkey, enc_key, cipher: Cipher::aes_256_gcm() })
     }
 
+    /// Expose Cipher
+    pub fn cipher(&self) -> &Cipher {
+        &self.cipher
+    }
+
     /// Compute a chunk digest using a secret name space.
     ///
     /// Computes an SHA256 checksum over some secret data (derived

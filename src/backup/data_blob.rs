@@ -309,6 +309,58 @@ impl DataBlob {
 
 use std::io::{Read, BufRead, BufReader, Write, Seek, SeekFrom};
 
+struct CryptReader<R> {
+    reader: R,
+    block_size: usize,
+    crypter: openssl::symm::Crypter,
+    finalized: bool,
+}
+
+impl <R: BufRead> CryptReader<R> {
+
+    fn new(reader: R, iv: [u8; 16], tag: [u8; 16], config: &CryptConfig) -> Result<Self, Error> {
+        let block_size = config.cipher().block_size();
+        if block_size.count_ones() != 1 || block_size > 1024 {
+            bail!("unexpected Cipher block size {}", block_size);
+        }
+        let mut crypter = config.data_crypter(&iv, openssl::symm::Mode::Decrypt)?;
+        crypter.set_tag(&tag)?;
+        Ok(Self { reader, crypter, block_size, finalized: false })
+    }
+
+    fn finish(self) -> Result<R, Error> {
+        if !self.finalized {
+            bail!("CryptReader not successfully finalized.");
+        }
+        Ok(self.reader)
+    }
+}
+
+impl <R: BufRead> Read for CryptReader<R> {
+
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        if buf.len() <= 2*self.block_size {
+            panic!("CryptReader read buffer too small!");
+        }
+
+        let data = self.reader.fill_buf()?;
+
+        if data.len() == 0 { // EOF
+            let rest = self.crypter.finalize(buf)?;
+            self.finalized = true;
+            Ok(rest)
+        } else {
+            let mut read_size = buf.len() - self.block_size;
+            if read_size > data.len() {
+                read_size = data.len();
+            }
+            let count = self.crypter.update(&data[..read_size], buf)?;
+            self.reader.consume(read_size);
+            Ok(count)
+        }
+    }
+}
+
 struct CryptWriter<W> {
     writer: W,
     encr_buf: [u8; 64*1024],
@@ -697,6 +749,7 @@ enum BlobReaderState<'a, R: Read> {
     Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
     Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<'a, R> },
     SignedCompressed { expected_crc: u32, expected_hmac: [u8; 32], decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
+    Encrypted { expected_crc: u32, decrypt_reader: CryptReader<BufReader<ChecksumReader<'a, R>>> },
 }
 
 /// Read data blobs
@@ -739,6 +792,16 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
 
                 let decompr = zstd::stream::read::Decoder::new(csum_reader)?;
                 Ok(Self { state: BlobReaderState::SignedCompressed { expected_crc, expected_hmac, decompr }})
+            }
+            ENCRYPTED_BLOB_MAGIC_1_0 => {
+                let expected_crc = u32::from_le_bytes(head.crc);
+                let mut iv = [0u8; 16];
+                let mut expected_tag = [0u8; 16];
+                reader.read_exact(&mut iv)?;
+                reader.read_exact(&mut expected_tag)?;
+                let csum_reader = ChecksumReader::new(reader, None);
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024,csum_reader), iv, expected_tag, config.unwrap())?;
+                Ok(Self { state: BlobReaderState::Encrypted { expected_crc, decrypt_reader }})
             }
             _ => bail!("got wrong magic number {:?}", head.magic)
         }
@@ -786,6 +849,14 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 }
                 Ok(reader)
             }
+            BlobReaderState::Encrypted { expected_crc, decrypt_reader } =>  {
+                let csum_reader = decrypt_reader.finish()?.into_inner();
+                let (reader, crc, _) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                Ok(reader)
+            }
         }
     }
 }
@@ -805,6 +876,9 @@ impl <'a, R: BufRead> Read for DataBlobReader<'a, R> {
             }
             BlobReaderState::SignedCompressed { decompr, .. } => {
                 decompr.read(buf)
+            }
+            BlobReaderState::Encrypted { decrypt_reader, .. } =>  {
+                decrypt_reader.read(buf)
             }
         }
     }
