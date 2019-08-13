@@ -1,26 +1,23 @@
-use failure::*;
 use std::convert::TryInto;
-use std::io::{Seek, SeekFrom};
-
-use crate::tools;
-use super::IndexFile;
-use super::chunk_stat::*;
-use super::chunk_store::*;
-use super::read_chunk::*;
-use proxmox_protocol::Chunker;
-
-use std::sync::Arc;
-use std::io::{Write, BufWriter};
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use failure::*;
 use uuid::Uuid;
-//use chrono::{Local, TimeZone};
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::vec;
+use proxmox_protocol::Chunker;
 
+use super::chunk_stat::ChunkStat;
+use super::chunk_store::ChunkStore;
+use super::read_chunk::ReadChunk;
+use super::IndexFile;
 use super::{DataChunk, DataChunkBuilder};
+use crate::tools;
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]

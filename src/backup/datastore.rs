@@ -1,23 +1,23 @@
-use failure::*;
-
-use std::io;
-use std::path::{PathBuf, Path};
 use std::collections::HashMap;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+use failure::*;
 use lazy_static::lazy_static;
-use std::sync::{Mutex, Arc};
 
-use crate::tools;
-use crate::config::datastore;
-use super::chunk_store::*;
-use super::fixed_index::*;
-use super::dynamic_index::*;
+use super::backup_info::BackupDir;
+use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
+use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
+use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::index::*;
-use super::backup_info::*;
 use super::DataChunk;
+use crate::config::datastore;
 use crate::server::WorkerTask;
+use crate::tools;
 
-lazy_static!{
-    static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> =  Mutex::new(HashMap::new());
+lazy_static! {
+    static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
 }
 
 /// Datastore Management

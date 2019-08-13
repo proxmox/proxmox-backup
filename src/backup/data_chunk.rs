@@ -1,7 +1,11 @@
-use failure::*;
 use std::convert::TryInto;
+
+use failure::*;
+
 use proxmox::tools::io::{ReadExt, WriteExt};
 
+// FIXME: Move all the magic numbers into a module so we can import super::magic::* instead of
+// the everything of everything everywhere.
 use super::*;
 
 /// Data chunk with positional information
