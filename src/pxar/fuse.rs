@@ -125,11 +125,14 @@ impl Session {
     pub fn new(archive_path: &Path, options: &OsStr, verbose: bool)-> Result<Self, Error> {
         let file = File::open(archive_path)?;
         // First argument should be the executable name
-        let arguments = vec![
+        let mut arguments = vec![
             CString::new("pxar-mount").unwrap(),
             CString::new("-o").unwrap(),
             CString::new(options.as_bytes())?,
         ];
+        if verbose {
+            arguments.push(CString::new("--debug").unwrap());
+        }
 
         let arg_ptrs: Vec<_> = arguments.iter().map(|opt| opt.as_ptr()).collect();
         let args = FuseArgs {
