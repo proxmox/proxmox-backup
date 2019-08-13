@@ -1,93 +1,114 @@
 use failure::*;
 use std::io::Cursor;
-use std::io::Write;
+use std::io::{ Read, Write, Seek, SeekFrom };
+use lazy_static::lazy_static;
 
 use proxmox_backup::backup::*;
 
-#[test]
-fn test_data_blob_writer() -> Result<(), Error> {
+lazy_static! {
+    static ref TEST_DATA: Vec<u8> = {
+        let mut data = Vec::new();
 
-    let key = [1u8; 32];
-    let crypt_config = CryptConfig::new(key)?;
-
-    let test_data = b"123456789".to_vec();
-
-    let verify_test_blob = |raw_data: Vec<u8>| -> Result<(), Error> {
-        let blob = DataBlob::from_raw(raw_data)?;
-        blob.verify_crc()?;
-        
-        let data = blob.decode(Some(&crypt_config))?;
-        if data != test_data {
-            bail!("blob data is wrong");
+        for i in 0..100_000 {
+            data.push((i%255) as u8);
         }
-        Ok(())
+
+        data
     };
 
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_uncompressed(tmp)?;
-        blob_writer.write_all(&test_data)?;
+    static ref CRYPT_CONFIG: CryptConfig = {
+        let key = [1u8; 32];
+        CryptConfig::new(key).unwrap()
+    };
+}
 
-        let raw_data = blob_writer.finish()?.into_inner();
+fn verify_test_blob(mut cursor: Cursor<Vec<u8>>) -> Result<(), Error> {
 
-        println!("UNCOMPRESSED: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
+    // run read tests with different buffer sizes
+    for size in [1, 3, 64*1024].iter() {
+
+        println!("Starting DataBlobReader test (size = {})", size);
+
+        cursor.seek(SeekFrom::Start(0))?;
+        let mut reader = DataBlobReader::new(&mut cursor, Some(&CRYPT_CONFIG))?;
+        let mut buffer = Vec::<u8>::new();
+        // read the whole file
+        //reader.read_to_end(&mut buffer)?;
+        let mut buf = vec![0u8; *size];
+        loop {
+            let count = reader.read(&mut buf)?;
+            if count == 0 { break; }
+            buffer.extend(&buf[..count]);
+        }
+
+        reader.finish()?;
+        if buffer != *TEST_DATA {
+            bail!("blob data is wrong (read buffer size {})", size);
+        }
     }
 
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_compressed(tmp)?;
-        blob_writer.write_all(&test_data)?;
+    let raw_data = cursor.into_inner();
 
-        let raw_data = blob_writer.finish()?.into_inner();
+    let blob = DataBlob::from_raw(raw_data)?;
+    blob.verify_crc()?;
 
-        println!("COMPRESSED: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
+    let data = blob.decode(Some(&CRYPT_CONFIG))?;
+    if data != *TEST_DATA {
+        bail!("blob data is wrong (decode)");
     }
-
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_signed(tmp, &crypt_config)?;
-        blob_writer.write_all(&test_data)?;
-
-        let raw_data = blob_writer.finish()?.into_inner();
-
-        println!("SIGNED: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
-    }
-
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_signed_compressed(tmp, &crypt_config)?;
-        blob_writer.write_all(&test_data)?;
-
-        let raw_data = blob_writer.finish()?.into_inner();
-
-        println!("SIGNED COMPR: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
-    }
-
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_encrypted(tmp, &crypt_config)?;
-        blob_writer.write_all(&test_data)?;
-
-        let raw_data = blob_writer.finish()?.into_inner();
-
-        println!("ENCRYPTED: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
-    }
-
-    {
-        let tmp = Cursor::new(Vec::<u8>::new()); 
-        let mut blob_writer = DataBlobWriter::new_encrypted_compressed(tmp, &crypt_config)?;
-        blob_writer.write_all(&test_data)?;
-
-        let raw_data = blob_writer.finish()?.into_inner();
-
-        println!("ENCRYPTED COMPR: {:?}", raw_data);
-        verify_test_blob(raw_data)?;
-    }
-
     Ok(())
+}
+
+#[test]
+fn test_uncompressed_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_uncompressed(tmp)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
+}
+
+#[test]
+fn test_compressed_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_compressed(tmp)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
+}
+
+#[test]
+fn test_signed_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_signed(tmp, &CRYPT_CONFIG)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
+}
+
+#[test]
+fn test_signed_compressed_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_signed_compressed(tmp, &CRYPT_CONFIG)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
+}
+
+#[test]
+fn test_encrypted_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_encrypted(tmp, &CRYPT_CONFIG)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
+}
+
+#[test]
+fn test_encrypted_compressed_blob_writer() -> Result<(), Error> {
+    let tmp = Cursor::new(Vec::<u8>::new());
+    let mut blob_writer = DataBlobWriter::new_encrypted_compressed(tmp, &CRYPT_CONFIG)?;
+    blob_writer.write_all(&TEST_DATA)?;
+
+    verify_test_blob(blob_writer.finish()?)
 }
