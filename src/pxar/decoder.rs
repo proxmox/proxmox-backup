@@ -21,17 +21,17 @@ pub struct DirectoryEntry {
 }
 
 // This one needs Read+Seek
-pub struct Decoder<'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
-    inner: SequentialDecoder<'a, R, F>,
+pub struct Decoder<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
+    inner: SequentialDecoder<R, F>,
     root_start: u64,
     root_end: u64,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
-impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
+impl <R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
-    pub fn new(reader: &'a mut R, callback: F) -> Result<Self, Error> {
+    pub fn new(mut reader: R, callback: F) -> Result<Self, Error> {
 
         let root_end = reader.seek(SeekFrom::End(0))?;
 

@@ -33,8 +33,8 @@ use crate::tools::acl;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
-pub struct SequentialDecoder<'a, R: Read, F: Fn(&Path) -> Result<(), Error>> {
-    reader: &'a mut R,
+pub struct SequentialDecoder<R: Read, F: Fn(&Path) -> Result<(), Error>> {
+    reader: R,
     feature_flags: u64,
     allow_existing_dirs: bool,
     skip_buffer: Vec<u8>,
@@ -43,9 +43,9 @@ pub struct SequentialDecoder<'a, R: Read, F: Fn(&Path) -> Result<(), Error>> {
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
-impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F> {
+impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
-    pub fn new(reader: &'a mut R, feature_flags: u64, callback: F) -> Self {
+    pub fn new(reader: R, feature_flags: u64, callback: F) -> Self {
         let skip_buffer = vec::undefined(64*1024);
 
         Self {
@@ -61,8 +61,8 @@ impl <'a, R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<'a, R, F
         self.allow_existing_dirs = allow;
     }
 
-    pub (crate) fn get_reader_mut(&mut self) -> & mut R {
-        self.reader
+    pub (crate) fn get_reader_mut(&mut self) -> &mut R {
+        &mut self.reader
     }
 
     pub (crate) fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
