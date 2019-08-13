@@ -750,6 +750,7 @@ enum BlobReaderState<'a, R: Read> {
     Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<'a, R> },
     SignedCompressed { expected_crc: u32, expected_hmac: [u8; 32], decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
     Encrypted { expected_crc: u32, decrypt_reader: CryptReader<BufReader<ChecksumReader<'a, R>>> },
+    EncryptedCompressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<CryptReader<BufReader<ChecksumReader<'a, R>>>>> },
 }
 
 /// Read data blobs
@@ -802,6 +803,17 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 let csum_reader = ChecksumReader::new(reader, None);
                 let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024,csum_reader), iv, expected_tag, config.unwrap())?;
                 Ok(Self { state: BlobReaderState::Encrypted { expected_crc, decrypt_reader }})
+            }
+            ENCR_COMPR_BLOB_MAGIC_1_0 => {
+                let expected_crc = u32::from_le_bytes(head.crc);
+                let mut iv = [0u8; 16];
+                let mut expected_tag = [0u8; 16];
+                reader.read_exact(&mut iv)?;
+                reader.read_exact(&mut expected_tag)?;
+                let csum_reader = ChecksumReader::new(reader, None);
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024,csum_reader), iv, expected_tag, config.unwrap())?;
+                let decompr = zstd::stream::read::Decoder::new(decrypt_reader)?;
+                Ok(Self { state: BlobReaderState::EncryptedCompressed { expected_crc, decompr }})
             }
             _ => bail!("got wrong magic number {:?}", head.magic)
         }
@@ -857,6 +869,15 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 }
                 Ok(reader)
             }
+            BlobReaderState::EncryptedCompressed { expected_crc, decompr } => {
+                let decrypt_reader = decompr.finish().into_inner();
+                let csum_reader = decrypt_reader.finish()?.into_inner();
+                let (reader, crc, _) = csum_reader.finish()?;
+                if crc != expected_crc {
+                    bail!("blob crc check failed");
+                }
+                Ok(reader)
+            }
         }
     }
 }
@@ -879,6 +900,9 @@ impl <'a, R: BufRead> Read for DataBlobReader<'a, R> {
             }
             BlobReaderState::Encrypted { decrypt_reader, .. } =>  {
                 decrypt_reader.read(buf)
+            }
+            BlobReaderState::EncryptedCompressed { decompr, .. } => {
+                decompr.read(buf)
             }
         }
     }
