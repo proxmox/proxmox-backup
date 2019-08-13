@@ -3,7 +3,7 @@ Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
-	       clang,
+               clang,
                debhelper (>= 10),
                libpam0g-dev,
                libsystemd-dev,
