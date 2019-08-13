@@ -311,6 +311,7 @@ use std::io::{Read, BufRead, BufReader, Write, Seek, SeekFrom};
 
 struct CryptReader<R> {
     reader: R,
+    small_read_buf: Vec<u8>,
     block_size: usize,
     crypter: openssl::symm::Crypter,
     finalized: bool,
@@ -319,13 +320,14 @@ struct CryptReader<R> {
 impl <R: BufRead> CryptReader<R> {
 
     fn new(reader: R, iv: [u8; 16], tag: [u8; 16], config: &CryptConfig) -> Result<Self, Error> {
-        let block_size = config.cipher().block_size();
-        if block_size.count_ones() != 1 || block_size > 1024 {
+        let block_size = config.cipher().block_size(); // Note: block size is normally 1 byte for stream ciphers
+        if block_size.count_ones() != 1 || block_size > 512 {
             bail!("unexpected Cipher block size {}", block_size);
         }
         let mut crypter = config.data_crypter(&iv, openssl::symm::Mode::Decrypt)?;
         crypter.set_tag(&tag)?;
-        Ok(Self { reader, crypter, block_size, finalized: false })
+
+        Ok(Self { reader, crypter, block_size, finalized: false, small_read_buf: Vec::new() })
     }
 
     fn finish(self) -> Result<R, Error> {
@@ -339,30 +341,63 @@ impl <R: BufRead> CryptReader<R> {
 impl <R: BufRead> Read for CryptReader<R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        if buf.len() <= 2*self.block_size {
-            panic!("CryptReader read buffer too small!");
+        if self.small_read_buf.len() > 0 {
+            let max = if self.small_read_buf.len() > buf.len() {  buf.len() } else { self.small_read_buf.len() };
+            let rest = self.small_read_buf.split_off(max);
+            buf[..max].copy_from_slice(&self.small_read_buf);
+            self.small_read_buf = rest;
+            return Ok(max);
         }
 
         let data = self.reader.fill_buf()?;
 
-        if data.len() == 0 { // EOF
-            let rest = self.crypter.finalize(buf)?;
-            self.finalized = true;
-            Ok(rest)
-        } else {
-            let mut read_size = buf.len() - self.block_size;
-            if read_size > data.len() {
-                read_size = data.len();
+        // handle small read buffers
+        if buf.len() <= 2*self.block_size {
+            let mut outbuf = [0u8; 1024];
+
+            let count = if data.len() == 0 { // EOF
+                let written = self.crypter.finalize(&mut outbuf)?;
+                self.finalized = true;
+                written
+            } else {
+                let mut read_size = outbuf.len() - self.block_size;
+                if read_size > data.len() {
+                    read_size = data.len();
+                }
+                let written = self.crypter.update(&data[..read_size], &mut outbuf)?;
+                self.reader.consume(read_size);
+                written
+            };
+
+            if count > buf.len() {
+                buf.copy_from_slice(&outbuf[..buf.len()]);
+                self.small_read_buf = outbuf[buf.len()..count].to_vec();
+                return Ok(buf.len());
+            } else {
+                buf[..count].copy_from_slice(&outbuf[..count]);
+                return Ok(count);
             }
-            let count = self.crypter.update(&data[..read_size], buf)?;
-            self.reader.consume(read_size);
-            Ok(count)
+        } else {
+            if data.len() == 0 { // EOF
+                let rest = self.crypter.finalize(buf)?;
+                self.finalized = true;
+                return Ok(rest)
+            } else {
+                let mut read_size = buf.len() - self.block_size;
+                if read_size > data.len() {
+                    read_size = data.len();
+                }
+                let count = self.crypter.update(&data[..read_size], buf)?;
+                self.reader.consume(read_size);
+                return Ok(count)
+            }
         }
     }
 }
 
 struct CryptWriter<W> {
     writer: W,
+    block_size: usize,
     encr_buf: [u8; 64*1024],
     iv: [u8; 16],
     crypter: openssl::symm::Crypter,
@@ -373,10 +408,11 @@ impl <W: Write> CryptWriter<W> {
     fn new(writer: W, config: &CryptConfig) -> Result<Self, Error> {
         let mut iv = [0u8; 16];
         proxmox::sys::linux::fill_with_random_data(&mut iv)?;
+        let block_size = config.cipher().block_size();
 
         let crypter = config.data_crypter(&iv, openssl::symm::Mode::Encrypt)?;
 
-        Ok(Self { writer, iv, crypter, encr_buf: [0u8; 64*1024] })
+        Ok(Self { writer, iv, crypter, block_size, encr_buf: [0u8; 64*1024] })
     }
 
     fn finish(mut self) ->  Result<(W, [u8; 16], [u8; 16]), Error> {
@@ -397,7 +433,11 @@ impl <W: Write> CryptWriter<W> {
 impl <W: Write> Write for CryptWriter<W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        let count = self.crypter.update(buf, &mut self.encr_buf)
+        let mut write_size = buf.len();
+        if write_size > (self.encr_buf.len() - self.block_size) {
+            write_size = self.encr_buf.len() - self.block_size;
+        }
+        let count = self.crypter.update(&buf[..write_size], &mut self.encr_buf)
             .map_err(|err| {
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
@@ -406,7 +446,7 @@ impl <W: Write> Write for CryptWriter<W> {
 
         self.writer.write_all(&self.encr_buf[..count])?;
 
-        Ok(count)
+        Ok(write_size)
     }
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
@@ -801,7 +841,7 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 reader.read_exact(&mut iv)?;
                 reader.read_exact(&mut expected_tag)?;
                 let csum_reader = ChecksumReader::new(reader, None);
-                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024,csum_reader), iv, expected_tag, config.unwrap())?;
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config.unwrap())?;
                 Ok(Self { state: BlobReaderState::Encrypted { expected_crc, decrypt_reader }})
             }
             ENCR_COMPR_BLOB_MAGIC_1_0 => {
@@ -811,7 +851,7 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 reader.read_exact(&mut iv)?;
                 reader.read_exact(&mut expected_tag)?;
                 let csum_reader = ChecksumReader::new(reader, None);
-                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024,csum_reader), iv, expected_tag, config.unwrap())?;
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config.unwrap())?;
                 let decompr = zstd::stream::read::Decoder::new(decrypt_reader)?;
                 Ok(Self { state: BlobReaderState::EncryptedCompressed { expected_crc, decompr }})
             }
