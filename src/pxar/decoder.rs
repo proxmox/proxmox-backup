@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::ffi::OsString;
 
 
-pub struct CaDirectoryEntry {
+pub struct DirectoryEntry {
     start: u64,
     end: u64,
     pub filename: OsString,
@@ -42,8 +42,8 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         })
     }
 
-    pub fn root(&self) -> CaDirectoryEntry {
-        CaDirectoryEntry {
+    pub fn root(&self) -> DirectoryEntry {
+        DirectoryEntry {
             start: self.root_start,
             end: self.root_end,
             filename: OsString::new(), // Empty
@@ -64,7 +64,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
 
     pub fn restore(
         &mut self,
-        dir: &CaDirectoryEntry,
+        dir: &DirectoryEntry,
         path: &Path,
     ) -> Result<(), Error> {
         let start = dir.start;
@@ -76,7 +76,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         Ok(())
     }
 
-    fn read_directory_entry(&mut self, start: u64, end: u64) -> Result<CaDirectoryEntry, Error> {
+    fn read_directory_entry(&mut self, start: u64, end: u64) -> Result<DirectoryEntry, Error> {
 
         self.seek(SeekFrom::Start(start))?;
 
@@ -94,7 +94,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
 
-        Ok(CaDirectoryEntry {
+        Ok(DirectoryEntry {
             start: entry_start,
             end: end,
             filename: filename,
@@ -102,7 +102,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         })
     }
 
-    pub fn list_dir(&mut self, dir: &CaDirectoryEntry) -> Result<Vec<CaDirectoryEntry>, Error> {
+    pub fn list_dir(&mut self, dir: &DirectoryEntry) -> Result<Vec<DirectoryEntry>, Error> {
 
         const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
@@ -185,7 +185,7 @@ impl <'a, R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<'a, R, F> {
         &mut self,
         output: &mut W,
         prefix: &mut PathBuf,
-        dir: &CaDirectoryEntry,
+        dir: &DirectoryEntry,
     ) -> Result<(), Error> {
 
         let mut list = self.list_dir(dir)?;
