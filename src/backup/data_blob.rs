@@ -382,7 +382,7 @@ impl <R: BufRead> Read for CryptReader<R> {
 struct CryptWriter<W> {
     writer: W,
     block_size: usize,
-    encr_buf: [u8; 64*1024],
+    encr_buf: Box<[u8; 64*1024]>,
     iv: [u8; 16],
     crypter: openssl::symm::Crypter,
 }
@@ -396,11 +396,11 @@ impl <W: Write> CryptWriter<W> {
 
         let crypter = config.data_crypter(&iv, openssl::symm::Mode::Encrypt)?;
 
-        Ok(Self { writer, iv, crypter, block_size, encr_buf: [0u8; 64*1024] })
+        Ok(Self { writer, iv, crypter, block_size, encr_buf: Box::new([0u8; 64*1024]) })
     }
 
     fn finish(mut self) ->  Result<(W, [u8; 16], [u8; 16]), Error> {
-        let rest = self.crypter.finalize(&mut self.encr_buf)?;
+        let rest = self.crypter.finalize(self.encr_buf.as_mut())?;
         if rest > 0 {
             self.writer.write_all(&self.encr_buf[..rest])?;
         }
@@ -421,7 +421,7 @@ impl <W: Write> Write for CryptWriter<W> {
         if write_size > (self.encr_buf.len() - self.block_size) {
             write_size = self.encr_buf.len() - self.block_size;
         }
-        let count = self.crypter.update(&buf[..write_size], &mut self.encr_buf)
+        let count = self.crypter.update(&buf[..write_size], self.encr_buf.as_mut())
             .map_err(|err| {
                 std::io::Error::new(
                     std::io::ErrorKind::Other,
