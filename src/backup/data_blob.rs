@@ -11,8 +11,10 @@ use super::*;
 ///
 /// Data blobs store arbitrary binary data (< 128MB), and can be
 /// compressed and encrypted. A simply binary format is used to store
-/// them on disk or transfer them over the network. Please use index
-/// files to store large data files (".fidx" of ".didx").
+/// them on disk or transfer them over the network.
+///
+/// Please use index files to store large data files (".fidx" of
+/// ".didx").
 ///
 pub struct DataBlob {
     raw_data: Vec<u8>, // tagged, compressed, encryped data

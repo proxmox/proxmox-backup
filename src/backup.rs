@@ -1,15 +1,16 @@
-//! This module implements the proxmox backup chunked data storage
+//! This module implements the proxmox backup data storage
 //!
-//! A chunk is simply defined as binary blob. We store them inside a
-//! `ChunkStore`, addressed by the SHA256 digest of the binary
-//! blob. This technology is also known as content-addressable
-//! storage.
+//! Proxmox backup splits large files into chunks, and stores them
+//! deduplicated using a content addressable storage format.
 //!
-//! We store larger files by splitting them into chunks. The resulting
-//! SHA256 digest list is stored as separate index file. The
-//! `DynamicIndex*` format is able to deal with dynamic chunk sizes,
-//! whereas the `FixedIndex*` format is an optimization to store a
-//! list of equal sized chunks.
+//! A chunk is simply defined as binary blob, which is stored inside a
+//! `ChunkStore`, addressed by the SHA256 digest of the binary blob.
+//!
+//! Index files are used to reconstruct the original file. They
+//! basically contain a list of SHA256 checksums. The `DynamicIndex*`
+//! format is able to deal with dynamic chunk sizes, whereas the
+//! `FixedIndex*` format is an optimization to store a list of equal
+//! sized chunks.
 //!
 //! # ChunkStore Locking
 //!
