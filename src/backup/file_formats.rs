@@ -119,3 +119,23 @@ pub struct EncryptedDataChunkHeader {
     pub iv: [u8; 16],
     pub tag: [u8; 16],
 }
+
+/// Header size for different file types
+///
+/// Panics on unknown magic numbers.
+pub fn header_size(magic: &[u8; 8]) -> usize {
+    match magic {
+        &UNCOMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
+        &COMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
+        &ENCRYPTED_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
+        &ENCR_COMPR_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
+
+        &UNCOMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+        &COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
+        &ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+        &ENCR_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
+        &AUTHENTICATED_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
+        &AUTH_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
+        _ => panic!("unknown blob magic"),
+    }
+}
