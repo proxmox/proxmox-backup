@@ -19,7 +19,7 @@ use super::decoder::Decoder;
 /// This is the only one whose ID is not equal to the offset in the file.
 /// This is ok since offset 1 is part of the entry header and will therefore
 /// not occur again, but remapping to the correct offset of 0 is required.
-const FUSE_ROOT_ID: u64 = 1;
+//const FUSE_ROOT_ID: u64 = 1;
 
 fn decoder_callback(path: &Path) -> Result<(), Error> {
     println!("{:#?}", path);
@@ -42,7 +42,7 @@ extern "C" {
     fn fuse_session_unmount(session: ConstPtr);
     fn fuse_session_loop(session: ConstPtr) -> c_int;
     fn fuse_session_destroy(session: ConstPtr);
-    fn fuse_reply_attr(req: Request, attr: *const libc::stat, timeout: f64) -> c_int;
+//    fn fuse_reply_attr(req: Request, attr: *const libc::stat, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
@@ -264,7 +264,7 @@ extern "C" fn destroy(decoder: MutPtr) {
 }
 
 extern "C" fn lookup(req: Request, _parent: u64, _name: StrPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
@@ -272,7 +272,7 @@ extern "C" fn lookup(req: Request, _parent: u64, _name: StrPtr) {
 }
 
 extern "C" fn getattr(req: Request, _inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
@@ -280,7 +280,7 @@ extern "C" fn getattr(req: Request, _inode: u64, _fileinfo: MutPtr) {
 }
 
 extern "C" fn open(req: Request, _inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
@@ -288,7 +288,7 @@ extern "C" fn open(req: Request, _inode: u64, _fileinfo: MutPtr) {
 }
 
 extern "C" fn read(req: Request, _inode: u64, _size: size_t, _offset: c_int, _fileinfo: MutPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
@@ -296,7 +296,7 @@ extern "C" fn read(req: Request, _inode: u64, _size: size_t, _offset: c_int, _fi
 }
 
 extern "C" fn opendir(req: Request, _inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
@@ -304,7 +304,7 @@ extern "C" fn opendir(req: Request, _inode: u64, _fileinfo: MutPtr) {
 }
 
 extern "C" fn readdir(req: Request, _inode: u64, _size: size_t, _offset: c_int, _fileinfo: MutPtr) {
-    run_in_context(req, |decoder| {
+    run_in_context(req, |_decoder| {
         // code goes here
 
         Err(libc::ENOENT)
