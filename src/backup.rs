@@ -121,11 +121,29 @@ pub use crypt_config::*;
 mod key_derivation;
 pub use key_derivation::*;
 
+mod crypt_reader;
+pub use crypt_reader::*;
+
+mod crypt_writer;
+pub use crypt_writer::*;
+
+mod checksum_reader;
+pub use checksum_reader::*;
+
+mod checksum_writer;
+pub use checksum_writer::*;
+
 mod data_chunk;
 pub use data_chunk::*;
 
 mod data_blob;
 pub use data_blob::*;
+
+mod data_blob_reader;
+pub use data_blob_reader::*;
+
+mod data_blob_writer;
+pub use data_blob_writer::*;
 
 mod chunk_stream;
 pub use chunk_stream::*;
