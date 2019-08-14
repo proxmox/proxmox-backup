@@ -6,7 +6,7 @@ use failure::*;
 use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
-use std::io::Write;
+use std::io::{BufReader, Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
@@ -435,7 +435,7 @@ fn dump_catalog(
         None => None,
         Some(path) => {
             let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
-            Some(Arc::new(CryptConfig::new(key)?))
+            Some(CryptConfig::new(key)?)
         }
     };
 
@@ -447,18 +447,19 @@ fn dump_catalog(
         &snapshot.group().backup_id(),
         snapshot.backup_time(), true).wait()?;
 
-    let writer = Vec::with_capacity(1024*1024);
-    let blob_data = client.download("catalog.blob", writer).wait()?;
-    let blob = DataBlob::from_raw(blob_data)?;
-    blob.verify_crc()?;
+    let blob_file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
 
-    let raw_data = match crypt_config {
-        Some(ref crypt_config) => blob.decode(Some(crypt_config))?,
-        None => blob.decode(None)?,
-    };
+    let mut blob_file = client.download("catalog.blob", blob_file).wait()?;
 
-    let slice = &raw_data[..];
-    let mut catalog_reader = pxar::catalog::SimpleCatalogReader::new(slice);
+    blob_file.seek(SeekFrom::Start(0))?;
+
+    let reader = BufReader::new(DataBlobReader::new(blob_file, crypt_config.as_ref())?);
+
+    let mut catalog_reader = pxar::catalog::SimpleCatalogReader::new(reader);
 
     catalog_reader.dump()?;
 
