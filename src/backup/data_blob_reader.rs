@@ -142,7 +142,7 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
     }
 }
 
-impl <'a, R: BufRead> Read for DataBlobReader<'a, R> {
+impl <'a, R: Read> Read for DataBlobReader<'a, R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         match &mut self.state {
