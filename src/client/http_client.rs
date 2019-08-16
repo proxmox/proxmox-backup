@@ -641,11 +641,11 @@ impl BackupClient {
 
         futures::future::ok(())
             .and_then(move |_| {
-                let blob = if let Some(ref crypt_config) = crypt_config {
+                let blob = if let Some(crypt_config) = crypt_config {
                     if sign_only {
                         DataBlob::create_signed(&data, crypt_config, compress)?
                     } else {
-                        DataBlob::encode(&data, Some(crypt_config), compress)?
+                        DataBlob::encode(&data, Some(crypt_config.clone()), compress)?
                     }
                 } else {
                     DataBlob::encode(&data, None, compress)?
@@ -683,11 +683,7 @@ impl BackupClient {
                 tokio::io::read_to_end(file, contents)
                     .map_err(Error::from)
                     .and_then(move |(_, contents)| {
-                        let blob = if let Some(ref crypt_config) = crypt_config {
-                            DataBlob::encode(&contents, Some(crypt_config), compress)?
-                        } else {
-                            DataBlob::encode(&contents, None, compress)?
-                        };
+                        let blob = DataBlob::encode(&contents, crypt_config, compress)?;
                         let raw_data = blob.into_inner();
                         Ok((raw_data, contents.len() as u64))
                     })

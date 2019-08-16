@@ -1,4 +1,5 @@
 use failure::*;
+use std::sync::Arc;
 use std::io::Write;
 
 use super::CryptConfig;
@@ -13,7 +14,7 @@ pub struct CryptWriter<W> {
 
 impl <W: Write> CryptWriter<W> {
 
-    pub fn new(writer: W, config: &CryptConfig) -> Result<Self, Error> {
+    pub fn new(writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         let mut iv = [0u8; 16];
         proxmox::sys::linux::fill_with_random_data(&mut iv)?;
         let block_size = config.cipher().block_size();

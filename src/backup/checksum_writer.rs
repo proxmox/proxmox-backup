@@ -1,16 +1,30 @@
-use failure::*;
+use std::sync::Arc;
 use std::io::Write;
 
-pub struct ChecksumWriter<'a, W> {
+use failure::*;
+
+use super::CryptConfig;
+use crate::tools::borrow::Tied;
+
+pub struct ChecksumWriter<W> {
     writer: W,
     hasher: crc32fast::Hasher,
-    signer: Option<openssl::sign::Signer<'a>>,
+    signer: Option<Tied<Arc<CryptConfig>, openssl::sign::Signer<'static>>>,
 }
 
-impl <'a, W: Write> ChecksumWriter<'a, W> {
+impl <W: Write> ChecksumWriter<W> {
 
-    pub fn new(writer: W, signer: Option<openssl::sign::Signer<'a>>) -> Self {
+    pub fn new(writer: W, config: Option<Arc<CryptConfig>>) -> Self {
         let hasher = crc32fast::Hasher::new();
+        let signer = match config {
+            Some(config) => {
+                let tied_signer = Tied::new(config.clone(), |config| {
+                    Box::new(unsafe { (*config).data_signer() })
+                });
+                Some(tied_signer)
+            }
+            None => None,
+        };
         Self { writer, hasher, signer }
     }
 
@@ -27,7 +41,7 @@ impl <'a, W: Write> ChecksumWriter<'a, W> {
     }
 }
 
-impl <'a, W: Write> Write for ChecksumWriter<'a, W> {
+impl <W: Write> Write for ChecksumWriter<W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.hasher.update(buf);

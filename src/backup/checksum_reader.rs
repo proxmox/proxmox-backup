@@ -1,16 +1,30 @@
 use failure::*;
+use std::sync::Arc;
 use std::io::Read;
 
-pub struct ChecksumReader<'a, R> {
+use super::CryptConfig;
+use crate::tools::borrow::Tied;
+
+pub struct ChecksumReader<R> {
     reader: R,
     hasher: crc32fast::Hasher,
-    signer: Option<openssl::sign::Signer<'a>>,
+    signer: Option<Tied<Arc<CryptConfig>, openssl::sign::Signer<'static>>>,
 }
 
-impl <'a, R: Read> ChecksumReader<'a, R> {
+impl <R: Read> ChecksumReader<R> {
 
-    pub fn new(reader: R, signer: Option<openssl::sign::Signer<'a>>) -> Self {
+    pub fn new(reader: R, config: Option<Arc<CryptConfig>>) -> Self {
         let hasher = crc32fast::Hasher::new();
+        let signer = match config {
+            Some(config) => {
+                let tied_signer = Tied::new(config, |config| {
+                    Box::new(unsafe { (*config).data_signer() })
+                });
+                Some(tied_signer)
+            }
+            None => None,
+        };
+
         Self { reader, hasher, signer }
     }
 
@@ -27,7 +41,7 @@ impl <'a, R: Read> ChecksumReader<'a, R> {
     }
 }
 
-impl <'a, R: Read> Read for ChecksumReader<'a, R> {
+impl <R: Read> Read for ChecksumReader<R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         let count = self.reader.read(buf)?;

@@ -435,7 +435,7 @@ fn dump_catalog(
         None => None,
         Some(path) => {
             let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
-            Some(CryptConfig::new(key)?)
+            Some(Arc::new(CryptConfig::new(key)?))
         }
     };
 
@@ -457,7 +457,7 @@ fn dump_catalog(
 
     blob_file.seek(SeekFrom::Start(0))?;
 
-    let reader = BufReader::new(DataBlobReader::new(blob_file, crypt_config.as_ref())?);
+    let reader = BufReader::new(DataBlobReader::new(blob_file, crypt_config)?);
 
     let mut catalog_reader = pxar::catalog::SimpleCatalogReader::new(reader);
 
@@ -888,10 +888,7 @@ fn restore(
         let blob = DataBlob::from_raw(blob_data)?;
         blob.verify_crc()?;
 
-        let raw_data = match crypt_config {
-            Some(ref crypt_config) => blob.decode(Some(crypt_config))?,
-            None => blob.decode(None)?,
-        };
+        let raw_data = blob.decode(crypt_config)?;
 
         if let Some(target) = target {
             file_set_contents(target, &raw_data, None)?;
@@ -991,17 +988,13 @@ fn upload_log(
         Some(path) => {
             let (key, _created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
-            Some(crypt_config)
+            Some(Arc::new(crypt_config))
         }
     };
 
     let data = file_get_contents(logfile)?;
 
-    let blob = if let Some(ref crypt_config) = crypt_config {
-        DataBlob::encode(&data, Some(crypt_config), true)?
-    } else {
-        DataBlob::encode(&data, None, true)?
-    };
+    let blob = DataBlob::encode(&data, crypt_config, true)?;
 
     let raw_data = blob.into_inner();
 

@@ -1,26 +1,27 @@
 use failure::*;
+use std::sync::Arc;
 use std::io::{Read, BufReader};
 use proxmox::tools::io::ReadExt;
 
 use super::*;
 
-enum BlobReaderState<'a, R: Read> {
-    Uncompressed { expected_crc: u32, csum_reader: ChecksumReader<'a, R> },
-    Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
-    Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<'a, R> },
-    SignedCompressed { expected_crc: u32, expected_hmac: [u8; 32], decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<'a, R>>> },
-    Encrypted { expected_crc: u32, decrypt_reader: CryptReader<BufReader<ChecksumReader<'a, R>>> },
-    EncryptedCompressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<CryptReader<BufReader<ChecksumReader<'a, R>>>>> },
+enum BlobReaderState<R: Read> {
+    Uncompressed { expected_crc: u32, csum_reader: ChecksumReader<R> },
+    Compressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<R>>> },
+    Signed { expected_crc: u32, expected_hmac: [u8; 32], csum_reader: ChecksumReader<R> },
+    SignedCompressed { expected_crc: u32, expected_hmac: [u8; 32], decompr: zstd::stream::read::Decoder<BufReader<ChecksumReader<R>>> },
+    Encrypted { expected_crc: u32, decrypt_reader: CryptReader<BufReader<ChecksumReader<R>>> },
+    EncryptedCompressed { expected_crc: u32, decompr: zstd::stream::read::Decoder<BufReader<CryptReader<BufReader<ChecksumReader<R>>>>> },
 }
 
 /// Read data blobs
-pub struct DataBlobReader<'a, R: Read> {
-    state: BlobReaderState<'a, R>,
+pub struct DataBlobReader<R: Read> {
+    state: BlobReaderState<R>,
 }
 
-impl <'a, R: Read> DataBlobReader<'a, R> {
+impl <R: Read> DataBlobReader<R> {
 
-    pub fn new(mut reader: R, config: Option<&'a CryptConfig>) -> Result<Self, Error> {
+    pub fn new(mut reader: R, config: Option<Arc<CryptConfig>>) -> Result<Self, Error> {
 
         let head: DataBlobHeader = unsafe { reader.read_le_value()? };
         match head.magic {
@@ -40,16 +41,14 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
                 let expected_crc = u32::from_le_bytes(head.crc);
                 let mut expected_hmac = [0u8; 32];
                 reader.read_exact(&mut expected_hmac)?;
-                let signer = config.map(|c| c.data_signer());
-                let csum_reader = ChecksumReader::new(reader, signer);
+                let csum_reader = ChecksumReader::new(reader, config);
                 Ok(Self { state: BlobReaderState::Signed { expected_crc, expected_hmac, csum_reader }})
             }
             AUTH_COMPR_BLOB_MAGIC_1_0 => {
                 let expected_crc = u32::from_le_bytes(head.crc);
                 let mut expected_hmac = [0u8; 32];
                 reader.read_exact(&mut expected_hmac)?;
-                let signer = config.map(|c| c.data_signer());
-                let csum_reader = ChecksumReader::new(reader, signer);
+                let csum_reader = ChecksumReader::new(reader, config);
 
                 let decompr = zstd::stream::read::Decoder::new(csum_reader)?;
                 Ok(Self { state: BlobReaderState::SignedCompressed { expected_crc, expected_hmac, decompr }})
@@ -142,7 +141,7 @@ impl <'a, R: Read> DataBlobReader<'a, R> {
     }
 }
 
-impl <'a, R: Read> Read for DataBlobReader<'a, R> {
+impl <R: Read> Read for DataBlobReader<R> {
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         match &mut self.state {

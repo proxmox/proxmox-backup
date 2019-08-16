@@ -1,24 +1,25 @@
 use failure::*;
+use std::sync::Arc;
 use std::io::{Write, Seek, SeekFrom};
 use proxmox::tools::io::WriteExt;
 
 use super::*;
 
-enum BlobWriterState<'a, W: Write> {
-    Uncompressed { csum_writer: ChecksumWriter<'a, W> },
-    Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
-    Signed { csum_writer: ChecksumWriter<'a, W> },
-    SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<'a, W>> },
-    Encrypted { crypt_writer: CryptWriter<ChecksumWriter<'a, W>> },
-    EncryptedCompressed { compr: zstd::stream::write::Encoder<CryptWriter<ChecksumWriter<'a, W>>> },
+enum BlobWriterState<W: Write> {
+    Uncompressed { csum_writer: ChecksumWriter<W> },
+    Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<W>> },
+    Signed { csum_writer: ChecksumWriter<W> },
+    SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<W>> },
+    Encrypted { crypt_writer: CryptWriter<ChecksumWriter<W>> },
+    EncryptedCompressed { compr: zstd::stream::write::Encoder<CryptWriter<ChecksumWriter<W>>> },
 }
 
 /// Data blob writer
-pub struct DataBlobWriter<'a, W: Write> {
-    state: BlobWriterState<'a, W>,
+pub struct DataBlobWriter<W: Write> {
+    state: BlobWriterState<W>,
 }
 
-impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
+impl <W: Write + Seek> DataBlobWriter<W> {
 
     pub fn new_uncompressed(mut writer: W) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
@@ -41,7 +42,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         Ok(Self { state: BlobWriterState::Compressed { compr }})
     }
 
-    pub fn new_signed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+    pub fn new_signed(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
         let head = AuthenticatedDataBlobHeader {
             head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: [0; 4] },
@@ -50,12 +51,11 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         unsafe {
             writer.write_le_value(head)?;
         }
-        let signer = config.data_signer();
-        let csum_writer = ChecksumWriter::new(writer, Some(signer));
+        let csum_writer = ChecksumWriter::new(writer, Some(config));
         Ok(Self { state:  BlobWriterState::Signed { csum_writer }})
     }
 
-    pub fn new_signed_compressed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+    pub fn new_signed_compressed(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
         let head = AuthenticatedDataBlobHeader {
             head: DataBlobHeader { magic: AUTH_COMPR_BLOB_MAGIC_1_0, crc: [0; 4] },
@@ -64,13 +64,12 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         unsafe {
             writer.write_le_value(head)?;
         }
-        let signer = config.data_signer();
-        let csum_writer = ChecksumWriter::new(writer, Some(signer));
+        let csum_writer = ChecksumWriter::new(writer, Some(config));
         let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
         Ok(Self { state: BlobWriterState::SignedCompressed { compr }})
     }
 
-    pub fn new_encrypted(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+    pub fn new_encrypted(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
         let head = EncryptedDataBlobHeader {
             head: DataBlobHeader { magic: ENCRYPTED_BLOB_MAGIC_1_0, crc: [0; 4] },
@@ -86,7 +85,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
         Ok(Self { state: BlobWriterState::Encrypted { crypt_writer }})
     }
 
-    pub fn new_encrypted_compressed(mut writer: W, config: &'a CryptConfig) -> Result<Self, Error> {
+    pub fn new_encrypted_compressed(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
         writer.seek(SeekFrom::Start(0))?;
         let head = EncryptedDataBlobHeader {
             head: DataBlobHeader { magic: ENCR_COMPR_BLOB_MAGIC_1_0, crc: [0; 4] },
@@ -194,7 +193,7 @@ impl <'a, W: Write + Seek> DataBlobWriter<'a, W> {
     }
 }
 
-impl <'a, W: Write + Seek> Write for DataBlobWriter<'a, W> {
+impl <W: Write + Seek> Write for DataBlobWriter<W> {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         match self.state {

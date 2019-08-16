@@ -1,4 +1,5 @@
 use failure::*;
+use std::sync::Arc;
 use std::io::{Read, BufRead};
 
 use super::CryptConfig;
@@ -13,7 +14,7 @@ pub struct CryptReader<R> {
 
 impl <R: BufRead> CryptReader<R> {
 
-    pub fn new(reader: R, iv: [u8; 16], tag: [u8; 16], config: &CryptConfig) -> Result<Self, Error> {
+    pub fn new(reader: R, iv: [u8; 16], tag: [u8; 16], config: Arc<CryptConfig>) -> Result<Self, Error> {
         let block_size = config.cipher().block_size(); // Note: block size is normally 1 byte for stream ciphers
         if block_size.count_ones() != 1 || block_size > 512 {
             bail!("unexpected Cipher block size {}", block_size);

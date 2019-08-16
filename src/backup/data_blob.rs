@@ -1,5 +1,6 @@
 use failure::*;
 use std::convert::TryInto;
+use std::sync::Arc;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
@@ -69,7 +70,7 @@ impl DataBlob {
     /// Create a DataBlob, optionally compressed and/or encrypted
     pub fn encode(
         data: &[u8],
-        config: Option<&CryptConfig>,
+        config: Option<Arc<CryptConfig>>,
         compress: bool,
     ) -> Result<Self, Error> {
 
@@ -158,7 +159,7 @@ impl DataBlob {
     }
 
     /// Decode blob data
-    pub fn decode(self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
+    pub fn decode(self, config: Option<Arc<CryptConfig>>) -> Result<Vec<u8>, Error> {
 
         let magic = self.magic();
 
@@ -215,7 +216,7 @@ impl DataBlob {
     /// Create a signed DataBlob, optionally compressed
     pub fn create_signed(
         data: &[u8],
-        config: &CryptConfig,
+        config: Arc<CryptConfig>,
         compress: bool,
     ) -> Result<Self, Error> {
 
