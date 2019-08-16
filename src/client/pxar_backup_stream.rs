@@ -1,5 +1,5 @@
 use failure::*;
-
+use std::io::{Write, Seek};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::FromRawFd;
@@ -14,6 +14,8 @@ use nix::sys::stat::Mode;
 use nix::dir::Dir;
 
 use crate::pxar;
+use crate::backup::CatalogBlobWriter;
+
 use crate::tools::wrapped_reader_stream::WrappedReaderStream;
 
 /// Stream implementation to encode and upload .pxar archives.
@@ -37,13 +39,13 @@ impl Drop for PxarBackupStream {
 
 impl PxarBackupStream {
 
-    pub fn new(
+    pub fn new<W: Write + Seek + Send + 'static>(
         mut dir: Dir,
         path: PathBuf,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool,
-        catalog: Arc<Mutex<crate::pxar::catalog::SimpleCatalog>>,
+        catalog: Arc<Mutex<CatalogBlobWriter<W>>>,
     ) -> Result<Self, Error> {
 
         let (rx, tx) = nix::unistd::pipe()?;
@@ -74,12 +76,12 @@ impl PxarBackupStream {
         })
     }
 
-    pub fn open(
+    pub fn open<W: Write + Seek + Send + 'static>(
         dirname: &Path,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool,
-        catalog: Arc<Mutex<crate::pxar::catalog::SimpleCatalog>>,
+        catalog: Arc<Mutex<CatalogBlobWriter<W>>>,
     ) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;

@@ -209,7 +209,7 @@ fn create_archive(
         feature_flags ^= pxar::flags::WITH_SOCKETS;
     }
 
-    let catalog = None::<&mut pxar::catalog::SimpleCatalog>;
+    let catalog = None::<&mut pxar::catalog::DummyCatalogWriter>;
     pxar::Encoder::encode(source, &mut dir, &mut writer, catalog, devices, verbose, false, feature_flags)?;
 
     writer.flush()?;

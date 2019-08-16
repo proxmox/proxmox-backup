@@ -26,7 +26,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
 
     let path = std::path::PathBuf::from(dir_name);
 
-    let catalog = None::<&mut catalog::SimpleCatalog>;
+    let catalog = None::<&mut catalog::DummyCatalogWriter>;
     Encoder::encode(path, &mut dir, &mut writer, catalog, None, false, false, flags::DEFAULT)?;
 
     Command::new("cmp")

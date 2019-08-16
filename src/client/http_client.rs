@@ -626,6 +626,33 @@ impl BackupClient {
         self.canceller.cancel();
     }
 
+    pub fn upload_blob<R: std::io::Read>(
+        &self,
+        mut reader: R,
+        file_name: &str,
+     ) -> impl Future<Item=BackupStats, Error=Error> {
+
+        let h2 = self.h2.clone();
+        let file_name = file_name.to_owned();
+
+        futures::future::ok(())
+            .and_then(move |_| {
+                let mut raw_data = Vec::new();
+                // fixme: avoid loading into memory
+                reader.read_to_end(&mut raw_data)?;
+                Ok(raw_data)
+            })
+            .and_then(move |raw_data| {
+                let csum = openssl::sha::sha256(&raw_data);
+                let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
+                let size = raw_data.len() as u64; // fixme: should be decoded size instead??
+                h2.upload("blob", Some(param), raw_data)
+                    .map(move |_| {
+                        BackupStats { size, csum }
+                    })
+            })
+    }
+
     pub fn upload_blob_from_data(
         &self,
         data: Vec<u8>,

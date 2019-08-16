@@ -159,7 +159,7 @@ fn backup_directory<P: AsRef<Path>>(
     verbose: bool,
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
-    catalog: Arc<Mutex<SimpleCatalog>>,
+    catalog: Arc<Mutex<CatalogBlobWriter<std::fs::File>>>,
 ) -> Result<BackupStats, Error> {
 
     let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found, catalog)?;
@@ -457,9 +457,8 @@ fn dump_catalog(
 
     blob_file.seek(SeekFrom::Start(0))?;
 
-    let reader = BufReader::new(DataBlobReader::new(blob_file, crypt_config)?);
-
-    let mut catalog_reader = pxar::catalog::SimpleCatalogReader::new(reader);
+    let reader = BufReader::new(blob_file);
+    let mut catalog_reader = CatalogBlobReader::new(reader, crypt_config)?;
 
     catalog_reader.dump()?;
 
@@ -677,8 +676,14 @@ fn create_backup(
 
     let mut file_list = vec![];
 
-    let catalog_filename = format!("/tmp/pbs-catalog-{}.cat", std::process::id());
-    let catalog = Arc::new(Mutex::new(SimpleCatalog::new(&catalog_filename)?));
+    // fixme: encrypt/sign catalog?
+     let catalog_file = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
+
+    let catalog = Arc::new(Mutex::new(CatalogBlobWriter::new_compressed(catalog_file)?));
     let mut upload_catalog = false;
 
     for (backup_type, filename, target, size) in upload_list {
@@ -731,13 +736,14 @@ fn create_backup(
     if upload_catalog {
         let mutex = Arc::try_unwrap(catalog)
             .map_err(|_| format_err!("unable to get catalog (still used)"))?;
-        drop(mutex); // close catalog
+        let mut catalog_file = mutex.into_inner().unwrap().finish()?;
 
         let target = "catalog.blob";
-        let stats = client.upload_blob_from_file(&catalog_filename, target, crypt_config.clone(), true).wait()?;
-        file_list.push((target.to_owned(), stats));
 
-        let _ = std::fs::remove_file(&catalog_filename);
+        catalog_file.seek(SeekFrom::Start(0))?;
+
+        let stats = client.upload_blob(catalog_file, target).wait()?;
+        file_list.push((target.to_owned(), stats));
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
