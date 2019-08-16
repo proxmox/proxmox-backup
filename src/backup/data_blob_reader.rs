@@ -1,5 +1,5 @@
 use failure::*;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read, BufReader};
 use proxmox::tools::io::ReadExt;
 
 use super::*;
