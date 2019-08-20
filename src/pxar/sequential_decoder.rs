@@ -99,7 +99,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(PathBuf::from(std::ffi::OsString::from_vec(buffer)))
     }
 
-    fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
+    pub (crate) fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
         if size < (HEADER_SIZE + 8 + 2) {
             bail!("dectected short hardlink header.");
         }

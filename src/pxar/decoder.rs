@@ -90,6 +90,10 @@ impl <R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         let filename = self.inner.read_filename(head.size)?;
 
         let head: PxarHeader = self.inner.read_item()?;
+        if head.htype == PXAR_FORMAT_HARDLINK {
+            let (_, offset) = self.inner.read_hardlink(head.size)?;
+            return self.read_directory_entry(start - offset, end);
+        }
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
 
