@@ -43,19 +43,17 @@ impl <R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         })
     }
 
-    pub fn root(&self) -> DirectoryEntry {
-        DirectoryEntry {
+    pub fn root(&mut self) -> Result<DirectoryEntry, Error> {
+        self.seek(SeekFrom::Start(0))?;
+        let header: PxarHeader = self.inner.read_item()?;
+        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.inner.read_item()?;
+        Ok(DirectoryEntry {
             start: self.root_start,
             end: self.root_end,
             filename: OsString::new(), // Empty
-            entry: PxarEntry {
-                mode: 0,
-                flags: 0,
-                uid: 0,
-                gid: 0,
-                mtime: 0,
-            }
-        }
+            entry: entry,
+        })
     }
 
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
