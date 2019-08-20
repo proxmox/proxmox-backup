@@ -28,6 +28,7 @@ pub struct Decoder<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
+const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
 impl <R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
@@ -103,8 +104,6 @@ impl <R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     }
 
     pub fn list_dir(&mut self, dir: &DirectoryEntry) -> Result<Vec<DirectoryEntry>, Error> {
-
-        const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
         let start = dir.start;
         let end = dir.end;
