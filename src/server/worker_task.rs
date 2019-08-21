@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 
 use proxmox::tools::{
     try_block,
-    fs::{create_dir_chown, file_set_contents_full},
+    fs::{create_path, file_set_contents_full, CreateOptions},
 };
 
 use super::UPID;
@@ -142,12 +142,13 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
 
     try_block!({
         let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-        let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
-        let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+        let opts = CreateOptions::new()
+            .owner(nix::unistd::Uid::from_raw(backup_uid))
+            .group(nix::unistd::Gid::from_raw(backup_gid));
 
-        create_dir_chown(PROXMOX_BACKUP_LOG_DIR, None, uid, gid)?;
-        create_dir_chown(PROXMOX_BACKUP_TASK_DIR, None, uid, gid)?;
-        create_dir_chown(PROXMOX_BACKUP_VAR_RUN_DIR, None, uid, gid)?;
+        create_path(PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
+        create_path(PROXMOX_BACKUP_TASK_DIR, None, Some(opts.clone()))?;
+        create_path(PROXMOX_BACKUP_VAR_RUN_DIR, None, Some(opts))?;
         Ok(())
     }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))?;
 
@@ -369,17 +370,17 @@ impl WorkerTask {
         path.push(format!("{:02X}", upid.pstart % 256));
 
         let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-        let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
-        let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+        let uid = nix::unistd::Uid::from_raw(backup_uid);
+        let gid = nix::unistd::Gid::from_raw(backup_gid);
 
-        create_dir_chown(&path, None, uid, gid)?;
+        create_path(&path, None, Some(CreateOptions::new().owner(uid).group(gid)))?;
 
         path.push(upid.to_string());
 
         println!("FILE: {:?}", path);
 
         let logger = FileLogger::new(&path, to_stdout)?;
-        nix::unistd::chown(&path, uid, gid)?;
+        nix::unistd::chown(&path, Some(uid), Some(gid))?;
 
         update_active_workers(Some(&upid))?;
 
