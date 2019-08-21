@@ -9,16 +9,15 @@ use proxmox::tools::{fs::file_set_contents, try_block};
 use crate::api_schema::{ObjectSchema, StringSchema};
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
-lazy_static!{
+lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {
-
     let plugin = SectionConfigPlugin::new(
         "datastore".to_string(),
         ObjectSchema::new("DataStore properties")
-            .required("path", StringSchema::new("Directory name"))
+            .required("path", StringSchema::new("Directory name")),
     );
 
     let id_schema = StringSchema::new("DataStore ID schema.")
@@ -34,7 +33,6 @@ fn init() -> SectionConfig {
 const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 
 pub fn config() -> Result<SectionConfigData, Error> {
-
     let mut contents = String::new();
 
     try_block!({
@@ -49,13 +47,13 @@ pub fn config() -> Result<SectionConfigData, Error> {
                 }
             }
         }
-    }).map_err(|e| format_err!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, e))?;
+    })
+    .map_err(|e| format_err!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, e))?;
 
     CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
 
     file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
@@ -66,7 +64,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 // shell completion helper
 pub fn complete_datastore_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok(data) => data.sections.iter().map(|(id,_)| id.to_string()).collect(),
+        Ok(data) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
         Err(_) => return vec![],
     }
 }
