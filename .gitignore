@@ -1,3 +1,4 @@
+local.mak
 Cargo.lock
 /target
 **/*.rs.bk
