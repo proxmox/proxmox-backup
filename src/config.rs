@@ -5,11 +5,11 @@
 
 use failure::*;
 
-pub mod datastore;
-
 use proxmox::tools::try_block;
 
 use crate::buildcfg;
+
+pub mod datastore;
 
 /// Check configuration directory permissions
 ///
@@ -17,7 +17,6 @@ use crate::buildcfg;
 /// * owned by 'backup' user/group
 /// * nobody else can read (mode 0700)
 pub fn check_configdir_permissions() -> Result<(), Error> {
-
     let cfgdir = buildcfg::CONFIGDIR;
     let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
 
@@ -25,34 +24,44 @@ pub fn check_configdir_permissions() -> Result<(), Error> {
         let stat = nix::sys::stat::stat(cfgdir)?;
 
         if stat.st_uid != backup_uid {
-            bail!("wrong user ({} != {})",  stat.st_uid, backup_uid);
+            bail!("wrong user ({} != {})", stat.st_uid, backup_uid);
         }
         if stat.st_gid != backup_gid {
-            bail!("wrong group ({} != {})",  stat.st_gid, backup_gid);
+            bail!("wrong group ({} != {})", stat.st_gid, backup_gid);
         }
 
         let perm = stat.st_mode & 0o777;
         if perm != 0o700 {
-            bail!("wrong permission ({:o} != {:o})",  perm, 0o700);
+            bail!("wrong permission ({:o} != {:o})", perm, 0o700);
         }
         Ok(())
-    }).map_err(|err| format_err!("configuration directory '{}' permission problem - {}", cfgdir, err))
+    })
+    .map_err(|err| {
+        format_err!(
+            "configuration directory '{}' permission problem - {}",
+            cfgdir,
+            err
+        )
+    })
 }
 
 pub fn create_configdir() -> Result<(), Error> {
-
     use nix::sys::stat::Mode;
 
     let cfgdir = buildcfg::CONFIGDIR;
     let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
 
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(nix::Error::Sys(nix::errno::Errno::EEXIST)) => {
             check_configdir_permissions()?;
             return Ok(());
-        },
-        Err(err) => bail!("unable to create configuration directory '{}' - {}", cfgdir, err),
+        }
+        Err(err) => bail!(
+            "unable to create configuration directory '{}' - {}",
+            cfgdir,
+            err
+        ),
     }
 
     try_block!({
@@ -62,6 +71,12 @@ pub fn create_configdir() -> Result<(), Error> {
         nix::unistd::chown(cfgdir, Some(uid), Some(gid))?;
 
         Ok(())
-    }).map_err(|err: Error| format_err!(
-        "unable to set configuration directory '{}' permissions - {}", cfgdir, err))
+    })
+    .map_err(|err: Error| {
+        format_err!(
+            "unable to set configuration directory '{}' permissions - {}",
+            cfgdir,
+            err
+        )
+    })
 }
