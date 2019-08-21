@@ -31,7 +31,7 @@ fn garbage_collection(worker: &server::WorkerTask) -> Result<(), Error> {
 }
 
 
-#[test]
+#[test] #[ignore]
 fn worker_task_abort() -> Result<(), Error> {
 
     server::create_task_log_dirs()?;
