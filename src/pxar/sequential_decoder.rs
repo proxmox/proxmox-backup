@@ -804,6 +804,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.read_item()?;
+        let ifmt = entry.mode as u32 & libc::S_IFMT;
 
         let mut child_pattern = Vec::new();
         // If parent was a match, then children should be assumed to match too
@@ -811,11 +812,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         // there are no match pattern.
         let mut matched = parent_matched;
         if match_pattern.len() > 0 {
-            match match_filename(
-                filename,
-                entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR,
-                match_pattern,
-            )? {
+            match match_filename(filename, ifmt == libc::S_IFDIR, match_pattern)? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
                 (match_type, pattern) => {
@@ -835,7 +832,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             (self.callback)(&full_path)?;
         }
 
-        match entry.mode as u32 & libc::S_IFMT {
+        match ifmt {
             libc::S_IFDIR => {
                 self.restore_dir(base_path, dirs, entry, &filename, matched, &child_pattern)
             }
