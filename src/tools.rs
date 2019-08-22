@@ -1,40 +1,36 @@
 //! Tools and utilities
 //!
 //! This is a collection of small and useful tools.
-use failure::*;
-
-use std::fs::{File, OpenOptions};
-use std::path::Path;
-use std::io::Read;
-use std::io::ErrorKind;
-use std::time::Duration;
 use std::any::Any;
-
-use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
-
 use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::io::ErrorKind;
+use std::io::Read;
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
+use std::path::Path;
+use std::time::Duration;
 
+use failure::*;
 use serde_json::Value;
 
 use proxmox::tools::vec;
 
-pub mod async_mutex;
-pub mod timer;
-pub mod wrapped_reader_stream;
-pub mod ticket;
-pub mod borrow;
-pub mod fs;
-pub mod tty;
-pub mod signalfd;
-pub mod daemon;
 pub mod acl;
-pub mod xattr;
+pub mod async_mutex;
+pub mod borrow;
+pub mod daemon;
+pub mod fs;
 pub mod futures;
+pub mod signalfd;
+pub mod ticket;
+pub mod timer;
+pub mod tty;
+pub mod wrapped_reader_stream;
+pub mod xattr;
 
 mod process_locker;
 pub use process_locker::*;
 
-#[macro_use]
 mod file_logger;
 pub use file_logger::*;
 
@@ -61,7 +57,7 @@ pub fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
     }
-    Ok(unsafe { & * (buffer.as_ptr() as *const T) })
+    Ok(unsafe { &*(buffer.as_ptr() as *const T) })
 }
 
 /// Directly map a type into a mutable binary buffer. This is mostly
@@ -74,9 +70,8 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
     if buffer.len() < ::std::mem::size_of::<T>() {
         bail!("unable to map struct - buffer too small");
     }
-    Ok(unsafe { &mut * (buffer.as_ptr() as *mut T) })
+    Ok(unsafe { &mut *(buffer.as_ptr() as *mut T) })
 }
-
 
 /// Create a file lock using fntl. This function allows you to specify
 /// a timeout if you want to avoid infinite blocking.
@@ -85,12 +80,11 @@ pub fn lock_file<F: AsRawFd>(
     exclusive: bool,
     timeout: Option<Duration>,
 ) -> Result<(), Error> {
-    let lockarg =
-        if exclusive {
-            nix::fcntl::FlockArg::LockExclusive
-        } else {
-            nix::fcntl::FlockArg::LockShared
-        };
+    let lockarg = if exclusive {
+        nix::fcntl::FlockArg::LockExclusive
+    } else {
+        nix::fcntl::FlockArg::LockShared
+    };
 
     let timeout = match timeout {
         None => {
@@ -106,11 +100,14 @@ pub fn lock_file<F: AsRawFd>(
     // setup a timeout timer
     let mut timer = timer::Timer::create(
         timer::Clock::Realtime,
-        timer::TimerEvent::ThisThreadSignal(timer::SIGTIMEOUT))?;
+        timer::TimerEvent::ThisThreadSignal(timer::SIGTIMEOUT),
+    )?;
 
-    timer.arm(timer::TimerSpec::new()
-        .value(Some(timeout))
-        .interval(Some(Duration::from_millis(10))))?;
+    timer.arm(
+        timer::TimerSpec::new()
+            .value(Some(timeout))
+            .interval(Some(Duration::from_millis(10))),
+    )?;
 
     nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
     Ok(())
@@ -118,42 +115,31 @@ pub fn lock_file<F: AsRawFd>(
 
 /// Open or create a lock file (append mode). Then try to
 /// aquire a lock using `lock_file()`.
-pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration)
-    -> Result<File, Error>
-{
+pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration) -> Result<File, Error> {
     let path = path.as_ref();
-    let mut file =
-        match OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
-            Ok(file) => file,
-            Err(err) => bail!("Unable to open lock {:?} - {}",
-                              path, err),
-        };
+    let mut file = match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(file) => file,
+        Err(err) => bail!("Unable to open lock {:?} - {}", path, err),
+    };
     match lock_file(&mut file, true, Some(timeout)) {
         Ok(_) => Ok(file),
-        Err(err) => bail!("Unable to aquire lock {:?} - {}",
-                          path, err),
+        Err(err) => bail!("Unable to aquire lock {:?} - {}", path, err),
     }
 }
 
 /// Split a file into equal sized chunks. The last chunk may be
 /// smaller. Note: We cannot implement an `Iterator`, because iterators
 /// cannot return a borrowed buffer ref (we want zero-copy)
-pub fn file_chunker<C, R>(
-    mut file: R,
-    chunk_size: usize,
-    mut chunk_cb: C
-) -> Result<(), Error>
-    where C: FnMut(usize, &[u8]) -> Result<bool, Error>,
-          R: Read,
+pub fn file_chunker<C, R>(mut file: R, chunk_size: usize, mut chunk_cb: C) -> Result<(), Error>
+where
+    C: FnMut(usize, &[u8]) -> Result<bool, Error>,
+    R: Read,
 {
+    const READ_BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4M
 
-    const READ_BUFFER_SIZE: usize = 4*1024*1024; // 4M
-
-    if chunk_size > READ_BUFFER_SIZE { bail!("chunk size too large!"); }
+    if chunk_size > READ_BUFFER_SIZE {
+        bail!("chunk size too large!");
+    }
 
     let mut buf = vec::undefined(READ_BUFFER_SIZE);
 
@@ -162,13 +148,18 @@ pub fn file_chunker<C, R>(
     loop {
         let mut eof = false;
         let mut tmp = &mut buf[..];
-       // try to read large portions, at least chunk_size
+        // try to read large portions, at least chunk_size
         while pos < chunk_size {
             match file.read(tmp) {
-                Ok(0) => { eof = true; break; },
+                Ok(0) => {
+                    eof = true;
+                    break;
+                }
                 Ok(n) => {
                     pos += n;
-                    if pos > chunk_size { break; }
+                    if pos > chunk_size {
+                        break;
+                    }
                     tmp = &mut tmp[n..];
                 }
                 Err(ref e) if e.kind() == ErrorKind::Interrupted => { /* try again */ }
@@ -177,7 +168,9 @@ pub fn file_chunker<C, R>(
         }
         let mut start = 0;
         while start + chunk_size <= pos {
-            if !(chunk_cb)(file_pos, &buf[start..start+chunk_size])? { break; }
+            if !(chunk_cb)(file_pos, &buf[start..start + chunk_size])? {
+                break;
+            }
             file_pos += chunk_size;
             start += chunk_size;
         }
@@ -191,7 +184,9 @@ pub fn file_chunker<C, R>(
             let rest = pos - start;
             if rest > 0 {
                 let ptr = buf.as_mut_ptr();
-                unsafe { std::ptr::copy_nonoverlapping(ptr.add(start), ptr, rest); }
+                unsafe {
+                    std::ptr::copy_nonoverlapping(ptr.add(start), ptr, rest);
+                }
                 pos = rest;
             } else {
                 pos = 0;
@@ -203,7 +198,7 @@ pub fn file_chunker<C, R>(
 }
 
 /// Returns the Unix uid/gid for the sepcified system user.
-pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error> {
+pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t, libc::gid_t), Error> {
     let info = unsafe { libc::getpwnam(std::ffi::CString::new(username).unwrap().as_ptr()) };
     if info == std::ptr::null_mut() {
         bail!("getwpnam '{}' failed", username);
@@ -214,9 +209,7 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t,libc::gid_t), Error>
     Ok((info.pw_uid, info.pw_gid))
 }
 
-
 pub fn json_object_to_query(data: Value) -> Result<String, Error> {
-
     let mut query = url::form_urlencoded::Serializer::new(String::new());
 
     let object = data.as_object().ok_or_else(|| {
@@ -225,16 +218,30 @@ pub fn json_object_to_query(data: Value) -> Result<String, Error> {
 
     for (key, value) in object {
         match value {
-            Value::Bool(b) => { query.append_pair(key, &b.to_string()); }
-            Value::Number(n) => { query.append_pair(key, &n.to_string()); }
-            Value::String(s) => { query.append_pair(key, &s); }
+            Value::Bool(b) => {
+                query.append_pair(key, &b.to_string());
+            }
+            Value::Number(n) => {
+                query.append_pair(key, &n.to_string());
+            }
+            Value::String(s) => {
+                query.append_pair(key, &s);
+            }
             Value::Array(arr) => {
                 for element in arr {
                     match element {
-                        Value::Bool(b) => { query.append_pair(key, &b.to_string()); }
-                        Value::Number(n) => { query.append_pair(key, &n.to_string()); }
-                        Value::String(s) => { query.append_pair(key, &s); }
-                        _ => bail!("json_object_to_query: unable to handle complex array data types."),
+                        Value::Bool(b) => {
+                            query.append_pair(key, &b.to_string());
+                        }
+                        Value::Number(n) => {
+                            query.append_pair(key, &n.to_string());
+                        }
+                        Value::String(s) => {
+                            query.append_pair(key, &s);
+                        }
+                        _ => bail!(
+                            "json_object_to_query: unable to handle complex array data types."
+                        ),
                     }
                 }
             }
@@ -246,33 +253,32 @@ pub fn json_object_to_query(data: Value) -> Result<String, Error> {
 }
 
 pub fn required_string_param<'a>(param: &'a Value, name: &str) -> Result<&'a str, Error> {
-    match param[name].as_str()   {
+    match param[name].as_str() {
         Some(s) => Ok(s),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
 pub fn required_integer_param<'a>(param: &'a Value, name: &str) -> Result<i64, Error> {
-    match param[name].as_i64()   {
+    match param[name].as_i64() {
         Some(s) => Ok(s),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
 pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<Vec<Value>, Error> {
-    match param[name].as_array()   {
+    match param[name].as_array() {
         Some(s) => Ok(s.to_vec()),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
 pub fn complete_file_name(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
-
     let mut result = vec![];
 
+    use nix::fcntl::AtFlags;
     use nix::fcntl::OFlag;
     use nix::sys::stat::Mode;
-    use nix::fcntl::AtFlags;
 
     let mut dirname = std::path::PathBuf::from(if arg.len() == 0 { "./" } else { arg });
 
@@ -287,32 +293,36 @@ pub fn complete_file_name(arg: &str, _param: &HashMap<String, String>) -> Vec<St
         }
     }
 
-    let mut dir = match nix::dir::Dir::openat(libc::AT_FDCWD, &dirname, OFlag::O_DIRECTORY, Mode::empty()) {
-        Ok(d) => d,
-        Err(_) => return result,
-    };
+    let mut dir =
+        match nix::dir::Dir::openat(libc::AT_FDCWD, &dirname, OFlag::O_DIRECTORY, Mode::empty()) {
+            Ok(d) => d,
+            Err(_) => return result,
+        };
 
     for item in dir.iter() {
         if let Ok(entry) = item {
             if let Ok(name) = entry.file_name().to_str() {
-                if name == "." || name == ".." { continue; }
+                if name == "." || name == ".." {
+                    continue;
+                }
                 let mut newpath = dirname.clone();
                 newpath.push(name);
 
-                if let Ok(stat) = nix::sys::stat::fstatat(libc::AT_FDCWD, &newpath, AtFlags::empty()) {
+                if let Ok(stat) =
+                    nix::sys::stat::fstatat(libc::AT_FDCWD, &newpath, AtFlags::empty())
+                {
                     if (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR {
                         newpath.push("");
                         if let Some(newpath) = newpath.to_str() {
                             result.push(newpath.to_owned());
                         }
                         continue;
-                     }
+                    }
                 }
                 if let Some(newpath) = newpath.to_str() {
                     result.push(newpath.to_owned());
                 }
-
-             }
+            }
         }
     }
 
@@ -329,10 +339,11 @@ pub fn scandir<P, F>(
     dirfd: RawFd,
     path: &P,
     regex: &regex::Regex,
-    mut callback: F
+    mut callback: F,
 ) -> Result<(), Error>
-    where F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
-          P: ?Sized + nix::NixPath,
+where
+    F: FnMut(RawFd, &str, nix::dir::Type) -> Result<(), Error>,
+    P: ?Sized + nix::NixPath,
 {
     for entry in self::fs::scan_subdir(dirfd, path, regex)? {
         let entry = entry?;
@@ -341,13 +352,16 @@ pub fn scandir<P, F>(
             None => bail!("unable to detect file type"),
         };
 
-        callback(entry.parent_fd(), unsafe { entry.file_name_utf8_unchecked() }, file_type)?;
+        callback(
+            entry.parent_fd(),
+            unsafe { entry.file_name_utf8_unchecked() },
+            file_type,
+        )?;
     }
     Ok(())
 }
 
 pub fn get_hardware_address() -> Result<String, Error> {
-
     static FILENAME: &str = "/etc/ssh/ssh_host_rsa_key.pub";
 
     let contents = proxmox::tools::fs::file_get_contents(FILENAME)?;
@@ -356,10 +370,9 @@ pub fn get_hardware_address() -> Result<String, Error> {
     Ok(format!("{:0x}", digest))
 }
 
-
 pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
     if digest1 != digest2 {
-	bail!("detected modified configuration - file changed by other user? Try again.");
+        bail!("detected modified configuration - file changed by other user? Try again.");
     }
     Ok(())
 }
@@ -367,9 +380,7 @@ pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
 /// Extract authentication cookie from cookie header.
 /// We assume cookie_name is already url encoded.
 pub fn extract_auth_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
-
     for pair in cookie.split(';') {
-
         let (name, value) = match pair.find('=') {
             Some(i) => (pair[..i].trim(), pair[(i + 1)..].trim()),
             None => return None, // Cookie format error
@@ -389,11 +400,12 @@ pub fn extract_auth_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
 }
 
 pub fn join(data: &Vec<String>, sep: char) -> String {
-
     let mut list = String::new();
 
     for item in data {
-        if list.len() != 0 { list.push(sep); }
+        if list.len() != 0 {
+            list.push(sep);
+        }
         list.push_str(item);
     }
 
@@ -405,14 +417,15 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
 /// Do not allow ".", "..", or hidden files ".XXXX"
 /// Also remove empty path components
 pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
-
     let items = path.split('/');
 
     let mut path = String::new();
     let mut components = vec![];
 
     for name in items {
-        if name.is_empty() { continue; }
+        if name.is_empty() {
+            continue;
+        }
         if name.starts_with(".") {
             bail!("Path contains illegal components.");
         }
@@ -425,7 +438,7 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 }
 
 pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
-    use nix::fcntl::{fcntl, F_GETFD, F_SETFD, FdFlag};
+    use nix::fcntl::{fcntl, FdFlag, F_GETFD, F_SETFD};
     let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)
         .ok_or_else(|| format_err!("unhandled file flags"))?; // nix crate is stupid this way...
     flags.set(FdFlag::FD_CLOEXEC, on);
@@ -433,11 +446,12 @@ pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
     Ok(())
 }
 
-
 static mut SHUTDOWN_REQUESTED: bool = false;
 
 pub fn request_shutdown() {
-    unsafe { SHUTDOWN_REQUESTED = true; }
+    unsafe {
+        SHUTDOWN_REQUESTED = true;
+    }
     crate::server::server_shutdown();
 }
 
@@ -502,6 +516,7 @@ pub trait AsAny {
 }
 
 impl<T: Any> AsAny for T {
-    fn as_any(&self) -> &dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
-
