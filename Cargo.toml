@@ -10,7 +10,6 @@ path = "src/lib.rs"
 
 [dependencies]
 proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1" }
-proxmox-protocol = { path = "proxmox-protocol" }
 log = "0.4"
 syslog = "4.0"
 failure = "0.1"

@@ -1,10 +1,9 @@
-use failure::*;
-
-use proxmox_protocol::Chunker;
-use futures::{Async, Poll};
-use futures::stream::Stream;
-
 use bytes::BytesMut;
+use failure::*;
+use futures::stream::Stream;
+use futures::{Async, Poll};
+
+use super::Chunker;
 
 /// Split input stream into dynamic sized chunks
 pub struct ChunkStream<S> {

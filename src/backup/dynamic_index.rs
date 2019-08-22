@@ -10,12 +10,12 @@ use uuid::Uuid;
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::vec;
-use proxmox_protocol::Chunker;
 
+use super::Chunker;
+use super::IndexFile;
 use super::chunk_stat::ChunkStat;
 use super::chunk_store::ChunkStore;
 use super::read_chunk::ReadChunk;
-use super::IndexFile;
 use super::{DataChunk, DataChunkBuilder};
 use crate::tools;
 

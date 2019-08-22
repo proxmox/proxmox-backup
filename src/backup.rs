@@ -134,6 +134,9 @@ pub use checksum_reader::*;
 mod checksum_writer;
 pub use checksum_writer::*;
 
+mod chunker;
+pub use chunker::*;
+
 mod data_chunk;
 pub use data_chunk::*;
 
@@ -154,8 +157,6 @@ pub use chunk_stream::*;
 
 mod chunk_stat;
 pub use chunk_stat::*;
-
-pub use proxmox_protocol::Chunker;
 
 mod read_chunk;
 pub use read_chunk::*;
