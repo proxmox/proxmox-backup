@@ -63,18 +63,24 @@ impl DigestListEncoder {
 }
 
 impl std::io::Read for DigestListEncoder {
-
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        if buf.len() < 32 { panic!("read buffer too small"); }
+        if buf.len() < 32 {
+            panic!("read buffer too small");
+        }
+
         if self.pos < self.count {
             let mut written = 0;
             loop {
                 let digest = self.index.index_digest(self.pos).unwrap();
-                unsafe { std::ptr::copy_nonoverlapping(digest.as_ptr(), buf.as_mut_ptr().add(written), 32); }
+                buf[written..(written + 32)].copy_from_slice(digest);
                 self.pos += 1;
                 written += 32;
-                if self.pos >= self.count { break; }
-                if (written + 32) >= buf.len() { break; }
+                if self.pos >= self.count {
+                    break;
+                }
+                if (written + 32) >= buf.len() {
+                    break;
+                }
             }
             return Ok(written);
         } else {
