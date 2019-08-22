@@ -1,42 +1,38 @@
 //! *pxar* format encoder.
 //!
 //! This module contain the code to generate *pxar* archive files.
-
-use failure::*;
-use endian_trait::Endian;
-use std::collections::{HashSet, HashMap};
-
-use super::flags;
-use super::format_definition::*;
-use super::binary_search_tree::*;
-use super::helper::*;
-use super::match_pattern::*;
-use super::catalog::BackupCatalogWriter;
-
-use crate::tools::fs;
-use crate::tools::acl;
-use crate::tools::xattr;
-
+use std::collections::{HashMap, HashSet};
+use std::ffi::CStr;
 use std::io::Write;
-use std::os::unix::io::AsRawFd;
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
-use std::ffi::CStr;
-
-use nix::NixPath;
-use nix::fcntl::OFlag;
-use nix::sys::stat::Mode;
+use endian_trait::Endian;
+use failure::*;
 use nix::errno::Errno;
+use nix::fcntl::OFlag;
 use nix::sys::stat::FileStat;
+use nix::sys::stat::Mode;
+use nix::NixPath;
 
 use proxmox::tools::vec;
+
+use super::binary_search_tree::*;
+use super::catalog::BackupCatalogWriter;
+use super::flags;
+use super::format_definition::*;
+use super::helper::*;
+use super::match_pattern::{MatchPattern, MatchType};
+use crate::tools::acl;
+use crate::tools::fs;
+use crate::tools::xattr;
 
 /// The format requires to build sorted directory lookup tables in
 /// memory, so we restrict the number of allowed entries to limit
 /// maximum memory usage.
-pub const MAX_DIRECTORY_ENTRIES: usize = 256*1024;
+pub const MAX_DIRECTORY_ENTRIES: usize = 256 * 1024;
 
 #[derive(Eq, PartialEq, Hash)]
 struct HardLinkInfo {
@@ -61,10 +57,9 @@ pub struct Encoder<'a, W: Write, C: BackupCatalogWriter> {
     hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
 }
 
-impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
-
+impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     // used for error reporting
-    fn full_path(&self) ->  PathBuf {
+    fn full_path(&self) -> PathBuf {
         self.base_path.join(&self.relative_path)
     }
 
@@ -87,12 +82,12 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         skip_lost_and_found: bool, // fixme: should be a feature flag ??
         feature_flags: u64,
     ) -> Result<(), Error> {
-
-        const FILE_COPY_BUFFER_SIZE: usize = 1024*1024;
+        const FILE_COPY_BUFFER_SIZE: usize = 1024 * 1024;
 
         let mut file_copy_buffer = Vec::with_capacity(FILE_COPY_BUFFER_SIZE);
-        unsafe { file_copy_buffer.set_len(FILE_COPY_BUFFER_SIZE); }
-
+        unsafe {
+            file_copy_buffer.set_len(FILE_COPY_BUFFER_SIZE);
+        }
 
         // todo: use scandirat??
 
@@ -132,7 +127,9 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             hardlinks: HashMap::new(),
         };
 
-        if verbose { println!("{:?}", me.full_path()); }
+        if verbose {
+            println!("{:?}", me.full_path());
+        }
 
         let mut excludes = Vec::new();
         if skip_lost_and_found {
@@ -143,20 +140,18 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
-    fn write(&mut self,  buf: &[u8]) -> Result<(), Error> {
+    fn write(&mut self, buf: &[u8]) -> Result<(), Error> {
         self.writer.write_all(buf)?;
         self.writer_pos += buf.len();
         Ok(())
     }
 
-    fn write_item<T: Endian>(&mut self, item: T) ->  Result<(), Error> {
-
+    fn write_item<T: Endian>(&mut self, item: T) -> Result<(), Error> {
         let data = item.to_le();
 
-        let buffer = unsafe { std::slice::from_raw_parts(
-            &data as *const T as *const u8,
-            std::mem::size_of::<T>()
-        )};
+        let buffer = unsafe {
+            std::slice::from_raw_parts(&data as *const T as *const u8, std::mem::size_of::<T>())
+        };
 
         self.write(buffer)?;
 
@@ -170,7 +165,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     fn write_header(&mut self, htype: u64, size: u64) -> Result<(), Error> {
-
         let size = size + (std::mem::size_of::<PxarHeader>() as u64);
         self.write_item(PxarHeader { size, htype })?;
 
@@ -178,7 +172,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     fn write_filename(&mut self, name: &CStr) -> Result<(), Error> {
-
         let buffer = name.to_bytes_with_nul();
         self.write_header(PXAR_FILENAME, buffer.len() as u64)?;
         self.write(buffer)?;
@@ -187,7 +180,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     fn create_entry(&self, stat: &FileStat) -> Result<PxarEntry, Error> {
-
         let mode = if is_symlink(&stat) {
             (libc::S_IFLNK | 0o777) as u64
         } else {
@@ -198,7 +190,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         if mtime < 0 {
             bail!("got strange mtime ({}) from fstat for {:?}.", mtime, self.full_path());
         }
-
 
         let entry = PxarEntry {
             mode: mode,
@@ -212,13 +203,14 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     fn read_chattr(&self, fd: RawFd, entry: &mut PxarEntry) -> Result<(), Error> {
-
         let mut attr: usize = 0;
 
-        let res = unsafe { fs::read_attr_fd(fd, &mut attr)};
+        let res = unsafe { fs::read_attr_fd(fd, &mut attr) };
         if let Err(err) = res {
             if let nix::Error::Sys(errno) = err {
-                if errno_is_unsupported(errno) { return Ok(()) };
+                if errno_is_unsupported(errno) {
+                    return Ok(());
+                };
             }
             bail!("read_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
@@ -238,10 +230,12 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
         let mut attr: u32 = 0;
 
-        let res = unsafe { fs::read_fat_attr_fd(fd, &mut attr)};
+        let res = unsafe { fs::read_fat_attr_fd(fd, &mut attr) };
         if let Err(err) = res {
             if let nix::Error::Sys(errno) = err {
-                if errno_is_unsupported(errno) { return Ok(()) };
+                if errno_is_unsupported(errno) {
+                    return Ok(());
+                };
             }
             bail!("read_fat_attr_fd failed for {:?} - {}", self.full_path(), err);
         }
@@ -262,7 +256,11 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         (self.feature_flags & self.fs_feature_flags & feature_flags) != 0
     }
 
-    fn read_xattrs(&self, fd: RawFd, stat: &FileStat) -> Result<(Vec<PxarXAttr>, Option<PxarFCaps>), Error> {
+    fn read_xattrs(
+        &self,
+        fd: RawFd,
+        stat: &FileStat,
+    ) -> Result<(Vec<PxarXAttr>, Option<PxarFCaps>), Error> {
         let mut xattrs = Vec::new();
         let mut fcaps = None;
 
@@ -300,9 +298,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             if xattr::is_security_capability(&name) {
                 if self.has_features(flags::WITH_FCAPS) {
                     // fcaps are stored in own format within the archive
-                    fcaps = Some(PxarFCaps {
-                        data: value,
-                    });
+                    fcaps = Some(PxarFCaps { data: value });
                 }
             } else if self.has_features(flags::WITH_XATTRS) {
                 xattrs.push(PxarXAttr {
@@ -316,7 +312,12 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok((xattrs, fcaps))
     }
 
-    fn read_acl(&self, fd: RawFd, stat: &FileStat, acl_type: acl::ACLType) -> Result<PxarACL, Error> {
+    fn read_acl(
+        &self,
+        fd: RawFd,
+        stat: &FileStat,
+        acl_type: acl::ACLType,
+    ) -> Result<PxarACL, Error> {
         let ret = PxarACL {
             users: Vec::new(),
             groups: Vec::new(),
@@ -375,13 +376,13 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         uid: entry.get_qualifier()?,
                         permissions: permissions,
                     });
-                },
+                }
                 acl::ACL_GROUP => {
                     acl_group.push(PxarACLGroup {
                         gid: entry.get_qualifier()?,
                         permissions: permissions,
                     });
-                },
+                }
                 _ => bail!("Unexpected ACL tag encountered!"),
             }
         }
@@ -396,16 +397,14 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 // Only in that case we need to store the group permissions,
                 // in the other cases they are identical to the stat group permissions.
                 if let (Some(gop), Some(_)) = (group_obj_permissions, mask_permissions) {
-                    acl_group_obj = Some(PxarACLGroupObj {
-                        permissions: gop,
-                    });
+                    acl_group_obj = Some(PxarACLGroupObj { permissions: gop });
                 }
-            },
+            }
             acl::ACL_TYPE_DEFAULT => {
-                if user_obj_permissions != None ||
-                   group_obj_permissions != None ||
-                   other_permissions != None ||
-                   mask_permissions != None
+                if user_obj_permissions != None
+                    || group_obj_permissions != None
+                    || other_permissions != None
+                    || mask_permissions != None
                 {
                     acl_default = Some(PxarACLDefault {
                         // The value is set to UINT64_MAX as placeholder if one
@@ -416,7 +415,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         mask_permissions: mask_permissions.unwrap_or(std::u64::MAX),
                     });
                 }
-            },
+            }
             _ => bail!("Unexpected ACL type encountered"),
         }
 
@@ -429,7 +428,12 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     /// Read the quota project id for an inode, supported on ext4/XFS/FUSE/ZFS filesystems
-    fn read_quota_project_id(&self, fd: RawFd, magic: i64, stat: &FileStat) -> Result<Option<PxarQuotaProjID>, Error> {
+    fn read_quota_project_id(
+        &self,
+        fd: RawFd,
+        magic: i64,
+        stat: &FileStat,
+    ) -> Result<Option<PxarQuotaProjID>, Error> {
         if !(is_directory(&stat) || is_reg_file(&stat)) {
             return Ok(None);
         }
@@ -440,25 +444,27 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         use proxmox::sys::linux::magic::*;
 
         match magic {
-            EXT4_SUPER_MAGIC |
-            XFS_SUPER_MAGIC |
-            FUSE_SUPER_MAGIC |
-            ZFS_SUPER_MAGIC => {
+            EXT4_SUPER_MAGIC | XFS_SUPER_MAGIC | FUSE_SUPER_MAGIC | ZFS_SUPER_MAGIC => {
                 let mut fsxattr = fs::FSXAttr::default();
-                let res = unsafe {
-                    fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
-                };
+                let res = unsafe { fs::fs_ioc_fsgetxattr(fd, &mut fsxattr) };
 
                 // On some FUSE filesystems it can happen that ioctl is not supported.
                 // For these cases projid is set to 0 while the error is ignored.
                 if let Err(err) = res {
                     let errno = err.as_errno().ok_or_else(|| {
-                        format_err!("error while reading quota project id for {:#?}", self.full_path())
+                        format_err!(
+                            "error while reading quota project id for {:#?}",
+                            self.full_path()
+                        )
                     })?;
                     if errno_is_unsupported(errno) {
                         return Ok(None);
                     } else {
-                        bail!("error while reading quota project id for {:#?} - {}", self.full_path(), errno);
+                        bail!(
+                            "error while reading quota project id for {:#?} - {}",
+                            self.full_path(),
+                            errno
+                        );
                     }
                 }
 
@@ -468,13 +474,12 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 } else {
                     return Ok(Some(PxarQuotaProjID { projid }));
                 }
-            },
+            }
             _ => return Ok(None),
         }
     }
 
     fn write_entry(&mut self, entry: PxarEntry) -> Result<(), Error> {
-
         self.write_header(PXAR_ENTRY, std::mem::size_of::<PxarEntry>() as u64)?;
         self.write_item(entry)?;
 
@@ -502,83 +507,105 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     fn write_acl_user(&mut self, acl_user: PxarACLUser) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_USER,  std::mem::size_of::<PxarACLUser>() as u64)?;
+        self.write_header(PXAR_ACL_USER, std::mem::size_of::<PxarACLUser>() as u64)?;
         self.write_item(acl_user)?;
 
         Ok(())
     }
 
     fn write_acl_group(&mut self, acl_group: PxarACLGroup) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_GROUP,  std::mem::size_of::<PxarACLGroup>() as u64)?;
+        self.write_header(PXAR_ACL_GROUP, std::mem::size_of::<PxarACLGroup>() as u64)?;
         self.write_item(acl_group)?;
 
         Ok(())
     }
 
     fn write_acl_group_obj(&mut self, acl_group_obj: PxarACLGroupObj) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_GROUP_OBJ,  std::mem::size_of::<PxarACLGroupObj>() as u64)?;
+        self.write_header(
+            PXAR_ACL_GROUP_OBJ,
+            std::mem::size_of::<PxarACLGroupObj>() as u64,
+        )?;
         self.write_item(acl_group_obj)?;
 
         Ok(())
     }
 
     fn write_acl_default(&mut self, acl_default: PxarACLDefault) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_DEFAULT,  std::mem::size_of::<PxarACLDefault>() as u64)?;
+        self.write_header(
+            PXAR_ACL_DEFAULT,
+            std::mem::size_of::<PxarACLDefault>() as u64,
+        )?;
         self.write_item(acl_default)?;
 
         Ok(())
     }
 
     fn write_acl_default_user(&mut self, acl_default_user: PxarACLUser) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_DEFAULT_USER,  std::mem::size_of::<PxarACLUser>() as u64)?;
+        self.write_header(
+            PXAR_ACL_DEFAULT_USER,
+            std::mem::size_of::<PxarACLUser>() as u64,
+        )?;
         self.write_item(acl_default_user)?;
 
         Ok(())
     }
 
     fn write_acl_default_group(&mut self, acl_default_group: PxarACLGroup) -> Result<(), Error> {
-        self.write_header(PXAR_ACL_DEFAULT_GROUP,  std::mem::size_of::<PxarACLGroup>() as u64)?;
+        self.write_header(
+            PXAR_ACL_DEFAULT_GROUP,
+            std::mem::size_of::<PxarACLGroup>() as u64,
+        )?;
         self.write_item(acl_default_group)?;
 
         Ok(())
     }
 
     fn write_quota_project_id(&mut self, projid: PxarQuotaProjID) -> Result<(), Error> {
-        self.write_header(PXAR_QUOTA_PROJID, std::mem::size_of::<PxarQuotaProjID>() as u64)?;
+        self.write_header(
+            PXAR_QUOTA_PROJID,
+            std::mem::size_of::<PxarQuotaProjID>() as u64,
+        )?;
         self.write_item(projid)?;
 
         Ok(())
     }
 
-    fn write_goodbye_table(&mut self, goodbye_offset: usize, goodbye_items: &mut [PxarGoodbyeItem]) -> Result<(), Error> {
-
+    fn write_goodbye_table(
+        &mut self,
+        goodbye_offset: usize,
+        goodbye_items: &mut [PxarGoodbyeItem],
+    ) -> Result<(), Error> {
         goodbye_items.sort_unstable_by(|a, b| a.hash.cmp(&b.hash));
 
         let item_count = goodbye_items.len();
 
-        let goodbye_table_size = (item_count + 1)*std::mem::size_of::<PxarGoodbyeItem>();
+        let goodbye_table_size = (item_count + 1) * std::mem::size_of::<PxarGoodbyeItem>();
 
         self.write_header(PXAR_GOODBYE, goodbye_table_size as u64)?;
 
         if self.file_copy_buffer.len() < goodbye_table_size {
             let need = goodbye_table_size - self.file_copy_buffer.len();
             self.file_copy_buffer.reserve(need);
-            unsafe { self.file_copy_buffer.set_len(self.file_copy_buffer.capacity()); }
+            unsafe {
+                self.file_copy_buffer
+                    .set_len(self.file_copy_buffer.capacity());
+            }
         }
 
         let buffer = &mut self.file_copy_buffer;
 
         copy_binary_search_tree(item_count, |s, d| {
             let item = &goodbye_items[s];
-            let offset = d*std::mem::size_of::<PxarGoodbyeItem>();
-            let dest = crate::tools::map_struct_mut::<PxarGoodbyeItem>(&mut buffer[offset..]).unwrap();
+            let offset = d * std::mem::size_of::<PxarGoodbyeItem>();
+            let dest =
+                crate::tools::map_struct_mut::<PxarGoodbyeItem>(&mut buffer[offset..]).unwrap();
             dest.offset = u64::to_le(item.offset);
             dest.size = u64::to_le(item.size);
             dest.hash = u64::to_le(item.hash);
         });
 
         // append PxarGoodbyeTail as last item
-        let offset = item_count*std::mem::size_of::<PxarGoodbyeItem>();
+        let offset = item_count * std::mem::size_of::<PxarGoodbyeItem>();
         let dest = crate::tools::map_struct_mut::<PxarGoodbyeItem>(&mut buffer[offset..]).unwrap();
         dest.offset = u64::to_le(goodbye_offset as u64);
         dest.size = u64::to_le((goodbye_table_size + std::mem::size_of::<PxarHeader>()) as u64);
@@ -596,7 +623,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         magic: i64,
         match_pattern: Vec<MatchPattern>,
     ) -> Result<(), Error> {
-
         //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
         let mut name_list = vec![];
@@ -665,16 +691,15 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             Ok(Some((mut excludes, buffer, stat))) => {
                 local_match_pattern.append(&mut excludes);
                 Some((buffer, stat))
-            },
+            }
             Ok(None) => None,
             Err(err) => bail!("error while reading exclude file - {}", err),
         };
 
         if include_children {
             for entry in dir.iter() {
-                let entry =  entry.map_err(|err| {
-                    format_err!("readir {:?} failed - {}", self.full_path(), err)
-                })?;
+                let entry = entry
+                    .map_err(|err| format_err!("readir {:?} failed - {}", self.full_path(), err))?;
                 let filename = entry.file_name().to_owned();
 
                 let name = filename.to_bytes_with_nul();
@@ -682,26 +707,37 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     continue;
                 }
 
-                let stat = match nix::sys::stat::fstatat(rawfd, filename.as_ref(), nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
+                let stat = match nix::sys::stat::fstatat(
+                    rawfd,
+                    filename.as_ref(),
+                    nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW,
+                ) {
                     Ok(stat) => stat,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         self.report_vanished_file(&self.full_path().join(filename_osstr))?;
                         continue;
-                    },
+                    }
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
                 match match_filename(&filename, &stat, &local_match_pattern)? {
                     (MatchType::Positive, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
-                        eprintln!("matched by .pxarexclude entry - skipping: {:?}", self.full_path().join(filename_osstr));
-                    },
+                        eprintln!(
+                            "matched by .pxarexclude entry - skipping: {:?}",
+                            self.full_path().join(filename_osstr)
+                        );
+                    }
                     (_, child_pattern) => name_list.push((filename, stat, child_pattern)),
                 }
 
                 if name_list.len() > MAX_DIRECTORY_ENTRIES {
-                    bail!("too many directory items in {:?} (> {})", self.full_path(), MAX_DIRECTORY_ENTRIES);
+                    bail!(
+                        "too many directory items in {:?} (> {})",
+                        self.full_path(),
+                        MAX_DIRECTORY_ENTRIES
+                    );
                 }
             }
         } else {
@@ -717,16 +753,25 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
             if filename.as_bytes() == b".pxarexclude" {
                 if let Some((ref content, ref stat)) = pxar_exclude {
-                    let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                    let filefd = match nix::fcntl::openat(
+                        rawfd,
+                        filename.as_ref(),
+                        OFlag::O_NOFOLLOW,
+                        Mode::empty(),
+                    ) {
                         Ok(filefd) => filefd,
                         Err(nix::Error::Sys(Errno::ENOENT)) => {
                             self.report_vanished_file(&self.full_path())?;
                             continue;
-                        },
+                        }
                         Err(err) => {
                             let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
-                            bail!("open file {:?} failed - {}", self.full_path().join(filename_osstr), err);
-                        },
+                            bail!(
+                                "open file {:?} failed - {}",
+                                self.full_path().join(filename_osstr),
+                                err
+                            );
+                        }
                     };
 
                     let child_magic = if dir_stat.st_dev != stat.st_dev {
@@ -741,18 +786,25 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 }
             }
 
-            self.relative_path.push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
+            self.relative_path
+                .push(std::ffi::OsStr::from_bytes(filename.as_bytes()));
 
-            if self.verbose { println!("{:?}", self.full_path()); }
+            if self.verbose {
+                println!("{:?}", self.full_path());
+            }
 
             if is_directory(&stat) {
-
-                let mut dir = match nix::dir::Dir::openat(rawfd, filename.as_ref(), OFlag::O_DIRECTORY|OFlag::O_NOFOLLOW, Mode::empty()) {
+                let mut dir = match nix::dir::Dir::openat(
+                    rawfd,
+                    filename.as_ref(),
+                    OFlag::O_DIRECTORY | OFlag::O_NOFOLLOW,
+                    Mode::empty(),
+                ) {
                     Ok(dir) => dir,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         self.report_vanished_file(&self.full_path())?;
                         continue; // fixme!!
-                    },
+                    }
                     Err(err) => bail!("open dir {:?} failed - {}", self.full_path(), err),
                 };
 
@@ -770,20 +822,22 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 if let Some(ref mut catalog) = self.catalog {
                     catalog.end_directory()?;
                 }
-
             } else if is_reg_file(&stat) {
-
                 let mut hardlink_target = None;
 
                 if stat.st_nlink > 1 {
-                    let link_info = HardLinkInfo { st_dev: stat.st_dev, st_ino: stat.st_ino };
+                    let link_info = HardLinkInfo {
+                        st_dev: stat.st_dev,
+                        st_ino: stat.st_ino,
+                    };
                     hardlink_target = self.hardlinks.get(&link_info).map(|(v, offset)| {
                         let mut target = v.clone().into_os_string();
                         target.push("\0"); // add Nul byte
                         (target, (start_pos as u64) - offset)
                     });
                     if hardlink_target == None {
-                        self.hardlinks.insert(link_info, (self.relative_path.clone(), start_pos as u64));
+                        self.hardlinks
+                            .insert(link_info, (self.relative_path.clone(), start_pos as u64));
                     }
                 }
 
@@ -793,15 +847,18 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     }
                     self.write_filename(&filename)?;
                     self.encode_hardlink(target.as_bytes(), offset)?;
-
                 } else {
-
-                    let filefd = match nix::fcntl::openat(rawfd, filename.as_ref(), OFlag::O_NOFOLLOW, Mode::empty()) {
+                    let filefd = match nix::fcntl::openat(
+                        rawfd,
+                        filename.as_ref(),
+                        OFlag::O_NOFOLLOW,
+                        Mode::empty(),
+                    ) {
                         Ok(filefd) => filefd,
                         Err(nix::Error::Sys(Errno::ENOENT)) => {
                             self.report_vanished_file(&self.full_path())?;
                             continue;
-                        },
+                        }
                         Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
                     };
 
@@ -819,13 +876,16 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     let _ = nix::unistd::close(filefd); // ignore close errors
                     res?;
                 }
-
             } else if is_symlink(&stat) {
-
                 let mut buffer = vec::undefined(libc::PATH_MAX as usize);
 
-                let res = filename.with_nix_path(|cstr| {
-                    unsafe { libc::readlinkat(rawfd, cstr.as_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buffer.len()-1) }
+                let res = filename.with_nix_path(|cstr| unsafe {
+                    libc::readlinkat(
+                        rawfd,
+                        cstr.as_ptr(),
+                        buffer.as_mut_ptr() as *mut libc::c_char,
+                        buffer.len() - 1,
+                    )
                 })?;
 
                 match Errno::result(res) {
@@ -835,7 +895,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         }
                         buffer[len as usize] = 0u8; // add Nul byte
                         self.write_filename(&filename)?;
-                        self.encode_symlink(&buffer[..((len+1) as usize)], &stat)?
+                        self.encode_symlink(&buffer[..((len + 1) as usize)], &stat)?
                     }
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         self.report_vanished_file(&self.full_path())?;
@@ -878,7 +938,11 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     eprintln!("skip socket: {:?}", self.full_path());
                 }
             } else {
-                bail!("unsupported file type (mode {:o} {:?})", stat.st_mode, self.full_path());
+                bail!(
+                    "unsupported file type (mode {:o} {:?})",
+                    stat.st_mode,
+                    self.full_path()
+                );
             }
 
             let end_pos = self.writer_pos;
@@ -908,8 +972,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
-    fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64)  -> Result<(), Error> {
-
+    fn encode_file(&mut self, filefd: RawFd, stat: &FileStat, magic: i64) -> Result<(), Error> {
         //println!("encode_file: {:?}", self.full_path());
 
         let mut entry = self.create_entry(&stat)?;
@@ -963,20 +1026,27 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         loop {
             let n = match nix::unistd::read(filefd, &mut self.file_copy_buffer) {
                 Ok(n) => n,
-                Err(nix::Error::Sys(Errno::EINTR)) => continue /* try again */,
-                Err(err) =>  bail!("read {:?} failed - {}", self.full_path(), err),
+                Err(nix::Error::Sys(Errno::EINTR)) => continue, /* try again */
+                Err(err) => bail!("read {:?} failed - {}", self.full_path(), err),
             };
             if n == 0 { // EOF
                 if pos != size {
                     // Note:: casync format cannot handle that
-                    bail!("detected shrinked file {:?} ({} < {})", self.full_path(), pos, size);
+                    bail!(
+                        "detected shrinked file {:?} ({} < {})",
+                        self.full_path(),
+                        pos,
+                        size
+                    );
                 }
                 break;
             }
 
             let mut next = pos + (n as u64);
 
-            if next > size { next = size; }
+            if next > size {
+                next = size;
+            }
 
             let count = (next - pos) as usize;
 
@@ -984,14 +1054,15 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
             pos = next;
 
-            if pos >= size { break; }
+            if pos >= size {
+                break;
+            }
         }
 
         Ok(())
     }
 
-    fn encode_device(&mut self, stat: &FileStat)  -> Result<(), Error> {
-
+    fn encode_device(&mut self, stat: &FileStat) -> Result<(), Error> {
         let entry = self.create_entry(&stat)?;
 
         self.write_entry(entry)?;
@@ -1008,8 +1079,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     }
 
     // FIFO or Socket
-    fn encode_special(&mut self, stat: &FileStat)  -> Result<(), Error> {
-
+    fn encode_special(&mut self, stat: &FileStat) -> Result<(), Error> {
         let entry = self.create_entry(&stat)?;
 
         self.write_entry(entry)?;
@@ -1017,8 +1087,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
-    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat)  -> Result<(), Error> {
-
+    fn encode_symlink(&mut self, target: &[u8], stat: &FileStat) -> Result<(), Error> {
         //println!("encode_symlink: {:?} -> {:?}", self.full_path(), target);
 
         let entry = self.create_entry(&stat)?;
@@ -1030,8 +1099,7 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
-    fn encode_hardlink(&mut self, target: &[u8], offset: u64)  -> Result<(), Error> {
-
+    fn encode_hardlink(&mut self, target: &[u8], offset: u64) -> Result<(), Error> {
         //println!("encode_hardlink: {:?} -> {:?}", self.full_path(), target);
 
         // Note: HARDLINK replaces an ENTRY.
@@ -1042,7 +1110,13 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
-    fn encode_pxar_exclude(&mut self, filefd: RawFd, stat: &FileStat, magic: i64, content: &[u8]) -> Result<(), Error> {
+    fn encode_pxar_exclude(
+        &mut self,
+        filefd: RawFd,
+        stat: &FileStat,
+        magic: i64,
+        content: &[u8],
+    ) -> Result<(), Error> {
         let mut entry = self.create_entry(&stat)?;
 
         self.read_chattr(filefd, &mut entry)?;
@@ -1097,7 +1171,6 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     // the report_XXX method may raise and error - depending on encoder configuration
 
     fn report_vanished_file(&self, path: &Path) -> Result<(), Error> {
-
         eprintln!("WARNING: detected vanished file {:?}", path);
 
         Ok(())
@@ -1108,22 +1181,22 @@ impl <'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 fn match_filename(
     filename: &CStr,
     stat: &FileStat,
-    match_pattern: &Vec<MatchPattern>
+    match_pattern: &Vec<MatchPattern>,
 ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
 
     for pattern in match_pattern {
         match pattern.matches_filename(filename, is_directory(&stat))? {
-            MatchType::None =>  {},
-            MatchType::Positive =>  match_state = MatchType::Positive,
-            MatchType::Negative =>  match_state = MatchType::Negative,
+            MatchType::None => {}
+            MatchType::Positive => match_state = MatchType::Positive,
+            MatchType::Negative => match_state = MatchType::Negative,
             match_type => {
                 if match_state != MatchType::Positive && match_state != MatchType::Negative {
                     match_state = match_type;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
-            },
+            }
         }
     }
 
@@ -1131,11 +1204,8 @@ fn match_filename(
 }
 
 fn errno_is_unsupported(errno: Errno) -> bool {
-
     match errno {
-        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => {
-            true
-        }
+        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => true,
         _ => false,
     }
 }
