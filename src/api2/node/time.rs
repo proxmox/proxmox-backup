@@ -1,13 +1,14 @@
-use failure::*;
-use proxmox::tools::fs::{file_read_firstline, file_set_contents};
-
-use crate::api_schema::*;
-use crate::api_schema::router::*;
-use crate::api2::types::*;
-
-use serde_json::{json, Value};
+use std::mem::{self, MaybeUninit};
 
 use chrono::prelude::*;
+use failure::*;
+use serde_json::{json, Value};
+
+use proxmox::tools::fs::{file_read_firstline, file_set_contents};
+
+use crate::api2::types::*;
+use crate::api_schema::router::*;
+use crate::api_schema::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
     // use /etc/timezone
@@ -16,15 +17,22 @@ fn read_etc_localtime() -> Result<String, Error> {
     }
 
     // otherwise guess from the /etc/localtime symlink
-    let mut buf: [u8; 64] = unsafe { std::mem::uninitialized() };
+    let mut buf = MaybeUninit::<[u8; 64]>::uninit();
     let len = unsafe {
-        libc::readlink("/etc/localtime".as_ptr() as *const _, buf.as_mut_ptr() as *mut _, buf.len())
+        libc::readlink(
+            "/etc/localtime".as_ptr() as *const _,
+            buf.as_mut_ptr() as *mut _,
+            mem::size_of_val(&buf),
+        )
     };
     if len <= 0 {
         bail!("failed to guess timezone");
     }
     let len = len as usize;
-    buf[len] = 0;
+    let buf = unsafe {
+        (*buf.as_mut_ptr())[len] = 0;
+        buf.assume_init()
+    };
     let link = std::str::from_utf8(&buf[..len])?;
     match link.rfind("/zoneinfo/") {
         Some(pos) => Ok(link[(pos + 10)..].to_string()),
@@ -37,7 +45,6 @@ fn get_time(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let datetime = Local::now();
     let offset = datetime.offset();
     let time = datetime.timestamp();
@@ -55,7 +62,6 @@ fn set_timezone(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
     let timezone = crate::tools::required_string_param(&param, "timezone")?;
 
     let path = std::path::PathBuf::from(format!("/usr/share/zoneinfo/{}", timezone));
@@ -75,7 +81,6 @@ fn set_timezone(
 }
 
 pub fn router() -> Router {
-
     let route = Router::new()
         .get(
             ApiMethod::new(
@@ -100,7 +105,6 @@ pub fn router() -> Router {
                         "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
             ).protected(true).reload_timezone(true)
         );
-
 
     route
 }
