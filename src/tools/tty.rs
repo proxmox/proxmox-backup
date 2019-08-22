@@ -1,6 +1,7 @@
 //! Helpers for terminal interaction
 
 use std::io::{Read, Write};
+use std::mem::MaybeUninit;
 use std::os::unix::io::AsRawFd;
 
 use failure::*;
@@ -26,10 +27,11 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
     let _ignore_error = out.flush();
 
     let infd = input.as_raw_fd();
-    let mut termios: libc::termios = unsafe { std::mem::uninitialized() };
-    if unsafe { libc::tcgetattr(infd, &mut termios) } != 0 {
+    let mut termios = MaybeUninit::<libc::termios>::uninit();
+    if unsafe { libc::tcgetattr(infd, &mut *termios.as_mut_ptr()) } != 0 {
         bail!("tcgetattr() failed");
     }
+    let mut termios = unsafe { termios.assume_init() };
     let old_termios = termios.clone();
     unsafe {
         libc::cfmakeraw(&mut termios);
@@ -46,15 +48,17 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
             let byte = byte?;
             match byte {
                 3 => bail!("cancelled"), // ^C
-                4 => break, // ^D / EOF
-                9 => asterisks = false, // tab disables echo
-                0xA | 0xD => { // newline, we're done
+                4 => break,              // ^D / EOF
+                9 => asterisks = false,  // tab disables echo
+                0xA | 0xD => {
+                    // newline, we're done
                     let _ignore_error = out.write_all("\r\n".as_bytes());
                     let _ignore_error = out.flush();
                     break;
                 }
-                0x7F => { // backspace
-                    if password.len() > 0{
+                0x7F => {
+                    // backspace
+                    if password.len() > 0 {
                         password.pop();
                         if asterisks {
                             let _ignore_error = out.write_all("\x08 \x08".as_bytes());
