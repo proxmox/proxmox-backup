@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
+use bytes::{Bytes, BytesMut};
 use failure::*;
 use futures::*;
-use bytes::{Bytes, BytesMut};
-use std::collections::HashMap;
 
 /// Trait to get digest list from index files
 ///
@@ -112,10 +113,11 @@ impl <S> Stream for DigestListDecoder<S>
 
                 let left = self.buffer.split_to(32);
 
-                let mut digest: [u8; 32] = unsafe { std::mem::uninitialized() };
-                unsafe { std::ptr::copy_nonoverlapping(left.as_ptr(), digest.as_mut_ptr(), 32); }
-
-                return Ok(Async::Ready(Some(digest)));
+                let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
+                unsafe {
+                    (*digest.as_mut_ptr()).copy_from_slice(&left[..]);
+                    return Ok(Async::Ready(Some(digest.assume_init())));
+                }
             }
 
             match self.input.poll() {
