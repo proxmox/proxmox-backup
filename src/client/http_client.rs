@@ -1,37 +1,33 @@
-use failure::*;
-
-use http::Uri;
-use hyper::Body;
-use hyper::client::Client;
-use xdg::BaseDirectories;
-use chrono::{DateTime, Utc};
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
 use std::io::Write;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
-use http::{Request, Response};
-use http::header::HeaderValue;
-
+use chrono::{DateTime, Utc};
+use failure::*;
 use futures::*;
 use futures::stream::Stream;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::sync::mpsc;
+use http::Uri;
+use http::header::HeaderValue;
+use http::{Request, Response};
+use hyper::Body;
+use hyper::client::Client;
 use openssl::ssl::{SslConnector, SslMethod};
-
 use serde_json::{json, Value};
+use tokio::sync::mpsc;
 use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
+use xdg::BaseDirectories;
 
 use proxmox::tools::{
     digest_to_hex,
     fs::{file_get_json, file_set_contents},
 };
 
-use crate::tools::{self, BroadcastFuture, tty};
-use crate::tools::futures::{cancellable, Canceller};
-use super::pipe_to_stream::*;
-use super::merge_known_chunks::*;
-
+use super::merge_known_chunks::{MergedChunkInfo, MergeKnownChunks};
+use super::pipe_to_stream::PipeToSendStream;
 use crate::backup::*;
+use crate::tools::futures::{cancellable, Canceller};
+use crate::tools::{self, BroadcastFuture, tty};
 
 #[derive(Clone)]
 pub struct AuthInfo {

@@ -4,7 +4,7 @@ use futures::*;
 use crate::backup::ChunkInfo;
 
 pub enum MergedChunkInfo {
-    Known(Vec<(u64,[u8;32])>),
+    Known(Vec<(u64, [u8; 32])>),
     New(ChunkInfo),
 }
 
@@ -17,16 +17,21 @@ pub struct MergeKnownChunksQueue<S> {
     buffer: Option<MergedChunkInfo>,
 }
 
-impl <S> MergeKnownChunks for S
-    where S: Stream<Item=MergedChunkInfo, Error=Error>,
+impl<S> MergeKnownChunks for S
+where
+    S: Stream<Item = MergedChunkInfo, Error = Error>,
 {
     fn merge_known_chunks(self) -> MergeKnownChunksQueue<Self> {
-        MergeKnownChunksQueue { input: self, buffer: None }
+        MergeKnownChunksQueue {
+            input: self,
+            buffer: None,
+        }
     }
 }
 
-impl <S> Stream for MergeKnownChunksQueue<S>
-    where S: Stream<Item=MergedChunkInfo, Error=Error>,
+impl<S> Stream for MergeKnownChunksQueue<S>
+where
+    S: Stream<Item = MergedChunkInfo, Error = Error>,
 {
     type Item = MergedChunkInfo;
     type Error = Error;
@@ -48,10 +53,8 @@ impl <S> Stream for MergeKnownChunksQueue<S>
                     }
                 }
                 Ok(Async::Ready(Some(mergerd_chunk_info))) => {
-
                     match mergerd_chunk_info {
                         MergedChunkInfo::Known(list) => {
-
                             let last = self.buffer.take();
 
                             match last {

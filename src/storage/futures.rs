@@ -1,5 +1,6 @@
-use std::thread;
 use std::sync::{Arc, Mutex};
+use std::thread;
+
 use failure::*;
 use tokio::prelude::*;
 
@@ -9,13 +10,14 @@ pub struct StorageOperation {
 }
 
 impl StorageOperation {
-
     pub fn new() -> Self {
-        StorageOperation { state: Arc::new(Mutex::new(false)), running: false }
+        StorageOperation {
+            state: Arc::new(Mutex::new(false)),
+            running: false,
+        }
     }
 
     fn run(&mut self, task: task::Task) {
-
         let state = self.state.clone();
 
         thread::spawn(move || {
@@ -51,11 +53,8 @@ impl Future for StorageOperation {
     }
 }
 
-
 #[test]
-fn test_storage_future()
-{
-
+fn test_storage_future() {
     let op = StorageOperation::new();
     hyper::rt::run(op.map_err(|e| {
         println!("Got Error: {}", e);

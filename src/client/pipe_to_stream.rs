@@ -2,11 +2,10 @@
 //
 // See also: hyper/src/proto/h2/mod.rs
 
-use failure::*;
-
-use futures::{try_ready, Async, Future, Poll};
-use h2::{SendStream};
 use bytes::Bytes;
+use failure::*;
+use futures::{try_ready, Async, Future, Poll};
+use h2::SendStream;
 
 pub struct PipeToSendStream {
     body_tx: SendStream<Bytes>,
@@ -53,7 +52,6 @@ impl Future for PipeToSendStream {
                     .map_err(Error::from)?;
 
                 return Ok(Async::Ready(()));
-
             } else {
                 if let Async::Ready(reason) = self.body_tx.poll_reset().map_err(Error::from)? {
                     return Err(format_err!("stream received RST_STREAM: {:?}", reason));
