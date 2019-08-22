@@ -4,40 +4,38 @@
 //!
 //! The Archive contains a list of items. Each item starts with a
 //! `PxarHeader`, followed by the item data.
-
-use failure::*;
 use std::cmp::Ordering;
-use endian_trait::Endian;
 
+use endian_trait::Endian;
+use failure::{bail, Error};
 use siphasher::sip::SipHasher24;
 
 /// Header types identifying items stored in the archive
-pub const PXAR_ENTRY: u64               = 0x1396fabcea5bbb51;
-pub const PXAR_FILENAME: u64            = 0x6dbb6ebcb3161f0b;
-pub const PXAR_SYMLINK: u64             = 0x664a6fb6830e0d6c;
-pub const PXAR_DEVICE: u64              = 0xac3dace369dfe643;
-pub const PXAR_XATTR: u64               = 0xb8157091f80bc486;
-pub const PXAR_ACL_USER: u64            = 0x297dc88b2ef12faf;
-pub const PXAR_ACL_GROUP: u64           = 0x36f2acb56cb3dd0b;
-pub const PXAR_ACL_GROUP_OBJ: u64       = 0x23047110441f38f3;
-pub const PXAR_ACL_DEFAULT: u64         = 0xfe3eeda6823c8cd0;
-pub const PXAR_ACL_DEFAULT_USER: u64    = 0xbdf03df9bd010a91;
-pub const PXAR_ACL_DEFAULT_GROUP: u64   = 0xa0cb1168782d1f51;
-pub const PXAR_FCAPS: u64               = 0xf7267db0afed0629;
-pub const PXAR_QUOTA_PROJID:u64         = 0x161baf2d8772a72b;
+pub const PXAR_ENTRY: u64 = 0x1396fabcea5bbb51;
+pub const PXAR_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
+pub const PXAR_SYMLINK: u64 = 0x664a6fb6830e0d6c;
+pub const PXAR_DEVICE: u64 = 0xac3dace369dfe643;
+pub const PXAR_XATTR: u64 = 0xb8157091f80bc486;
+pub const PXAR_ACL_USER: u64 = 0x297dc88b2ef12faf;
+pub const PXAR_ACL_GROUP: u64 = 0x36f2acb56cb3dd0b;
+pub const PXAR_ACL_GROUP_OBJ: u64 = 0x23047110441f38f3;
+pub const PXAR_ACL_DEFAULT: u64 = 0xfe3eeda6823c8cd0;
+pub const PXAR_ACL_DEFAULT_USER: u64 = 0xbdf03df9bd010a91;
+pub const PXAR_ACL_DEFAULT_GROUP: u64 = 0xa0cb1168782d1f51;
+pub const PXAR_FCAPS: u64 = 0xf7267db0afed0629;
+pub const PXAR_QUOTA_PROJID: u64 = 0x161baf2d8772a72b;
 
 /// Marks item as hardlink
 /// compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
-pub const PXAR_FORMAT_HARDLINK: u64     = 0x2c5e06f634f65b86;
+pub const PXAR_FORMAT_HARDLINK: u64 = 0x2c5e06f634f65b86;
 /// Marks the beginnig of the payload (actual content) of regular files
-pub const PXAR_PAYLOAD: u64             = 0x8b9e1d93d6dcffc9;
+pub const PXAR_PAYLOAD: u64 = 0x8b9e1d93d6dcffc9;
 /// Marks item as entry of goodbye table
-pub const PXAR_GOODBYE: u64             = 0xdfd35c5e8327c403;
+pub const PXAR_GOODBYE: u64 = 0xdfd35c5e8327c403;
 /// The end marker used in the GOODBYE object
 pub const PXAR_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 
-#[derive(Debug)]
-#[derive(Endian)]
+#[derive(Debug, Endian)]
 #[repr(C)]
 pub struct PxarHeader {
     /// The size of the item, including the size of `PxarHeader`.
@@ -79,15 +77,14 @@ pub struct PxarGoodbyeItem {
     pub hash: u64,
 }
 
-
 /// Helper function to extract file names from binary archive.
 pub fn read_os_string(buffer: &[u8]) -> std::ffi::OsString {
     let len = buffer.len();
 
     use std::os::unix::ffi::OsStrExt;
 
-    let name = if len > 0 && buffer[len-1] == 0 {
-        std::ffi::OsStr::from_bytes(&buffer[0..len-1])
+    let name = if len > 0 && buffer[len - 1] == 0 {
+        std::ffi::OsStr::from_bytes(&buffer[0..len - 1])
     } else {
         std::ffi::OsStr::from_bytes(&buffer)
     };
@@ -205,7 +202,7 @@ pub struct PxarACLDefault {
     pub mask_permissions: u64,
 }
 
-pub (crate) struct PxarACL {
+pub(crate) struct PxarACL {
     pub users: Vec<PxarACLUser>,
     pub groups: Vec<PxarACLGroup>,
     pub group_obj: Option<PxarACLGroupObj>,
@@ -238,7 +235,6 @@ pub struct PxarAttributes {
 /// Create SipHash values for goodby tables.
 //pub fn compute_goodbye_hash(name: &std::ffi::CStr) -> u64 {
 pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
-
     use std::hash::Hasher;
     let mut hasher = SipHasher24::new_with_keys(0x8574442b0f1d84b3, 0x2736ed30d1c22ec1);
     hasher.write(name);
@@ -247,7 +243,11 @@ pub fn compute_goodbye_hash(name: &[u8]) -> u64 {
 
 pub fn check_ca_header<T>(head: &PxarHeader, htype: u64) -> Result<(), Error> {
     if head.htype != htype {
-        bail!("got wrong header type ({:016x} != {:016x})", head.htype, htype);
+        bail!(
+            "got wrong header type ({:016x} != {:016x})",
+            head.htype,
+            htype
+        );
     }
     if head.size != (std::mem::size_of::<T>() + std::mem::size_of::<PxarHeader>()) as u64 {
         bail!("got wrong header size for type {:016x}", htype);
@@ -255,4 +255,3 @@ pub fn check_ca_header<T>(head: &PxarHeader, htype: u64) -> Result<(), Error> {
 
     Ok(())
 }
-
