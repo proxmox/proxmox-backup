@@ -141,10 +141,17 @@ impl DynamicIndexReader {
         };
 
         let end = unsafe { *(self.index.add(pos*40) as *const u64) };
-        let mut digest: [u8; 32] = unsafe { std::mem::uninitialized() };
-        unsafe { std::ptr::copy_nonoverlapping(self.index.add(pos*40+8), digest.as_mut_ptr(), 32); }
 
-        Ok((start, end, digest))
+        let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self.index.add(pos*40+8),
+                (*digest.as_mut_ptr()).as_mut_ptr(),
+                32,
+            );
+        }
+
+        Ok((start, end, unsafe { digest.assume_init() }))
     }
 
     #[inline]

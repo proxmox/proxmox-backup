@@ -153,10 +153,16 @@ impl FixedIndexReader {
             end = self.size;
         }
 
-        let mut digest: [u8; 32] = unsafe { std::mem::uninitialized() };
-        unsafe { std::ptr::copy_nonoverlapping(self.index.add(pos*32), digest.as_mut_ptr(), 32); }
+        let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self.index.add(pos*32),
+                (*digest.as_mut_ptr()).as_mut_ptr(),
+                32,
+            );
+        }
 
-        Ok((start, end, digest))
+        Ok((start, end, unsafe { digest.assume_init() }))
     }
 
     #[inline]
