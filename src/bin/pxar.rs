@@ -226,6 +226,7 @@ fn mount_archive(
     let archive = tools::required_string_param(&param, "archive")?;
     let mountpoint = tools::required_string_param(&param, "mountpoint")?;
     let verbose = param["verbose"].as_bool().unwrap_or(false);
+    let no_mt = param["no-mt"].as_bool().unwrap_or(false);
 
     let archive = Path::new(archive);
     let mountpoint = Path::new(mountpoint);
@@ -233,7 +234,7 @@ fn mount_archive(
     let mut session = pxar::fuse::Session::new(&archive, &options, verbose)
         .map_err(|err| format_err!("pxar mount failed: {}", err))?;
     session.mount(&mountpoint)?;
-    session.run_loop()?;
+    session.run_loop(!no_mt)?;
 
     Ok(Value::Null)
 }
@@ -295,7 +296,8 @@ fn main() {
                 ObjectSchema::new("Mount the archive as filesystem via FUSE.")
                     .required("archive", StringSchema::new("Archive name."))
                     .required("mountpoint", StringSchema::new("Mountpoint for the filesystem root."))
-                    .optional("verbose", BooleanSchema::new("Verbose output, keeps process running in foreground.").default(false))
+                    .optional("verbose", BooleanSchema::new("Verbose output, keeps process running in foreground (for debugging).").default(false))
+                    .optional("no-mt", BooleanSchema::new("Run in single threaded mode (for debugging).").default(false))
             ))
             .arg_param(vec!["archive", "mountpoint"])
             .completion_cb("archive", tools::complete_file_name)

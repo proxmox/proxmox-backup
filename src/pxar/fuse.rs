@@ -46,6 +46,7 @@ extern "C" {
     fn fuse_session_mount(session: ConstPtr, mountpoint: StrPtr) -> c_int;
     fn fuse_session_unmount(session: ConstPtr);
     fn fuse_session_loop(session: ConstPtr) -> c_int;
+    fn fuse_session_loop_mt_31(session: ConstPtr, clone_fd: c_int) -> c_int;
     fn fuse_session_destroy(session: ConstPtr);
     //    fn fuse_reply_attr(req: Request, attr: *const libc::stat, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
@@ -212,11 +213,18 @@ impl Session {
     }
 
     /// Execute session loop which handles requests from kernel.
-    pub fn run_loop(&mut self) -> Result<(), Error> {
+    ///
+    /// The multi_threaded flag controls if the session loop runs in
+    /// singlethreaded or multithreaded.
+    /// Singlethreaded mode is intended for debugging.
+    pub fn run_loop(&mut self, multi_threaded: bool) -> Result<(), Error> {
         if self.verbose {
             println!("Executing fuse session loop");
         }
-        let result = unsafe { fuse_session_loop(self.ptr) };
+        let result = match multi_threaded {
+            true => unsafe { fuse_session_loop_mt_31(self.ptr, 1) },
+            false => unsafe { fuse_session_loop(self.ptr) },
+        };
         if result < 0 {
             bail!("fuse session loop exited with - {}", result);
         }
