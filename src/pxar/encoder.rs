@@ -1141,9 +1141,10 @@ fn errno_is_unsupported(errno: Errno) -> bool {
 }
 
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
-    let mut fs_stat: libc::statfs = unsafe { std::mem::uninitialized() };
-    let res = unsafe { libc::fstatfs(fd, &mut fs_stat) };
+    let mut fs_stat = std::mem::MaybeUninit::uninit();
+    let res = unsafe { libc::fstatfs(fd, fs_stat.as_mut_ptr()) };
     Errno::result(res)?;
+    let fs_stat = unsafe { fs_stat.assume_init() };
 
     Ok(fs_stat.f_type)
 }

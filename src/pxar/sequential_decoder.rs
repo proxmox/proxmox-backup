@@ -67,14 +67,15 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
     pub (crate) fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
 
-        let mut result: T = unsafe { std::mem::uninitialized() };
+        let mut result = std::mem::MaybeUninit::<T>::uninit();
 
         let buffer = unsafe { std::slice::from_raw_parts_mut(
-            &mut result as *mut T as *mut u8,
+            result.as_mut_ptr() as *mut u8,
             std::mem::size_of::<T>()
         )};
 
         self.reader.read_exact(buffer)?;
+        let result = unsafe { result.assume_init() };
 
         Ok(result.from_le())
     }
@@ -576,7 +577,6 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         entry: &PxarEntry,
         filename: &OsStr
     ) -> Result<(), Error> {
-        let mut read_buffer: [u8; 64*1024] = unsafe { std::mem::uninitialized() };
         let (head, attr) = self.read_attributes()
             .map_err(|err| format_err!("Reading of file attributes failed - {}", err))?;
 
@@ -595,6 +595,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             }
             let need = (head.size - HEADER_SIZE) as usize;
 
+            let mut read_buffer = unsafe { vec::uninitialized(64 * 1024) };
             let mut done = 0;
             while done < need  {
                 let todo = need - done;
