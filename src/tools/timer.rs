@@ -3,8 +3,9 @@
 //! This module provides a wrapper around POSIX timers (see `timer_create(2)`) and utilities to
 //! setup thread-targeted signaling and signal masks.
 
-use std::{io, mem};
+use std::mem::MaybeUninit;
 use std::time::Duration;
+use std::{io, mem};
 
 use libc::{pid_t, clockid_t, c_int};
 
@@ -197,16 +198,16 @@ impl Timer {
     pub fn arm(&mut self, spec: TimerSpec) -> io::Result<TimerSpec>
     {
         let newspec = spec.to_itimerspec();
-        let mut oldspec: libc::itimerspec = unsafe { mem::uninitialized() };
+        let mut oldspec = MaybeUninit::<libc::itimerspec>::uninit();
 
         let rc = unsafe {
-            timer_settime(self.timer, 0, &newspec, &mut oldspec)
+            timer_settime(self.timer, 0, &newspec, &mut *oldspec.as_mut_ptr())
         };
         if rc != 0 {
             return Err(io::Error::last_os_error());
         }
 
-        Ok(TimerSpec::from_itimerspec(oldspec))
+        Ok(TimerSpec::from_itimerspec(unsafe { oldspec.assume_init() }))
     }
 }
 
@@ -246,9 +247,9 @@ fn do_setup_timeout_handler() -> io::Result<()> {
     //    .map(|_|())
 
     unsafe {
-        let mut sa_mask: libc::sigset_t = mem::uninitialized();
-        if libc::sigemptyset(&mut sa_mask) != 0 ||
-           libc::sigaddset(&mut sa_mask, SIGTIMEOUT.0) != 0
+        let mut sa_mask = MaybeUninit::<libc::sigset_t>::uninit();
+        if libc::sigemptyset(&mut *sa_mask.as_mut_ptr()) != 0 ||
+           libc::sigaddset(&mut *sa_mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
         {
             return Err(io::Error::last_os_error());
         }
@@ -257,7 +258,7 @@ fn do_setup_timeout_handler() -> io::Result<()> {
             sa_sigaction:
                 // libc::sigaction uses `usize` for the function pointer...
                 sig_timeout_handler as *const extern "C" fn(i32) as usize,
-            sa_mask,
+            sa_mask: sa_mask.assume_init(),
             sa_flags: 0,
             sa_restorer: None,
         };
@@ -328,17 +329,21 @@ pub fn unblock_timeout_signal() -> TimeoutBlockGuard {
     //   passed to the kernel, or signal numbers are "invalid", since we know
     //   neither is the case we will panic on error...
     let was_blocked = unsafe {
-        let mut mask: libc::sigset_t = mem::uninitialized();
-        let mut oldset: libc::sigset_t = mem::uninitialized();
-        if libc::sigemptyset(&mut mask) != 0
-           || libc::sigaddset(&mut mask, SIGTIMEOUT.0) != 0
-           || libc::pthread_sigmask(libc::SIG_UNBLOCK, &mask, &mut oldset) != 0
+        let mut mask = MaybeUninit::<libc::sigset_t>::uninit();
+        let mut oldset = MaybeUninit::<libc::sigset_t>::uninit();
+        if libc::sigemptyset(&mut *mask.as_mut_ptr()) != 0
+            || libc::sigaddset(&mut *mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
+            || libc::pthread_sigmask(
+                libc::SIG_UNBLOCK,
+                &mask.assume_init(),
+                &mut *oldset.as_mut_ptr(),
+            ) != 0
         {
             panic!("Impossibly failed to unblock SIGTIMEOUT");
             //return Err(io::Error::last_os_error());
         }
 
-        libc::sigismember(&oldset, SIGTIMEOUT.0) == 1
+        libc::sigismember(&oldset.assume_init(), SIGTIMEOUT.0) == 1
     };
     TimeoutBlockGuard(was_blocked)
 }
@@ -350,10 +355,10 @@ pub fn block_timeout_signal() {
     //set.add(SIGTIMEOUT);
     //set.thread_block()
     unsafe {
-        let mut mask: libc::sigset_t = mem::uninitialized();
-        if libc::sigemptyset(&mut mask) != 0
-           || libc::sigaddset(&mut mask, SIGTIMEOUT.0) != 0
-           || libc::pthread_sigmask(libc::SIG_BLOCK, &mask,
+        let mut mask = MaybeUninit::<libc::sigset_t>::uninit();
+        if libc::sigemptyset(&mut *mask.as_mut_ptr()) != 0
+           || libc::sigaddset(&mut *mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
+           || libc::pthread_sigmask(libc::SIG_BLOCK, &mask.assume_init(),
                                     std::ptr::null_mut()) != 0
         {
             panic!("Impossibly failed to block SIGTIMEOUT");
