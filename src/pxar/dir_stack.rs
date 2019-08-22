@@ -2,13 +2,13 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 
-use super::format_definition::*;
-
-use failure::*;
-use nix::fcntl::OFlag;
+use failure::{format_err, Error};
 use nix::errno::Errno;
+use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
 use nix::NixPath;
+
+use super::format_definition::{PxarAttributes, PxarEntry};
 
 pub struct PxarDir {
     pub filename: OsString,
@@ -33,12 +33,12 @@ impl PxarDir {
     }
 
     fn create_dir(&self, parent: RawFd, create_new: bool) -> Result<nix::dir::Dir, nix::Error> {
-        let res = self.filename.with_nix_path(|cstr| unsafe {
-            libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU)
-        })?;
+        let res = self
+            .filename
+            .with_nix_path(|cstr| unsafe { libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU) })?;
 
         match Errno::result(res) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => {
                 if err == nix::Error::Sys(nix::errno::Errno::EEXIST) {
                     if create_new {
@@ -50,7 +50,12 @@ impl PxarDir {
             }
         }
 
-        let dir = nix::dir::Dir::openat(parent, self.filename.as_os_str(), OFlag::O_DIRECTORY,  Mode::empty())?;
+        let dir = nix::dir::Dir::openat(
+            parent,
+            self.filename.as_os_str(),
+            OFlag::O_DIRECTORY,
+            Mode::empty(),
+        )?;
 
         Ok(dir)
     }
@@ -99,11 +104,12 @@ impl PxarDirStack {
             match &d.dir {
                 Some(dir) => current_fd = dir.as_raw_fd(),
                 None => {
-                    let dir = d.create_dir(current_fd, create_new)
+                    let dir = d
+                        .create_dir(current_fd, create_new)
                         .map_err(|err| format_err!("create dir failed - {}", err))?;
                     current_fd = dir.as_raw_fd();
                     d.dir = Some(dir);
-                },
+                }
             }
         }
 
