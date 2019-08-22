@@ -7,7 +7,7 @@ use std::mem::MaybeUninit;
 use std::time::Duration;
 use std::{io, mem};
 
-use libc::{pid_t, clockid_t, c_int};
+use libc::{c_int, clockid_t, pid_t};
 
 /// Timers can use various clocks. See `timer_create(2)`.
 pub enum Clock {
@@ -69,20 +69,16 @@ struct InternalTimerT(u32);
 type TimerT = *mut InternalTimerT;
 
 // These wrappers are defined in -lrt.
-#[link(name="rt")]
+#[link(name = "rt")]
 extern "C" {
-    fn timer_create(
-        clockid: clockid_t,
-        evp: *mut libc::sigevent,
-        timer: *mut TimerT,
-        ) -> c_int;
+    fn timer_create(clockid: clockid_t, evp: *mut libc::sigevent, timer: *mut TimerT) -> c_int;
     fn timer_delete(timer: TimerT) -> c_int;
     fn timer_settime(
         timerid: TimerT,
         flags: c_int,
         new_value: *const libc::itimerspec,
         old_value: *mut libc::itimerspec,
-        ) -> c_int;
+    ) -> c_int;
 }
 
 /// Represents a POSIX per-process timer as created via `timer_create(2)`.
@@ -141,17 +137,26 @@ impl TimerSpec {
 
     /// Create an empty timer specification representing a disabled timer.
     pub fn new() -> Self {
-        TimerSpec { value: None, interval: None }
+        TimerSpec {
+            value: None,
+            interval: None,
+        }
     }
 
     /// Change the specification to have a specific value.
     pub fn value(self, value: Option<Duration>) -> Self {
-        TimerSpec { value, interval: self.interval }
+        TimerSpec {
+            value,
+            interval: self.interval,
+        }
     }
 
     /// Change the specification to have a specific interval.
     pub fn interval(self, interval: Option<Duration>) -> Self {
-        TimerSpec { value: self.value, interval }
+        TimerSpec {
+            value: self.value,
+            interval,
+        }
     }
 }
 
@@ -195,14 +200,11 @@ impl Timer {
     }
 
     /// Arm a timer. This returns the previous timer specification.
-    pub fn arm(&mut self, spec: TimerSpec) -> io::Result<TimerSpec>
-    {
+    pub fn arm(&mut self, spec: TimerSpec) -> io::Result<TimerSpec> {
         let newspec = spec.to_itimerspec();
         let mut oldspec = MaybeUninit::<libc::itimerspec>::uninit();
 
-        let rc = unsafe {
-            timer_settime(self.timer, 0, &newspec, &mut *oldspec.as_mut_ptr())
-        };
+        let rc = unsafe { timer_settime(self.timer, 0, &newspec, &mut *oldspec.as_mut_ptr()) };
         if rc != 0 {
             return Err(io::Error::last_os_error());
         }
@@ -229,8 +231,7 @@ pub const SIGTIMEOUT: Signal = Signal(32 + 4);
 
 // Our timeout handler does exactly nothing. We only need it to interrupt
 // system calls.
-extern "C" fn sig_timeout_handler(_: c_int) {
-}
+extern "C" fn sig_timeout_handler(_: c_int) {}
 
 // See setup_timeout_handler().
 fn do_setup_timeout_handler() -> io::Result<()> {
@@ -248,8 +249,8 @@ fn do_setup_timeout_handler() -> io::Result<()> {
 
     unsafe {
         let mut sa_mask = MaybeUninit::<libc::sigset_t>::uninit();
-        if libc::sigemptyset(&mut *sa_mask.as_mut_ptr()) != 0 ||
-           libc::sigaddset(&mut *sa_mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
+        if libc::sigemptyset(&mut *sa_mask.as_mut_ptr()) != 0
+            || libc::sigaddset(&mut *sa_mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
         {
             return Err(io::Error::last_os_error());
         }
@@ -357,9 +358,9 @@ pub fn block_timeout_signal() {
     unsafe {
         let mut mask = MaybeUninit::<libc::sigset_t>::uninit();
         if libc::sigemptyset(&mut *mask.as_mut_ptr()) != 0
-           || libc::sigaddset(&mut *mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
-           || libc::pthread_sigmask(libc::SIG_BLOCK, &mask.assume_init(),
-                                    std::ptr::null_mut()) != 0
+            || libc::sigaddset(&mut *mask.as_mut_ptr(), SIGTIMEOUT.0) != 0
+            || libc::pthread_sigmask(libc::SIG_BLOCK, &mask.assume_init(), std::ptr::null_mut())
+                != 0
         {
             panic!("Impossibly failed to block SIGTIMEOUT");
             //return Err(io::Error::last_os_error());
