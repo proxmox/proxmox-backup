@@ -5,19 +5,19 @@
 //! `glob(7)`.
 //! `**` is treated special, as it matches multiple directories in a path.
 
-use std::io::Read;
 use std::ffi::{CStr, CString};
 use std::fs::File;
+use std::io::Read;
 use std::os::unix::io::{FromRawFd, RawFd};
 
-use failure::*;
+use failure::{bail, Error};
 use libc::{c_char, c_int};
+use nix::errno::Errno;
 use nix::fcntl;
 use nix::fcntl::{AtFlags, OFlag};
-use nix::errno::Errno;
-use nix::NixPath;
 use nix::sys::stat;
 use nix::sys::stat::{FileStat, Mode};
+use nix::NixPath;
 
 pub const FNM_NOMATCH: c_int = 1;
 
@@ -84,7 +84,6 @@ impl MatchPattern {
         parent_fd: RawFd,
         filename: &P,
     ) -> Result<Option<(Vec<MatchPattern>, Vec<u8>, FileStat)>, Error> {
-
         let stat = match stat::fstatat(parent_fd, filename, AtFlags::AT_SYMLINK_NOFOLLOW) {
             Ok(stat) => stat,
             Err(nix::Error::Sys(Errno::ENOENT)) => return Ok(None),
@@ -92,9 +91,7 @@ impl MatchPattern {
         };
 
         let filefd = fcntl::openat(parent_fd, filename, OFlag::O_NOFOLLOW, Mode::empty())?;
-        let mut file = unsafe {
-            File::from_raw_fd(filefd)
-        };
+        let mut file = unsafe { File::from_raw_fd(filefd) };
 
         let mut content_buffer = Vec::new();
         let _bytes = file.read_to_end(&mut content_buffer)?;
@@ -148,8 +145,7 @@ impl MatchPattern {
             input = &input[1..];
         }
 
-        if input.is_empty() || input == b"." ||
-            input == b".." || input.contains(&b'\0') {
+        if input.is_empty() || input == b"." || input == b".." || input.contains(&b'\0') {
             bail!("invalid path component encountered");
         }
 
@@ -237,7 +233,7 @@ impl MatchPattern {
         let fnmatch_res = unsafe {
             let front_ptr = front.as_ptr() as *const libc::c_char;
             let filename_ptr = filename.as_ptr() as *const libc::c_char;
-            fnmatch(front_ptr, filename_ptr , 0)
+            fnmatch(front_ptr, filename_ptr, 0)
         };
         if fnmatch_res < 0 {
             bail!("error in fnmatch inside of MatchPattern");
@@ -303,7 +299,7 @@ fn split_at_slash(match_pattern: &CStr) -> (CString, CString) {
         Some(ind) => {
             let (front, rest) = pattern.split_at(ind);
             (front, &rest[1..])
-        },
+        }
         None => (pattern, &pattern[0..0]),
     };
     // '**' is treated such that it maches any directory
