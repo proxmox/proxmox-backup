@@ -1,35 +1,32 @@
 //! *pxar* format decoder.
 //!
 //! This module contain the code to decode *pxar* archive files.
-
-use failure::*;
-use endian_trait::Endian;
-
-use super::flags;
-use super::format_definition::*;
-use super::match_pattern::*;
-use super::dir_stack::*;
-
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-
-use std::os::unix::io::AsRawFd;
-use std::os::unix::io::RawFd;
-use std::os::unix::io::FromRawFd;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::ffi::CString;
 use std::ffi::{OsStr, OsString};
+use std::io::{Read, Write};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::io::AsRawFd;
+use std::os::unix::io::FromRawFd;
+use std::os::unix::io::RawFd;
+use std::path::{Path, PathBuf};
 
+use endian_trait::Endian;
+use failure::{bail, format_err, Error};
+use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
-use nix::errno::Errno;
 use nix::NixPath;
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::vec;
 
-use crate::tools::fs;
+use super::dir_stack::{PxarDir, PxarDirStack};
+use super::flags;
+use super::format_definition::*;
+use super::match_pattern::{MatchPattern, MatchType};
+
 use crate::tools::acl;
+use crate::tools::fs;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
@@ -43,10 +40,9 @@ pub struct SequentialDecoder<R: Read, F: Fn(&Path) -> Result<(), Error>> {
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
-impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
-
+impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     pub fn new(reader: R, feature_flags: u64, callback: F) -> Self {
-        let skip_buffer = vec::undefined(64*1024);
+        let skip_buffer = vec::undefined(64 * 1024);
 
         Self {
             reader,
@@ -61,18 +57,16 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         self.allow_existing_dirs = allow;
     }
 
-    pub (crate) fn get_reader_mut(&mut self) -> &mut R {
+    pub(crate) fn get_reader_mut(&mut self) -> &mut R {
         &mut self.reader
     }
 
-    pub (crate) fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
-
+    pub(crate) fn read_item<T: Endian>(&mut self) -> Result<T, Error> {
         let mut result = std::mem::MaybeUninit::<T>::uninit();
 
-        let buffer = unsafe { std::slice::from_raw_parts_mut(
-            result.as_mut_ptr() as *mut u8,
-            std::mem::size_of::<T>()
-        )};
+        let buffer = unsafe {
+            std::slice::from_raw_parts_mut(result.as_mut_ptr() as *mut u8, std::mem::size_of::<T>())
+        };
 
         self.reader.read_exact(buffer)?;
         let result = unsafe { result.assume_init() };
@@ -82,7 +76,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
     fn read_link(&mut self, size: u64) -> Result<PathBuf, Error> {
         if size < (HEADER_SIZE + 2) {
-             bail!("dectected short link target.");
+            bail!("dectected short link target.");
         }
         let target_len = size - HEADER_SIZE;
 
@@ -100,7 +94,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(PathBuf::from(std::ffi::OsString::from_vec(buffer)))
     }
 
-    pub (crate) fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
+    pub(crate) fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
         if size < (HEADER_SIZE + 8 + 2) {
             bail!("dectected short hardlink header.");
         }
@@ -109,17 +103,15 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
         for c in target.components() {
             match c {
-                std::path::Component::Normal(_) => { /* OK */  },
-                _ => {
-                    bail!("hardlink target contains invalid component {:?}", c);
-                }
+                std::path::Component::Normal(_) => { /* OK */ }
+                _ => bail!("hardlink target contains invalid component {:?}", c),
             }
         }
 
         Ok((target, offset))
     }
 
-    pub (crate) fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
+    pub(crate) fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
         if size < (HEADER_SIZE + 2) {
             bail!("dectected short filename");
         }
@@ -140,7 +132,11 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             bail!("found invalid filename '.' or '..'.");
         }
 
-        if buffer.iter().find(|b| (**b == b'/' || **b == b'\0')).is_some() {
+        if buffer
+            .iter()
+            .find(|b| (**b == b'/' || **b == b'\0'))
+            .is_some()
+        {
             bail!("found invalid filename with slashes or nul bytes.");
         }
 
@@ -159,13 +155,13 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     fn read_xattr(&mut self, size: usize) -> Result<PxarXAttr, Error> {
         let buffer = self.reader.read_exact_allocated(size)?;
 
-        let separator = buffer.iter().position(|c| *c == b'\0')
+        let separator = buffer
+            .iter()
+            .position(|c| *c == b'\0')
             .ok_or_else(|| format_err!("no value found in xattr"))?;
 
         let (name, value) = buffer.split_at(separator);
-        if !xattr::is_valid_xattr_name(name) ||
-            xattr::is_security_capability(name)
-        {
+        if !xattr::is_valid_xattr_name(name) || xattr::is_security_capability(name) {
             bail!("incorrect xattr name - {}.", String::from_utf8_lossy(name));
         }
 
@@ -193,63 +189,64 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_FCAPS => {
                     if self.has_features(flags::WITH_FCAPS) {
                         attr.fcaps = Some(self.read_fcaps(size)?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_USER => {
                     if self.has_features(flags::WITH_ACL) {
                         attr.acl_user.push(self.read_item::<PxarACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_GROUP => {
                     if self.has_features(flags::WITH_ACL) {
                         attr.acl_group.push(self.read_item::<PxarACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_GROUP_OBJ => {
                     if self.has_features(flags::WITH_ACL) {
                         attr.acl_group_obj = Some(self.read_item::<PxarACLGroupObj>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_DEFAULT => {
                     if self.has_features(flags::WITH_ACL) {
                         attr.acl_default = Some(self.read_item::<PxarACLDefault>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_DEFAULT_USER => {
                     if self.has_features(flags::WITH_ACL) {
                         attr.acl_default_user.push(self.read_item::<PxarACLUser>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_ACL_DEFAULT_GROUP => {
                     if self.has_features(flags::WITH_ACL) {
-                        attr.acl_default_group.push(self.read_item::<PxarACLGroup>()?);
+                        attr.acl_default_group
+                            .push(self.read_item::<PxarACLGroup>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 PXAR_QUOTA_PROJID => {
                     if self.has_features(flags::WITH_QUOTA_PROJID) {
                         attr.quota_projid = Some(self.read_item::<PxarQuotaProjID>()?);
                     } else {
                         self.skip_bytes(size)?;
                     }
-                },
+                }
                 _ => break,
             }
             head = self.read_item()?;
@@ -268,16 +265,32 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         self.restore_xattrs_fcaps_fd(fd, &attr.xattrs, &attr.fcaps)?;
 
         let mut acl = acl::ACL::init(5)?;
-        acl.add_entry_full(acl::ACL_USER_OBJ, None, mode_user_to_acl_permissions(entry.mode))?;
-        acl.add_entry_full(acl::ACL_OTHER, None, mode_other_to_acl_permissions(entry.mode))?;
+        acl.add_entry_full(
+            acl::ACL_USER_OBJ,
+            None,
+            mode_user_to_acl_permissions(entry.mode),
+        )?;
+        acl.add_entry_full(
+            acl::ACL_OTHER,
+            None,
+            mode_other_to_acl_permissions(entry.mode),
+        )?;
         match &attr.acl_group_obj {
             Some(group_obj) => {
-                acl.add_entry_full(acl::ACL_MASK, None, mode_group_to_acl_permissions(entry.mode))?;
+                acl.add_entry_full(
+                    acl::ACL_MASK,
+                    None,
+                    mode_group_to_acl_permissions(entry.mode),
+                )?;
                 acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
-            },
+            }
             None => {
-                acl.add_entry_full(acl::ACL_GROUP_OBJ, None, mode_group_to_acl_permissions(entry.mode))?;
-            },
+                acl.add_entry_full(
+                    acl::ACL_GROUP_OBJ,
+                    None,
+                    mode_group_to_acl_permissions(entry.mode),
+                )?;
+            }
         }
         for user in &attr.acl_user {
             acl.add_entry_full(acl::ACL_USER, Some(user.uid), user.permissions)?;
@@ -320,7 +333,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         &mut self,
         fd: RawFd,
         xattrs: &Vec<PxarXAttr>,
-        fcaps: &Option<PxarFCaps>
+        fcaps: &Option<PxarFCaps>,
     ) -> Result<(), Error> {
         for xattr in xattrs {
             if let Err(err) = xattr::fsetxattr(fd, &xattr) {
@@ -339,18 +352,26 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     fn restore_quota_projid(
         &mut self,
         fd: RawFd,
-        projid: &Option<PxarQuotaProjID>
+        projid: &Option<PxarQuotaProjID>,
     ) -> Result<(), Error> {
         if let Some(projid) = projid {
             let mut fsxattr = fs::FSXAttr::default();
             unsafe {
-                fs::fs_ioc_fsgetxattr(fd, &mut fsxattr)
-                    .map_err(|err| format_err!("error while getting fsxattr to restore quota project id - {}", err))?;
+                fs::fs_ioc_fsgetxattr(fd, &mut fsxattr).map_err(|err| {
+                    format_err!(
+                        "error while getting fsxattr to restore quota project id - {}",
+                        err
+                    )
+                })?;
             }
             fsxattr.fsx_projid = projid.projid as u32;
             unsafe {
-                fs::fs_ioc_fssetxattr(fd, &fsxattr)
-                    .map_err(|err| format_err!("error while setting fsxattr to restore quota project id - {}", err))?;
+                fs::fs_ioc_fssetxattr(fd, &fsxattr).map_err(|err| {
+                    format_err!(
+                        "error while setting fsxattr to restore quota project id - {}",
+                        err
+                    )
+                })?;
             }
         }
 
@@ -358,7 +379,6 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     }
 
     fn restore_mode(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
-
         let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
 
         nix::sys::stat::fchmod(fd, mode)?;
@@ -366,19 +386,27 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(())
     }
 
-    fn restore_mode_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
-
+    fn restore_mode_at(
+        &mut self,
+        entry: &PxarEntry,
+        dirfd: RawFd,
+        filename: &OsStr,
+    ) -> Result<(), Error> {
         let mode = Mode::from_bits_truncate((entry.mode as u32) & 0o7777);
 
         // NOTE: we want :FchmodatFlags::NoFollowSymlink, but fchmodat does not support that
         // on linux (see man fchmodat). Fortunately, we can simply avoid calling this on symlinks.
-        nix::sys::stat::fchmodat(Some(dirfd), filename, mode, nix::sys::stat::FchmodatFlags::FollowSymlink)?;
+        nix::sys::stat::fchmodat(
+            Some(dirfd),
+            filename,
+            mode,
+            nix::sys::stat::FchmodatFlags::FollowSymlink,
+        )?;
 
         Ok(())
     }
 
     fn restore_ugid(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
-
         let uid = entry.uid;
         let gid = entry.gid;
 
@@ -388,8 +416,12 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(())
     }
 
-    fn restore_ugid_at(&mut self, entry: &PxarEntry, dirfd: RawFd,  filename: &OsStr) -> Result<(), Error> {
-
+    fn restore_ugid_at(
+        &mut self,
+        entry: &PxarEntry,
+        dirfd: RawFd,
+        filename: &OsStr,
+    ) -> Result<(), Error> {
         let uid = entry.uid;
         let gid = entry.gid;
 
@@ -402,7 +434,6 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     }
 
     fn restore_mtime(&mut self, entry: &PxarEntry, fd: RawFd) -> Result<(), Error> {
-
         let times = nsec_to_update_timespec(entry.mtime);
 
         let res = unsafe { libc::futimens(fd, &times[0]) };
@@ -411,47 +442,51 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(())
     }
 
-    fn restore_mtime_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
-
+    fn restore_mtime_at(
+        &mut self,
+        entry: &PxarEntry,
+        dirfd: RawFd,
+        filename: &OsStr,
+    ) -> Result<(), Error> {
         let times = nsec_to_update_timespec(entry.mtime);
 
-        let res =  filename.with_nix_path(|cstr| unsafe {
-            libc::utimensat(dirfd, cstr.as_ptr(), &times[0],  libc::AT_SYMLINK_NOFOLLOW)
+        let res = filename.with_nix_path(|cstr| unsafe {
+            libc::utimensat(dirfd, cstr.as_ptr(), &times[0], libc::AT_SYMLINK_NOFOLLOW)
         })?;
         Errno::result(res)?;
 
         Ok(())
     }
 
-    fn restore_device_at(&mut self, entry: &PxarEntry, dirfd: RawFd, filename: &OsStr, device: &PxarDevice) -> Result<(), Error> {
-
+    fn restore_device_at(
+        &mut self,
+        entry: &PxarEntry,
+        dirfd: RawFd,
+        filename: &OsStr,
+        device: &PxarDevice,
+    ) -> Result<(), Error> {
         let rdev = nix::sys::stat::makedev(device.major, device.minor);
         let mode = ((entry.mode as u32) & libc::S_IFMT) | 0o0600;
-        let res =  filename.with_nix_path(|cstr| unsafe {
-            libc::mknodat(dirfd, cstr.as_ptr(), mode, rdev)
-        })?;
+        let res = filename
+            .with_nix_path(|cstr| unsafe { libc::mknodat(dirfd, cstr.as_ptr(), mode, rdev) })?;
         Errno::result(res)?;
 
         Ok(())
     }
 
     fn restore_socket_at(&mut self, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
-
         let mode = libc::S_IFSOCK | 0o0600;
-        let res =  filename.with_nix_path(|cstr| unsafe {
-            libc::mknodat(dirfd, cstr.as_ptr(), mode, 0)
-        })?;
+        let res = filename
+            .with_nix_path(|cstr| unsafe { libc::mknodat(dirfd, cstr.as_ptr(), mode, 0) })?;
         Errno::result(res)?;
 
         Ok(())
     }
 
     fn restore_fifo_at(&mut self, dirfd: RawFd, filename: &OsStr) -> Result<(), Error> {
-
         let mode = libc::S_IFIFO | 0o0600;
-        let res =  filename.with_nix_path(|cstr| unsafe {
-            libc::mkfifoat(dirfd, cstr.as_ptr(), mode)
-        })?;
+        let res =
+            filename.with_nix_path(|cstr| unsafe { libc::mkfifoat(dirfd, cstr.as_ptr(), mode) })?;
         Errno::result(res)?;
 
         Ok(())
@@ -459,9 +494,13 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
     fn skip_bytes(&mut self, count: usize) -> Result<(), Error> {
         let mut done = 0;
-        while done < count  {
+        while done < count {
             let todo = count - done;
-            let n = if todo > self.skip_buffer.len() { self.skip_buffer.len() } else { todo };
+            let n = if todo > self.skip_buffer.len() {
+                self.skip_buffer.len()
+            } else {
+                todo
+            };
             let data = &mut self.skip_buffer[..n];
             self.reader.read_exact(data)?;
             done += n;
@@ -474,7 +513,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         parent_fd: Option<RawFd>,
         full_path: &PathBuf,
         entry: &PxarEntry,
-        filename: &OsStr
+        filename: &OsStr,
     ) -> Result<(), Error> {
         //fixme: create symlink
         //fixme: restore permission, acls, xattr, ...
@@ -490,9 +529,10 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                     }
                 }
             }
-             _ => {
-                 bail!("got unknown header type inside symlink entry {:016x}", head.htype);
-             }
+            _ => bail!(
+                "got unknown header type inside symlink entry {:016x}",
+                head.htype
+            ),
         }
 
         if let Some(fd) = parent_fd {
@@ -508,7 +548,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         &mut self,
         parent_fd: Option<RawFd>,
         entry: &PxarEntry,
-        filename: &OsStr
+        filename: &OsStr,
     ) -> Result<(), Error> {
         if !self.has_features(flags::WITH_SOCKETS) {
             return Ok(());
@@ -527,7 +567,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         &mut self,
         parent_fd: Option<RawFd>,
         entry: &PxarEntry,
-        filename: &OsStr
+        filename: &OsStr,
     ) -> Result<(), Error> {
         if !self.has_features(flags::WITH_FIFOS) {
             return Ok(());
@@ -546,11 +586,14 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         &mut self,
         parent_fd: Option<RawFd>,
         entry: &PxarEntry,
-        filename: &OsStr
+        filename: &OsStr,
     ) -> Result<(), Error> {
         let head: PxarHeader = self.read_item()?;
         if head.htype != PXAR_DEVICE {
-            bail!("got unknown header type inside device entry {:016x}", head.htype);
+            bail!(
+                "got unknown header type inside device entry {:016x}",
+                head.htype
+            );
         }
         let device: PxarDevice = self.read_item()?;
         if !self.has_features(flags::WITH_DEVICE_NODES) {
@@ -575,19 +618,20 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         parent_fd: Option<RawFd>,
         full_path: &PathBuf,
         entry: &PxarEntry,
-        filename: &OsStr
+        filename: &OsStr,
     ) -> Result<(), Error> {
-        let (head, attr) = self.read_attributes()
+        let (head, attr) = self
+            .read_attributes()
             .map_err(|err| format_err!("Reading of file attributes failed - {}", err))?;
 
         if let Some(fd) = parent_fd {
-            let flags = OFlag::O_CREAT|OFlag::O_WRONLY|OFlag::O_EXCL;
-            let open_mode =  Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
+            let flags = OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_EXCL;
+            let open_mode = Mode::from_bits_truncate(0o0600 | entry.mode as u32); //fixme: upper 32bits of entry.mode?
             let mut file = file_openat(fd, filename, flags, open_mode)
                 .map_err(|err| format_err!("open file {:?} failed - {}", full_path, err))?;
 
             if head.htype != PXAR_PAYLOAD {
-                  bail!("got unknown header type for file entry {:016x}", head.htype);
+                bail!("got unknown header type for file entry {:016x}", head.htype);
             }
 
             if head.size < HEADER_SIZE {
@@ -597,9 +641,13 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 
             let mut read_buffer = unsafe { vec::uninitialized(64 * 1024) };
             let mut done = 0;
-            while done < need  {
+            while done < need {
                 let todo = need - done;
-                let n = if todo > read_buffer.len() { read_buffer.len() } else { todo };
+                let n = if todo > read_buffer.len() {
+                    read_buffer.len()
+                } else {
+                    todo
+                };
                 let data = &mut read_buffer[..n];
                 self.reader.read_exact(data)?;
                 file.write_all(data)?;
@@ -613,7 +661,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             self.restore_mtime(&entry, file.as_raw_fd())?;
         } else {
             if head.htype != PXAR_PAYLOAD {
-                  bail!("got unknown header type for file entry {:016x}", head.htype);
+                bail!("got unknown header type for file entry {:016x}", head.htype);
             }
             if head.size < HEADER_SIZE {
                 bail!("detected short payload");
@@ -633,7 +681,8 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         matched: MatchType,
         match_pattern: &Vec<MatchPattern>,
     ) -> Result<(), Error> {
-        let (mut head, attr) = self.read_attributes()
+        let (mut head, attr) = self
+            .read_attributes()
             .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
 
         let dir = PxarDir::new(filename, entry, attr);
@@ -649,13 +698,19 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         }
 
         if head.htype != PXAR_GOODBYE {
-            bail!("got unknown header type inside directory entry {:016x}", head.htype);
+            bail!(
+                "got unknown header type inside directory entry {:016x}",
+                head.htype
+            );
         }
 
-        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+        if head.size < HEADER_SIZE {
+            bail!("detected short goodbye table");
+        }
         self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
 
-        let last = dirs.pop()
+        let last = dirs
+            .pop()
             .ok_or_else(|| format_err!("Tried to pop beyond dir root - this should not happen!"))?;
         if let Some(d) = last.dir {
             let fd = d.as_raw_fd();
@@ -672,16 +727,15 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
-    pub fn restore(
-        &mut self,
-        path: &Path,
-        match_pattern: &Vec<MatchPattern>
-    ) -> Result<(), Error> {
-
+    pub fn restore(&mut self, path: &Path, match_pattern: &Vec<MatchPattern>) -> Result<(), Error> {
         let _ = std::fs::create_dir(path);
 
-        let dir = nix::dir::Dir::open(path, nix::fcntl::OFlag::O_DIRECTORY,  nix::sys::stat::Mode::empty())
-            .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
+        let dir = nix::dir::Dir::open(
+            path,
+            nix::fcntl::OFlag::O_DIRECTORY,
+            nix::sys::stat::Mode::empty(),
+        )
+        .map_err(|err| format_err!("unable to open target directory {:?} - {}", path, err))?;
         let fd = dir.as_raw_fd();
         let mut dirs = PxarDirStack::new(fd);
         // An empty match pattern list indicates to restore the full archive.
@@ -695,7 +749,8 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
         let entry: PxarEntry = self.read_item()?;
 
-        let (mut head, attr) = self.read_attributes()
+        let (mut head, attr) = self
+            .read_attributes()
             .map_err(|err| format_err!("Reading of directory attributes failed - {}", err))?;
 
         while head.htype == PXAR_FILENAME {
@@ -705,10 +760,15 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         }
 
         if head.htype != PXAR_GOODBYE {
-            bail!("got unknown header type inside directory entry {:016x}", head.htype);
+            bail!(
+                "got unknown header type inside directory entry {:016x}",
+                head.htype
+            );
         }
 
-        if head.size < HEADER_SIZE { bail!("detected short goodbye table"); }
+        if head.size < HEADER_SIZE {
+            bail!("detected short goodbye table");
+        }
         self.skip_bytes((head.size - HEADER_SIZE) as usize)?;
 
         self.restore_ugid(&entry, fd)?;
@@ -751,13 +811,17 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         // there are no match pattern.
         let mut matched = parent_matched;
         if match_pattern.len() > 0 {
-            match match_filename(filename, entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR, match_pattern)? {
+            match match_filename(
+                filename,
+                entry.mode as u32 & libc::S_IFMT == libc::S_IFDIR,
+                match_pattern,
+            )? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
                 (match_type, pattern) => {
                     matched = match_type;
                     child_pattern = pattern;
-                },
+                }
             }
         }
 
@@ -772,7 +836,9 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         }
 
         match entry.mode as u32 & libc::S_IFMT {
-            libc::S_IFDIR => self.restore_dir(base_path, dirs, entry, &filename, matched, &child_pattern),
+            libc::S_IFDIR => {
+                self.restore_dir(base_path, dirs, entry, &filename, matched, &child_pattern)
+            }
             libc::S_IFLNK => self.restore_symlink(fd, &full_path, &entry, &filename),
             libc::S_IFSOCK => self.restore_socket(fd, &entry, &filename),
             libc::S_IFIFO => self.restore_fifo(fd, &entry, &filename),
@@ -792,7 +858,6 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         verbose: bool,
         output: &mut W,
     ) -> Result<(), Error> {
-
         let print_head = |head: &PxarHeader| {
             println!("Type: {:016x}", head.htype);
             println!("Size: {}", head.size);
@@ -818,13 +883,16 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         let entry: PxarEntry = self.read_item()?;
 
         if verbose {
-            println!("Mode: {:08x} {:08x}", entry.mode, (entry.mode as u32) & libc::S_IFDIR);
+            println!(
+                "Mode: {:08x} {:08x}",
+                entry.mode,
+                (entry.mode as u32) & libc::S_IFDIR
+            );
         }
 
         let ifmt = (entry.mode as u32) & libc::S_IFMT;
 
         if ifmt == libc::S_IFDIR {
-
             let mut entry_count = 0;
 
             loop {
@@ -842,14 +910,16 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                 }
 
                 match head.htype {
-                    PXAR_FILENAME =>  {
+                    PXAR_FILENAME => {
                         let name = self.read_filename(head.size)?;
-                        if verbose { println!("Name: {:?}", name); }
+                        if verbose {
+                            println!("Name: {:?}", name);
+                        }
                         entry_count += 1;
                         path.push(&name);
                         self.dump_entry(path, verbose, output)?;
                         path.pop();
-                    },
+                    }
                     PXAR_GOODBYE => {
                         let table_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
@@ -859,12 +929,14 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                             self.skip_bytes(table_size)?;
                         }
                         break;
-                    },
+                    }
                     _ => panic!("got unexpected header type inside directory"),
                 }
             }
-        } else if (ifmt == libc::S_IFBLK) || (ifmt == libc::S_IFCHR) ||
-            (ifmt == libc::S_IFLNK) || (ifmt == libc::S_IFREG)
+        } else if (ifmt == libc::S_IFBLK)
+            || (ifmt == libc::S_IFCHR)
+            || (ifmt == libc::S_IFLNK)
+            || (ifmt == libc::S_IFREG)
         {
             loop {
                 let head: PxarHeader = self.read_item()?;
@@ -887,14 +959,14 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                             println!("Symlink: {:?}", target);
                         }
                         break;
-                    },
+                    }
                     PXAR_DEVICE => {
                         let device: PxarDevice = self.read_item()?;
                         if verbose {
                             println!("Device: {}, {}", device.major, device.minor);
                         }
                         break;
-                    },
+                    }
                     PXAR_PAYLOAD => {
                         let payload_size = (head.size - HEADER_SIZE) as usize;
                         if verbose {
@@ -929,71 +1001,70 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                 if verbose && self.has_features(flags::WITH_XATTRS) {
                     println!("XAttr: {:?}", xattr);
                 }
-            },
+            }
             PXAR_FCAPS => {
                 let fcaps = self.read_fcaps((header.size - HEADER_SIZE) as usize)?;
                 if verbose && self.has_features(flags::WITH_FCAPS) {
                     println!("FCaps: {:?}", fcaps);
                 }
-            },
+            }
             PXAR_ACL_USER => {
                 let user = self.read_item::<PxarACLUser>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLUser: {:?}", user);
                 }
-            },
+            }
             PXAR_ACL_GROUP => {
                 let group = self.read_item::<PxarACLGroup>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroup: {:?}", group);
                 }
-            },
+            }
             PXAR_ACL_GROUP_OBJ => {
                 let group_obj = self.read_item::<PxarACLGroupObj>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLGroupObj: {:?}", group_obj);
                 }
-            },
+            }
             PXAR_ACL_DEFAULT => {
                 let default = self.read_item::<PxarACLDefault>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefault: {:?}", default);
                 }
-            },
+            }
             PXAR_ACL_DEFAULT_USER => {
                 let default_user = self.read_item::<PxarACLUser>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultUser: {:?}", default_user);
                 }
-            },
+            }
             PXAR_ACL_DEFAULT_GROUP => {
                 let default_group = self.read_item::<PxarACLGroup>()?;
                 if verbose && self.has_features(flags::WITH_ACL) {
                     println!("ACLDefaultGroup: {:?}", default_group);
                 }
-            },
+            }
             PXAR_QUOTA_PROJID => {
                 let quota_projid = self.read_item::<PxarQuotaProjID>()?;
                 if verbose && self.has_features(flags::WITH_QUOTA_PROJID) {
                     println!("Quota project id: {:?}", quota_projid);
                 }
-            },
+            }
             _ => return Ok(false),
         }
 
         Ok(true)
     }
 
-    fn dump_goodby_entries(
-        &mut self,
-        entry_count: usize,
-        table_size: usize,
-    ) -> Result<(), Error> {
-
+    fn dump_goodby_entries(&mut self, entry_count: usize, table_size: usize) -> Result<(), Error> {
         const GOODBYE_ITEM_SIZE: usize = std::mem::size_of::<PxarGoodbyeItem>();
 
         if table_size < GOODBYE_ITEM_SIZE {
-            bail!("Goodbye table to small ({} < {})", table_size, GOODBYE_ITEM_SIZE);
+            bail!(
+                "Goodbye table to small ({} < {})",
+                table_size,
+                GOODBYE_ITEM_SIZE
+            );
         }
         if (table_size % GOODBYE_ITEM_SIZE) != 0 {
             bail!("Goodbye table with strange size ({})", table_size);
@@ -1002,7 +1073,11 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         let entries = table_size / GOODBYE_ITEM_SIZE;
 
         if entry_count != (entries - 1) {
-            bail!("Goodbye table with wrong entry count ({} != {})", entry_count, entries - 1);
+            bail!(
+                "Goodbye table with wrong entry count ({} != {})",
+                entry_count,
+                entries - 1
+            );
         }
 
         let mut count = 0;
@@ -1017,7 +1092,10 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
                 println!("Goodby tail mark.");
                 break;
             }
-            println!("Goodby item: offset {}, size {}, hash {:016x}", item.offset, item.size, item.hash);
+            println!(
+                "Goodby item: offset {}, size {}, hash {:016x}",
+                item.offset, item.size, item.hash
+            );
             if count >= entries {
                 bail!("too many goodbye items (no tail marker)");
             }
@@ -1030,7 +1108,7 @@ impl <R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 fn match_filename(
     filename: &OsStr,
     is_dir: bool,
-    match_pattern: &Vec<MatchPattern>
+    match_pattern: &Vec<MatchPattern>,
 ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
@@ -1039,36 +1117,39 @@ fn match_filename(
 
     for pattern in match_pattern {
         match pattern.matches_filename(&name, is_dir)? {
-            MatchType::None =>  {},
+            MatchType::None => {}
             MatchType::Positive => {
                 match_state = MatchType::Positive;
                 let incl_pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
                 child_pattern.push(incl_pattern.get_rest_pattern());
-            },
-            MatchType::Negative =>  match_state = MatchType::Negative,
-            MatchType::PartialPositive =>  {
+            }
+            MatchType::Negative => match_state = MatchType::Negative,
+            MatchType::PartialPositive => {
                 if match_state != MatchType::Negative && match_state != MatchType::Positive {
                     match_state = MatchType::PartialPositive;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
-            },
-            MatchType::PartialNegative =>  {
+            }
+            MatchType::PartialNegative => {
                 if match_state == MatchType::PartialPositive {
                     match_state = MatchType::PartialNegative;
                 }
                 child_pattern.push(pattern.get_rest_pattern());
-            },
+            }
         }
     }
 
     Ok((match_state, child_pattern))
 }
 
-fn file_openat(parent: RawFd, filename: &OsStr, flags: OFlag, mode: Mode) -> Result<std::fs::File, Error> {
-
-    let fd = filename.with_nix_path(|cstr| {
-        nix::fcntl::openat(parent, cstr.as_ref(), flags, mode)
-    })??;
+fn file_openat(
+    parent: RawFd,
+    filename: &OsStr,
+    flags: OFlag,
+    mode: Mode,
+) -> Result<std::fs::File, Error> {
+    let fd =
+        filename.with_nix_path(|cstr| nix::fcntl::openat(parent, cstr.as_ref(), flags, mode))??;
 
     let file = unsafe { std::fs::File::from_raw_fd(fd) };
 
@@ -1086,7 +1167,6 @@ fn hardlink(oldpath: &Path, newpath: &Path) -> Result<(), Error> {
 }
 
 fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error> {
-
     target.with_nix_path(|target| {
         linkname.with_nix_path(|linkname| {
             let res = unsafe { libc::symlinkat(target.as_ptr(), parent, linkname.as_ptr()) };
@@ -1097,7 +1177,6 @@ fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error
 }
 
 fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
-
     // restore mtime
     const UTIME_OMIT: i64 = ((1 << 30) - 2);
     const NANOS_PER_SEC: i64 = 1_000_000_000;
@@ -1106,8 +1185,14 @@ fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
     let nsec = (mtime_nsec as i64) % NANOS_PER_SEC;
 
     let times: [libc::timespec; 2] = [
-        libc::timespec { tv_sec: 0, tv_nsec: UTIME_OMIT },
-        libc::timespec { tv_sec: sec, tv_nsec: nsec },
+        libc::timespec {
+            tv_sec: 0,
+            tv_nsec: UTIME_OMIT,
+        },
+        libc::timespec {
+            tv_sec: sec,
+            tv_nsec: nsec,
+        },
     ];
 
     times
