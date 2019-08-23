@@ -3,9 +3,9 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 use futures::*;
-use futures::stream::Stream;
 
-use tokio_signal::unix::{Signal, SIGHUP, SIGINT};
+// FIXME: with the next bump `Signal::new` becomes a freestanding function `signal()`
+use tokio_net::signal::unix::{Signal, SignalKind};
 
 use crate::tools::{self, BroadcastData};
 
@@ -36,33 +36,33 @@ lazy_static! {
 
 pub fn server_state_init() -> Result<(), Error> {
 
-    let stream = Signal::new(SIGINT).flatten_stream();
+    let stream = Signal::new(SignalKind::interrupt())?;
 
     let future = stream.for_each(|_| {
         println!("got shutdown request (SIGINT)");
         SERVER_STATE.lock().unwrap().reload_request = false;
         tools::request_shutdown();
-        Ok(())
-    }).map_err(|_| {});
+        futures::future::ready(())
+    });
 
     let abort_future = last_worker_future().map_err(|_| {});
-    let task = future.select(abort_future);
+    let task = futures::future::select(future, abort_future);
 
-    tokio::spawn(task.map(|_| {}).map_err(|_| {}));
+    tokio::spawn(task.map(|_| ()));
 
-    let stream = Signal::new(SIGHUP).flatten_stream();
+    let stream = Signal::new(SignalKind::hangup())?;
 
     let future = stream.for_each(|_| {
         println!("got reload request (SIGHUP)");
         SERVER_STATE.lock().unwrap().reload_request = true;
         tools::request_shutdown();
-        Ok(())
-    }).map_err(|_| {});
+        futures::future::ready(())
+    });
 
     let abort_future = last_worker_future().map_err(|_| {});
-    let task = future.select(abort_future);
+    let task = futures::future::select(future, abort_future);
 
-    tokio::spawn(task.map(|_| {}).map_err(|_| {}));
+    tokio::spawn(task.map(|_| ()));
 
     Ok(())
 }
@@ -91,13 +91,15 @@ pub fn server_shutdown() {
     check_last_worker();
 }
 
-pub fn shutdown_future() -> impl Future<Item=(), Error=Error> {
+pub fn shutdown_future() -> impl Future<Output = ()> {
     let mut data = SERVER_STATE.lock().unwrap();
-    data.shutdown_listeners.listen()
+    data
+        .shutdown_listeners
+        .listen()
+        .map(|_| ())
 }
 
-pub fn last_worker_future() ->  impl Future<Item=(), Error=Error> {
-
+pub fn last_worker_future() ->  impl Future<Output = Result<(), Error>> {
     let mut data = SERVER_STATE.lock().unwrap();
     data.last_worker_listeners.listen()
 }
