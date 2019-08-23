@@ -9,46 +9,47 @@ name = "proxmox_backup"
 path = "src/lib.rs"
 
 [dependencies]
-proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1" }
-log = "0.4"
-syslog = "4.0"
+base64 = "0.10"
+bytes = "0.4"
+chrono = "0.4" # Date and time library for Rust
+crc32fast = "1"
+endian_trait = { version = "0.6", features = ["arrays"] }
 failure = "0.1"
+futures-preview = "0.3.0-alpha"
+h2 = { version = "0.2.0-alpha", git = "https://github.com/hyperium/h2", features = ["stream"] }
+http = "0.1"
+hyper = { version = "0.13.0-a.0", git = "https://github.com/hyperium/hyper" }
+hyper-openssl = { version = "0.7", path = "hyper-openssl" }
+lazy_static = "1.3"
+libc = "0.2"
+log = "0.4"
+md5 = "0.6"
+mio = "0.6"
+native-tls = "0.2"
+nix = "0.15"
+openssl = "0.10"
+pam = "0.7"
+pam-sys = "0.5"
+pin-utils = "0.1.0-alpha"
+proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1" }
+regex = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-url = "1.7"
-futures = "0.1"
-bytes = "0.4"
-tokio-threadpool = "0.1"
-tokio = "0.1"
-tokio-fs = "0.1"
-tokio-openssl = "0.3"
-tokio-signal = "0.2"
-native-tls = "0.2"
-http = "0.1"
-h2 = "0.1"
-hyper = "0.12"
-hyper-openssl = "0.7"
-lazy_static = "1.1"
-regex = "1.0"
-libc = "0.2"
-nix = "0.15"
 shellwords = "1.0"
-uuid = { version = "0.7", features = ["v4"] }
-chrono = "0.4" # Date and time library for Rust
-openssl = "0.10"
 siphasher = "0.3"
-endian_trait = { version = "0.6", features = ["arrays"] }
-walkdir = "2"
-md5 = "0.6"
-base64 = "0.10"
-pam-sys = "0.5"
-pam = "0.7"
-zstd = "0.4"
-xdg = "2.2"
-mio = "0.6"
-valgrind_request = { version = "1.1", optional = true }
+syslog = "4.0"
 textwrap = "0.11"
-crc32fast = "1"
+tokio = { version = "0.2.0-alpha.2" }
+tokio-executor = { version = "0.2.0-alpha.2" }
+tokio-net = { version = "0.2.0-alpha.2", features = ["signal"] }
+tokio-openssl = "0.4.0-alpha.2"
+tower-service = "0.3.0-alpha.1"
+url = "1.7"
+uuid = { version = "0.7", features = ["v4"] }
+valgrind_request = { version = "1.1", optional = true }
+walkdir = "2"
+xdg = "2.2"
+zstd = "0.4"
 
 [features]
 default = []
