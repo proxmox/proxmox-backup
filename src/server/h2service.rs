@@ -2,6 +2,7 @@ use failure::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
@@ -83,19 +84,23 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
     }
 }
 
-impl <E: RpcEnvironment + Clone> hyper::service::Service for H2Service<E> {
-    type ReqBody = Body;
-    type ResBody = Body;
+impl <E: RpcEnvironment + Clone> tower_service::Service<Request<Body>> for H2Service<E> {
+    type Response = Response<Body>;
     type Error = Error;
-    type Future = Box<dyn Future<Item = Response<Body>, Error = Self::Error> + Send>;
+    type Future =
+        std::pin::Pin<Box<dyn Future<Output = Result<Response<Body>, Self::Error>> + Send>>;
 
-    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+    fn poll_ready(&mut self, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request<Body>) -> Self::Future {
         let path = req.uri().path().to_owned();
         let method = req.method().clone();
         let worker = self.worker.clone();
 
-        Box::new(self.handle_request(req).then(move |result| {
-            match result {
+        std::pin::Pin::from(self.handle_request(req))
+            .map(move |result| match result {
                 Ok(res) => {
                     Self::log_response(worker, method, &path, &res);
                     Ok::<_, Error>(res)
@@ -115,7 +120,7 @@ impl <E: RpcEnvironment + Clone> hyper::service::Service for H2Service<E> {
                         Ok(resp)
                     }
                 }
-            }
-        }))
+            })
+            .boxed()
     }
 }
