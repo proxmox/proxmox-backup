@@ -189,7 +189,7 @@ impl Reloadable for tokio::net::TcpListener {
         fd_change_cloexec(fd, true)?;
         Ok(Self::from_std(
             unsafe { std::net::TcpListener::from_raw_fd(fd) },
-            &tokio::reactor::Handle::default(),
+            &tokio_net::driver::Handle::default(),
         )?)
     }
 }
@@ -203,10 +203,10 @@ impl Reloadable for tokio::net::TcpListener {
 pub fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
-) -> Result<impl Future<Item = (), Error = ()>, Error>
+) -> Result<impl Future<Output = ()>, Error>
 where
     F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
-    S: Future<Item = (), Error = ()>,
+    S: Future<Output = ()>,
 {
     let mut reloader = Reloader::new();
 
@@ -235,7 +235,6 @@ where
                log::info!("daemon shutting down...");
            }
        })
-       .map_err(|_| ())
     )
 }
 
