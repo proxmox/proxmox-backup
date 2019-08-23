@@ -1,3 +1,6 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use failure::*;
 use futures::*;
 
@@ -19,7 +22,7 @@ pub struct MergeKnownChunksQueue<S> {
 
 impl<S> MergeKnownChunks for S
 where
-    S: Stream<Item = MergedChunkInfo, Error = Error>,
+    S: Stream<Item = Result<MergedChunkInfo, Error>>,
 {
     fn merge_known_chunks(self) -> MergeKnownChunksQueue<Self> {
         MergeKnownChunksQueue {
@@ -31,60 +34,56 @@ where
 
 impl<S> Stream for MergeKnownChunksQueue<S>
 where
-    S: Stream<Item = MergedChunkInfo, Error = Error>,
+    S: Stream<Item = Result<MergedChunkInfo, Error>>,
 {
-    type Item = MergedChunkInfo;
-    type Error = Error;
+    type Item = Result<MergedChunkInfo, Error>;
 
-    fn poll(&mut self) -> Poll<Option<MergedChunkInfo>, Error> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        let this = unsafe { self.get_unchecked_mut() };
+
         loop {
-            match self.input.poll() {
-                Err(err) => {
-                    return Err(err);
-                }
-                Ok(Async::NotReady) => {
-                    return Ok(Async::NotReady);
-                }
-                Ok(Async::Ready(None)) => {
-                    if let Some(last) = self.buffer.take() {
-                        return Ok(Async::Ready(Some(last)));
+            match ready!(unsafe { Pin::new_unchecked(&mut this.input) }.poll_next(cx)) {
+                Some(Err(err)) => return Poll::Ready(Some(Err(err))),
+                None => {
+                    if let Some(last) = this.buffer.take() {
+                        return Poll::Ready(Some(Ok(last)));
                     } else {
-                        return Ok(Async::Ready(None));
+                        return Poll::Ready(None);
                     }
                 }
-                Ok(Async::Ready(Some(mergerd_chunk_info))) => {
+                Some(Ok(mergerd_chunk_info)) => {
                     match mergerd_chunk_info {
                         MergedChunkInfo::Known(list) => {
-                            let last = self.buffer.take();
+                            let last = this.buffer.take();
 
                             match last {
                                 None => {
-                                    self.buffer = Some(MergedChunkInfo::Known(list));
+                                    this.buffer = Some(MergedChunkInfo::Known(list));
                                     // continue
                                 }
                                 Some(MergedChunkInfo::Known(mut last_list)) => {
                                     last_list.extend_from_slice(&list);
                                     let len = last_list.len();
-                                    self.buffer = Some(MergedChunkInfo::Known(last_list));
+                                    this.buffer = Some(MergedChunkInfo::Known(last_list));
 
                                     if len >= 64 {
-                                        return Ok(Async::Ready(self.buffer.take()));
+                                        return Poll::Ready(this.buffer.take().map(Ok));
                                     }
                                     // continue
                                 }
                                 Some(MergedChunkInfo::New(_)) => {
-                                    self.buffer = Some(MergedChunkInfo::Known(list));
-                                    return Ok(Async::Ready(last));
+                                    this.buffer = Some(MergedChunkInfo::Known(list));
+                                    return Poll::Ready(last.map(Ok));
                                 }
                             }
                         }
                         MergedChunkInfo::New(chunk_info) => {
                             let new = MergedChunkInfo::New(chunk_info);
-                            if let Some(last) = self.buffer.take() {
-                                self.buffer = Some(new);
-                                return Ok(Async::Ready(Some(last)));
+                            if let Some(last) = this.buffer.take() {
+                                this.buffer = Some(new);
+                                return Poll::Ready(Some(Ok(last)));
                             } else {
-                                return Ok(Async::Ready(Some(new)));
+                                return Poll::Ready(Some(Ok(new)));
                             }
                         }
                     }
