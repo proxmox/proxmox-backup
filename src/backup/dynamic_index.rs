@@ -27,9 +27,14 @@ pub struct DynamicIndexHeader {
     pub ctime: u64,
     /// Sha256 over the index ``SHA256(offset1||digest1||offset2||digest2||...)``
     pub index_csum: [u8; 32],
-    reserved: [u8; 4030], // overall size is one page (4096 bytes)
+    reserved: [u8; 4032], // overall size is one page (4096 bytes)
 }
-
+proxmox::tools::static_assert_size!(DynamicIndexHeader, 4096);
+// TODO: Once non-Copy unions are stabilized, use:
+// union DynamicIndexHeader {
+//     reserved: [u8; 4096],
+//     pub data: DynamicIndexHeaderData,
+// }
 
 pub struct DynamicIndexReader {
     _file: File,
@@ -73,9 +78,6 @@ impl DynamicIndexReader {
         file.seek(SeekFrom::Start(0))?;
 
         let header_size = std::mem::size_of::<DynamicIndexHeader>();
-
-        // todo: use static assertion when available in rust
-        if header_size != 4096 { bail!("got unexpected header size"); }
 
         let buffer = file.read_exact_allocated(header_size)?;
 
