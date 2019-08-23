@@ -1,50 +1,46 @@
-use std::marker::PhantomData;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use failure::{bail, Error};
-use futures::{Async, Poll};
-use futures::future::Future;
-use tokio::sync::lock::Lock as TokioLock;
-pub use tokio::sync::lock::LockGuard as AsyncLockGuard;
+use failure::Error;
+use futures::future::FutureExt;
+use tokio::sync::Lock as TokioLock;
 
-pub struct AsyncMutex<T>(TokioLock<T>);
+pub use tokio::sync::LockGuard as AsyncLockGuard;
 
-unsafe impl<T> Sync for AsyncMutex<T> {}
+pub struct AsyncMutex<T: Send>(TokioLock<T>);
 
-impl<T> AsyncMutex<T> {
+unsafe impl<T: Send> Sync for AsyncMutex<T> {}
+
+impl<T: Send + 'static> AsyncMutex<T> {
     pub fn new(value: T) -> Self {
         Self(TokioLock::new(value))
     }
 
-    // <E> to allow any error type (we never error, so we have no error type of our own)
-    pub fn lock<E>(&self) -> LockFuture<T, E> {
+    pub fn lock(&self) -> LockFuture<T> {
+        let mut lock = self.0.clone();
         LockFuture {
-            lock: self.0.clone(),
-            _error: PhantomData,
+            lock: async move { lock.lock().await }.boxed(),
         }
     }
 
+    // FIXME: remove Result<> from this.
     pub fn new_locked(value: T) -> Result<(Self, AsyncLockGuard<T>), Error> {
         let mut this = Self::new(value);
-        let guard = match this.0.poll_lock() {
-            Async::Ready(guard) => guard,
-            _ => bail!("failed to create locked mutex"),
-        };
+        let guard = futures::executor::block_on(this.0.lock());
         Ok((this, guard))
     }
 }
 
 /// Represents a lock to be held in the future:
-pub struct LockFuture<T, E> {
-    lock: TokioLock<T>,
-    // We can't error and we don't want to enforce a specific error type either
-    _error: PhantomData<E>,
+pub struct LockFuture<T: Send + 'static> {
+    lock: Pin<Box<dyn Future<Output = AsyncLockGuard<T>> + Send + 'static>>,
 }
 
-impl<T, E> Future for LockFuture<T, E> {
-    type Item = AsyncLockGuard<T>;
-    type Error = E;
+impl<T: Send + 'static> Future for LockFuture<T> {
+    type Output = AsyncLockGuard<T>;
 
-    fn poll(&mut self) -> Poll<AsyncLockGuard<T>, E> {
-        Ok(self.lock.poll_lock())
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<AsyncLockGuard<T>> {
+        self.lock.poll_unpin(cx)
     }
 }
