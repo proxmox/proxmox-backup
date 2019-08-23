@@ -423,7 +423,7 @@ impl DynamicIndexWriter {
 
         let uuid = Uuid::new_v4();
 
-        let mut buffer = vec::undefined(header_size);
+        let mut buffer = vec::zeroed(header_size);
         let header = crate::tools::map_struct_mut::<DynamicIndexHeader>(&mut buffer)?;
 
         header.magic = super::DYNAMIC_SIZED_CHUNK_INDEX_1_0;
