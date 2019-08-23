@@ -20,9 +20,7 @@ pub mod backup;
 pub mod config;
 
 pub mod storage {
-
     pub mod config;
-    pub mod futures;
 }
 
 pub mod cli;
