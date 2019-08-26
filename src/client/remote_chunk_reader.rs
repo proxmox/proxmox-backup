@@ -1,7 +1,7 @@
-use failure::*;
-use futures::future::Future;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use failure::*;
 
 use super::BackupReader;
 use crate::backup::{ReadChunk, DataChunk, CryptConfig};
@@ -41,7 +41,7 @@ impl ReadChunk for RemoteChunkReader {
 
         let use_cache = self.cache_hint.contains_key(digest);
 
-        let chunk_data = self.client.download_chunk(&digest, writer).wait()?;
+        let chunk_data = futures::executor::block_on(self.client.download_chunk(&digest, writer))?;
 
         let chunk = DataChunk::from_raw(chunk_data, *digest)?;
         chunk.verify_crc()?;
