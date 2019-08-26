@@ -12,7 +12,7 @@ use hyper::http::request::Parts;
 
 use super::api_handler::*;
 
-pub type BoxFut = Box<dyn Future<Item = Response<Body>, Error = failure::Error> + Send>;
+pub type BoxFut = Box<dyn Future<Output = Result<Response<Body>, failure::Error>> + Send>;
 
 /// Abstract Interface for API methods to interact with the environment
 pub trait RpcEnvironment: std::any::Any + crate::tools::AsAny + Send {
