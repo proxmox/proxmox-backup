@@ -96,17 +96,14 @@ pub fn create_task_control_socket() -> Result<(), Error> {
 }
 
 pub fn abort_worker_async(upid: UPID) {
-    let task = abort_worker(upid);
-
-    tokio::spawn(task.then(|res| {
-        if let Err(err) = res {
+    tokio::spawn(async move {
+        if let Err(err) = abort_worker(upid).await {
             eprintln!("abort worker failed - {}", err);
         }
-        Ok(())
-    }));
+    });
 }
 
-pub fn abort_worker(upid: UPID) -> impl Future<Item=(), Error=Error> {
+pub fn abort_worker(upid: UPID) -> impl Future<Output = Result<(), Error>> {
 
     let target_pid = upid.pid;
 
@@ -118,7 +115,7 @@ pub fn abort_worker(upid: UPID) -> impl Future<Item=(), Error=Error> {
         "upid": upid.to_string(),
     });
 
-    super::send_command(socketname, cmd).map(|_| {})
+    super::send_command(socketname, cmd).map_ok(|_| ())
 }
 
 fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<(i64, String)>), Error> {
@@ -411,15 +408,15 @@ impl WorkerTask {
         f: F,
     ) -> Result<String, Error>
         where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> T,
-              T: Send + 'static + Future<Item=(), Error=Error>,
+              T: Send + 'static + Future<Output = Result<(), Error>>,
     {
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
         let upid_str = worker.upid.to_string();
-
-        tokio::spawn(f(worker.clone()).then(move |result| {
+        let f = f(worker.clone());
+        tokio::spawn(async move {
+            let result = f.await;
             worker.log_result(&result);
-            Ok(())
-        }));
+        });
 
         Ok(upid_str)
     }
@@ -461,7 +458,7 @@ impl WorkerTask {
             p.send(()).unwrap();
         });
 
-        tokio::spawn(c.then(|_| Ok(())));
+        tokio::spawn(c.map(|_| ()));
 
         Ok(upid_str)
     }
