@@ -485,12 +485,12 @@ fn download_file(
     let response_future = tokio::fs::File::open(path)
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
         .and_then(move |file| {
-            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new()).
-                map(|bytes| hyper::Chunk::from(bytes.freeze()));
+            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+                .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
             let body = Body::wrap_stream(payload);
 
             // fixme: set other headers ?
-            Ok(Response::builder()
+            futures::future::ok(Response::builder()
                .status(StatusCode::OK)
                .header(header::CONTENT_TYPE, "application/octet-stream")
                .body(body)
@@ -545,11 +545,11 @@ fn upload_backup_log(
 
     let resp = req_body
         .map_err(Error::from)
-         .fold(Vec::new(), |mut acc, chunk| {
+        .try_fold(Vec::new(), |mut acc, chunk| {
             acc.extend_from_slice(&*chunk);
-            Ok::<_, Error>(acc)
+            future::ok::<_, Error>(acc)
         })
-        .and_then(move |data| {
+        .and_then(move |data| async move {
             let blob = DataBlob::from_raw(data)?;
             // always verify CRC at server side
             blob.verify_crc()?;
@@ -558,7 +558,7 @@ fn upload_backup_log(
             Ok(())
         })
         .and_then(move |_| {
-            Ok(crate::server::formatter::json_response(Ok(Value::Null)))
+            future::ok(crate::server::formatter::json_response(Ok(Value::Null)))
         })
         ;
 
