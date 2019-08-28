@@ -1,3 +1,9 @@
+use failure::*;
+use futures::*;
+use lazy_static::lazy_static;
+
+use proxmox::tools::try_block;
+
 //use proxmox_backup::tools;
 use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
@@ -7,24 +13,15 @@ use proxmox_backup::tools::daemon;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 
-use failure::*;
-use lazy_static::lazy_static;
-use proxmox::tools::try_block;
-
-use futures::*;
-use futures::future::Future;
-
-use hyper;
-
-fn main() {
-
-    if let Err(err) = run() {
+#[tokio::main]
+async fn main() {
+    if let Err(err) = run().await {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }
 }
 
-fn run() -> Result<(), Error> {
+async fn run() -> Result<(), Error> {
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
         log::LevelFilter::Info,
@@ -58,36 +55,34 @@ fn run() -> Result<(), Error> {
     // http server future:
     let server = daemon::create_daemon(
         ([127,0,0,1], 82).into(),
-        |listener| {
+        move |listener| {
             Ok(hyper::Server::builder(listener.incoming())
                .serve(rest_server)
                .with_graceful_shutdown(server::shutdown_future())
-               .map_err(|e| eprintln!("server error: {}", e))
+               .map(|e| {
+                   if let Err(e) = e {
+                       eprintln!("server error: {}", e);
+                   }
+               })
             )
         },
     )?;
 
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-    tokio::run(lazy(||  {
-
-        let init_result: Result<(), Error> = try_block!({
-            server::create_task_control_socket()?;
-            server::server_state_init()?;
-            Ok(())
-        });
-
-        if let Err(err) = init_result {
-            eprintln!("unable to start daemon - {}", err);
-        } else {
-            tokio::spawn(server.then(|_| {
-                log::info!("done - exit server");
-                Ok(())
-            }));
-        }
-
+    let init_result: Result<(), Error> = try_block!({
+        server::create_task_control_socket()?;
+        server::server_state_init()?;
         Ok(())
-    }));
+    });
+
+    if let Err(err) = init_result {
+        bail!("unable to start daemon - {}", err);
+    }
+
+    server.await;
+
+    log::info!("done - exit server");
 
     Ok(())
 }
