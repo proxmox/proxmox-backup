@@ -7,7 +7,7 @@ use futures::*;
 /// Trait to get digest list from index files
 ///
 /// To allow easy iteration over all used chunks.
-pub trait IndexFile: Send {
+pub trait IndexFile {
     fn index_count(&self) -> usize;
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
     fn index_bytes(&self) -> u64;
@@ -49,14 +49,14 @@ pub trait IndexFile: Send {
 ///
 /// The reader simply returns a birary stream of 32 byte digest values.
 pub struct DigestListEncoder {
-    index: Box<dyn IndexFile>,
+    index: Box<dyn IndexFile + Send + Sync>,
     pos: usize,
     count: usize,
 }
 
 impl DigestListEncoder {
 
-    pub fn new(index: Box<dyn IndexFile>) -> Self {
+    pub fn new(index: Box<dyn IndexFile + Send + Sync>) -> Self {
         let count = index.index_count();
         Self { index, pos: 0, count }
     }

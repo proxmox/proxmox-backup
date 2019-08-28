@@ -45,6 +45,7 @@ pub struct FixedIndexReader {
 
 // `index` is mmap()ed which cannot be thread-local so should be sendable
 unsafe impl Send for FixedIndexReader {}
+unsafe impl Sync for FixedIndexReader {}
 
 impl Drop for FixedIndexReader {
 
