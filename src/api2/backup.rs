@@ -106,7 +106,7 @@ fn upgrade_to_backup_protocol(
         let env2 = env.clone();
         let env3 = env.clone();
 
-        req_body
+        let req_fut = req_body
             .on_upgrade()
             .map_err(Error::from)
             .and_then(move |conn| {
@@ -121,15 +121,24 @@ fn upgrade_to_backup_protocol(
 
                 http.serve_connection(conn, service)
                     .map_err(Error::from)
-             })
-            .select(abort_future.map_err(|_| {}).then(move |_| { bail!("task aborted"); }))
-            .map_err(|(err, _)| err)
-            .and_then(move |(_result, _)| {
+            });
+        let abort_future = abort_future
+            .map(|_| Err(format_err!("task aborted")));
+
+        use futures::future::Either;
+        future::select(req_fut, abort_future)
+            .map(|res| match res {
+                Either::Left((Ok(res), _)) => Ok(res),
+                Either::Left((Err(err), _)) => Err(err),
+                Either::Right((Ok(res), _)) => Ok(res),
+                Either::Right((Err(err), _)) => Err(err),
+            })
+            .and_then(move |_result| async move {
                 env.ensure_finished()?;
                 env.log("backup finished sucessfully");
                 Ok(())
             })
-            .then(move |result| {
+            .then(move |result| async move {
                 if let Err(err) = result {
                     match env2.ensure_finished() {
                         Ok(()) => {}, // ignore error after finish
