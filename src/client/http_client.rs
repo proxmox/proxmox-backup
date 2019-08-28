@@ -101,44 +101,24 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
 }
 
 fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
-    let base = match BaseDirectories::with_prefix("proxmox-backup") {
-        Ok(b) => b,
-        _ => return None,
-    };
+    let base = BaseDirectories::with_prefix("proxmox-backup").ok()?;
 
     // usually /run/user/<uid>/...
-    let path = match base.place_runtime_file("tickets") {
-        Ok(p) => p,
-        _ => return None,
-    };
-
-    let data = match file_get_json(&path, None) {
-        Ok(v) => v,
-        _ => return None,
-    };
-
+    let path = base.place_runtime_file("tickets").ok()?;
+    let data = file_get_json(&path, None).ok()?;
     let now = Utc::now().timestamp();
-
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
+    let uinfo = data[server][username].as_object()?;
+    let timestamp = uinfo["timestamp"].as_i64()?;
+    let age = now - timestamp;
 
-    if let Some(uinfo) = data[server][username].as_object() {
-        if let Some(timestamp) = uinfo["timestamp"].as_i64() {
-            let age = now - timestamp;
-            if age < ticket_lifetime {
-                let ticket = match uinfo["ticket"].as_str() {
-                    Some(t) => t,
-                    None => return None,
-                };
-                let token = match uinfo["token"].as_str() {
-                    Some(t) => t,
-                    None => return None,
-                };
-                return Some((ticket.to_owned(), token.to_owned()));
-            }
-        }
+    if age < ticket_lifetime {
+        let ticket = uinfo["ticket"].as_str()?;
+        let token = uinfo["token"].as_str()?;
+        Some((ticket.to_owned(), token.to_owned()))
+    } else {
+        None
     }
-
-    None
 }
 
 impl HttpClient {
