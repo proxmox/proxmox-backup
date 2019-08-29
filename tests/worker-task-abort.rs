@@ -6,8 +6,6 @@ extern crate proxmox_backup;
 extern crate tokio;
 extern crate nix;
 
-use tokio::prelude::future::lazy;
-
 use proxmox::tools::try_block;
 
 use proxmox_backup::server;
@@ -41,7 +39,8 @@ fn worker_task_abort() -> Result<(), Error> {
     let errmsg: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let errmsg1 = errmsg.clone();
 
-    tokio::run(lazy(move ||  {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async move {
 
         let init_result: Result<(), Error> = try_block!({
             server::create_task_control_socket()?;
@@ -51,7 +50,7 @@ fn worker_task_abort() -> Result<(), Error> {
 
         if let Err(err) = init_result {
             eprintln!("unable to start daemon - {}", err);
-            return Ok(());
+            return;
         }
 
         let errmsg = errmsg1.clone();
@@ -80,10 +79,8 @@ fn worker_task_abort() -> Result<(), Error> {
                 server::abort_worker_async(wid.parse::<server::UPID>().unwrap());
             }
         }
-
-        Ok(())
-    }));
-
+    });
+    rt.shutdown_on_idle();
 
     let data = errmsg.lock().unwrap();
     match *data {
