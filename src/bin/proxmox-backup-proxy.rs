@@ -11,23 +11,21 @@ use proxmox::tools::try_block;
 use lazy_static::lazy_static;
 
 use futures::*;
-use futures::stream::Stream;
 
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use std::sync::Arc;
-use tokio_openssl::SslAcceptorExt;
 
 use hyper;
 
-fn main() {
-
-    if let Err(err) = run() {
+#[tokio::main]
+async fn main() {
+    if let Err(err) = run().await {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }
 }
 
-fn run() -> Result<(), Error> {
+async fn run() -> Result<(), Error> {
     if let Err(err) = syslog::init(
         syslog::Facility::LOG_DAEMON,
         log::LevelFilter::Info,
@@ -77,61 +75,41 @@ fn run() -> Result<(), Error> {
             let connections = listener
                 .incoming()
                 .map_err(Error::from)
-                .and_then(move |sock| {
-                    sock.set_nodelay(true).unwrap();
-                    sock.set_send_buffer_size(1024*1024).unwrap();
-                    sock.set_recv_buffer_size(1024*1024).unwrap();
-                    acceptor.accept_async(sock).map_err(|e| e.into())
-                })
-                .then(|r| match r {
-                    // accept()s can fail here with an Err() when eg. the client rejects
-                    // the cert and closes the connection, so we follow up with mapping
-                    // it to an option and then filtering None with filter_map
-                    Ok(c) => Ok::<_, Error>(Some(c)),
-                    Err(e) => {
-                        if let Some(_io) = e.downcast_ref::<std::io::Error>() {
-                            // "real" IO errors should not simply be ignored
-                            bail!("shutting down...");
-                        } else {
-                            // handshake errors just get filtered by filter_map() below:
-                            Ok(None)
-                        }
+                .try_filter_map(move |sock| {
+                    let acceptor = Arc::clone(&acceptor);
+                    async move {
+                        sock.set_nodelay(true).unwrap();
+                        sock.set_send_buffer_size(1024*1024).unwrap();
+                        sock.set_recv_buffer_size(1024*1024).unwrap();
+                        Ok(tokio_openssl::accept(&acceptor, sock)
+                            .await
+                            .ok() // handshake errors aren't be fatal, so return None to filter
+                        )
                     }
-                })
-                .filter_map(|r| {
-                    // Filter out the Nones
-                    r
                 });
-
             Ok(hyper::Server::builder(connections)
                .serve(rest_server)
                .with_graceful_shutdown(server::shutdown_future())
                .map_err(|err| eprintln!("server error: {}", err))
+               .map(|_| ())
             )
         },
     )?;
 
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
-    tokio::run(lazy(||  {
-
-        let init_result: Result<(), Error> = try_block!({
-            server::create_task_control_socket()?;
-            server::server_state_init()?;
-            Ok(())
-        });
-
-        if let Err(err) = init_result {
-            eprintln!("unable to start daemon - {}", err);
-        } else {
-            tokio::spawn(server.then(|_| {
-                log::info!("done - exit server");
-                Ok(())
-            }));
-        }
-
+    let init_result: Result<(), Error> = try_block!({
+        server::create_task_control_socket()?;
+        server::server_state_init()?;
         Ok(())
-    }));
+    });
+
+    if let Err(err) = init_result {
+        bail!("unable to start daemon - {}", err);
+    }
+
+    server.await;
+    log::info!("done - exit server");
 
     Ok(())
 }
