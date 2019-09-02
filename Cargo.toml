@@ -55,4 +55,4 @@ default = []
 valgrind = ["valgrind_request"]
 
 [replace]
-"zstd-sys:1.4.10" = { path = "zstd-sys" }
+"zstd-sys:1.4.13" = { path = "zstd-sys" }

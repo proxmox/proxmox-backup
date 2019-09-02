@@ -1,7 +1,7 @@
 [package]
 edition = "2018"
 name = "zstd-sys"
-version = "1.4.10"
+version = "1.4.13"
 authors = [
     "Wolfgang Bumiller <w.bumiller@proxmox.com>",
 ]
