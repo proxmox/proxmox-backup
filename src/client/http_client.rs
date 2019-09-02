@@ -11,7 +11,7 @@ use http::Uri;
 use http::header::HeaderValue;
 use http::{Request, Response};
 use hyper::Body;
-use hyper::client::Client;
+use hyper::client::{Client, HttpConnector};
 use openssl::ssl::{SslConnector, SslMethod};
 use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
@@ -27,8 +27,9 @@ use proxmox::tools::{
 use super::merge_known_chunks::{MergedChunkInfo, MergeKnownChunks};
 use super::pipe_to_stream::PipeToSendStream;
 use crate::backup::*;
+use crate::tools::async_io::EitherStream;
 use crate::tools::futures::{cancellable, Canceller};
-use crate::tools::{self, BroadcastFuture, tty};
+use crate::tools::{self, tty, BroadcastFuture};
 
 #[derive(Clone)]
 pub struct AuthInfo {
@@ -39,7 +40,7 @@ pub struct AuthInfo {
 
 /// HTTP(S) API client
 pub struct HttpClient {
-    client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+    client: Client<HttpsConnector>,
     server: String,
     auth: BroadcastFuture<AuthInfo>,
 }
@@ -168,18 +169,18 @@ impl HttpClient {
         bail!("no password input mechanism available");
     }
 
-    fn build_client() -> Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
+    fn build_client() -> Client<HttpsConnector> {
 
         let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
         ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE); // fixme!
 
-        let mut httpc = hyper::client::HttpConnector::new(1);
+        let mut httpc = hyper::client::HttpConnector::new();
         httpc.set_nodelay(true); // important for h2 download performance!
         httpc.set_recv_buffer_size(Some(1024*1024)); //important for h2 download performance!
         httpc.enforce_http(false); // we want https...
 
-        let https = hyper_openssl::HttpsConnector::with_connector(httpc,  ssl_connector_builder).unwrap();
+        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
 
         Client::builder()
         //.http2_initial_stream_window_size( (1 << 31) - 2)
@@ -410,7 +411,7 @@ impl HttpClient {
     }
 
     fn credentials(
-        client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+        client: Client<HttpsConnector>,
         server: String,
         username: String,
         password: String,
@@ -452,7 +453,7 @@ impl HttpClient {
     }
 
     fn api_request(
-        client: Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+        client: Client<HttpsConnector>,
         req: Request<Body>
     ) -> impl Future<Output = Result<Value, Error>> {
 
@@ -1290,5 +1291,53 @@ impl H2Client {
 
             Ok(request)
         }
+    }
+}
+
+pub struct HttpsConnector {
+    http: HttpConnector,
+    ssl_connector: SslConnector,
+}
+
+impl HttpsConnector {
+    pub fn with_connector(mut http: HttpConnector, ssl_connector: SslConnector) -> Self {
+        http.enforce_http(false);
+
+        Self {
+            http,
+            ssl_connector,
+        }
+    }
+}
+
+type MaybeTlsStream = EitherStream<
+    tokio::net::TcpStream,
+    tokio_openssl::SslStream<tokio::net::TcpStream>,
+>;
+
+impl hyper::client::connect::Connect for HttpsConnector {
+    type Transport = MaybeTlsStream;
+    type Error = Error;
+    type Future = Box<dyn Future<Output = Result<(
+        Self::Transport,
+        hyper::client::connect::Connected,
+    ), Error>> + Send + Unpin + 'static>;
+
+    fn connect(&self, dst: hyper::client::connect::Destination) -> Self::Future {
+        let is_https = dst.scheme() == "https";
+        let host = dst.host().to_string();
+
+        let config = self.ssl_connector.configure();
+        let conn = self.http.connect(dst);
+
+        Box::new(Box::pin(async move {
+            let (conn, connected) = conn.await?;
+            if is_https {
+                let conn = tokio_openssl::connect(config?, &host, conn).await?;
+                Ok((MaybeTlsStream::Right(conn), connected))
+            } else {
+                Ok((MaybeTlsStream::Left(conn), connected))
+            }
+        }))
     }
 }
