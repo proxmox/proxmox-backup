@@ -1,5 +1,4 @@
 local.mak
-Cargo.lock
 /target
 **/*.rs.bk
 /etc/proxmox-backup.service
