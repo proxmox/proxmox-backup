@@ -888,20 +888,22 @@ fn restore(
         .open("/tmp")?;
 
     if server_archive_name.ends_with(".blob") {
-
-        let writer = Vec::with_capacity(1024*1024);
-        let blob_data = client.download(&server_archive_name, writer).wait()?;
-        let blob = DataBlob::from_raw(blob_data)?;
-        blob.verify_crc()?;
-
-        let raw_data = blob.decode(crypt_config)?;
+        let mut tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
+        tmpfile.seek(SeekFrom::Start(0))?;
+        let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
 
         if let Some(target) = target {
-            file_set_contents(target, &raw_data, None)?;
+           let mut writer = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .create_new(true)
+                .open(target)
+                .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
+            std::io::copy(&mut reader, &mut writer)?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
-            writer.write_all(&raw_data)
+            std::io::copy(&mut reader, &mut writer)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
