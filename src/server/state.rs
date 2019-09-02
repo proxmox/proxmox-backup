@@ -4,8 +4,7 @@ use std::sync::Mutex;
 
 use futures::*;
 
-// FIXME: with the next bump `Signal::new` becomes a freestanding function `signal()`
-use tokio_net::signal::unix::{Signal, SignalKind};
+use tokio_net::signal::unix::{signal, SignalKind};
 
 use crate::tools::{self, BroadcastData};
 
@@ -36,7 +35,7 @@ lazy_static! {
 
 pub fn server_state_init() -> Result<(), Error> {
 
-    let stream = Signal::new(SignalKind::interrupt())?;
+    let stream = signal(SignalKind::interrupt())?;
 
     let future = stream.for_each(|_| {
         println!("got shutdown request (SIGINT)");
@@ -50,7 +49,7 @@ pub fn server_state_init() -> Result<(), Error> {
 
     tokio::spawn(task.map(|_| ()));
 
-    let stream = Signal::new(SignalKind::hangup())?;
+    let stream = signal(SignalKind::hangup())?;
 
     let future = stream.for_each(|_| {
         println!("got reload request (SIGHUP)");
