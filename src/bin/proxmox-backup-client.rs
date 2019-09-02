@@ -937,7 +937,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         }
 
     } else if server_archive_name.ends_with(".blob") {
-        let mut tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
+        let mut tmpfile = client.download(&server_archive_name, tmpfile).await?;
         tmpfile.seek(SeekFrom::Start(0))?;
         let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
 
