@@ -71,7 +71,8 @@ fn send_request(
 async fn main() -> Result<(), Error> {
     let start = std::time::SystemTime::now();
 
-    let conn = tokio::net::TcpStream::connect(&"127.0.0.1:8008".parse().unwrap()).await?;
+    let conn =
+        tokio::net::TcpStream::connect(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
 
     conn.set_nodelay(true).unwrap();
     conn.set_recv_buffer_size(1024*1024).unwrap();

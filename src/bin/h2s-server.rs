@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error> {
 
     let acceptor = Arc::new(acceptor.build());
 
-    let listener = TcpListener::bind(&"127.0.0.1:8008".parse().unwrap()).unwrap();
+    let listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());
 

@@ -55,18 +55,21 @@ async fn run() -> Result<(), Error> {
     // http server future:
     let server = daemon::create_daemon(
         ([127,0,0,1], 82).into(),
-        move |listener| {
-            Ok(hyper::Server::builder(listener.incoming())
-               .serve(rest_server)
-               .with_graceful_shutdown(server::shutdown_future())
-               .map(|e| {
-                   if let Err(e) = e {
-                       eprintln!("server error: {}", e);
-                   }
-               })
+        move |listener, ready| {
+            Ok(ready
+                .and_then(|_| hyper::Server::builder(listener.incoming())
+                    .serve(rest_server)
+                    .with_graceful_shutdown(server::shutdown_future())
+                    .map_err(Error::from)
+                )
+                .map(|e| {
+                    if let Err(e) = e {
+                        eprintln!("server error: {}", e);
+                    }
+                })
             )
         },
-    )?;
+    );
 
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
@@ -80,7 +83,7 @@ async fn run() -> Result<(), Error> {
         bail!("unable to start daemon - {}", err);
     }
 
-    server.await;
+    server.await?;
 
     log::info!("done - exit server");
 

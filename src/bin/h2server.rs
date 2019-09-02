@@ -10,7 +10,7 @@ use proxmox_backup::client::pipe_to_stream::PipeToSendStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let listener = TcpListener::bind(&"127.0.0.1:8008".parse().unwrap()).unwrap();
+    let listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());
 

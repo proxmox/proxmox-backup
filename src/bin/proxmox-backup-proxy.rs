@@ -71,7 +71,7 @@ async fn run() -> Result<(), Error> {
 
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
-        |listener| {
+        |listener, ready| {
             let connections = listener
                 .incoming()
                 .map_err(Error::from)
@@ -87,14 +87,18 @@ async fn run() -> Result<(), Error> {
                         )
                     }
                 });
-            Ok(hyper::Server::builder(connections)
-               .serve(rest_server)
-               .with_graceful_shutdown(server::shutdown_future())
-               .map_err(|err| eprintln!("server error: {}", err))
-               .map(|_| ())
+
+            Ok(ready
+                .and_then(|_| hyper::Server::builder(connections)
+                    .serve(rest_server)
+                    .with_graceful_shutdown(server::shutdown_future())
+                    .map_err(Error::from)
+                )
+                .map_err(|err| eprintln!("server error: {}", err))
+                .map(|_| ())
             )
         },
-    )?;
+    );
 
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
@@ -108,7 +112,7 @@ async fn run() -> Result<(), Error> {
         bail!("unable to start daemon - {}", err);
     }
 
-    server.await;
+    server.await?;
     log::info!("done - exit server");
 
     Ok(())

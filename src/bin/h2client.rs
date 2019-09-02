@@ -74,7 +74,7 @@ async fn main() -> Result<(), Error> {
 
     let start = std::time::SystemTime::now();
 
-    let conn = TcpStream::connect(&"127.0.0.1:8008".parse().unwrap())
+    let conn = TcpStream::connect(std::net::SocketAddr::from(([127,0,0,1], 8008)))
         .await?;
 
     let (client, h2) = h2::client::Builder::new()

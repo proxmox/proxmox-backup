@@ -1,13 +1,15 @@
 //! Helpers for daemons/services.
 
 use std::ffi::CString;
+use std::future::Future;
 use std::os::raw::{c_char, c_int};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use failure::*;
-use tokio::prelude::*;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
@@ -48,14 +50,15 @@ impl Reloader {
     /// the function provided in the `or_create` parameter to instantiate the new "first" instance.
     ///
     /// Values created via this method will be remembered for later re-execution.
-    pub fn restore<T, F>(&mut self, name: &'static str, or_create: F) -> Result<T, Error>
+    pub async fn restore<T, F, U>(&mut self, name: &'static str, or_create: F) -> Result<T, Error>
     where
         T: Reloadable,
-        F: FnOnce() -> Result<T, Error>,
+        F: FnOnce() -> U,
+        U: Future<Output = Result<T, Error>>,
     {
         let res = match std::env::var(name) {
             Ok(varstr) => T::restore(&varstr)?,
-            Err(std::env::VarError::NotPresent) => or_create()?,
+            Err(std::env::VarError::NotPresent) => or_create().await?,
             Err(_) => bail!("variable {} has invalid value", name),
         };
 
@@ -194,48 +197,56 @@ impl Reloadable for tokio::net::TcpListener {
     }
 }
 
+pub struct NotifyReady;
+
+impl Future for NotifyReady {
+    type Output = Result<(), Error>;
+
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Error>> {
+        systemd_notify(SystemdNotify::Ready)?;
+        Poll::Ready(Ok(()))
+    }
+}
+
 /// This creates a future representing a daemon which reloads itself when receiving a SIGHUP.
 /// If this is started regularly, a listening socket is created. In this case, the file descriptor
 /// number will be remembered in `PROXMOX_BACKUP_LISTEN_FD`.
 /// If the variable already exists, its contents will instead be used to restore the listening
 /// socket.  The finished listening socket is then passed to the `create_service` function which
 /// can be used to setup the TLS and the HTTP daemon.
-pub fn create_daemon<F, S>(
+pub async fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
-) -> Result<impl Future<Output = ()>, Error>
+) -> Result<(), Error>
 where
-    F: FnOnce(tokio::net::TcpListener) -> Result<S, Error>,
+    F: FnOnce(tokio::net::TcpListener, NotifyReady) -> Result<S, Error>,
     S: Future<Output = ()>,
 {
     let mut reloader = Reloader::new();
 
     let listener: tokio::net::TcpListener = reloader.restore(
         "PROXMOX_BACKUP_LISTEN_FD",
-        move || Ok(tokio::net::TcpListener::bind(&address)?),
-    )?;
+        move || async move { Ok(tokio::net::TcpListener::bind(&address).await?) },
+    ).await?;
 
-    let service = create_service(listener)?;
+    create_service(listener, NotifyReady)?.await;
 
     let mut reloader = Some(reloader);
 
-    Ok(service
-       .map(move |_| {
-           crate::tools::request_shutdown(); // make sure we are in shutdown mode
-           if server::is_reload_request() {
-               log::info!("daemon reload...");
-               if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
-                   log::error!("failed to notify systemd about the state change: {}", e);
-               }
-               if let Err(e) = reloader.take().unwrap().fork_restart() {
-                   log::error!("error during reload: {}", e);
-                   let _ = systemd_notify(SystemdNotify::Status(format!("error during reload")));
-               }
-           } else {
-               log::info!("daemon shutting down...");
-           }
-       })
-    )
+    crate::tools::request_shutdown(); // make sure we are in shutdown mode
+    if server::is_reload_request() {
+        log::info!("daemon reload...");
+        if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
+            log::error!("failed to notify systemd about the state change: {}", e);
+        }
+        if let Err(e) = reloader.take().unwrap().fork_restart() {
+            log::error!("error during reload: {}", e);
+            let _ = systemd_notify(SystemdNotify::Status(format!("error during reload")));
+        }
+    } else {
+        log::info!("daemon shutting down...");
+    }
+    Ok(())
 }
 
 #[link(name = "systemd")]
