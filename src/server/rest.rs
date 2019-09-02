@@ -533,8 +533,7 @@ async fn delayed_response(
     resp: Response<Body>,
     delay_unauth_time: std::time::Instant,
 ) -> Result<Response<Body>, Error> {
-    tokio::timer::Delay::new(delay_unauth_time)
-        .await;
+    tokio::timer::delay(delay_unauth_time).await;
     Ok(resp)
 }
 
