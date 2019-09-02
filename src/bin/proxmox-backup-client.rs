@@ -887,7 +887,25 @@ fn restore(
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    if server_archive_name.ends_with(".blob") {
+    const INDEX_BLOB_NAME: &str = "index.json.blob";
+
+    let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).wait()?;
+    let blob = DataBlob::from_raw(index_data)?;
+    blob.verify_crc()?;
+    let backup_index_data = blob.decode(crypt_config.clone())?;
+    let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+
+    if server_archive_name == INDEX_BLOB_NAME {
+        if let Some(target) = target {
+            file_set_contents(target, &backup_index_data, None)?;
+        } else {
+            let stdout = std::io::stdout();
+            let mut writer = stdout.lock();
+            writer.write_all(&backup_index_data)
+                .map_err(|err| format_err!("unable to pipe data - {}", err))?;
+        }
+
+    } else if server_archive_name.ends_with(".blob") {
         let mut tmpfile = client.download(&server_archive_name, tmpfile).wait()?;
         tmpfile.seek(SeekFrom::Start(0))?;
         let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
