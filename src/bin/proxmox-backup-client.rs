@@ -850,6 +850,54 @@ fn restore(
     async_main(restore_do(param))
 }
 
+async fn download_index_blob(client: Arc<BackupReader>, crypt_config: Option<Arc<CryptConfig>>) -> Result<Vec<u8>, Error> {
+
+    let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
+    let blob = DataBlob::from_raw(index_data)?;
+    blob.verify_crc()?;
+    blob.decode(crypt_config)
+}
+
+fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
+
+    let files = backup_index["files"]
+        .as_array()
+        .ok_or_else(|| format_err!("mailformed index - missing 'files' property"))?;
+
+    let info = files.iter().find(|v| {
+        match v["filename"].as_str() {
+            Some(filename) => filename == name,
+            None => false,
+        }
+    });
+
+    let info = match info {
+        None => bail!("index does not contain file '{}'", name),
+        Some(info) => info,
+    };
+
+    match info["size"].as_u64() {
+        None => bail!("index does not contain property 'size' for file '{}'", name),
+        Some(expected_size) => {
+            if expected_size != size {
+                bail!("verify index failed - wrong size for file '{}'", name);
+            }
+        }
+    };
+
+    match info["csum"].as_str() {
+        None => bail!("index does not contain property 'csum' for file '{}'", name),
+        Some(expected_csum) => {
+            let expected_csum = &proxmox::tools::hex_to_digest(expected_csum)?;
+            if expected_csum != csum {
+                bail!("verify index failed - wrong checksum for file '{}'", name);
+            }
+        }
+    };
+
+    Ok(())
+}
+
 async fn restore_do(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
@@ -918,49 +966,9 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
-    let blob = DataBlob::from_raw(index_data)?;
-    blob.verify_crc()?;
-    let backup_index_data = blob.decode(crypt_config.clone())?;
+
+    let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
     let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
-    let files = backup_index["files"]
-        .as_array()
-        .ok_or_else(|| format_err!("mailformed index - missing 'files' property"))?;
-
-    let verify_index_file = |name: &str, csum: &[u8; 32], size: u64| -> Result<(), Error> {
-        let info = files.iter().find(|v| {
-            match v["filename"].as_str() {
-                Some(filename) => filename == name,
-                None => false,
-            }
-        });
-
-        let info = match info {
-            None => bail!("index does not contain file '{}'", name),
-            Some(info) => info,
-        };
-
-        match info["size"].as_u64() {
-            None => bail!("index does not contain property 'size' for file '{}'", name),
-            Some(expected_size) => {
-                if expected_size != size {
-                    bail!("verify index failed - wrong size for file '{}'", name);
-                }
-            }
-        };
-
-        match info["csum"].as_str() {
-            None => bail!("index does not contain property 'csum' for file '{}'", name),
-            Some(expected_csum) => {
-                let expected_csum = &proxmox::tools::hex_to_digest(expected_csum)?;
-                if expected_csum != csum {
-                    bail!("verify index failed - wrong checksum for file '{}'", name);
-                }
-            }
-        };
-
-        Ok(())
-    };
 
     if server_archive_name == INDEX_BLOB_NAME {
         if let Some(target) = target {
@@ -1001,7 +1009,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
 
-        verify_index_file(&server_archive_name, &csum, size)?;
+        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
 
         let most_used = index.find_most_used_chunks(8);
 
@@ -1038,7 +1046,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
 
-        verify_index_file(&server_archive_name, &csum, size)?;
+        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
 
         let most_used = index.find_most_used_chunks(8);
 
