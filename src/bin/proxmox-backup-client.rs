@@ -608,10 +608,8 @@ fn create_backup(
 
         use std::os::unix::fs::FileTypeExt;
 
-        let metadata = match std::fs::metadata(filename) {
-            Ok(m) => m,
-            Err(err) => bail!("unable to access '{}' - {}", filename, err),
-        };
+        let metadata = std::fs::metadata(filename)
+            .map_err(|err| format_err!("unable to access '{}' - {}", filename, err))?;
         let file_type = metadata.file_type();
 
         let extension = target.rsplit('.').next()
