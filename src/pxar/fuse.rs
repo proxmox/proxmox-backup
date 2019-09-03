@@ -14,12 +14,13 @@ use libc::{c_char, c_int, c_void, size_t};
 use libc;
 
 use super::decoder::Decoder;
+use super::format_definition::PxarGoodbyeItem;
 
 /// Node ID of the root inode
 /// This is the only one whose ID is not equal to the offset in the file.
 /// This is ok since offset 1 is part of the entry header and will therefore
 /// not occur again, but remapping to the correct offset of 0 is required.
-//const FUSE_ROOT_ID: u64 = 1;
+const FUSE_ROOT_ID: u64 = 1;
 
 fn decoder_callback(path: &Path) -> Result<(), Error> {
     println!("{:#?}", path);
@@ -243,6 +244,38 @@ impl Drop for Session {
             fuse_remove_signal_handlers(self.ptr);
             fuse_session_destroy(self.ptr);
         }
+    }
+}
+
+const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
+
+/// Converts the inode to the file offset
+///
+/// Since the inodes are defined as the file offset,
+/// this simply returns the inode value.
+/// The only exception to this is the inode of root,
+/// which is defined as `FUSE_ROOT_ID` by libfuse and therefore mapped
+/// to the roots goodbye table tail.
+fn inode_to_offset(inode: u64, root_end: u64) -> u64 {
+    if inode == FUSE_ROOT_ID {
+        root_end - GOODBYE_ITEM_SIZE
+    } else {
+        inode
+    }
+}
+
+/// Converts the file offset to an inode
+///
+/// Since the inodes are defined as the file offset,
+/// this simply returns the offset value.
+/// The only exception to this is the inode of root,
+/// which is defined as `FUSE_ROOT_ID` by libfuse, so the roots goodbye tail
+/// offset gets mapped to `FUSE_ROOT_ID`.
+pub(crate) fn offset_to_inode(offset: u64, root_end: u64) -> u64 {
+    if offset == root_end - GOODBYE_ITEM_SIZE {
+        FUSE_ROOT_ID
+    } else {
+        offset
     }
 }
 
