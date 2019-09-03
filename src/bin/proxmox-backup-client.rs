@@ -918,8 +918,6 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    const INDEX_BLOB_NAME: &str = "index.json.blob";
-
     let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
     let blob = DataBlob::from_raw(index_data)?;
     blob.verify_crc()?;
