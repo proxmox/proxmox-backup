@@ -52,7 +52,6 @@ mod test {
 
     #[test]
     fn test_wrapped_stream_reader() -> Result<(), Error> {
-        // This cannot be used currently, because it doesn't permit blocking() annotations:
         crate::tools::runtime::main(async {
             run_wrapped_stream_reader_test().await
         })
