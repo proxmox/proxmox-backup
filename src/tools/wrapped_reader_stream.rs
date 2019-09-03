@@ -52,16 +52,10 @@ mod test {
 
     #[test]
     fn test_wrapped_stream_reader() -> Result<(), Error> {
-        let rt = tokio::runtime::Runtime::new()?;
-
         // This cannot be used currently, because it doesn't permit blocking() annotations:
-        //rt.block_on(run_wrapped_stream_reader_test());
-
-        rt.spawn(async {
-            run_wrapped_stream_reader_test().await.unwrap();
-        });
-        rt.shutdown_on_idle();
-        Ok(())
+        crate::tools::runtime::main(async {
+            run_wrapped_stream_reader_test().await
+        })
     }
 
     struct DummyReader(usize);

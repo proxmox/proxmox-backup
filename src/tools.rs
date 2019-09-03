@@ -22,6 +22,7 @@ pub mod borrow;
 pub mod daemon;
 pub mod fs;
 pub mod futures;
+pub mod runtime;
 pub mod ticket;
 pub mod timer;
 pub mod tty;
