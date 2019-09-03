@@ -174,6 +174,22 @@ impl DynamicIndexReader {
         slice.try_into().unwrap()
     }
 
+    /// Compute checksum and data size
+    pub fn compute_csum(&self) -> ([u8; 32], u64) {
+
+        let mut csum = openssl::sha::Sha256::new();
+        let mut chunk_end = 0;
+        for pos in 0..self.index_entries {
+            chunk_end = self.chunk_end(pos);
+            let digest = self.chunk_digest(pos);
+            csum.update(&chunk_end.to_le_bytes());
+            csum.update(digest);
+        }
+        let csum = csum.finish();
+
+        (csum, chunk_end)
+    }
+
     /*
     pub fn dump_pxar(&self, mut writer: Box<dyn Write>) -> Result<(), Error> {
 
