@@ -19,6 +19,16 @@ pub struct DirectoryEntry {
     pub entry: PxarEntry,
 }
 
+impl DirectoryEntry {
+    pub(crate) fn start_offset(&self) -> u64 {
+        self.start
+    }
+
+    pub(crate) fn end_offset(&self) -> u64 {
+        self.end
+    }
+}
+
 // This one needs Read+Seek
 pub struct Decoder<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
     inner: SequentialDecoder<R, F>,
@@ -56,6 +66,10 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
         let pos = self.inner.get_reader_mut().seek(pos)?;
         Ok(pos)
+    }
+
+    pub(crate) fn root_end_offset(&self) -> u64 {
+        self.root_end
     }
 
     pub fn restore(&mut self, dir: &DirectoryEntry, path: &Path) -> Result<(), Error> {
