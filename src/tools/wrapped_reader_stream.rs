@@ -42,3 +42,51 @@ impl<R: Read + Unpin> Stream for WrappedReaderStream<R> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::io;
+
+    use failure::Error;
+    use futures::stream::TryStreamExt;
+
+    #[test]
+    fn test_wrapped_stream_reader() -> Result<(), Error> {
+        let rt = tokio::runtime::Runtime::new()?;
+
+        // This cannot be used currently, because it doesn't permit blocking() annotations:
+        //rt.block_on(run_wrapped_stream_reader_test());
+
+        rt.spawn(async {
+            run_wrapped_stream_reader_test().await.unwrap();
+        });
+        rt.shutdown_on_idle();
+        Ok(())
+    }
+
+    struct DummyReader(usize);
+
+    impl io::Read for DummyReader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.0 += 1;
+
+            if self.0 >= 10 {
+                return Ok(0);
+            }
+
+            unsafe {
+                std::ptr::write_bytes(buf.as_mut_ptr(), 0, buf.len());
+            }
+
+            Ok(buf.len())
+        }
+    }
+
+    async fn run_wrapped_stream_reader_test() -> Result<(), Error> {
+        let mut reader = super::WrappedReaderStream::new(DummyReader(0));
+        while let Some(_data) = reader.try_next().await? {
+            // just waiting
+        }
+        Ok(())
+    }
+}
