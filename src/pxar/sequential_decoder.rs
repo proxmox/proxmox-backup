@@ -74,7 +74,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(result.from_le())
     }
 
-    fn read_link(&mut self, size: u64) -> Result<PathBuf, Error> {
+    pub(crate) fn read_link(&mut self, size: u64) -> Result<PathBuf, Error> {
         if size < (HEADER_SIZE + 2) {
             bail!("dectected short link target.");
         }
@@ -177,7 +177,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(PxarFCaps { data: buffer })
     }
 
-    fn read_attributes(&mut self) -> Result<(PxarHeader, PxarAttributes), Error> {
+    pub(crate) fn read_attributes(&mut self) -> Result<(PxarHeader, PxarAttributes), Error> {
         let mut attr = PxarAttributes::default();
         let mut head: PxarHeader = self.read_item()?;
         let mut size = (head.size - HEADER_SIZE) as usize;
@@ -492,7 +492,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         Ok(())
     }
 
-    fn skip_bytes(&mut self, count: usize) -> Result<(), Error> {
+    pub(crate) fn skip_bytes(&mut self, count: usize) -> Result<(), Error> {
         let mut done = 0;
         while done < count {
             let todo = count - done;
