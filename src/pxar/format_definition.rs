@@ -38,10 +38,10 @@ pub const PXAR_GOODBYE_TAIL_MARKER: u64 = 0x57446fa533702943;
 #[derive(Debug, Endian)]
 #[repr(C)]
 pub struct PxarHeader {
-    /// The size of the item, including the size of `PxarHeader`.
-    pub size: u64,
     /// The item type (see `PXAR_` constants).
     pub htype: u64,
+    /// The size of the item, including the size of `PxarHeader`.
+    pub size: u64,
 }
 
 #[derive(Endian)]
@@ -64,6 +64,9 @@ pub struct PxarDevice {
 #[derive(Endian)]
 #[repr(C)]
 pub struct PxarGoodbyeItem {
+    /// SipHash24 of the directory item name. The last GOODBYE item
+    /// uses the special hash value `PXAR_GOODBYE_TAIL_MARKER`.
+    pub hash: u64,
     /// The offset from the start of the GOODBYE object to the start
     /// of the matching directory item (point to a FILENAME). The last
     /// GOODBYE item points to the start of the matching ENTRY
@@ -72,9 +75,6 @@ pub struct PxarGoodbyeItem {
     /// The overall size of the directory item. The last GOODBYE item
     /// repeats the size of the GOODBYE item.
     pub size: u64,
-    /// SipHash24 of the directory item name. The last GOODBYE item
-    /// uses the special hash value `PXAR_GOODBYE_TAIL_MARKER`.
-    pub hash: u64,
 }
 
 /// Helper function to extract file names from binary archive.
