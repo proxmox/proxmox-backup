@@ -953,7 +953,10 @@ impl BackupClient {
 
                 let mut guard = index_csum.lock().unwrap();
                 let csum = guard.as_mut().unwrap();
-                csum.update(&offset.to_le_bytes());
+
+                let chunk_end = offset + chunk_len as u64;
+                
+                csum.update(&chunk_end.to_le_bytes());
                 csum.update(digest);
 
                 let chunk_is_known = known_chunks.contains(digest);
