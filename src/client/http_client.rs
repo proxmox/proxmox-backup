@@ -497,55 +497,55 @@ impl BackupReader {
         Arc::new(Self { h2, canceller: canceller })
     }
 
-    pub fn get(
+    pub async fn get(
         &self,
         path: &str,
         param: Option<Value>,
-    ) -> impl Future<Output = Result<Value, Error>> {
-        self.h2.get(path, param)
+    ) -> Result<Value, Error> {
+        self.h2.get(path, param).await
     }
 
-    pub fn put(
+    pub async fn put(
         &self,
         path: &str,
         param: Option<Value>,
-    ) -> impl Future<Output = Result<Value, Error>> {
-        self.h2.put(path, param)
+    ) -> Result<Value, Error> {
+        self.h2.put(path, param).await
     }
 
-    pub fn post(
+    pub async fn post(
         &self,
         path: &str,
         param: Option<Value>,
-    ) -> impl Future<Output = Result<Value, Error>> {
-        self.h2.post(path, param)
+    ) -> Result<Value, Error> {
+        self.h2.post(path, param).await
     }
 
-    pub fn download<W: Write + Send + 'static>(
+    pub async fn download<W: Write + Send>(
         &self,
         file_name: &str,
         output: W,
-    ) -> impl Future<Output = Result<W, Error>> {
+    ) -> Result<W, Error> {
         let path = "download";
         let param = json!({ "file-name": file_name });
-        self.h2.download(path, Some(param), output)
+        self.h2.download(path, Some(param), output).await
     }
 
-    pub fn speedtest<W: Write + Send + 'static>(
+    pub async fn speedtest<W: Write + Send>(
         &self,
         output: W,
-    ) -> impl Future<Output = Result<W, Error>> {
-        self.h2.download("speedtest", None, output)
+    ) -> Result<W, Error> {
+        self.h2.download("speedtest", None, output).await
     }
 
-    pub fn download_chunk<W: Write + Send + 'static>(
+    pub async fn download_chunk<W: Write + Send>(
         &self,
         digest: &[u8; 32],
         output: W,
-    ) -> impl Future<Output = Result<W, Error>> {
+    ) -> Result<W, Error> {
         let path = "chunk";
         let param = json!({ "digest": digest_to_hex(digest) });
-        self.h2.download(path, Some(param), output)
+        self.h2.download(path, Some(param), output).await
     }
 
     pub fn force_close(self) {
@@ -1105,12 +1105,12 @@ impl H2Client {
         self.request(req)
     }
 
-    pub fn download<W: Write + Send + 'static>(
+    pub async fn download<W: Write + Send>(
         &self,
         path: &str,
         param: Option<Value>,
         output: W,
-    ) -> impl Future<Output = Result<W, Error>> {
+    ) -> Result<W, Error> {
         let request = Self::request_builder("localhost", "GET", path, param).unwrap();
 
         self.send_request(request, None)
@@ -1143,6 +1143,7 @@ impl H2Client {
                         }
                     })
             })
+            .await
     }
 
     pub fn upload(
