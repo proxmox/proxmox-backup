@@ -134,12 +134,12 @@ impl HttpClient {
             Self::get_password(&username)?
         };
 
-        let login = Self::credentials(client.clone(), server.to_owned(), username.to_owned(), password);
+        let login_future = Self::credentials(client.clone(), server.to_owned(), username.to_owned(), password);
 
         Ok(Self {
             client,
             server: String::from(server),
-            auth: BroadcastFuture::new(login),
+            auth: BroadcastFuture::new(Box::new(login)),
         })
     }
 
@@ -410,26 +410,24 @@ impl HttpClient {
         })
     }
 
-    fn credentials(
+    async fn credentials(
         client: Client<HttpsConnector>,
         server: String,
         username: String,
         password: String,
-    ) -> Box<dyn Future<Output = Result<AuthInfo, Error>> + Send> {
-        Box::new(async move {
-            let data = json!({ "username": username, "password": password });
-            let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
-            let cred = Self::api_request(client, req).await?;
-            let auth = AuthInfo {
-                username: cred["data"]["username"].as_str().unwrap().to_owned(),
-                ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
-                token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
-            };
+    ) -> Result<AuthInfo, Error> {
+        let data = json!({ "username": username, "password": password });
+        let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
+        let cred = Self::api_request(client, req).await?;
+        let auth = AuthInfo {
+            username: cred["data"]["username"].as_str().unwrap().to_owned(),
+            ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
+            token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
+        };
 
-            let _ = store_ticket_info(&server, &auth.username, &auth.ticket, &auth.token);
+        let _ = store_ticket_info(&server, &auth.username, &auth.ticket, &auth.token);
 
-            Ok(auth)
-        })
+        Ok(auth)
     }
 
     async fn api_response(response: Response<Body>) -> Result<Value, Error> {
