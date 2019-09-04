@@ -139,7 +139,7 @@ impl HttpClient {
         Ok(Self {
             client,
             server: String::from(server),
-            auth: BroadcastFuture::new(Box::new(login)),
+            auth: BroadcastFuture::new(Box::new(login_future)),
         })
     }
 
@@ -147,8 +147,8 @@ impl HttpClient {
     ///
     /// Login is done on demand, so this is onyl required if you need
     /// access to authentication data in 'AuthInfo'.
-    pub fn login(&self) -> impl Future<Output = Result<AuthInfo, Error>> {
-        self.auth.listen()
+    pub async fn login(&self) -> Result<AuthInfo, Error> {
+        self.auth.listen().await
     }
 
     fn get_password(_username: &str) -> Result<String, Error> {
