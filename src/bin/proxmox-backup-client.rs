@@ -6,7 +6,7 @@ use failure::*;
 use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
-use std::io::{BufReader, Write, Seek, SeekFrom};
+use std::io::{BufReader, Read, Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
@@ -149,6 +149,33 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
 
     result
 }
+
+fn compute_file_csum(file: &mut std::fs::File) -> Result<([u8; 32], u64), Error> {
+
+    file.seek(SeekFrom::Start(0))?;
+
+    let mut hasher = openssl::sha::Sha256::new();
+    let mut buffer = proxmox::tools::vec::undefined(256*1024);
+    let mut size: u64 = 0;
+
+    loop {
+        let count = match file.read(&mut buffer) {
+            Ok(count) => count,
+            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => { continue; }
+            Err(err) => return Err(err.into()),
+        };
+        if count == 0 {
+            break;
+        }
+        size += count as u64;
+        hasher.update(&buffer[..count]);
+    }
+
+    let csum = hasher.finish();
+
+    Ok((csum, size))
+}
+
 
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupClient,
@@ -456,13 +483,19 @@ fn dump_catalog(
             &snapshot.group().backup_id(),
             snapshot.backup_time(), true).await?;
 
+        let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
+        let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+
         let blob_file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
             .custom_flags(libc::O_TMPFILE)
             .open("/tmp")?;
 
-        let mut blob_file = client.download("catalog.blob", blob_file).await?;
+        let mut blob_file = client.download(CATALOG_BLOB_NAME, blob_file).await?;
+
+        let (csum, size) = compute_file_csum(&mut blob_file)?;
+        verify_index_file(&backup_index, CATALOG_BLOB_NAME, &csum, size)?;
 
         blob_file.seek(SeekFrom::Start(0))?;
 
@@ -757,7 +790,7 @@ fn create_backup(
                 .map_err(|_| format_err!("unable to get catalog (still used)"))?;
             let mut catalog_file = mutex.into_inner().unwrap().finish()?;
 
-            let target = "catalog.blob";
+            let target = CATALOG_BLOB_NAME;
 
             catalog_file.seek(SeekFrom::Start(0))?;
 
@@ -980,6 +1013,10 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
     } else if server_archive_name.ends_with(".blob") {
         let mut tmpfile = client.download(&server_archive_name, tmpfile).await?;
+
+        let (csum, size) = compute_file_csum(&mut tmpfile)?;
+        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+
         tmpfile.seek(SeekFrom::Start(0))?;
         let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
 

@@ -104,6 +104,7 @@
 //! Not sure if this is better. TODO
 
 pub const INDEX_BLOB_NAME: &str = "index.json.blob";
+pub const CATALOG_BLOB_NAME: &str = "catalog.blob";
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
