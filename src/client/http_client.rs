@@ -1106,10 +1106,8 @@ impl H2Client {
 
         let status = resp.status();
         if !status.is_success() {
-            H2Client::h2api_response(resp)
-                .map(|_| Err(format_err!("unknown error")))
-                .await?;
-                unreachable!();
+            H2Client::h2api_response(resp).await?; // raise error
+            unreachable!();
         }
 
         let mut body = resp.into_body();
