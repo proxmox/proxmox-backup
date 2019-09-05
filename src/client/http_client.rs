@@ -1179,9 +1179,9 @@ impl H2Client {
             })
     }
 
-    fn h2api_response(
+    async fn h2api_response(
         response: Response<h2::RecvStream>,
-    ) -> impl Future<Output = Result<Value, Error>> {
+    ) -> Result<Value, Error> {
         let status = response.status();
 
         let (_head, mut body) = response.into_parts();
@@ -1194,32 +1194,29 @@ impl H2Client {
         // the data from memory.
         let mut release_capacity = body.release_capacity().clone();
 
-        body
-            .map_ok(move |chunk| {
-                // Let the server send more data.
-                let _ = release_capacity.release_capacity(chunk.len());
-                chunk
-            })
-            .try_concat()
-            .map_err(Error::from)
-            .and_then(move |data| async move {
-                let text = String::from_utf8(data.to_vec()).unwrap();
-                if status.is_success() {
-                    if text.len() > 0 {
-                        let mut value: Value = serde_json::from_str(&text)?;
-                        if let Some(map) = value.as_object_mut() {
-                            if let Some(data) = map.remove("data") {
-                                return Ok(data);
-                            }
-                        }
-                        bail!("got result without data property");
-                    } else {
-                        Ok(Value::Null)
+        let mut data = Vec::new();
+        while let Some(chunk) = body.try_next().await? {
+            // Let the server send more data.
+            let _ = release_capacity.release_capacity(chunk.len());
+            data.extend(chunk);
+        }
+
+        let text = String::from_utf8(data.to_vec()).unwrap();
+        if status.is_success() {
+            if text.len() > 0 {
+                let mut value: Value = serde_json::from_str(&text)?;
+                if let Some(map) = value.as_object_mut() {
+                    if let Some(data) = map.remove("data") {
+                        return Ok(data);
                     }
-                } else {
-                    bail!("HTTP Error {}: {}", status, text);
                 }
-            }.boxed())
+                bail!("got result without data property");
+            } else {
+                Ok(Value::Null)
+            }
+        } else {
+            bail!("HTTP Error {}: {}", status, text);
+        }
     }
 
     // Note: We always encode parameters with the url
