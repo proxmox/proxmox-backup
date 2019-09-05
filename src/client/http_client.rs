@@ -851,14 +851,15 @@ impl BackupClient {
         let mut body = resp.into_body();
         let mut release_capacity = body.release_capacity().clone();
 
-        DigestListDecoder::new(body.map_err(Error::from))
-            .try_for_each(move |chunk| {
-                let _ = release_capacity.release_capacity(chunk.len());
-                println!("GOT DOWNLOAD {}", digest_to_hex(&chunk));
-                known_chunks.lock().unwrap().insert(chunk);
-                futures::future::ok(())
-            })
-            .await
+        let mut stream = DigestListDecoder::new(body.map_err(Error::from));
+
+        while let Some(chunk) = stream.try_next().await? {
+            let _ = release_capacity.release_capacity(chunk.len());
+            println!("GOT DOWNLOAD {}", digest_to_hex(&chunk));
+            known_chunks.lock().unwrap().insert(chunk);
+        }
+
+        Ok(())
     }
 
     fn upload_chunk_info_stream(
