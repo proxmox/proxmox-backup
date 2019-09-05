@@ -2,15 +2,18 @@
 //!
 //! This module contain the code to decode *pxar* archive files.
 
+use std::convert::TryFrom;
+use std::ffi::OsString;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+
 use failure::*;
+use libc;
 
 use super::format_definition::*;
 use super::sequential_decoder::*;
 
-use std::io::{Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-
-use std::ffi::OsString;
+use proxmox::tools::io::ReadExt;
 
 pub struct DirectoryEntry {
     start: u64,
@@ -245,5 +248,135 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         }
 
         Ok(())
+    }
+
+    /// Get the `DirectoryEntry` located at `offset`.
+    ///
+    /// `offset` is expected to point to the directories `PXAR_GOODBYE_TAIL_MARKER`.
+    pub fn get_dir(&mut self, offset: u64) -> Result<DirectoryEntry, Error> {
+        self.seek(SeekFrom::Start(offset))?;
+
+        let gb: PxarGoodbyeItem = self.inner.read_item()?;
+        if gb.hash != PXAR_GOODBYE_TAIL_MARKER {
+            bail!("Expected goodbye tail marker, encountered 0x{:x?}", gb.hash);
+        }
+
+        let distance = i64::try_from(gb.offset + gb.size)?;
+        let start = self.seek(SeekFrom::Current(0 - distance))?;
+        let mut header: PxarHeader = self.inner.read_item()?;
+        let filename = if header.htype == PXAR_FILENAME {
+            let name = self.inner.read_filename(header.size)?;
+            header = self.inner.read_item()?;
+            name
+        } else {
+            OsString::new()
+        };
+        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.inner.read_item()?;
+
+        Ok(DirectoryEntry {
+            start,
+            end: offset + GOODBYE_ITEM_SIZE,
+            filename,
+            entry,
+        })
+    }
+
+    /// Get attributes for the archive item located at `offset`.
+    ///
+    /// Returns the entry, attributes and the payload size for the item.
+    /// For regular archive itmes a `PXAR_FILENAME` or a `PXAR_ENTRY` header is
+    /// expected at `offset`.
+    /// For directories, `offset` might also (but not necessarily) point at the
+    /// directories `PXAR_GOODBYE_TAIL_MARKER`. This is not mandatory and it can
+    /// also directly point to its `PXAR_FILENAME` or `PXAR_ENTRY`, thereby
+    /// avoiding an additional seek.
+    pub fn attributes(&mut self, offset: u64) -> Result<(PxarEntry, PxarAttributes, u64), Error> {
+        self.seek(SeekFrom::Start(offset))?;
+
+        let mut marker: u64 = self.inner.read_item()?;
+        if marker == PXAR_GOODBYE_TAIL_MARKER {
+            let dir_offset: u64 = self.inner.read_item()?;
+            let gb_size: u64 = self.inner.read_item()?;
+            let distance = i64::try_from(dir_offset + gb_size)?;
+            self.seek(SeekFrom::Current(0 - distance))?;
+            marker = self.inner.read_item()?;
+        }
+
+        if marker == PXAR_FILENAME {
+            let size: u64 = self.inner.read_item()?;
+            let _bytes = self.inner.skip_bytes(usize::try_from(size)?)?;
+            marker = self.inner.read_item()?;
+        }
+        if marker != PXAR_ENTRY {
+            bail!("Expected PXAR_ENTRY, found 0x{:x?}", marker);
+        }
+        let _size: u64 = self.inner.read_item()?;
+        let entry: PxarEntry = self.inner.read_item()?;
+        let (header, xattr) = self.inner.read_attributes()?;
+        let file_size = match header.htype {
+            PXAR_PAYLOAD => header.size - HEADER_SIZE,
+            _ => 0,
+        };
+
+        Ok((entry, xattr, file_size))
+    }
+
+    /// Opens the file by validating the given `offset` and returning its attrs,
+    /// xattrs and size.
+    pub fn open(&mut self, offset: u64) -> Result<(PxarEntry, PxarAttributes, u64), Error> {
+        self.attributes(offset)
+    }
+
+    /// Read the payload of the file given by `offset`.
+    ///
+    /// This will read the file by first seeking to `offset` within the archive,
+    /// check if there is indeed a valid item with payload and then read `size`
+    /// bytes of content starting from `data_offset`.
+    /// If EOF is reached before reading `size` bytes, the reduced buffer is
+    /// returned.
+    pub fn read(&mut self, offset: u64, size: usize, data_offset: u64) -> Result<Vec<u8>, Error> {
+        self.seek(SeekFrom::Start(offset))?;
+
+        let head: PxarHeader = self.inner.read_item()?;
+        check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
+        let _: PxarEntry = self.inner.read_item()?;
+
+        let (header, _) = self.inner.read_attributes()?;
+        if header.htype != PXAR_PAYLOAD {
+            bail!("Expected PXAR_PAYLOAD, found 0x{:x?}", header.htype);
+        }
+
+        let payload_size = header.size - HEADER_SIZE;
+        if data_offset >= payload_size {
+            return Ok(Vec::new());
+        }
+
+        let len = if data_offset + u64::try_from(size)? > payload_size {
+            usize::try_from(payload_size - data_offset)?
+        } else {
+            size
+        };
+        self.inner.skip_bytes(usize::try_from(data_offset)?)?;
+        let data = self.inner.get_reader_mut().read_exact_allocated(len)?;
+
+        Ok(data)
+    }
+
+    /// Read the target of a hardlink in the archive.
+    pub fn read_link(&mut self, offset: u64) -> Result<(PathBuf, PxarEntry), Error> {
+        self.seek(SeekFrom::Start(offset))?;
+
+        let mut header: PxarHeader = self.inner.read_item()?;
+        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
+        let entry: PxarEntry = self.inner.read_item()?;
+
+        header = self.inner.read_item()?;
+        if header.htype != PXAR_SYMLINK {
+            bail!("Expected PXAR_SYMLINK, encountered 0x{:x?}", header.htype);
+        }
+        let target = self.inner.read_link(header.size)?;
+
+        Ok((target, entry))
     }
 }
