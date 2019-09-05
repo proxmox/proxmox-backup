@@ -98,6 +98,10 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         let head: PxarHeader = self.inner.read_item()?;
         if head.htype == PXAR_FORMAT_HARDLINK {
             let (_, offset) = self.inner.read_hardlink(head.size)?;
+            // TODO: Howto find correct end offset for hardlink target?
+            // This is a bit tricky since we cannot find correct end in an efficient
+            // way, on the other hand it doesn't really matter (for now) since target
+            // is never a directory and end is not used in such cases.
             return self.read_directory_entry(start - offset, end);
         }
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
@@ -231,14 +235,10 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
             writeln!(output, "{:?}", prefix)?;
 
-            if ifmt == libc::S_IFDIR {
-                self.print_filenames(output, prefix, item)?;
-            } else if ifmt == libc::S_IFREG {
-            } else if ifmt == libc::S_IFLNK {
-            } else if ifmt == libc::S_IFBLK {
-            } else if ifmt == libc::S_IFCHR {
-            } else {
-                bail!("unknown item mode/type for {:?}", prefix);
+            match ifmt {
+                libc::S_IFDIR => self.print_filenames(output, prefix, item)?,
+                libc::S_IFREG | libc::S_IFLNK | libc::S_IFBLK | libc::S_IFCHR => {}
+                _ => bail!("unknown item mode/type for {:?}", prefix),
             }
 
             prefix.pop();
