@@ -1133,12 +1133,12 @@ impl H2Client {
         let mut send_request = self.h2.clone().ready().await?;
 
         let (response, stream) = send_request.send_request(request, false).unwrap();
-        PipeToSendStream::new(bytes::Bytes::from(data), stream)
-            .and_then(|_| {
-                response
-                    .map_err(Error::from)
-                    .and_then(Self::h2api_response)
-            })
+
+        PipeToSendStream::new(bytes::Bytes::from(data), stream).await?;
+
+        response
+            .map_err(Error::from)
+            .and_then(Self::h2api_response)
             .await
     }
 
@@ -1165,16 +1165,14 @@ impl H2Client {
         self.h2.clone()
             .ready()
             .map_err(Error::from)
-            .and_then(move |mut send_request| {
+            .and_then(move |mut send_request| async move {
                 if let Some(data) = data {
                     let (response, stream) = send_request.send_request(request, false).unwrap();
-                    future::Either::Left(PipeToSendStream::new(data, stream)
-                        .and_then(move |_| {
-                            future::ok(response)
-                        }))
+                    PipeToSendStream::new(data, stream).await?;
+                    Ok(response)
                 } else {
                     let (response, _stream) = send_request.send_request(request, true).unwrap();
-                    future::Either::Right(future::ok(response))
+                    Ok(response)
                 }
             })
     }
