@@ -38,9 +38,9 @@ impl <W: Write + Seek> CatalogBlobWriter<W> {
 impl <W: Write + Seek> BackupCatalogWriter for CatalogBlobWriter<W> {
 
     fn start_directory(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::Directory as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
-        self.writer.write(b"{")?;
+        self.writer.write_all(&[CatalogEntryType::Directory as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
+        self.writer.write_all(b"{")?;
         self.level += 1;
         Ok(())
     }
@@ -49,52 +49,52 @@ impl <W: Write + Seek> BackupCatalogWriter for CatalogBlobWriter<W> {
         if self.level == 0 {
             bail!("got unexpected end_directory level 0");
         }
-        self.writer.write(b"}")?;
+        self.writer.write_all(b"}")?;
         self.level -= 1;
         Ok(())
     }
 
     fn add_file(&mut self, name: &CStr, size: u64, mtime: u64) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::File as u8])?;
-        self.writer.write(&size.to_le_bytes())?;
-        self.writer.write(&mtime.to_le_bytes())?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::File as u8])?;
+        self.writer.write_all(&size.to_le_bytes())?;
+        self.writer.write_all(&mtime.to_le_bytes())?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_symlink(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::Symlink as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::Symlink as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_hardlink(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::Hardlink as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::Hardlink as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_block_device(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::BlockDevice as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::BlockDevice as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_char_device(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::CharDevice as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::CharDevice as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_fifo(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::Fifo as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::Fifo as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 
     fn add_socket(&mut self, name: &CStr) -> Result<(), Error> {
-        self.writer.write(&[CatalogEntryType::Socket as u8])?;
-        self.writer.write(name.to_bytes_with_nul())?;
+        self.writer.write_all(&[CatalogEntryType::Socket as u8])?;
+        self.writer.write_all(name.to_bytes_with_nul())?;
         Ok(())
     }
 }
