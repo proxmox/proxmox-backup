@@ -10,20 +10,27 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use failure::{bail, format_err, Error};
-use libc::{c_char, c_int, c_void, size_t};
 use libc;
+use libc::{c_char, c_int, c_void, size_t};
 
 use super::decoder::Decoder;
 use super::format_definition::PxarGoodbyeItem;
 
-/// Node ID of the root inode
-/// This is the only one whose ID is not equal to the offset in the file.
-/// This is ok since offset 1 is part of the entry header and will therefore
-/// not occur again, but remapping to the correct offset of 0 is required.
+/// Node ID of the root i-node
+///
+/// Offsets in the archive are used as i-node for the fuse implementation, as
+/// they are unique and enough to reference each item in the pxar archive.
+/// The only exception to this is the `FUSE_ROOT_ID`, which is defined as 1 by
+/// the fuse library.
+/// This is okay since offset 1 is part of the root directory entry header and
+/// will therefore not occur again, but remapping to the correct offset of 0 is
+/// required.
 const FUSE_ROOT_ID: u64 = 1;
 
-fn decoder_callback(path: &Path) -> Result<(), Error> {
-    println!("{:#?}", path);
+/// Callback function for `super::decoder::Decoder`.
+///
+/// At the moment, this is only needed to satisfy the `SequentialDecoder`.
+fn decoder_callback(_path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
@@ -33,14 +40,10 @@ type MutPtr = *mut c_void;
 type ConstPtr = *const c_void;
 type StrPtr = *const c_char;
 
+#[rustfmt::skip]
 #[link(name = "fuse3")]
 extern "C" {
-    fn fuse_session_new(
-        args: *const FuseArgs,
-        oprs: *const Operations,
-        size: size_t,
-        op: ConstPtr,
-    ) -> MutPtr;
+    fn fuse_session_new(args: Option<&FuseArgs>, oprs: Option<&Operations>, size: size_t, op: ConstPtr) -> MutPtr;
     fn fuse_set_signal_handlers(session: ConstPtr) -> c_int;
     fn fuse_remove_signal_handlers(session: ConstPtr);
     fn fuse_daemonize(foreground: c_int) -> c_int;
@@ -167,8 +170,8 @@ impl Session {
         let session_decoder = Box::new(Mutex::new(decoder));
         let session_ptr = unsafe {
             fuse_session_new(
-                &args as *const FuseArgs,
-                &oprs as *const Operations,
+                Some(&args),
+                Some(&oprs),
                 std::mem::size_of::<Operations>(),
                 // Ownership of session_decoder is passed to the session here.
                 // It has to be reclaimed before dropping the session to free
@@ -192,6 +195,8 @@ impl Session {
         })
     }
 
+    /// Mount the filesystem on the given mountpoint.
+    ///
     /// Actually mount the filesystem for this session on the provided mountpoint
     /// and daemonize process.
     pub fn mount(&mut self, mountpoint: &Path) -> Result<(), Error> {
@@ -216,8 +221,8 @@ impl Session {
     /// Execute session loop which handles requests from kernel.
     ///
     /// The multi_threaded flag controls if the session loop runs in
-    /// singlethreaded or multithreaded.
-    /// Singlethreaded mode is intended for debugging.
+    /// single-threaded or multi-threaded mode.
+    /// Single-threaded mode is intended for debugging only.
     pub fn run_loop(&mut self, multi_threaded: bool) -> Result<(), Error> {
         if self.verbose {
             println!("Executing fuse session loop");
@@ -230,7 +235,7 @@ impl Session {
             bail!("fuse session loop exited with - {}", result);
         }
         if result > 0 {
-            eprintln!("fuse session loop recieved signal - {}", result);
+            eprintln!("fuse session loop received signal - {}", result);
         }
 
         Ok(())
