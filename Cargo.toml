@@ -16,9 +16,9 @@ crc32fast = "1"
 endian_trait = { version = "0.6", features = ["arrays"] }
 failure = "0.1"
 futures-preview = "0.3.0-alpha"
-h2 = { version = "0.2.0-alpha", git = "https://github.com/hyperium/h2", features = ["stream"] }
+h2 = { version = "0.2.0-alpha.1", features = ["stream"] }
 http = "0.1"
-hyper = { version = "0.13.0-a.0", git = "https://github.com/hyperium/hyper" }
+hyper = { version = "0.13.0-alpha.1" }
 lazy_static = "1.3"
 libc = "0.2"
 log = "0.4"
