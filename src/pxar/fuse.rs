@@ -3,9 +3,10 @@
 //! Allows to mount the archive as read-only filesystem to inspect its contents.
 
 use std::ffi::{CString, OsStr};
+use std::convert::TryFrom;
 use std::fs::File;
-use std::io::BufReader;
 use std::os::unix::ffi::OsStrExt;
+use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -14,7 +15,7 @@ use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
 use super::decoder::Decoder;
-use super::format_definition::PxarGoodbyeItem;
+use super::format_definition::{PxarAttributes, PxarGoodbyeItem};
 
 /// Node ID of the root i-node
 ///
@@ -53,7 +54,7 @@ extern "C" {
     fn fuse_session_loop(session: ConstPtr) -> c_int;
     fn fuse_session_loop_mt_31(session: ConstPtr, clone_fd: c_int) -> c_int;
     fn fuse_session_destroy(session: ConstPtr);
-    //    fn fuse_reply_attr(req: Request, attr: *const libc::stat, timeout: f64) -> c_int;
+    fn fuse_reply_attr(req: Request, attr: Option<&libc::stat>, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
@@ -314,11 +315,49 @@ extern "C" fn lookup(req: Request, parent: u64, _name: StrPtr) {
     });
 }
 
-extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |_decoder, _ino_offset| {
-        // code goes here
+/// Get attr and xattr from the decoder and update stat according to the fuse
+/// implementation before returning
+fn stat<R, F>(decoder: &mut Decoder<R, F>, offset: u64) -> Result<(libc::stat, PxarAttributes), i32>
+where
+    R: Read + Seek,
+    F: Fn(&Path) -> Result<(), Error>,
+{
+    let (entry, xattr, payload_size) = decoder.attributes(offset).map_err(|_| libc::EIO)?;
+    let inode = if offset == decoder.root_end_offset() - GOODBYE_ITEM_SIZE {
+        FUSE_ROOT_ID
+    } else {
+        offset
+    };
+    let nlink = match (entry.mode as u32) & libc::S_IFMT {
+        libc::S_IFDIR => 2,
+        _ => 1,
+    };
+    let time = i64::try_from(entry.mtime).map_err(|_| libc::EIO)? / 1_000_000_000;
 
-        Err(libc::ENOENT)
+    let mut attr: libc::stat = unsafe { std::mem::zeroed() };
+    attr.st_ino = inode;
+    attr.st_nlink = nlink;
+    attr.st_mode = u32::try_from(entry.mode).map_err(|_| libc::EIO)?;
+    attr.st_size = i64::try_from(payload_size).map_err(|_| libc::EIO)?;
+    attr.st_uid = entry.uid;
+    attr.st_gid = entry.gid;
+    attr.st_atime = time;
+    attr.st_mtime = time;
+    attr.st_ctime = time;
+
+    Ok((attr, xattr))
+}
+
+extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
+    run_in_context(req, inode, |mut decoder, ino_offset| {
+        let (attr, _) = stat(&mut decoder, ino_offset)?;
+        let _res = unsafe {
+            // Since fs is read-only, the timeout can be max.
+            let timeout = std::f64::MAX;
+            fuse_reply_attr(req, Some(&attr), timeout)
+        };
+
+        Ok(())
     });
 }
 
