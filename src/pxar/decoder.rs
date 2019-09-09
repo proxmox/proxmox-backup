@@ -75,7 +75,11 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         Ok(())
     }
 
-    fn read_directory_entry(&mut self, start: u64, end: u64) -> Result<DirectoryEntry, Error> {
+    pub(crate) fn read_directory_entry(
+        &mut self,
+        start: u64,
+        end: u64,
+    ) -> Result<DirectoryEntry, Error> {
         self.seek(SeekFrom::Start(start))?;
 
         let head: PxarHeader = self.inner.read_item()?;
