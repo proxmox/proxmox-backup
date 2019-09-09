@@ -371,8 +371,13 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     /// Read the target of a hardlink in the archive.
     pub fn read_link(&mut self, offset: u64) -> Result<(PathBuf, PxarEntry), Error> {
         self.seek(SeekFrom::Start(offset))?;
-
         let mut header: PxarHeader = self.inner.read_item()?;
+        if header.htype != PXAR_FILENAME {
+            bail!("Expected PXAR_FILENAME, encountered 0x{:x?}", header.htype);
+        }
+        let _filename = self.inner.read_filename(header.size)?;
+
+        header = self.inner.read_item()?;
         check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
 
