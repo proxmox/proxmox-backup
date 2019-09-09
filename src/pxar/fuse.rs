@@ -74,6 +74,7 @@ extern "C" {
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
     fn fuse_reply_readlink(req: Request, link: StrPtr) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
+    fn fuse_add_direntry(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&libc::stat>, off: c_int) -> c_int;
 }
 
 /// Command line arguments passed to fuse.
@@ -486,10 +487,133 @@ extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
     });
 }
 
-extern "C" fn readdir(req: Request, inode: u64, _size: size_t, _offset: c_int, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |_decoder, _ino_offset| {
-        // code goes here
+/// State of Buf after last add_entry call
+enum BufState {
+    /// Entry was successfully added to Buf
+    Okay,
+    /// Entry did not fit into Buf, was not added
+    Overfull,
+}
 
-        Err(libc::ENOENT)
+/// Used to correctly fill and reply the buffer for the readdir callback
+struct Buf {
+    /// internal buffer holding the binary data
+    buffer: Vec<u8>,
+    /// offset up to which the buffer is filled already
+    filled: usize,
+    /// fuse request the buffer is used to reply to
+    req: Request,
+    /// index of the next item, telling from were to start on the next readdir callback in
+    /// case not everything fitted in the buffer on the first reply.
+    next: usize,
+}
+
+impl Buf {
+    /// Create a new empty `Buf` of `size` with element counting index at `next`.
+    fn new(req: Request, size: usize, next: usize) -> Self {
+        Self {
+            buffer: vec![0; size],
+            filled: 0,
+            req,
+            next,
+        }
+    }
+
+    /// Reply to the `Request` with the filled buffer
+    fn reply_filled(&mut self) -> Result<(), i32> {
+        let _res = unsafe {
+            let ptr = self.buffer.as_mut_ptr() as *mut c_char;
+            fuse_reply_buf(self.req, ptr, self.filled)
+        };
+
+        Ok(())
+    }
+
+    /// Fill the buffer for the fuse reply with the next entry
+    fn add_entry(&mut self, name: &CString, attr: &libc::stat) -> Result<BufState, Error> {
+        self.next += 1;
+        let size = self.buffer.len();
+        let bytes = unsafe {
+            let bptr = self.buffer.as_mut_ptr() as *mut c_char;
+            let nptr = name.as_ptr();
+            fuse_add_direntry(
+                self.req,
+                bptr.offset(self.filled as isize),
+                size - self.filled,
+                nptr,
+                Some(&attr),
+                i32::try_from(self.next)?,
+            ) as usize
+        };
+        self.filled += bytes;
+        // Never exceed the max size requested in the callback (=buffer.len())
+        if self.filled > size {
+            // Entry did not fit, so go back to previous state
+            self.filled -= bytes;
+            self.next -= 1;
+            return Ok(BufState::Overfull);
+        }
+
+        Ok(BufState::Okay)
+    }
+}
+
+/// Read and return the entries of the directory referenced by inode.
+///
+/// Replies to the request with the entries fitting into a buffer of length
+/// `size`, as requested by the caller.
+/// `offset` identifies the start index of entries to return. This is used on
+/// repeated calls, occurring if not all entries fitted into the buffer.
+extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
+    let offset = offset as usize;
+
+    run_in_context(req, inode, |mut decoder, ino_offset| {
+        let gb_table = decoder.goodbye_table(None, ino_offset + GOODBYE_ITEM_SIZE).map_err(|_| libc::EIO)?;
+        let n_entries = gb_table.len();
+        //let entries = decoder.list_dir(&dir).map_err(|_| libc::EIO)?;
+        let mut buf = Buf::new(req, size, offset);
+
+        if offset < n_entries {
+            for e in gb_table[offset..gb_table.len()].iter() {
+                let entry = decoder.read_directory_entry(e.1, e.2).map_err(|_| libc::EIO)?;
+                let name = CString::new(entry.filename.as_bytes()).map_err(|_| libc::EIO)?;
+                let (attr, _) = stat(&mut decoder, e.1)?;
+                match buf.add_entry(&name, &attr) {
+                    Ok(BufState::Okay) => {}
+                    Ok(BufState::Overfull) => return buf.reply_filled(),
+                    Err(_) => return Err(libc::EIO),
+                }
+            }
+        }
+
+        // Add current directory entry "."
+        if offset <= n_entries {
+            let (attr, _) = stat(&mut decoder, ino_offset)?;
+            let name = CString::new(".").unwrap();
+            match buf.add_entry(&name, &attr) {
+                Ok(BufState::Okay) => {}
+                Ok(BufState::Overfull) => return buf.reply_filled(),
+                Err(_) => return Err(libc::EIO),
+            }
+        }
+
+        // Add parent directory entry ".."
+        if offset <= n_entries + 1 {
+            let parent_off = if inode == FUSE_ROOT_ID {
+                decoder.root_end_offset() - GOODBYE_ITEM_SIZE
+            } else {
+                let guard = CHILD_PARENT.lock().map_err(|_| libc::EIO)?;
+                *guard.get(&ino_offset).ok_or_else(|| libc::EIO)?
+            };
+            let (attr, _) = stat(&mut decoder, parent_off)?;
+            let name = CString::new("..").unwrap();
+            match buf.add_entry(&name, &attr) {
+                Ok(BufState::Okay) => {}
+                Ok(BufState::Overfull) => return buf.reply_filled(),
+                Err(_) => return Err(libc::EIO),
+            }
+        }
+
+        buf.reply_filled()
     });
 }
