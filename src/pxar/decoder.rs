@@ -305,7 +305,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
         if marker == PXAR_FILENAME {
             let size: u64 = self.inner.read_item()?;
-            let _bytes = self.inner.skip_bytes(usize::try_from(size)?)?;
+            let _filename = self.inner.read_filename(size)?;
             marker = self.inner.read_item()?;
         }
         if marker != PXAR_ENTRY {
