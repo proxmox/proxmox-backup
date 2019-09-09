@@ -2,8 +2,9 @@
 //!
 //! Allows to mount the archive as read-only filesystem to inspect its contents.
 
-use std::ffi::{CString, OsStr};
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
 use std::os::unix::ffi::OsStrExt;
 use std::io::{BufReader, Read, Seek};
@@ -11,6 +12,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use failure::{bail, format_err, Error};
+use lazy_static::lazy_static;
 use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
@@ -29,6 +31,16 @@ use super::format_definition::{PxarAttributes, PxarGoodbyeItem};
 const FUSE_ROOT_ID: u64 = 1;
 
 const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
+lazy_static! {
+    /// HashMap holding the mapping from the child offsets to their parent
+    /// offsets.
+    ///
+    /// In order to include the parent directory entry '..' in the response for
+    /// readdir callback, this mapping is needed.
+    /// Calling the lookup callback will insert the offsets into the HashMap.
+    static ref CHILD_PARENT: Mutex<HashMap<u64, u64>> = Mutex::new(HashMap::new());
+}
+
 /// Callback function for `super::decoder::Decoder`.
 ///
 /// At the moment, this is only needed to satisfy the `SequentialDecoder`.
@@ -56,6 +68,7 @@ extern "C" {
     fn fuse_session_destroy(session: ConstPtr);
     fn fuse_reply_attr(req: Request, attr: Option<&libc::stat>, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
+    fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
 
@@ -307,11 +320,62 @@ extern "C" fn destroy(decoder: MutPtr) {
     }
 }
 
-extern "C" fn lookup(req: Request, parent: u64, _name: StrPtr) {
-    run_in_context(req, parent, |_decoder, _ino_offset| {
-        // code goes here
+/// FUSE entry for fuse_reply_entry in lookup callback
+#[repr(C)]
+struct EntryParam {
+    inode: u64,
+    generation: u64,
+    attr: libc::stat,
+    attr_timeout: f64,
+    entry_timeout: f64,
+}
 
-        Err(libc::ENOENT)
+/// Lookup `name` in the directory referenced by `parent` inode.
+///
+/// Inserts also the child and parent file offset in the hashmap to quickly
+/// obtain the parent offset based on the child offset.
+extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
+    let filename = unsafe { CStr::from_ptr(name) };
+    let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
+
+    run_in_context(req, parent, |mut decoder, ino_offset| {
+        let goodbye_table = decoder.goodbye_table(None, ino_offset + GOODBYE_ITEM_SIZE).map_err(|_| libc::EIO)?;
+
+        let (_item, start, end) = goodbye_table
+            .iter()
+            .find(|(e, _, _)| e.hash == hash)
+            .ok_or(libc::ENOENT)?;
+
+        let (mut attr, _) = stat(&mut decoder, *start)?;
+        let offset = if attr.st_mode & libc::S_IFMT == libc::S_IFDIR {
+            *end - GOODBYE_ITEM_SIZE
+        } else {
+            *start
+        };
+        let inode = if offset == decoder.root_end_offset() - GOODBYE_ITEM_SIZE {
+            FUSE_ROOT_ID
+        } else {
+            offset
+        };
+        attr.st_ino = inode;
+
+        let e = EntryParam {
+            inode,
+            generation: 1,
+            attr,
+            attr_timeout: std::f64::MAX,
+            entry_timeout: std::f64::MAX,
+        };
+
+        // Update the parent for this child entry. Used to get parent offset if
+        // only child offset is known.
+        CHILD_PARENT
+            .lock()
+            .map_err(|_| libc::EIO)?
+            .insert(offset, ino_offset);
+        let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
+
+        Ok(())
     });
 }
 
