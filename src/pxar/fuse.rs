@@ -68,6 +68,7 @@ extern "C" {
     fn fuse_session_destroy(session: ConstPtr);
     fn fuse_reply_attr(req: Request, attr: Option<&libc::stat>, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
+    fn fuse_reply_open(req: Request, fileinfo: ConstPtr) -> c_int;
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
@@ -425,11 +426,12 @@ extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
     });
 }
 
-extern "C" fn open(req: Request, inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |_decoder, _ino_offset| {
-        // code goes here
+extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
+    run_in_context(req, inode, |decoder, ino_offset| {
+        decoder.open(ino_offset).map_err(|_| libc::ENOENT)?;
+        let _ret = unsafe { fuse_reply_open(req, fileinfo) };
 
-        Err(libc::ENOENT)
+        Ok(())
     });
 }
 
