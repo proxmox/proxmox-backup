@@ -112,32 +112,33 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         })
     }
 
-    pub fn list_dir(&mut self, dir: &DirectoryEntry) -> Result<Vec<DirectoryEntry>, Error> {
-        let start = dir.start;
-        let end = dir.end;
-
-        //println!("list_dir1: {} {}", start, end);
-
-        if (end - start) < (HEADER_SIZE + GOODBYE_ITEM_SIZE) {
-            bail!("detected short object [{}..{}]", start, end);
-        }
-
+    /// Return the goodbye table based on the provided end offset.
+    ///
+    /// Get the goodbye table entries and the start and end offsets of the
+    /// items they reference.
+    /// If the start offset is provided, we use that to check the consistency of
+    /// the data, else the start offset calculated based on the goodbye tail is
+    /// used.
+    pub(crate) fn goodbye_table(
+        &mut self,
+        start: Option<u64>,
+        end: u64,
+    ) -> Result<Vec<(PxarGoodbyeItem, u64, u64)>, Error> {
         self.seek(SeekFrom::Start(end - GOODBYE_ITEM_SIZE))?;
 
-        let item: PxarGoodbyeItem = self.inner.read_item()?;
-
-        if item.hash != PXAR_GOODBYE_TAIL_MARKER {
-            bail!(
-                "missing goodbye tail marker for object [{}..{}]",
-                start,
-                end
-            );
+        let tail: PxarGoodbyeItem = self.inner.read_item()?;
+        if tail.hash != PXAR_GOODBYE_TAIL_MARKER {
+            bail!("missing goodbye tail marker for object at offset {}", end);
         }
 
-        let goodbye_table_size = item.size;
+        // If the start offset was provided, we use and check based on that.
+        // If not, we rely on the offset calculated from the goodbye table entry.
+        let start = start.unwrap_or(end - tail.offset - tail.size);
+        let goodbye_table_size = tail.size;
         if goodbye_table_size < (HEADER_SIZE + GOODBYE_ITEM_SIZE) {
             bail!("short goodbye table size for object [{}..{}]", start, end);
         }
+
         let goodbye_inner_size = goodbye_table_size - HEADER_SIZE - GOODBYE_ITEM_SIZE;
         if (goodbye_inner_size % GOODBYE_ITEM_SIZE) != 0 {
             bail!(
@@ -148,13 +149,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         }
 
         let goodbye_start = end - goodbye_table_size;
-
-        if item.offset != (goodbye_start - start) {
-            println!(
-                "DEBUG: {} {}",
-                u64::from_le(item.offset),
-                goodbye_start - start
-            );
+        if tail.offset != (goodbye_start - start) {
             bail!(
                 "wrong offset in goodbye tail marker for entry [{}..{}]",
                 start,
@@ -164,7 +159,6 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
         self.seek(SeekFrom::Start(goodbye_start))?;
         let head: PxarHeader = self.inner.read_item()?;
-
         if head.htype != PXAR_GOODBYE {
             bail!(
                 "wrong goodbye table header type for entry [{}..{}]",
@@ -177,11 +171,9 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             bail!("wrong goodbye table size for entry [{}..{}]", start, end);
         }
 
-        let mut range_list = Vec::new();
-
+        let mut gb_entries = Vec::new();
         for i in 0..goodbye_inner_size / GOODBYE_ITEM_SIZE {
             let item: PxarGoodbyeItem = self.inner.read_item()?;
-
             if item.offset > (goodbye_start - start) {
                 bail!(
                     "goodbye entry {} offset out of range [{}..{}] {} {} {}",
@@ -198,13 +190,25 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             if item_end > goodbye_start {
                 bail!("goodbye entry {} end out of range [{}..{}]", i, start, end);
             }
+            gb_entries.push((item, item_start, item_end));
+        }
 
-            range_list.push((item_start, item_end));
+        Ok(gb_entries)
+    }
+
+    pub fn list_dir(&mut self, dir: &DirectoryEntry) -> Result<Vec<DirectoryEntry>, Error> {
+        let start = dir.start;
+        let end = dir.end;
+
+        //println!("list_dir1: {} {}", start, end);
+
+        if (end - start) < (HEADER_SIZE + GOODBYE_ITEM_SIZE) {
+            bail!("detected short object [{}..{}]", start, end);
         }
 
         let mut result = vec![];
-
-        for (item_start, item_end) in range_list {
+        let goodbye_table = self.goodbye_table(Some(start), end)?;
+        for (_, item_start, item_end) in goodbye_table {
             let entry = self.read_directory_entry(item_start, item_end)?;
             //println!("ENTRY: {} {} {:?}", item_start, item_end, entry.filename);
             result.push(entry);
