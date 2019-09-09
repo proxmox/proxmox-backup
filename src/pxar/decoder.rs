@@ -22,16 +22,6 @@ pub struct DirectoryEntry {
     pub entry: PxarEntry,
 }
 
-impl DirectoryEntry {
-    pub(crate) fn start_offset(&self) -> u64 {
-        self.start
-    }
-
-    pub(crate) fn end_offset(&self) -> u64 {
-        self.end
-    }
-}
-
 // This one needs Read+Seek
 pub struct Decoder<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> {
     inner: SequentialDecoder<R, F>,
