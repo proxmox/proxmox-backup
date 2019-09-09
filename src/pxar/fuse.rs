@@ -53,6 +53,7 @@ type Request = *mut c_void;
 type MutPtr = *mut c_void;
 type ConstPtr = *const c_void;
 type StrPtr = *const c_char;
+type MutStrPtr = *mut c_char;
 
 #[rustfmt::skip]
 #[link(name = "fuse3")]
@@ -69,6 +70,7 @@ extern "C" {
     fn fuse_reply_attr(req: Request, attr: Option<&libc::stat>, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
     fn fuse_reply_open(req: Request, fileinfo: ConstPtr) -> c_int;
+    fn fuse_reply_buf(req: Request, buf: MutStrPtr, size: size_t) -> c_int;
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
@@ -435,11 +437,19 @@ extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
     });
 }
 
-extern "C" fn read(req: Request, inode: u64, _size: size_t, _offset: c_int, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |_decoder, _ino_offset| {
-        // code goes here
+extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
+    run_in_context(req, inode, |decoder, ino_offset| {
+        let mut data = decoder
+            .read(ino_offset, size, offset as u64)
+            .map_err(|_| libc::EIO)?;
 
-        Err(libc::ENOENT)
+        let _res = unsafe {
+            let len = data.len();
+            let dptr = data.as_mut_ptr() as *mut c_char;
+            fuse_reply_buf(req, dptr, len)
+        };
+
+        Ok(())
     });
 }
 
