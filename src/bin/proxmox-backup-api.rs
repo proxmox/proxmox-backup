@@ -12,6 +12,7 @@ use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
+use proxmox_backup::buildcfg;
 
 #[tokio::main]
 async fn main() {
@@ -48,7 +49,7 @@ async fn run() -> Result<(), Error> {
     }
 
     let config = ApiConfig::new(
-        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PRIVILEGED);
+        buildcfg::JS_DIR, &ROUTER, RpcEnvironmentType::PRIVILEGED);
 
     let rest_server = RestServer::new(config);
 

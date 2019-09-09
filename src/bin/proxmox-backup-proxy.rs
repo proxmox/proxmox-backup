@@ -1,4 +1,5 @@
 use proxmox_backup::configdir;
+use proxmox_backup::buildcfg;
 use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::api_schema::router::*;
@@ -41,7 +42,7 @@ async fn run() -> Result<(), Error> {
     }
 
     let mut config = ApiConfig::new(
-        env!("PROXMOX_JSDIR"), &ROUTER, RpcEnvironmentType::PUBLIC);
+        buildcfg::JS_DIR, &ROUTER, RpcEnvironmentType::PUBLIC);
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';

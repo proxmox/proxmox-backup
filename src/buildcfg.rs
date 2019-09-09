@@ -1,7 +1,8 @@
 //! Exports configuration data from the build system
 
 /// The configured configuration directory
-pub const CONFIGDIR: &'static str = env!("PROXMOX_CONFIGDIR");
+pub const CONFIGDIR: &'static str = "/etc/proxmox-backup";
+pub const JS_DIR: &str = "/usr/share/javascript/proxmox-backup";
 
 /// Prepend configuration directory to a file name
 ///
@@ -13,5 +14,5 @@ pub const CONFIGDIR: &'static str = env!("PROXMOX_CONFIGDIR");
 /// ```
 #[macro_export]
 macro_rules! configdir {
-    ($subdir:expr) => (concat!(env!("PROXMOX_CONFIGDIR"), $subdir))
+    ($subdir:expr) => (concat!("/etc/proxmox-backup", $subdir))
 }

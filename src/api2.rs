@@ -4,7 +4,7 @@ pub mod admin;
 pub mod backup;
 pub mod reader;
 pub mod node;
-mod version;
+pub mod version;
 mod subscription;
 mod access;
 

@@ -4,9 +4,14 @@ use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json, Value};
 
-const PROXMOX_PKG_VERSION: &'static str = env!("PROXMOX_PKG_VERSION");
-const PROXMOX_PKG_RELEASE: &'static str = env!("PROXMOX_PKG_RELEASE");
-const PROXMOX_PKG_REPOID: &'static str = env!("PROXMOX_PKG_REPOID");
+pub const PROXMOX_PKG_VERSION: &'static str =
+    concat!(
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        ".",
+        env!("CARGO_PKG_VERSION_MINOR"),
+    );
+pub const PROXMOX_PKG_RELEASE: &'static str = env!("CARGO_PKG_VERSION_PATCH");
+pub const PROXMOX_PKG_REPOID: &'static str = env!("CARGO_PKG_REPOSITORY");
 
 fn get_version(
     _param: Value,
