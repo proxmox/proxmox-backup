@@ -453,11 +453,19 @@ extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _filei
     });
 }
 
-extern "C" fn opendir(req: Request, inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |_decoder, _ino_offset| {
-        // code goes here
+/// Open the directory referenced by the given inode for reading.
+///
+/// This simply checks if the inode references a valid directory, no internal
+/// state identifies the directory as opened.
+extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
+    run_in_context(req, inode, |mut decoder, ino_offset| {
+        let (attr, _) = stat(&mut decoder, ino_offset).map_err(|_| libc::ENOENT)?;
+        if attr.st_mode & libc::S_IFMT != libc::S_IFDIR {
+            return Err(libc::ENOENT);
+        }
+        let _ret = unsafe { fuse_reply_open(req, fileinfo) };
 
-        Err(libc::ENOENT)
+        Ok(())
     });
 }
 
