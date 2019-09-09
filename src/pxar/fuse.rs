@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
-use std::os::unix::ffi::OsStrExt;
 use std::io::{BufReader, Read, Seek};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -72,6 +72,7 @@ extern "C" {
     fn fuse_reply_open(req: Request, fileinfo: ConstPtr) -> c_int;
     fn fuse_reply_buf(req: Request, buf: MutStrPtr, size: size_t) -> c_int;
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
+    fn fuse_reply_readlink(req: Request, link: StrPtr) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
 }
 
@@ -176,6 +177,7 @@ impl Session {
         oprs.destroy = Some(destroy);
         oprs.lookup = Some(lookup);
         oprs.getattr = Some(getattr);
+        oprs.readlink = Some(readlink);
         oprs.open = Some(open);
         oprs.read = Some(read);
         oprs.opendir = Some(opendir);
@@ -423,6 +425,21 @@ extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
             let timeout = std::f64::MAX;
             fuse_reply_attr(req, Some(&attr), timeout)
         };
+
+        Ok(())
+    });
+}
+
+extern "C" fn readlink(req: Request, inode: u64) {
+    run_in_context(req, inode, |decoder, ino_offset| {
+        let (target, _) = decoder
+            .read_link(ino_offset)
+            .map_err(|err| {
+                println!("{}", err);
+                libc::EIO
+            })?;
+        let link = CString::new(target.into_os_string().into_vec()).map_err(|_| libc::EIO)?;
+        let _ret = unsafe { fuse_reply_readlink(req, link.as_ptr()) };
 
         Ok(())
     });
