@@ -306,6 +306,13 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             let _filename = self.inner.read_filename(size)?;
             marker = self.inner.read_item()?;
         }
+
+        if marker == PXAR_FORMAT_HARDLINK {
+            let size: u64 = self.inner.read_item()?;
+            let (_, diff) = self.inner.read_hardlink(size)?;
+            return self.attributes(offset - diff);
+        }
+
         if marker != PXAR_ENTRY {
             bail!("Expected PXAR_ENTRY, found 0x{:x?}", marker);
         }
