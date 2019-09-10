@@ -501,16 +501,16 @@ extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
     });
 }
 
-/// State of Buf after last add_entry call
-enum BufState {
-    /// Entry was successfully added to Buf
+/// State of ReplyBuf after last add_entry call
+enum ReplyBufState {
+    /// Entry was successfully added to ReplyBuf
     Okay,
-    /// Entry did not fit into Buf, was not added
+    /// Entry did not fit into ReplyBuf, was not added
     Overfull,
 }
 
 /// Used to correctly fill and reply the buffer for the readdir callback
-struct Buf {
+struct ReplyBuf {
     /// internal buffer holding the binary data
     buffer: Vec<u8>,
     /// offset up to which the buffer is filled already
@@ -522,8 +522,8 @@ struct Buf {
     next: usize,
 }
 
-impl Buf {
-    /// Create a new empty `Buf` of `size` with element counting index at `next`.
+impl ReplyBuf {
+    /// Create a new empty `ReplyBuf` of `size` with element counting index at `next`.
     fn new(req: Request, size: usize, next: usize) -> Self {
         Self {
             buffer: vec![0; size],
@@ -544,7 +544,7 @@ impl Buf {
     }
 
     /// Fill the buffer for the fuse reply with the next entry
-    fn add_entry(&mut self, name: &CString, attr: &libc::stat) -> Result<BufState, Error> {
+    fn add_entry(&mut self, name: &CString, attr: &libc::stat) -> Result<ReplyBufState, Error> {
         self.next += 1;
         let size = self.buffer.len();
         let bytes = unsafe {
@@ -565,10 +565,10 @@ impl Buf {
             // Entry did not fit, so go back to previous state
             self.filled -= bytes;
             self.next -= 1;
-            return Ok(BufState::Overfull);
+            return Ok(ReplyBufState::Overfull);
         }
 
-        Ok(BufState::Okay)
+        Ok(ReplyBufState::Okay)
     }
 }
 
@@ -585,7 +585,7 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
         let gb_table = decoder.goodbye_table(None, ino_offset + GOODBYE_ITEM_SIZE).map_err(|_| libc::EIO)?;
         let n_entries = gb_table.len();
         //let entries = decoder.list_dir(&dir).map_err(|_| libc::EIO)?;
-        let mut buf = Buf::new(req, size, offset);
+        let mut buf = ReplyBuf::new(req, size, offset);
 
         if offset < n_entries {
             for e in gb_table[offset..gb_table.len()].iter() {
@@ -596,8 +596,8 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
                 let item_inode = calculate_inode(item_offset, decoder.root_end_offset());
                 let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
                 match buf.add_entry(&name, &attr) {
-                    Ok(BufState::Okay) => {}
-                    Ok(BufState::Overfull) => return buf.reply_filled(),
+                    Ok(ReplyBufState::Okay) => {}
+                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                     Err(_) => return Err(libc::EIO),
                 }
             }
@@ -610,8 +610,8 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
             let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
             let name = CString::new(".").unwrap();
             match buf.add_entry(&name, &attr) {
-                Ok(BufState::Okay) => {}
-                Ok(BufState::Overfull) => return buf.reply_filled(),
+                Ok(ReplyBufState::Okay) => {}
+                Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                 Err(_) => return Err(libc::EIO),
             }
         }
@@ -629,8 +629,8 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
             let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
             let name = CString::new("..").unwrap();
             match buf.add_entry(&name, &attr) {
-                Ok(BufState::Okay) => {}
-                Ok(BufState::Overfull) => return buf.reply_filled(),
+                Ok(ReplyBufState::Okay) => {}
+                Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                 Err(_) => return Err(libc::EIO),
             }
         }
