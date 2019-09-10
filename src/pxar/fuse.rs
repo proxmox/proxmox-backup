@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
-use std::io::{BufReader, Read, Seek};
+use std::io::BufReader;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use std::sync::Mutex;
@@ -17,7 +17,7 @@ use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
 use super::decoder::Decoder;
-use super::format_definition::{PxarAttributes, PxarGoodbyeItem};
+use super::format_definition::{PxarEntry, PxarGoodbyeItem};
 
 /// Node ID of the root i-node
 ///
@@ -313,6 +313,33 @@ where
     let _ = Box::into_raw(boxed_decoder);
 }
 
+/// Return the correct offset for the item based on its `PxarEntry` mode
+///
+/// For directories, the offset for the corresponding `GOODBYE_TAIL_MARKER`
+/// is returned.
+/// If it is not a directory, the start offset is returned.
+fn find_offset(entry: &PxarEntry, start: u64, end: u64) -> u64 {
+    if (entry.mode as u32 & libc::S_IFMT) == libc::S_IFDIR {
+        end - GOODBYE_ITEM_SIZE
+    } else {
+        start
+    }
+}
+
+/// Calculate the i-node based on the given `offset`
+///
+/// This maps the `offset` to the correct i-node, which is simply the offset.
+/// The root directory is an exception, as it has per definition `FUSE_ROOT_ID`.
+/// `root_end` is the end offset of the root directory (archive end).
+fn calculate_inode(offset: u64, root_end: u64) -> u64 {
+    // check for root offset which has to be mapped to `FUSE_ROOT_ID`
+    if offset == root_end - GOODBYE_ITEM_SIZE {
+        FUSE_ROOT_ID
+    } else {
+        offset
+    }
+}
+
 /// Callback functions for fuse kernel driver.
 extern "C" fn init(_decoder: MutPtr) {
     // Notting to do here for now
@@ -344,7 +371,7 @@ extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
     let filename = unsafe { CStr::from_ptr(name) };
     let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
 
-    run_in_context(req, parent, |mut decoder, ino_offset| {
+    run_in_context(req, parent, |decoder, ino_offset| {
         let goodbye_table = decoder.goodbye_table(None, ino_offset + GOODBYE_ITEM_SIZE).map_err(|_| libc::EIO)?;
 
         let (_item, start, end) = goodbye_table
@@ -352,23 +379,20 @@ extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
             .find(|(e, _, _)| e.hash == hash)
             .ok_or(libc::ENOENT)?;
 
-        let (mut attr, _) = stat(&mut decoder, *start)?;
-        let offset = if attr.st_mode & libc::S_IFMT == libc::S_IFDIR {
-            *end - GOODBYE_ITEM_SIZE
-        } else {
-            *start
-        };
-        let inode = if offset == decoder.root_end_offset() - GOODBYE_ITEM_SIZE {
-            FUSE_ROOT_ID
-        } else {
-            offset
-        };
-        attr.st_ino = inode;
+        // At this point it is not clear if the item is a directory or not, this
+        // has to be decided based on the entry mode.
+        // `Decoder`s attributes function accepts both, offsets pointing to
+        // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
+        // of directories, so the use of start offset is fine for both cases.
+        let (entry, _, payload_size) = decoder.attributes(*start).map_err(|_| libc::EIO)?;
+        // Get the correct offset based on the entry mode before calculating the i-node.
+        let child_offset = find_offset(&entry, *start, *end);
+        let child_inode = calculate_inode(child_offset, decoder.root_end_offset());
 
         let e = EntryParam {
-            inode,
+            inode: child_inode,
             generation: 1,
-            attr,
+            attr: stat(child_inode, &entry, payload_size)?,
             attr_timeout: std::f64::MAX,
             entry_timeout: std::f64::MAX,
         };
@@ -378,26 +402,15 @@ extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
         CHILD_PARENT
             .lock()
             .map_err(|_| libc::EIO)?
-            .insert(offset, ino_offset);
+            .insert(child_offset, ino_offset);
         let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
 
         Ok(())
     });
 }
 
-/// Get attr and xattr from the decoder and update stat according to the fuse
-/// implementation before returning
-fn stat<R, F>(decoder: &mut Decoder<R, F>, offset: u64) -> Result<(libc::stat, PxarAttributes), i32>
-where
-    R: Read + Seek,
-    F: Fn(&Path) -> Result<(), Error>,
-{
-    let (entry, xattr, payload_size) = decoder.attributes(offset).map_err(|_| libc::EIO)?;
-    let inode = if offset == decoder.root_end_offset() - GOODBYE_ITEM_SIZE {
-        FUSE_ROOT_ID
-    } else {
-        offset
-    };
+/// Create a `libc::stat` with the provided i-node, entry and payload size
+fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, i32> {
     let nlink = match (entry.mode as u32) & libc::S_IFMT {
         libc::S_IFDIR => 2,
         _ => 1,
@@ -415,12 +428,13 @@ where
     attr.st_mtime = time;
     attr.st_ctime = time;
 
-    Ok((attr, xattr))
+    Ok(attr)
 }
 
 extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |mut decoder, ino_offset| {
-        let (attr, _) = stat(&mut decoder, ino_offset)?;
+    run_in_context(req, inode, |decoder, ino_offset| {
+        let (entry, _, payload_size) = decoder.attributes(ino_offset).map_err(|_| libc::EIO)?;
+        let attr = stat(inode, &entry, payload_size)?;
         let _res = unsafe {
             // Since fs is read-only, the timeout can be max.
             let timeout = std::f64::MAX;
@@ -476,9 +490,9 @@ extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _filei
 /// This simply checks if the inode references a valid directory, no internal
 /// state identifies the directory as opened.
 extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
-    run_in_context(req, inode, |mut decoder, ino_offset| {
-        let (attr, _) = stat(&mut decoder, ino_offset).map_err(|_| libc::ENOENT)?;
-        if attr.st_mode & libc::S_IFMT != libc::S_IFDIR {
+    run_in_context(req, inode, |decoder, ino_offset| {
+        let (entry, _, _) = decoder.attributes(ino_offset).map_err(|_| libc::EIO)?;
+        if (entry.mode as u32 & libc::S_IFMT) != libc::S_IFDIR {
             return Err(libc::ENOENT);
         }
         let _ret = unsafe { fuse_reply_open(req, fileinfo) };
@@ -567,7 +581,7 @@ impl Buf {
 extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
     let offset = offset as usize;
 
-    run_in_context(req, inode, |mut decoder, ino_offset| {
+    run_in_context(req, inode, |decoder, ino_offset| {
         let gb_table = decoder.goodbye_table(None, ino_offset + GOODBYE_ITEM_SIZE).map_err(|_| libc::EIO)?;
         let n_entries = gb_table.len();
         //let entries = decoder.list_dir(&dir).map_err(|_| libc::EIO)?;
@@ -577,7 +591,10 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
             for e in gb_table[offset..gb_table.len()].iter() {
                 let entry = decoder.read_directory_entry(e.1, e.2).map_err(|_| libc::EIO)?;
                 let name = CString::new(entry.filename.as_bytes()).map_err(|_| libc::EIO)?;
-                let (attr, _) = stat(&mut decoder, e.1)?;
+                let (entry, _, payload_size) = decoder.attributes(e.1).map_err(|_| libc::EIO)?;
+                let item_offset = find_offset(&entry, e.1, e.2);
+                let item_inode = calculate_inode(item_offset, decoder.root_end_offset());
+                let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
                 match buf.add_entry(&name, &attr) {
                     Ok(BufState::Okay) => {}
                     Ok(BufState::Overfull) => return buf.reply_filled(),
@@ -588,7 +605,9 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
 
         // Add current directory entry "."
         if offset <= n_entries {
-            let (attr, _) = stat(&mut decoder, ino_offset)?;
+            let (entry, _, payload_size) = decoder.attributes(ino_offset).map_err(|_| libc::EIO)?;
+            // No need to calculate i-node for current dir, since it is given as parameter
+            let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
             let name = CString::new(".").unwrap();
             match buf.add_entry(&name, &attr) {
                 Ok(BufState::Okay) => {}
@@ -605,7 +624,9 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
                 let guard = CHILD_PARENT.lock().map_err(|_| libc::EIO)?;
                 *guard.get(&ino_offset).ok_or_else(|| libc::EIO)?
             };
-            let (attr, _) = stat(&mut decoder, parent_off)?;
+            let (entry, _, payload_size) = decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
+            let item_inode = calculate_inode(parent_off, decoder.root_end_offset());
+            let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
             let name = CString::new("..").unwrap();
             match buf.add_entry(&name, &attr) {
                 Ok(BufState::Okay) => {}
