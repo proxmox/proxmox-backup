@@ -289,7 +289,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     /// directories `PXAR_GOODBYE_TAIL_MARKER`. This is not mandatory and it can
     /// also directly point to its `PXAR_FILENAME` or `PXAR_ENTRY`, thereby
     /// avoiding an additional seek.
-    pub fn attributes(&mut self, offset: u64) -> Result<(PxarEntry, PxarAttributes, u64), Error> {
+    pub fn attributes(&mut self, offset: u64) -> Result<(OsString, PxarEntry, PxarAttributes, u64), Error> {
         self.seek(SeekFrom::Start(offset))?;
 
         let mut marker: u64 = self.inner.read_item()?;
@@ -301,11 +301,14 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             marker = self.inner.read_item()?;
         }
 
-        if marker == PXAR_FILENAME {
+        let filename = if marker == PXAR_FILENAME {
             let size: u64 = self.inner.read_item()?;
-            let _filename = self.inner.read_filename(size)?;
+            let filename = self.inner.read_filename(size)?;
             marker = self.inner.read_item()?;
-        }
+            filename
+        } else {
+            OsString::new()
+        };
 
         if marker == PXAR_FORMAT_HARDLINK {
             let size: u64 = self.inner.read_item()?;
@@ -324,12 +327,12 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             _ => 0,
         };
 
-        Ok((entry, xattr, file_size))
+        Ok((filename, entry, xattr, file_size))
     }
 
     /// Opens the file by validating the given `offset` and returning its attrs,
     /// xattrs and size.
-    pub fn open(&mut self, offset: u64) -> Result<(PxarEntry, PxarAttributes, u64), Error> {
+    pub fn open(&mut self, offset: u64) -> Result<(OsString, PxarEntry, PxarAttributes, u64), Error> {
         self.attributes(offset)
     }
 
