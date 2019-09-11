@@ -80,9 +80,7 @@ impl DynamicIndexReader {
 
         let header_size = std::mem::size_of::<DynamicIndexHeader>();
 
-        let buffer = file.read_exact_allocated(header_size)?;
-
-        let header = unsafe { &* (buffer.as_ptr() as *const DynamicIndexHeader) };
+        let header: Box<DynamicIndexHeader> = unsafe { file.read_host_value_boxed()? };
 
         if header.magic != super::DYNAMIC_SIZED_CHUNK_INDEX_1_0 {
             bail!("got unknown magic number");
