@@ -191,9 +191,7 @@ impl DataStore {
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let path = entry?.into_path();
             if let Some(ext) = path.extension() {
-                if ext == "fidx" {
-                    list.push(path);
-                } else if ext == "didx" {
+                if ext == "fidx" || ext == "didx"{
                     list.push(path);
                 }
             }
