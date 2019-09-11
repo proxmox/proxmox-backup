@@ -51,8 +51,7 @@ pub fn wrap_text(initial_indent: &str, subsequent_indent: &str, text: &str, colu
 }
 
 pub fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> String {
-
-    let type_text = match schema {
+    match schema {
         Schema::Null => String::from("<null>"), // should not happen
         Schema::String(_) => String::from("<string>"),
         Schema::Boolean(_) => String::from("<boolean>"),
@@ -66,9 +65,7 @@ pub fn get_schema_type_text(schema: &Schema, _style: ParameterDisplayStyle) -> S
 	},
         Schema::Object(_) => String::from("<object>"),
         Schema::Array(_) => String::from("<array>"),
-    };
-
-    type_text
+    }
 }
 
 pub fn get_property_description(
@@ -229,14 +226,14 @@ fn dump_api_return_schema(schema: &Schema) -> String {
 fn dump_method_definition(method: &str, path: &str, def: &MethodDefinition) -> Option<String> {
 
     match def {
-        MethodDefinition::None => return None,
+        MethodDefinition::None => None,
         MethodDefinition::Simple(simple_method) => {
             let param_descr = dump_api_parameters(&simple_method.parameters);
 
             let return_descr = dump_api_return_schema(&simple_method.returns);
 
             let res = format!("**{} {}**\n\n{}\n\n{}", method, path, param_descr, return_descr);
-            return Some(res);
+            Some(res)
          }
         MethodDefinition::Async(async_method) => {
             let method = if method == "POST" { "UPLOAD" } else { method };
@@ -247,7 +244,7 @@ fn dump_method_definition(method: &str, path: &str, def: &MethodDefinition) -> O
             let return_descr = dump_api_return_schema(&async_method.returns);
 
             let res = format!("**{} {}**\n\n{}\n\n{}", method, path, param_descr, return_descr);
-            return Some(res);
+            Some(res)
         }
     }
 }

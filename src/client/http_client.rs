@@ -494,7 +494,7 @@ impl Drop for BackupReader {
 impl BackupReader {
 
     pub fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
-        Arc::new(Self { h2, canceller: canceller })
+        Arc::new(Self { h2, canceller })
     }
 
     pub async fn get(

@@ -417,12 +417,10 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
                 let kv: Vec<&str> = key_val.splitn(2, '=').collect();
                 if kv.len() == 2 {
                     param_list.push((kv[0].into(), kv[1].into()));
+                } else if let Some(key) = object_schema.default_key {
+                    param_list.push((key.into(), kv[0].into()));
                 } else {
-                    if let Some(key) = object_schema.default_key {
-                        param_list.push((key.into(), kv[0].into()));
-                    } else {
-                        bail!("Value without key, but schema does not define a default key.");
-                    }
+                    bail!("Value without key, but schema does not define a default key.");
                 }
             }
 
@@ -511,24 +509,22 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
                     }
                 }
             }
-        } else {
-            if additional_properties {
-                match params[key] {
-                    Value::Null => {
-                        params[key] = Value::String(value.to_owned());
-                    },
-                    Value::String(ref old) => {
-                        params[key] = Value::Array(
-                            vec![Value::String(old.to_owned()),  Value::String(value.to_owned())]);
-                    }
-                    Value::Array(ref mut array) => {
-                        array.push(Value::String(value.to_string()));
-                    }
-                    _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
+        } else if additional_properties {
+            match params[key] {
+                Value::Null => {
+                    params[key] = Value::String(value.to_owned());
+                },
+                Value::String(ref old) => {
+                    params[key] = Value::Array(
+                        vec![Value::String(old.to_owned()),  Value::String(value.to_owned())]);
                 }
-            } else {
-                errors.push(format_err!("parameter '{}': schema does not allow additional properties.", key));
+                Value::Array(ref mut array) => {
+                    array.push(Value::String(value.to_string()));
+                }
+                _ => errors.push(format_err!("parameter '{}': expected array - type missmatch", key)),
             }
+        } else {
+            errors.push(format_err!("parameter '{}': schema does not allow additional properties.", key));
         }
     }
 
@@ -638,10 +634,8 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
                 }
                 _ => verify_json(value, prop_schema)?,
             }
-        } else {
-            if !additional_properties {
-                bail!("property '{}': schema does not allow additional properties.", key);
-            }
+        } else if !additional_properties {
+            bail!("property '{}': schema does not allow additional properties.", key);
         }
     }
 
