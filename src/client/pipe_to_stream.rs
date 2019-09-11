@@ -30,36 +30,21 @@ impl Future for PipeToSendStream {
     fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let this = self.get_mut();
 
-        loop {
-            if this.data != None {
-                // just reserve 1 byte to make sure there's some
-                // capacity available. h2 will handle the capacity
-                // management for the actual body chunk.
-                this.body_tx.reserve_capacity(1);
+        if this.data != None {
+            // just reserve 1 byte to make sure there's some
+            // capacity available. h2 will handle the capacity
+            // management for the actual body chunk.
+            this.body_tx.reserve_capacity(1);
 
-                if this.body_tx.capacity() == 0 {
-                    loop {
-                        match ready!(this.body_tx.poll_capacity(cx)) {
-                            Some(Err(err)) => return Poll::Ready(Err(Error::from(err))),
-                            Some(Ok(0)) => {}
-                            Some(Ok(_)) => break,
-                            None => return Poll::Ready(Err(format_err!("protocol canceled"))),
-                        }
-                    }
-                } else {
-                    if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
-                        return Poll::Ready(Err(match reset {
-                            Ok(reason) => format_err!("stream received RST_STREAM: {:?}", reason),
-                            Err(err) => Error::from(err),
-                        }));
+            if this.body_tx.capacity() == 0 {
+                loop {
+                    match ready!(this.body_tx.poll_capacity(cx)) {
+                        Some(Err(err)) => return Poll::Ready(Err(Error::from(err))),
+                        Some(Ok(0)) => {}
+                        Some(Ok(_)) => break,
+                        None => return Poll::Ready(Err(format_err!("protocol canceled"))),
                     }
                 }
-
-                this.body_tx
-                    .send_data(this.data.take().unwrap(), true)
-                    .map_err(Error::from)?;
-
-                return Poll::Ready(Ok(()));
             } else {
                 if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
                     return Poll::Ready(Err(match reset {
@@ -67,8 +52,21 @@ impl Future for PipeToSendStream {
                         Err(err) => Error::from(err),
                     }));
                 }
-                return Poll::Ready(Ok(()));
             }
+
+            this.body_tx
+                .send_data(this.data.take().unwrap(), true)
+                .map_err(Error::from)?;
+
+            return Poll::Ready(Ok(()));
+        } else {
+            if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
+                return Poll::Ready(Err(match reset {
+                    Ok(reason) => format_err!("stream received RST_STREAM: {:?}", reason),
+                    Err(err) => Error::from(err),
+                }));
+            }
+            return Poll::Ready(Ok(()));
         }
     }
 }
