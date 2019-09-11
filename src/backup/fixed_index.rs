@@ -8,7 +8,7 @@ use super::chunk_stat::*;
 use super::chunk_store::*;
 
 use std::sync::Arc;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
