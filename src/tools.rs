@@ -200,7 +200,8 @@ where
 
 /// Returns the Unix uid/gid for the sepcified system user.
 pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t, libc::gid_t), Error> {
-    let info = unsafe { libc::getpwnam(std::ffi::CString::new(username).unwrap().as_ptr()) };
+    let username = std::ffi::CString::new(username).unwrap();
+    let info = unsafe { libc::getpwnam(username.as_ptr()) };
     if info == std::ptr::null_mut() {
         bail!("getwpnam '{}' failed", username);
     }
