@@ -453,8 +453,8 @@ impl <S: ReadChunk> BufferedFixedReader<S> {
         let archive_size = index.size;
         Self {
             store,
-            index: index,
-            archive_size: archive_size,
+            index,
+            archive_size,
             read_buffer: Vec::with_capacity(1024*1024),
             buffered_chunk_idx: 0,
             buffered_chunk_start: 0,

@@ -1,7 +1,7 @@
 //! Exports configuration data from the build system
 
 /// The configured configuration directory
-pub const CONFIGDIR: &'static str = "/etc/proxmox-backup";
+pub const CONFIGDIR: &str = "/etc/proxmox-backup";
 pub const JS_DIR: &str = "/usr/share/javascript/proxmox-backup";
 
 /// Prepend configuration directory to a file name

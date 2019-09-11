@@ -115,7 +115,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         let mut me = Self {
             base_path: path,
             relative_path: PathBuf::new(),
-            writer: writer,
+            writer,
             writer_pos: 0,
             catalog,
             _size: 0,
@@ -192,7 +192,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         }
 
         let entry = PxarEntry {
-            mode: mode,
+            mode,
             flags: 0,
             uid: stat.st_uid,
             gid: stat.st_gid,
@@ -303,7 +303,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             } else if self.has_features(flags::WITH_XATTRS) {
                 xattrs.push(PxarXAttr {
                     name: name.to_vec(),
-                    value: value,
+                    value,
                 });
             }
         }
@@ -374,13 +374,13 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 acl::ACL_USER => {
                     acl_user.push(PxarACLUser {
                         uid: entry.get_qualifier()?,
-                        permissions: permissions,
+                        permissions,
                     });
                 }
                 acl::ACL_GROUP => {
                     acl_group.push(PxarACLGroup {
                         gid: entry.get_qualifier()?,
-                        permissions: permissions,
+                        permissions,
                     });
                 }
                 _ => bail!("Unexpected ACL tag encountered!"),

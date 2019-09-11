@@ -162,7 +162,7 @@ impl <R: Read + BufRead> CatalogBlobReader<R> {
             write!(out, " {} {}", size, dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false))?;
         }
 
-        write!(out, "\n")?;
+        writeln!(out)?;
         std::io::stdout().write_all(&out)?;
 
         Ok(())

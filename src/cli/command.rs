@@ -344,7 +344,7 @@ fn print_property_completion(
             return;
         }
     }
-    println!("");
+    println!();
 }
 
 fn record_done_argument(done: &mut HashMap<String, String>, parameters: &ObjectSchema, key: &str, value: &str) {

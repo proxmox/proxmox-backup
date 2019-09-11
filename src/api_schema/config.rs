@@ -17,7 +17,7 @@ impl ApiConfig {
     pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Self {
         Self {
             basedir: basedir.into(),
-            router: router,
+            router,
             aliases: HashMap::new(),
             env_type,
         }

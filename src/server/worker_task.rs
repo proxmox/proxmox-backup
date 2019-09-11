@@ -382,7 +382,7 @@ impl WorkerTask {
         update_active_workers(Some(&upid))?;
 
         let worker = Arc::new(Self {
-            upid: upid,
+            upid,
             abort_requested: AtomicBool::new(false),
             data: Mutex::new(WorkerTaskData {
                 logger,

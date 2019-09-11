@@ -275,8 +275,8 @@ impl <S: ReadChunk> BufferedDynamicReader<S> {
         let archive_size = index.chunk_end(index.index_entries - 1);
         Self {
             store,
-            index: index,
-            archive_size: archive_size,
+            index,
+            archive_size,
             read_buffer: Vec::with_capacity(1024*1024),
             buffered_chunk_idx: 0,
             buffered_chunk_start: 0,
@@ -456,7 +456,7 @@ impl DynamicIndexWriter {
         Ok(Self {
             store,
             _lock: shared_lock,
-            writer: writer,
+            writer,
             closed: false,
             filename: full_path,
             tmp_filename: tmp_path,

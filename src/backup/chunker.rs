@@ -99,8 +99,8 @@ impl Chunker {
             chunk_size_max: chunk_size_avg << 2,
             _chunk_size_avg: chunk_size_avg,
             _discriminator: discriminator,
-            break_test_mask: break_test_mask,
-            break_test_minimum: break_test_minimum,
+            break_test_mask,
+            break_test_minimum,
             window: [0u8; CA_CHUNKER_WINDOW_SIZE],
         }
     }

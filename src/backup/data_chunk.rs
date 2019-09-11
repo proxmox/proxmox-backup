@@ -217,12 +217,12 @@ impl DataChunk {
                 bail!("encrypted chunk too small ({} bytes).", data.len());
             }
 
-            let chunk = DataChunk { digest: digest, raw_data: data };
+            let chunk = DataChunk { digest, raw_data: data };
 
             Ok(chunk)
         } else if magic == COMPRESSED_CHUNK_MAGIC_1_0 || magic == UNCOMPRESSED_CHUNK_MAGIC_1_0 {
 
-            let chunk = DataChunk { digest: digest, raw_data: data };
+            let chunk = DataChunk { digest, raw_data: data };
 
             Ok(chunk)
         } else {

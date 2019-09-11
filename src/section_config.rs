@@ -78,7 +78,7 @@ impl SectionConfig {
     pub fn new(id_schema: Arc<Schema>) -> Self {
         Self {
             plugins: HashMap::new(),
-            id_schema: id_schema,
+            id_schema,
             parse_section_header: SectionConfig::default_parse_section_header,
             parse_section_content: SectionConfig::default_parse_section_content,
             format_section_header: SectionConfig::default_format_section_header,

@@ -39,7 +39,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         Ok(Self {
             inner: SequentialDecoder::new(reader, super::flags::DEFAULT, callback),
             root_start: 0,
-            root_end: root_end,
+            root_end,
         })
     }
 
@@ -52,7 +52,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             start: self.root_start,
             end: self.root_end,
             filename: OsString::new(), // Empty
-            entry: entry,
+            entry,
         })
     }
 
@@ -106,8 +106,8 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
 
         Ok(DirectoryEntry {
             start: entry_start,
-            end: end,
-            filename: filename,
+            end,
+            filename,
             entry,
         })
     }

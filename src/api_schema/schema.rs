@@ -61,7 +61,7 @@ impl BooleanSchema {
 
     pub fn new(description: &'static str) -> Self {
         BooleanSchema {
-            description: description,
+            description,
             default: None,
         }
     }
@@ -84,7 +84,7 @@ impl IntegerSchema {
 
     pub fn new(description: &'static str) -> Self {
         IntegerSchema {
-            description: description,
+            description,
             default: None,
             minimum: None,
             maximum: None,
@@ -138,7 +138,7 @@ impl StringSchema {
 
     pub fn new(description: &'static str) -> Self {
         StringSchema {
-            description: description,
+            description,
             default: None,
             min_length: None,
             max_length: None,
@@ -225,7 +225,7 @@ impl ArraySchema {
 
     pub fn new(description: &'static str, item_schema: Arc<Schema>) -> Self {
         ArraySchema {
-            description: description,
+            description,
             items: item_schema,
             min_length: None,
             max_length: None,
@@ -273,9 +273,9 @@ impl ObjectSchema {
     pub fn new(description: &'static str) -> Self {
         let properties = HashMap::new();
         ObjectSchema {
-            description: description,
+            description,
             additional_properties: false,
-            properties: properties,
+            properties,
             default_key: None,
         }
     }
@@ -426,8 +426,8 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
                 }
             }
 
-            return parse_parameter_strings(&param_list, &object_schema, true)
-                .map_err(Error::from);
+            parse_parameter_strings(&param_list, &object_schema, true)
+                .map_err(Error::from)
 
         }
         Schema::Array(array_schema) => {
@@ -440,13 +440,12 @@ fn parse_property_string(value_str: &str, schema: &Schema) -> Result<Value, Erro
             }
             array_schema.check_length(array.len())?;
 
-            return Ok(array.into());
+            Ok(array.into())
         }
         _ => {
             bail!("Got unexpetec schema type.")
         }
     }
-
 }
 
 pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Error> {

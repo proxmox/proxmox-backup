@@ -104,7 +104,7 @@ impl ProcessLocker {
             .open(lockfile)?;
 
         Ok(Arc::new(Mutex::new(Self {
-            file: file,
+            file,
             exclusive: false,
             writers: 0,
             next_guard_id: 0,
