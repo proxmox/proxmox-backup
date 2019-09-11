@@ -30,6 +30,7 @@ pub struct FixedIndexHeader {
     pub chunk_size: u64,
     reserved: [u8; 4016], // overall size is one page (4096 bytes)
 }
+proxmox::tools::static_assert_size!(FixedIndexHeader, 4096);
 
 // split image into fixed size chunks
 
@@ -76,9 +77,6 @@ impl FixedIndexReader {
         file.seek(SeekFrom::Start(0))?;
 
         let header_size = std::mem::size_of::<FixedIndexHeader>();
-
-        // todo: use static assertion when available in rust
-        if header_size != 4096 { bail!("got unexpected header size"); }
 
         let mut buffer = vec![0u8; header_size];
         file.read_exact(&mut buffer)?;
