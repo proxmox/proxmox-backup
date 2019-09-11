@@ -668,7 +668,7 @@ impl BackupClient {
 
         let src_path = src_path.as_ref();
 
-        let mut file = tokio::fs::File::open(src_path.clone())
+        let mut file = tokio::fs::File::open(src_path)
             .await
             .map_err(|err| format_err!("unable to open file {:?} - {}", src_path, err))?;
 
