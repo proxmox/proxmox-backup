@@ -97,6 +97,10 @@ cargo-build:
 
 $(COMPILED_BINS): cargo-build
 
+.PHONY: lint
+lint:
+	cargo clippy -- -A clippy::all -D clippy::correctness
+
 install: $(COMPILED_BINS)
 	install -dm755 $(DESTDIR)$(BINDIR)
 	$(foreach i,$(USR_BIN), \
