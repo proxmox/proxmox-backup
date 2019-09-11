@@ -18,6 +18,8 @@ use chrono::{Local, TimeZone};
 use super::ChunkInfo;
 use super::read_chunk::*;
 
+use proxmox::tools::io::ReadExt;
+
 /// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
 pub struct FixedIndexHeader {
@@ -77,11 +79,7 @@ impl FixedIndexReader {
         file.seek(SeekFrom::Start(0))?;
 
         let header_size = std::mem::size_of::<FixedIndexHeader>();
-
-        let mut buffer = vec![0u8; header_size];
-        file.read_exact(&mut buffer)?;
-
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
+        let header: Box<FixedIndexHeader> = unsafe { file.read_host_value_boxed()? };
 
         if header.magic != super::FIXED_SIZED_CHUNK_INDEX_1_0 {
             bail!("got unknown magic number");
