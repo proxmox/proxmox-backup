@@ -52,12 +52,12 @@ impl FileLogger {
 
         let mut stdout = std::io::stdout();
         if self.to_stdout {
-            stdout.write(msg.as_bytes()).unwrap();
-            stdout.write(b"\n").unwrap();
+            stdout.write_all(msg.as_bytes()).unwrap();
+            stdout.write_all(b"\n").unwrap();
         }
 
         let line = format!("{}: {}\n", Local.timestamp(Local::now().timestamp(), 0).to_rfc3339(), msg);
-        self.file.write(line.as_bytes()).unwrap();
+        self.file.write_all(line.as_bytes()).unwrap();
     }
 }
 
