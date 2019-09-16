@@ -125,10 +125,12 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
 
 impl HttpClient {
 
-    pub fn new(server: &str, username: &str) -> Result<Self, Error> {
+    pub fn new(server: &str, username: &str, password: Option<String>) -> Result<Self, Error> {
         let client = Self::build_client();
 
-        let password = if let Some((ticket, _token)) = load_ticket_info(server, username) {
+        let password = if let Some(password) = password {
+            password
+        } else if let Some((ticket, _token)) = load_ticket_info(server, username) {
             ticket
         } else {
             Self::get_password(&username)?

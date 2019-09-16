@@ -256,7 +256,7 @@ fn list_backup_groups(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
@@ -336,7 +336,7 @@ fn list_snapshots(
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
@@ -407,7 +407,7 @@ fn forget_snapshots(
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
+    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
@@ -432,7 +432,7 @@ fn api_login(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
     async_main(async move { client.login().await })?;
 
     record_repository(&repo);
@@ -474,7 +474,7 @@ fn dump_catalog(
         }
     };
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     async_main(async move {
         let client = client.start_backup_reader(
@@ -525,7 +525,7 @@ fn list_snapshot_files(
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
@@ -564,7 +564,7 @@ fn start_garbage_collection(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
+    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
@@ -687,7 +687,7 @@ fn create_backup(
 
     let backup_time = Utc.timestamp(backup_time_opt.unwrap_or(Utc::now().timestamp()), 0);
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
     record_repository(&repo);
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time));
@@ -938,7 +938,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     record_repository(&repo);
 
@@ -1125,7 +1125,7 @@ fn upload_log(
     let snapshot = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(snapshot)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
+    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
 
@@ -1167,7 +1167,7 @@ fn prune(
 
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user())?;
+    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
@@ -1197,7 +1197,7 @@ fn status(
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user())?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
@@ -1229,7 +1229,7 @@ fn status(
 // like get, but simply ignore errors and return Null instead
 async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-    let client = match HttpClient::new(repo.host(), repo.user()) {
+    let client = match HttpClient::new(repo.host(), repo.user(), None) {
         Ok(v) => v,
         _ => return Value::Null,
     };

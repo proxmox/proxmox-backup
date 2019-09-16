@@ -29,7 +29,7 @@ async fn run() -> Result<(), Error> {
 
     let username = "root@pam";
 
-    let client = HttpClient::new(host, username)?;
+    let client = HttpClient::new(host, username, None)?;
 
     let backup_time = "2019-06-28T10:49:48Z".parse::<DateTime<Utc>>()?;
 

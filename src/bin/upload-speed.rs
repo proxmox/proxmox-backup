@@ -9,7 +9,7 @@ async fn upload_speed() -> Result<usize, Error> {
 
     let username = "root@pam";
 
-    let client = HttpClient::new(host, username)?;
+    let client = HttpClient::new(host, username, None)?;
 
     let backup_time = chrono::Utc::now();
 
