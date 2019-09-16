@@ -345,6 +345,11 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     /// returned.
     pub fn read(&mut self, offset: u64, size: usize, data_offset: u64) -> Result<Vec<u8>, Error> {
         self.seek(SeekFrom::Start(offset))?;
+        let head: PxarHeader = self.inner.read_item()?;
+        if head.htype != PXAR_FILENAME {
+            bail!("Expected PXAR_FILENAME, encountered 0x{:x?}", head.htype);
+        }
+        let _filename = self.inner.read_filename(head.size)?;
 
         let head: PxarHeader = self.inner.read_item()?;
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
