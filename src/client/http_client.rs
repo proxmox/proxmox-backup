@@ -601,6 +601,15 @@ impl BackupClient {
         self.h2.post(path, param).await
     }
 
+    pub async fn upload(
+        &self,
+        path: &str,
+        param: Option<Value>,
+        data: Vec<u8>,
+    ) -> Result<Value, Error> {
+        self.h2.upload(path, param, data).await
+    }
+
     pub async fn finish(self: Arc<Self>) -> Result<(), Error> {
         let h2 = self.h2.clone();
 
