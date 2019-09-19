@@ -34,6 +34,11 @@ impl DataChunk {
         &self.raw_data
     }
 
+    /// return as raw_data
+    pub fn into_raw(self) -> Vec<u8>  {
+        self.raw_data
+    }
+
     /// accessor to chunk digest field
     pub fn digest(&self) -> &[u8; 32] {
         &self.digest
