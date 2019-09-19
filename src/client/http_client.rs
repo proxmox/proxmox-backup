@@ -710,7 +710,7 @@ impl BackupClient {
         let index_path = format!("{}_index", prefix);
         let close_path = format!("{}_close", prefix);
 
-        Self::download_chunk_list(self.h2.clone(), &index_path, archive_name, known_chunks.clone()).await?;
+        self.download_chunk_list(&index_path, archive_name, known_chunks.clone()).await?;
 
         let wid = self.h2.post(&index_path, Some(param)).await?.as_u64().unwrap();
 
@@ -830,8 +830,8 @@ impl BackupClient {
         (verify_queue_tx, verify_result_rx)
     }
 
-    async fn download_chunk_list(
-        h2: H2Client,
+    pub async fn download_chunk_list(
+        &self,
         path: &str,
         archive_name: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
@@ -840,7 +840,7 @@ impl BackupClient {
         let param = json!({ "archive-name": archive_name });
         let request = H2Client::request_builder("localhost", "GET", path, Some(param)).unwrap();
 
-        let h2request = h2.send_request(request, None).await?;
+        let h2request = self.h2.send_request(request, None).await?;
         let resp = h2request.await?;
 
         let status = resp.status();
