@@ -233,7 +233,8 @@ fn mount_archive(
     let options = OsStr::new("ro,default_permissions");
     let mut session = pxar::fuse::Session::new(&archive, &options, verbose)
         .map_err(|err| format_err!("pxar mount failed: {}", err))?;
-    session.mount(&mountpoint)?;
+    // Mount the session and deamonize if verbose is not set
+    session.mount(&mountpoint, !verbose)?;
     session.run_loop(!no_mt)?;
 
     Ok(Value::Null)
