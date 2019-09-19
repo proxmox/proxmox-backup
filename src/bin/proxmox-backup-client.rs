@@ -2,10 +2,12 @@
 extern crate proxmox_backup;
 
 use failure::*;
-//use std::os::unix::io::AsRawFd;
+use nix::unistd::{fork, ForkResult, pipe};
+use std::os::unix::io::RawFd;
 use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
+use std::ffi::OsStr;
 use std::io::{BufReader, Read, Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
@@ -1634,6 +1636,151 @@ fn key_mgmt_cli() -> CliCommandMap {
     cmd_def
 }
 
+
+fn mount(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+    if verbose {
+        // This will stay in foreground with debug output enabled as None is
+        // passed for the RawFd.
+        return async_main(mount_do(param, None));
+    }
+
+    // Process should be deamonized.
+    // Make sure to fork before the async runtime is instantiated to avoid troubles.
+    let pipe = pipe()?;
+    match fork() {
+        Ok(ForkResult::Parent { child: _, .. }) => {
+            nix::unistd::close(pipe.1).unwrap();
+            // Blocks the parent process until we are ready to go in the child
+            let _res = nix::unistd::read(pipe.0, &mut [0]).unwrap();
+            Ok(Value::Null)
+        }
+        Ok(ForkResult::Child) => {
+            nix::unistd::close(pipe.0).unwrap();
+            nix::unistd::setsid().unwrap();
+            async_main(mount_do(param, Some(pipe.1)))
+        }
+        Err(_) => bail!("failed to daemonize process"),
+    }
+}
+
+async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
+    let repo = extract_repository_from_value(&param)?;
+    let archive_name = tools::required_string_param(&param, "archive-name")?;
+    let target = tools::required_string_param(&param, "target")?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+
+    record_repository(&repo);
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
+        let group = BackupGroup::parse(path)?;
+
+        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+        let result = client.get(&path, Some(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+        }))).await?;
+
+        let list = result["data"].as_array().unwrap();
+        if list.len() == 0 {
+            bail!("backup group '{}' does not contain any snapshots:", path);
+        }
+
+        let epoch = list[0]["backup-time"].as_i64().unwrap();
+        let backup_time = Utc.timestamp(epoch, 0);
+        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
+    } else {
+        let snapshot = BackupDir::parse(path)?;
+        (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
+    };
+
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            Some(Arc::new(CryptConfig::new(key)?))
+        }
+    };
+
+    let server_archive_name = if archive_name.ends_with(".pxar") {
+        format!("{}.didx", archive_name)
+    } else {
+        bail!("Can only mount pxar archives.");
+    };
+
+    let client = client
+        .start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true)
+        .await?;
+
+    let tmpfile = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
+
+    let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
+    let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+    if server_archive_name.ends_with(".didx") {
+        let tmpfile = client.download(&server_archive_name, tmpfile).await?;
+        let index = DynamicIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", archive_name, err))?;
+
+        // Note: do not use values stored in index (not trusted) - instead, computed them again
+        let (csum, size) = index.compute_csum();
+        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+
+        let most_used = index.find_most_used_chunks(8);
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+        let reader = BufferedDynamicReader::new(index, chunk_reader);
+        let decoder =
+            pxar::Decoder::<Box<dyn pxar::fuse::ReadSeek>, fn(&Path) -> Result<(), Error>>::new(
+                Box::new(reader),
+                |_| Ok(()),
+            )?;
+        let options = OsStr::new("ro,default_permissions");
+        let mut session = pxar::fuse::Session::from_decoder(decoder, &options, pipe.is_none())
+            .map_err(|err| format_err!("pxar mount failed: {}", err))?;
+
+        // Mount the session but not call fuse deamonize as this will cause
+        // issues with the runtime after the fork
+        let deamonize = false;
+        session.mount(&Path::new(target), deamonize)?;
+
+        if let Some(pipe) = pipe {
+            nix::unistd::chdir(Path::new("/")).unwrap();
+            // Finish creation of deamon by redirecting filedescriptors.
+            let nullfd = nix::fcntl::open(
+                "/dev/null",
+                nix::fcntl::OFlag::O_RDWR,
+                nix::sys::stat::Mode::empty(),
+            ).unwrap();
+            nix::unistd::dup2(nullfd, 0).unwrap();
+            nix::unistd::dup2(nullfd, 1).unwrap();
+            nix::unistd::dup2(nullfd, 2).unwrap();
+            if nullfd > 2 {
+                nix::unistd::close(nullfd).unwrap();
+            }
+            // Signal the parent process that we are done with the setup and it can
+            // terminate.
+            nix::unistd::write(pipe, &mut [0u8])?;
+            nix::unistd::close(pipe).unwrap();
+        }
+
+        let multithreaded = true;
+        session.run_loop(multithreaded)?;
+    } else {
+        bail!("unknown archive file extension (expected .pxar)");
+    }
+
+    Ok(Value::Null)
+}
+
 fn main() {
 
     let backup_source_schema: Arc<Schema> = Arc::new(
@@ -1841,6 +1988,23 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
                 .optional("repository", REPO_URL_SCHEMA.clone())
         ))
         .completion_cb("repository", complete_repository);
+    
+    let mount_cmd_def = CliCommand::new(
+        ApiMethod::new(
+            mount,
+            ObjectSchema::new("Mount pxar archive.")
+                .required("snapshot", StringSchema::new("Group/Snapshot path."))
+                .required("archive-name", StringSchema::new("Backup archive name."))
+                .required("target", StringSchema::new("Target directory path."))
+                .optional("repository", REPO_URL_SCHEMA.clone())
+                .optional("keyfile", StringSchema::new("Path to encryption key."))
+                .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
+        ))
+        .arg_param(vec!["snapshot", "archive-name", "target"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("target", tools::complete_file_name);
 
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
@@ -1856,7 +2020,8 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("snapshots".to_owned(), snapshots_cmd_def.into())
         .insert("files".to_owned(), files_cmd_def.into())
         .insert("status".to_owned(), status_cmd_def.into())
-        .insert("key".to_owned(), key_mgmt_cli().into());
+        .insert("key".to_owned(), key_mgmt_cli().into())
+        .insert("mount".to_owned(), mount_cmd_def.into());
 
     run_cli_command(cmd_def.into());
 }
