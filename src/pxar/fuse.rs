@@ -162,14 +162,7 @@ struct Operations {
 }
 
 impl Session {
-    /// Create a new low level fuse session.
-    ///
-    /// `Session` is created using the provided mount options and sets the
-    /// default signal handlers.
-    /// Options have to be provided as comma separated OsStr, e.g.
-    /// ("ro,default_permissions").
-    pub fn new(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
-        let file = File::open(archive_path)?;
+    fn setup_args(options: &OsStr, verbose: bool) -> Result<Vec<CString>, Error> {
         // First argument should be the executable name
         let mut arguments = vec![
             CString::new("pxar-mount").unwrap(),
@@ -180,14 +173,11 @@ impl Session {
             arguments.push(CString::new("--debug").unwrap());
         }
 
-        let arg_ptrs: Vec<_> = arguments.iter().map(|opt| opt.as_ptr()).collect();
-        let args = FuseArgs {
-            argc: arg_ptrs.len() as i32,
-            argv: arg_ptrs.as_ptr(),
-            allocated: 0,
-        };
+        Ok(arguments)
+    }
 
-        // Register the callback funcitons for the session
+    fn setup_callbacks() -> Operations {
+        // Register the callback functions for the session
         let mut oprs = Operations::default();
         oprs.init = Some(init);
         oprs.destroy = Some(destroy);
@@ -198,11 +188,15 @@ impl Session {
         oprs.read = Some(read);
         oprs.opendir = Some(opendir);
         oprs.readdir = Some(readdir);
+        oprs
+    }
 
-        // By storing the decoder as userdata of the session, each request may
-        // access it.
-        let reader: Box<dyn ReadSeek> = Box::new(BufReader::new(file));
-        let decoder = Decoder::new(reader, decoder_callback as fn(&Path) -> Result<(), Error>)?;
+    fn setup_session(
+        decoder: Decoder<Box<dyn ReadSeek>, fn(&Path) -> Result<(), Error>>,
+        args: Vec<CString>,
+        oprs: Operations,
+        verbose: bool,
+    ) -> Result<Self, Error> {
         let ctx = Context {
             decoder,
             goodbye_cache: None,
@@ -210,9 +204,15 @@ impl Session {
             ino_offset: 0,
         };
         let session_ctx = Box::new(Mutex::new(ctx));
+        let arg_ptrs: Vec<_> = args.iter().map(|opt| opt.as_ptr()).collect();
+        let fuse_args = FuseArgs {
+            argc: arg_ptrs.len() as i32,
+            argv: arg_ptrs.as_ptr(),
+            allocated: 0,
+        };
         let session_ptr = unsafe {
             fuse_session_new(
-                Some(&args),
+                Some(&fuse_args),
                 Some(&oprs),
                 std::mem::size_of::<Operations>(),
                 // Ownership of session_ctx is passed to the session here.
@@ -235,6 +235,40 @@ impl Session {
             ptr: session_ptr,
             verbose: verbose,
         })
+    }
+
+    /// Create a new low level fuse session.
+    ///
+    /// `Session` is created using the provided mount options and sets the
+    /// default signal handlers.
+    /// Options have to be provided as comma separated OsStr, e.g.
+    /// ("ro,default_permissions").
+    pub fn new(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
+        let file = File::open(archive_path)?;
+        let args = Self::setup_args(options, verbose)?;
+        let oprs = Self::setup_callbacks();
+
+        // By storing the decoder as userdata of the session, each request may
+        // access it.
+        let reader: Box<dyn ReadSeek> = Box::new(BufReader::new(file));
+        let decoder = Decoder::new(reader, decoder_callback as fn(&Path) -> Result<(), Error>)?;
+        Self::setup_session(decoder, args, oprs, verbose)
+    }
+
+    /// Create a new low level fuse session using the given `Decoder`.
+    ///
+    /// `Session` is created using the provided mount options and sets the
+    /// default signal handlers.
+    /// Options have to be provided as comma separated OsStr, e.g.
+    /// ("ro,default_permissions").
+    pub fn from_decoder(
+        decoder: Decoder<Box<dyn ReadSeek>, fn(&Path) -> Result<(), Error>>,
+        options: &OsStr,
+        verbose: bool,
+    ) -> Result<Self, Error> {
+        let args = Self::setup_args(options, verbose)?;
+        let oprs = Self::setup_callbacks();
+        Self::setup_session(decoder, args, oprs, verbose)
     }
 
     /// Mount the filesystem on the given mountpoint.
