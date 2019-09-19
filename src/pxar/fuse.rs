@@ -275,7 +275,7 @@ impl Session {
     ///
     /// Actually mount the filesystem for this session on the provided mountpoint
     /// and daemonize process.
-    pub fn mount(&mut self, mountpoint: &Path) -> Result<(), Error> {
+    pub fn mount(&mut self, mountpoint: &Path, deamonize: bool) -> Result<(), Error> {
         if self.verbose {
             println!("Mounting archive to {:#?}", mountpoint);
         }
@@ -286,8 +286,8 @@ impl Session {
             bail!("mounting on {:#?} failed", mountpoint);
         }
 
-        // Do not send process to background if verbose flag is set
-        if !self.verbose && unsafe { fuse_daemonize(0) } != 0 {
+        // Send process to background if deamonize is set
+        if deamonize && unsafe { fuse_daemonize(0) } != 0 {
             bail!("could not send process to background");
         }
 
