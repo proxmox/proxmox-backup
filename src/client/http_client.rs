@@ -608,7 +608,7 @@ impl BackupClient {
         content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        self.h2.upload(path, "POST", param, content_type, data).await
+        self.h2.upload("POST", path, param, content_type, data).await
     }
 
     pub async fn upload_put(
@@ -618,7 +618,7 @@ impl BackupClient {
         content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        self.h2.upload(path, "PUT", param, content_type, data).await
+        self.h2.upload("PUT", path, param, content_type, data).await
     }
 
     pub async fn finish(self: Arc<Self>) -> Result<(), Error> {
@@ -647,7 +647,7 @@ impl BackupClient {
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
         let size = raw_data.len() as u64; // fixme: should be decoded size instead??
-        let _value = self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
+        let _value = self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -676,7 +676,7 @@ impl BackupClient {
 
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
-        let _value = self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
+        let _value = self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -708,7 +708,7 @@ impl BackupClient {
             "encoded-size": raw_data.len(),
             "file-name": file_name,
         });
-        self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
+        self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
