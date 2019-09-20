@@ -605,9 +605,10 @@ impl BackupClient {
         &self,
         path: &str,
         param: Option<Value>,
+        content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        self.h2.upload(path, param, data).await
+        self.h2.upload(path, param, content_type, data).await
     }
 
     pub async fn finish(self: Arc<Self>) -> Result<(), Error> {
@@ -636,7 +637,7 @@ impl BackupClient {
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
         let size = raw_data.len() as u64; // fixme: should be decoded size instead??
-        let _value = self.h2.upload("blob", Some(param), raw_data).await?;
+        let _value = self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -665,7 +666,7 @@ impl BackupClient {
 
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
-        let _value = self.h2.upload("blob", Some(param), raw_data).await?;
+        let _value = self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -697,7 +698,7 @@ impl BackupClient {
             "encoded-size": raw_data.len(),
             "file-name": file_name,
         });
-        self.h2.upload("blob", Some(param), raw_data).await?;
+        self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -814,8 +815,7 @@ impl BackupClient {
                             }
                             println!("append chunks list len ({})", digest_list.len());
                             let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
-                            let mut request = H2Client::request_builder("localhost", "PUT", &path, None).unwrap();
-                            request.headers_mut().insert(hyper::header::CONTENT_TYPE,  HeaderValue::from_static("application/json"));
+                            let request = H2Client::request_builder("localhost", "PUT", &path, None, Some("application/json")).unwrap();
                             let param_data = bytes::Bytes::from(param.to_string().as_bytes());
                             let upload_data = Some(param_data);
                             h2_2.send_request(request, upload_data)
@@ -847,7 +847,7 @@ impl BackupClient {
     ) -> Result<(), Error> {
 
         let param = json!({ "archive-name": archive_name });
-        let request = H2Client::request_builder("localhost", "GET", path, Some(param)).unwrap();
+        let request = H2Client::request_builder("localhost", "GET", path, Some(param), None).unwrap();
 
         let h2request = self.h2.send_request(request, None).await?;
         let resp = h2request.await?;
@@ -959,7 +959,8 @@ impl BackupClient {
                         "encoded-size": chunk_data.len(),
                     });
 
-                    let request = H2Client::request_builder("localhost", "POST", &upload_chunk_path, Some(param)).unwrap();
+                    let ct = "application/octet-stream";
+                    let request = H2Client::request_builder("localhost", "POST", &upload_chunk_path, Some(param), Some(ct)).unwrap();
                     let upload_data = Some(bytes::Bytes::from(chunk_data));
 
                     let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);
@@ -1032,7 +1033,7 @@ impl BackupClient {
             let mut upload_queue = upload_queue.clone();
 
             println!("send test data ({} bytes)", data.len());
-            let request = H2Client::request_builder("localhost", "POST", "speedtest", None).unwrap();
+            let request = H2Client::request_builder("localhost", "POST", "speedtest", None, None).unwrap();
             let request_future = self.h2.send_request(request, Some(bytes::Bytes::from(data.clone()))).await?;
 
             upload_queue.send(request_future).await?;
@@ -1066,7 +1067,7 @@ impl H2Client {
         path: &str,
         param: Option<Value>
     ) -> Result<Value, Error> {
-        let req = Self::request_builder("localhost", "GET", path, param).unwrap();
+        let req = Self::request_builder("localhost", "GET", path, param, None).unwrap();
         self.request(req).await
     }
 
@@ -1075,7 +1076,7 @@ impl H2Client {
         path: &str,
         param: Option<Value>
     ) -> Result<Value, Error> {
-        let req = Self::request_builder("localhost", "PUT", path, param).unwrap();
+        let req = Self::request_builder("localhost", "PUT", path, param, None).unwrap();
         self.request(req).await
     }
 
@@ -1084,7 +1085,7 @@ impl H2Client {
         path: &str,
         param: Option<Value>
     ) -> Result<Value, Error> {
-        let req = Self::request_builder("localhost", "POST", path, param).unwrap();
+        let req = Self::request_builder("localhost", "POST", path, param, None).unwrap();
         self.request(req).await
     }
 
@@ -1094,7 +1095,7 @@ impl H2Client {
         param: Option<Value>,
         mut output: W,
     ) -> Result<W, Error> {
-        let request = Self::request_builder("localhost", "GET", path, param).unwrap();
+        let request = Self::request_builder("localhost", "GET", path, param, None).unwrap();
 
         let response_future = self.send_request(request, None).await?;
 
@@ -1121,9 +1122,10 @@ impl H2Client {
         &self,
         path: &str,
         param: Option<Value>,
+        content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        let request = Self::request_builder("localhost", "POST", path, param).unwrap();
+        let request = Self::request_builder("localhost", "POST", path, param, Some(content_type)).unwrap();
 
         let mut send_request = self.h2.clone().ready().await?;
 
@@ -1213,8 +1215,16 @@ impl H2Client {
     }
 
     // Note: We always encode parameters with the url
-    pub fn request_builder(server: &str, method: &str, path: &str, param: Option<Value>) -> Result<Request<()>, Error> {
+    pub fn request_builder(
+        server: &str,
+        method: &str,
+        path: &str,
+        param: Option<Value>,
+        content_type: Option<&str>,
+    ) -> Result<Request<()>, Error> {
         let path = path.trim_matches('/');
+
+        let content_type = content_type.unwrap_or("application/x-www-form-urlencoded");
 
         if let Some(param) = param {
             let query = tools::json_object_to_query(param)?;
@@ -1225,7 +1235,7 @@ impl H2Client {
                 .method(method)
                 .uri(url)
                 .header("User-Agent", "proxmox-backup-client/1.0")
-                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .header(hyper::header::CONTENT_TYPE, content_type)
                 .body(())?;
             return Ok(request);
         } else {
@@ -1234,7 +1244,7 @@ impl H2Client {
                 .method(method)
                 .uri(url)
                 .header("User-Agent", "proxmox-backup-client/1.0")
-                .header(hyper::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .header(hyper::header::CONTENT_TYPE, content_type)
                 .body(())?;
 
             Ok(request)
