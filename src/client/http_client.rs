@@ -1213,11 +1213,11 @@ impl H2Client {
     }
 
     // Note: We always encode parameters with the url
-    pub fn request_builder(server: &str, method: &str, path: &str, data: Option<Value>) -> Result<Request<()>, Error> {
+    pub fn request_builder(server: &str, method: &str, path: &str, param: Option<Value>) -> Result<Request<()>, Error> {
         let path = path.trim_matches('/');
 
-        if let Some(data) = data {
-            let query = tools::json_object_to_query(data)?;
+        if let Some(param) = param {
+            let query = tools::json_object_to_query(param)?;
             // We detected problem with hyper around 6000 characters - seo we try to keep on the safe side
             if query.len() > 4096 { bail!("h2 query data too large ({} bytes) - please encode data inside body", query.len()); }
             let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
