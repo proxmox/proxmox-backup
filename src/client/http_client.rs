@@ -601,14 +601,24 @@ impl BackupClient {
         self.h2.post(path, param).await
     }
 
-    pub async fn upload(
+    pub async fn upload_post(
         &self,
         path: &str,
         param: Option<Value>,
         content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        self.h2.upload(path, param, content_type, data).await
+        self.h2.upload(path, "POST", param, content_type, data).await
+    }
+
+    pub async fn upload_put(
+        &self,
+        path: &str,
+        param: Option<Value>,
+        content_type: &str,
+        data: Vec<u8>,
+    ) -> Result<Value, Error> {
+        self.h2.upload(path, "PUT", param, content_type, data).await
     }
 
     pub async fn finish(self: Arc<Self>) -> Result<(), Error> {
@@ -637,7 +647,7 @@ impl BackupClient {
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
         let size = raw_data.len() as u64; // fixme: should be decoded size instead??
-        let _value = self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
+        let _value = self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -666,7 +676,7 @@ impl BackupClient {
 
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
-        let _value = self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
+        let _value = self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -698,7 +708,7 @@ impl BackupClient {
             "encoded-size": raw_data.len(),
             "file-name": file_name,
         });
-        self.h2.upload("blob", Some(param), "application/octet-stream", raw_data).await?;
+        self.h2.upload("blob", "POST", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
 
@@ -1120,12 +1130,13 @@ impl H2Client {
 
     pub async fn upload(
         &self,
+        method: &str, // POST or PUT
         path: &str,
         param: Option<Value>,
         content_type: &str,
         data: Vec<u8>,
     ) -> Result<Value, Error> {
-        let request = Self::request_builder("localhost", "POST", path, param, Some(content_type)).unwrap();
+        let request = Self::request_builder("localhost", method, path, param, Some(content_type)).unwrap();
 
         let mut send_request = self.h2.clone().ready().await?;
 
