@@ -1988,7 +1988,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
                 .optional("repository", REPO_URL_SCHEMA.clone())
         ))
         .completion_cb("repository", complete_repository);
-    
+
     let mount_cmd_def = CliCommand::new(
         ApiMethod::new(
             mount,
