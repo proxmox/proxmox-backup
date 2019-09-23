@@ -194,7 +194,6 @@ impl FixedIndexReader {
         for pos in 0..self.index_length {
             chunk_end = ((pos+1) * self.chunk_size) as u64;
             let digest = self.chunk_digest(pos);
-            csum.update(&chunk_end.to_le_bytes());
             csum.update(digest);
         }
         let csum = csum.finish();

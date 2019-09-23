@@ -901,6 +901,7 @@ impl BackupClient {
 
         let append_chunk_path = format!("{}_index", prefix);
         let upload_chunk_path = format!("{}_chunk", prefix);
+        let is_fixed_chunk_size = prefix == "fixed";
 
         let (upload_queue, upload_result) =
             Self::append_chunk_queue(h2.clone(), wid, append_chunk_path.to_owned());
@@ -933,7 +934,7 @@ impl BackupClient {
 
                 let chunk_end = offset + chunk_len as u64;
 
-                csum.update(&chunk_end.to_le_bytes());
+                if !is_fixed_chunk_size { csum.update(&chunk_end.to_le_bytes()); }
                 csum.update(digest);
 
                 let chunk_is_known = known_chunks.contains(digest);
