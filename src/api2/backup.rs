@@ -413,6 +413,7 @@ pub fn api_method_close_dynamic_index() -> ApiMethod {
             .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
                       .minimum(1)
             )
+            .required("csum", StringSchema::new("Digest list checksum."))
     )
 }
 
@@ -425,10 +426,12 @@ fn close_dynamic_index (
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
     let size = tools::required_integer_param(&param, "size")? as u64;
+    let csum_str = tools::required_string_param(&param, "csum")?;
+    let csum = proxmox::tools::hex_to_digest(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    env.dynamic_writer_close(wid, chunk_count, size)?;
+    env.dynamic_writer_close(wid, chunk_count, size, csum)?;
 
     env.log(format!("sucessfully closed dynamic index {}", wid));
 
@@ -449,6 +452,7 @@ pub fn api_method_close_fixed_index() -> ApiMethod {
             .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
                       .minimum(1)
             )
+            .required("csum", StringSchema::new("Digest list checksum."))
     )
 }
 
@@ -461,10 +465,12 @@ fn close_fixed_index (
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let chunk_count = tools::required_integer_param(&param, "chunk-count")? as u64;
     let size = tools::required_integer_param(&param, "size")? as u64;
+    let csum_str = tools::required_string_param(&param, "csum")?;
+    let csum = proxmox::tools::hex_to_digest(csum_str)?;
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    env.fixed_writer_close(wid, chunk_count, size)?;
+    env.fixed_writer_close(wid, chunk_count, size, csum)?;
 
     env.log(format!("sucessfully closed fixed index {}", wid));
 

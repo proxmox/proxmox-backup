@@ -749,6 +749,7 @@ impl BackupClient {
             "wid": wid ,
             "chunk-count": chunk_count,
             "size": size,
+            "csum": proxmox::tools::digest_to_hex(&csum),
         });
         let _value = self.h2.post(&close_path, Some(param)).await?;
         Ok(BackupStats {

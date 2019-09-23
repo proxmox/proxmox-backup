@@ -326,7 +326,7 @@ impl BackupEnvironment {
     }
 
     /// Close dynamic writer
-    pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
+    pub fn dynamic_writer_close(&self, wid: usize, chunk_count: u64, size: u64, csum: [u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -346,7 +346,12 @@ impl BackupEnvironment {
 
         let uuid = data.index.uuid;
 
-        let csum = data.index.close()?;
+        let expected_csum = data.index.close()?;
+
+        println!("server checksum {:?} client: {:?}", expected_csum, csum);
+        if csum != expected_csum {
+            bail!("dynamic writer '{}' close failed - got unexpected checksum", data.name);
+        }
 
         self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
 
@@ -356,7 +361,7 @@ impl BackupEnvironment {
     }
 
     /// Close fixed writer
-    pub fn fixed_writer_close(&self, wid: usize, chunk_count: u64, size: u64) -> Result<(), Error> {
+    pub fn fixed_writer_close(&self, wid: usize, chunk_count: u64, size: u64, csum: [u8; 32]) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -382,9 +387,14 @@ impl BackupEnvironment {
 
         let uuid = data.index.uuid;
 
-        let csum = data.index.close()?;
+        let expected_csum = data.index.close()?;
 
-        self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
+        println!("server checksum {:?} client: {:?}", expected_csum, csum);
+        if csum != expected_csum {
+            bail!("fixed writer '{}' close failed - got unexpected checksum", data.name);
+        }
+
+        self.log_upload_stat(&data.name, &expected_csum, &uuid, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
 
