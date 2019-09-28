@@ -611,6 +611,20 @@ impl BackupClient {
         self.h2.upload("POST", path, param, content_type, data).await
     }
 
+    pub async fn send_upload_request(
+        &self,
+        method: &str,
+        path: &str,
+        param: Option<Value>,
+        content_type: &str,
+        data: Vec<u8>,
+    ) -> Result<h2::client::ResponseFuture, Error> {
+
+        let request = H2Client::request_builder("localhost", method, path, param, Some(content_type)).unwrap();
+        let response_future = self.h2.send_request(request, Some(bytes::Bytes::from(data.clone()))).await?;
+        Ok(response_future)
+    }
+
     pub async fn upload_put(
         &self,
         path: &str,
@@ -1187,7 +1201,7 @@ impl H2Client {
             })
     }
 
-    async fn h2api_response(
+    pub async fn h2api_response(
         response: Response<h2::RecvStream>,
     ) -> Result<Value, Error> {
         let status = response.status();
