@@ -660,7 +660,7 @@ impl BackupClient {
 
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
-        let size = raw_data.len() as u64; // fixme: should be decoded size instead??
+        let size = raw_data.len() as u64;
         let _value = self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
@@ -674,8 +674,6 @@ impl BackupClient {
         sign_only: bool,
      ) -> Result<BackupStats, Error> {
 
-        let size = data.len() as u64;
-
         let blob = if let Some(crypt_config) = crypt_config {
             if sign_only {
                 DataBlob::create_signed(&data, crypt_config, compress)?
@@ -687,9 +685,10 @@ impl BackupClient {
         };
 
         let raw_data = blob.into_inner();
+        let size = raw_data.len() as u64;
 
         let csum = openssl::sha::sha256(&raw_data);
-        let param = json!({"encoded-size": raw_data.len(), "file-name": file_name });
+        let param = json!({"encoded-size": size, "file-name": file_name });
         let _value = self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;
         Ok(BackupStats { size, csum })
     }
@@ -714,12 +713,12 @@ impl BackupClient {
             .await
             .map_err(|err| format_err!("unable to read file {:?} - {}", src_path, err))?;
 
-        let size: u64 = contents.len() as u64;
         let blob = DataBlob::encode(&contents, crypt_config, compress)?;
         let raw_data = blob.into_inner();
+        let size = raw_data.len() as u64;
         let csum = openssl::sha::sha256(&raw_data);
         let param = json!({
-            "encoded-size": raw_data.len(),
+            "encoded-size": size,
             "file-name": file_name,
         });
         self.h2.upload("POST", "blob", Some(param), "application/octet-stream", raw_data).await?;

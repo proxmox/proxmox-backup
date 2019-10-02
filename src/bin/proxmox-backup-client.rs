@@ -913,7 +913,7 @@ fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u6
         None => bail!("index does not contain property 'size' for file '{}'", name),
         Some(expected_size) => {
             if expected_size != size {
-                bail!("verify index failed - wrong size for file '{}'", name);
+                bail!("verify index failed - wrong size for file '{}' ({} != {}", name, expected_size, size);
             }
         }
     };
