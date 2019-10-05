@@ -33,7 +33,7 @@ impl ReadChunk for RemoteChunkReader {
 
     fn read_chunk(&mut self, digest:&[u8; 32]) -> Result<Vec<u8>, Error> {
 
-        let writer = Vec::with_capacity(4*1024*1024);
+        let mut chunk_data = Vec::with_capacity(4*1024*1024);
 
         if let Some(raw_data) = self.cache.get(digest) {
             return Ok(raw_data.to_vec());
@@ -41,7 +41,7 @@ impl ReadChunk for RemoteChunkReader {
 
         let use_cache = self.cache_hint.contains_key(digest);
 
-        let chunk_data = futures::executor::block_on(self.client.download_chunk(&digest, writer))?;
+        futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data))?;
 
         let chunk = DataChunk::from_raw(chunk_data, *digest)?;
         chunk.verify_crc()?;
