@@ -931,6 +931,31 @@ fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u6
     Ok(())
 }
 
+fn dump_image<W: Write>(
+    client: Arc<BackupReader>,
+    crypt_config: Option<Arc<CryptConfig>>,
+    index: FixedIndexReader,
+    mut writer: W,
+) -> Result<(), Error> {
+
+    let most_used = index.find_most_used_chunks(8);
+
+    let mut chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+
+    // Note: we avoid using BufferedFixedReader, because that add an additional buffer/copy
+    // and thus slows down reading. Instead, directly use RemoteChunkReader
+
+    let mut size: usize = 0;
+
+    for pos in 0..index.index_count() {
+        let digest = index.index_digest(pos).unwrap();
+        let raw_data = chunk_reader.read_chunk(&digest)?;
+        writer.write_all(&raw_data)?;
+    }
+
+    Ok(())
+}
+
 async fn restore_do(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
@@ -1068,8 +1093,10 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
             decoder.restore(Path::new(target), &Vec::new())?;
         } else {
-            let stdout = std::io::stdout();
-            let mut writer = stdout.lock();
+            let mut writer = std::fs::OpenOptions::new()
+                .write(true)
+                .open("/dev/stdout")
+                .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?;
 
             std::io::copy(&mut reader, &mut writer)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
@@ -1085,30 +1112,23 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
         verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
 
-        let most_used = index.find_most_used_chunks(8);
-
-        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
-
-        let mut reader = BufferedFixedReader::new(index, chunk_reader);
-
-        if let Some(target) = target {
-            let mut writer = std::fs::OpenOptions::new()
+        let mut writer = if let Some(target) = target {
+            std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
                 .create_new(true)
                 .open(target)
-                .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?;
-
-            std::io::copy(&mut reader, &mut writer)
-                .map_err(|err| format_err!("unable to store data - {}", err))?;
+                .map_err(|err| format_err!("unable to create target file {:?} - {}", target, err))?
         } else {
-            let stdout = std::io::stdout();
-            let mut writer = stdout.lock();
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open("/dev/stdout")
+                .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?
+        };
 
-            std::io::copy(&mut reader, &mut writer)
-                .map_err(|err| format_err!("unable to pipe data - {}", err))?;
-        }
-    } else {
+        dump_image(client.clone(), crypt_config.clone(), index, &mut writer)?;
+
+     } else {
         bail!("unknown archive file extension (expected .pxar of .img)");
     }
 
