@@ -944,9 +944,6 @@ fn dump_image<W: Write>(
 
     // Note: we avoid using BufferedFixedReader, because that add an additional buffer/copy
     // and thus slows down reading. Instead, directly use RemoteChunkReader
-
-    let mut size: usize = 0;
-
     for pos in 0..index.index_count() {
         let digest = index.index_digest(pos).unwrap();
         let raw_data = chunk_reader.read_chunk(&digest)?;
