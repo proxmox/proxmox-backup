@@ -222,6 +222,37 @@ fn download_chunk(
 ) -> Result<BoxFut, Error> {
 
     let env: &ReaderEnvironment = rpcenv.as_ref();
+
+    let digest_str = tools::required_string_param(&param, "digest")?;
+    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+
+    let (path, _) = env.datastore.chunk_path(&digest);
+
+    env.debug(format!("download chunk {:?}", path));
+
+    let data = proxmox::tools::fs::file_get_contents(&path)?; // todo: blocking()
+    let body = Body::from(data);
+
+    // fixme: set other headers ?
+    Ok(Box::new(futures::future::ok(
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
+            .unwrap())
+    ))
+}
+
+/* this is too slow
+fn download_chunk_old(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiAsyncMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> Result<BoxFut, Error> {
+
+    let env: &ReaderEnvironment = rpcenv.as_ref();
     let env2 = env.clone();
 
     let digest_str = tools::required_string_param(&param, "digest")?;
@@ -251,6 +282,7 @@ fn download_chunk(
 
     Ok(Box::new(response_future))
 }
+*/
 
 pub fn api_method_speedtest() -> ApiAsyncMethod {
     ApiAsyncMethod::new(
