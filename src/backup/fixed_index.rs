@@ -394,12 +394,13 @@ impl FixedIndexWriter {
 
         let idx = self.check_chunk_alignment(offset, chunk_len)?;
 
-        let (is_duplicate, compressed_size) = self.store.insert_chunk(&chunk_info.chunk)?;
+        let (is_duplicate, compressed_size) =
+            self.store.insert_chunk(&chunk_info.chunk, &chunk_info.digest)?;
 
         stat.chunk_count += 1;
         stat.compressed_size += compressed_size;
 
-        let digest = chunk_info.chunk.digest();
+        let digest = &chunk_info.digest;
 
         println!("ADD CHUNK {} {} {}% {} {}", idx, chunk_len,
                  (compressed_size*100)/(chunk_len as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));

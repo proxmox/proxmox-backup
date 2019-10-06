@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::datastore::*;
 use super::crypt_config::*;
-use super::data_chunk::*;
+use super::data_blob::*;
 
 /// The ReadChunk trait allows reading backup data chunks (local or remote)
 pub trait ReadChunk {
@@ -32,13 +32,12 @@ impl ReadChunk for LocalChunkReader {
 
         let (path, _) = self.store.chunk_path(digest);
         let raw_data = proxmox::tools::fs::file_get_contents(&path)?;
-        let chunk = DataChunk::from_raw(raw_data, *digest)?;
+        let chunk = DataBlob::from_raw(raw_data)?;
         chunk.verify_crc()?;
 
-        let raw_data = match self.crypt_config {
-            Some(ref crypt_config) => chunk.decode(Some(crypt_config))?,
-            None => chunk.decode(None)?,
-        };
+        let raw_data =  chunk.decode(self.crypt_config.clone())?;
+
+        // fixme: verify digest?
 
         Ok(raw_data)
     }

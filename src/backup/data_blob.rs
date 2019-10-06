@@ -6,13 +6,22 @@ use proxmox::tools::io::{ReadExt, WriteExt};
 
 const MAX_BLOB_SIZE: usize = 128*1024*1024;
 
-use super::*;
+use super::file_formats::*;
+use super::CryptConfig;
+
+/// Encoded data chunk with digest and positional information
+pub struct ChunkInfo {
+    pub chunk: DataBlob,
+    pub digest: [u8; 32],
+    pub chunk_len: u64,
+    pub offset: u64,
+}
 
 /// Data blob binary storage format
 ///
 /// Data blobs store arbitrary binary data (< 128MB), and can be
-/// compressed and encrypted. A simply binary format is used to store
-/// them on disk or transfer them over the network.
+/// compressed and encrypted (or just signed). A simply binary format
+/// is used to store them on disk or transfer them over the network.
 ///
 /// Please use index files to store large data files (".fidx" of
 /// ".didx").
@@ -255,6 +264,15 @@ impl DataBlob {
         return Ok(blob);
     }
 
+    /// Load blob from ``reader``
+    pub fn load(reader: &mut dyn std::io::Read) -> Result<Self, Error> {
+
+        let mut data = Vec::with_capacity(1024*1024);
+        reader.read_to_end(&mut data)?;
+
+        Self::from_raw(data)
+    }
+
     /// Create Instance from raw data
     pub fn from_raw(data: Vec<u8>) -> Result<Self, Error> {
 
@@ -289,5 +307,123 @@ impl DataBlob {
         } else {
             bail!("unable to parse raw blob - wrong magic");
         }
+    }
+
+    /// Verify digest and data length for unencrypted chunks.
+    ///
+    /// To do that, we need to decompress data first. Please note that
+    /// this is noth possible for encrypted chunks.
+    pub fn verify_unencrypted(
+        &self,
+        expected_chunk_size: usize,
+        expected_digest: &[u8; 32],
+    ) -> Result<(), Error> {
+
+        let magic = self.magic();
+
+        let verify_raw_data = |data: &[u8]| {
+            if expected_chunk_size != data.len() {
+                bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
+            }
+            let digest = openssl::sha::sha256(data);
+            if &digest != expected_digest {
+                bail!("detected chunk with wrong digest.");
+            }
+            Ok(())
+        };
+
+        if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
+            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
+            verify_raw_data(&data)?;
+        } else if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
+            verify_raw_data(&self.raw_data[12..])?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Builder for chunk DataBlobs
+///
+/// Main purpose is to centralize digest computation. Digest
+/// computation differ for encryped chunk, and this interface ensures that
+/// we always compute the correct one.
+pub struct DataChunkBuilder<'a> {
+    config: Option<Arc<CryptConfig>>,
+    orig_data: &'a [u8],
+    digest_computed: bool,
+    digest: [u8; 32],
+    compress: bool,
+}
+
+impl <'a> DataChunkBuilder<'a> {
+
+    /// Create a new builder instance.
+    pub fn new(orig_data: &'a [u8]) -> Self {
+        Self {
+            orig_data,
+            config: None,
+            digest_computed: false,
+            digest: [0u8; 32],
+            compress: true,
+        }
+    }
+
+    /// Set compression flag.
+    ///
+    /// If true, chunk data is compressed using zstd (level 1).
+    pub fn compress(mut self, value: bool) -> Self {
+        self.compress = value;
+        self
+    }
+
+    /// Set encryption Configuration
+    ///
+    /// If set, chunks are encrypted.
+    pub fn crypt_config(mut self, value: Arc<CryptConfig>) -> Self {
+        if self.digest_computed {
+            panic!("unable to set crypt_config after compute_digest().");
+        }
+        self.config = Some(value);
+        self
+    }
+
+    fn compute_digest(&mut self) {
+        if !self.digest_computed {
+            if let Some(ref config) = self.config {
+                self.digest = config.compute_digest(self.orig_data);
+            } else {
+                self.digest = openssl::sha::sha256(self.orig_data);
+            }
+            self.digest_computed = true;
+        }
+    }
+
+    /// Returns the chunk Digest
+    ///
+    /// Note: For encrypted chunks, this needs to be called after
+    /// ``crypt_config``.
+    pub fn digest(&mut self) -> &[u8; 32] {
+        if !self.digest_computed {
+            self.compute_digest();
+        }
+        &self.digest
+    }
+
+    /// Consume self and build the ``DataBlob``.
+    ///
+    /// Returns the blob and the computet digest.
+    pub fn build(mut self) -> Result<(DataBlob, [u8; 32]), Error> {
+        if !self.digest_computed {
+            self.compute_digest();
+        }
+
+        let chunk = DataBlob::encode(
+            self.orig_data,
+            self.config,
+            self.compress,
+        )?;
+
+        Ok((chunk, self.digest))
     }
 }

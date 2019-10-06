@@ -57,14 +57,14 @@ impl Future for UploadChunk {
                         }
 
                         let (is_duplicate, compressed_size) = match proxmox::tools::try_block! {
-                            let mut chunk = DataChunk::from_raw(raw_data, this.digest)?;
+                            let mut chunk = DataBlob::from_raw(raw_data)?;
 
-                            chunk.verify_unencrypted(this.size as usize)?;
+                            chunk.verify_unencrypted(this.size as usize, &this.digest)?;
 
                             // always comput CRC at server side
                             chunk.set_crc(chunk.compute_crc());
 
-                            this.store.insert_chunk(&chunk)
+                            this.store.insert_chunk(&chunk, &this.digest)
                         } {
                             Ok(res) => res,
                             Err(err) => break err,
@@ -95,8 +95,8 @@ pub fn api_method_upload_fixed_chunk() -> ApiAsyncMethod {
                       .maximum(1024*1024*16)
             )
             .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum((std::mem::size_of::<DataChunkHeader>() as isize)+1)
-                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataChunkHeader>() as isize))
+                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize)+1)
+                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
             )
     )
 }
@@ -151,8 +151,8 @@ pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
                       .maximum(1024*1024*16)
             )
             .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum((std::mem::size_of::<DataChunkHeader>() as isize) +1)
-                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataChunkHeader>() as isize))
+                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
+                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
             )
     )
 }

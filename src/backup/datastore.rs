@@ -11,7 +11,7 @@ use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::index::*;
-use super::DataChunk;
+use super::DataBlob;
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
@@ -290,8 +290,9 @@ impl DataStore {
 
     pub fn insert_chunk(
         &self,
-        chunk: &DataChunk,
+        chunk: &DataBlob,
+        digest: &[u8; 32],
     ) -> Result<(bool, u64), Error> {
-        self.chunk_store.insert_chunk(chunk)
+        self.chunk_store.insert_chunk(chunk, digest)
     }
 }

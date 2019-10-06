@@ -4,7 +4,7 @@ use std::sync::Arc;
 use failure::*;
 
 use super::BackupReader;
-use crate::backup::{ReadChunk, DataChunk, CryptConfig};
+use crate::backup::{ReadChunk, DataBlob, CryptConfig};
 
 /// Read chunks from remote host using ``BackupReader``
 pub struct RemoteChunkReader {
@@ -43,13 +43,12 @@ impl ReadChunk for RemoteChunkReader {
 
         futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data))?;
 
-        let chunk = DataChunk::from_raw(chunk_data, *digest)?;
+        let chunk = DataBlob::from_raw(chunk_data)?;
         chunk.verify_crc()?;
 
-        let raw_data = match self.crypt_config {
-            Some(ref crypt_config) => chunk.decode(Some(crypt_config))?,
-            None => chunk.decode(None)?,
-        };
+        let raw_data = chunk.decode(self.crypt_config.clone())?;
+
+        // fixme: verify chunk digest
 
         if use_cache {
             self.cache.insert(*digest, raw_data.to_vec());

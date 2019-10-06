@@ -678,7 +678,7 @@ impl BackupClient {
             if sign_only {
                 DataBlob::create_signed(&data, crypt_config, compress)?
             } else {
-                DataBlob::encode(&data, Some(crypt_config.clone()), compress)?
+                DataBlob::encode(&data, Some(crypt_config), compress)?
             }
         } else {
             DataBlob::encode(&data, None, compress)?
@@ -936,7 +936,7 @@ impl BackupClient {
                     .compress(true);
 
                 if let Some(ref crypt_config) = crypt_config {
-                    chunk_builder = chunk_builder.crypt_config(crypt_config);
+                    chunk_builder = chunk_builder.crypt_config(crypt_config.clone());
                 }
 
                 let mut known_chunks = known_chunks.lock().unwrap();
@@ -957,8 +957,9 @@ impl BackupClient {
                     known_chunks.insert(*digest);
                     future::ready(chunk_builder
                         .build()
-                        .map(move |chunk| MergedChunkInfo::New(ChunkInfo {
+                        .map(move |(chunk, digest)| MergedChunkInfo::New(ChunkInfo {
                             chunk,
+                            digest,
                             chunk_len: chunk_len as u64,
                             offset,
                         }))
@@ -970,7 +971,7 @@ impl BackupClient {
 
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
-                    let digest = *chunk_info.chunk.digest();
+                    let digest = chunk_info.digest;
                     let digest_str = digest_to_hex(&digest);
 
                     println!("upload new chunk {} ({} bytes, offset {})", digest_str,

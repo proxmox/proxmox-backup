@@ -7,7 +7,7 @@ use std::os::unix::io::AsRawFd;
 use serde::Serialize;
 
 use crate::tools;
-use super::DataChunk;
+use super::DataBlob;
 use crate::server::WorkerTask;
 
 #[derive(Clone, Serialize)]
@@ -173,7 +173,7 @@ impl ChunkStore {
         Ok(())
     }
 
-    pub fn read_chunk(&self, digest: &[u8; 32]) -> Result<DataChunk, Error> {
+    pub fn read_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
 
         let (chunk_path, digest_str) = self.chunk_path(digest);
         let mut file = std::fs::File::open(&chunk_path)
@@ -186,7 +186,7 @@ impl ChunkStore {
                 )
             })?;
 
-        DataChunk::load(&mut file, *digest)
+        DataBlob::load(&mut file)
     }
 
     pub fn get_chunk_iterator(
@@ -357,10 +357,9 @@ impl ChunkStore {
 
     pub fn insert_chunk(
         &self,
-        chunk: &DataChunk,
+        chunk: &DataBlob,
+        digest: &[u8; 32],
     ) -> Result<(bool, u64), Error> {
-
-        let digest = chunk.digest();
 
         //println!("DIGEST {}", proxmox::tools::digest_to_hex(digest));
 
@@ -444,12 +443,12 @@ fn test_chunk_store1() {
 
     let chunk_store = ChunkStore::create("test", &path).unwrap();
 
-    let chunk = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
+    let (chunk, digest) = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
 
-    let (exists, _) = chunk_store.insert_chunk(&chunk).unwrap();
+    let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(!exists);
 
-    let (exists, _) = chunk_store.insert_chunk(&chunk).unwrap();
+    let (exists, _) = chunk_store.insert_chunk(&chunk, &digest).unwrap();
     assert!(exists);
 
 

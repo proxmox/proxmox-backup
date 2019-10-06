@@ -140,9 +140,6 @@ pub use checksum_writer::*;
 mod chunker;
 pub use chunker::*;
 
-mod data_chunk;
-pub use data_chunk::*;
-
 mod data_blob;
 pub use data_blob::*;
 

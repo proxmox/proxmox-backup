@@ -16,7 +16,7 @@ use super::IndexFile;
 use super::chunk_stat::ChunkStat;
 use super::chunk_store::ChunkStore;
 use super::read_chunk::ReadChunk;
-use super::{DataChunk, DataChunkBuilder};
+use super::{DataBlob, DataChunkBuilder};
 use crate::tools;
 
 /// Header format definition for dynamic index files (`.dixd`)
@@ -465,8 +465,8 @@ impl DynamicIndexWriter {
     }
 
     // fixme: use add_chunk instead?
-    pub fn insert_chunk(&self, chunk: &DataChunk) -> Result<(bool, u64), Error> {
-        self.store.insert_chunk(chunk)
+    pub fn insert_chunk(&self, chunk: &DataBlob, digest: &[u8; 32]) -> Result<(bool, u64), Error> {
+        self.store.insert_chunk(chunk, digest)
     }
 
     pub fn close(&mut self)  -> Result<[u8; 32], Error> {
@@ -581,13 +581,11 @@ impl DynamicChunkWriter {
 
         self.last_chunk = self.chunk_offset;
 
-        let chunk = DataChunkBuilder::new(&self.chunk_buffer)
+        let (chunk, digest) = DataChunkBuilder::new(&self.chunk_buffer)
             .compress(true)
             .build()?;
 
-        let digest = chunk.digest();
-
-        match self.index.insert_chunk(&chunk) {
+        match self.index.insert_chunk(&chunk, &digest) {
             Ok((is_duplicate, compressed_size)) => {
 
                 self.stat.compressed_size += compressed_size;
@@ -598,7 +596,7 @@ impl DynamicChunkWriter {
                 }
 
                 println!("ADD CHUNK {:016x} {} {}% {} {}", self.chunk_offset, chunk_size,
-                         (compressed_size*100)/(chunk_size as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));
+                         (compressed_size*100)/(chunk_size as u64), is_duplicate, proxmox::tools::digest_to_hex(&digest));
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);
                 return Ok(());
@@ -620,7 +618,7 @@ impl Write for DynamicChunkWriter {
         let pos = chunker.scan(data);
 
         if pos > 0 {
-            self.chunk_buffer.extend(&data[0..pos]);
+            self.chunk_buffer.extend_from_slice(&data[0..pos]);
             self.chunk_offset += pos;
 
             if let Err(err) = self.write_chunk_buffer() {
@@ -630,7 +628,7 @@ impl Write for DynamicChunkWriter {
 
         } else {
             self.chunk_offset += data.len();
-            self.chunk_buffer.extend(data);
+            self.chunk_buffer.extend_from_slice(data);
             Ok(data.len())
         }
     }

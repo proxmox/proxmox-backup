@@ -2,18 +2,6 @@ use endian_trait::Endian;
 
 // WARNING: PLEASE DO NOT MODIFY THOSE MAGIC VALUES
 
-// openssl::sha::sha256(b"Proxmox Backup uncompressed chunk v1.0")[0..8]
-pub const UNCOMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [79, 127, 200, 4, 121, 74, 135, 239];
-
-// openssl::sha::sha256(b"Proxmox Backup encrypted chunk v1.0")[0..8]
-pub const ENCRYPTED_CHUNK_MAGIC_1_0: [u8; 8] = [8, 54, 114, 153, 70, 156, 26, 151];
-
-// openssl::sha::sha256(b"Proxmox Backup zstd compressed chunk v1.0")[0..8]
-pub const COMPRESSED_CHUNK_MAGIC_1_0: [u8; 8] = [191, 237, 46, 195, 108, 17, 228, 235];
-
-// openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted chunk v1.0")[0..8]
-pub const ENCR_COMPR_CHUNK_MAGIC_1_0: [u8; 8] = [9, 40, 53, 200, 37, 150, 90, 196];
-
 // openssl::sha::sha256(b"Proxmox Backup uncompressed blob v1.0")[0..8]
 pub const UNCOMPRESSED_BLOB_MAGIC_1_0: [u8; 8] = [66, 171, 56, 7, 190, 131, 112, 161];
 
@@ -87,49 +75,11 @@ pub struct EncryptedDataBlobHeader {
     pub tag: [u8; 16],
 }
 
-/// Data chunk binary storage format
-///
-/// The format start with a 8 byte magic number to identify the type,
-/// followed by a 4 byte CRC. This CRC is used on the server side to
-/// detect file corruption (computed when upload data), so there is
-/// usually no need to compute it on the client side.
-///
-/// Unencrypted blobs simply contain the CRC, followed by the
-/// (compressed) data.
-///
-/// (MAGIC || CRC32 || Data)
-#[derive(Endian)]
-#[repr(C,packed)]
-pub struct DataChunkHeader {
-    pub magic: [u8; 8],
-    pub crc: [u8; 4],
-}
-
-/// Encrypted Data chunk binary storage format
-///
-/// The ``DataChunkHeader`` for encrypted chunks additionally contains
-/// a 16 byte IV, followed by a 16 byte Authenticated Encyrypten (AE)
-/// tag, followed by the encrypted data:
-///
-/// (MAGIC || CRC32 || IV || TAG || EncryptedData).
-#[derive(Endian)]
-#[repr(C,packed)]
-pub struct EncryptedDataChunkHeader {
-    pub head: DataChunkHeader,
-    pub iv: [u8; 16],
-    pub tag: [u8; 16],
-}
-
 /// Header size for different file types
 ///
 /// Panics on unknown magic numbers.
 pub fn header_size(magic: &[u8; 8]) -> usize {
     match magic {
-        &UNCOMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
-        &COMPRESSED_CHUNK_MAGIC_1_0 => std::mem::size_of::<DataChunkHeader>(),
-        &ENCRYPTED_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
-        &ENCR_COMPR_CHUNK_MAGIC_1_0 => std::mem::size_of::<EncryptedDataChunkHeader>(),
-
         &UNCOMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
         &COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
         &ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
