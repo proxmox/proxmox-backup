@@ -46,7 +46,7 @@ impl ReadChunk for RemoteChunkReader {
         let chunk = DataBlob::from_raw(chunk_data)?;
         chunk.verify_crc()?;
 
-        let raw_data = chunk.decode(self.crypt_config.clone())?;
+        let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
 
         // fixme: verify chunk digest
 

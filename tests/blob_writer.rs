@@ -53,7 +53,7 @@ fn verify_test_blob(mut cursor: Cursor<Vec<u8>>) -> Result<(), Error> {
     let blob = DataBlob::from_raw(raw_data)?;
     blob.verify_crc()?;
 
-    let data = blob.decode(Some(CRYPT_CONFIG.clone()))?;
+    let data = blob.decode(Some(&CRYPT_CONFIG))?;
     if data != *TEST_DATA {
         bail!("blob data is wrong (decode)");
     }

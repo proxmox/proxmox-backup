@@ -674,7 +674,7 @@ impl BackupClient {
         sign_only: bool,
      ) -> Result<BackupStats, Error> {
 
-        let blob = if let Some(crypt_config) = crypt_config {
+        let blob = if let Some(ref crypt_config) = crypt_config {
             if sign_only {
                 DataBlob::create_signed(&data, crypt_config, compress)?
             } else {
@@ -713,7 +713,7 @@ impl BackupClient {
             .await
             .map_err(|err| format_err!("unable to read file {:?} - {}", src_path, err))?;
 
-        let blob = DataBlob::encode(&contents, crypt_config, compress)?;
+        let blob = DataBlob::encode(&contents, crypt_config.as_ref().map(AsRef::as_ref), compress)?;
         let raw_data = blob.into_inner();
         let size = raw_data.len() as u64;
         let csum = openssl::sha::sha256(&raw_data);
@@ -936,7 +936,7 @@ impl BackupClient {
                     .compress(true);
 
                 if let Some(ref crypt_config) = crypt_config {
-                    chunk_builder = chunk_builder.crypt_config(crypt_config.clone());
+                    chunk_builder = chunk_builder.crypt_config(crypt_config);
                 }
 
                 let mut known_chunks = known_chunks.lock().unwrap();

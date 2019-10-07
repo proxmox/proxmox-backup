@@ -888,7 +888,7 @@ async fn download_index_blob(client: Arc<BackupReader>, crypt_config: Option<Arc
     let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
     let blob = DataBlob::from_raw(index_data)?;
     blob.verify_crc()?;
-    blob.decode(crypt_config)
+    blob.decode(crypt_config.as_ref().map(Arc::as_ref))
 }
 
 fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
@@ -1159,7 +1159,7 @@ fn upload_log(
 
     let data = file_get_contents(logfile)?;
 
-    let blob = DataBlob::encode(&data, crypt_config, true)?;
+    let blob = DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?;
 
     let raw_data = blob.into_inner();
 

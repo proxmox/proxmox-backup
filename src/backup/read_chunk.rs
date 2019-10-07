@@ -35,7 +35,7 @@ impl ReadChunk for LocalChunkReader {
         let chunk = DataBlob::from_raw(raw_data)?;
         chunk.verify_crc()?;
 
-        let raw_data =  chunk.decode(self.crypt_config.clone())?;
+        let raw_data =  chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
 
         // fixme: verify digest?
 

@@ -1,6 +1,5 @@
 use failure::*;
 use std::convert::TryInto;
-use std::sync::Arc;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
@@ -79,7 +78,7 @@ impl DataBlob {
     /// Create a DataBlob, optionally compressed and/or encrypted
     pub fn encode(
         data: &[u8],
-        config: Option<Arc<CryptConfig>>,
+        config: Option<&CryptConfig>,
         compress: bool,
     ) -> Result<Self, Error> {
 
@@ -168,7 +167,7 @@ impl DataBlob {
     }
 
     /// Decode blob data
-    pub fn decode(self, config: Option<Arc<CryptConfig>>) -> Result<Vec<u8>, Error> {
+    pub fn decode(self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
 
         let magic = self.magic();
 
@@ -225,7 +224,7 @@ impl DataBlob {
     /// Create a signed DataBlob, optionally compressed
     pub fn create_signed(
         data: &[u8],
-        config: Arc<CryptConfig>,
+        config: &CryptConfig,
         compress: bool,
     ) -> Result<Self, Error> {
 
@@ -348,15 +347,15 @@ impl DataBlob {
 /// Main purpose is to centralize digest computation. Digest
 /// computation differ for encryped chunk, and this interface ensures that
 /// we always compute the correct one.
-pub struct DataChunkBuilder<'a> {
-    config: Option<Arc<CryptConfig>>,
+pub struct DataChunkBuilder<'a, 'b> {
+    config: Option<&'b CryptConfig>,
     orig_data: &'a [u8],
     digest_computed: bool,
     digest: [u8; 32],
     compress: bool,
 }
 
-impl <'a> DataChunkBuilder<'a> {
+impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
     /// Create a new builder instance.
     pub fn new(orig_data: &'a [u8]) -> Self {
@@ -380,7 +379,7 @@ impl <'a> DataChunkBuilder<'a> {
     /// Set encryption Configuration
     ///
     /// If set, chunks are encrypted.
-    pub fn crypt_config(mut self, value: Arc<CryptConfig>) -> Self {
+    pub fn crypt_config(mut self, value: &'b CryptConfig) -> Self {
         if self.digest_computed {
             panic!("unable to set crypt_config after compute_digest().");
         }
