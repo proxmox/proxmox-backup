@@ -232,7 +232,7 @@ fn download_chunk(
     env.debug(format!("download chunk {:?}", path));
 
     let response_future = tokio::fs::read(path)
-        .map_err(move |err| http_err!(BAD_REQUEST, format!("redingfile {:?} failed: {}", path2, err)))
+        .map_err(move |err| http_err!(BAD_REQUEST, format!("reading file {:?} failed: {}", path2, err)))
         .and_then(move |data| {
             let body = Body::from(data);
 
