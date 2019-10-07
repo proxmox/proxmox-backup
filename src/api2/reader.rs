@@ -227,20 +227,25 @@ fn download_chunk(
     let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
     let (path, _) = env.datastore.chunk_path(&digest);
+    let path2 = path.clone();
 
     env.debug(format!("download chunk {:?}", path));
 
-    let data = proxmox::tools::fs::file_get_contents(&path)?; // todo: blocking()
-    let body = Body::from(data);
+    let response_future = tokio::fs::read(path)
+        .map_err(move |err| http_err!(BAD_REQUEST, format!("redingfile {:?} failed: {}", path2, err)))
+        .and_then(move |data| {
+            let body = Body::from(data);
 
-    // fixme: set other headers ?
-    Ok(Box::new(futures::future::ok(
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "application/octet-stream")
-            .body(body)
-            .unwrap())
-    ))
+            // fixme: set other headers ?
+            futures::future::ok(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "application/octet-stream")
+                    .body(body)
+                    .unwrap())
+        });
+
+    Ok(Box::new(response_future))
 }
 
 /* this is too slow
