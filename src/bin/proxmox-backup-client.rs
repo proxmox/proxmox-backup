@@ -936,6 +936,7 @@ fn dump_image<W: Write>(
     crypt_config: Option<Arc<CryptConfig>>,
     index: FixedIndexReader,
     mut writer: W,
+    verbose: bool,
 ) -> Result<(), Error> {
 
     let most_used = index.find_most_used_chunks(8);
@@ -944,11 +945,33 @@ fn dump_image<W: Write>(
 
     // Note: we avoid using BufferedFixedReader, because that add an additional buffer/copy
     // and thus slows down reading. Instead, directly use RemoteChunkReader
+    let mut per = 0;
+    let mut bytes = 0;
+    let start_time = std::time::Instant::now();
+
     for pos in 0..index.index_count() {
         let digest = index.index_digest(pos).unwrap();
         let raw_data = chunk_reader.read_chunk(&digest)?;
         writer.write_all(&raw_data)?;
+        bytes += raw_data.len();
+        if verbose {
+            let next_per = ((pos+1)*100)/index.index_count();
+            if per != next_per {
+                eprintln!("progress {}% (read {} bytes, duration {} sec)",
+                          next_per, bytes, start_time.elapsed().as_secs());
+                per = next_per;
+            }
+        }
     }
+
+    let end_time = std::time::Instant::now();
+    let elapsed = end_time.duration_since(start_time);
+    eprintln!("restore image complete (bytes={}, duration={:.2}s, speed={:.2}MB/s)",
+              bytes,
+              elapsed.as_secs_f64(),
+              bytes as f64/(1024.0*1024.0*elapsed.as_secs_f64())
+    );
+
 
     Ok(())
 }
@@ -1081,12 +1104,11 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
             let feature_flags = pxar::flags::DEFAULT;
             let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
                 if verbose {
-                    println!("{:?}", path);
+                    eprintln!("{:?}", path);
                 }
                 Ok(())
             });
             decoder.set_allow_existing_dirs(allow_existing_dirs);
-
 
             decoder.restore(Path::new(target), &Vec::new())?;
         } else {
@@ -1123,7 +1145,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?
         };
 
-        dump_image(client.clone(), crypt_config.clone(), index, &mut writer)?;
+        dump_image(client.clone(), crypt_config.clone(), index, &mut writer, verbose)?;
 
      } else {
         bail!("unknown archive file extension (expected .pxar of .img)");
