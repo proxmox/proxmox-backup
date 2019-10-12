@@ -103,7 +103,7 @@
 //!
 //! Not sure if this is better. TODO
 
-pub const INDEX_BLOB_NAME: &str = "index.json.blob";
+pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const CATALOG_BLOB_NAME: &str = "catalog.blob";
 
 #[macro_export]

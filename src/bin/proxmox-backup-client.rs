@@ -1052,7 +1052,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
     let backup_index = client.download_manifest().await?;
 
-    if server_archive_name == INDEX_BLOB_NAME {
+    if server_archive_name == MANIFEST_BLOB_NAME {
         let backup_index_data = backup_index.to_string();
         if let Some(target) = target {
             file_set_contents(target, backup_index_data.as_bytes(), None)?;

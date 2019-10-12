@@ -123,7 +123,7 @@ impl BackupReader {
     /// Download backup manifest (index.json)
     pub async fn download_manifest(&self) -> Result<Value, Error> {
 
-        let raw_data = self.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
+        let raw_data = self.download(MANIFEST_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
         let blob = DataBlob::from_raw(raw_data)?;
         blob.verify_crc()?;
         let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
