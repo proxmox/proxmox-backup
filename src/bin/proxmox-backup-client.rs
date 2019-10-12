@@ -481,6 +481,7 @@ fn dump_catalog(
     async_main(async move {
         let client = BackupReader::start(
             client,
+            crypt_config.clone(),
             repo.store(),
             &snapshot.group().backup_type(),
             &snapshot.group().backup_id(),
@@ -488,8 +489,7 @@ fn dump_catalog(
             true,
         ).await?;
 
-        let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
-        let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+        let backup_index = client.download_manifest().await?;
 
         let blob_file = std::fs::OpenOptions::new()
             .read(true)
@@ -891,14 +891,6 @@ fn restore(
     async_main(restore_do(param))
 }
 
-async fn download_index_blob(client: Arc<BackupReader>, crypt_config: Option<Arc<CryptConfig>>) -> Result<Vec<u8>, Error> {
-
-    let index_data = client.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
-    let blob = DataBlob::from_raw(index_data)?;
-    blob.verify_crc()?;
-    blob.decode(crypt_config.as_ref().map(Arc::as_ref))
-}
-
 fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
 
     let files = backup_index["files"]
@@ -1042,7 +1034,15 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         format!("{}.blob", archive_name)
     };
 
-    let client = BackupReader::start(client, repo.store(), &backup_type, &backup_id, backup_time, true).await?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &backup_type,
+        &backup_id,
+        backup_time,
+        true,
+    ).await?;
 
     let tmpfile = std::fs::OpenOptions::new()
         .write(true)
@@ -1050,17 +1050,16 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-
-    let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
-    let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+    let backup_index = client.download_manifest().await?;
 
     if server_archive_name == INDEX_BLOB_NAME {
+        let backup_index_data = backup_index.to_string();
         if let Some(target) = target {
-            file_set_contents(target, &backup_index_data, None)?;
+            file_set_contents(target, backup_index_data.as_bytes(), None)?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
-            writer.write_all(&backup_index_data)
+            writer.write_all(backup_index_data.as_bytes())
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
@@ -1759,7 +1758,15 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         bail!("Can only mount pxar archives.");
     };
 
-    let client = BackupReader::start(client, repo.store(), &backup_type, &backup_id, backup_time, true).await?;
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &backup_type,
+        &backup_id,
+        backup_time,
+        true,
+    ).await?;
 
     let tmpfile = std::fs::OpenOptions::new()
         .write(true)
@@ -1767,8 +1774,8 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
-    let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
+    let backup_index = client.download_manifest().await?;
+
     if server_archive_name.ends_with(".didx") {
         let tmpfile = client.download(&server_archive_name, tmpfile).await?;
         let index = DynamicIndexReader::new(tmpfile)

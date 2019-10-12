@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use proxmox::tools::digest_to_hex;
 
 use crate::tools::futures::Canceller;
+use crate::backup::*;
 
 use super::{HttpClient, H2Client};
 
@@ -15,6 +16,7 @@ use super::{HttpClient, H2Client};
 pub struct BackupReader {
     h2: H2Client,
     canceller: Canceller,
+    crypt_config: Option<Arc<CryptConfig>>,
 }
 
 impl Drop for BackupReader {
@@ -26,13 +28,14 @@ impl Drop for BackupReader {
 
 impl BackupReader {
 
-    fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
-        Arc::new(Self { h2, canceller })
+    fn new(h2: H2Client, canceller: Canceller, crypt_config: Option<Arc<CryptConfig>>) -> Arc<Self> {
+        Arc::new(Self { h2, canceller, crypt_config})
     }
 
     /// Create a new instance by upgrading the connection at '/api2/json/reader'
     pub async fn start(
         client: HttpClient,
+        crypt_config: Option<Arc<CryptConfig>>,
         datastore: &str,
         backup_type: &str,
         backup_id: &str,
@@ -51,7 +54,7 @@ impl BackupReader {
 
         let (h2, canceller) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!())).await?;
 
-        Ok(BackupReader::new(h2, canceller))
+        Ok(BackupReader::new(h2, canceller, crypt_config))
     }
 
     /// Execute a GET request
@@ -115,5 +118,16 @@ impl BackupReader {
 
     pub fn force_close(self) {
         self.canceller.cancel();
+    }
+
+    /// Download backup manifest (index.json)
+    pub async fn download_manifest(&self) -> Result<Value, Error> {
+
+        let raw_data = self.download(INDEX_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
+        let blob = DataBlob::from_raw(raw_data)?;
+        blob.verify_crc()?;
+        let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
+        let result: Value = serde_json::from_slice(&data[..])?;
+        Ok(result)
     }
 }
