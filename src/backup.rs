@@ -103,7 +103,6 @@
 //!
 //! Not sure if this is better. TODO
 
-pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const CATALOG_BLOB_NAME: &str = "catalog.blob";
 
 #[macro_export]
@@ -118,6 +117,9 @@ macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
 
 mod file_formats;
 pub use file_formats::*;
+
+mod manifest;
+pub use manifest::*;
 
 mod crypt_config;
 pub use crypt_config::*;

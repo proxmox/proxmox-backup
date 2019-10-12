@@ -732,7 +732,8 @@ fn create_backup(
             verbose,
         ).await?;
 
-        let mut file_list = vec![];
+        let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
+        let mut manifest = BackupManifest::new(snapshot);
 
         // fixme: encrypt/sign catalog?
          let catalog_file = std::fs::OpenOptions::new()
@@ -751,14 +752,14 @@ fn create_backup(
                     let stats = client
                         .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                         .await?;
-                    file_list.push((target, stats));
+                    manifest.add_file(target, stats.size, stats.csum);
                 }
                 BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
                     println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                     let stats = client
                         .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                         .await?;
-                    file_list.push((target, stats));
+                    manifest.add_file(target, stats.size, stats.csum);
                 }
                 BackupType::PXAR => {
                     upload_catalog = true;
@@ -775,7 +776,7 @@ fn create_backup(
                         crypt_config.clone(),
                         catalog.clone(),
                     ).await?;
-                    file_list.push((target, stats));
+                    manifest.add_file(target, stats.size, stats.csum);
                     catalog.lock().unwrap().end_directory()?;
                 }
                 BackupType::IMAGE => {
@@ -789,7 +790,7 @@ fn create_backup(
                         verbose,
                         crypt_config.clone(),
                     ).await?;
-                    file_list.push((target, stats));
+                    manifest.add_file(target, stats.size, stats.csum);
                 }
             }
         }
@@ -805,7 +806,7 @@ fn create_backup(
             catalog_file.seek(SeekFrom::Start(0))?;
 
             let stats = client.upload_blob(catalog_file, target).await?;
-            file_list.push((target.to_owned(), stats));
+            manifest.add_file(target.to_owned(), stats.size, stats.csum);
         }
 
         if let Some(rsa_encrypted_key) = rsa_encrypted_key {
@@ -814,7 +815,7 @@ fn create_backup(
             let stats = client
                 .upload_blob_from_data(rsa_encrypted_key, target, None, false, false)
                 .await?;
-            file_list.push((format!("{}.blob", target), stats));
+            manifest.add_file(format!("{}.blob", target), stats.size, stats.csum);
 
             // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
             /*
@@ -826,28 +827,13 @@ fn create_backup(
              */
         }
 
-        // create index.json
-        let file_list = file_list.iter()
-            .fold(vec![], |mut acc, (filename, stats)| {
-                acc.push(json!({
-                    "filename": filename,
-                    "size": stats.size,
-                    "csum": proxmox::tools::digest_to_hex(&stats.csum),
-                }));
-                acc
-            });
-
-        let index = json!({
-            "backup-type": backup_type,
-            "backup-id": backup_id,
-            "backup-time": backup_time.timestamp(),
-            "files": file_list,
-        });
+        // create manifest (index.json)
+        let manifest = manifest.into_json();
 
         println!("Upload index.json to '{:?}'", repo);
-        let index_data = serde_json::to_string_pretty(&index)?.into();
+        let manifest = serde_json::to_string_pretty(&manifest)?.into();
         client
-            .upload_blob_from_data(index_data, "index.json.blob", crypt_config.clone(), true, true)
+            .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, crypt_config.clone(), true, true)
             .await?;
 
         client.finish().await?;
