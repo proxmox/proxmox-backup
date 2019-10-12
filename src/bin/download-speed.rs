@@ -4,7 +4,7 @@ use failure::*;
 
 use chrono::{DateTime, Utc};
 
-use proxmox_backup::client::HttpClient;
+use proxmox_backup::client::{HttpClient, BackupReader};
 
 pub struct DummyWriter {
     bytes: usize,
@@ -33,8 +33,7 @@ async fn run() -> Result<(), Error> {
 
     let backup_time = "2019-06-28T10:49:48Z".parse::<DateTime<Utc>>()?;
 
-    let client = client
-        .start_backup_reader("store2", "host", "elsa", backup_time, true)
+    let client = BackupReader::start(client, "store2", "host", "elsa", backup_time, true)
         .await?;
 
     let start = std::time::SystemTime::now();

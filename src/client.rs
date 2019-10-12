@@ -9,6 +9,9 @@ mod merge_known_chunks;
 mod http_client;
 pub use  http_client::*;
 
+mod backup_reader;
+pub use backup_reader::*;
+
 mod remote_chunk_reader;
 pub use remote_chunk_reader::*;
 

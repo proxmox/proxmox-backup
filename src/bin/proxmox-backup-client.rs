@@ -479,11 +479,14 @@ fn dump_catalog(
     let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     async_main(async move {
-        let client = client.start_backup_reader(
+        let client = BackupReader::start(
+            client,
             repo.store(),
             &snapshot.group().backup_type(),
             &snapshot.group().backup_id(),
-            snapshot.backup_time(), true).await?;
+            snapshot.backup_time(),
+            true,
+        ).await?;
 
         let backup_index_data = download_index_blob(client.clone(), crypt_config.clone()).await?;
         let backup_index: Value = serde_json::from_slice(&backup_index_data[..])?;
@@ -1034,9 +1037,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         format!("{}.blob", archive_name)
     };
 
-    let client = client
-        .start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true)
-        .await?;
+    let client = BackupReader::start(client, repo.store(), &backup_type, &backup_id, backup_time, true).await?;
 
     let tmpfile = std::fs::OpenOptions::new()
         .write(true)
@@ -1753,9 +1754,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         bail!("Can only mount pxar archives.");
     };
 
-    let client = client
-        .start_backup_reader(repo.store(), &backup_type, &backup_id, backup_time, true)
-        .await?;
+    let client = BackupReader::start(client, repo.store(), &backup_type, &backup_id, backup_time, true).await?;
 
     let tmpfile = std::fs::OpenOptions::new()
         .write(true)
