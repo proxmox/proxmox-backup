@@ -12,6 +12,9 @@ pub use  http_client::*;
 mod backup_reader;
 pub use backup_reader::*;
 
+mod backup_writer;
+pub use backup_writer::*;
+
 mod remote_chunk_reader;
 pub use remote_chunk_reader::*;
 

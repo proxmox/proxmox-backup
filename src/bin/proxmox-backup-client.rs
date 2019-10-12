@@ -180,7 +180,7 @@ fn compute_file_csum(file: &mut std::fs::File) -> Result<([u8; 32], u64), Error>
 
 
 async fn backup_directory<P: AsRef<Path>>(
-    client: &BackupClient,
+    client: &BackupWriter,
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
@@ -212,7 +212,7 @@ async fn backup_directory<P: AsRef<Path>>(
 }
 
 async fn backup_image<P: AsRef<Path>>(
-    client: &BackupClient,
+    client: &BackupWriter,
     image_path: P,
     archive_name: &str,
     image_size: u64,
@@ -723,9 +723,14 @@ fn create_backup(
     };
 
     async_main(async move {
-        let client = client
-            .start_backup(repo.store(), backup_type, &backup_id, backup_time, verbose)
-            .await?;
+        let client = BackupWriter::start(
+            client,
+            repo.store(),
+            backup_type,
+            &backup_id,
+            backup_time,
+            verbose,
+        ).await?;
 
         let mut file_list = vec![];
 
