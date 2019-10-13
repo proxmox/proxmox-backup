@@ -52,18 +52,20 @@ impl TryFrom<Value> for BackupManifest {
 
     fn try_from(data: Value) -> Result<Self, Error> {
 
-        let backup_type = crate::tools::required_string_property(&data, "backup_type")?;
-        let backup_id = crate::tools::required_string_property(&data, "backup_id")?;
-        let backup_time = crate::tools::required_integer_property(&data, "backup_time")?;
+        use crate::tools::{required_string_property, required_integer_property, required_array_property};
+
+        let backup_type = required_string_property(&data, "backup_type")?;
+        let backup_id = required_string_property(&data, "backup_id")?;
+        let backup_time = required_integer_property(&data, "backup_time")?;
 
         let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
         let mut files = Vec::new();
-        for item in crate::tools::required_array_property(&data, "files")?.iter() {
-            let filename = crate::tools::required_string_property(item, "filename")?.to_owned();
-            let csum = crate::tools::required_string_property(item, "csum")?;
+        for item in required_array_property(&data, "files")?.iter() {
+            let filename = required_string_property(item, "filename")?.to_owned();
+            let csum = required_string_property(item, "csum")?;
             let csum = proxmox::tools::hex_to_digest(csum)?;
-            let size = crate::tools::required_integer_property(item, "size")? as u64;
+            let size = required_integer_property(item, "size")? as u64;
             files.push(FileInfo { filename, size, csum });
         }
 
