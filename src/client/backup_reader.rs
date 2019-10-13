@@ -121,13 +121,16 @@ impl BackupReader {
     }
 
     /// Download backup manifest (index.json)
-    pub async fn download_manifest(&self) -> Result<Value, Error> {
+    pub async fn download_manifest(&self) -> Result<BackupManifest, Error> {
+
+        use std::convert::TryFrom;
 
         let raw_data = self.download(MANIFEST_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
         let blob = DataBlob::from_raw(raw_data)?;
         blob.verify_crc()?;
         let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
-        let result: Value = serde_json::from_slice(&data[..])?;
-        Ok(result)
+        let json: Value = serde_json::from_slice(&data[..])?;
+
+        BackupManifest::try_from(json)
     }
 }

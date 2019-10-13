@@ -489,7 +489,7 @@ fn dump_catalog(
             true,
         ).await?;
 
-        let backup_index = client.download_manifest().await?;
+        let manifest = client.download_manifest().await?;
 
         let blob_file = std::fs::OpenOptions::new()
             .read(true)
@@ -500,7 +500,7 @@ fn dump_catalog(
         let mut blob_file = client.download(CATALOG_BLOB_NAME, blob_file).await?;
 
         let (csum, size) = compute_file_csum(&mut blob_file)?;
-        verify_index_file(&backup_index, CATALOG_BLOB_NAME, &csum, size)?;
+        manifest.verify_file(CATALOG_BLOB_NAME, &csum, size)?;
 
         blob_file.seek(SeekFrom::Start(0))?;
 
@@ -877,46 +877,6 @@ fn restore(
     async_main(restore_do(param))
 }
 
-fn verify_index_file(backup_index: &Value, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
-
-    let files = backup_index["files"]
-        .as_array()
-        .ok_or_else(|| format_err!("mailformed index - missing 'files' property"))?;
-
-    let info = files.iter().find(|v| {
-        match v["filename"].as_str() {
-            Some(filename) => filename == name,
-            None => false,
-        }
-    });
-
-    let info = match info {
-        None => bail!("index does not contain file '{}'", name),
-        Some(info) => info,
-    };
-
-    match info["size"].as_u64() {
-        None => bail!("index does not contain property 'size' for file '{}'", name),
-        Some(expected_size) => {
-            if expected_size != size {
-                bail!("verify index failed - wrong size for file '{}' ({} != {}", name, expected_size, size);
-            }
-        }
-    };
-
-    match info["csum"].as_str() {
-        None => bail!("index does not contain property 'csum' for file '{}'", name),
-        Some(expected_csum) => {
-            let expected_csum = &proxmox::tools::hex_to_digest(expected_csum)?;
-            if expected_csum != csum {
-                bail!("verify index failed - wrong checksum for file '{}'", name);
-            }
-        }
-    };
-
-    Ok(())
-}
-
 fn dump_image<W: Write>(
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
@@ -1036,10 +996,10 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let backup_index = client.download_manifest().await?;
+    let manifest = client.download_manifest().await?;
 
     if server_archive_name == MANIFEST_BLOB_NAME {
-        let backup_index_data = backup_index.to_string();
+        let backup_index_data = manifest.into_json().to_string();
         if let Some(target) = target {
             file_set_contents(target, backup_index_data.as_bytes(), None)?;
         } else {
@@ -1053,7 +1013,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         let mut tmpfile = client.download(&server_archive_name, tmpfile).await?;
 
         let (csum, size) = compute_file_csum(&mut tmpfile)?;
-        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+        manifest.verify_file(&server_archive_name, &csum, size)?;
 
         tmpfile.seek(SeekFrom::Start(0))?;
         let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
@@ -1081,8 +1041,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
-
-        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+        manifest.verify_file(&server_archive_name, &csum, size)?;
 
         let most_used = index.find_most_used_chunks(8);
 
@@ -1119,8 +1078,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
 
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
-
-        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+        manifest.verify_file(&server_archive_name, &csum, size)?;
 
         let mut writer = if let Some(target) = target {
             std::fs::OpenOptions::new()
@@ -1760,7 +1718,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let backup_index = client.download_manifest().await?;
+    let manifest = client.download_manifest().await?;
 
     if server_archive_name.ends_with(".didx") {
         let tmpfile = client.download(&server_archive_name, tmpfile).await?;
@@ -1769,7 +1727,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
-        verify_index_file(&backup_index, &server_archive_name, &csum, size)?;
+        manifest.verify_file(&server_archive_name, &csum, size)?;
 
         let most_used = index.find_most_used_chunks(8);
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);

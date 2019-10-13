@@ -28,6 +28,31 @@ impl BackupManifest {
         self.files.push(FileInfo { filename, size, csum });
     }
 
+    fn lookup_file_info(&self, name: &str) -> Result<&FileInfo, Error> {
+
+        let info = self.files.iter().find(|item| item.filename == name);
+
+        match info {
+            None => bail!("manifest does not contain file '{}'", name),
+            Some(info) => Ok(info),
+        }
+    }
+
+    pub fn verify_file(&self, name: &str, csum: &[u8; 32], size: u64) -> Result<(), Error> {
+
+        let info = self.lookup_file_info(name)?;
+
+        if size != info.size {
+            bail!("wrong size for file '{}' ({} != {}", name, info.size, size);
+        }
+
+        if csum != &info.csum {
+            bail!("wrong checksum for file '{}'", name);
+        }
+
+        Ok(())
+    }
+
     pub fn into_json(self) -> Value {
         json!({
             "backup-type": self.snapshot.group().backup_type(),
@@ -54,21 +79,23 @@ impl TryFrom<Value> for BackupManifest {
 
         use crate::tools::{required_string_property, required_integer_property, required_array_property};
 
-        let backup_type = required_string_property(&data, "backup_type")?;
-        let backup_id = required_string_property(&data, "backup_id")?;
-        let backup_time = required_integer_property(&data, "backup_time")?;
+        proxmox::tools::try_block!({
+            let backup_type = required_string_property(&data, "backup_type")?;
+            let backup_id = required_string_property(&data, "backup_id")?;
+            let backup_time = required_integer_property(&data, "backup_time")?;
 
-        let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
+            let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
-        let mut files = Vec::new();
-        for item in required_array_property(&data, "files")?.iter() {
-            let filename = required_string_property(item, "filename")?.to_owned();
-            let csum = required_string_property(item, "csum")?;
-            let csum = proxmox::tools::hex_to_digest(csum)?;
-            let size = required_integer_property(item, "size")? as u64;
-            files.push(FileInfo { filename, size, csum });
-        }
+            let mut files = Vec::new();
+            for item in required_array_property(&data, "files")?.iter() {
+                let filename = required_string_property(item, "filename")?.to_owned();
+                let csum = required_string_property(item, "csum")?;
+                let csum = proxmox::tools::hex_to_digest(csum)?;
+                let size = required_integer_property(item, "size")? as u64;
+                files.push(FileInfo { filename, size, csum });
+            }
+            Ok(Self { files, snapshot })
+        }).map_err(|err: Error| format_err!("unable to parse backup manifest - {}", err))
 
-        Ok(Self { files, snapshot })
     }
 }
