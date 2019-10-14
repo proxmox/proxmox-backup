@@ -425,21 +425,22 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
         Ok((chunk, self.digest))
     }
-}
 
-/// Create a chunk filled with zeroes
-pub fn create_zero_chunk(
-    crypt_config: Option<&CryptConfig>,
-    chunk_size: usize,
-    compress: bool,
-) -> Result<(DataBlob, [u8; 32]), Error> {
+    /// Create a chunk filled with zeroes
+    pub fn build_zero_chunk(
+        crypt_config: Option<&CryptConfig>,
+        chunk_size: usize,
+        compress: bool,
+    ) -> Result<(DataBlob, [u8; 32]), Error> {
 
-    let mut zero_bytes = Vec::with_capacity(chunk_size);
-    zero_bytes.resize(chunk_size, 0u8);
-    let mut chunk_builder = DataChunkBuilder::new(&zero_bytes).compress(compress);
-    if let Some(ref crypt_config) = crypt_config {
-        chunk_builder = chunk_builder.crypt_config(crypt_config);
+        let mut zero_bytes = Vec::with_capacity(chunk_size);
+        zero_bytes.resize(chunk_size, 0u8);
+        let mut chunk_builder = DataChunkBuilder::new(&zero_bytes).compress(compress);
+        if let Some(ref crypt_config) = crypt_config {
+            chunk_builder = chunk_builder.crypt_config(crypt_config);
+        }
+
+        chunk_builder.build()
     }
 
-    chunk_builder.build()
 }
