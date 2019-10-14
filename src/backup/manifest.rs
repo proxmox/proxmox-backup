@@ -80,9 +80,9 @@ impl TryFrom<Value> for BackupManifest {
         use crate::tools::{required_string_property, required_integer_property, required_array_property};
 
         proxmox::tools::try_block!({
-            let backup_type = required_string_property(&data, "backup_type")?;
-            let backup_id = required_string_property(&data, "backup_id")?;
-            let backup_time = required_integer_property(&data, "backup_time")?;
+            let backup_type = required_string_property(&data, "backup-type")?;
+            let backup_id = required_string_property(&data, "backup-id")?;
+            let backup_time = required_integer_property(&data, "backup-time")?;
 
             let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
