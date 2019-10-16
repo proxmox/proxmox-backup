@@ -525,7 +525,9 @@ fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, 
         libc::S_IFDIR => 2,
         _ => 1,
     };
-    let time = i64::try_from(entry.mtime).map_err(|_| libc::EIO)? / 1_000_000_000;
+    let time = i64::try_from(entry.mtime).map_err(|_| libc::EIO)?;
+    let sec = time / 1_000_000_000;
+    let nsec = time % 1_000_000_000;
 
     let mut attr: libc::stat = unsafe { std::mem::zeroed() };
     attr.st_ino = inode;
@@ -534,9 +536,12 @@ fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, 
     attr.st_size = i64::try_from(payload_size).map_err(|_| libc::EIO)?;
     attr.st_uid = entry.uid;
     attr.st_gid = entry.gid;
-    attr.st_atime = time;
-    attr.st_mtime = time;
-    attr.st_ctime = time;
+    attr.st_atime = sec;
+    attr.st_atime_nsec = nsec;
+    attr.st_mtime = sec;
+    attr.st_mtime_nsec = nsec;
+    attr.st_ctime = sec;
+    attr.st_ctime_nsec = nsec;
 
     Ok(attr)
 }
