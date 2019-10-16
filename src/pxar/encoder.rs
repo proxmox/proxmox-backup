@@ -781,6 +781,9 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     };
 
                     self.write_filename(&filename)?;
+                    if let Some(ref mut catalog) = self.catalog {
+                        catalog.add_file(&filename, stat.st_size as u64, stat.st_mtime as u64)?;
+                    }
                     self.encode_pxar_exclude(filefd, stat, child_magic, content)?;
                     continue;
                 }
