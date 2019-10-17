@@ -248,38 +248,6 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         Ok(())
     }
 
-    /// Get the `DirectoryEntry` located at `offset`.
-    ///
-    /// `offset` is expected to point to the directories `PXAR_GOODBYE_TAIL_MARKER`.
-    pub fn get_dir(&mut self, offset: u64) -> Result<DirectoryEntry, Error> {
-        self.seek(SeekFrom::Start(offset))?;
-
-        let gb: PxarGoodbyeItem = self.inner.read_item()?;
-        if gb.hash != PXAR_GOODBYE_TAIL_MARKER {
-            bail!("Expected goodbye tail marker, encountered 0x{:x?}", gb.hash);
-        }
-
-        let distance = i64::try_from(gb.offset + gb.size)?;
-        let start = self.seek(SeekFrom::Current(0 - distance))?;
-        let mut header: PxarHeader = self.inner.read_item()?;
-        let filename = if header.htype == PXAR_FILENAME {
-            let name = self.inner.read_filename(header.size)?;
-            header = self.inner.read_item()?;
-            name
-        } else {
-            OsString::new()
-        };
-        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
-        let entry: PxarEntry = self.inner.read_item()?;
-
-        Ok(DirectoryEntry {
-            start,
-            end: offset + GOODBYE_ITEM_SIZE,
-            filename,
-            entry,
-        })
-    }
-
     /// Get attributes for the archive item located at `offset`.
     ///
     /// Returns the entry, attributes and the payload size for the item.
