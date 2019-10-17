@@ -712,14 +712,9 @@ extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fi
 
         if offset < n_entries {
             for e in gb_table[offset..gb_table.len()].iter() {
-                let entry = ctx
-                    .decoder
-                    .read_directory_entry(e.1, e.2)
-                    .map_err(|_| libc::EIO)?;
-
-                let name = CString::new(entry.filename.as_bytes()).map_err(|_| libc::EIO)?;
-                let (_, entry, _, payload_size) =
+                let (filename, entry, _, payload_size) =
                     ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
+                let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
                 let item_offset = find_offset(&entry, e.1, e.2);
                 let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
                 let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
