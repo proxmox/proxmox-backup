@@ -471,7 +471,7 @@ fn dump_catalog(
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, _) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -706,7 +706,7 @@ fn create_backup(
     let (crypt_config, rsa_encrypted_key) = match keyfile {
         None => (None, None),
         Some(path) => {
-            let (key, created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, created) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
 
             let crypt_config = CryptConfig::new(key)?;
 
@@ -967,7 +967,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, _) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -1122,7 +1122,7 @@ fn upload_log(
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, _created) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
@@ -1534,7 +1534,7 @@ fn key_change_passphrase(
         bail!("unable to change passphrase - no tty");
     }
 
-    let (key, created) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+    let (key, created) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
 
     if kdf == "scrypt" {
 
@@ -1691,7 +1691,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrtypt_key(&path, get_encryption_key_password)?;
+            let (key, _) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
