@@ -2,7 +2,7 @@
 //!
 //! This module contain the code to generate *pxar* archive files.
 use std::collections::{HashMap, HashSet};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
@@ -81,6 +81,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         verbose: bool,
         skip_lost_and_found: bool, // fixme: should be a feature flag ??
         feature_flags: u64,
+        mut excludes: Vec<MatchPattern>,
     ) -> Result<(), Error> {
         const FILE_COPY_BUFFER_SIZE: usize = 1024 * 1024;
 
@@ -131,10 +132,10 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             println!("{:?}", me.full_path());
         }
 
-        let mut excludes = Vec::new();
         if skip_lost_and_found {
             excludes.push(MatchPattern::from_line(b"**/lost+found").unwrap().unwrap());
         }
+
         me.encode_dir(dir, &stat, magic, excludes)?;
 
         Ok(())
@@ -631,6 +632,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
         let dir_start_pos = self.writer_pos;
 
+        let is_root = dir_start_pos == 0;
+
         let mut dir_entry = self.create_entry(&dir_stat)?;
 
         self.read_chattr(rawfd, &mut dir_entry)?;
@@ -706,6 +709,13 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 if name == b".\0" || name == b"..\0" {
                     continue;
                 }
+                // Do not store a ".pxarexclude-cli" file found in the archive root,
+                // as this would confilict with new cli passed exclude patterns,
+                // if present.
+                if is_root && name == b".pxarexclude-cli\0" {
+                    eprintln!("skip existing '.pxarexclude-cli' in archive root.");
+                    continue;
+                }
 
                 let stat = match nix::sys::stat::fstatat(
                     rawfd,
@@ -732,6 +742,20 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     (_, child_pattern) => name_list.push((filename, stat, child_pattern)),
                 }
 
+                if name_list.len() > MAX_DIRECTORY_ENTRIES {
+                    bail!(
+                        "too many directory items in {:?} (> {})",
+                        self.full_path(),
+                        MAX_DIRECTORY_ENTRIES
+                    );
+                }
+            }
+
+            // Exclude patterns passed via the CLI are stored as '.pxarexclude-cli'
+            // in the root directory of the archive.
+            if is_root && match_pattern.len() > 0 {
+                let filename = CString::new(".pxarexclude-cli")?;
+                name_list.push((filename, dir_stat.clone(), match_pattern.clone()));
                 if name_list.len() > MAX_DIRECTORY_ENTRIES {
                     bail!(
                         "too many directory items in {:?} (> {})",
@@ -787,6 +811,18 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     self.encode_pxar_exclude(filefd, stat, child_magic, content)?;
                     continue;
                 }
+            }
+
+            if is_root && filename.as_bytes() == b".pxarexclude-cli" {
+                // '.pxarexclude-cli' is used to store the exclude MatchPatterns
+                // passed via the cli in the root directory of the archive.
+                self.write_filename(&filename)?;
+                let content = MatchPattern::to_bytes(&exclude_list);
+                if let Some(ref mut catalog) = self.catalog {
+                    catalog.add_file(&filename, content.len() as u64, 0)?;
+                }
+                self.encode_pxar_exclude_cli(stat.st_uid, stat.st_gid, 0, &content)?;
+                continue;
             }
 
             self.relative_path

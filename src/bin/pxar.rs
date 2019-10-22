@@ -174,6 +174,8 @@ fn create_archive(
     let no_device_nodes = param["no-device-nodes"].as_bool().unwrap_or(false);
     let no_fifos = param["no-fifos"].as_bool().unwrap_or(false);
     let no_sockets = param["no-sockets"].as_bool().unwrap_or(false);
+    let empty = Vec::new();
+    let exclude_pattern = param["exclude"].as_array().unwrap_or(&empty);
 
     let devices = if all_file_systems { None } else { Some(HashSet::new()) };
 
@@ -209,8 +211,26 @@ fn create_archive(
         feature_flags ^= pxar::flags::WITH_SOCKETS;
     }
 
+    let mut pattern_list = Vec::new();
+    for s in exclude_pattern {
+        let l = s.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
+        let p = pxar::MatchPattern::from_line(l.as_bytes())?
+            .ok_or_else(|| format_err!("Invalid match pattern in arguments"))?;
+        pattern_list.push(p);
+    }
+
     let catalog = None::<&mut pxar::catalog::DummyCatalogWriter>;
-    pxar::Encoder::encode(source, &mut dir, &mut writer, catalog, devices, verbose, false, feature_flags)?;
+    pxar::Encoder::encode(
+        source,
+        &mut dir,
+        &mut writer,
+        catalog,
+        devices,
+        verbose,
+        false,
+        feature_flags,
+        pattern_list,
+    )?;
 
     writer.flush()?;
 
@@ -257,8 +277,14 @@ fn main() {
                     .optional("no-device-nodes", BooleanSchema::new("Ignore device nodes.").default(false))
                     .optional("no-fifos", BooleanSchema::new("Ignore fifos.").default(false))
                     .optional("no-sockets", BooleanSchema::new("Ignore sockets.").default(false))
+                    .optional("exclude", Arc::new(
+                        ArraySchema::new(
+                            "List of paths or pattern matching files to exclude.",
+                            Arc::new(StringSchema::new("Path or pattern matching files to restore.").into())
+                        ).into()
+                    ))
             ))
-            .arg_param(vec!["archive", "source"])
+            .arg_param(vec!["archive", "source", "exclude"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
             .into()

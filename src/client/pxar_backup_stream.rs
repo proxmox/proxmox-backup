@@ -59,10 +59,21 @@ impl PxarBackupStream {
         let error2 = error.clone();
 
         let catalog = catalog.clone();
+        let exclude_pattern = Vec::new();
         let child = thread::spawn(move || {
             let mut guard = catalog.lock().unwrap();
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
-            if let Err(err) = pxar::Encoder::encode(path, &mut dir, &mut writer, Some(&mut *guard), device_set, verbose, skip_lost_and_found, pxar::flags::DEFAULT) {
+            if let Err(err) = pxar::Encoder::encode(
+                path,
+                &mut dir,
+                &mut writer,
+                Some(&mut *guard),
+                device_set,
+                verbose,
+                skip_lost_and_found,
+                pxar::flags::DEFAULT,
+                exclude_pattern,
+            ) {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
             }
