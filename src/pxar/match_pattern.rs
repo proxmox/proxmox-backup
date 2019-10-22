@@ -217,6 +217,33 @@ impl MatchPattern {
         }
     }
 
+    /// Convert a list of MatchPattern to bytes in order to write them to e.g.
+    /// a file.
+    pub fn to_bytes(patterns: &[MatchPattern]) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        for pattern in patterns {
+            let byte_pattern = pattern.pattern.as_bytes();
+            match (pattern.match_positive, pattern.match_dir_only) {
+                (true, true) => {
+                    buffer.extend_from_slice(byte_pattern);
+                    buffer.push(b'/');
+                }
+                (true, false) => buffer.extend_from_slice(byte_pattern),
+                (false, true) => {
+                    buffer.push(b'!');
+                    buffer.extend_from_slice(byte_pattern);
+                    buffer.push(b'/');
+                }
+                (false, false) => {
+                    buffer.push(b'!');
+                    buffer.extend_from_slice(byte_pattern);
+                }
+            }
+            buffer.push(b'\n');
+        }
+        buffer
+    }
+
     /// Match the given filename against this `MatchPattern`.
     /// If the filename matches the pattern completely, `MatchType::Positive` or
     /// `MatchType::Negative` is returned, depending if the match pattern is was
