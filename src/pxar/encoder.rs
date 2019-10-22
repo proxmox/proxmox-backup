@@ -1171,6 +1171,30 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         Ok(())
     }
 
+    /// Encodes the excude match patterns passed via cli as file in the archive.
+    fn encode_pxar_exclude_cli(
+        &mut self,
+        uid: u32,
+        gid: u32,
+        mtime: u64,
+        content: &[u8],
+    ) -> Result<(), Error> {
+        let entry = PxarEntry {
+            mode: (libc::S_IFREG | 0o600) as u64,
+            flags: 0,
+            uid,
+            gid,
+            mtime,
+        };
+        self.write_entry(entry)?;
+        let size = content.len();
+        self.write_header(PXAR_PAYLOAD, size as u64)?;
+        self.writer.write_all(content)?;
+        self.writer_pos += size;
+
+        Ok(())
+    }
+
     // the report_XXX method may raise and error - depending on encoder configuration
 
     fn report_vanished_file(&self, path: &Path) -> Result<(), Error> {
