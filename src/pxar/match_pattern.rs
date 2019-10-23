@@ -222,23 +222,9 @@ impl MatchPattern {
     pub fn to_bytes(patterns: &[MatchPattern]) -> Vec<u8> {
         let mut buffer = Vec::new();
         for pattern in patterns {
-            let byte_pattern = pattern.pattern.as_bytes();
-            match (pattern.match_positive, pattern.match_dir_only) {
-                (true, true) => {
-                    buffer.extend_from_slice(byte_pattern);
-                    buffer.push(b'/');
-                }
-                (true, false) => buffer.extend_from_slice(byte_pattern),
-                (false, true) => {
-                    buffer.push(b'!');
-                    buffer.extend_from_slice(byte_pattern);
-                    buffer.push(b'/');
-                }
-                (false, false) => {
-                    buffer.push(b'!');
-                    buffer.extend_from_slice(byte_pattern);
-                }
-            }
+            if !pattern.match_positive { buffer.push(b'!'); }
+            buffer.extend_from_slice( pattern.pattern.as_bytes());
+            if pattern.match_dir_only { buffer.push(b'/'); }
             buffer.push(b'\n');
         }
         buffer
