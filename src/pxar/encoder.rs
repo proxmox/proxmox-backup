@@ -700,6 +700,13 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         };
 
         if include_children {
+            // Exclude patterns passed via the CLI are stored as '.pxarexclude-cli'
+            // in the root directory of the archive.
+            if is_root && match_pattern.len() > 0 {
+                let filename = CString::new(".pxarexclude-cli")?;
+                name_list.push((filename, dir_stat.clone(), match_pattern.clone()));
+            }
+
             for entry in dir.iter() {
                 let entry = entry
                     .map_err(|err| format_err!("readir {:?} failed - {}", self.full_path(), err))?;
@@ -742,20 +749,6 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     (_, child_pattern) => name_list.push((filename, stat, child_pattern)),
                 }
 
-                if name_list.len() > MAX_DIRECTORY_ENTRIES {
-                    bail!(
-                        "too many directory items in {:?} (> {})",
-                        self.full_path(),
-                        MAX_DIRECTORY_ENTRIES
-                    );
-                }
-            }
-
-            // Exclude patterns passed via the CLI are stored as '.pxarexclude-cli'
-            // in the root directory of the archive.
-            if is_root && match_pattern.len() > 0 {
-                let filename = CString::new(".pxarexclude-cli")?;
-                name_list.push((filename, dir_stat.clone(), match_pattern.clone()));
                 if name_list.len() > MAX_DIRECTORY_ENTRIES {
                     bail!(
                         "too many directory items in {:?} (> {})",
