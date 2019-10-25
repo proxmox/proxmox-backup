@@ -67,25 +67,23 @@ impl <R: BufRead> Read for CryptReader<R> {
             if count > buf.len() {
                 buf.copy_from_slice(&outbuf[..buf.len()]);
                 self.small_read_buf = outbuf[buf.len()..count].to_vec();
-                return Ok(buf.len());
+                Ok(buf.len())
             } else {
                 buf[..count].copy_from_slice(&outbuf[..count]);
-                return Ok(count);
+                Ok(count)
             }
+        } else if data.len() == 0 { // EOF
+            let rest = self.crypter.finalize(buf)?;
+            self.finalized = true;
+            Ok(rest)
         } else {
-            if data.len() == 0 { // EOF
-                let rest = self.crypter.finalize(buf)?;
-                self.finalized = true;
-                return Ok(rest)
-            } else {
-                let mut read_size = buf.len() - self.block_size;
-                if read_size > data.len() {
-                    read_size = data.len();
-                }
-                let count = self.crypter.update(&data[..read_size], buf)?;
-                self.reader.consume(read_size);
-                return Ok(count)
+            let mut read_size = buf.len() - self.block_size;
+            if read_size > data.len() {
+                read_size = data.len();
             }
+            let count = self.crypter.update(&data[..read_size], buf)?;
+            self.reader.consume(read_size);
+            Ok(count)
         }
     }
 }

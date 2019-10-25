@@ -1196,13 +1196,13 @@ fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
 }
 
 fn mode_user_to_acl_permissions(mode: u64) -> u64 {
-    return (mode >> 6) & 7;
+    (mode >> 6) & 7
 }
 
 fn mode_group_to_acl_permissions(mode: u64) -> u64 {
-    return (mode >> 3) & 7;
+    (mode >> 3) & 7
 }
 
 fn mode_other_to_acl_permissions(mode: u64) -> u64 {
-    return mode & 7;
+    mode & 7
 }

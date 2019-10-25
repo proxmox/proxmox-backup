@@ -471,12 +471,12 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
                 let projid = fsxattr.fsx_projid as u64;
                 if projid == 0 {
-                    return Ok(None);
+                    Ok(None)
                 } else {
-                    return Ok(Some(PxarQuotaProjID { projid }));
+                    Ok(Some(PxarQuotaProjID { projid }))
                 }
             }
-            _ => return Ok(None),
+            _ => Ok(None),
         }
     }
 
@@ -680,12 +680,10 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         let include_children;
         if is_virtual_file_system(magic) {
             include_children = false;
+        } else if let Some(set) = &self.device_set {
+            include_children = set.contains(&dir_stat.st_dev);
         } else {
-            if let Some(set) = &self.device_set {
-                include_children = set.contains(&dir_stat.st_dev);
-            } else {
-                include_children = true;
-            }
+            include_children = true;
         }
 
         // Expand the exclude match pattern inherited from the parent by local entries, if present
@@ -1036,12 +1034,10 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         let include_payload;
         if is_virtual_file_system(magic) {
             include_payload = false;
+        } else if let Some(ref set) = &self.device_set {
+            include_payload = set.contains(&stat.st_dev);
         } else {
-            if let Some(ref set) = &self.device_set {
-                include_payload = set.contains(&stat.st_dev);
-            } else {
-                include_payload = true;
-            }
+            include_payload = true;
         }
 
         if !include_payload {
@@ -1178,12 +1174,10 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         let include_payload;
         if is_virtual_file_system(magic) {
             include_payload = false;
+        } else if let Some(set) = &self.device_set {
+            include_payload = set.contains(&stat.st_dev);
         } else {
-            if let Some(set) = &self.device_set {
-                include_payload = set.contains(&stat.st_dev);
-            } else {
-                include_payload = true;
-            }
+            include_payload = true;
         }
 
         if !include_payload {

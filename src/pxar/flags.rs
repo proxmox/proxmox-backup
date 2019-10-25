@@ -35,42 +35,42 @@ pub const WITH_FLAG_COMPR: u64                  = 0x40000;
 /// Linux file attribute `NOCOW`
 pub const WITH_FLAG_NOCOW: u64                  = 0x80000;
 /// Linux file attribute `NODUMP`
-pub const WITH_FLAG_NODUMP: u64                 = 0x100000;
+pub const WITH_FLAG_NODUMP: u64                 = 0x0010_0000;
 /// Linux file attribute `DIRSYNC`
-pub const WITH_FLAG_DIRSYNC: u64                = 0x200000;
+pub const WITH_FLAG_DIRSYNC: u64                = 0x0020_0000;
 /// Linux file attribute `IMMUTABLE`
-pub const WITH_FLAG_IMMUTABLE: u64              = 0x400000;
+pub const WITH_FLAG_IMMUTABLE: u64              = 0x0040_0000;
 /// Linux file attribute `SYNC`
-pub const WITH_FLAG_SYNC: u64                   = 0x800000;
+pub const WITH_FLAG_SYNC: u64                   = 0x0080_0000;
 /// Linux file attribute `NOCOMP`
-pub const WITH_FLAG_NOCOMP: u64                 = 0x1000000;
+pub const WITH_FLAG_NOCOMP: u64                 = 0x0100_0000;
 /// Linux file attribute `PROJINHERIT`
-pub const WITH_FLAG_PROJINHERIT: u64            = 0x2000000;
+pub const WITH_FLAG_PROJINHERIT: u64            = 0x0200_0000;
 
 
 /// Preserve BTRFS subvolume flag
-pub const WITH_SUBVOLUME: u64                   = 0x4000000;
+pub const WITH_SUBVOLUME: u64                   = 0x0400_0000;
 /// Preserve BTRFS read-only subvolume flag
-pub const WITH_SUBVOLUME_RO: u64                = 0x8000000;
+pub const WITH_SUBVOLUME_RO: u64                = 0x0800_0000;
 
 /// Preserve Extended Attribute metadata
-pub const WITH_XATTRS: u64                      = 0x10000000;
+pub const WITH_XATTRS: u64                      = 0x1000_0000;
 /// Preserve Access Control List metadata
-pub const WITH_ACL: u64                         = 0x20000000;
+pub const WITH_ACL: u64                         = 0x2000_0000;
 /// Preserve SELinux security context
-pub const WITH_SELINUX: u64                     = 0x40000000;
+pub const WITH_SELINUX: u64                     = 0x4000_0000;
 /// Preserve "security.capability" xattr
-pub const WITH_FCAPS: u64                       = 0x80000000;
+pub const WITH_FCAPS: u64                       = 0x8000_0000;
 
 /// Preserve XFS/ext4/ZFS project quota ID
-pub const WITH_QUOTA_PROJID: u64                = 0x100000000;
+pub const WITH_QUOTA_PROJID: u64                = 0x0001_0000_0000;
 
 /// Support ".pxarexclude" files
-pub const EXCLUDE_FILE: u64                     = 0x1000000000000000;
+pub const EXCLUDE_FILE: u64                     = 0x1000_0000_0000_0000;
 /// Exclude submounts
-pub const EXCLUDE_SUBMOUNTS: u64                = 0x4000000000000000;
+pub const EXCLUDE_SUBMOUNTS: u64                = 0x4000_0000_0000_0000;
 /// Exclude entries with chattr flag NODUMP
-pub const EXCLUDE_NODUMP: u64                   = 0x8000000000000000;
+pub const EXCLUDE_NODUMP: u64                   = 0x8000_0000_0000_0000;
 
 /// Definitions of typical feature flags for the *pxar* encoder/decoder.
 /// By this expensive syscalls for unsupported features are avoided.
@@ -138,16 +138,16 @@ pub const DEFAULT: u64 =
     EXCLUDE_FILE;
 
 // form /usr/include/linux/fs.h
-const FS_APPEND_FL: u32 =      0x00000020;
-const FS_NOATIME_FL: u32 =     0x00000080;
-const FS_COMPR_FL: u32 =       0x00000004;
-const FS_NOCOW_FL: u32 =       0x00800000;
-const FS_NODUMP_FL: u32 =      0x00000040;
-const FS_DIRSYNC_FL: u32 =     0x00010000;
-const FS_IMMUTABLE_FL: u32 =   0x00000010;
-const FS_SYNC_FL: u32 =        0x00000008;
-const FS_NOCOMP_FL: u32 =      0x00000400;
-const FS_PROJINHERIT_FL: u32 = 0x20000000;
+const FS_APPEND_FL: u32 =      0x0000_0020;
+const FS_NOATIME_FL: u32 =     0x0000_0080;
+const FS_COMPR_FL: u32 =       0x0000_0004;
+const FS_NOCOW_FL: u32 =       0x0080_0000;
+const FS_NODUMP_FL: u32 =      0x0000_0040;
+const FS_DIRSYNC_FL: u32 =     0x0001_0000;
+const FS_IMMUTABLE_FL: u32 =   0x0000_0010;
+const FS_SYNC_FL: u32 =        0x0000_0008;
+const FS_NOCOMP_FL: u32 =      0x0000_0400;
+const FS_PROJINHERIT_FL: u32 = 0x2000_0000;
 
 static CHATTR_MAP: [(u64, u32); 10] = [
     ( WITH_FLAG_APPEND,      FS_APPEND_FL      ),

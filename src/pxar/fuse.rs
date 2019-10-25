@@ -233,7 +233,7 @@ impl Session {
 
         Ok(Self {
             ptr: session_ptr,
-            verbose: verbose,
+            verbose,
         })
     }
 

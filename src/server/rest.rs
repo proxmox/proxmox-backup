@@ -484,7 +484,7 @@ fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
             }
         });
 
-    return Box::new(response);
+    Box::new(response)
 }
 
 fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<String>) {

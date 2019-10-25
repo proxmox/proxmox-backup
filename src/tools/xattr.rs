@@ -155,7 +155,7 @@ mod tests {
         }
 
         let invalid_name_length = PxarXAttr {
-            name: name,
+            name,
             value: b"err".to_vec(),
         };
 

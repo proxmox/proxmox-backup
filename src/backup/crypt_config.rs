@@ -67,8 +67,7 @@ impl CryptConfig {
         let mut hasher = openssl::sha::Sha256::new();
         hasher.update(&self.id_key);
         hasher.update(data);
-        let digest = hasher.finish();
-        digest
+        hasher.finish()
     }
 
     pub fn data_signer(&self) -> openssl::sign::Signer {

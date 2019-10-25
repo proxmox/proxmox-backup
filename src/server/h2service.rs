@@ -54,15 +54,15 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
         match self.router.find_method(&components, method, &mut uri_param) {
             MethodDefinition::None => {
                 let err = http_err!(NOT_FOUND, "Path not found.".to_string());
-                return Box::new(future::ok((formatter.format_error)(err)));
+                Box::new(future::ok((formatter.format_error)(err)))
             }
             MethodDefinition::Simple(api_method) => {
-                return crate::server::rest::handle_sync_api_request(
-                    self.rpcenv.clone(), api_method, formatter, parts, body, uri_param);
+                crate::server::rest::handle_sync_api_request(
+                    self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
             }
             MethodDefinition::Async(async_method) => {
-                return crate::server::rest::handle_async_api_request(
-                    self.rpcenv.clone(), async_method, formatter, parts, body, uri_param);
+                crate::server::rest::handle_async_api_request(
+                    self.rpcenv.clone(), async_method, formatter, parts, body, uri_param)
             }
         }
     }

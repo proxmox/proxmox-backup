@@ -79,7 +79,7 @@ impl ACL {
             return Err(Errno::last());
         }
 
-        Ok(ACL { ptr: ptr })
+        Ok(ACL { ptr })
     }
 
     pub fn get_file<P: AsRef<Path>>(path: P, acl_type: ACLType) -> Result<ACL, nix::errno::Errno> {
@@ -89,7 +89,7 @@ impl ACL {
             return Err(Errno::last());
         }
  
-        Ok(ACL { ptr: ptr })
+        Ok(ACL { ptr })
     }
 
     pub fn set_file<P: AsRef<Path>>(&self, path: P, acl_type: ACLType) -> Result<(), nix::errno::Errno> {
@@ -108,7 +108,7 @@ impl ACL {
             return Err(Errno::last());
         }
 
-        Ok(ACL { ptr: ptr })
+        Ok(ACL { ptr })
     }
 
     pub fn create_entry<'a>(&'a mut self) -> Result<ACLEntry<'a>, nix::errno::Errno> {
@@ -119,7 +119,7 @@ impl ACL {
         }
 
         Ok(ACLEntry {
-            ptr: ptr,
+            ptr,
             _phantom: PhantomData,
         })
     }

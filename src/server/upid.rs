@@ -95,7 +95,7 @@ impl std::str::FromStr for UPID {
 
         if let Some(cap) = REGEX.captures(s) {
 
-            return Ok(UPID {
+            Ok(UPID {
                 pid: i32::from_str_radix(&cap["pid"], 16).unwrap(),
                 pstart: u64::from_str_radix(&cap["pstart"], 16).unwrap(),
                 starttime: i64::from_str_radix(&cap["starttime"], 16).unwrap(),
@@ -104,7 +104,7 @@ impl std::str::FromStr for UPID {
                 worker_id: if cap["wid"].is_empty() { None } else { Some(cap["wid"].to_string()) },
                 username: cap["username"].to_string(),
                 node: cap["node"].to_string(),
-            });
+            })
         } else {
             bail!("unable to parse UPID '{}'", s);
         }

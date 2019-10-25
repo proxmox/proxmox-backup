@@ -176,16 +176,15 @@ pub fn load_and_decrtypt_key(path: &std::path::Path, passphrase: &dyn Fn() -> Re
 
         let cipher = openssl::symm::Cipher::aes_256_gcm();
 
-        let decr_data = openssl::symm::decrypt_aead(
+        openssl::symm::decrypt_aead(
             cipher,
             &derived_key,
             Some(&iv),
             b"", //??
             &enc_data,
             &tag,
-        ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?;
+        ).map_err(|err| format_err!("Unable to decrypt key - {}", err))?
 
-        decr_data
     } else {
         raw_data
     };

@@ -10,6 +10,7 @@ use endian_trait::Endian;
 use failure::{bail, Error};
 use siphasher::sip::SipHasher24;
 
+
 /// Header types identifying items stored in the archive
 pub const PXAR_ENTRY: u64 = 0x1396fabcea5bbb51;
 pub const PXAR_FILENAME: u64 = 0x6dbb6ebcb3161f0b;
