@@ -509,8 +509,8 @@ impl DynamicIndexWriter {
             csum.update(digest);
         }
 
-        self.writer.write(offset_le)?;
-        self.writer.write(digest)?;
+        self.writer.write_all(offset_le)?;
+        self.writer.write_all(digest)?;
         Ok(())
     }
 }
