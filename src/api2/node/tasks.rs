@@ -75,7 +75,7 @@ fn read_task_log(
             Ok(line) => {
                 count += 1;
                 if count < start { continue };
-	        if limit <= 0 { continue };
+	        if limit == 0 { continue };
 
                 lines.push(json!({ "n": count, "t": line }));
 

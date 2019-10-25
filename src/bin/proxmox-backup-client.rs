@@ -91,7 +91,7 @@ fn record_repository(repo: &BackupRepository) {
         _ => return,
     };
 
-    let mut data = file_get_json(&path, None).unwrap_or(json!({}));
+    let mut data = file_get_json(&path, None).unwrap_or_else(|_| json!({}));
 
     let repo = repo.to_string();
 
@@ -141,7 +141,7 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
         _ => return result,
     };
 
-    let data = file_get_json(&path, None).unwrap_or(json!({}));
+    let data = file_get_json(&path, None).unwrap_or_else(|_| json!({}));
 
     if let Some(map) = data.as_object() {
         for (repo, _count) in map {
@@ -239,14 +239,10 @@ async fn backup_image<P: AsRef<Path>>(
 
 fn strip_server_file_expenstion(name: &str) -> String {
 
-    if name.ends_with(".didx") {
-        return name[..name.len()-5].to_owned();
-    } else if name.ends_with(".fidx") {
-        return name[..name.len()-5].to_owned();
-    } else if name.ends_with(".blob") {
-        return name[..name.len()-5].to_owned();
+    if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
+        name[..name.len()-5].to_owned()
     } else {
-        return name.to_owned(); // should not happen
+        name.to_owned() // should not happen
     }
 }
 
@@ -466,7 +462,7 @@ fn dump_catalog(
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
     let crypt_config = match keyfile {
         None => None,
@@ -612,7 +608,7 @@ fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -651,7 +647,7 @@ fn create_backup(
         let file_type = metadata.file_type();
 
         let extension = target.rsplit('.').next()
-            .ok_or(format_err!("missing target file extenion '{}'", target))?;
+            .ok_or_else(|| format_err!("missing target file extenion '{}'", target))?;
 
         match extension {
             "pxar" => {
@@ -690,7 +686,7 @@ fn create_backup(
         }
     }
 
-    let backup_time = Utc.timestamp(backup_time_opt.unwrap_or(Utc::now().timestamp()), 0);
+    let backup_time = Utc.timestamp(backup_time_opt.unwrap_or_else(|| Utc::now().timestamp()), 0);
 
     let client = HttpClient::new(repo.host(), repo.user(), None)?;
     record_repository(&repo);
@@ -947,7 +943,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         }))).await?;
 
         let list = result["data"].as_array().unwrap();
-        if list.len() == 0 {
+        if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
@@ -962,7 +958,7 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
     let crypt_config = match keyfile {
         None => None,
@@ -1117,7 +1113,7 @@ fn upload_log(
 
     let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
     let crypt_config = match keyfile {
         None => None,
@@ -1375,7 +1371,7 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     let mut size = 64;
     loop {
         result.push(size.to_string());
-        size = size * 2;
+        size *= 2;
         if size > 4096 { break; }
     }
 
@@ -1615,13 +1611,11 @@ fn key_mgmt_cli() -> CliCommandMap {
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
-    let cmd_def = CliCommandMap::new()
+    CliCommandMap::new()
         .insert("create".to_owned(), key_create_cmd_def.into())
         .insert("create-master-key".to_owned(), key_create_master_key_cmd_def.into())
         .insert("import-master-pubkey".to_owned(), key_import_master_pubkey_cmd_def.into())
-        .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into());
-
-    cmd_def
+        .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into())
 }
 
 
@@ -1641,7 +1635,7 @@ fn mount(
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
     let pipe = pipe()?;
     match fork() {
-        Ok(ForkResult::Parent { child: _, .. }) => {
+        Ok(ForkResult::Parent { .. }) => {
             nix::unistd::close(pipe.1).unwrap();
             // Blocks the parent process until we are ready to go in the child
             let _res = nix::unistd::read(pipe.0, &mut [0]).unwrap();
@@ -1675,7 +1669,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         }))).await?;
 
         let list = result["data"].as_array().unwrap();
-        if list.len() == 0 {
+        if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
@@ -1687,7 +1681,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
@@ -1762,7 +1756,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
             }
             // Signal the parent process that we are done with the setup and it can
             // terminate.
-            nix::unistd::write(pipe, &mut [0u8])?;
+            nix::unistd::write(pipe, &[0u8])?;
             nix::unistd::close(pipe).unwrap();
         }
 

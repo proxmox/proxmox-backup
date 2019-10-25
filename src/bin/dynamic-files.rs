@@ -53,7 +53,7 @@ fn main() -> Result<(), Error> {
     }
 
     for h in handles {
-        if let Err(_) = h.join() {
+        if h.join().is_err() {
             bail!("join failed");
         }
     }

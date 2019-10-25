@@ -77,7 +77,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     });
     decoder.set_allow_existing_dirs(allow_existing_dirs);
 
-    let pattern = pattern.unwrap_or(Vec::new());
+    let pattern = pattern.unwrap_or_else(Vec::new);
     decoder.restore(Path::new(target), &pattern)?;
 
     Ok(())
@@ -138,10 +138,10 @@ fn extract_archive(
         pattern_list.push(p);
     }
 
-    let pattern = if pattern_list.len() > 0 {
-        Some(pattern_list)
-    } else {
+    let pattern = if pattern_list.is_empty() {
         None
+    } else {
+        Some(pattern_list)
     };
 
     if archive == "-" {

@@ -45,7 +45,7 @@ async fn run() -> Result<(), Error> {
         println!("Got chunk {}", chunk.len());
     }
 
-    let speed = ((stream_len*1000000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
+    let speed = ((stream_len*1_000_000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
     println!("Uploaded {} chunks in {} seconds ({} MB/s).", repeat, start_time.elapsed().as_secs(), speed);
     println!("Average chunk size was {} bytes.", stream_len/repeat);
     println!("time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));

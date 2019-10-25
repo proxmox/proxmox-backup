@@ -365,11 +365,11 @@ impl HttpClient {
 
         let text = String::from_utf8(data.to_vec()).unwrap();
         if status.is_success() {
-            if text.len() > 0 {
+            if text.is_empty() {
+                Ok(Value::Null)
+            } else {
                 let value: Value = serde_json::from_str(&text)?;
                 Ok(value)
-            } else {
-                Ok(Value::Null)
             }
         } else {
             bail!("HTTP Error {}: {}", status, text);
@@ -578,7 +578,9 @@ impl H2Client {
 
         let text = String::from_utf8(data.to_vec()).unwrap();
         if status.is_success() {
-            if text.len() > 0 {
+            if text.is_empty() {
+                Ok(Value::Null)
+            } else {
                 let mut value: Value = serde_json::from_str(&text)?;
                 if let Some(map) = value.as_object_mut() {
                     if let Some(data) = map.remove("data") {
@@ -586,8 +588,6 @@ impl H2Client {
                     }
                 }
                 bail!("got result without data property");
-            } else {
-                Ok(Value::Null)
             }
         } else {
             bail!("HTTP Error {}: {}", status, text);
