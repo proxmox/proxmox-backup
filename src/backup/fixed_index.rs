@@ -256,6 +256,7 @@ impl Drop for FixedIndexWriter {
 
 impl FixedIndexWriter {
 
+    #[allow(clippy::cast_ptr_alignment)]
     pub fn create(store: Arc<ChunkStore>, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
 
         let shared_lock = store.try_shared_lock()?;
