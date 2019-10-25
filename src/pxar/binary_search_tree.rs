@@ -27,6 +27,7 @@
 //! Heap](https://en.wikipedia.org/wiki/Binary_heap) gives a short
 //! intro howto store binary trees using an array.
 
+#[allow(clippy::many_single_char_names)]
 fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     copy_func: &mut F,
     // we work on input array input[o..o+n]
