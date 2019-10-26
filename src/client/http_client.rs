@@ -617,7 +617,7 @@ impl H2Client {
                 .header("User-Agent", "proxmox-backup-client/1.0")
                 .header(hyper::header::CONTENT_TYPE, content_type)
                 .body(())?;
-            return Ok(request);
+            Ok(request)
         } else {
             let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
             let request = Request::builder()

@@ -174,11 +174,10 @@ impl <R: Read + BufRead> CatalogBlobReader<R> {
             let etype = match self.next_byte() {
                 Ok(v) => v,
                 Err(err) => {
-                    if err.kind() == std::io::ErrorKind::UnexpectedEof {
-                        if self.dir_stack.len() == 0 {
-                            break;
-                        }
+                    if err.kind() == std::io::ErrorKind::UnexpectedEof && self.dir_stack.len() == 0 {
+                        break;
                     }
+
                     return Err(err.into());
                 }
             };

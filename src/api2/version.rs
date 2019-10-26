@@ -4,14 +4,14 @@ use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json, Value};
 
-pub const PROXMOX_PKG_VERSION: &'static str =
+pub const PROXMOX_PKG_VERSION: &str =
     concat!(
         env!("CARGO_PKG_VERSION_MAJOR"),
         ".",
         env!("CARGO_PKG_VERSION_MINOR"),
     );
-pub const PROXMOX_PKG_RELEASE: &'static str = env!("CARGO_PKG_VERSION_PATCH");
-pub const PROXMOX_PKG_REPOID: &'static str = env!("CARGO_PKG_REPOSITORY");
+pub const PROXMOX_PKG_RELEASE: &str = env!("CARGO_PKG_VERSION_PATCH");
+pub const PROXMOX_PKG_REPOID: &str = env!("CARGO_PKG_REPOSITORY");
 
 fn get_version(
     _param: Value,
@@ -27,11 +27,8 @@ fn get_version(
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(ApiMethod::new(
             get_version,
-            ObjectSchema::new("Proxmox Backup Server API version.")));
-
-    route
+            ObjectSchema::new("Proxmox Backup Server API version.")))
 }

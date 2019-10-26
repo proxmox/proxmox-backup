@@ -87,6 +87,7 @@ pub struct Timer {
 }
 
 /// Timer specification used to arm a `Timer`.
+#[derive(Default)]
 pub struct TimerSpec {
     /// The timeout to the next timer event.
     pub value: Option<Duration>,

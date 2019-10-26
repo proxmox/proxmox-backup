@@ -173,11 +173,11 @@ impl DataBlob {
 
         if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
-            return Ok(self.raw_data[data_start..].to_vec());
+            Ok(self.raw_data[data_start..].to_vec())
         } else if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
             let data = zstd::block::decompress(&self.raw_data[data_start..], MAX_BLOB_SIZE)?;
-            return Ok(data);
+            Ok(data)
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             let header_len = std::mem::size_of::<EncryptedDataBlobHeader>();
             let head = unsafe {
@@ -190,7 +190,7 @@ impl DataBlob {
                 } else {
                     config.decode_uncompressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
                 };
-                return Ok(data);
+                Ok(data)
             } else {
                 bail!("unable to decrypt blob - missing CryptConfig");
             }
@@ -212,9 +212,9 @@ impl DataBlob {
 
             if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 {
                 let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
-                return Ok(data);
+                Ok(data)
             } else {
-                return Ok(self.raw_data[data_start..].to_vec());
+                Ok(self.raw_data[data_start..].to_vec())
             }
         } else {
             bail!("Invalid blob magic number.");
@@ -260,7 +260,7 @@ impl DataBlob {
         let mut blob = DataBlob { raw_data };
         blob.set_crc(blob.compute_crc());
 
-        return Ok(blob);
+        Ok(blob)
     }
 
     /// Load blob from ``reader``

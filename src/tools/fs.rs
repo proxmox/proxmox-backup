@@ -131,7 +131,7 @@ where
 
     /// Filter by file name. Note that file names which aren't valid utf-8 will be treated as if
     /// they do not match the pattern.
-    fn filter_file_name_regex<'a>(self, regex: &'a Regex) -> FileNameRegexFilter<'a, Self, T, E> {
+    fn filter_file_name_regex(self, regex: &Regex) -> FileNameRegexFilter<Self, T, E> {
         FileNameRegexFilter { inner: self, regex }
     }
 }

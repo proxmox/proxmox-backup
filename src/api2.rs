@@ -15,7 +15,7 @@ pub fn router() -> Router {
     let nodes = Router::new()
         .match_all("node", node::router());
 
-    let route = Router::new()
+    Router::new()
         .subdir("access", access::router())
         .subdir("admin", admin::router())
         .subdir("backup", backup::router())
@@ -24,7 +24,5 @@ pub fn router() -> Router {
         .subdir("nodes", nodes)
         .subdir("subscription", subscription::router())
         .subdir("version", version::router())
-        .list_subdirs();
-
-    route
+        .list_subdirs()
 }

@@ -45,20 +45,18 @@ impl Future for PipeToSendStream {
                         None => return Poll::Ready(Err(format_err!("protocol canceled"))),
                     }
                 }
-            } else {
-                if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
-                    return Poll::Ready(Err(match reset {
-                        Ok(reason) => format_err!("stream received RST_STREAM: {:?}", reason),
-                        Err(err) => Error::from(err),
-                    }));
-                }
+            } else if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
+                return Poll::Ready(Err(match reset {
+                    Ok(reason) => format_err!("stream received RST_STREAM: {:?}", reason),
+                    Err(err) => Error::from(err),
+                }));
             }
 
             this.body_tx
                 .send_data(this.data.take().unwrap(), true)
                 .map_err(Error::from)?;
 
-            return Poll::Ready(Ok(()));
+            Poll::Ready(Ok(()))
         } else {
             if let Poll::Ready(reset) = this.body_tx.poll_reset(cx) {
                 return Poll::Ready(Err(match reset {
@@ -66,7 +64,7 @@ impl Future for PipeToSendStream {
                     Err(err) => Error::from(err),
                 }));
             }
-            return Poll::Ready(Ok(()));
+            Poll::Ready(Ok(()))
         }
     }
 }

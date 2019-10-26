@@ -38,9 +38,9 @@ pub fn wrap_text(initial_indent: &str, subsequent_indent: &str, text: &str, colu
 
     text.split("\n\n")
         .map(|p| p.trim())
-        .filter(|p| { p.len() != 0 })
+        .filter(|p| !p.is_empty())
         .fold(String::new(), |mut acc, p| {
-            if acc.len() == 0 {
+            if acc.is_empty() {
                 acc.push_str(&wrapper1.wrap(p).concat());
             } else {
                 acc.push_str(&wrapper2.wrap(p).concat());
@@ -142,11 +142,11 @@ fn dump_api_parameters(param: &ObjectSchema) -> String {
 
     let properties = &param.properties;
 
-    let mut prop_names: Vec<&str> = properties.keys().map(|v| *v).collect();
+    let mut prop_names: Vec<&str> = properties.keys().copied().collect();
     prop_names.sort();
 
-    let mut required_list: Vec<String> = vec![];
-    let mut optional_list: Vec<String> = vec![];
+    let mut required_list: Vec<String> = Vec::new();
+    let mut optional_list: Vec<String> = Vec::new();
 
     for prop in prop_names {
         let (optional, schema) = properties.get(prop).unwrap();
@@ -161,7 +161,7 @@ fn dump_api_parameters(param: &ObjectSchema) -> String {
         }
     }
 
-    if required_list.len() > 0 {
+    if !required_list.is_empty() {
 
         res.push_str("\n*Required properties:*\n\n");
 
@@ -172,7 +172,7 @@ fn dump_api_parameters(param: &ObjectSchema) -> String {
 
     }
 
-    if optional_list.len() > 0 {
+    if !optional_list.is_empty() {
 
         res.push_str("\n*Optional properties:*\n\n");
 

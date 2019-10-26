@@ -52,23 +52,22 @@ fn create_ticket(
 
             log::info!("successful auth for user '{}'", username);
 
-            return Ok(json!({
+            Ok(json!({
                 "username": username,
                 "ticket": ticket,
                 "CSRFPreventionToken": token,
-            }));
+            }))
         }
         Err(err) => {
 	    let client_ip = "unknown"; // $rpcenv->get_client_ip() || '';
             log::error!("authentication failure; rhost={} user={} msg={}", client_ip, username, err.to_string());
-            return Err(http_err!(UNAUTHORIZED, "permission check failed.".into()));
+            Err(http_err!(UNAUTHORIZED, "permission check failed.".into()))
         }
     }
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .subdir(
             "ticket",
             Router::new()
@@ -93,7 +92,5 @@ pub fn router() -> Router {
                     ).protected(true)
                 )
         )
-        .list_subdirs();
-
-    route
+        .list_subdirs()
 }

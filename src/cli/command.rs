@@ -423,7 +423,6 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
     match def {
         CommandLineInterface::Simple(_) => {
             print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, &help_cmd.arg_param, args);
-            return;
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
@@ -463,7 +462,6 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
                 record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
             });
             print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, &cli_cmd.arg_param, args);
-            return;
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {

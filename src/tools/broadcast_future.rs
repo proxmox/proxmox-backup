@@ -7,6 +7,7 @@ use futures::future::{FutureExt, TryFutureExt};
 use tokio::sync::oneshot;
 
 /// Broadcast results to registered listeners using asnyc oneshot channels
+#[derive(Default)]
 pub struct BroadcastData<T> {
     result: Option<Result<T, String>>,
     listeners: Vec<oneshot::Sender<Result<T, Error>>>,
@@ -85,7 +86,7 @@ impl<T: Clone + Send + 'static> BroadcastFuture<T> {
         let (tx, rx) = oneshot::channel::<Result<T, Error>>();
         let rx = rx
             .map_err(Error::from)
-            .and_then(|res| futures::future::ready(res));
+            .and_then(futures::future::ready);
 
         (Self::new(Box::new(rx)), tx)
     }

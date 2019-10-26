@@ -506,7 +506,7 @@ impl BackupWriter {
             .and_then(move |_| {
                 let repeat = repeat2.load(Ordering::SeqCst);
                 let stream_len = stream_len2.load(Ordering::SeqCst);
-                let speed = ((stream_len*1000000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
+                let speed = ((stream_len*1_000_000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
                 println!("Uploaded {} chunks in {} seconds ({} MB/s).", repeat, start_time.elapsed().as_secs(), speed);
                 if repeat > 0 {
                     println!("Average chunk size was {} bytes.", stream_len/repeat);
@@ -559,7 +559,7 @@ impl BackupWriter {
         let _ = upload_result.await?;
 
         println!("Uploaded {} chunks in {} seconds.", repeat, start_time.elapsed().as_secs());
-        let speed = ((item_len*1000000*(repeat as usize))/(1024*1024))/(start_time.elapsed().as_micros() as usize);
+        let speed = ((item_len*1_000_000*(repeat as usize))/(1024*1024))/(start_time.elapsed().as_micros() as usize);
         println!("Time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
 
         Ok(speed)

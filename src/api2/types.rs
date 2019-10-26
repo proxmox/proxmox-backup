@@ -79,7 +79,7 @@ lazy_static!{
 
     pub static ref BACKUP_TIME_SCHEMA: Arc<Schema> =
         IntegerSchema::new("Backup time (Unix epoch.)")
-        .minimum(1547797308)
+        .minimum(1_547_797_308)
         .into();
 
 }

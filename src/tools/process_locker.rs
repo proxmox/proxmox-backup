@@ -158,7 +158,7 @@ impl ProcessLocker {
 
         let data = locker.lock().unwrap();
 
-        for (_k, v) in &data.shared_guard_list {
+        for v in data.shared_guard_list.values() {
             result = match result {
                 None => Some(*v),
                 Some(x) => if x < *v { Some(x) } else { Some(*v) },

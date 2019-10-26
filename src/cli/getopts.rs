@@ -46,10 +46,10 @@ fn parse_argument(arg: &str) -> RawArgument {
         }
     }
 
-    return RawArgument::Option {
+    RawArgument::Option {
         name: unsafe { arg.get_unchecked(first..).to_string() },
         value: None,
-    };
+    }
 }
 
 /// parse as many arguments as possible into a Vec<String, String>. This does not
@@ -95,7 +95,7 @@ pub (crate) fn parse_argument_list<T: AsRef<str>>(
 
                     if (pos + 1) < args.len() {
                         let next = args[pos + 1].as_ref();
-                        if let RawArgument::Argument { value: _ } = parse_argument(next) {
+                        if let RawArgument::Argument { .. } = parse_argument(next) {
                             next_is_argument = true;
                             if let Ok(_) = parse_boolean(next) {
                                 next_is_bool = true;
@@ -114,15 +114,12 @@ pub (crate) fn parse_argument_list<T: AsRef<str>>(
                                                     "missing boolean value."));
                         }
 
+                    } else if next_is_argument {
+                        pos += 1;
+                        data.push((name, args[pos].as_ref().to_string()));
                     } else {
-
-                        if next_is_argument {
-                            pos += 1;
-                            data.push((name, args[pos].as_ref().to_string()));
-                        } else {
-                            errors.push(format_err!("parameter '{}': {}", name,
-                                                    "missing parameter value."));
-                        }
+                        errors.push(format_err!("parameter '{}': {}", name,
+                                                "missing parameter value."));
                     }
                 }
                 Some(v) => {
@@ -171,10 +168,8 @@ pub fn parse_arguments<T: AsRef<str>>(
                 if let Schema::Array(_) = param_schema.as_ref() {
                     last_arg_param_is_array = true;
                 }
-            } else {
-                if *optional {
-                    panic!("positional argument '{}' may not be optional", name);
-                }
+            } else if *optional {
+                panic!("positional argument '{}' may not be optional", name);
             }
         } else {
             panic!("no such property '{}' in schema", name);
@@ -192,15 +187,13 @@ pub fn parse_arguments<T: AsRef<str>>(
             if !(is_last_arg_param && last_arg_param_is_optional) {
                 errors.push(format_err!("missing argument '{}'", name));
             }
-        } else {
-            if is_last_arg_param && last_arg_param_is_array {
-                for value in rest {
-                    data.push((name.to_string(), value));
-                }
-                rest = vec![];
-            } else {
-                data.push((name.to_string(), rest.remove(0)));
+        } else if is_last_arg_param && last_arg_param_is_array {
+            for value in rest {
+                data.push((name.to_string(), value));
             }
+            rest = vec![];
+        } else {
+            data.push((name.to_string(), rest.remove(0)));
         }
     }
 

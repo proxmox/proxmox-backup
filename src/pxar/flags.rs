@@ -167,7 +167,7 @@ pub fn feature_flags_from_chattr(attr: u32) -> u64 {
     let mut flags = 0u64;
 
     for (fe_flag, fs_flag) in &CHATTR_MAP {
-        if (attr & fs_flag) != 0 { flags = flags | fe_flag; }
+        if (attr & fs_flag) != 0 { flags |= fe_flag; }
     }
 
     flags
@@ -189,7 +189,7 @@ pub fn feature_flags_from_fat_attr(attr: u32) -> u64 {
     let mut flags = 0u64;
 
     for (fe_flag, fs_flag) in &FAT_ATTR_MAP {
-        if (attr & fs_flag) != 0 { flags = flags | fe_flag; }
+        if (attr & fs_flag) != 0 { flags |= fe_flag; }
     }
 
     flags

@@ -111,7 +111,7 @@ impl ACL {
         Ok(ACL { ptr })
     }
 
-    pub fn create_entry<'a>(&'a mut self) -> Result<ACLEntry<'a>, nix::errno::Errno> {
+    pub fn create_entry(&mut self) -> Result<ACLEntry, nix::errno::Errno> {
         let mut ptr = ptr::null_mut() as *mut c_void;
         let res = unsafe { acl_create_entry(&mut self.ptr, &mut ptr) };
         if res < 0 {

@@ -654,15 +654,9 @@ pub fn router() -> Router {
         )
         .list_subdirs();
 
-
-
-    let route = Router::new()
+    Router::new()
         .get(ApiMethod::new(
             get_datastore_list,
             ObjectSchema::new("Directory index.")))
-        .match_all("store", datastore_info);
-
-
-
-    route
+        .match_all("store", datastore_info)
 }

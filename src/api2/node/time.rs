@@ -81,7 +81,7 @@ fn set_timezone(
 }
 
 pub fn router() -> Router {
-    let route = Router::new()
+    Router::new()
         .get(
             ApiMethod::new(
                 get_time,
@@ -91,9 +91,9 @@ pub fn router() -> Router {
                 ObjectSchema::new("Returns server time and timezone.")
                     .required("timezone", StringSchema::new("Time zone"))
                     .required("time", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
-                              .minimum(1297163644))
+                              .minimum(1_297_163_644))
                     .required("localtime", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC. (local time)")
-                              .minimum(1297163644))
+                              .minimum(1_297_163_644))
             )
         )
         .put(
@@ -104,7 +104,5 @@ pub fn router() -> Router {
                     .required("timezone", StringSchema::new(
                         "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
             ).protected(true).reload_timezone(true)
-        );
-
-    route
+        )
 }

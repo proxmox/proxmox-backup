@@ -84,9 +84,9 @@ impl std::io::Read for DigestListEncoder {
                     break;
                 }
             }
-            return Ok(written);
+            Ok(written)
         } else {
-            return Ok(0);
+            Ok(0)
         }
     }
 }

@@ -60,7 +60,7 @@ fn digest_to_prefix(digest: &[u8]) -> PathBuf {
 
     let mut buf = Vec::<u8>::with_capacity(2+1+2+1);
 
-    const HEX_CHARS: &'static [u8; 16] = b"0123456789abcdef";
+    const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
 
     buf.push(HEX_CHARS[(digest[0] as usize) >> 4]);
     buf.push(HEX_CHARS[(digest[0] as usize) &0xf]);

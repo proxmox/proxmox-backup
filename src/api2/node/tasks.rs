@@ -218,7 +218,7 @@ pub fn router() -> Router {
         .list_subdirs();
 
 
-    let route = Router::new()
+    Router::new()
         .get(ApiMethod::new(
             list_tasks,
             ObjectSchema::new("List tasks.")
@@ -245,7 +245,5 @@ pub fn router() -> Router {
                 )
            )
         )
-        .match_all("upid", upid_api);
-
-    route
+        .match_all("upid", upid_api)
 }

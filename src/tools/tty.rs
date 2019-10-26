@@ -32,7 +32,7 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
         bail!("tcgetattr() failed");
     }
     let mut termios = unsafe { termios.assume_init() };
-    let old_termios = termios.clone();
+    let old_termios = termios; // termios is a 'Copy' type
     unsafe {
         libc::cfmakeraw(&mut termios);
     }
@@ -58,7 +58,7 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
                 }
                 0x7F => {
                     // backspace
-                    if password.len() > 0 {
+                    if !password.is_empty() {
                         password.pop();
                         if asterisks {
                             let _ignore_error = out.write_all("\x08 \x08".as_bytes());
@@ -69,7 +69,7 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
                 other => {
                     password.push(other);
                     if asterisks {
-                        let _ignore_error = out.write_all("*".as_bytes());
+                        let _ignore_error = out.write_all(b"*");
                         let _ignore_error = out.flush();
                     }
                 }

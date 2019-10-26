@@ -114,7 +114,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                     writer.write_le_value(head)?;
                 }
 
-                return Ok(writer)
+                Ok(writer)
             }
             BlobWriterState::Compressed { compr } => {
                 let csum_writer = compr.finish()?;
@@ -127,7 +127,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                     writer.write_le_value(head)?;
                 }
 
-                return Ok(writer)
+                Ok(writer)
             }
             BlobWriterState::Signed { csum_writer } => {
                 let (mut writer, crc, tag) = csum_writer.finish()?;
@@ -142,7 +142,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                     writer.write_le_value(head)?;
                 }
 
-                return Ok(writer)
+                Ok(writer)
             }
             BlobWriterState::SignedCompressed { compr } => {
                 let csum_writer = compr.finish()?;
@@ -158,7 +158,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                     writer.write_le_value(head)?;
                 }
 
-                return Ok(writer)
+                Ok(writer)
             }
             BlobWriterState::Encrypted { crypt_writer } => {
                 let (csum_writer, iv, tag) = crypt_writer.finish()?;
@@ -172,7 +172,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                 unsafe {
                     writer.write_le_value(head)?;
                 }
-                return Ok(writer)
+                Ok(writer)
             }
             BlobWriterState::EncryptedCompressed { compr } => {
                 let crypt_writer = compr.finish()?;
@@ -187,7 +187,7 @@ impl <W: Write + Seek> DataBlobWriter<W> {
                 unsafe {
                     writer.write_le_value(head)?;
                 }
-                return Ok(writer)
+                Ok(writer)
             }
         }
     }

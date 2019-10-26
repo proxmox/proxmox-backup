@@ -66,7 +66,7 @@ pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
 
 pub fn fsetxattr(fd: RawFd, xattr: &PxarXAttr) -> Result<(), nix::errno::Errno> {
     let mut name = xattr.name.clone();
-    name.push('\0' as u8);
+    name.push(b'\0');
     let flags = 0 as libc::c_int;
     let result = unsafe {
         libc::fsetxattr(fd, name.as_ptr() as *const libc::c_char, xattr.value.as_ptr() as *const libc::c_void, xattr.value.len(), flags)

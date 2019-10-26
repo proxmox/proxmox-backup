@@ -4,6 +4,7 @@ use failure::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Default)]
 pub struct Registry {
     formats: HashMap<&'static str, Arc<ApiStringFormat>>,
     options: HashMap<&'static str, Arc<Schema>>,

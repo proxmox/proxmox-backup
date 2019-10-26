@@ -97,12 +97,8 @@ fn delete_datastore(
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(get())
         .post(post())
-        .delete(delete());
-
-
-    route
+        .delete(delete())
 }

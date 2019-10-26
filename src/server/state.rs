@@ -22,7 +22,6 @@ pub struct ServerState {
     pub reload_request: bool,
 }
 
-
 lazy_static! {
     static ref SERVER_STATE: Mutex<ServerState> = Mutex::new(ServerState {
         mode: ServerMode::Normal,
@@ -69,11 +68,7 @@ pub fn server_state_init() -> Result<(), Error> {
 pub fn is_reload_request() -> bool {
     let data = SERVER_STATE.lock().unwrap();
 
-    if data.mode == ServerMode::Shutdown && data.reload_request {
-        true
-    } else {
-        false
-    }
+    data.mode == ServerMode::Shutdown && data.reload_request
 }
 
 pub fn server_shutdown() {

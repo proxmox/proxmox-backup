@@ -6,7 +6,7 @@ use regex::Regex;
 use std::fmt;
 use std::sync::Arc;
 
-#[derive(Debug, Fail)]
+#[derive(Default, Debug, Fail)]
 pub struct ParameterError {
     error_list: Vec<Error>,
 }
@@ -22,7 +22,7 @@ pub struct ParameterError {
 impl ParameterError {
 
     pub fn new() -> Self {
-        Self { error_list: vec![] }
+        Self { error_list: Vec::new() }
     }
 
     pub fn push(&mut self, value: Error) {
@@ -32,6 +32,10 @@ impl ParameterError {
     pub fn len(&self) -> usize {
         self.error_list.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl fmt::Display for ParameterError {
@@ -39,7 +43,7 @@ impl fmt::Display for ParameterError {
 
         let mut msg = String::new();
 
-        if self.len() > 0 {
+        if !self.is_empty() {
             msg.push_str("parameter verification errors\n\n");
         }
 
@@ -470,7 +474,7 @@ pub fn parse_simple_value(value_str: &str, schema: &Schema) -> Result<Value, Err
     Ok(value)
 }
 
-pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSchema, test_required: bool) -> Result<Value, ParameterError> {
+pub fn parse_parameter_strings(data: &[(String, String)], schema: &ObjectSchema, test_required: bool) -> Result<Value, ParameterError> {
 
     let mut params = json!({});
 
@@ -530,13 +534,13 @@ pub fn parse_parameter_strings(data: &Vec<(String, String)>, schema: &ObjectSche
 
     if test_required && errors.len() == 0 {
         for (name, (optional, _prop_schema)) in properties {
-            if *optional == false && params[name] == Value::Null {
+            if !(*optional) && params[name] == Value::Null {
                 errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
             }
         }
     }
 
-    if errors.len() > 0 {
+    if !errors.is_empty() {
         Err(errors)
     } else {
         Ok(params)
@@ -640,7 +644,7 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
     }
 
     for (name, (optional, _prop_schema)) in properties {
-        if *optional == false && data[name] == Value::Null {
+        if !(*optional) && data[name] == Value::Null {
             bail!("property '{}': property is missing and it is not optional.", name);
         }
     }

@@ -132,11 +132,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             bail!("found invalid filename '.' or '..'.");
         }
 
-        if buffer
-            .iter()
-            .find(|b| (**b == b'/' || **b == b'\0'))
-            .is_some()
-        {
+        if buffer.iter().any(|b| (*b == b'/' || *b == b'\0')) {
             bail!("found invalid filename with slashes or nul bytes.");
         }
 
@@ -332,7 +328,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     fn restore_xattrs_fcaps_fd(
         &mut self,
         fd: RawFd,
-        xattrs: &Vec<PxarXAttr>,
+        xattrs: &[PxarXAttr],
         fcaps: &Option<PxarFCaps>,
     ) -> Result<(), Error> {
         for xattr in xattrs {
@@ -679,7 +675,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         entry: PxarEntry,
         filename: &OsStr,
         matched: MatchType,
-        match_pattern: &Vec<MatchPattern>,
+        match_pattern: &[MatchPattern],
     ) -> Result<(), Error> {
         let (mut head, attr) = self
             .read_attributes()
@@ -727,7 +723,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     /// Restore an archive into the specified directory.
     ///
     /// The directory is created if it does not exist.
-    pub fn restore(&mut self, path: &Path, match_pattern: &Vec<MatchPattern>) -> Result<(), Error> {
+    pub fn restore(&mut self, path: &Path, match_pattern: &[MatchPattern]) -> Result<(), Error> {
         let _ = std::fs::create_dir(path);
 
         let dir = nix::dir::Dir::open(
@@ -739,7 +735,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         let fd = dir.as_raw_fd();
         let mut dirs = PxarDirStack::new(fd);
         // An empty match pattern list indicates to restore the full archive.
-        let matched = if match_pattern.len() == 0 {
+        let matched = if match_pattern.is_empty() {
             MatchType::Positive
         } else {
             MatchType::None
@@ -786,7 +782,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         dirs: &mut PxarDirStack,
         filename: &OsStr,
         parent_matched: MatchType,
-        match_pattern: &Vec<MatchPattern>,
+        match_pattern: &[MatchPattern],
     ) -> Result<(), Error> {
         let relative_path = dirs.as_path_buf();
         let full_path = base_path.join(&relative_path).join(filename);
@@ -811,7 +807,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         // This is especially the case when the full archive is restored and
         // there are no match pattern.
         let mut matched = parent_matched;
-        if match_pattern.len() > 0 {
+        if !match_pattern.is_empty() {
             match match_filename(filename, ifmt == libc::S_IFDIR, match_pattern)? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
@@ -1105,7 +1101,7 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
 fn match_filename(
     filename: &OsStr,
     is_dir: bool,
-    match_pattern: &Vec<MatchPattern>,
+    match_pattern: &[MatchPattern],
 ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;
@@ -1146,7 +1142,7 @@ fn file_openat(
     mode: Mode,
 ) -> Result<std::fs::File, Error> {
     let fd =
-        filename.with_nix_path(|cstr| nix::fcntl::openat(parent, cstr.as_ref(), flags, mode))??;
+        filename.with_nix_path(|cstr| nix::fcntl::openat(parent, cstr, flags, mode))??;
 
     let file = unsafe { std::fs::File::from_raw_fd(fd) };
 

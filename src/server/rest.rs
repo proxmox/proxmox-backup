@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -119,7 +120,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
         let path = req.uri().path().to_owned();
         let method = req.method().clone();
 
-        let peer = self.peer.clone();
+        let peer = self.peer;
         Pin::from(handle_request(self.api_config.clone(), req))
             .map(move |result| match result {
                 Ok(res) => {
@@ -144,11 +145,11 @@ impl tower_service::Service<Request<Body>> for ApiService {
     }
 }
 
-fn get_request_parameters_async(
+fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
     info: &'static ApiMethod,
     parts: Parts,
     req_body: Body,
-    uri_param: HashMap<String, String>,
+    uri_param: HashMap<String, String, S>,
 ) -> Box<dyn Future<Output = Result<Value, failure::Error>> + Send>
 {
     let mut is_json = false;
@@ -162,7 +163,7 @@ fn get_request_parameters_async(
                 is_json = true;
             }
             _ => {
-                return Box::new(future::err(http_err!(BAD_REQUEST, format!("unsupported content type"))));
+                return Box::new(future::err(http_err!(BAD_REQUEST, "unsupported content type".to_string())));
             }
         }
     }
@@ -174,7 +175,7 @@ fn get_request_parameters_async(
                 acc.extend_from_slice(&*chunk);
                 Ok(acc)
             } else {
-                Err(http_err!(BAD_REQUEST, format!("Request body too large")))
+                Err(http_err!(BAD_REQUEST, "Request body too large".to_string()))
             }
         })
         .and_then(move |body| async move {
@@ -195,11 +196,10 @@ fn get_request_parameters_async(
 
             let mut param_list: Vec<(String, String)> = vec![];
 
-            if utf8.len() > 0 {
+            if !utf8.is_empty() {
                 for (k, v) in form_urlencoded::parse(utf8.as_bytes()).into_owned() {
                     param_list.push((k, v));
                 }
-
             }
 
             if let Some(query_str) = parts.uri.query() {
@@ -260,13 +260,13 @@ fn proxy_protected_request(
     })
 }
 
-pub fn handle_sync_api_request<Env: RpcEnvironment>(
+pub fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + Send>(
     mut rpcenv: Env,
     info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
     req_body: Body,
-    uri_param: HashMap<String, String>,
+    uri_param: HashMap<String, String, S>,
 ) -> BoxFut
 {
     let params = get_request_parameters_async(info, parts, req_body, uri_param);
@@ -339,7 +339,7 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
     match (info.handler)(parts, req_body, params, info, Box::new(rpcenv)) {
         Ok(future) => future,
         Err(err) => {
-            let resp = (formatter.format_error)(Error::from(err));
+            let resp = (formatter.format_error)(err);
             Box::new(future::ok(resp))
         }
     }
@@ -348,9 +348,9 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
 fn get_index(username: Option<String>, token: Option<String>) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
-    let username = username.unwrap_or(String::from(""));
+    let username = username.unwrap_or_else(|| String::from(""));
 
-    let token = token.unwrap_or(String::from(""));
+    let token = token.unwrap_or_else(|| String::from(""));
 
     let setup = json!({
         "Setup": { "auth_cookie_name": "PBSAuthCookie" },
@@ -614,7 +614,7 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
         // not Auth required for accessing files!
 
         if method != hyper::Method::GET {
-            return Box::new(future::err(http_err!(BAD_REQUEST, format!("Unsupported method"))));
+            return Box::new(future::err(http_err!(BAD_REQUEST, "Unsupported method".to_string())));
         }
 
         if comp_len == 0 {

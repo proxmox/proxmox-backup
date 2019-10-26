@@ -539,7 +539,7 @@ impl <S: ReadChunk> std::io::Read for  BufferedFixedReader<S> {
 
         self.read_offset += n as u64;
 
-        return Ok(n);
+        Ok(n)
     }
 }
 

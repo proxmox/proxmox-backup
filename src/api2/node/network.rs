@@ -17,13 +17,10 @@ fn get_network_config(
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(ApiMethod::new(
             get_network_config,
             ObjectSchema::new("Read network configuration.")
                 .required("node", NODE_SCHEMA.clone())
-        ));
-
-    route
+        ))
 }

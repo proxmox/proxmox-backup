@@ -35,7 +35,7 @@ pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
                       .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
             .required("backup-id", StringSchema::new("Backup ID."))
             .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                      .minimum(1547797308))
+                      .minimum(1_547_797_308))
             .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
     )
 }
@@ -139,8 +139,7 @@ lazy_static!{
 }
 
 pub fn reader_api() -> Router {
-
-    let router = Router::new()
+    Router::new()
         .subdir(
             "chunk", Router::new()
                 .download(api_method_download_chunk())
@@ -152,9 +151,7 @@ pub fn reader_api() -> Router {
         .subdir(
             "speedtest", Router::new()
                 .download(api_method_speedtest())
-        );
-
-    router
+        )
 }
 
 pub fn api_method_download_file() -> ApiAsyncMethod {

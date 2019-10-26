@@ -167,8 +167,7 @@ lazy_static!{
 }
 
 pub fn backup_api() -> Router {
-
-    let router = Router::new()
+    Router::new()
         .subdir(
             "blob", Router::new()
                 .upload(api_method_upload_blob())
@@ -214,9 +213,7 @@ pub fn backup_api() -> Router {
             "speedtest", Router::new()
                 .upload(api_method_upload_speedtest())
         )
-        .list_subdirs();
-
-    router
+        .list_subdirs()
 }
 
 pub fn api_method_create_dynamic_index() -> ApiMethod {

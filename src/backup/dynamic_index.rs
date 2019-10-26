@@ -227,9 +227,9 @@ impl DynamicIndexReader {
         let middle_end = self.chunk_end(middle_idx);
 
         if offset < middle_end {
-            return self.binary_search(start_idx, start, middle_idx, middle_end, offset);
+            self.binary_search(start_idx, start, middle_idx, middle_end, offset)
         } else {
-            return self.binary_search(middle_idx + 1, middle_end, end_idx, end, offset);
+            self.binary_search(middle_idx + 1, middle_end, end_idx, end, offset)
         }
     }
 }
@@ -366,7 +366,7 @@ impl <S: ReadChunk> std::io::Read for  BufferedDynamicReader<S> {
 
         self.read_offset += n as u64;
 
-        return Ok(n);
+        Ok(n)
     }
 }
 
@@ -601,11 +601,11 @@ impl DynamicChunkWriter {
                          (compressed_size*100)/(chunk_size as u64), is_duplicate, proxmox::tools::digest_to_hex(&digest));
                 self.index.add_chunk(self.chunk_offset as u64, &digest)?;
                 self.chunk_buffer.truncate(0);
-                return Ok(());
+                Ok(())
             }
             Err(err) => {
                 self.chunk_buffer.truncate(0);
-                return Err(err);
+                Err(err)
             }
         }
     }

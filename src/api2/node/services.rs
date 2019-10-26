@@ -140,10 +140,8 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
         _ => bail!("unknown service command '{}'", cmd),
     }
 
-    if service == "proxmox-backup" {
-        if cmd != "restart" {
-	    bail!("invalid service cmd '{} {}'", service, cmd);
-        }
+    if service == "proxmox-backup" && cmd != "restart" {
+	bail!("invalid service cmd '{} {}'", service, cmd);
     }
 
     let real_service_name = real_service_name(service);
@@ -285,7 +283,7 @@ pub fn router() -> Router {
         )
         .list_subdirs();
 
-    let route = Router::new()
+    Router::new()
         .get(
             ApiMethod::new(
                 list_services,
@@ -303,7 +301,5 @@ pub fn router() -> Router {
                 )
             )
         )
-        .match_all("service", service_api);
-
-    route
+        .match_all("service", service_api)
 }

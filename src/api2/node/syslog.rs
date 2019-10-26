@@ -97,8 +97,7 @@ lazy_static! {
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(
             ApiMethod::new(
                 get_syslog,
@@ -134,7 +133,5 @@ pub fn router() -> Router {
                     .required("n", IntegerSchema::new("Line number."))
                     .required("t", StringSchema::new("Line text."))
             ).protected(true)
-        );
-
-    route
+        )
 }

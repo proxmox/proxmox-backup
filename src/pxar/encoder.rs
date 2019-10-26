@@ -217,7 +217,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         }
 
         let flags = flags::feature_flags_from_chattr(attr as u32);
-        entry.flags = entry.flags | flags;
+        entry.flags |= flags;
 
         Ok(())
     }
@@ -242,7 +242,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         }
 
         let flags = flags::feature_flags_from_fat_attr(attr);
-        entry.flags = entry.flags | flags;
+        entry.flags |= flags;
 
         Ok(())
     }
@@ -700,9 +700,9 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         if include_children {
             // Exclude patterns passed via the CLI are stored as '.pxarexclude-cli'
             // in the root directory of the archive.
-            if is_root && match_pattern.len() > 0 {
+            if is_root && !match_pattern.is_empty() {
                 let filename = CString::new(".pxarexclude-cli")?;
-                name_list.push((filename, dir_stat.clone(), match_pattern.clone()));
+                name_list.push((filename, *dir_stat, match_pattern.clone()));
             }
 
             for entry in dir.iter() {
@@ -1231,7 +1231,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 fn match_filename(
     filename: &CStr,
     stat: &FileStat,
-    match_pattern: &Vec<MatchPattern>,
+    match_pattern: &[MatchPattern],
 ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
     let mut child_pattern = Vec::new();
     let mut match_state = MatchType::None;

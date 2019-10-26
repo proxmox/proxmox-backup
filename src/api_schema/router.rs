@@ -284,7 +284,7 @@ impl Router {
 
     pub fn find_route(&self, components: &[&str], uri_param: &mut HashMap<String, String>) -> Option<&Router> {
 
-        if components.len() == 0 { return Some(self); };
+        if components.is_empty() { return Some(self); };
 
         let (dir, rest) = (components[0], &components[1..]);
 
@@ -323,5 +323,11 @@ impl Router {
             };
         }
         &MethodDefinition::None
+    }
+}
+
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
     }
 }

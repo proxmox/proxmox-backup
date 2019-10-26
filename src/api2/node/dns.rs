@@ -108,8 +108,7 @@ fn get_dns(
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(
             ApiMethod::new(
                 get_dns,
@@ -135,7 +134,5 @@ pub fn router() -> Router {
                     .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
                     .optional("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
             ).protected(true)
-        );
-
-    route
+        )
 }

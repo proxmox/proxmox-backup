@@ -28,6 +28,7 @@ pub trait Reloadable: Sized {
 
 /// Manages things to be stored and reloaded upon reexec.
 /// Anything which should be restorable should be instantiated via this struct's `restore` method,
+#[derive(Default)]
 pub struct Reloader {
     pre_exec: Vec<PreExecEntry>,
 }
@@ -241,7 +242,7 @@ where
         }
         if let Err(e) = reloader.take().unwrap().fork_restart() {
             log::error!("error during reload: {}", e);
-            let _ = systemd_notify(SystemdNotify::Status(format!("error during reload")));
+            let _ = systemd_notify(SystemdNotify::Status("error during reload".to_string()));
         }
     } else {
         log::info!("daemon shutting down...");

@@ -31,9 +31,7 @@ fn register_storage_plugins() -> SectionConfig {
 
 pub fn parse_config(filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
 
-    let res = STORAGE_SECTION_CONFIG.parse(filename, raw);
-
-    res
+    STORAGE_SECTION_CONFIG.parse(filename, raw)
 }
 
 pub fn write_config(filename: &str, config: &SectionConfigData) -> Result<String, Error> {

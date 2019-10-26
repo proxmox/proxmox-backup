@@ -22,11 +22,8 @@ fn get_subscription(
 }
 
 pub fn router() -> Router {
-
-    let route = Router::new()
+    Router::new()
         .get(ApiMethod::new(
             get_subscription,
-            ObjectSchema::new("Read subscription info.")));
-
-    route
+            ObjectSchema::new("Read subscription info.")))
 }

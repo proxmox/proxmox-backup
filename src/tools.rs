@@ -3,6 +3,7 @@
 //! This is a collection of small and useful tools.
 use std::any::Any;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::fs::{File, OpenOptions};
 use std::io::ErrorKind;
 use std::io::Read;
@@ -202,7 +203,7 @@ where
 pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t, libc::gid_t), Error> {
     let c_username = std::ffi::CString::new(username).unwrap();
     let info = unsafe { libc::getpwnam(c_username.as_ptr()) };
-    if info == std::ptr::null_mut() {
+    if info.is_null() {
         bail!("getwpnam '{}' failed", username);
     }
 
@@ -296,14 +297,14 @@ pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<Vec<V
     }
 }
 
-pub fn complete_file_name(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+pub fn complete_file_name<S: BuildHasher>(arg: &str, _param: &HashMap<String, String, S>) -> Vec<String> {
     let mut result = vec![];
 
     use nix::fcntl::AtFlags;
     use nix::fcntl::OFlag;
     use nix::sys::stat::Mode;
 
-    let mut dirname = std::path::PathBuf::from(if arg.len() == 0 { "./" } else { arg });
+    let mut dirname = std::path::PathBuf::from(if arg.is_empty() { "./" } else { arg });
 
     let is_dir = match nix::sys::stat::fstatat(libc::AT_FDCWD, &dirname, AtFlags::empty()) {
         Ok(stat) => (stat.st_mode & libc::S_IFMT) == libc::S_IFDIR,
@@ -426,7 +427,7 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
     let mut list = String::new();
 
     for item in data {
-        if list.len() != 0 {
+        if !list.is_empty() {
             list.push(sep);
         }
         list.push_str(item);
@@ -449,7 +450,7 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
         if name.is_empty() {
             continue;
         }
-        if name.starts_with(".") {
+        if name.starts_with('.') {
             bail!("Path contains illegal components.");
         }
         path.push('/');

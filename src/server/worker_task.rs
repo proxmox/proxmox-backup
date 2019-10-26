@@ -43,16 +43,10 @@ lazy_static! {
 pub fn worker_is_active(upid: &UPID) -> bool {
 
     if (upid.pid == *MY_PID) && (upid.pstart == *MY_PID_PSTART) {
-        if WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id) {
-            true
-        } else {
-            false
-        }
+        WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id)
     } else {
-        match proxmox::sys::linux::procfs::check_process_running_pstart(upid.pid, upid.pstart) {
-            Some(_) => true,
-            _ => false,
-        }
+        use proxmox::sys::linux::procfs;
+        procfs::check_process_running_pstart(upid.pid, upid.pstart).is_some()
     }
 }
 
@@ -63,17 +57,17 @@ pub fn create_task_control_socket() -> Result<(), Error> {
 
     let control_future = super::create_control_socket(socketname, |param| {
         let param = param.as_object()
-            .ok_or(format_err!("unable to parse parameters (expected json object)"))?;
+            .ok_or_else(|| format_err!("unable to parse parameters (expected json object)"))?;
         if param.keys().count() != 2 { bail!("wrong number of parameters"); }
 
         let command = param.get("command")
-            .ok_or(format_err!("unable to parse parameters (missing command)"))?;
+            .ok_or_else(|| format_err!("unable to parse parameters (missing command)"))?;
 
         // this is the only command for now
         if command != "abort-task" { bail!("got unknown command '{}'", command); }
 
         let upid_str = param["upid"].as_str()
-            .ok_or(format_err!("unable to parse parameters (missing upid)"))?;
+            .ok_or_else(|| format_err!("unable to parse parameters (missing upid)"))?;
 
         let upid = upid_str.parse::<UPID>()?;
 
@@ -244,7 +238,8 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                         match state {
                             None => {
                                 println!("Detected stoped UPID {}", upid_str);
-                                let status = upid_read_status(&upid).unwrap_or(String::from("unknown"));
+                                let status = upid_read_status(&upid)
+                                    .unwrap_or_else(|_| String::from("unknown"));
                                 finish_list.push(TaskListInfo {
                                     upid, upid_str, state: Some((Local::now().timestamp(), status))
                                 });
