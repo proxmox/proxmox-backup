@@ -452,15 +452,11 @@ fn find_goodbye_entry(
     update_goodbye_cache(&mut ctx)?;
     if let Some((_, gbt)) = &ctx.goodbye_cache {
         let mut iterator = gbt.iter();
-        let mut position = 0;
         loop {
-            // Search for the next position where the hash matches the one in the
-            // goodbye table.
-            position += iterator
-                .position(|(e, _, _)| e.hash == hash)
+            // Search for the next goodbye entry with matching hash.
+            let (_item, start, end) = iterator.find(|(i, _, _)| i.hash == hash)
                 .ok_or(libc::ENOENT)?;
 
-            let (_item, start, end) = &gbt[position];
             // At this point it is not clear if the item is a directory or not, this
             // has to be decided based on the entry mode.
             // `Decoder`s attributes function accepts both, offsets pointing to
@@ -475,8 +471,6 @@ fn find_goodbye_entry(
                 let child_offset = find_offset(&entry, *start, *end);
                 return Ok((child_offset, entry, attr, payload_size));
             }
-            // Have to shift the position by one as next in iterator will be 0
-            position += 1;
         }
     }
 
