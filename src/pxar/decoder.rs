@@ -11,7 +11,8 @@ use failure::*;
 use libc;
 
 use super::format_definition::*;
-use super::sequential_decoder::*;
+use super::sequential_decoder::SequentialDecoder;
+use super::match_pattern::MatchPattern;
 
 use proxmox::tools::io::ReadExt;
 
@@ -65,11 +66,13 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         self.root_end
     }
 
-    pub fn restore(&mut self, dir: &DirectoryEntry, path: &Path) -> Result<(), Error> {
+    /// Restore the subarchive starting at `dir` to the provided target `path`.
+    ///
+    /// Only restore the content matched by the MatchPattern `pattern`.
+    /// An empty Vec `pattern` means restore all.
+    pub fn restore(&mut self, dir: &DirectoryEntry, path: &Path, pattern: &Vec<MatchPattern>) -> Result<(), Error> {
         let start = dir.start;
-
         self.seek(SeekFrom::Start(start))?;
-
         // Except for the root dir, `DirectoryEntry` start points to the filename.
         // But `SequentialDecoder::restore()` expects the entry point to be of
         // type `PxarEntry`, so lets skip over the filename here if present.
@@ -80,7 +83,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             }
             let _filename = self.inner.read_filename(header.size)?;
         }
-        self.inner.restore(path, &Vec::new())?;
+        self.inner.restore(path, pattern)?;
 
         Ok(())
     }
