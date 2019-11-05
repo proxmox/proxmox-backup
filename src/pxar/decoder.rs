@@ -3,9 +3,10 @@
 //! This module contain the code to decode *pxar* archive files.
 
 use std::convert::TryFrom;
-use std::ffi::OsString;
+use std::ffi::{OsString, OsStr};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::os::unix::ffi::OsStrExt;
 
 use failure::*;
 use libc;
@@ -251,6 +252,52 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         }
 
         Ok(())
+    }
+
+    /// Lookup the item identified by `filename` in the provided `DirectoryEntry`.
+    ///
+    /// Calculates the hash of the filename and searches for matching entries in
+    /// the goodbye table of the provided `DirectoryEntry`.
+    /// If found, also the filename is compared to avoid hash collision.
+    /// If the filename does not match, the search resumes with the next entry in
+    /// the goodbye table.
+    /// If there is no entry with matching `filename`, `Ok(None)` is returned.
+    pub fn lookup(
+        &mut self,
+        dir: &DirectoryEntry,
+        filename: &OsStr,
+    ) -> Result<Option<(DirectoryEntry, PxarAttributes)>, Error> {
+        let gbt = self.goodbye_table(Some(dir.start), dir.end)?;
+        let hash = compute_goodbye_hash(filename.as_bytes());
+
+        let mut iterator = gbt.iter();
+        loop {
+            // Search for the next goodbye entry with matching hash.
+            let (start, end) = match iterator.find(|(i, _, _)| i.hash == hash) {
+                Some((_item, start, end)) => (start, end),
+                None => return Ok(None),
+            };
+
+            // At this point it is not clear if the item is a directory or not,
+            // this has to be decided based on the entry mode.
+            // `Decoder`s attributes function accepts both, offsets pointing to
+            // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in
+            // case of directories, so the use of start offset is fine for both
+            // cases.
+            let (entry_name, entry, attr, _payload_size) = self.attributes(*start)?;
+
+            // Possible hash collision, need to check if the found entry is indeed
+            // the filename to lookup.
+            if entry_name == filename {
+                let dir_entry = DirectoryEntry {
+                    start: *start + HEADER_SIZE + entry_name.len() as u64 + 1,
+                    end: *end,
+                    filename: entry_name,
+                    entry,
+                };
+                return Ok(Some((dir_entry, attr)));
+            }
+        }
     }
 
     /// Get attributes for the archive item located at `offset`.
