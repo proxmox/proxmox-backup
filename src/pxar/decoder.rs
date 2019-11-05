@@ -17,7 +17,9 @@ use super::match_pattern::MatchPattern;
 use proxmox::tools::io::ReadExt;
 
 pub struct DirectoryEntry {
+    /// Points to the `PxarEntry` of the directory
     start: u64,
+    /// Points past the goodbye table tail
     end: u64,
     pub filename: OsString,
     pub entry: PxarEntry,
@@ -73,16 +75,6 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
     pub fn restore(&mut self, dir: &DirectoryEntry, path: &Path, pattern: &Vec<MatchPattern>) -> Result<(), Error> {
         let start = dir.start;
         self.seek(SeekFrom::Start(start))?;
-        // Except for the root dir, `DirectoryEntry` start points to the filename.
-        // But `SequentialDecoder::restore()` expects the entry point to be of
-        // type `PxarEntry`, so lets skip over the filename here if present.
-        if start != 0 {
-            let header: PxarHeader = self.inner.read_item()?;
-            if header.htype != PXAR_FILENAME {
-                bail!("Expected PXAR_FILENAME, encountered 0x{:x?}", header.htype);
-            }
-            let _filename = self.inner.read_filename(header.size)?;
-        }
         self.inner.restore(path, pattern)?;
 
         Ok(())
