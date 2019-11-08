@@ -8,7 +8,7 @@ use chrono::{Local, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
 use std::ffi::OsStr;
-use std::io::{Read, Write, Seek, SeekFrom};
+use std::io::{Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
@@ -151,33 +151,6 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
 
     result
 }
-
-fn compute_file_csum(file: &mut std::fs::File) -> Result<([u8; 32], u64), Error> {
-
-    file.seek(SeekFrom::Start(0))?;
-
-    let mut hasher = openssl::sha::Sha256::new();
-    let mut buffer = proxmox::tools::vec::undefined(256*1024);
-    let mut size: u64 = 0;
-
-    loop {
-        let count = match file.read(&mut buffer) {
-            Ok(count) => count,
-            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => { continue; }
-            Err(err) => return Err(err.into()),
-        };
-        if count == 0 {
-            break;
-        }
-        size += count as u64;
-        hasher.update(&buffer[..count]);
-    }
-
-    let csum = hasher.finish();
-
-    Ok((csum, size))
-}
-
 
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
@@ -1020,12 +993,6 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         true,
     ).await?;
 
-    let tmpfile = std::fs::OpenOptions::new()
-        .write(true)
-        .read(true)
-        .custom_flags(libc::O_TMPFILE)
-        .open("/tmp")?;
-
     let manifest = client.download_manifest().await?;
 
     if server_archive_name == MANIFEST_BLOB_NAME {
@@ -1040,13 +1007,8 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         }
 
     } else if server_archive_name.ends_with(".blob") {
-        let mut tmpfile = client.download(&server_archive_name, tmpfile).await?;
 
-        let (csum, size) = compute_file_csum(&mut tmpfile)?;
-        manifest.verify_file(&server_archive_name, &csum, size)?;
-
-        tmpfile.seek(SeekFrom::Start(0))?;
-        let mut reader = DataBlobReader::new(tmpfile, crypt_config)?;
+        let mut reader = client.download_blob(&manifest, &server_archive_name).await?;
 
         if let Some(target) = target {
            let mut writer = std::fs::OpenOptions::new()

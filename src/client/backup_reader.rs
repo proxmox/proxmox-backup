@@ -1,5 +1,6 @@
 use failure::*;
-use std::io::Write;
+use std::io::{Read, Write, Seek, SeekFrom};
+use std::fs::File;
 use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 
@@ -135,6 +136,32 @@ impl BackupReader {
         BackupManifest::try_from(json)
     }
 
+    /// Download a .blob file
+    ///
+    /// This creates a temorary file in /tmp (using O_TMPFILE). The data is verified using
+    /// the provided manifest.
+    pub async fn download_blob(
+        &self,
+        manifest: &BackupManifest,
+        name: &str,
+    ) -> Result<DataBlobReader<File>, Error> {
+
+        let tmpfile = std::fs::OpenOptions::new()
+            .write(true)
+            .read(true)
+            .custom_flags(libc::O_TMPFILE)
+            .open("/tmp")?;
+
+        let mut tmpfile = self.download(name, tmpfile).await?;
+
+        let (csum, size) = compute_file_csum(&mut tmpfile)?;
+        manifest.verify_file(name, &csum, size)?;
+
+        tmpfile.seek(SeekFrom::Start(0))?;
+
+        DataBlobReader::new(tmpfile, self.crypt_config.clone())
+    }
+
     /// Download dynamic index file
     ///
     /// This creates a temorary file in /tmp (using O_TMPFILE). The index is verified using
@@ -190,4 +217,30 @@ impl BackupReader {
 
         Ok(index)
     }
+}
+
+fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
+
+    file.seek(SeekFrom::Start(0))?;
+
+    let mut hasher = openssl::sha::Sha256::new();
+    let mut buffer = proxmox::tools::vec::undefined(256*1024);
+    let mut size: u64 = 0;
+
+    loop {
+        let count = match file.read(&mut buffer) {
+            Ok(count) => count,
+            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => { continue; }
+            Err(err) => return Err(err.into()),
+        };
+        if count == 0 {
+            break;
+        }
+        size += count as u64;
+        hasher.update(&buffer[..count]);
+    }
+
+    let csum = hasher.finish();
+
+    Ok((csum, size))
 }
