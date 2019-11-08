@@ -162,4 +162,32 @@ impl BackupReader {
 
         Ok(index)
     }
+
+    /// Download fixed index file
+    ///
+    /// This creates a temorary file in /tmp (using O_TMPFILE). The index is verified using
+    /// the provided manifest.
+    pub async fn download_fixed_index(
+        &self,
+        manifest: &BackupManifest,
+        name: &str,
+    ) -> Result<FixedIndexReader, Error> {
+
+        let tmpfile = std::fs::OpenOptions::new()
+            .write(true)
+            .read(true)
+            .custom_flags(libc::O_TMPFILE)
+            .open("/tmp")?;
+
+        let tmpfile = self.download(name, tmpfile).await?;
+
+        let index = FixedIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read fixed index '{}' - {}", name, err))?;
+
+        // Note: do not use values stored in index (not trusted) - instead, computed them again
+        let (csum, size) = index.compute_csum();
+        manifest.verify_file(name, &csum, size)?;
+
+        Ok(index)
+    }
 }

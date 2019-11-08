@@ -1095,14 +1095,8 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
     } else if server_archive_name.ends_with(".fidx") {
-        let tmpfile = client.download(&server_archive_name, tmpfile).await?;
 
-        let index = FixedIndexReader::new(tmpfile)
-            .map_err(|err| format_err!("unable to read fixed index '{}' - {}", archive_name, err))?;
-
-        // Note: do not use values stored in index (not trusted) - instead, computed them again
-        let (csum, size) = index.compute_csum();
-        manifest.verify_file(&server_archive_name, &csum, size)?;
+        let index = client.download_fixed_index(&manifest, &server_archive_name).await?;
 
         let mut writer = if let Some(target) = target {
             std::fs::OpenOptions::new()
