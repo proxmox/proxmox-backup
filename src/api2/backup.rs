@@ -235,7 +235,7 @@ fn create_dynamic_index(
     let name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
     let archive_name = name.clone();
-    if !archive_name.ends_with(".pxar.didx") {
+    if !archive_name.ends_with(".didx") {
         bail!("wrong archive extension: '{}'", archive_name);
     }
 
@@ -275,7 +275,7 @@ fn create_fixed_index(
     let size = tools::required_integer_param(&param, "size")? as usize;
 
     let archive_name = name.clone();
-    if !archive_name.ends_with(".img.fidx") {
+    if !archive_name.ends_with(".fidx") {
         bail!("wrong archive extension: '{}'", archive_name);
     }
 
@@ -512,7 +512,7 @@ fn dynamic_chunk_index(
 
     let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".pxar.didx") {
+    if !archive_name.ends_with(".didx") {
         bail!("wrong archive extension: '{}'", archive_name);
     }
 
@@ -583,7 +583,7 @@ fn fixed_chunk_index(
 
     let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".img.fidx") {
+    if !archive_name.ends_with(".fidx") {
         bail!("wrong archive extension: '{}'", archive_name);
     }
 
