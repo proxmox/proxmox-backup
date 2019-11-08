@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{Seek, Write};
+use std::io::Write;
 use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -15,7 +15,7 @@ use nix::sys::stat::Mode;
 use nix::dir::Dir;
 
 use crate::pxar;
-use crate::backup::CatalogBlobWriter;
+use crate::backup::CatalogWriter;
 
 use crate::tools::wrapped_reader_stream::WrappedReaderStream;
 
@@ -41,13 +41,13 @@ impl Drop for PxarBackupStream {
 impl PxarBackupStream {
     pin_utils::unsafe_pinned!(stream: Option<WrappedReaderStream<std::fs::File>>);
 
-    pub fn new<W: Write + Seek + Send + 'static>(
+    pub fn new<W: Write + Send + 'static>(
         mut dir: Dir,
         path: PathBuf,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool,
-        catalog: Arc<Mutex<CatalogBlobWriter<W>>>,
+        catalog: Arc<Mutex<CatalogWriter<W>>>,
     ) -> Result<Self, Error> {
 
         let (rx, tx) = nix::unistd::pipe()?;
@@ -89,12 +89,12 @@ impl PxarBackupStream {
         })
     }
 
-    pub fn open<W: Write + Seek + Send + 'static>(
+    pub fn open<W: Write + Send + 'static>(
         dirname: &Path,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool,
-        catalog: Arc<Mutex<CatalogBlobWriter<W>>>,
+        catalog: Arc<Mutex<CatalogWriter<W>>>,
     ) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;

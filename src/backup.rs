@@ -103,7 +103,8 @@
 //!
 //! Not sure if this is better. TODO
 
-pub const CATALOG_BLOB_NAME: &str = "catalog.blob";
+// Note: .pcat1 => Proxmox Catalog Format version 1
+pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
