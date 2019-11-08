@@ -1,6 +1,7 @@
 use failure::*;
 use std::io::Write;
 use std::sync::Arc;
+use std::os::unix::fs::OpenOptionsExt;
 
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
@@ -132,5 +133,33 @@ impl BackupReader {
         let json: Value = serde_json::from_slice(&data[..])?;
 
         BackupManifest::try_from(json)
+    }
+
+    /// Download dynamic index file
+    ///
+    /// This creates a temorary file in /tmp (using O_TMPFILE). The index is verified using
+    /// the provided manifest.
+    pub async fn download_dynamic_index(
+        &self,
+        manifest: &BackupManifest,
+        name: &str,
+    ) -> Result<DynamicIndexReader, Error> {
+
+        let tmpfile = std::fs::OpenOptions::new()
+            .write(true)
+            .read(true)
+            .custom_flags(libc::O_TMPFILE)
+            .open("/tmp")?;
+
+        let tmpfile = self.download(name, tmpfile).await?;
+
+        let index = DynamicIndexReader::new(tmpfile)
+            .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", name, err))?;
+
+        // Note: do not use values stored in index (not trusted) - instead, computed them again
+        let (csum, size) = index.compute_csum();
+        manifest.verify_file(name, &csum, size)?;
+
+        Ok(index)
     }
 }

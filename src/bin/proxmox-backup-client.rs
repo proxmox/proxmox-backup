@@ -485,22 +485,9 @@ fn dump_catalog(
             true,
         ).await?;
 
-        let tmpfile = std::fs::OpenOptions::new()
-            .write(true)
-            .read(true)
-            .custom_flags(libc::O_TMPFILE)
-            .open("/tmp")?;
-
         let manifest = client.download_manifest().await?;
 
-        let tmpfile = client.download(CATALOG_NAME, tmpfile).await?;
-
-        let index = DynamicIndexReader::new(tmpfile)
-            .map_err(|err| format_err!("unable to read catalog index - {}", err))?;
-
-        // Note: do not use values stored in index (not trusted) - instead, computed them again
-        let (csum, size) = index.compute_csum();
-        manifest.verify_file(CATALOG_NAME, &csum, size)?;
+        let index = client.download_dynamic_index(&manifest, CATALOG_NAME).await?;
 
         let most_used = index.find_most_used_chunks(8);
 
@@ -1077,14 +1064,8 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         }
 
     } else if server_archive_name.ends_with(".didx") {
-        let tmpfile = client.download(&server_archive_name, tmpfile).await?;
 
-        let index = DynamicIndexReader::new(tmpfile)
-            .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", archive_name, err))?;
-
-        // Note: do not use values stored in index (not trusted) - instead, computed them again
-        let (csum, size) = index.compute_csum();
-        manifest.verify_file(&server_archive_name, &csum, size)?;
+        let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
 
         let most_used = index.find_most_used_chunks(8);
 
@@ -1753,23 +1734,10 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         true,
     ).await?;
 
-    let tmpfile = std::fs::OpenOptions::new()
-        .write(true)
-        .read(true)
-        .custom_flags(libc::O_TMPFILE)
-        .open("/tmp")?;
-
     let manifest = client.download_manifest().await?;
 
     if server_archive_name.ends_with(".didx") {
-        let tmpfile = client.download(&server_archive_name, tmpfile).await?;
-        let index = DynamicIndexReader::new(tmpfile)
-            .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", archive_name, err))?;
-
-        // Note: do not use values stored in index (not trusted) - instead, computed them again
-        let (csum, size) = index.compute_csum();
-        manifest.verify_file(&server_archive_name, &csum, size)?;
-
+        let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
         let most_used = index.find_most_used_chunks(8);
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
