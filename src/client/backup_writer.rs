@@ -134,7 +134,7 @@ impl BackupWriter {
             .await
     }
 
-    pub fn force_close(self) {
+    pub fn cancel(&self) {
         self.canceller.cancel();
     }
 
