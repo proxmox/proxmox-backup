@@ -152,8 +152,8 @@ pub use data_blob_reader::*;
 mod data_blob_writer;
 pub use data_blob_writer::*;
 
-mod catalog_blob;
-pub use catalog_blob::*;
+mod catalog;
+pub use catalog::*;
 
 mod chunk_stream;
 pub use chunk_stream::*;
