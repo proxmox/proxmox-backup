@@ -323,6 +323,10 @@ impl <R: Read + Seek> CatalogReader<R> {
             }
         }
 
+        if !cursor.is_empty() {
+            bail!("unable to parse whole catalog data block");
+        }
+
         Ok(())
     }
 
