@@ -102,6 +102,47 @@ impl DirInfo {
 
         Ok((self.name, data))
     }
+
+    fn parse<C: FnMut(CatalogEntryType, Vec<u8>, u64, u64, u64) -> Result<(), Error>>(
+        data: &[u8],
+        mut callback: C,
+    ) -> Result<(), Error> {
+
+        let mut cursor = data;
+
+        let entries = catalog_decode_u64(&mut cursor)?;
+
+        for _ in 0..entries {
+
+            let mut buf = [ 0u8 ];
+            cursor.read_exact(&mut buf)?;
+            let etype = CatalogEntryType::try_from(buf[0])?;
+
+            let name_len = catalog_decode_u64(&mut cursor)?;
+            let name = cursor.read_exact_allocated(name_len as usize)?;
+
+            match etype {
+                CatalogEntryType::Directory => {
+                    let offset = catalog_decode_u64(&mut cursor)?;
+                    callback(etype, name, offset, 0, 0)?;
+                }
+                CatalogEntryType::File => {
+                    let size = catalog_decode_u64(&mut cursor)?;
+                    let mtime = catalog_decode_u64(&mut cursor)?;
+                    callback(etype, name, 0, size, mtime)?;
+                }
+                _ => {
+                    callback(etype, name, 0, 0, 0)?;
+                }
+            }
+        }
+
+        if !cursor.is_empty() {
+            bail!("unable to parse whole catalog data block");
+        }
+
+        Ok(())
+    }
 }
 
 pub struct CatalogWriter<W> {
@@ -280,16 +321,7 @@ impl <R: Read + Seek> CatalogReader<R> {
 
         let data = self.reader.read_exact_allocated(size as usize)?;
 
-        let mut cursor = &data[..];
-
-        let entries = catalog_decode_u64(&mut cursor)?;
-
-        //println!("TEST {} {} size {}", start, entries, size);
-
-        for _ in 0..entries {
-            let etype = CatalogEntryType::try_from(Self::next_byte(&mut cursor)?)?;
-            let name_len = catalog_decode_u64(&mut cursor)?;
-            let name = cursor.read_exact_allocated(name_len as usize)?;
+        DirInfo::parse(&data, |etype, name, offset, size, mtime| {
 
             let mut path = std::path::PathBuf::from(prefix);
             path.push(std::ffi::OsString::from_vec(name));
@@ -297,7 +329,6 @@ impl <R: Read + Seek> CatalogReader<R> {
             match etype {
                 CatalogEntryType::Directory => {
                     println!("{} {:?}", char::from(etype as u8), path);
-                    let offset = catalog_decode_u64(&mut cursor)?;
                     if offset > start {
                         bail!("got wrong directory offset ({} > {})", offset, start);
                     }
@@ -305,31 +336,24 @@ impl <R: Read + Seek> CatalogReader<R> {
                     self.dump_dir(&path, pos)?;
                 }
                 CatalogEntryType::File => {
-                    let size = catalog_decode_u64(&mut cursor)?;
-                    let mtime = catalog_decode_u64(&mut cursor)?;
-
                     let dt = Local.timestamp(mtime as i64, 0);
 
-                    println!("{} {:?} {} {}",
-                             char::from(etype as u8),
-                             path,
-                             size,
-                             dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
+                    println!(
+                        "{} {:?} {} {}",
+                        char::from(etype as u8),
+                        path,
+                        size,
+                        dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
                     );
                 }
                 _ => {
                     println!("{} {:?}", char::from(etype as u8), path);
                 }
             }
-        }
 
-        if !cursor.is_empty() {
-            bail!("unable to parse whole catalog data block");
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
-
 }
 
 /// Serialize u64 as short, variable length byte sequence
