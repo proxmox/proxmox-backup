@@ -1,7 +1,6 @@
 use failure::*;
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStringExt;
-use std::convert::TryInto;
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::convert::TryFrom;
 
@@ -37,68 +36,71 @@ impl DirInfo {
         DirInfo::new(CString::new(b"/".to_vec()).unwrap())
     }
 
-    fn encode_entry(data: &mut Vec<u8>, entry: &DirEntry, pos: u64) {
+    fn encode_entry<W: Write>(
+        writer: &mut W,
+        entry: &DirEntry,
+        pos: u64,
+    ) -> Result<(), Error> {
         match entry {
             DirEntry::Directory { name, start } => {
-                data.push(CatalogEntryType::Directory as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
-                data.extend_from_slice(&(pos-start).to_le_bytes());
+                writer.write_all(&[CatalogEntryType::Directory as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
+                catalog_encode_u64(writer, pos - start)?;
             }
             DirEntry::File { name, size, mtime } => {
-                data.push(CatalogEntryType::File as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
-                data.extend_from_slice(&size.to_le_bytes());
-                data.extend_from_slice(&mtime.to_le_bytes());
+                writer.write_all(&[CatalogEntryType::File as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
+                catalog_encode_u64(writer, *size)?;
+                catalog_encode_u64(writer, *mtime)?;
             }
             DirEntry::Symlink { name } => {
-                data.push(CatalogEntryType::Symlink as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+                writer.write_all(&[CatalogEntryType::Symlink as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
             DirEntry::Hardlink { name } => {
-                data.push(CatalogEntryType::Hardlink as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+                writer.write_all(&[CatalogEntryType::Hardlink as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
             DirEntry::BlockDevice { name } => {
-                data.push(CatalogEntryType::BlockDevice as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+                writer.write_all(&[CatalogEntryType::BlockDevice as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
-             DirEntry::CharDevice { name } => {
-                data.push(CatalogEntryType::CharDevice as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+            DirEntry::CharDevice { name } => {
+                writer.write_all(&[CatalogEntryType::CharDevice as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
             DirEntry::Fifo { name } => {
-                data.push(CatalogEntryType::Fifo as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+                writer.write_all(&[CatalogEntryType::Fifo as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
             DirEntry::Socket { name } => {
-                data.push(CatalogEntryType::Socket as u8);
-                data.extend_from_slice(&(name.len() as u32).to_le_bytes());
-                data.extend_from_slice(name);
+                writer.write_all(&[CatalogEntryType::Socket as u8])?;
+                catalog_encode_u64(writer, name.len() as u64)?;
+                writer.write_all(name)?;
             }
         }
+        Ok(())
     }
 
     fn encode(self, start: u64) -> Result<(CString, Vec<u8>), Error> {
         let mut table = Vec::new();
-        let count: u32 = self.entries.len().try_into()?;
+        catalog_encode_u64(&mut table, self.entries.len() as u64)?;
         for entry in self.entries {
-            Self::encode_entry(&mut table, &entry, start);
+            Self::encode_entry(&mut table, &entry, start)?;
         }
 
-        let data = Vec::new();
-        let mut writer = std::io::Cursor::new(data);
-        let size: u32 = (4 + 4 + table.len()).try_into()?;
-        writer.write_all(&size.to_le_bytes())?;
-        writer.write_all(&count.to_le_bytes())?;
-        writer.write_all(&table)?;
-        Ok((self.name, writer.into_inner()))
+        let mut data = Vec::new();
+        catalog_encode_u64(&mut data, table.len() as u64)?;
+        data.extend_from_slice(&table);
+
+        Ok((self.name, data))
     }
 }
 
@@ -253,7 +255,7 @@ impl <R: Read + Seek> CatalogReader<R> {
         Self { reader }
     }
 
-    fn next_byte<C: Read>(mut reader: C) ->  Result<u8, std::io::Error> {
+    fn next_byte<C: Read>(reader: &mut C) ->  Result<u8, std::io::Error> {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         Ok(buf[0])
@@ -272,21 +274,21 @@ impl <R: Read + Seek> CatalogReader<R> {
 
         self.reader.seek(SeekFrom::Start(start))?;
 
-        let size = unsafe { self.reader.read_le_value::<u32>()? } as usize;
+        let size = catalog_decode_u64(&mut self.reader)?;
 
-        if size < 8 { bail!("got small directory size {}", size) };
+        if size < 1 { bail!("got small directory size {}", size) };
 
-        let data = self.reader.read_exact_allocated(size - 4)?;
+        let data = self.reader.read_exact_allocated(size as usize)?;
 
         let mut cursor = &data[..];
 
-        let entries = unsafe { cursor.read_le_value::<u32>()? };
+        let entries = catalog_decode_u64(&mut cursor)?;
 
         //println!("TEST {} {} size {}", start, entries, size);
 
         for _ in 0..entries {
             let etype = CatalogEntryType::try_from(Self::next_byte(&mut cursor)?)?;
-            let name_len = unsafe { cursor.read_le_value::<u32>()? };
+            let name_len = catalog_decode_u64(&mut cursor)?;
             let name = cursor.read_exact_allocated(name_len as usize)?;
 
             let mut path = std::path::PathBuf::from(prefix);
@@ -295,7 +297,7 @@ impl <R: Read + Seek> CatalogReader<R> {
             match etype {
                 CatalogEntryType::Directory => {
                     println!("{} {:?}", char::from(etype as u8), path);
-                    let offset = unsafe { cursor.read_le_value::<u64>()? };
+                    let offset = catalog_decode_u64(&mut cursor)?;
                     if offset > start {
                         bail!("got wrong directory offset ({} > {})", offset, start);
                     }
@@ -303,8 +305,8 @@ impl <R: Read + Seek> CatalogReader<R> {
                     self.dump_dir(&path, pos)?;
                 }
                 CatalogEntryType::File => {
-                    let size = unsafe { cursor.read_le_value::<u64>()? };
-                    let mtime = unsafe { cursor.read_le_value::<u64>()? };
+                    let size = catalog_decode_u64(&mut cursor)?;
+                    let mtime = catalog_decode_u64(&mut cursor)?;
 
                     let dt = Local.timestamp(mtime as i64, 0);
 
@@ -324,4 +326,76 @@ impl <R: Read + Seek> CatalogReader<R> {
         Ok(())
     }
 
+}
+
+/// Serialize u64 as short, variable length byte sequence
+///
+/// Stores 7 bits per byte, Bit 8 indicates the end of the sequence (when not set).
+/// We limit values to a maximum of 2^63.
+pub fn catalog_encode_u64<W: Write>(writer: &mut W, v: u64) -> Result<(), Error> {
+    let mut enc = Vec::new();
+
+    if (v & (1<<63)) != 0 { bail!("catalog_encode_u64 failed - value >= 2^63"); }
+    let mut d = v;
+    loop {
+        if d < 128 {
+            enc.push(d as u8);
+            break;
+        }
+        enc.push((128 | (d & 127)) as u8);
+        d = d >> 7;
+    }
+    writer.write_all(&enc)?;
+
+    Ok(())
+}
+
+/// Deserialize u64 from variable length byte sequence
+///
+/// We currently read maximal 9 bytes, which give a maximum of 63 bits.
+pub fn catalog_decode_u64<R: Read>(reader: &mut R) -> Result<u64, Error> {
+
+    let mut v: u64 = 0;
+    let mut buf = [0u8];
+
+    for i in 0..9 { // only allow 9 bytes (63 bits)
+        if buf.is_empty() {
+            bail!("decode_u64 failed - unexpected EOB");
+        }
+        reader.read_exact(&mut buf)?;
+        let t = buf[0];
+        if t < 128 {
+            v |= (t as u64) << (i*7);
+            return Ok(v);
+        } else {
+            v |= ((t & 127) as u64) << (i*7);
+        }
+    }
+
+    bail!("decode_u64 failed - missing end marker");
+}
+
+#[test]
+fn test_catalog_u64_encoder() {
+
+    fn test_encode_decode(value: u64) {
+
+        let mut data = Vec::new();
+        catalog_encode_u64(&mut data, value).unwrap();
+
+        //println!("ENCODE {} {:?}", value, data);
+
+        let slice = &mut &data[..];
+        let decoded = catalog_decode_u64(slice).unwrap();
+
+        //println!("DECODE {}", decoded);
+
+        assert!(decoded == value);
+    }
+
+    test_encode_decode(126);
+    test_encode_decode((1<<12)-1);
+    test_encode_decode((1<<20)-1);
+    test_encode_decode((1<<50)-1);
+    test_encode_decode((1<<63)-1);
 }
