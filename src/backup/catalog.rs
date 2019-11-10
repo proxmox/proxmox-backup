@@ -160,6 +160,12 @@ impl <W: Write> CatalogWriter<W> {
         Ok(me)
     }
 
+    fn write_all(&mut self, data: &[u8]) -> Result<(), Error> {
+        self.writer.write_all(data)?;
+        self.pos += u64::try_from(data.len())?;
+        Ok(())
+    }
+
     pub fn finish(&mut self) -> Result<(), Error> {
         if self.dirstack.len() != 1 {
             bail!("unable to finish catalog at level {}", self.dirstack.len());
@@ -253,14 +259,6 @@ impl <W: Write> BackupCatalogWriter for CatalogWriter<W> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
         dir.entries.push(DirEntry::Socket { name });
-        Ok(())
-    }
-}
-
-impl<W: Write> CatalogWriter<W> {
-    fn write_all(&mut self, data: &[u8]) -> Result<(), Error> {
-        self.writer.write_all(data)?;
-        self.pos += u64::try_from(data.len())?;
         Ok(())
     }
 }
