@@ -9,6 +9,7 @@ use chrono::offset::{TimeZone, Local};
 use proxmox::tools::io::ReadExt;
 
 use crate::pxar::catalog::{BackupCatalogWriter, CatalogEntryType};
+use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 
 enum DirEntry {
     Directory { name: Vec<u8>, start: u64 },
@@ -154,7 +155,9 @@ pub struct CatalogWriter<W> {
 impl <W: Write> CatalogWriter<W> {
 
     pub fn new(writer: W) -> Result<Self, Error> {
-        Ok(Self { writer, dirstack: vec![ DirInfo::new_rootdir() ], pos: 0 })
+        let mut me = Self { writer, dirstack: vec![ DirInfo::new_rootdir() ], pos: 0 };
+        me.write_all(&PROXMOX_CATALOG_FILE_MAGIC_1_0)?;
+        Ok(me)
     }
 
     pub fn finish(&mut self) -> Result<(), Error> {

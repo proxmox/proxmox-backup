@@ -2,6 +2,9 @@ use endian_trait::Endian;
 
 // WARNING: PLEASE DO NOT MODIFY THOSE MAGIC VALUES
 
+// openssl::sha::sha256(b"Proxmox Backup Catalog file v1.0")[0..8]
+pub const PROXMOX_CATALOG_FILE_MAGIC_1_0: [u8; 8] = [145, 253, 96, 249, 196, 103, 88, 213];
+
 // openssl::sha::sha256(b"Proxmox Backup uncompressed blob v1.0")[0..8]
 pub const UNCOMPRESSED_BLOB_MAGIC_1_0: [u8; 8] = [66, 171, 56, 7, 190, 131, 112, 161];
 
