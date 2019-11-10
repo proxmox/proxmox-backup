@@ -299,12 +299,6 @@ impl <R: Read + Seek> CatalogReader<R> {
         Self { reader }
     }
 
-    fn next_byte<C: Read>(reader: &mut C) ->  Result<u8, std::io::Error> {
-        let mut buf = [0u8; 1];
-        reader.read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-
     pub fn dump(&mut self) -> Result<(), Error> {
 
         self.reader.seek(SeekFrom::End(-8))?;
