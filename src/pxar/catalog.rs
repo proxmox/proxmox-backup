@@ -6,6 +6,7 @@
 use failure::*;
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::fmt;
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
@@ -35,6 +36,12 @@ impl TryFrom<u8> for CatalogEntryType {
             b's' => CatalogEntryType::Socket,
             _ => bail!("invalid CatalogEntryType value '{}'", char::from(value)),
         })
+    }
+}
+
+impl fmt::Display for CatalogEntryType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", char::from(*self as u8))
     }
 }
 
