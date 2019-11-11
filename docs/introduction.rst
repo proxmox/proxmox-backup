@@ -46,12 +46,17 @@ Main features
 :Performance: The whole software stack is written in :term:`Rust`,
    which provides high speed and memory efficiency.
 
-:Compression: Ultra fast `LZ4`_ compression is able to compress
+:Compression: Ultra fast Zstandard_ compression is able to compress
    several gigabytes of data per second.
+
+:Encryption: Backups can be encrypted at client side using AES-256 in
+   GCM_ mode. This authenticated encryption mode (AE_) provides very
+   high performance on modern hardware.
 
 :Open Source: No secrets. You have access to the whole source tree.
 
 :Support: Commercial support options available from `Proxmox`_.
+
 
 Why Backup?
 -----------
@@ -77,6 +82,13 @@ required by law.
 
 - restore tests. to make sure backup/restore works
 
+
+Software Stack
+--------------
+
+
+License
+-------
 
 
 

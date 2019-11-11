@@ -8,7 +8,7 @@
 
 
 .. _Container: https://en.wikipedia.org/wiki/Container_(virtualization)
-.. _LZ4: https://en.wikipedia.org/wiki/LZ4_(compression_algorithm)
+.. _Zstandard: https://en.wikipedia.org/wiki/Zstandard
 .. _Proxmox: https://www.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
 .. _Proxmox Backup: https://www.proxmox.com/proxmox-backup
@@ -21,3 +21,5 @@
 .. _QEMU: https://www.qemu.org/
 
 .. _Client-server model: https://en.wikipedia.org/wiki/Client-server_model
+.. _AE: https://en.wikipedia.org/wiki/Authenticated_encryption
+.. _GCM: https://en.wikipedia.org/wiki/Galois/Counter_Mode
