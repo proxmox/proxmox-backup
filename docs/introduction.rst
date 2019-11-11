@@ -10,6 +10,19 @@ Proxmox Backup is an enterprise class client-server backup software,
 specially optimized for `Proxmox Virtual Environment`_ to backup
 :term:`virtual machine`\ s and :term:`container`\ s.
 
+Architecture
+------------
+
+Proxmox Backup uses a `Client-server model`_. The server is
+responsible to store the backup data, and provides an API to create
+backups and restore data. It is also possible to manage disks and
+other resources using this API.
+
+A backup client uses this API to access the backed up data,
+i.e. ``proxmox-backup-client`` is a command line tool to create
+backups and restore data. We also deliver an integrated client for
+QEMU_ with `Proxmox Virtual Environment`_.
+
 
 Main features
 -------------

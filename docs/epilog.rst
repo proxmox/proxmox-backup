@@ -18,3 +18,6 @@
 .. _Sphinx: https://www.sphinx-doc.org
 .. _Virtual machine: https://en.wikipedia.org/wiki/Virtual_machine
 .. _APT: http://en.wikipedia.org/wiki/Advanced_Packaging_Tool
+.. _QEMU: https://www.qemu.org/
+
+.. _Client-server model: https://en.wikipedia.org/wiki/Client-server_model
