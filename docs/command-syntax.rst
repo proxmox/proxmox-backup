@@ -6,3 +6,8 @@ Command Syntax
 
 .. include:: proxmox-backup-client/synopsis.rst
 
+``proxmox-backup-manager``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. include:: proxmox-backup-manager/synopsis.rst
+

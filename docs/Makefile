@@ -8,11 +8,13 @@ endif
 
 GENERATED_SYNOPSIS := 				\
 	proxmox-backup-client/synopsis.rst	\
+	proxmox-backup-manager/synopsis.rst	\
 	backup-protocol-api.rst
 
 MANUAL_PAGES := 			\
 	proxmox-backup-proxy.1		\
-	proxmox-backup-client.1
+	proxmox-backup-client.1		\
+	proxmox-backup-manager.1
 
 
 # Sphinx documentation setup
@@ -41,6 +43,12 @@ proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 
 
 proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst
+	rst2man $< >$@
+
+proxmox-backup-manager/synopsis.rst: ${COMPILEDIR}/proxmox-backup-manager
+	${COMPILEDIR}/proxmox-backup-manager printdoc > proxmox-backup-manager/synopsis.rst
+
+proxmox-backup-manager.1: proxmox-backup-manager/man1.rst  proxmox-backup-manager/description.rst proxmox-backup-manager/synopsis.rst
 	rst2man $< >$@
 
 proxmox-backup-proxy.1: proxmox-backup-proxy/man1.rst  proxmox-backup-proxy/description.rst
