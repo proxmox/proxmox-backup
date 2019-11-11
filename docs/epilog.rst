@@ -11,8 +11,10 @@
 .. _LZ4: https://en.wikipedia.org/wiki/LZ4_(compression_algorithm)
 .. _Proxmox: https://www.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
+.. _Proxmox Backup: https://www.proxmox.com/proxmox-backup
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
 .. _Rust: https://www.rust-lang.org/
 .. _SHA-256: https://en.wikipedia.org/wiki/SHA-2
 .. _Sphinx: https://www.sphinx-doc.org
 .. _Virtual machine: https://en.wikipedia.org/wiki/Virtual_machine
+.. _APT: http://en.wikipedia.org/wiki/Advanced_Packaging_Tool
