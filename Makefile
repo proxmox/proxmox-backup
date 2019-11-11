@@ -32,8 +32,8 @@ endif
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 
-DEB=${PACKAGE}_${PKGVER}-${PKGREL}_${ARCH}.deb
-DSC=${PACKAGE}_${PKGVER}-${PKGREL}.dsc
+DEBS= ${PACKAGE}-server_${PKGVER}-${PKGREL}_${ARCH}.deb ${PACKAGE}-client_${PKGVER}-${PKGREL}_${ARCH}.deb
+
 
 DESTDIR=
 
@@ -64,10 +64,10 @@ build:
 	    $(MAKE) -C build/$(i) clean ;)
 
 .PHONY: deb
-deb: $(DEB)
-$(DEB): build
+deb: $(DEBS)
+$(DEBS): build
 	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
-	lintian $(DEB)
+	lintian $(DEBS)
 
 .PHONY: dsc
 dsc: $(DSC)
@@ -85,8 +85,8 @@ clean:
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
-dinstall: ${DEB}
-	dpkg -i ${DEB}
+dinstall: ${DEBS}
+	dpkg -i ${DEBS}
 
 # make sure we build binaries before docs
 docs: cargo-build

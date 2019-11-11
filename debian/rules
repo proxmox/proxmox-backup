@@ -6,12 +6,15 @@
 export BUILD_MODE=release
 
 %:
-	dh $@ --with=systemd --with=bash-completion
+	dh $@ --with=bash-completion
 
 override_dh_auto_build:
 	dh_auto_build -- \
 	    PROXY_USER=backup \
 	    LIBDIR=/usr/lib/$(DEB_HOST_MULTIARCH)
+
+override_dh_missing:
+	dh_missing --fail-missing
 
 override_dh_auto_install:
 	dh_auto_install -- \

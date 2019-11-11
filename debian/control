@@ -15,12 +15,20 @@ Build-Depends: bash-completion,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
-Package: proxmox-backup
+Package: proxmox-backup-server
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 	 libjs-extjs (>= 6.0.1),
 	 fonts-font-awesome,
 	 proxmox-widget-toolkit,
 	 libzstd1 (>= 1.3.8),
-Description: Proxmox Backup Server
- This is experimental code used to test Rust.
+Description: Proxmox Backup Server daemon with tools and GUI
+ This package contains the Proxmox Backup Server daemons and related
+ tools. This includes a web-based graphical user interface.
+
+Package: proxmox-backup-client
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Description: Proxmox Backup Client tools
+ This package contains the Proxmox Backup client, which provides a
+ simple command line tool to create and restore backups.
