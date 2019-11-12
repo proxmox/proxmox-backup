@@ -1,6 +1,6 @@
 use failure::*;
-use std::ffi::{CStr, CString};
-use std::os::unix::ffi::OsStringExt;
+use std::ffi::{CStr, CString, OsStr};
+use std::os::unix::ffi::OsStrExt;
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::convert::TryFrom;
 
@@ -11,15 +11,20 @@ use proxmox::tools::io::ReadExt;
 use crate::pxar::catalog::{BackupCatalogWriter, CatalogEntryType};
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 
-enum DirEntry {
-    Directory { name: Vec<u8>, start: u64 },
-    File { name: Vec<u8>, size: u64, mtime: u64 },
-    Symlink { name: Vec<u8> },
-    Hardlink { name: Vec<u8> },
-    BlockDevice { name: Vec<u8> },
-    CharDevice { name: Vec<u8> },
-    Fifo { name: Vec<u8> },
-    Socket { name: Vec<u8> },
+struct DirEntry {
+    name: Vec<u8>,
+    attr: DirEntryAttribute,
+}
+
+enum DirEntryAttribute {
+    Directory { start: u64 },
+    File { size: u64, mtime: u64 },
+    Symlink,
+    Hardlink,
+    BlockDevice,
+    CharDevice,
+    Fifo,
+    Socket,
 }
 
 struct DirInfo {
@@ -43,45 +48,45 @@ impl DirInfo {
         pos: u64,
     ) -> Result<(), Error> {
         match entry {
-            DirEntry::Directory { name, start } => {
+            DirEntry { name, attr: DirEntryAttribute::Directory { start } } => {
                 writer.write_all(&[CatalogEntryType::Directory as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
                 catalog_encode_u64(writer, pos - start)?;
             }
-            DirEntry::File { name, size, mtime } => {
+            DirEntry { name, attr: DirEntryAttribute::File { size, mtime } } => {
                 writer.write_all(&[CatalogEntryType::File as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
                 catalog_encode_u64(writer, *size)?;
                 catalog_encode_u64(writer, *mtime)?;
             }
-            DirEntry::Symlink { name } => {
+            DirEntry { name, attr: DirEntryAttribute::Symlink } => {
                 writer.write_all(&[CatalogEntryType::Symlink as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
             }
-            DirEntry::Hardlink { name } => {
+            DirEntry { name, attr: DirEntryAttribute::Hardlink } => {
                 writer.write_all(&[CatalogEntryType::Hardlink as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
             }
-            DirEntry::BlockDevice { name } => {
+            DirEntry { name, attr: DirEntryAttribute::BlockDevice } => {
                 writer.write_all(&[CatalogEntryType::BlockDevice as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
             }
-            DirEntry::CharDevice { name } => {
+            DirEntry { name, attr: DirEntryAttribute::CharDevice } => {
                 writer.write_all(&[CatalogEntryType::CharDevice as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
             }
-            DirEntry::Fifo { name } => {
+            DirEntry { name, attr: DirEntryAttribute::Fifo } => {
                 writer.write_all(&[CatalogEntryType::Fifo as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
             }
-            DirEntry::Socket { name } => {
+            DirEntry { name, attr: DirEntryAttribute::Socket } => {
                 writer.write_all(&[CatalogEntryType::Socket as u8])?;
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
@@ -104,7 +109,7 @@ impl DirInfo {
         Ok((self.name, data))
     }
 
-    fn parse<C: FnMut(CatalogEntryType, Vec<u8>, u64, u64, u64) -> Result<(), Error>>(
+    fn parse<C: FnMut(CatalogEntryType, &[u8], u64, u64, u64) -> Result<(), Error>>(
         data: &[u8],
         mut callback: C,
     ) -> Result<(), Error> {
@@ -113,14 +118,20 @@ impl DirInfo {
 
         let entries = catalog_decode_u64(&mut cursor)?;
 
+        let mut name_buf = vec![0u8; 4096];
+
         for _ in 0..entries {
 
             let mut buf = [ 0u8 ];
             cursor.read_exact(&mut buf)?;
             let etype = CatalogEntryType::try_from(buf[0])?;
 
-            let name_len = catalog_decode_u64(&mut cursor)?;
-            let name = cursor.read_exact_allocated(name_len as usize)?;
+            let name_len = catalog_decode_u64(&mut cursor)? as usize;
+            if name_len >= name_buf.len() {
+                bail!("directory entry name too long ({} >= {})", name_len, name_buf.len());
+            }
+            let name = &mut name_buf[0..name_len];
+            cursor.read_exact(name)?;
 
             match etype {
                 CatalogEntryType::Directory => {
@@ -208,7 +219,7 @@ impl <W: Write> BackupCatalogWriter for CatalogWriter<W> {
 
         let current = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        current.entries.push(DirEntry::Directory { name, start });
+        current.entries.push(DirEntry { name, attr: DirEntryAttribute::Directory { start } });
 
         Ok(())
     }
@@ -216,49 +227,49 @@ impl <W: Write> BackupCatalogWriter for CatalogWriter<W> {
     fn add_file(&mut self, name: &CStr, size: u64, mtime: u64) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::File { name, size, mtime });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::File { size, mtime } });
         Ok(())
     }
 
     fn add_symlink(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::Symlink { name });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::Symlink });
         Ok(())
     }
 
     fn add_hardlink(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::Hardlink { name });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::Hardlink });
         Ok(())
     }
 
     fn add_block_device(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::BlockDevice { name });
-         Ok(())
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::BlockDevice });
+        Ok(())
     }
 
     fn add_char_device(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::CharDevice { name });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::CharDevice });
         Ok(())
     }
 
     fn add_fifo(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::Fifo { name });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::Fifo });
         Ok(())
     }
 
     fn add_socket(&mut self, name: &CStr) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
-        dir.entries.push(DirEntry::Socket { name });
+        dir.entries.push(DirEntry { name, attr: DirEntryAttribute::Socket });
         Ok(())
     }
 }
@@ -319,7 +330,8 @@ impl <R: Read + Seek> CatalogReader<R> {
         DirInfo::parse(&data, |etype, name, offset, size, mtime| {
 
             let mut path = std::path::PathBuf::from(prefix);
-            path.push(std::ffi::OsString::from_vec(name));
+            let name: &OsStr = OsStrExt::from_bytes(name);
+            path.push(name);
 
             match etype {
                 CatalogEntryType::Directory => {
