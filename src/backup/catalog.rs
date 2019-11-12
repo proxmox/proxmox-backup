@@ -440,7 +440,7 @@ impl <R: Read + Seek> CatalogReader<R> {
         let mut entry_list = Vec::new();
 
         DirInfo::parse(&data, |etype, name, offset, size, mtime| {
-            let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
+            let entry = DirEntry::new(etype, name.to_vec(), start - offset, size, mtime);
             entry_list.push(entry);
             Ok(true)
         })?;
@@ -468,7 +468,7 @@ impl <R: Read + Seek> CatalogReader<R> {
                 return Ok(true);
             }
 
-            let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
+            let entry = DirEntry::new(etype, name.to_vec(), start - offset, size, mtime);
             item = Some(entry);
             Ok(false) // stop parsing
         })?;
