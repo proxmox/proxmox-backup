@@ -396,7 +396,12 @@ impl <R: Read + Seek> CatalogReader<R> {
     /// Get the root DirEntry
     pub fn root(&mut self) ->  Result<DirEntry, Error>  {
         // Root dir is special
-        // mixme: verify magic
+        self.reader.seek(SeekFrom::Start(0))?;
+        let mut magic = [ 0u8; 8];
+        self.reader.read_exact(&mut magic)?;
+        if magic != PROXMOX_CATALOG_FILE_MAGIC_1_0 {
+            bail!("got unexpected magic number for catalog");
+        }
         self.reader.seek(SeekFrom::End(-8))?;
         let start = unsafe { self.reader.read_le_value::<u64>()? };
         Ok(DirEntry { name: b"".to_vec(), attr: DirEntryAttribute::Directory { start } })
