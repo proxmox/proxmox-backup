@@ -14,7 +14,7 @@ use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
-pub enum CatalogEntryType {
+enum CatalogEntryType {
     Directory = b'd',
     File = b'f',
     Symlink = b'l',
@@ -49,12 +49,44 @@ impl fmt::Display for CatalogEntryType {
     }
 }
 
-struct DirEntry {
-    name: Vec<u8>,
-    attr: DirEntryAttribute,
+pub struct DirEntry {
+    pub name: Vec<u8>,
+    pub attr: DirEntryAttribute,
 }
 
-enum DirEntryAttribute {
+impl DirEntry {
+
+    fn new(etype: CatalogEntryType, name: Vec<u8>, start: u64, size: u64, mtime:u64) -> Self {
+        match etype {
+            CatalogEntryType::Directory => {
+                DirEntry { name, attr: DirEntryAttribute::Directory { start } }
+            }
+            CatalogEntryType::File => {
+                DirEntry { name, attr: DirEntryAttribute::File { size, mtime } }
+            }
+            CatalogEntryType::Symlink => {
+                DirEntry { name, attr: DirEntryAttribute::Symlink }
+            }
+            CatalogEntryType::Hardlink => {
+                DirEntry { name, attr: DirEntryAttribute::Hardlink }
+            }
+            CatalogEntryType::BlockDevice => {
+                DirEntry { name, attr: DirEntryAttribute::BlockDevice }
+            }
+            CatalogEntryType::CharDevice => {
+                DirEntry { name, attr: DirEntryAttribute::CharDevice }
+            }
+            CatalogEntryType::Fifo => {
+                DirEntry { name, attr: DirEntryAttribute::Fifo }
+            }
+            CatalogEntryType::Socket => {
+                DirEntry { name, attr: DirEntryAttribute::Socket }
+            }
+        }
+    }
+}
+
+pub enum DirEntryAttribute {
     Directory { start: u64 },
     File { size: u64, mtime: u64 },
     Symlink,
@@ -355,15 +387,83 @@ impl <R: Read + Seek> CatalogReader<R> {
         self.dump_dir(std::path::Path::new("./"), start)
     }
 
+    /// Get the root DirEntry
+    pub fn root(&mut self) ->  Result<DirEntry, Error>  {
+        // Root dir is special
+        // mixme: verify magic
+        self.reader.seek(SeekFrom::End(-8))?;
+        let start = unsafe { self.reader.read_le_value::<u64>()? };
+        Ok(DirEntry { name: b"".to_vec(), attr: DirEntryAttribute::Directory { start } })
+    }
+
+    /// Read all directory entries
+    pub fn read_dir(
+        &mut self,
+        parent: &DirEntry,
+    ) -> Result<Vec<DirEntry>, Error>  {
+
+        let start = match parent.attr {
+            DirEntryAttribute::Directory { start } => start,
+            _ => bail!("parent is not a directory - internal error"),
+        };
+
+        let data = self.read_raw_dirinfo_block(start)?;
+
+        let mut entry_list = Vec::new();
+
+        DirInfo::parse(&data, |etype, name, offset, size, mtime| {
+            let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
+            entry_list.push(entry);
+            Ok(())
+        })?;
+
+        Ok(entry_list)
+    }
+
+    /// Lockup a DirEntry inside a parent directory
+    pub fn lookup(
+        &mut self,
+        parent: &DirEntry,
+        filename: &[u8],
+    ) -> Result<DirEntry, Error>  {
+
+        let start = match parent.attr {
+            DirEntryAttribute::Directory { start } => start,
+            _ => bail!("parent is not a directory - internal error"),
+        };
+
+        let data = self.read_raw_dirinfo_block(start)?;
+
+        let mut item = None;
+        DirInfo::parse(&data, |etype, name, offset, size, mtime| {
+            if name != filename {
+                return Ok(());
+            }
+
+            let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
+            item = Some(entry);
+
+            Ok(())
+        })?;
+
+        match item {
+            None => bail!("no such file"),
+            Some(entry) => Ok(entry),
+        }
+    }
+
+    /// Read the raw directory info block from current reader position.
+    fn read_raw_dirinfo_block(&mut self, start: u64) ->  Result<Vec<u8>, Error>  {
+        self.reader.seek(SeekFrom::Start(start))?;
+        let size = catalog_decode_u64(&mut self.reader)?;
+        if size < 1 { bail!("got small directory size {}", size) };
+        let data = self.reader.read_exact_allocated(size as usize)?;
+        Ok(data)
+    }
+
     pub fn dump_dir(&mut self, prefix: &std::path::Path, start: u64) -> Result<(), Error> {
 
-        self.reader.seek(SeekFrom::Start(start))?;
-
-        let size = catalog_decode_u64(&mut self.reader)?;
-
-        if size < 1 { bail!("got small directory size {}", size) };
-
-        let data = self.reader.read_exact_allocated(size as usize)?;
+        let data = self.read_raw_dirinfo_block(start)?;
 
         DirInfo::parse(&data, |etype, name, offset, size, mtime| {
 
