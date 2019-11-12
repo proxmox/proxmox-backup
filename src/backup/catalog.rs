@@ -1,4 +1,5 @@
 use failure::*;
+use std::fmt;
 use std::ffi::{CStr, CString, OsStr};
 use std::os::unix::ffi::OsStrExt;
 use std::io::{Read, Write, Seek, SeekFrom};
@@ -8,8 +9,45 @@ use chrono::offset::{TimeZone, Local};
 
 use proxmox::tools::io::ReadExt;
 
-use crate::pxar::catalog::{BackupCatalogWriter, CatalogEntryType};
+use crate::pxar::catalog::BackupCatalogWriter;
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
+
+#[repr(u8)]
+#[derive(Copy,Clone,PartialEq)]
+pub enum CatalogEntryType {
+    Directory = b'd',
+    File = b'f',
+    Symlink = b'l',
+    Hardlink = b'h',
+    BlockDevice = b'b',
+    CharDevice = b'c',
+    Fifo = b'p', // Fifo,Pipe
+    Socket = b's',
+}
+
+impl TryFrom<u8> for CatalogEntryType {
+    type Error=Error;
+
+    fn try_from(value: u8) -> Result<Self, Error> {
+        Ok(match value {
+            b'd' => CatalogEntryType::Directory,
+            b'f' => CatalogEntryType::File,
+            b'l' => CatalogEntryType::Symlink,
+            b'h' => CatalogEntryType::Hardlink,
+            b'b' => CatalogEntryType::BlockDevice,
+            b'c' => CatalogEntryType::CharDevice,
+            b'p' => CatalogEntryType::Fifo,
+            b's' => CatalogEntryType::Socket,
+            _ => bail!("invalid CatalogEntryType value '{}'", char::from(value)),
+        })
+    }
+}
+
+impl fmt::Display for CatalogEntryType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", char::from(*self as u8))
+    }
+}
 
 struct DirEntry {
     name: Vec<u8>,
