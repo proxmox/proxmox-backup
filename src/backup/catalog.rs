@@ -179,7 +179,7 @@ impl DirInfo {
         Ok((self.name, data))
     }
 
-    fn parse<C: FnMut(CatalogEntryType, &[u8], u64, u64, u64) -> Result<(), Error>>(
+    fn parse<C: FnMut(CatalogEntryType, &[u8], u64, u64, u64) -> Result<bool, Error>>(
         data: &[u8],
         mut callback: C,
     ) -> Result<(), Error> {
@@ -203,19 +203,22 @@ impl DirInfo {
             let name = &mut name_buf[0..name_len];
             cursor.read_exact(name)?;
 
-            match etype {
+            let cont = match etype {
                 CatalogEntryType::Directory => {
                     let offset = catalog_decode_u64(&mut cursor)?;
-                    callback(etype, name, offset, 0, 0)?;
+                    callback(etype, name, offset, 0, 0)?
                 }
                 CatalogEntryType::File => {
                     let size = catalog_decode_u64(&mut cursor)?;
                     let mtime = catalog_decode_u64(&mut cursor)?;
-                    callback(etype, name, 0, size, mtime)?;
+                    callback(etype, name, 0, size, mtime)?
                 }
                 _ => {
-                    callback(etype, name, 0, 0, 0)?;
+                    callback(etype, name, 0, 0, 0)?
                 }
+            };
+            if !cont {
+                return Ok(());
             }
         }
 
@@ -414,7 +417,7 @@ impl <R: Read + Seek> CatalogReader<R> {
         DirInfo::parse(&data, |etype, name, offset, size, mtime| {
             let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
             entry_list.push(entry);
-            Ok(())
+            Ok(true)
         })?;
 
         Ok(entry_list)
@@ -437,13 +440,12 @@ impl <R: Read + Seek> CatalogReader<R> {
         let mut item = None;
         DirInfo::parse(&data, |etype, name, offset, size, mtime| {
             if name != filename {
-                return Ok(());
+                return Ok(true);
             }
 
             let entry = DirEntry::new(etype, name.to_vec(), offset, size, mtime);
             item = Some(entry);
-
-            Ok(())
+            Ok(false) // stop parsing
         })?;
 
         match item {
@@ -496,7 +498,7 @@ impl <R: Read + Seek> CatalogReader<R> {
                 }
             }
 
-            Ok(())
+            Ok(true)
         })
     }
 }
