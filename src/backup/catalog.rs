@@ -49,9 +49,25 @@ impl fmt::Display for CatalogEntryType {
     }
 }
 
+/// Represents a named directory entry
+///
+/// The ``attr`` property contain the exact type with type specific
+/// attributes.
 pub struct DirEntry {
     pub name: Vec<u8>,
     pub attr: DirEntryAttribute,
+}
+
+/// Used to specific additional attributes inside DirEntry
+pub enum DirEntryAttribute {
+    Directory { start: u64 },
+    File { size: u64, mtime: u64 },
+    Symlink,
+    Hardlink,
+    BlockDevice,
+    CharDevice,
+    Fifo,
+    Socket,
 }
 
 impl DirEntry {
@@ -84,17 +100,6 @@ impl DirEntry {
             }
         }
     }
-}
-
-pub enum DirEntryAttribute {
-    Directory { start: u64 },
-    File { size: u64, mtime: u64 },
-    Symlink,
-    Hardlink,
-    BlockDevice,
-    CharDevice,
-    Fifo,
-    Socket,
 }
 
 struct DirInfo {
@@ -230,6 +235,12 @@ impl DirInfo {
     }
 }
 
+/// Write small catalog files
+///
+/// A Catalogs simply contains list of files and directories
+/// (directory tree). They are use to find content without having to
+/// search the real archive (which may be large). For files, they
+/// include the last modification time and file size.
 pub struct CatalogWriter<W> {
     writer: W,
     dirstack: Vec<DirInfo>,
@@ -238,6 +249,7 @@ pub struct CatalogWriter<W> {
 
 impl <W: Write> CatalogWriter<W> {
 
+    /// Create a new  CatalogWriter instance
     pub fn new(writer: W) -> Result<Self, Error> {
         let mut me = Self { writer, dirstack: vec![ DirInfo::new_rootdir() ], pos: 0 };
         me.write_all(&PROXMOX_CATALOG_FILE_MAGIC_1_0)?;
@@ -250,6 +262,9 @@ impl <W: Write> CatalogWriter<W> {
         Ok(())
     }
 
+    /// Finish writing, flush all data
+    ///
+    /// This need to be called before drop.
     pub fn finish(&mut self) -> Result<(), Error> {
         if self.dirstack.len() != 1 {
             bail!("unable to finish catalog at level {}", self.dirstack.len());
@@ -371,17 +386,19 @@ impl Write for SenderWriter {
     }
 }
 
+/// Read Catalog files
 pub struct CatalogReader<R> {
     reader: R,
 }
 
 impl <R: Read + Seek> CatalogReader<R> {
 
+    /// Create a new CatalogReader instance
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
 
-    /// Print catalog to stdout
+    /// Print whole catalog to stdout
     pub fn dump(&mut self) -> Result<(), Error> {
 
         let root = self.root()?;
@@ -471,6 +488,7 @@ impl <R: Read + Seek> CatalogReader<R> {
         Ok(data)
     }
 
+    /// Print the content of a directory to stdout
     pub fn dump_dir(&mut self, prefix: &std::path::Path, start: u64) -> Result<(), Error> {
 
         let data = self.read_raw_dirinfo_block(start)?;
