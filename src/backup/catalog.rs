@@ -381,13 +381,16 @@ impl <R: Read + Seek> CatalogReader<R> {
         Self { reader }
     }
 
+    /// Print catalog to stdout
     pub fn dump(&mut self) -> Result<(), Error> {
 
-        self.reader.seek(SeekFrom::End(-8))?;
-
-        let start = unsafe { self.reader.read_le_value::<u64>()? };
-
-        self.dump_dir(std::path::Path::new("./"), start)
+        let root = self.root()?;
+        match root {
+            DirEntry { attr: DirEntryAttribute::Directory { start }, .. }=> {
+                self.dump_dir(std::path::Path::new("./"), start)
+            }
+            _ => unreachable!(),
+        }
     }
 
     /// Get the root DirEntry
