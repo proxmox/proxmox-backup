@@ -5,7 +5,8 @@
 
 .. |VERSION| replace:: 1.0
 .. |AUTHOR| replace:: Proxmox Support Team <support@proxmox.com>
-
+.. |WEBSITE| replace:: https://www.proxmox.com
+.. |DOWNLOADS| replace:: https://www.proxmox.com/downloads
 
 .. _Container: https://en.wikipedia.org/wiki/Container_(virtualization)
 .. _Zstandard: https://en.wikipedia.org/wiki/Zstandard
@@ -24,3 +25,7 @@
 .. _AE: https://en.wikipedia.org/wiki/Authenticated_encryption
 .. _GCM: https://en.wikipedia.org/wiki/Galois/Counter_Mode
 .. _AGPL3: https://www.gnu.org/licenses/agpl-3.0.en.html
+.. _Debian: https://www.debian.org/index.html
+.. _LVM: https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)
+.. _ZFS: https://en.wikipedia.org/wiki/ZFS
+.. _Proxmox VE: https://pve.proxmox.com

@@ -13,6 +13,12 @@ Glossary
       A Container is an isolated user space. Programs runs directly on
       the hosts kernel, but with limited access to the host resources.
 
+   Datastore
+
+      A place to store backups. The current implemenation is
+      file-system based, so this refers to a directory containing the
+      backup data.
+
    `Rust`_
 
       Rust is a new, fast and memory-efficient system programming

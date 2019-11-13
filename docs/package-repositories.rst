@@ -1,3 +1,5 @@
+.. _sysadmin_package_repositories:
+
 Debian Package Repositories
 ---------------------------
 
