@@ -91,6 +91,7 @@ exclude_patterns = [
     'proxmox-backup-proxy/man1.rst',
     'epilog.rst',
     'pbs-copyright.rst',
+    'package-repositories.rst',
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
