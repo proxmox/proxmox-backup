@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use failure::*;
 use serde_json::Value;
+use openssl::hash::{hash, DigestBytes, MessageDigest};
 
 use proxmox::tools::vec;
 
@@ -385,13 +386,18 @@ where
     Ok(())
 }
 
+/// Shortcut for md5 sums.
+pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {
+    hash(MessageDigest::md5(), data).map_err(Error::from)
+}
+
 pub fn get_hardware_address() -> Result<String, Error> {
     static FILENAME: &str = "/etc/ssh/ssh_host_rsa_key.pub";
 
     let contents = proxmox::tools::fs::file_get_contents(FILENAME)?;
-    let digest = md5::compute(contents);
+    let digest = md5sum(&contents)?;
 
-    Ok(format!("{:0x}", digest))
+    Ok(proxmox::tools::bin_to_hex(&digest))
 }
 
 pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
