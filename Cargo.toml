@@ -44,7 +44,6 @@ tokio-net = { version = "0.2.0-alpha.4", features = ["signal"] }
 tokio-openssl = "0.4.0-alpha.2"
 tower-service = "0.3.0-alpha.1"
 url = "1.7"
-uuid = { version = "0.7", features = ["v4"] }
 valgrind_request = { version = "1.1", optional = true }
 walkdir = "2"
 xdg = "2.2"

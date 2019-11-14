@@ -1,24 +1,24 @@
 use failure::*;
-use std::io::{Seek, SeekFrom};
 use std::convert::TryInto;
+use std::io::{Seek, SeekFrom};
 
-use crate::tools;
-use super::IndexFile;
 use super::chunk_stat::*;
 use super::chunk_store::*;
+use super::IndexFile;
+use crate::tools;
 
-use std::sync::Arc;
-use std::io::Write;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::os::unix::io::AsRawFd;
-use uuid::Uuid;
 use chrono::{Local, TimeZone};
+use std::fs::File;
+use std::io::Write;
+use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use super::ChunkInfo;
 use super::read_chunk::*;
+use super::ChunkInfo;
 
 use proxmox::tools::io::ReadExt;
+use proxmox::tools::Uuid;
 
 /// Header format definition for fixed index files (`.fidx`)
 #[repr(C)]
@@ -52,7 +52,6 @@ unsafe impl Send for FixedIndexReader {}
 unsafe impl Sync for FixedIndexReader {}
 
 impl Drop for FixedIndexReader {
-
     fn drop(&mut self) {
         if let Err(err) = self.unmap() {
             eprintln!("Unable to unmap file - {}", err);
@@ -61,9 +60,7 @@ impl Drop for FixedIndexReader {
 }
 
 impl FixedIndexReader {
-
     pub fn open(path: &Path) -> Result<Self, Error> {
-
         File::open(path)
             .map_err(Error::from)
             .and_then(|file| Self::new(file))
@@ -71,8 +68,9 @@ impl FixedIndexReader {
     }
 
     pub fn new(mut file: std::fs::File) -> Result<Self, Error> {
-
-        if let Err(err) = nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock) {
+        if let Err(err) =
+            nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock)
+        {
             bail!("unable to get shared lock - {}", err);
         }
 
@@ -89,8 +87,8 @@ impl FixedIndexReader {
         let ctime = u64::from_le(header.ctime);
         let chunk_size = u64::from_le(header.chunk_size);
 
-        let index_length = ((size + chunk_size - 1)/chunk_size) as usize;
-        let index_size = index_length*32;
+        let index_length = ((size + chunk_size - 1) / chunk_size) as usize;
+        let index_size = index_length * 32;
 
         let rawfd = file.as_raw_fd();
 
@@ -101,16 +99,23 @@ impl FixedIndexReader {
 
         let expected_index_size = (stat.st_size as usize) - header_size;
         if index_size != expected_index_size {
-            bail!("got unexpected file size ({} != {})", index_size, expected_index_size);
+            bail!(
+                "got unexpected file size ({} != {})",
+                index_size,
+                expected_index_size
+            );
         }
 
-        let data = unsafe { nix::sys::mman::mmap(
-            std::ptr::null_mut(),
-            index_size,
-            nix::sys::mman::ProtFlags::PROT_READ,
-            nix::sys::mman::MapFlags::MAP_PRIVATE,
-            file.as_raw_fd(),
-            header_size as i64) }? as *mut u8;
+        let data = unsafe {
+            nix::sys::mman::mmap(
+                std::ptr::null_mut(),
+                index_size,
+                nix::sys::mman::ProtFlags::PROT_READ,
+                nix::sys::mman::MapFlags::MAP_PRIVATE,
+                file.as_raw_fd(),
+                header_size as i64,
+            )
+        }? as *mut u8;
 
         Ok(Self {
             _file: file,
@@ -125,12 +130,15 @@ impl FixedIndexReader {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
+        if self.index == std::ptr::null_mut() {
+            return Ok(());
+        }
 
-        if self.index == std::ptr::null_mut() { return Ok(()); }
+        let index_size = self.index_length * 32;
 
-        let index_size = self.index_length*32;
-
-        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
+        if let Err(err) =
+            unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) }
+        {
             bail!("unmap file failed - {}", err);
         }
 
@@ -140,7 +148,6 @@ impl FixedIndexReader {
     }
 
     pub fn chunk_info(&self, pos: usize) -> Result<(u64, u64, [u8; 32]), Error> {
-
         if pos >= self.index_length {
             bail!("chunk index out of range");
         }
@@ -154,7 +161,7 @@ impl FixedIndexReader {
         let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
         unsafe {
             std::ptr::copy_nonoverlapping(
-                self.index.add(pos*32),
+                self.index.add(pos * 32),
                 (*digest.as_mut_ptr()).as_mut_ptr(),
                 32,
             );
@@ -168,7 +175,7 @@ impl FixedIndexReader {
         if pos >= self.index_length {
             panic!("chunk index out of range");
         }
-        let slice = unsafe { std::slice::from_raw_parts(self.index.add(pos*32), 32) };
+        let slice = unsafe { std::slice::from_raw_parts(self.index.add(pos * 32), 32) };
         slice.try_into().unwrap()
     }
 
@@ -178,7 +185,7 @@ impl FixedIndexReader {
             panic!("chunk index out of range");
         }
 
-        let end = ((pos+1) * self.chunk_size) as u64;
+        let end = ((pos + 1) * self.chunk_size) as u64;
         if end > self.size {
             self.size
         } else {
@@ -188,11 +195,10 @@ impl FixedIndexReader {
 
     /// Compute checksum and data size
     pub fn compute_csum(&self) -> ([u8; 32], u64) {
-
         let mut csum = openssl::sha::Sha256::new();
         let mut chunk_end = 0;
         for pos in 0..self.index_length {
-            chunk_end = ((pos+1) * self.chunk_size) as u64;
+            chunk_end = ((pos + 1) * self.chunk_size) as u64;
             let digest = self.chunk_digest(pos);
             csum.update(digest);
         }
@@ -204,7 +210,10 @@ impl FixedIndexReader {
     pub fn print_info(&self) {
         println!("Size: {}", self.size);
         println!("ChunkSize: {}", self.chunk_size);
-        println!("CTime: {}", Local.timestamp(self.ctime as i64, 0).format("%c"));
+        println!(
+            "CTime: {}",
+            Local.timestamp(self.ctime as i64, 0).format("%c")
+        );
         println!("UUID: {:?}", self.uuid);
     }
 }
@@ -218,7 +227,7 @@ impl IndexFile for FixedIndexReader {
         if pos >= self.index_length {
             None
         } else {
-            Some(unsafe { std::mem::transmute(self.index.add(pos*32)) })
+            Some(unsafe { std::mem::transmute(self.index.add(pos * 32)) })
         }
     }
 
@@ -245,7 +254,6 @@ pub struct FixedIndexWriter {
 unsafe impl Send for FixedIndexWriter {}
 
 impl Drop for FixedIndexWriter {
-
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.tmp_filename); // ignore errors
         if let Err(err) = self.unmap() {
@@ -255,10 +263,13 @@ impl Drop for FixedIndexWriter {
 }
 
 impl FixedIndexWriter {
-
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn create(store: Arc<ChunkStore>, path: &Path, size: usize, chunk_size: usize) -> Result<Self, Error> {
-
+    pub fn create(
+        store: Arc<ChunkStore>,
+        path: &Path,
+        size: usize,
+        chunk_size: usize,
+    ) -> Result<Self, Error> {
         let shared_lock = store.try_shared_lock()?;
 
         let full_path = store.relative_path(path);
@@ -266,7 +277,8 @@ impl FixedIndexWriter {
         tmp_path.set_extension("tmp_fidx");
 
         let mut file = std::fs::OpenOptions::new()
-            .create(true).truncate(true)
+            .create(true)
+            .truncate(true)
             .read(true)
             .write(true)
             .open(&tmp_path)?;
@@ -274,15 +286,18 @@ impl FixedIndexWriter {
         let header_size = std::mem::size_of::<FixedIndexHeader>();
 
         // todo: use static assertion when available in rust
-        if header_size != 4096 { panic!("got unexpected header size"); }
+        if header_size != 4096 {
+            panic!("got unexpected header size");
+        }
 
-        let ctime = std::time::SystemTime::now().duration_since(
-            std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+        let ctime = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)?
+            .as_secs();
 
-        let uuid = Uuid::new_v4();
+        let uuid = Uuid::generate();
 
         let buffer = vec![0u8; header_size];
-        let header = unsafe { &mut * (buffer.as_ptr() as *mut FixedIndexHeader) };
+        let header = unsafe { &mut *(buffer.as_ptr() as *mut FixedIndexHeader) };
 
         header.magic = super::FIXED_SIZED_CHUNK_INDEX_1_0;
         header.ctime = u64::to_le(ctime);
@@ -294,17 +309,20 @@ impl FixedIndexWriter {
 
         file.write_all(&buffer)?;
 
-        let index_length = (size + chunk_size - 1)/chunk_size;
-        let index_size = index_length*32;
+        let index_length = (size + chunk_size - 1) / chunk_size;
+        let index_size = index_length * 32;
         nix::unistd::ftruncate(file.as_raw_fd(), (header_size + index_size) as i64)?;
 
-        let data = unsafe { nix::sys::mman::mmap(
-            std::ptr::null_mut(),
-            index_size,
-            nix::sys::mman::ProtFlags::PROT_READ | nix::sys::mman::ProtFlags::PROT_WRITE,
-            nix::sys::mman::MapFlags::MAP_SHARED,
-            file.as_raw_fd(),
-            header_size as i64) }? as *mut u8;
+        let data = unsafe {
+            nix::sys::mman::mmap(
+                std::ptr::null_mut(),
+                index_size,
+                nix::sys::mman::ProtFlags::PROT_READ | nix::sys::mman::ProtFlags::PROT_WRITE,
+                nix::sys::mman::MapFlags::MAP_SHARED,
+                file.as_raw_fd(),
+                header_size as i64,
+            )
+        }? as *mut u8;
 
         Ok(Self {
             store,
@@ -326,12 +344,15 @@ impl FixedIndexWriter {
     }
 
     fn unmap(&mut self) -> Result<(), Error> {
+        if self.index == std::ptr::null_mut() {
+            return Ok(());
+        }
 
-        if self.index == std::ptr::null_mut() { return Ok(()); }
+        let index_size = self.index_length * 32;
 
-        let index_size = self.index_length*32;
-
-        if let Err(err) = unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) } {
+        if let Err(err) =
+            unsafe { nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, index_size) }
+        {
             bail!("unmap file {:?} failed - {}", self.tmp_filename, err);
         }
 
@@ -340,13 +361,14 @@ impl FixedIndexWriter {
         Ok(())
     }
 
-    pub fn close(&mut self)  -> Result<[u8; 32], Error> {
+    pub fn close(&mut self) -> Result<[u8; 32], Error> {
+        if self.index == std::ptr::null_mut() {
+            bail!("cannot close already closed index file.");
+        }
 
-        if self.index == std::ptr::null_mut() { bail!("cannot close already closed index file."); }
-
-        let index_size = self.index_length*32;
+        let index_size = self.index_length * 32;
         let data = unsafe { std::slice::from_raw_parts(self.index, index_size) };
-        let index_csum =  openssl::sha::sha256(data);
+        let index_csum = openssl::sha::sha256(data);
 
         self.unmap()?;
 
@@ -363,7 +385,6 @@ impl FixedIndexWriter {
     }
 
     pub fn check_chunk_alignment(&self, offset: usize, chunk_len: usize) -> Result<usize, Error> {
-
         if offset < chunk_len {
             bail!("got chunk with small offset ({} < {}", offset, chunk_len);
         }
@@ -375,12 +396,18 @@ impl FixedIndexWriter {
         }
 
         // last chunk can be smaller
-        if ((offset != self.size) && (chunk_len != self.chunk_size)) ||
-            (chunk_len > self.chunk_size) || (chunk_len == 0) {
-                bail!("chunk with unexpected length ({} != {}", chunk_len, self.chunk_size);
-            }
+        if ((offset != self.size) && (chunk_len != self.chunk_size))
+            || (chunk_len > self.chunk_size)
+            || (chunk_len == 0)
+        {
+            bail!(
+                "chunk with unexpected length ({} != {}",
+                chunk_len,
+                self.chunk_size
+            );
+        }
 
-        if pos & (self.chunk_size-1) != 0 {
+        if pos & (self.chunk_size - 1) != 0 {
             bail!("got unaligned chunk (pos = {})", pos);
         }
 
@@ -389,22 +416,28 @@ impl FixedIndexWriter {
 
     // Note: We want to add data out of order, so do not assume any order here.
     pub fn add_chunk(&mut self, chunk_info: &ChunkInfo, stat: &mut ChunkStat) -> Result<(), Error> {
-
         let chunk_len = chunk_info.chunk_len as usize;
         let offset = chunk_info.offset as usize; // end of chunk
 
         let idx = self.check_chunk_alignment(offset, chunk_len)?;
 
-        let (is_duplicate, compressed_size) =
-            self.store.insert_chunk(&chunk_info.chunk, &chunk_info.digest)?;
+        let (is_duplicate, compressed_size) = self
+            .store
+            .insert_chunk(&chunk_info.chunk, &chunk_info.digest)?;
 
         stat.chunk_count += 1;
         stat.compressed_size += compressed_size;
 
         let digest = &chunk_info.digest;
 
-        println!("ADD CHUNK {} {} {}% {} {}", idx, chunk_len,
-                 (compressed_size*100)/(chunk_len as u64), is_duplicate, proxmox::tools::digest_to_hex(digest));
+        println!(
+            "ADD CHUNK {} {} {}% {} {}",
+            idx,
+            chunk_len,
+            (compressed_size * 100) / (chunk_len as u64),
+            is_duplicate,
+            proxmox::tools::digest_to_hex(digest)
+        );
 
         if is_duplicate {
             stat.duplicate_chunks += 1;
@@ -416,14 +449,19 @@ impl FixedIndexWriter {
     }
 
     pub fn add_digest(&mut self, index: usize, digest: &[u8; 32]) -> Result<(), Error> {
-
         if index >= self.index_length {
-            bail!("add digest failed - index out of range ({} >= {})", index, self.index_length);
+            bail!(
+                "add digest failed - index out of range ({} >= {})",
+                index,
+                self.index_length
+            );
         }
 
-        if self.index == std::ptr::null_mut() { bail!("cannot write to closed index file."); }
+        if self.index == std::ptr::null_mut() {
+            bail!("cannot write to closed index file.");
+        }
 
-        let index_pos = index*32;
+        let index_pos = index * 32;
         unsafe {
             let dst = self.index.add(index_pos);
             dst.copy_from_nonoverlapping(digest.as_ptr(), 32);
@@ -443,26 +481,25 @@ pub struct BufferedFixedReader<S> {
     read_offset: u64,
 }
 
-impl <S: ReadChunk> BufferedFixedReader<S> {
-
+impl<S: ReadChunk> BufferedFixedReader<S> {
     pub fn new(index: FixedIndexReader, store: S) -> Self {
-
         let archive_size = index.size;
         Self {
             store,
             index,
             archive_size,
-            read_buffer: Vec::with_capacity(1024*1024),
+            read_buffer: Vec::with_capacity(1024 * 1024),
             buffered_chunk_idx: 0,
             buffered_chunk_start: 0,
             read_offset: 0,
         }
     }
 
-    pub fn archive_size(&self) -> u64 { self.archive_size }
+    pub fn archive_size(&self) -> u64 {
+        self.archive_size
+    }
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
-
         let index = &self.index;
         let (start, end, digest) = index.chunk_info(idx)?;
 
@@ -470,8 +507,12 @@ impl <S: ReadChunk> BufferedFixedReader<S> {
 
         let data = self.store.read_chunk(&digest)?;
 
-        if (end - start) != data.len() as u64  {
-            bail!("read chunk with wrong size ({} != {}", (end - start), data.len());
+        if (end - start) != data.len() as u64 {
+            bail!(
+                "read chunk with wrong size ({} != {}",
+                (end - start),
+                data.len()
+            );
         }
 
         self.read_buffer.clear();
@@ -485,19 +526,19 @@ impl <S: ReadChunk> BufferedFixedReader<S> {
     }
 }
 
-impl <S: ReadChunk> crate::tools::BufferedRead for BufferedFixedReader<S> {
-
+impl<S: ReadChunk> crate::tools::BufferedRead for BufferedFixedReader<S> {
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
-
-        if offset == self.archive_size { return Ok(&self.read_buffer[0..0]); }
+        if offset == self.archive_size {
+            return Ok(&self.read_buffer[0..0]);
+        }
 
         let buffer_len = self.read_buffer.len();
         let index = &self.index;
 
         // optimization for sequential read
-        if buffer_len > 0 &&
-            ((self.buffered_chunk_idx + 1) < index.index_length) &&
-            (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
+        if buffer_len > 0
+            && ((self.buffered_chunk_idx + 1) < index.index_length)
+            && (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
         {
             let next_idx = self.buffered_chunk_idx + 1;
             let next_end = index.chunk_end(next_idx);
@@ -508,34 +549,38 @@ impl <S: ReadChunk> crate::tools::BufferedRead for BufferedFixedReader<S> {
             }
         }
 
-        if (buffer_len == 0) ||
-            (offset < self.buffered_chunk_start) ||
-            (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
+        if (buffer_len == 0)
+            || (offset < self.buffered_chunk_start)
+            || (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
         {
             let idx = (offset / index.chunk_size as u64) as usize;
             self.buffer_chunk(idx)?;
-         }
+        }
 
         let buffer_offset = (offset - self.buffered_chunk_start) as usize;
         Ok(&self.read_buffer[buffer_offset..])
     }
 }
 
-impl <S: ReadChunk> std::io::Read for  BufferedFixedReader<S> {
-
+impl<S: ReadChunk> std::io::Read for BufferedFixedReader<S> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-
-        use std::io::{Error, ErrorKind};
         use crate::tools::BufferedRead;
+        use std::io::{Error, ErrorKind};
 
         let data = match self.buffered_read(self.read_offset) {
             Ok(v) => v,
             Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
         };
 
-        let n = if data.len() > buf.len() { buf.len() } else { data.len() };
+        let n = if data.len() > buf.len() {
+            buf.len()
+        } else {
+            data.len()
+        };
 
-        unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), buf.as_mut_ptr(), n); }
+        unsafe {
+            std::ptr::copy_nonoverlapping(data.as_ptr(), buf.as_mut_ptr(), n);
+        }
 
         self.read_offset += n as u64;
 
@@ -543,13 +588,11 @@ impl <S: ReadChunk> std::io::Read for  BufferedFixedReader<S> {
     }
 }
 
-impl <S: ReadChunk> Seek for  BufferedFixedReader<S> {
-
+impl<S: ReadChunk> Seek for BufferedFixedReader<S> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
-
         let new_offset = match pos {
-            SeekFrom::Start(start_offset) =>  start_offset as i64,
-            SeekFrom::End(end_offset) => (self.archive_size as i64)+ end_offset,
+            SeekFrom::Start(start_offset) => start_offset as i64,
+            SeekFrom::End(end_offset) => (self.archive_size as i64) + end_offset,
             SeekFrom::Current(offset) => (self.read_offset as i64) + offset,
         };
 
@@ -557,7 +600,11 @@ impl <S: ReadChunk> Seek for  BufferedFixedReader<S> {
         if (new_offset < 0) || (new_offset > (self.archive_size as i64)) {
             return Err(Error::new(
                 ErrorKind::Other,
-                format!("seek is out of range {} ([0..{}])", new_offset, self.archive_size)));
+                format!(
+                    "seek is out of range {} ([0..{}])",
+                    new_offset, self.archive_size
+                ),
+            ));
         }
         self.read_offset = new_offset as u64;
 

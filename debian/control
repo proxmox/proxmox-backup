@@ -5,14 +5,15 @@ Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: bash-completion,
                clang,
                debhelper (>= 10),
+               latexmk,
                libfuse3-dev,
                libpam0g-dev,
                libsystemd-dev,
+               libuuid1,
                libzstd-dev (>= 1.3.8),
                pkg-config,
                python3-docutils,
                python3-sphinx,
-	       latexmk,
 Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
