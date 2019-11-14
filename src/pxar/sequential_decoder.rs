@@ -724,7 +724,8 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
     ///
     /// The directory is created if it does not exist.
     pub fn restore(&mut self, path: &Path, match_pattern: &[MatchPattern]) -> Result<(), Error> {
-        let _ = std::fs::create_dir(path);
+        std::fs::create_dir_all(path)
+            .map_err(|err| format_err!("error while creating directory {:?} - {}", path, err))?;
 
         let dir = nix::dir::Dir::open(
             path,
