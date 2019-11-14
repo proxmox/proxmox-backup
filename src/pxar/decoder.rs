@@ -266,7 +266,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
         &mut self,
         dir: &DirectoryEntry,
         filename: &OsStr,
-    ) -> Result<Option<(DirectoryEntry, PxarAttributes)>, Error> {
+    ) -> Result<Option<(DirectoryEntry, PxarAttributes, u64)>, Error> {
         let gbt = self.goodbye_table(Some(dir.start), dir.end)?;
         let hash = compute_goodbye_hash(filename.as_bytes());
 
@@ -284,7 +284,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
             // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in
             // case of directories, so the use of start offset is fine for both
             // cases.
-            let (entry_name, entry, attr, _payload_size) = self.attributes(*start)?;
+            let (entry_name, entry, attr, payload_size) = self.attributes(*start)?;
 
             // Possible hash collision, need to check if the found entry is indeed
             // the filename to lookup.
@@ -295,7 +295,7 @@ impl<R: Read + Seek, F: Fn(&Path) -> Result<(), Error>> Decoder<R, F> {
                     filename: entry_name,
                     entry,
                 };
-                return Ok(Some((dir_entry, attr)));
+                return Ok(Some((dir_entry, attr, payload_size)));
             }
         }
     }
