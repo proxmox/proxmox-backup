@@ -100,6 +100,13 @@ impl DirEntry {
             }
         }
     }
+
+    pub fn is_directory(&self) -> bool {
+        match self.attr {
+            DirEntryAttribute::Directory { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 struct DirInfo {
