@@ -18,8 +18,7 @@ Documentation License".
 
    introduction.rst
    installation.rst
-   deployment-guide.rst
-   admin-guide.rst
+   administration-guide.rst
  
 .. raw:: latex
 

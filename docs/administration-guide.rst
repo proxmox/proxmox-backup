@@ -1,10 +1,10 @@
-Deployment Guide
-================
+Administration Guide
+====================
 
-The deployment guide.
+The administartion guide.
 
-Backup Server Configuration
----------------------------
+Backup Server Management
+------------------------
 
 The command line tool to configure and manage the server is called
 :command:`proxmox-backup-manager`.
@@ -40,8 +40,8 @@ Finally, it is also possible to remove the datastore configuration:
 
 
 
-Backup Client Configuration
----------------------------
+Backup Client usage
+-------------------
 
 The command line client is called :command:`proxmox-backup-client`.
 
@@ -91,3 +91,8 @@ Restoring Data
 
 `Proxmox VE`_ integration
 -------------------------
+
+
+.. include:: command-line-tools.rst
+
+.. include:: services.rst
