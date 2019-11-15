@@ -3,6 +3,9 @@ Administration Guide
 
 The administartion guide.
 
+.. include:: sysadmin.rst
+
+
 Backup Server Management
 ------------------------
 

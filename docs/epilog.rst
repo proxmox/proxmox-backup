@@ -26,6 +26,8 @@
 .. _GCM: https://en.wikipedia.org/wiki/Galois/Counter_Mode
 .. _AGPL3: https://www.gnu.org/licenses/agpl-3.0.en.html
 .. _Debian: https://www.debian.org/index.html
+.. _Debian Administrator's Handbook: https://debian-handbook.info/download/stable/debian-handbook.pdf
+
 .. _LVM: https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)
 .. _ZFS: https://en.wikipedia.org/wiki/ZFS
 .. _Proxmox VE: https://pve.proxmox.com

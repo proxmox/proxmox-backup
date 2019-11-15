@@ -19,7 +19,7 @@ Documentation License".
    introduction.rst
    installation.rst
    administration-guide.rst
- 
+
 .. raw:: latex
 
    \appendix
