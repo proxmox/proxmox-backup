@@ -96,6 +96,8 @@ required by law.
 Software Stack
 --------------
 
+.. todo:: Eplain why we use RUST (and Flutter)
+	  
 
 License
 -------
@@ -121,4 +123,5 @@ along with this program.  If not, see AGPL3_.
 History
 -------
 
-history ...
+.. todo:: Add development History of the product
+
