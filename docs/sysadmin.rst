@@ -26,4 +26,5 @@ please refer to the standard Debian documentation.
 ZFS
 ~~~
 
-TODO
+.. todo:: Add local ZFS admin guide (local.zfs.adoc)
+
