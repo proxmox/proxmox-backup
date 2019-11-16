@@ -3,12 +3,22 @@ Introduction
 
 This documentationm is written in :term:`reStructuredText` and formatted with :term:`Sphinx`.
 
+
 What is Proxmox Backup
 ----------------------
 
 Proxmox Backup is an enterprise class client-server backup software,
 specially optimized for `Proxmox Virtual Environment`_ to backup
-:term:`virtual machine`\ s and :term:`container`\ s.
+:term:`virtual machine`\ s and :term:`container`\ s. It is also
+possible to backup physical hosts.
+
+It supports deduplication, compression and authenticated encryption
+(AE_). Using RUST_ as implementation language guarantees high
+performance, low resource usage, and a safe, high quality code base.
+
+Encryption is done at the client side. This makes backups to not fully
+trusted targets possible.
+
 
 Architecture
 ------------
@@ -16,7 +26,7 @@ Architecture
 Proxmox Backup uses a `Client-server model`_. The server is
 responsible to store the backup data, and provides an API to create
 backups and restore data. It is also possible to manage disks and
-other resources using this API.
+other server side resources using this API.
 
 A backup client uses this API to access the backed up data,
 i.e. ``proxmox-backup-client`` is a command line tool to create
@@ -33,7 +43,7 @@ Main features
 
 :GUI: We provide a graphical, web based user interface.
 
-:Deduplication: Inkremental backup produces large amounts of duplicate
+:Deduplication: Incremental backup produces large amounts of duplicate
    data. The deduplication layer removes that redundancy and makes
    inkremental backup small and space efficient.
 
