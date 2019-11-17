@@ -1,11 +1,55 @@
 Administration Guide
 ====================
 
-The administartion guide.
+The administration guide.
 
 
 Terminology
 -----------
+
+Backup Content
+~~~~~~~~~~~~~~
+
+When doing deduplication, there are different strategies to get
+optimal results in terms of performance and/or deduplication rates.
+Depending on the type of data, one can split it into fixed or variable
+sized chunks.
+
+Fixed sized chunking needs almost no CPU performance, and is used to
+backup virtual machine images.
+
+Variable sized chunking needs more CPU power, but is essential to get
+good deduplication rates for file archives.
+
+Therefore, the backup server supports both strategies.
+
+
+File Archives
+^^^^^^^^^^^^^
+
+.. see https://moinakg.wordpress.com/2013/06/22/high-performance-content-defined-chunking/
+
+A file archive stores a whole directory tree. Content is stored using
+the :ref:`pxar-format`, split into variable sized chunks. The format
+is specially optimized to achieve good deduplication rates.
+
+
+Image Archives
+^^^^^^^^^^^^^^
+
+This is used for virtual machine images and other large binary
+data. Content is split into fixed sized chunks.
+
+
+Binary Data (BLOBs)
+^^^^^^^^^^^^^^^^^^^
+
+This type is used to store smaller (< 16MB) binaries like
+configuration data. Larger files should be stored as image archive.
+
+.. caution:: Please do not store all files as BLOBs. Instead, use the
+   file archive to store whole directory trees.
+
 
 Backup Type
 ~~~~~~~~~~~
