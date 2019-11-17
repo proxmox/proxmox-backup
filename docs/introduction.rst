@@ -33,6 +33,12 @@ i.e. ``proxmox-backup-client`` is a command line tool to create
 backups and restore data. We also deliver an integrated client for
 QEMU_ with `Proxmox Virtual Environment`_.
 
+A single backup is allowed to contain several archives. For example,
+when you backup a :term:`virtual machine`, each disk is stored as a
+separate archive inside that backup. The VM configuration also gets an
+extra file. This way, it is easy to access and restore important parts
+of the backup, without having to scan the whole backup.
+
 
 Main features
 -------------
