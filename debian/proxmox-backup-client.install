@@ -1,3 +1,4 @@
 usr/bin/proxmox-backup-client
 usr/share/man/man1/proxmox-backup-client.1
 usr/bin/pxar
+usr/share/man/man1/pxar.1

@@ -12,6 +12,7 @@ GENERATED_SYNOPSIS := 				\
 	backup-protocol-api.rst
 
 MANUAL_PAGES := 			\
+	pxar.1				\
 	proxmox-backup-proxy.1		\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1
@@ -38,9 +39,14 @@ backup-protocol-api.rst: ${COMPILEDIR}/dump-backup-api
 
 # Build manual pages using rst2man
 
+pxar/synopsis.rst: ${COMPILEDIR}/pxar
+	${COMPILEDIR}/pxar printdoc > pxar/synopsis.rst
+
+pxar.1: pxar/man1.rst  pxar/description.rst pxar/synopsis.rst
+	rst2man $< >$@
+
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
-
 
 proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst
 	rst2man $< >$@

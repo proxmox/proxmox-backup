@@ -89,6 +89,7 @@ exclude_patterns = [
     'proxmox-backup-client/man1.rst',
     'proxmox-backup-manager/man1.rst',
     'proxmox-backup-proxy/man1.rst',
+    'pxar/man1.rst',
     'epilog.rst',
     'pbs-copyright.rst',
     'sysadmin.rst',
