@@ -31,3 +31,6 @@
 .. _LVM: https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)
 .. _ZFS: https://en.wikipedia.org/wiki/ZFS
 .. _Proxmox VE: https://pve.proxmox.com
+
+.. _RFC3399: https://tools.ietf.org/html/rfc3339
+.. _UTC: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
