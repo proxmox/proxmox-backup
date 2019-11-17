@@ -3,8 +3,6 @@ Administration Guide
 
 The administartion guide.
 
-.. include:: sysadmin.rst
-
 
 Backup Server Management
 ------------------------
@@ -40,7 +38,6 @@ Finally, it is also possible to remove the datastore configuration:
 
 .. note:: Above command removes the datastore configuration. It does
    not delete any data from the underlying directory.
-
 
 
 Backup Client usage
@@ -99,3 +96,7 @@ Restoring Data
 .. include:: command-line-tools.rst
 
 .. include:: services.rst
+
+.. include host system admin at the end
+
+.. include:: sysadmin.rst
