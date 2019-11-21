@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate proxmox_backup;
-
 use failure::*;
 use nix::unistd::{fork, ForkResult, pipe};
 use std::os::unix::io::RawFd;
@@ -13,12 +10,12 @@ use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
+use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox::api::schema::*;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
 use proxmox_backup::api2::types::*;
-use proxmox_backup::api_schema::*;
-use proxmox_backup::api_schema::router::*;
 use proxmox_backup::client::*;
 use proxmox_backup::backup::*;
 use proxmox_backup::pxar::{ self, catalog::* };
@@ -37,7 +34,7 @@ use xdg::BaseDirectories;
 use futures::*;
 use tokio::sync::mpsc;
 
-proxmox_backup::const_regex! {
+proxmox::api::const_regex! {
     BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$";
 }
 

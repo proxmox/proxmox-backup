@@ -1,17 +1,18 @@
-pub mod types;
-pub mod config;
+mod access;
 pub mod admin;
 pub mod backup;
-pub mod reader;
+pub mod config;
 pub mod node;
-pub mod version;
+pub mod reader;
 mod subscription;
-mod access;
+pub mod types;
+pub mod version;
 
-use crate::api_schema::router::*;
+use proxmox::api::list_subdirs_api_method;
+use proxmox::api::router::SubdirMap;
+use proxmox::api::Router;
 
-const NODES_ROUTER: Router = Router::new()
-    .match_all("node", &node::ROUTER);
+const NODES_ROUTER: Router = Router::new().match_all("node", &node::ROUTER);
 
 pub const SUBDIRS: SubdirMap = &[
     ("access", &access::ROUTER),

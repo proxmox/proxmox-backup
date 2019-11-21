@@ -7,8 +7,9 @@ use std::task::{Context, Poll};
 use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
 
+use proxmox::api::{http_err, ApiFuture};
+
 use crate::tools;
-use crate::api_schema::api_handler::*;
 use crate::api_schema::router::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
@@ -35,7 +36,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
         if self.debug { self.worker.log(msg); }
     }
 
-    fn handle_request(&self, req: Request<Body>) -> BoxFut {
+    fn handle_request(&self, req: Request<Body>) -> ApiFuture {
 
         let (parts, body) = req.into_parts();
 

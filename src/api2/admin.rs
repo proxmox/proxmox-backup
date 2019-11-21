@@ -1,4 +1,5 @@
-use crate::api_schema::router::*;
+use proxmox::api::router::{Router, SubdirMap};
+use proxmox::api::list_subdirs_api_method;
 
 pub mod datastore;
 
