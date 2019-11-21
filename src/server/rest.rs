@@ -18,6 +18,8 @@ use url::form_urlencoded;
 
 use super::environment::RestEnvironment;
 use super::formatter::*;
+use crate::api_schema::rpc_environment::*;
+use crate::api_schema::api_handler::*;
 use crate::api_schema::config::*;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
@@ -186,7 +188,7 @@ fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
             if is_json {
                 let mut params: Value = serde_json::from_str(utf8)?;
                 for (k, v) in uri_param {
-                    if let Some((_optional, prop_schema)) = obj_schema.properties.get::<str>(&k) {
+                    if let Some((_optional, prop_schema)) = obj_schema.lookup(&k) {
                         params[&k] = parse_simple_value(&v, prop_schema)?;
                     }
                 }
@@ -269,6 +271,13 @@ pub fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + S
     uri_param: HashMap<String, String, S>,
 ) -> BoxFut
 {
+    let handler = match info.handler {
+        ApiHandler::Async(_) => {
+            panic!("fixme");
+        }
+        ApiHandler::Sync(handler) => handler,
+    };
+        
     let params = get_request_parameters_async(info, parts, req_body, uri_param);
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
@@ -276,7 +285,8 @@ pub fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + S
     let resp = Pin::from(params)
         .and_then(move |params| {
             let mut delay = false;
-            let resp = match (info.handler.as_ref().unwrap())(params, info, &mut rpcenv) {
+            
+            let resp = match (handler)(params, info, &mut rpcenv) {
                 Ok(data) => (formatter.format_data)(data, &rpcenv),
                 Err(err) => {
                     if let Some(httperr) = err.downcast_ref::<HttpError>() {
@@ -307,13 +317,20 @@ pub fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + S
 
 pub fn handle_async_api_request<Env: RpcEnvironment>(
     rpcenv: Env,
-    info: &'static ApiAsyncMethod,
+    info: &'static ApiMethod,
     formatter: &'static OutputFormatter,
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
 ) -> BoxFut
 {
+    let handler = match info.handler {
+        ApiHandler::Sync(_) => {
+            panic!("fixme");
+        }
+        ApiHandler::Async(handler) => handler,
+    };
+    
     // fixme: convert parameters to Json
     let mut param_list: Vec<(String, String)> = vec![];
 
@@ -336,7 +353,7 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
         }
     };
 
-    match (info.handler)(parts, req_body, params, info, Box::new(rpcenv)) {
+    match (handler)(parts, req_body, params, info, Box::new(rpcenv)) {
         Ok(future) => future,
         Err(err) => {
             let resp = (formatter.format_error)(err);
@@ -594,19 +611,23 @@ pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
             }
 
             match api.find_method(&components[2..], method, &mut uri_param) {
-                MethodDefinition::None => {
+                None => {
                     let err = http_err!(NOT_FOUND, "Path not found.".to_string());
                     return Box::new(future::ok((formatter.format_error)(err)));
                 }
-                MethodDefinition::Simple(api_method) => {
+                Some(api_method) => {
                     if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
                         return proxy_protected_request(api_method, parts, body);
                     } else {
-                        return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                        match api_method.handler {
+                            ApiHandler::Sync(_) => {
+                                return handle_sync_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                            }
+                            ApiHandler::Async(_) => {
+                                return handle_async_api_request(rpcenv, api_method, formatter, parts, body, uri_param);
+                            }
+                        }
                     }
-                }
-                MethodDefinition::Async(async_method) => {
-                    return handle_async_api_request(rpcenv, async_method, formatter, parts, body, uri_param);
                 }
             }
         }

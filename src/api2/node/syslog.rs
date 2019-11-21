@@ -5,10 +5,6 @@ use crate::api_schema::router::*;
 use crate::api2::types::*;
 
 use serde_json::{json, Value};
-
-use std::sync::Arc;
-use lazy_static::lazy_static;
-use proxmox::tools::common_regex;
 use std::process::{Command, Stdio};
 
 fn dump_journal(
@@ -91,47 +87,44 @@ fn get_syslog(
     Ok(json!(lines))
 }
 
-lazy_static! {
-    pub static ref SYSTEMD_DATETIME_FORMAT: Arc<ApiStringFormat> =
-        ApiStringFormat::Pattern(&common_regex::SYSTEMD_DATETIME_REGEX).into();
-}
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_syslog),
+            &ObjectSchema::new(
+                "Read server time and time zone settings.",
+                &[
+                    ("node", false, &NODE_SCHEMA),
+                    ("start", true, &IntegerSchema::new("Start line number.")
+                     .minimum(0)
+                     .schema()
+                    ),
+                    ("limit", true, &IntegerSchema::new("Max. number of lines.")
+                     .minimum(0)
+                     .schema()
+                    ),
+                    ("since", true, &StringSchema::new("Display all log since this date-time string.")
+	             .format(&SYSTEMD_DATETIME_FORMAT)
+                     .schema()
+                    ),
+                    ("until", true, &StringSchema::new("Display all log until this date-time string.")
+	             .format(&SYSTEMD_DATETIME_FORMAT)
+                     .schema()
+                    ),
+                    ("service", true, &StringSchema::new("Service ID.")
+                     .max_length(128)
+                     .schema()
+                    ),
+                ],
+            )
+        ).returns(
+            &ObjectSchema::new(
+                "Returns a list of syslog entries.",
+                &[
+                    ("n", false, &IntegerSchema::new("Line number.").schema()),
+                    ("t", false, &StringSchema::new("Line text.").schema()),
+                ],
+            ).schema()
+        ).protected(true)
+    );
 
-pub fn router() -> Router {
-    Router::new()
-        .get(
-            ApiMethod::new(
-                get_syslog,
-                ObjectSchema::new("Read server time and time zone settings.")
-                    .required("node", NODE_SCHEMA.clone())
-                     .optional(
-                        "start",
-                        IntegerSchema::new("Start line number.")
-                            .minimum(0)
-                    )
-                    .optional(
-                        "limit",
-                        IntegerSchema::new("Max. number of lines.")
-                            .minimum(0)
-                    )
-                    .optional(
-                        "since",
-                        StringSchema::new("Display all log since this date-time string.")
-	                    .format(SYSTEMD_DATETIME_FORMAT.clone())
-                    )
-                    .optional(
-                        "until",
-                        StringSchema::new("Display all log until this date-time string.")
-	                    .format(SYSTEMD_DATETIME_FORMAT.clone())
-                    )
-                    .optional(
-                        "service",
-                        StringSchema::new("Service ID.")
-                            .max_length(128)
-                    )
-            ).returns(
-                ObjectSchema::new("Returns a list of syslog entries.")
-                    .required("n", IntegerSchema::new("Line number."))
-                    .required("t", StringSchema::new("Line text."))
-            ).protected(true)
-        )
-}

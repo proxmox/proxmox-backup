@@ -1,6 +1,5 @@
 use failure::*;
 use futures::*;
-use lazy_static::lazy_static;
 
 use proxmox::tools::try_block;
 
@@ -44,13 +43,9 @@ async fn run() -> Result<(), Error> {
     }
     let _ = csrf_secret(); // load with lazy_static
 
-    lazy_static!{
-       static ref ROUTER: Router = proxmox_backup::api2::router();
-    }
-
     let config = ApiConfig::new(
-        buildcfg::JS_DIR, &ROUTER, RpcEnvironmentType::PRIVILEGED);
-
+        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED);
+ 
     let rest_server = RestServer::new(config);
 
     // http server future:
@@ -87,6 +82,6 @@ async fn run() -> Result<(), Error> {
     server.await?;
 
     log::info!("done - exit server");
-
+    
     Ok(())
 }

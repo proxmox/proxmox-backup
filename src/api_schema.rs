@@ -12,9 +12,12 @@
 mod schema;
 pub use schema::*;
 
+pub mod rpc_environment;
 pub mod api_handler;
-pub mod registry;
 #[macro_use]
 pub mod router;
+
+//pub mod registry;
 pub mod config;
 pub mod format;
+

@@ -16,11 +16,14 @@ fn get_network_config(
     Ok(json!({}))
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(ApiMethod::new(
-            get_network_config,
-            ObjectSchema::new("Read network configuration.")
-                .required("node", NODE_SCHEMA.clone())
-        ))
-}
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_network_config),
+            &ObjectSchema::new(
+                "Read network configuration.",
+                &[ ("node", false, &NODE_SCHEMA) ],
+            )
+        )
+    );
+  

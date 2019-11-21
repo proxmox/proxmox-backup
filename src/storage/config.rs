@@ -9,21 +9,23 @@ lazy_static!{
     static ref STORAGE_SECTION_CONFIG: SectionConfig = register_storage_plugins();
 }
 
+const ID_SCHEMA: Schema = StringSchema::new("Storage ID schema.")
+    .min_length(3)
+    .schema();
+
+const LVMTHIN_PROPERTIES: ObjectSchema = ObjectSchema::new(
+    "lvmthin properties",
+    &[
+        ("thinpool", false, &StringSchema::new("LVM thin pool name.").schema()),
+        ("vgname", false, &StringSchema::new("LVM volume group name.").schema()),
+        ("content", true, &StringSchema::new("Storage content types.").schema()),
+    ],
+);
+
 fn register_storage_plugins() -> SectionConfig {
 
-    let plugin = SectionConfigPlugin::new(
-        "lvmthin".to_string(),
-        ObjectSchema::new("lvmthin properties")
-            .required("thinpool", StringSchema::new("LVM thin pool name."))
-            .required("vgname", StringSchema::new("LVM volume group name."))
-            .optional("content", StringSchema::new("Storage content types."))
-    );
-    
-    let id_schema = StringSchema::new("Storage ID schema.")
-        .min_length(3)
-        .into();
-
-    let mut config = SectionConfig::new(id_schema);
+    let plugin = SectionConfigPlugin::new("lvmthin".to_string(), &LVMTHIN_PROPERTIES);
+    let mut config = SectionConfig::new(&ID_SCHEMA);
     config.register_plugin(plugin);
 
     config

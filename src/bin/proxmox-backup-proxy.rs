@@ -9,7 +9,6 @@ use proxmox_backup::auth_helpers::*;
 
 use failure::*;
 use proxmox::tools::try_block;
-use lazy_static::lazy_static;
 
 use futures::*;
 
@@ -37,12 +36,8 @@ async fn run() -> Result<(), Error> {
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
 
-    lazy_static!{
-       static ref ROUTER: Router = proxmox_backup::api2::router();
-    }
-
     let mut config = ApiConfig::new(
-        buildcfg::JS_DIR, &ROUTER, RpcEnvironmentType::PUBLIC);
+        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC);
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';

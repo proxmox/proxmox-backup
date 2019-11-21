@@ -8,6 +8,7 @@ use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
 
 use crate::tools;
+use crate::api_schema::api_handler::*;
 use crate::api_schema::router::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
@@ -52,17 +53,21 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
         let formatter = &JSON_FORMATTER;
 
         match self.router.find_method(&components, method, &mut uri_param) {
-            MethodDefinition::None => {
+            None => {
                 let err = http_err!(NOT_FOUND, "Path not found.".to_string());
                 Box::new(future::ok((formatter.format_error)(err)))
             }
-            MethodDefinition::Simple(api_method) => {
-                crate::server::rest::handle_sync_api_request(
-                    self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
-            }
-            MethodDefinition::Async(async_method) => {
-                crate::server::rest::handle_async_api_request(
-                    self.rpcenv.clone(), async_method, formatter, parts, body, uri_param)
+            Some(api_method) => {
+                match api_method.handler {
+                    ApiHandler::Sync(_) => {
+                        crate::server::rest::handle_sync_api_request(
+                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
+                    }
+                    ApiHandler::Async(_) => {
+                        crate::server::rest::handle_async_api_request(
+                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
+                    }
+                }
             }
         }
     }

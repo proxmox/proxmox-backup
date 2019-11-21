@@ -107,32 +107,40 @@ fn get_dns(
     read_etc_resolv_conf()
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(
-            ApiMethod::new(
-                get_dns,
-                ObjectSchema::new("Read DNS settings.")
-                    .required("node", NODE_SCHEMA.clone())
-            ).returns(
-                ObjectSchema::new("Returns DNS server IPs and sreach domain.")
-                    .required("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
-                    .optional("search", SEARCH_DOMAIN_SCHEMA.clone())
-                    .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
-                    .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
-                    .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_dns),
+            &ObjectSchema::new(
+                "Read DNS settings.",
+                &[ ("node", false, &NODE_SCHEMA) ],
             )
+        ).returns(
+            &ObjectSchema::new(
+                "Returns DNS server IPs and sreach domain.",
+                &[
+                    ("digest", false, &PVE_CONFIG_DIGEST_SCHEMA),
+                    ("search", true, &SEARCH_DOMAIN_SCHEMA),
+                    ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
+                    ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
+                    ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
+                ],
+            ).schema()
         )
-        .put(
-            ApiMethod::new(
-                update_dns,
-                ObjectSchema::new("Returns DNS server IPs and sreach domain.")
-                    .required("node", NODE_SCHEMA.clone())
-                    .required("search", SEARCH_DOMAIN_SCHEMA.clone())
-                    .optional("dns1", FIRST_DNS_SERVER_SCHEMA.clone())
-                    .optional("dns2", SECOND_DNS_SERVER_SCHEMA.clone())
-                    .optional("dns3", THIRD_DNS_SERVER_SCHEMA.clone())
-                    .optional("digest", PVE_CONFIG_DIGEST_SCHEMA.clone())
-            ).protected(true)
-        )
-}
+    )
+    .put(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&update_dns),
+            &ObjectSchema::new(
+                "Returns DNS server IPs and sreach domain.",
+                &[
+                    ("node", false, &NODE_SCHEMA),
+                    ("search", false, &SEARCH_DOMAIN_SCHEMA),
+                    ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
+                    ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
+                    ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
+                    ("digest", true, &PVE_CONFIG_DIGEST_SCHEMA),
+                ],
+            )
+        ).protected(true)
+    );

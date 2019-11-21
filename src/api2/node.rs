@@ -7,13 +7,15 @@ mod dns;
 mod syslog;
 mod services;
 
-pub fn router() -> Router {
-    Router::new()
-        .subdir("dns", dns::router())
-        .subdir("network", network::router())
-        .subdir("services", services::router())
-        .subdir("syslog", syslog::router())
-        .subdir("tasks", tasks::router())
-        .subdir("time", time::router())
-        .list_subdirs()
-}
+pub const SUBDIRS: SubdirMap = &[
+    ("dns", &dns::ROUTER),
+    ("network", &network::ROUTER),
+    ("services", &services::ROUTER),
+    ("syslog", &syslog::ROUTER),
+    ("tasks", &tasks::ROUTER),
+    ("time", &time::ROUTER),
+];
+
+pub const ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);

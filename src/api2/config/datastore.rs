@@ -9,11 +9,10 @@ use std::path::PathBuf;
 
 use crate::config::datastore;
 
-pub fn get() -> ApiMethod {
-    ApiMethod::new(
-        get_datastore_list,
-        ObjectSchema::new("Directory index."))
-}
+pub const GET: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&get_datastore_list),
+    &ObjectSchema::new("Directory index.", &[])
+);
 
 fn get_datastore_list(
     _param: Value,
@@ -26,14 +25,16 @@ fn get_datastore_list(
     Ok(config.convert_to_array("name"))
 }
 
-pub fn post() -> ApiMethod {
-    ApiMethod::new(
-        create_datastore,
-        ObjectSchema::new("Create new datastore.")
-            .required("name", StringSchema::new("Datastore name."))
-            .required("path", StringSchema::new("Directory path (must exist)."))
-    )
-}
+pub const POST: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&create_datastore),
+    &ObjectSchema::new(
+        "Create new datastore.",
+        &[
+            ("name", false, &StringSchema::new("Datastore name.").schema()),
+            ("path", false, &StringSchema::new("Directory path (must exist).").schema()),
+        ],
+    )       
+);
 
 fn create_datastore(
     param: Value,
@@ -65,12 +66,15 @@ fn create_datastore(
     Ok(Value::Null)
 }
 
-pub fn delete() -> ApiMethod {
-    ApiMethod::new(
-        delete_datastore,
-        ObjectSchema::new("Remove a datastore configuration.")
-            .required("name", StringSchema::new("Datastore name.")))
-}
+pub const DELETE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&delete_datastore),
+    &ObjectSchema::new(
+        "Remove a datastore configuration.",
+        &[
+            ("name", false, &StringSchema::new("Datastore name.").schema()),
+        ],
+    )
+);
 
 fn delete_datastore(
     param: Value,
@@ -96,9 +100,7 @@ fn delete_datastore(
     Ok(Value::Null)
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(get())
-        .post(post())
-        .delete(delete())
-}
+pub const ROUTER: Router = Router::new()
+    .get(&GET)
+    .post(&POST)
+    .delete(&DELETE);

@@ -80,29 +80,44 @@ fn set_timezone(
     Ok(Value::Null)
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(
-            ApiMethod::new(
-                get_time,
-                ObjectSchema::new("Read server time and time zone settings.")
-                    .required("node", NODE_SCHEMA.clone())
-             ).returns(
-                ObjectSchema::new("Returns server time and timezone.")
-                    .required("timezone", StringSchema::new("Time zone"))
-                    .required("time", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
-                              .minimum(1_297_163_644))
-                    .required("localtime", IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC. (local time)")
-                              .minimum(1_297_163_644))
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_time),
+            &ObjectSchema::new(
+                "Read server time and time zone settings.",
+                &[ ("node", false, &NODE_SCHEMA) ],
             )
+        ).returns(
+            &ObjectSchema::new(
+                "Returns server time and timezone.",
+                &[
+                    ("timezone", false, &StringSchema::new("Time zone").schema()),
+                    ("time", false, &IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
+                     .minimum(1_297_163_644)
+                     .schema()
+                    ),
+                    ("localtime", false, &IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC. (local time)")
+                     .minimum(1_297_163_644)
+                     .schema()
+                    ),
+                ],
+            ).schema()
         )
-        .put(
-            ApiMethod::new(
-                set_timezone,
-                ObjectSchema::new("Set time zone.")
-                    .required("node", NODE_SCHEMA.clone())
-                    .required("timezone", StringSchema::new(
-                        "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names."))
-            ).protected(true).reload_timezone(true)
-        )
-}
+    )
+    .put(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&set_timezone),
+            &ObjectSchema::new(
+                "Set time zone.",
+                &[
+                    ("node", false, &NODE_SCHEMA),
+                    ("timezone", false, &StringSchema::new(
+                        "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names.")
+                     .schema()
+                    ),
+                ],
+            )
+        ).protected(true).reload_timezone(true)
+    );
+

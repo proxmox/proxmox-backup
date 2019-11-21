@@ -6,25 +6,27 @@ use lazy_static::lazy_static;
 
 use proxmox::tools::{fs::file_set_contents, try_block};
 
-use crate::api_schema::{ObjectSchema, StringSchema};
+use crate::api_schema::{Schema, ObjectSchema, StringSchema};
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
 
+const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
+const DATASTORE_ID_SCHEMA: Schema = StringSchema::new("DataStore ID schema.")
+    .min_length(3)
+    .schema();
+const DATASTORE_PROPERTIES: ObjectSchema = ObjectSchema::new(
+    "DataStore properties",
+    &[
+        ("path", false, &DIR_NAME_SCHEMA)
+    ]
+);
+
 fn init() -> SectionConfig {
-    let plugin = SectionConfigPlugin::new(
-        "datastore".to_string(),
-        ObjectSchema::new("DataStore properties")
-            .required("path", StringSchema::new("Directory name")),
-    );
-
-    let id_schema = StringSchema::new("DataStore ID schema.")
-        .min_length(3)
-        .into();
-
-    let mut config = SectionConfig::new(id_schema);
+    let plugin = SectionConfigPlugin::new("datastore".to_string(), &DATASTORE_PROPERTIES);
+    let mut config = SectionConfig::new(&DATASTORE_ID_SCHEMA);
     config.register_plugin(plugin);
 
     config

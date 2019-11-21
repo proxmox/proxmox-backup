@@ -26,9 +26,11 @@ fn get_version(
     }))
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(ApiMethod::new(
-            get_version,
-            ObjectSchema::new("Proxmox Backup Server API version.")))
-}
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_version),
+            &ObjectSchema::new("Proxmox Backup Server API version.", &[])
+        )
+    );
+

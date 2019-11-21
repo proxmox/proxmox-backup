@@ -1,10 +1,7 @@
 use failure::*;
-use std::collections::HashMap;
 use serde_json::{json, Value};
 use url::form_urlencoded;
-use regex::Regex;
 use std::fmt;
-use std::sync::Arc;
 
 #[derive(Default, Debug, Fail)]
 pub struct ParameterError {
@@ -63,16 +60,20 @@ pub struct BooleanSchema {
 
 impl BooleanSchema {
 
-    pub fn new(description: &'static str) -> Self {
+    pub const fn new(description: &'static str) -> Self {
         BooleanSchema {
             description,
             default: None,
         }
     }
 
-    pub fn default(mut self, default: bool) -> Self {
+    pub const fn default(mut self, default: bool) -> Self {
         self.default = Some(default);
         self
+    }
+
+    pub const fn schema(self) -> Schema {
+        Schema::Boolean(self)
     }
 }
 
@@ -86,7 +87,7 @@ pub struct IntegerSchema {
 
 impl IntegerSchema {
 
-    pub fn new(description: &'static str) -> Self {
+    pub const fn new(description: &'static str) -> Self {
         IntegerSchema {
             description,
             default: None,
@@ -95,19 +96,23 @@ impl IntegerSchema {
         }
     }
 
-    pub fn default(mut self, default: isize) -> Self {
+    pub const fn default(mut self, default: isize) -> Self {
         self.default = Some(default);
         self
     }
 
-    pub fn minimum(mut self, minimum: isize) -> Self {
+    pub const fn minimum(mut self, minimum: isize) -> Self {
         self.minimum = Some(minimum);
         self
     }
 
-    pub fn maximum(mut self, maximium: isize) -> Self {
+    pub const fn maximum(mut self, maximium: isize) -> Self {
         self.maximum = Some(maximium);
         self
+    }
+
+    pub const fn schema(self) -> Schema {
+        Schema::Integer(self)
     }
 
     fn check_constraints(&self, value: isize) -> Result<(), Error> {
@@ -128,6 +133,50 @@ impl IntegerSchema {
     }
 }
 
+/// Helper to represent const regular expressions
+///
+/// This is mostly a workaround, unless we can create const_fn Regex.
+pub struct ConstRegexPattern {
+    pub regex_string: &'static str,
+    pub regex_obj: fn() -> &'static regex::Regex,
+}
+
+impl std::fmt::Debug for ConstRegexPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.regex_string)
+    }
+}
+
+/// Macro to generate a ConstRegexPattern
+#[macro_export]
+macro_rules! const_regex {
+    () =>   {};
+    ($(#[$attr:meta])* pub ($($vis:tt)+) $name:ident = $regex:expr; $($rest:tt)*) =>  {
+        const_regex! { (pub ($($vis)+)) $(#[$attr])* $name = $regex; $($rest)* }
+    };
+    ($(#[$attr:meta])* pub $name:ident = $regex:expr; $($rest:tt)*) =>  {
+        const_regex! { (pub) $(#[$attr])* $name = $regex; $($rest)* }
+    };
+    ($(#[$attr:meta])* $name:ident = $regex:expr; $($rest:tt)*) =>  {
+        const_regex! { () $(#[$attr])* $name = $regex; $($rest)* }
+    };
+    (
+        ($($pub:tt)*) $(#[$attr:meta])* $name:ident = $regex:expr;
+        $($rest:tt)*
+    ) =>  {
+        $(#[$attr])* $($pub)* const $name: ConstRegexPattern = ConstRegexPattern {
+            regex_string: $regex,
+            regex_obj: (|| ->   &'static regex::Regex {
+                lazy_static::lazy_static! {
+                    static ref SCHEMA: regex::Regex = regex::Regex::new($regex).unwrap();
+                }
+                &SCHEMA
+            })
+        };
+
+        const_regex! { $($rest)* }
+    };
+}
 
 #[derive(Debug)]
 pub struct StringSchema {
@@ -135,12 +184,12 @@ pub struct StringSchema {
     pub default: Option<&'static str>,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
-    pub format: Option<Arc<ApiStringFormat>>,
+    pub format: Option<&'static ApiStringFormat>,
 }
 
 impl StringSchema {
 
-    pub fn new(description: &'static str) -> Self {
+    pub const fn new(description: &'static str) -> Self {
         StringSchema {
             description,
             default: None,
@@ -150,26 +199,30 @@ impl StringSchema {
         }
     }
 
-    pub fn default(mut self, text: &'static str) -> Self {
+    pub const fn default(mut self, text: &'static str) -> Self {
         self.default = Some(text);
         self
     }
 
-    pub fn format(mut self, format: Arc<ApiStringFormat>) -> Self {
+    pub const fn format(mut self, format: &'static ApiStringFormat) -> Self {
         self.format = Some(format);
         self
     }
 
-    pub fn min_length(mut self, min_length: usize) -> Self {
+    pub const fn min_length(mut self, min_length: usize) -> Self {
         self.min_length = Some(min_length);
         self
     }
 
-    pub fn max_length(mut self, max_length: usize) -> Self {
+    pub const fn max_length(mut self, max_length: usize) -> Self {
         self.max_length = Some(max_length);
         self
     }
 
+    pub const fn schema(self) -> Schema {
+        Schema::String(self)
+    }
+    
     fn check_length(&self, length: usize) -> Result<(), Error> {
 
         if let Some(min_length) = self.min_length {
@@ -192,18 +245,18 @@ impl StringSchema {
         self.check_length(value.chars().count())?;
 
         if let Some(ref format) = self.format {
-            match format.as_ref() {
-                ApiStringFormat::Pattern(ref regex) => {
-                    if !regex.is_match(value) {
+            match format {
+                ApiStringFormat::Pattern(regex) => {
+                    if !(regex.regex_obj)().is_match(value) {
                         bail!("value does not match the regex pattern");
                     }
                 }
-                ApiStringFormat::Enum(ref stringvec) => {
+                ApiStringFormat::Enum(stringvec) => {
                     if stringvec.iter().find(|&e| *e == value) == None {
                         bail!("value '{}' is not defined in the enumeration.", value);
                     }
                 }
-                ApiStringFormat::Complex(ref subschema) => {
+                ApiStringFormat::Complex(subschema) => {
                     parse_property_string(value, subschema)?;
                 }
                 ApiStringFormat::VerifyFn(verify_fn) => {
@@ -214,20 +267,19 @@ impl StringSchema {
 
         Ok(())
     }
-
 }
 
 #[derive(Debug)]
 pub struct ArraySchema {
     pub description: &'static str,
-    pub items: Arc<Schema>,
+    pub items: &'static Schema,
     pub min_length: Option<usize>,
     pub max_length: Option<usize>,
 }
 
 impl ArraySchema {
 
-    pub fn new(description: &'static str, item_schema: Arc<Schema>) -> Self {
+    pub const fn new(description: &'static str, item_schema: &'static Schema) -> Self {
         ArraySchema {
             description,
             items: item_schema,
@@ -236,14 +288,18 @@ impl ArraySchema {
         }
     }
 
-    pub fn min_length(mut self, min_length: usize) -> Self {
+    pub const fn min_length(mut self, min_length: usize) -> Self {
         self.min_length = Some(min_length);
         self
     }
 
-    pub fn max_length(mut self, max_length: usize) -> Self {
+    pub const fn max_length(mut self, max_length: usize) -> Self {
         self.max_length = Some(max_length);
         self
+    }
+
+    pub const fn schema(self) -> Schema {
+        Schema::Array(self)
     }
 
     fn check_length(&self, length: usize) -> Result<(), Error> {
@@ -264,44 +320,60 @@ impl ArraySchema {
     }
 }
 
+/// Lookup table to Schema properties
+/// 
+/// Stores a sorted list of (name, optional, schema) tuples:
+///
+/// name: The name of the property
+/// optional: Set when the property is optional
+/// schema: Property type schema
+///
+/// NOTE: The list has to be storted by name, because we use
+/// a binary search to find items.
+///
+/// This is a workaround unless RUST can const_fn Hash::new()
+pub type SchemaPropertyMap = &'static [(&'static str, bool, &'static Schema)];
+
 #[derive(Debug)]
 pub struct ObjectSchema {
     pub description: &'static str,
     pub additional_properties: bool,
-    pub properties: HashMap<&'static str, (bool, Arc<Schema>)>,
+    pub properties: SchemaPropertyMap,
     pub default_key: Option<&'static str>,
 }
 
 impl ObjectSchema {
 
-    pub fn new(description: &'static str) -> Self {
-        let properties = HashMap::new();
+    pub const fn new(description: &'static str,  properties: SchemaPropertyMap) -> Self {
         ObjectSchema {
             description,
-            additional_properties: false,
             properties,
+            additional_properties: false,
             default_key: None,
         }
     }
 
-    pub fn additional_properties(mut self, additional_properties: bool) -> Self {
+    pub const fn additional_properties(mut self, additional_properties: bool) -> Self {
         self.additional_properties = additional_properties;
         self
     }
 
-    pub fn default_key(mut self, key: &'static str) -> Self {
+    pub const fn default_key(mut self, key: &'static str) -> Self {
         self.default_key = Some(key);
         self
     }
 
-    pub fn required<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
-        self.properties.insert(name, (false, schema.into()));
-        self
+    pub const fn schema(self) -> Schema {
+        Schema::Object(self)
     }
 
-    pub fn optional<S: Into<Arc<Schema>>>(mut self, name: &'static str, schema: S) -> Self {
-        self.properties.insert(name, (true, schema.into()));
-        self
+    pub fn lookup(&self, key: &str) -> Option<(bool, &Schema)> {
+        if let Ok(ind) = self.properties.binary_search_by_key(&key, |(name, _, _)| name) {
+            let (_name, optional, prop_schema) = self.properties[ind];
+            Some((optional, prop_schema))
+        } else {
+            None
+        }
     }
 }
 
@@ -315,70 +387,10 @@ pub enum Schema {
     Array(ArraySchema),
 }
 
-impl From<StringSchema> for Schema {
-    fn from(string_schema: StringSchema) -> Self {
-        Schema::String(string_schema)
-    }
-}
-
-impl From<StringSchema> for Arc<Schema> {
-    fn from(string_schema: StringSchema) -> Self {
-        Arc::new(Schema::String(string_schema))
-    }
-}
-
-impl From<BooleanSchema> for Schema {
-    fn from(boolean_schema: BooleanSchema) -> Self {
-        Schema::Boolean(boolean_schema)
-    }
-}
-
-impl From<BooleanSchema> for Arc<Schema> {
-    fn from(boolean_schema: BooleanSchema) -> Self {
-        Arc::new(Schema::Boolean(boolean_schema))
-    }
-}
-
-impl From<IntegerSchema> for Schema {
-    fn from(integer_schema: IntegerSchema) -> Self {
-        Schema::Integer(integer_schema)
-    }
-}
-
-impl From<IntegerSchema> for Arc<Schema> {
-    fn from(integer_schema: IntegerSchema) -> Self {
-        Arc::new(Schema::Integer(integer_schema))
-    }
-}
-
-impl From<ObjectSchema> for Schema {
-    fn from(object_schema: ObjectSchema) -> Self {
-        Schema::Object(object_schema)
-    }
-}
-
-impl From<ObjectSchema> for Arc<Schema> {
-    fn from(object_schema: ObjectSchema) -> Self {
-        Arc::new(Schema::Object(object_schema))
-    }
-}
-
-impl From<ArraySchema> for Schema {
-    fn from(array_schema: ArraySchema) -> Self {
-        Schema::Array(array_schema)
-    }
-}
-
-impl From<ArraySchema> for Arc<Schema> {
-    fn from(array_schema: ArraySchema) -> Self {
-        Arc::new(Schema::Array(array_schema))
-    }
-}
-
 pub enum ApiStringFormat {
     Enum(&'static [&'static str]),
-    Pattern(&'static Regex),
-    Complex(Arc<Schema>),
+    Pattern(&'static ConstRegexPattern),
+    Complex(&'static Schema),
     VerifyFn(fn(&str) -> Result<(), Error>),
 }
 
@@ -480,12 +492,11 @@ pub fn parse_parameter_strings(data: &[(String, String)], schema: &ObjectSchema,
 
     let mut errors = ParameterError::new();
 
-    let properties = &schema.properties;
     let additional_properties = schema.additional_properties;
 
     for (key, value) in data {
-        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
-            match prop_schema.as_ref() {
+        if let Some((_optional, prop_schema)) = schema.lookup(&key) {
+            match prop_schema {
                 Schema::Array(array_schema) => {
                     if params[key] == Value::Null {
                         params[key] = json!([]);
@@ -533,7 +544,7 @@ pub fn parse_parameter_strings(data: &[(String, String)], schema: &ObjectSchema,
     }
 
     if test_required && errors.len() == 0 {
-        for (name, (optional, _prop_schema)) in properties {
+        for (name, optional, _prop_schema) in schema.properties {
             if !(*optional) && params[name] == Value::Null {
                 errors.push(format_err!("parameter '{}': parameter is missing and it is not optional.", name));
             }
@@ -624,12 +635,11 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
         _ => bail!("Expected object - got scalar value."),
     };
 
-    let properties = &schema.properties;
     let additional_properties = schema.additional_properties;
 
     for (key, value) in map {
-        if let Some((_optional, prop_schema)) = properties.get::<str>(key) {
-            match prop_schema.as_ref() {
+        if let Some((_optional, prop_schema)) = schema.lookup(&key) {
+            match prop_schema {
                 Schema::Object(object_schema) => {
                     verify_json_object(value, object_schema)?;
                 }
@@ -643,7 +653,7 @@ pub fn verify_json_object(data: &Value, schema: &ObjectSchema) -> Result<(), Err
         }
     }
 
-    for (name, (optional, _prop_schema)) in properties {
+    for (name, optional, _prop_schema) in schema.properties {
         if !(*optional) && data[name] == Value::Null {
             bail!("property '{}': property is missing and it is not optional.", name);
         }
@@ -657,11 +667,7 @@ fn test_schema1() {
     let schema = Schema::Object(ObjectSchema {
         description: "TEST",
         additional_properties: false,
-        properties: {
-            let map = HashMap::new();
-
-            map
-        },
+        properties: &[],
         default_key: None,
     });
 
@@ -671,285 +677,342 @@ fn test_schema1() {
 #[test]
 fn test_query_string() {
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required("name", StringSchema::new("Name."));
-
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_err());
-
-    let schema = ObjectSchema::new("Parameters.")
-        .optional("name", StringSchema::new("Name."));
-
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_ok());
-
-    // TEST min_length and max_length
-
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "name", StringSchema::new("Name.")
-                .min_length(5)
-                .max_length(10)
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[("name", false, &StringSchema::new("Name.").schema())]
         );
 
-    let res = parse_query_string("name=abcd", &schema, true);
-    assert!(res.is_err());
-
-    let res = parse_query_string("name=abcde", &schema, true);
-    assert!(res.is_ok());
-
-    let res = parse_query_string("name=abcdefghijk", &schema, true);
-    assert!(res.is_err());
-
-    let res = parse_query_string("name=abcdefghij", &schema, true);
-    assert!(res.is_ok());
-
-    // TEST regex pattern
-
-    use lazy_static::lazy_static;
-    lazy_static! {
-        static ref TEST_REGEX: Regex = Regex::new("test").unwrap();
-        static ref TEST2_REGEX: Regex = Regex::new("^test$").unwrap();
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_err());
     }
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Pattern(&TEST_REGEX)))
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[("name", true, &StringSchema::new("Name.").schema())]
         );
+    
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
+    
+    // TEST min_length and max_length
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("name", true, &StringSchema::new("Name.")
+                 .min_length(5)
+                 .max_length(10)
+                 .schema()
+                ),
+            ]);
 
-    let res = parse_query_string("name=abcd", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("name=abcd", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("name=ateststring", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("name=abcde", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Pattern(&TEST2_REGEX)))
-        );
+        let res = parse_query_string("name=abcdefghijk", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("name=ateststring", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("name=abcdefghij", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
+    
+    // TEST regex pattern
+    const_regex! {
+        TEST_REGEX = "test";
+        TEST2_REGEX = "^test$";
+    }
 
-    let res = parse_query_string("name=test", &schema, true);
-    assert!(res.is_ok());
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("name", false, &StringSchema::new("Name.")
+                 .format(&ApiStringFormat::Pattern(&TEST_REGEX))
+                 .schema()
+                ),
+            ]);
+        
+        let res = parse_query_string("name=abcd", &SCHEMA, true);
+        assert!(res.is_err());
 
+        let res = parse_query_string("name=ateststring", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
+
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("name", false, &StringSchema::new("Name.")
+                 .format(&ApiStringFormat::Pattern(&TEST2_REGEX))
+                 .schema()
+                ),
+            ]);
+
+        let res = parse_query_string("name=ateststring", &SCHEMA, true);
+        assert!(res.is_err());
+
+        let res = parse_query_string("name=test", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
+    
     // TEST string enums
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("name", false, &StringSchema::new("Name.")
+                 .format(&ApiStringFormat::Enum(&["ev1", "ev2"]))
+                 .schema()
+                ),
+            ]);
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "name", StringSchema::new("Name.")
-                .format(Arc::new(ApiStringFormat::Enum(&["ev1", "ev2"])))
-        );
+        let res = parse_query_string("name=noenum", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("name=noenum", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("name=ev1", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("name=ev1", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("name=ev2", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("name=ev2", &schema, true);
-    assert!(res.is_ok());
-
-    let res = parse_query_string("name=ev3", &schema, true);
-    assert!(res.is_err());
-
+        let res = parse_query_string("name=ev3", &SCHEMA, true);
+        assert!(res.is_err());
+    }
 }
 
 #[test]
 fn test_query_integer() {
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "count" , IntegerSchema::new("Count.")
-        );
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("count", false, &IntegerSchema::new("Count.").schema()),
+            ]);
 
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_err());
+    }
 
-    let schema = ObjectSchema::new("Parameters.")
-        .optional(
-            "count", IntegerSchema::new("Count.")
-                .minimum(-3)
-                .maximum(50)
-        );
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("count", true, &IntegerSchema::new("Count.")
+                 .minimum(-3)
+                 .maximum(50)
+                 .schema()
+                ),
+            ]);
+        
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("count=abc", &SCHEMA, false);
+        assert!(res.is_err());
 
-    let res = parse_query_string("count=abc", &schema, false);
-    assert!(res.is_err());
+        let res = parse_query_string("count=30", &SCHEMA, false);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("count=30", &schema, false);
-    assert!(res.is_ok());
+        let res = parse_query_string("count=-1", &SCHEMA, false);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("count=-1", &schema, false);
-    assert!(res.is_ok());
+        let res = parse_query_string("count=300", &SCHEMA, false);
+        assert!(res.is_err());
 
-    let res = parse_query_string("count=300", &schema, false);
-    assert!(res.is_err());
+        let res = parse_query_string("count=-30", &SCHEMA, false);
+        assert!(res.is_err());
 
-    let res = parse_query_string("count=-30", &schema, false);
-    assert!(res.is_err());
+        let res = parse_query_string("count=50", &SCHEMA, false);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("count=50", &schema, false);
-    assert!(res.is_ok());
-
-    let res = parse_query_string("count=-3", &schema, false);
-    assert!(res.is_ok());
+        let res = parse_query_string("count=-3", &SCHEMA, false);
+        assert!(res.is_ok());
+    }
 }
 
 #[test]
 fn test_query_boolean() {
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "force", BooleanSchema::new("Force.")
-        );
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("force", false, &BooleanSchema::new("Force.").schema()),
+            ]);
 
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_err());
+    }
 
-    let schema = ObjectSchema::new("Parameters.")
-        .optional(
-            "force", BooleanSchema::new("Force.")
-        );
+    {
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("force", true, &BooleanSchema::new("Force.").schema()),
+            ]);
+    
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("a=b", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("a=b", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("force", &SCHEMA, true);
+        assert!(res.is_err());
 
+        let res = parse_query_string("force=yes", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=1", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=On", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=TRUE", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=TREU", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("force", &schema, true);
-    assert!(res.is_err());
-
-    let res = parse_query_string("force=yes", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=1", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=On", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=TRUE", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=TREU", &schema, true);
-    assert!(res.is_err());
-
-    let res = parse_query_string("force=NO", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=0", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=off", &schema, true);
-    assert!(res.is_ok());
-    let res = parse_query_string("force=False", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("force=NO", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=0", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=off", &SCHEMA, true);
+        assert!(res.is_ok());
+        let res = parse_query_string("force=False", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
 }
 
 #[test]
 fn test_verify_function() {
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "p1", StringSchema::new("P1")
-                .format(ApiStringFormat::VerifyFn(|value| {
-                    if value == "test" { return Ok(()) };
-                    bail!("format error");
-                }).into())
-        );
+    const SCHEMA: ObjectSchema = ObjectSchema::new(
+        "Parameters.",
+        &[
+            ("p1", false, &StringSchema::new("P1")
+             .format(&ApiStringFormat::VerifyFn(|value| {
+                 if value == "test" { return Ok(()) };
+                 bail!("format error");
+             }))
+             .schema()
+            ),
+        ]);
 
-    let res = parse_query_string("p1=tes", &schema, true);
+    let res = parse_query_string("p1=tes", &SCHEMA, true);
     assert!(res.is_err());
-    let res = parse_query_string("p1=test", &schema, true);
+    let res = parse_query_string("p1=test", &SCHEMA, true);
     assert!(res.is_ok());
 }
 
 #[test]
 fn test_verify_complex_object() {
 
-    let nic_models = Arc::new(ApiStringFormat::Enum(
-        &["e1000", "virtio"]));
+    const NIC_MODELS: ApiStringFormat = ApiStringFormat::Enum(&["e1000", "virtio"]);
 
-    let param_schema: Arc<Schema> = ObjectSchema::new("Properties.")
+    const PARAM_SCHEMA: Schema = ObjectSchema::new(
+        "Properties.",
+        &[
+            ("enable", true, &BooleanSchema::new("Enable device.").schema()),
+            ("model", false, &StringSchema::new("Ethernet device Model.")
+             .format(&NIC_MODELS)
+             .schema()
+            ),
+         ])
         .default_key("model")
-        .required("model", StringSchema::new("Ethernet device Model.")
-                  .format(nic_models))
-        .optional("enable", BooleanSchema::new("Enable device."))
-        .into();
+        .schema();
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "net0", StringSchema::new("First Network device.")
-                .format(ApiStringFormat::Complex(param_schema).into())
-        );
+    const SCHEMA: ObjectSchema = ObjectSchema::new(
+        "Parameters.",
+        &[
+            ("net0", false, &StringSchema::new("First Network device.")
+             .format(&ApiStringFormat::Complex(&PARAM_SCHEMA))
+             .schema()
+            ),
+        ]);
 
-    let res = parse_query_string("", &schema, true);
+    let res = parse_query_string("", &SCHEMA, true);
     assert!(res.is_err());
 
-    let res = parse_query_string("test=abc", &schema, true);
+    let res = parse_query_string("test=abc", &SCHEMA, true);
     assert!(res.is_err());
 
-    let res = parse_query_string("net0=model=abc", &schema, true);
+    let res = parse_query_string("net0=model=abc", &SCHEMA, true);
     assert!(res.is_err());
 
-    let res = parse_query_string("net0=model=virtio", &schema, true);
-     assert!(res.is_ok());
-
-    let res = parse_query_string("net0=model=virtio,enable=1", &schema, true);
+    let res = parse_query_string("net0=model=virtio", &SCHEMA, true);
     assert!(res.is_ok());
 
-    let res = parse_query_string("net0=virtio,enable=no", &schema, true);
+    let res = parse_query_string("net0=model=virtio,enable=1", &SCHEMA, true);
+    assert!(res.is_ok());
+
+    let res = parse_query_string("net0=virtio,enable=no", &SCHEMA, true);
     assert!(res.is_ok());
 }
 
 #[test]
 fn test_verify_complex_array() {
 
-    let param_schema: Arc<Schema> = ArraySchema::new(
-        "Integer List.", Arc::new(IntegerSchema::new("Soemething").into()))
-        .into();
+    {
+        const PARAM_SCHEMA: Schema = ArraySchema::new(
+            "Integer List.", &IntegerSchema::new("Soemething").schema())
+            .schema();
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "list", StringSchema::new("A list on integers, comma separated.")
-                .format(ApiStringFormat::Complex(param_schema).into())
-        );
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("list", false, &StringSchema::new("A list on integers, comma separated.")
+                 .format(&ApiStringFormat::Complex(&PARAM_SCHEMA))
+                 .schema()
+                ),
+            ]);
 
-    let res = parse_query_string("", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("list=", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("list=", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("list=abc", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("list=abc", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("list=1", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("list=1", &SCHEMA, true);
+        assert!(res.is_ok());
 
-    let res = parse_query_string("list=2,3,4,5", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("list=2,3,4,5", &SCHEMA, true);
+        assert!(res.is_ok());
+    }
 
-    let param_schema: Arc<Schema> = ArraySchema::new(
-        "Integer List.", Arc::new(IntegerSchema::new("Soemething").into()))
-        .min_length(1)
-        .max_length(3)
-        .into();
+    {
 
-    let schema = ObjectSchema::new("Parameters.")
-        .required(
-            "list", StringSchema::new("A list on integers, comma separated.")
-                .format(ApiStringFormat::Complex(param_schema).into())
-        );
+        const PARAM_SCHEMA: Schema = ArraySchema::new(
+            "Integer List.", &IntegerSchema::new("Soemething").schema())
+            .min_length(1)
+            .max_length(3)
+            .schema();
 
-    let res = parse_query_string("list=", &schema, true);
-    assert!(res.is_err());
+        const SCHEMA: ObjectSchema = ObjectSchema::new(
+            "Parameters.",
+            &[
+                ("list", false, &StringSchema::new("A list on integers, comma separated.")
+                 .format(&ApiStringFormat::Complex(&PARAM_SCHEMA))
+                 .schema()
+                ),
+            ]);
 
-    let res = parse_query_string("list=1,2,3", &schema, true);
-    assert!(res.is_ok());
+        let res = parse_query_string("list=", &SCHEMA, true);
+        assert!(res.is_err());
 
-    let res = parse_query_string("list=2,3,4,5", &schema, true);
-    assert!(res.is_err());
+        let res = parse_query_string("list=1,2,3", &SCHEMA, true);
+        assert!(res.is_ok());
+
+        let res = parse_query_string("list=2,3,4,5", &SCHEMA, true);
+        assert!(res.is_err());
+    }
 }

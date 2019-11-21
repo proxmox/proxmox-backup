@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
 use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
 
@@ -237,18 +236,60 @@ fn status(
     }))
 }
 
-fn api_method_status() -> ApiMethod {
-    ApiMethod::new(
-        status,
-        add_common_prune_prameters(
-            ObjectSchema::new("Get datastore status.")
-                .required(
-                    "store",
-                    StringSchema::new("Datastore name.")
-                )
-        )
-    )
+#[macro_export]
+macro_rules! add_common_prune_prameters {
+    ($( $list:tt )*) => {
+        [
+            (
+                "keep-last",
+                true,
+                &IntegerSchema::new("Number of backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "keep-daily",
+                true,
+                &IntegerSchema::new("Number of daily backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "keep-weekly",
+                true,
+                &IntegerSchema::new("Number of weekly backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "keep-monthly",
+                true,
+                &IntegerSchema::new("Number of monthly backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "keep-yearly",
+                true,
+                &IntegerSchema::new("Number of yearly backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            $( $list )*
+        ]
+    }
 }
+
+const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&status),
+    &ObjectSchema::new(
+        "Get datastore status.",
+        &add_common_prune_prameters!(
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ),
+    )
+);
+
 
 fn prune(
     param: Value,
@@ -341,50 +382,17 @@ fn prune(
     Ok(json!(null))
 }
 
-pub fn add_common_prune_prameters(schema: ObjectSchema) -> ObjectSchema  {
-
-    schema
-        .optional(
-            "keep-last",
-            IntegerSchema::new("Number of backups to keep.")
-                .minimum(1)
-        )
-        .optional(
-            "keep-daily",
-            IntegerSchema::new("Number of daily backups to keep.")
-                .minimum(1)
-        )
-        .optional(
-            "keep-weekly",
-            IntegerSchema::new("Number of weekly backups to keep.")
-                .minimum(1)
-        )
-        .optional(
-            "keep-monthly",
-            IntegerSchema::new("Number of monthly backups to keep.")
-                .minimum(1)
-        )
-        .optional(
-            "keep-yearly",
-            IntegerSchema::new("Number of yearly backups to keep.")
-                .minimum(1)
-        )
-}
-
-fn api_method_prune() -> ApiMethod {
-    ApiMethod::new(
-        prune,
-        add_common_prune_prameters(
-            ObjectSchema::new("Prune the datastore.")
-                .required(
-                    "store",
-                    StringSchema::new("Datastore name.")
-                )
-                .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-                .required("backup-id", BACKUP_ID_SCHEMA.clone())
+const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&prune),
+    &ObjectSchema::new(
+        "Prune the datastore.",
+        &add_common_prune_prameters!(
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
         )
     )
-}
+);
 
 fn start_garbage_collection(
     param: Value,
@@ -410,13 +418,13 @@ fn start_garbage_collection(
     Ok(json!(upid_str))
 }
 
-pub fn api_method_start_garbage_collection() -> ApiMethod {
-    ApiMethod::new(
-        start_garbage_collection,
-        ObjectSchema::new("Start garbage collection.")
-            .required("store", StringSchema::new("Datastore name."))
+pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&start_garbage_collection),
+    &ObjectSchema::new(
+        "Start garbage collection.",
+        &[ ("store", false, &StringSchema::new("Datastore name.").schema()) ]
     )
-}
+);
 
 fn garbage_collection_status(
     param: Value,
@@ -435,13 +443,13 @@ fn garbage_collection_status(
     Ok(serde_json::to_value(&status)?)
 }
 
-pub fn api_method_garbage_collection_status() -> ApiMethod {
-    ApiMethod::new(
-        garbage_collection_status,
-        ObjectSchema::new("Garbage collection status.")
-            .required("store", StringSchema::new("Datastore name."))
+pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&garbage_collection_status),
+    &ObjectSchema::new(
+        "Garbage collection status.",
+        &[ ("store", false, &StringSchema::new("Datastore name.").schema()) ]
     )
-}
+);
 
 fn get_datastore_list(
     _param: Value,
@@ -459,7 +467,7 @@ fn download_file(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -500,23 +508,28 @@ fn download_file(
     Ok(Box::new(response_future))
 }
 
-pub fn api_method_download_file() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        download_file,
-        ObjectSchema::new("Download single raw file from backup snapshot.")
-            .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-            .required("backup-id", BACKUP_ID_SCHEMA.clone())
-            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
-            .required("file-name", StringSchema::new("Raw file name.").format(FILENAME_FORMAT.clone()))
+pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&download_file),
+    &ObjectSchema::new(
+        "Download single raw file from backup snapshot.",
+        &[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+            ("file-name", false, &StringSchema::new("Raw file name.")
+             .format(&FILENAME_FORMAT)
+             .schema()
+            ),
+        ],
     )
-}
+);
 
 fn upload_backup_log(
     _parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -565,98 +578,122 @@ fn upload_backup_log(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_backup_log() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upload_backup_log,
-        ObjectSchema::new("Download single raw file from backup snapshot.")
-            .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-            .required("backup-id", BACKUP_ID_SCHEMA.clone())
-            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
+pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upload_backup_log),
+    &ObjectSchema::new(
+        "Download single raw file from backup snapshot.",
+        &[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+        ],
     )
-}
+);
 
-pub fn router() -> Router {
+const STORE_SCHEMA: Schema = StringSchema::new("Datastore name.").schema();
 
-    let store_schema: Arc<Schema> = Arc::new(
-        StringSchema::new("Datastore name.").into()
-    );
-
-    let datastore_info = Router::new()
-        .subdir(
-            "download",
-            Router::new()
-                .download(api_method_download_file())
-        )
-        .subdir(
-            "upload-backup-log",
-            Router::new()
-                .upload(api_method_upload_backup_log())
-        )
-        .subdir(
-            "gc",
-            Router::new()
-                .get(api_method_garbage_collection_status())
-                .post(api_method_start_garbage_collection()))
-        .subdir(
-            "files",
-            Router::new()
-                .get(
-                    ApiMethod::new(
-                        list_snapshot_files,
-                        ObjectSchema::new("List snapshot files.")
-                            .required("store", store_schema.clone())
-                            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-                            .required("backup-id", BACKUP_ID_SCHEMA.clone())
-                            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
+const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
+    (
+        "download",
+        &Router::new()
+            .download(&API_METHOD_DOWNLOAD_FILE)
+    ),
+    (
+        "files",
+        &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&list_snapshot_files),
+                    &ObjectSchema::new(
+                        "List snapshot files.",
+                        &[
+                            ("store", false, &STORE_SCHEMA),
+                            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+                            ("backup-id", false, &BACKUP_ID_SCHEMA),
+                            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+                        ],
                     )
                 )
-        )
-        .subdir(
-            "groups",
-            Router::new()
-                .get(ApiMethod::new(
-                    list_groups,
-                    ObjectSchema::new("List backup groups.")
-                        .required("store", store_schema.clone()))))
-        .subdir(
-            "snapshots",
-            Router::new()
-                .get(
-                    ApiMethod::new(
-                        list_snapshots,
-                        ObjectSchema::new("List backup groups.")
-                            .required("store", store_schema.clone())
-                            .optional("backup-type", BACKUP_TYPE_SCHEMA.clone())
-                            .optional("backup-id", BACKUP_ID_SCHEMA.clone())
+            )
+    ),
+    (
+        "gc",
+        &Router::new()
+            .get(&API_METHOD_GARBAGE_COLLECTION_STATUS)
+            .post(&API_METHOD_START_GARBAGE_COLLECTION)
+    ),
+    (
+        "groups",
+        &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&list_groups),
+                    &ObjectSchema::new(
+                        "List backup groups.",
+                        &[ ("store", false, &STORE_SCHEMA) ],
                     )
                 )
-                .delete(
-                    ApiMethod::new(
-                        delete_snapshots,
-                        ObjectSchema::new("Delete backup snapshot.")
-                            .required("store", store_schema.clone())
-                            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-                            .required("backup-id", BACKUP_ID_SCHEMA.clone())
-                            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
-                   )
+            )
+    ),
+    (
+        "prune",
+        &Router::new()
+            .post(&API_METHOD_PRUNE)
+    ),
+    (
+        "snapshots",
+        &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&list_snapshots),
+                    &ObjectSchema::new(
+                        "List backup groups.",
+                        &[
+                            ("store", false, &STORE_SCHEMA),
+                            ("backup-type", true, &BACKUP_TYPE_SCHEMA),
+                            ("backup-id", true, &BACKUP_ID_SCHEMA),
+                        ],
+                    )
                 )
-        )
-        .subdir(
-            "prune",
-            Router::new()
-                .post(api_method_prune())
-        )
-        .subdir(
-            "status",
-            Router::new()
-                .get(api_method_status())
-        )
-        .list_subdirs();
+            )
+            .delete(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&delete_snapshots),
+                    &ObjectSchema::new(
+                        "Delete backup snapshot.",
+                        &[
+                            ("store", false, &STORE_SCHEMA),
+                            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+                            ("backup-id", false, &BACKUP_ID_SCHEMA),
+                            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+                        ],
+                    )
+                )
+            )
+    ),
+    (
+        "status",
+        &Router::new()
+            .get(&API_METHOD_STATUS)
+    ),
+    (
+        "upload-backup-log",
+        &Router::new()
+            .upload(&API_METHOD_UPLOAD_BACKUP_LOG)
+    ),
+];
 
-    Router::new()
-        .get(ApiMethod::new(
-            get_datastore_list,
-            ObjectSchema::new("Directory index.")))
-        .match_all("store", datastore_info)
-}
+const DATASTORE_INFO_ROUTER: Router = Router::new()    
+    .get(&list_subdirs_api_method!(DATASTORE_INFO_SUBDIRS))
+    .subdirs(DATASTORE_INFO_SUBDIRS);
+
+
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_datastore_list),
+            &ObjectSchema::new("Directory index.", &[])
+        )
+    )
+    .match_all("store", &DATASTORE_INFO_ROUTER);

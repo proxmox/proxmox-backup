@@ -4,7 +4,6 @@ use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json, Value};
-use std::sync::Arc;
 use std::fs::File;
 use std::io::{BufRead,BufReader};
 
@@ -166,84 +165,91 @@ fn list_tasks(
     Ok(json!(result))
 }
 
-pub fn router() -> Router {
+const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
+    .max_length(256)
+    .schema();
 
-    let upid_schema: Arc<Schema> = Arc::new(
-        StringSchema::new("Unique Process/Task ID.")
-            .max_length(256)
-            .into()
-    );
-
-    let upid_api = Router::new()
-        .delete(ApiMethod::new(
-            stop_task,
-            ObjectSchema::new("Try to stop a task.")
-                .required("node", NODE_SCHEMA.clone())
-                .required("upid", upid_schema.clone())).protected(true)
-
-        )
-        .subdir(
-            "log", Router::new()
-                .get(
-                    ApiMethod::new(
-                        read_task_log,
-                        ObjectSchema::new("Read task log.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("upid", upid_schema.clone())
-                            .optional(
-                                "start",
-                                IntegerSchema::new("Start at this line.")
-                                    .minimum(0)
-                                    .default(0)
-                            )
-                            .optional(
-                                "limit",
-                                IntegerSchema::new("Only list this amount of lines.")
-                                    .minimum(0)
-                                    .default(50)
-                            )
+const UPID_API_SUBDIRS: SubdirMap = &[
+    (
+        "log", &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&read_task_log),
+                    &ObjectSchema::new(
+                        "Read task log.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("upid", false, &UPID_SCHEMA),
+                            ("start", true, &IntegerSchema::new("Start at this line.")
+                             .minimum(0)
+                             .default(0)
+                             .schema()
+                            ),
+                            ("limit", true, &IntegerSchema::new("Only list this amount of lines.")
+                             .minimum(0)
+                             .default(50)
+                             .schema()
+                            ),
+                        ],
                     )
                 )
-        )
-        .subdir(
-            "status", Router::new()
-                .get(
-                    ApiMethod::new(
-                        get_task_status,
-                        ObjectSchema::new("Get task status.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("upid", upid_schema.clone()))
+            )
+    ),
+    (
+        "status", &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&get_task_status),
+                    &ObjectSchema::new(
+                        "Get task status.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("upid", false, &UPID_SCHEMA),
+                        ],
+                    )
                 )
-        )
-        .list_subdirs();
+            )
+    )
+];
 
+pub const UPID_API_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
+    .delete(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&stop_task),
+            &ObjectSchema::new(
+                "Try to stop a task.",
+                &[
+                    ("node", false, &NODE_SCHEMA),
+                    ("upid", false, &UPID_SCHEMA),
+                ],
+            )
+        ).protected(true)
+    )
+    .subdirs(&UPID_API_SUBDIRS);
 
-    Router::new()
-        .get(ApiMethod::new(
-            list_tasks,
-            ObjectSchema::new("List tasks.")
-                .required("node", NODE_SCHEMA.clone())
-                .optional(
-                    "start",
-                    IntegerSchema::new("List tasks beginning from this offset.")
-                        .minimum(0)
-                        .default(0)
-                )
-                .optional(
-                    "limit",
-                    IntegerSchema::new("Only list this amount of tasks.")
-                        .minimum(0)
-                        .default(50)
-                )
-                .optional(
-                    "errors",
-                    BooleanSchema::new("Only list erroneous tasks.")
-                )
-                .optional(
-                    "userfilter",
-                    StringSchema::new("Only list tasks from this user.")
-                )
-           )
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&list_tasks),
+            &ObjectSchema::new(
+                "List tasks.",
+                &[
+                    ("node", false, &NODE_SCHEMA),
+                    ("start", true, &IntegerSchema::new("List tasks beginning from this offset.")
+                     .minimum(0)
+                     .default(0)
+                     .schema()
+                    ),
+                    ("limit", true, &IntegerSchema::new("Only list this amount of tasks.")
+                     .minimum(0)
+                     .default(50)
+                     .schema()
+                    ),
+                    ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
+                    ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
+                ],
+            )
         )
-        .match_all("upid", upid_api)
-}
+    )
+    .match_all("upid", &UPID_API_ROUTER);

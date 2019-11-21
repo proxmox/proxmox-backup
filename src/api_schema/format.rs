@@ -1,8 +1,11 @@
 use failure::*;
 
 use std::io::Write;
-use crate::api_schema::*;
-use crate::api_schema::router::*;
+//use super::*;
+use super::router::*;
+use super::schema::*;
+//use super::api_handler::*;
+
 
 #[derive(Copy, Clone)]
 pub enum ParameterDisplayStyle {
@@ -140,17 +143,10 @@ fn dump_api_parameters(param: &ObjectSchema) -> String {
 
     let mut res = wrap_text("", "", param.description, 80);
 
-    let properties = &param.properties;
-
-    let mut prop_names: Vec<&str> = properties.keys().copied().collect();
-    prop_names.sort();
-
     let mut required_list: Vec<String> = Vec::new();
     let mut optional_list: Vec<String> = Vec::new();
 
-    for prop in prop_names {
-        let (optional, schema) = properties.get(prop).unwrap();
-
+    for (prop, optional, schema) in param.properties {
         let param_descr = get_property_description(
             prop, &schema, ParameterDisplayStyle::Config, DocumentationFormat::ReST);
 
@@ -223,26 +219,22 @@ fn dump_api_return_schema(schema: &Schema) -> String {
     res
 }
 
-fn dump_method_definition(method: &str, path: &str, def: &MethodDefinition) -> Option<String> {
+fn dump_method_definition(method: &str, path: &str, def: Option<&ApiMethod>) -> Option<String> {
 
     match def {
-        MethodDefinition::None => None,
-        MethodDefinition::Simple(simple_method) => {
-            let param_descr = dump_api_parameters(&simple_method.parameters);
+        None => None,
+        Some(api_method) => {
+            let param_descr = dump_api_parameters(api_method.parameters);
 
-            let return_descr = dump_api_return_schema(&simple_method.returns);
+            let return_descr = dump_api_return_schema(api_method.returns);
 
-            let res = format!("**{} {}**\n\n{}\n\n{}", method, path, param_descr, return_descr);
-            Some(res)
-         }
-        MethodDefinition::Async(async_method) => {
-            let method = if method == "POST" { "UPLOAD" } else { method };
-            let method = if method == "GET" { "DOWNLOAD" } else { method };
+            let mut method = method;
 
-            let param_descr = dump_api_parameters(&async_method.parameters);
-
-            let return_descr = dump_api_return_schema(&async_method.returns);
-
+            if let ApiHandler::Async(_) = api_method.handler {
+                method = if method == "POST" { "UPLOAD" } else { method };
+                method = if method == "GET" { "DOWNLOAD" } else { method };
+            }
+            
             let res = format!("**{} {}**\n\n{}\n\n{}", method, path, param_descr, return_descr);
             Some(res)
         }
@@ -262,14 +254,14 @@ pub fn dump_api(output: &mut dyn Write, router: &Router, path: &str, mut pos: us
         Ok(())
     };
 
-    cond_print(dump_method_definition("GET", path, &router.get))?;
-    cond_print(dump_method_definition("POST", path, &router.post))?;
-    cond_print(dump_method_definition("PUT", path, &router.put))?;
-    cond_print(dump_method_definition("DELETE", path, &router.delete))?;
+    cond_print(dump_method_definition("GET", path, router.get))?;
+    cond_print(dump_method_definition("POST", path, router.post))?;
+    cond_print(dump_method_definition("PUT", path, router.put))?;
+    cond_print(dump_method_definition("DELETE", path, router.delete))?;
 
     match &router.subroute {
-        SubRoute::None => return Ok(()),
-        SubRoute::MatchAll { router, param_name } => {
+        None => return Ok(()),
+        Some(SubRoute::MatchAll { router, param_name }) => {
             let sub_path = if path == "." {
                 format!("<{}>", param_name)
             } else {
@@ -277,12 +269,11 @@ pub fn dump_api(output: &mut dyn Write, router: &Router, path: &str, mut pos: us
             };
             dump_api(output, router, &sub_path, pos)?;
         }
-        SubRoute::Hash(map) => {
-            let mut keys: Vec<&String> = map.keys().collect();
-            keys.sort_unstable_by(|a, b| a.cmp(b));
-            for key in keys {
-                let sub_router = &map[key];
-                let sub_path = if path == "." { key.to_owned() } else { format!("{}/{}", path, key) };
+        Some(SubRoute::Map(dirmap)) => {
+            //let mut keys: Vec<&String> = map.keys().collect();
+            //keys.sort_unstable_by(|a, b| a.cmp(b));
+            for (key, sub_router) in dirmap.iter() {
+                let sub_path = if path == "." { key.to_string() } else { format!("{}/{}", path, key) };
                 dump_api(output, sub_router, &sub_path, pos)?;
             }
         }

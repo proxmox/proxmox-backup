@@ -66,31 +66,57 @@ fn create_ticket(
     }
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .subdir(
-            "ticket",
-            Router::new()
-                .post(
-                    ApiMethod::new(
-                        create_ticket,
-                        ObjectSchema::new("Create or verify authentication ticket.")
-                            .required(
+const SUBDIRS: SubdirMap = &[
+    (
+        "ticket", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&create_ticket),
+                    &ObjectSchema::new(
+                        "Create or verify authentication ticket.",
+                        &[
+                            (
                                 "username",
-                                StringSchema::new("User name.")
+                                false,
+                                &StringSchema::new("User name.")
                                     .max_length(64)
-                            )
-                            .required(
+                                    .schema()
+                            ),
+                            (
                                 "password",
-                                StringSchema::new("The secret password. This can also be a valid ticket.")
-                            )
-                    ).returns(
-                        ObjectSchema::new("Returns authentication ticket with additional infos.")
-                            .required("username", StringSchema::new("User name."))
-                            .required("ticket", StringSchema::new("Auth ticket."))
-                            .required("CSRFPreventionToken", StringSchema::new("Cross Site Request Forgery Prevention Token."))
-                    ).protected(true)
-                )
-        )
-        .list_subdirs()
-}
+                                false,
+                                &StringSchema::new("The secret password. This can also be a valid ticket.")
+                                    .schema()
+                            ),
+                        ],
+                    )
+                ).returns(
+                    &ObjectSchema::new(
+                        "Returns authentication ticket with additional infos.",
+                        &[
+                            (
+                                "username",
+                                false,
+                                &StringSchema::new("User name.").schema()
+                            ),
+                            (
+                                "ticket",
+                                false,
+                                &StringSchema::new("Auth ticket.").schema()
+                            ),
+                            (
+                                "CSRFPreventionToken",
+                                false,
+                                &StringSchema::new("Cross Site Request Forgery Prevention Token.")
+                                    .schema()
+                            ),
+                        ],
+                    ).schema()
+                ).protected(true)
+            )
+    )
+];
+
+pub const ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);

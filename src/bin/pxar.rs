@@ -13,7 +13,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::ffi::OsStr;
-use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::collections::HashSet;
@@ -260,84 +259,247 @@ fn mount_archive(
     Ok(Value::Null)
 }
 
+const API_METHOD_CREATE_ARCHIVE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&create_archive),
+    &ObjectSchema::new(
+        "Create new .pxar archive.",
+        &[
+            (
+                "archive",
+                false,
+                &StringSchema::new("Archive name").schema()
+            ),
+            (
+                "source",
+                false,
+                &StringSchema::new("Source directory.").schema()
+            ),
+            (
+                "verbose",
+                true,
+                &BooleanSchema::new("Verbose output.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-xattrs",
+                true,
+                &BooleanSchema::new("Ignore extended file attributes.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-fcaps",
+                true,
+                &BooleanSchema::new("Ignore file capabilities.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-acls",
+                true,
+                &BooleanSchema::new("Ignore access control list entries.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "all-file-systems",
+                true,
+                &BooleanSchema::new("Include mounted sudirs.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-device-nodes",
+                true,
+                &BooleanSchema::new("Ignore device nodes.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-fifos",
+                true,
+                &BooleanSchema::new("Ignore fifos.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-sockets",
+                true,
+                &BooleanSchema::new("Ignore sockets.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "exclude",
+                true,
+                &ArraySchema::new(
+                    "List of paths or pattern matching files to exclude.",
+                    &StringSchema::new("Path or pattern matching files to restore.").schema()
+                ).schema()
+            ),
+        ],
+    )
+);
+
+const API_METHOD_EXTRACT_ARCHIVE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&extract_archive),
+    &ObjectSchema::new(
+        "Extract an archive.",
+        &[
+            (
+                "archive",
+                false,
+                &StringSchema::new("Archive name.").schema()
+            ),
+            (
+                "pattern",
+                true,
+                &ArraySchema::new(
+                    "List of paths or pattern matching files to restore",
+                    &StringSchema::new("Path or pattern matching files to restore.").schema()
+                ).schema()
+            ),
+            (
+                "target",
+                true,
+                &StringSchema::new("Target directory.").schema()
+            ),
+            (
+                "verbose",
+                true,
+                &BooleanSchema::new("Verbose output.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-xattrs",
+                true,
+                &BooleanSchema::new("Ignore extended file attributes.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-fcaps",
+                true,
+                &BooleanSchema::new("Ignore file capabilities.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-acls",
+                true,
+                &BooleanSchema::new("Ignore access control list entries.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "allow-existing-dirs",
+                true,
+                &BooleanSchema::new("Allows directories to already exist on restore.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "files-from",
+                true,
+                &StringSchema::new("Match pattern for files to restore.").schema()
+            ),
+            (
+                "no-device-nodes",
+                true,
+                &BooleanSchema::new("Ignore device nodes.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-fifos",
+                true,
+                &BooleanSchema::new("Ignore fifos.")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-sockets",
+                true,
+                &BooleanSchema::new("Ignore sockets.")
+                    .default(false)
+                    .schema()
+            ),
+        ],
+    )
+);
+
+const API_METHOD_MOUNT_ARCHIVE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&mount_archive),
+    &ObjectSchema::new(
+        "Mount the archive as filesystem via FUSE.",
+        &[
+            (
+                "archive",
+                false,
+                &StringSchema::new("Archive name.").schema()
+            ),
+            (
+                "mountpoint",
+                false,
+                &StringSchema::new("Mountpoint for the filesystem root.").schema()
+            ),
+            (
+                "verbose",
+                true,
+                &BooleanSchema::new("Verbose output, keeps process running in foreground (for debugging).")
+                    .default(false)
+                    .schema()
+            ),
+            (
+                "no-mt",
+                true,
+                &BooleanSchema::new("Run in single threaded mode (for debugging).")
+                    .default(false)
+                    .schema()
+            ),
+        ],
+    )
+);
+
+const API_METHOD_DUMP_ARCHIVE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&dump_archive),
+    &ObjectSchema::new(
+        "List the contents of an archive.",
+        &[
+            ( "archive", false, &StringSchema::new("Archive name.").schema()),
+            ( "verbose", true, &BooleanSchema::new("Verbose output.")
+               .default(false)
+               .schema()
+            ),
+        ]
+    )
+);
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
-        .insert("create", CliCommand::new(
-            ApiMethod::new(
-                create_archive,
-                ObjectSchema::new("Create new .pxar archive.")
-                    .required("archive", StringSchema::new("Archive name"))
-                    .required("source", StringSchema::new("Source directory."))
-                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
-                    .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
-                    .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
-                    .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
-                    .optional("all-file-systems", BooleanSchema::new("Include mounted sudirs.").default(false))
-                    .optional("no-device-nodes", BooleanSchema::new("Ignore device nodes.").default(false))
-                    .optional("no-fifos", BooleanSchema::new("Ignore fifos.").default(false))
-                    .optional("no-sockets", BooleanSchema::new("Ignore sockets.").default(false))
-                    .optional("exclude", Arc::new(
-                        ArraySchema::new(
-                            "List of paths or pattern matching files to exclude.",
-                            Arc::new(StringSchema::new("Path or pattern matching files to restore.").into())
-                        ).into()
-                    ))
-            ))
+        .insert("create", CliCommand::new(&API_METHOD_CREATE_ARCHIVE)
             .arg_param(vec!["archive", "source", "exclude"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
             .into()
         )
-        .insert("extract", CliCommand::new(
-            ApiMethod::new(
-                extract_archive,
-                ObjectSchema::new("Extract an archive.")
-                    .required("archive", StringSchema::new("Archive name."))
-                    .optional("pattern", Arc::new(
-                        ArraySchema::new(
-                            "List of paths or pattern matching files to restore",
-                            Arc::new(StringSchema::new("Path or pattern matching files to restore.").into())
-                        ).into()
-                    ))
-                    .optional("target", StringSchema::new("Target directory."))
-                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
-                    .optional("no-xattrs", BooleanSchema::new("Ignore extended file attributes.").default(false))
-                    .optional("no-fcaps", BooleanSchema::new("Ignore file capabilities.").default(false))
-                    .optional("no-acls", BooleanSchema::new("Ignore access control list entries.").default(false))
-                    .optional("allow-existing-dirs", BooleanSchema::new("Allows directories to already exist on restore.").default(false))
-                    .optional("files-from", StringSchema::new("Match pattern for files to restore."))
-                    .optional("no-device-nodes", BooleanSchema::new("Ignore device nodes.").default(false))
-                    .optional("no-fifos", BooleanSchema::new("Ignore fifos.").default(false))
-                    .optional("no-sockets", BooleanSchema::new("Ignore sockets.").default(false))
-            ))
+        .insert("extract", CliCommand::new(&API_METHOD_EXTRACT_ARCHIVE)
             .arg_param(vec!["archive", "pattern"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .completion_cb("files-from", tools::complete_file_name)
             .into()
         )
-        .insert("mount", CliCommand::new(
-            ApiMethod::new(
-                mount_archive,
-                ObjectSchema::new("Mount the archive as filesystem via FUSE.")
-                    .required("archive", StringSchema::new("Archive name."))
-                    .required("mountpoint", StringSchema::new("Mountpoint for the filesystem root."))
-                    .optional("verbose", BooleanSchema::new("Verbose output, keeps process running in foreground (for debugging).").default(false))
-                    .optional("no-mt", BooleanSchema::new("Run in single threaded mode (for debugging).").default(false))
-            ))
+        .insert("mount", CliCommand::new(&API_METHOD_MOUNT_ARCHIVE)
             .arg_param(vec!["archive", "mountpoint"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("mountpoint", tools::complete_file_name)
             .into()
         )
-        .insert("list", CliCommand::new(
-            ApiMethod::new(
-                dump_archive,
-                ObjectSchema::new("List the contents of an archive.")
-                    .required("archive", StringSchema::new("Archive name."))
-                    .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
-            ))
+        .insert("list", CliCommand::new(&API_METHOD_DUMP_ARCHIVE)
             .arg_param(vec!["archive"])
             .completion_cb("archive", tools::complete_file_name)
             .into()

@@ -21,9 +21,10 @@ fn get_subscription(
      }))
 }
 
-pub fn router() -> Router {
-    Router::new()
-        .get(ApiMethod::new(
-            get_subscription,
-            ObjectSchema::new("Read subscription info.")))
-}
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&get_subscription),
+            &ObjectSchema::new("Read subscription info.", &[])
+        )
+    );

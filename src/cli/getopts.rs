@@ -66,8 +66,6 @@ pub (crate) fn parse_argument_list<T: AsRef<str>>(
 
     let mut pos = 0;
 
-    let properties = &schema.properties;
-
     while pos < args.len() {
         match parse_argument(args[pos].as_ref()) {
             RawArgument::Separator => {
@@ -77,8 +75,8 @@ pub (crate) fn parse_argument_list<T: AsRef<str>>(
                 None => {
                     let mut want_bool = false;
                     let mut can_default = false;
-                    if let Some((_optional, param_schema)) = properties.get::<str>(&name) {
-                        if let Schema::Boolean(boolean_schema) = param_schema.as_ref() {
+                    if let Some((_optional, param_schema)) = schema.lookup(&name) {
+                        if let Schema::Boolean(boolean_schema) = param_schema {
                             want_bool = true;
                             if let Some(default) = boolean_schema.default {
                                 if default == false {
@@ -153,8 +151,6 @@ pub fn parse_arguments<T: AsRef<str>>(
 ) -> Result<(Value, Vec<String>), ParameterError> {
     let mut errors = ParameterError::new();
 
-    let properties = &schema.properties;
-
     // first check if all arg_param exists in schema
 
     let mut last_arg_param_is_optional = false;
@@ -162,13 +158,13 @@ pub fn parse_arguments<T: AsRef<str>>(
 
     for i in 0..arg_param.len() {
         let name = arg_param[i];
-        if let Some((optional, param_schema)) = properties.get::<str>(&name) {
+        if let Some((optional, param_schema)) = schema.lookup(&name) {
             if i == arg_param.len() -1 {
-                last_arg_param_is_optional = *optional;
-                if let Schema::Array(_) = param_schema.as_ref() {
+                last_arg_param_is_optional = optional;
+                if let Schema::Array(_) = param_schema {
                     last_arg_param_is_array = true;
                 }
-            } else if *optional {
+            } else if optional {
                 panic!("positional argument '{}' may not be optional", name);
             }
         } else {
@@ -208,10 +204,11 @@ pub fn parse_arguments<T: AsRef<str>>(
 
 #[test]
 fn test_boolean_arg() {
-    let schema =  ObjectSchema::new("Parameters:")
-        .required(
-            "enable", BooleanSchema::new("Enable")
-        );
+
+    const PARAMETERS: ObjectSchema = ObjectSchema::new(
+        "Parameters:",
+        &[ ("enable", false, &BooleanSchema::new("Enable").schema()) ],
+    );
 
     let mut variants: Vec<(Vec<&str>, bool)> = vec![];
     variants.push((vec!["-enable"], true));
@@ -228,7 +225,7 @@ fn test_boolean_arg() {
     variants.push((vec!["--enable", "false"], false));
 
     for (args, expect) in variants {
-        let res = parse_arguments(&args, &vec![], &schema);
+        let res = parse_arguments(&args, &vec![], &PARAMETERS);
         assert!(res.is_ok());
         if let Ok((options, rest)) = res {
             assert!(options["enable"] == expect);
@@ -239,12 +236,17 @@ fn test_boolean_arg() {
 
 #[test]
 fn test_argument_paramenter() {
-    let schema = ObjectSchema::new("Parameters:")
-        .required("enable", BooleanSchema::new("Enable."))
-        .required("storage", StringSchema::new("Storage."));
+
+    const PARAMETERS: ObjectSchema = ObjectSchema::new(
+        "Parameters:",
+        &[
+            ("enable", false, &BooleanSchema::new("Enable.").schema()),
+            ("storage", false, &StringSchema::new("Storage.").schema()),
+        ],
+    );
 
     let args = vec!["-enable", "local"];
-    let res = parse_arguments(&args, &vec!["storage"], &schema);
+    let res = parse_arguments(&args, &vec!["storage"], &PARAMETERS);
     assert!(res.is_ok());
     if let Ok((options, rest)) = res {
         assert!(options["enable"] == true);

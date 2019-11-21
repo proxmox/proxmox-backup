@@ -1,54 +1,16 @@
 use failure::*;
 
-use crate::api_schema::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::fmt;
 
-use hyper::{Body, Method, Response, StatusCode};
-use hyper::rt::Future;
-use hyper::http::request::Parts;
+use hyper::{Method, StatusCode};
+//use hyper::http::request::Parts;
 
-use super::api_handler::*;
+use super::schema::*;
+pub use super::rpc_environment::*;
+pub use super::api_handler::*;
 
-pub type BoxFut = Box<dyn Future<Output = Result<Response<Body>, failure::Error>> + Send>;
-
-/// Abstract Interface for API methods to interact with the environment
-pub trait RpcEnvironment: std::any::Any + crate::tools::AsAny + Send {
-
-    /// Use this to pass additional result data. It is up to the environment
-    /// how the data is used.
-    fn set_result_attrib(&mut self, name: &str, value: Value);
-
-    /// Query additional result data.
-    fn get_result_attrib(&self, name: &str) -> Option<&Value>;
-
-    /// The environment type
-    fn env_type(&self) -> RpcEnvironmentType;
-
-    /// Set user name
-    fn set_user(&mut self, user: Option<String>);
-
-    /// Get user name
-    fn get_user(&self) -> Option<String>;
-}
-
-
-/// Environment Type
-///
-/// We use this to enumerate the different environment types. Some methods
-/// needs to do different things when started from the command line interface,
-/// or when executed from a privileged server running as root.
-#[derive(PartialEq, Copy, Clone)]
-pub enum RpcEnvironmentType {
-    /// Command started from command line
-    CLI,
-    /// Access from public accessible server
-    PUBLIC,
-    /// Access from privileged server (run as root)
-    PRIVILEGED,
-}
 
 #[derive(Debug, Fail)]
 pub struct HttpError {
@@ -68,16 +30,12 @@ impl fmt::Display for HttpError {
     }
 }
 
+#[macro_export]
 macro_rules! http_err {
     ($status:ident, $msg:expr) => {{
         Error::from(HttpError::new(StatusCode::$status, $msg))
     }}
 }
-
-type ApiAsyncHandlerFn = Box<
-    dyn Fn(Parts, Body, Value, &ApiAsyncMethod, Box<dyn RpcEnvironment>) -> Result<BoxFut, Error>
-    + Send + Sync + 'static
->;
 
 /// This struct defines synchronous API call which returns the restulkt as json `Value`
 pub struct ApiMethod {
@@ -88,53 +46,69 @@ pub struct ApiMethod {
     /// should do a tzset afterwards
     pub reload_timezone: bool,
     /// Parameter type Schema
-    pub parameters: ObjectSchema,
+    pub parameters: &'static ObjectSchema,
     /// Return type Schema
-    pub returns: Arc<Schema>,
+    pub returns: &'static Schema,
     /// Handler function
-    pub handler: Option<ApiHandlerFn>,
+    pub handler: &'static ApiHandler,
 }
+
+impl std::fmt::Debug for ApiMethod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ApiMethod {{ ")?;
+        write!(f, "  parameters: {:?}", self.parameters)?;
+        write!(f, "  returns: {:?}", self.returns)?;
+        write!(f, "  handler: {:p}", &self.handler)?;
+        write!(f, "}}")
+    }
+}
+
+const NULL_SCHEMA: Schema = Schema::Null;
+
+fn dummy_handler_fn(_arg: Value, _method: &ApiMethod, _env: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+    // do nothing
+    Ok(Value::Null)
+}
+
+const DUMMY_HANDLER: ApiHandler = ApiHandler::Sync(&dummy_handler_fn);
 
 impl ApiMethod {
 
-    pub fn new<F, Args, R, MetaArgs>(func: F, parameters: ObjectSchema) -> Self
-    where
-        F: WrapApiHandler<Args, R, MetaArgs>,
-    {
+    pub const fn new(handler: &'static ApiHandler, parameters: &'static ObjectSchema) -> Self {
         Self {
             parameters,
-            handler: Some(func.wrap()),
-            returns: Arc::new(Schema::Null),
+            handler,
+            returns: &NULL_SCHEMA,
             protected: false,
             reload_timezone: false,
         }
     }
 
-    pub fn new_dummy(parameters: ObjectSchema) -> Self {
+    pub const fn new_dummy(parameters: &'static ObjectSchema) -> Self {
         Self {
             parameters,
-            handler: None,
-            returns: Arc::new(Schema::Null),
+            handler: &DUMMY_HANDLER,
+            returns: &NULL_SCHEMA,
             protected: false,
             reload_timezone: false,
         }
     }
 
-    pub fn returns<S: Into<Arc<Schema>>>(mut self, schema: S) -> Self {
+    pub const fn returns(mut self, schema: &'static Schema) -> Self {
 
-        self.returns = schema.into();
+        self.returns = schema;
 
         self
     }
 
-    pub fn protected(mut self, protected: bool) -> Self {
+    pub const fn protected(mut self, protected: bool) -> Self {
 
         self.protected = protected;
 
         self
     }
 
-    pub fn reload_timezone(mut self, reload_timezone: bool) -> Self {
+    pub const fn reload_timezone(mut self, reload_timezone: bool) -> Self {
 
         self.reload_timezone = reload_timezone;
 
@@ -142,143 +116,96 @@ impl ApiMethod {
     }
 }
 
-pub struct ApiAsyncMethod {
-    pub parameters: ObjectSchema,
-    pub returns: Arc<Schema>,
-    pub handler: ApiAsyncHandlerFn,
-}
-
-impl ApiAsyncMethod {
-
-    pub fn new<F>(handler: F, parameters: ObjectSchema) -> Self
-    where
-        F: Fn(Parts, Body, Value, &ApiAsyncMethod, Box<dyn RpcEnvironment>) -> Result<BoxFut, Error>
-            + Send + Sync + 'static,
-    {
-        Self {
-            parameters,
-            handler: Box::new(handler),
-            returns: Arc::new(Schema::Null),
-        }
-    }
-
-    pub fn returns<S: Into<Arc<Schema>>>(mut self, schema: S) -> Self {
-
-        self.returns = schema.into();
-
-        self
-    }
-}
+pub type SubdirMap = &'static [(&'static str, &'static Router)];
 
 pub enum SubRoute {
-    None,
-    Hash(HashMap<String, Router>),
-    MatchAll { router: Box<Router>, param_name: String },
+    //Hash(HashMap<String, Router>),
+    Map(SubdirMap),
+    MatchAll { router: &'static Router, param_name: &'static str },
 }
 
-pub enum MethodDefinition {
-    None,
-    Simple(ApiMethod),
-    Async(ApiAsyncMethod),
+/// Macro to create an ApiMethod to list entries from SubdirMap
+#[macro_export]
+macro_rules! list_subdirs_api_method {
+    ($map:expr) => {
+        ApiMethod::new(
+            &ApiHandler::Sync( & |_, _, _| {
+                let index = serde_json::json!(
+                    $map.iter().map(|s| serde_json::json!({ "subdir": s.0}))
+                        .collect::<Vec<serde_json::Value>>()
+                );
+                Ok(index)
+            }),
+            &crate::api_schema::ObjectSchema::new("Directory index.", &[]).additional_properties(true)
+        )
+    }
 }
 
 pub struct Router {
-    pub get: MethodDefinition,
-    pub put: MethodDefinition,
-    pub post: MethodDefinition,
-    pub delete: MethodDefinition,
-    pub subroute: SubRoute,
+    pub get: Option<&'static ApiMethod>,
+    pub put: Option<&'static ApiMethod>,
+    pub post: Option<&'static ApiMethod>,
+    pub delete: Option<&'static ApiMethod>,
+    pub subroute: Option<SubRoute>,
 }
 
 impl Router {
 
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            get: MethodDefinition::None,
-            put: MethodDefinition::None,
-            post: MethodDefinition::None,
-            delete: MethodDefinition::None,
-            subroute: SubRoute::None
+            get: None,
+            put: None,
+            post: None,
+            delete: None,
+            subroute: None,
         }
     }
 
-    pub fn subdir<S: Into<String>>(mut self, subdir: S, router: Router) -> Self {
-        if let SubRoute::None = self.subroute {
-            self.subroute = SubRoute::Hash(HashMap::new());
-        }
-        match self.subroute {
-            SubRoute::Hash(ref mut map) => {
-                map.insert(subdir.into(), router);
-            }
-            _ => panic!("unexpected subroute type"),
-        }
+    pub const fn subdirs(mut self, map: SubdirMap) -> Self {
+        self.subroute = Some(SubRoute::Map(map));
         self
     }
 
-    pub fn subdirs(mut self, map: HashMap<String, Router>) -> Self {
-        self.subroute = SubRoute::Hash(map);
+    pub const fn match_all(mut self, param_name: &'static str, router: &'static Router) -> Self {
+        self.subroute = Some(SubRoute::MatchAll { router, param_name });
+        self
+    }
+   
+    pub const fn get(mut self, m: &'static ApiMethod) -> Self {
+        self.get = Some(m);
         self
     }
 
-    pub fn match_all<S: Into<String>>(mut self, param_name: S, router: Router) -> Self {
-        if let SubRoute::None = self.subroute {
-            self.subroute = SubRoute::MatchAll { router: Box::new(router), param_name: param_name.into() };
-        } else {
-            panic!("unexpected subroute type");
-        }
+    pub const fn put(mut self, m: &'static ApiMethod) -> Self {
+        self.put = Some(m);
         self
     }
 
-    pub fn list_subdirs(self) -> Self {
-        match self.get {
-            MethodDefinition::None => {},
-            _ => panic!("cannot create directory index - method get already in use"),
-        }
-        match self.subroute {
-            SubRoute::Hash(ref map) => {
-                let index = json!(map.keys().map(|s| json!({ "subdir": s}))
-                    .collect::<Vec<Value>>());
-                self.get(ApiMethod::new(
-                    move || { Ok(index.clone()) },
-                    ObjectSchema::new("Directory index.").additional_properties(true))
-                )
-            }
-            _ => panic!("cannot create directory index (no SubRoute::Hash)"),
-        }
-    }
-
-    pub fn get(mut self, m: ApiMethod) -> Self {
-        self.get = MethodDefinition::Simple(m);
+    pub const fn post(mut self, m: &'static ApiMethod) -> Self {
+        self.post = Some(m);
         self
     }
 
-    pub fn put(mut self, m: ApiMethod) -> Self {
-        self.put = MethodDefinition::Simple(m);
+    /// Same as post, buth async (fixme: expect Async)
+    pub const fn upload(mut self, m: &'static ApiMethod) -> Self {
+        self.post = Some(m);
         self
     }
 
-    pub fn post(mut self, m: ApiMethod) -> Self {
-        self.post = MethodDefinition::Simple(m);
+    /// Same as get, but async (fixme: expect Async)
+    pub const fn download(mut self, m: &'static ApiMethod) -> Self {
+        self.get = Some(m);
         self
     }
 
-    pub fn upload(mut self, m: ApiAsyncMethod) -> Self {
-        self.post = MethodDefinition::Async(m);
+    /// Same as get, but async (fixme: expect Async)
+    pub const fn upgrade(mut self, m: &'static ApiMethod) -> Self {
+        self.get = Some(m);
         self
     }
 
-    pub fn download(mut self, m: ApiAsyncMethod) -> Self {
-        self.get = MethodDefinition::Async(m);
-        self
-    }
-
-    pub fn upgrade(mut self, m: ApiAsyncMethod) -> Self {
-        self.get = MethodDefinition::Async(m);
-        self
-    }
-
-    pub fn delete(mut self, m: ApiMethod) -> Self {
-        self.delete = MethodDefinition::Simple(m);
+    pub const fn delete(mut self, m: &'static ApiMethod) -> Self {
+        self.delete = Some(m);
         self
     }
 
@@ -289,16 +216,17 @@ impl Router {
         let (dir, rest) = (components[0], &components[1..]);
 
         match self.subroute {
-            SubRoute::None => {},
-            SubRoute::Hash(ref dirmap) => {
-                if let Some(ref router) = dirmap.get(dir) {
+            None => {},
+            Some(SubRoute::Map(dirmap)) => {
+                if let Ok(ind) = dirmap.binary_search_by_key(&dir, |(name, _)| name) {
+                    let (_name, router) = dirmap[ind];
                     //println!("FOUND SUBDIR {}", dir);
                     return router.find_route(rest, uri_param);
                 }
             }
-            SubRoute::MatchAll { ref router, ref param_name } => {
+            Some(SubRoute::MatchAll { router, param_name }) => {
                 //println!("URI PARAM {} = {}", param_name, dir); // fixme: store somewhere
-                uri_param.insert(param_name.clone(), dir.into());
+                uri_param.insert(param_name.to_owned(), dir.into());
                 return router.find_route(rest, uri_param);
             },
         }
@@ -311,18 +239,18 @@ impl Router {
         components: &[&str],
         method: Method,
         uri_param: &mut HashMap<String, String>
-    ) -> &MethodDefinition {
+    ) -> Option<&ApiMethod> {
 
         if let Some(info) = self.find_route(components, uri_param) {
             return match method {
-                Method::GET => &info.get,
-                Method::PUT => &info.put,
-                Method::POST => &info.post,
-                Method::DELETE => &info.delete,
-                _ => &MethodDefinition::None,
+                Method::GET => info.get,
+                Method::PUT => info.put,
+                Method::POST => info.post,
+                Method::DELETE => info.delete,
+                _ => None,
             };
         }
-        &MethodDefinition::None
+        None
     }
 }
 

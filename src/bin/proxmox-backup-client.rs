@@ -1,4 +1,4 @@
-//#[macro_use]
+#[macro_use]
 extern crate proxmox_backup;
 
 use failure::*;
@@ -30,24 +30,20 @@ use proxmox_backup::pxar::{ self, catalog::* };
 use serde_json::{json, Value};
 //use hyper::Body;
 use std::sync::{Arc, Mutex};
-use regex::Regex;
+//use regex::Regex;
 use xdg::BaseDirectories;
 
-use lazy_static::lazy_static;
 use futures::*;
 use tokio::sync::mpsc;
 
-lazy_static! {
-    static ref BACKUPSPEC_REGEX: Regex = Regex::new(r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$").unwrap();
-
-    static ref REPO_URL_SCHEMA: Arc<Schema> = Arc::new(
-        StringSchema::new("Repository URL.")
-            .format(BACKUP_REPO_URL.clone())
-            .max_length(256)
-            .into()
-    );
+proxmox_backup::const_regex! {
+    BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$";
 }
 
+const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
+    .format(&BACKUP_REPO_URL)
+    .max_length(256)
+    .schema();
 
 fn get_default_repository() -> Option<String> {
     std::env::var("PBS_REPOSITORY").ok()
@@ -556,7 +552,7 @@ fn start_garbage_collection(
 
 fn parse_backupspec(value: &str) -> Result<(&str, &str), Error> {
 
-    if let Some(caps) = BACKUPSPEC_REGEX.captures(value) {
+    if let Some(caps) = (BACKUPSPEC_REGEX.regex_obj)().captures(value) {
         return Ok((caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str()));
     }
     bail!("unable to parse directory specification '{}'", value);
@@ -1553,45 +1549,58 @@ fn key_change_passphrase(
 
 fn key_mgmt_cli() -> CliCommandMap {
 
-    let kdf_schema: Arc<Schema> = Arc::new(
+    const KDF_SCHEMA: Schema =
         StringSchema::new("Key derivation function. Choose 'none' to store the key unecrypted.")
-            .format(Arc::new(ApiStringFormat::Enum(&["scrypt", "none"])))
-            .default("scrypt")
-            .into()
+        .format(&ApiStringFormat::Enum(&["scrypt", "none"]))
+        .default("scrypt")
+        .schema();
+
+    const API_METHOD_KEY_CREATE: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&key_create),
+        &ObjectSchema::new(
+            "Create a new encryption key.",
+            &[
+                ("path", false, &StringSchema::new("File system path.").schema()),
+                ("kdf", true, &KDF_SCHEMA),
+            ],
+        )
     );
-
-    let key_create_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            key_create,
-            ObjectSchema::new("Create a new encryption key.")
-                .required("path", StringSchema::new("File system path."))
-                .optional("kdf", kdf_schema.clone())
-        ))
+    
+    let key_create_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE)
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
-    let key_change_passphrase_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            key_change_passphrase,
-            ObjectSchema::new("Change the passphrase required to decrypt the key.")
-                .required("path", StringSchema::new("File system path."))
-                .optional("kdf", kdf_schema.clone())
-         ))
+    const API_METHOD_KEY_CHANGE_PASSPHRASE: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&key_change_passphrase),
+        &ObjectSchema::new(
+            "Change the passphrase required to decrypt the key.",
+            &[
+                ("path", false, &StringSchema::new("File system path.").schema()),
+                ("kdf", true, &KDF_SCHEMA),
+            ],
+        )
+    );
+        
+    let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_KEY_CHANGE_PASSPHRASE)
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
-    let key_create_master_key_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            key_create_master_key,
-            ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.")
-        ));
+    const API_METHOD_KEY_CREATE_MASTER_KEY: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&key_create_master_key),
+        &ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.", &[])
+    );
+    
+    let key_create_master_key_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE_MASTER_KEY);
 
-    let key_import_master_pubkey_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            key_import_master_pubkey,
-            ObjectSchema::new("Import a new RSA public key and use it as master key. The key is expected to be in '.pem' format.")
-                .required("path", StringSchema::new("File system path."))
-        ))
+    const API_METHOD_KEY_IMPORT_MASTER_PUBKEY: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&key_import_master_pubkey),
+        &ObjectSchema::new(
+            "Import a new RSA public key and use it as master key. The key is expected to be in '.pem' format.",
+            &[ ("path", false, &StringSchema::new("File system path.").schema()) ],
+        )
+    );
+    
+    let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_KEY_IMPORT_MASTER_PUBKEY)
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
@@ -1601,7 +1610,6 @@ fn key_mgmt_cli() -> CliCommandMap {
         .insert("import-master-pubkey".to_owned(), key_import_master_pubkey_cmd_def.into())
         .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into())
 }
-
 
 fn mount(
     param: Value,
@@ -1742,223 +1750,330 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
 fn main() {
 
-    let backup_source_schema: Arc<Schema> = Arc::new(
-        StringSchema::new("Backup source specification ([<label>:<path>]).")
-            .format(Arc::new(ApiStringFormat::Pattern(&BACKUPSPEC_REGEX)))
-            .into()
-    );
+    const BACKUP_SOURCE_SCHEMA: Schema = StringSchema::new("Backup source specification ([<label>:<path>]).")
+        .format(&ApiStringFormat::Pattern(&BACKUPSPEC_REGEX))
+        .schema();
 
-    let backup_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            create_backup,
-            ObjectSchema::new("Create (host) backup.")
-                .required(
+    const API_METHOD_CREATE_BACKUP: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&create_backup),
+        &ObjectSchema::new(
+            "Create (host) backup.",
+            &[
+                (
                     "backupspec",
-                    ArraySchema::new(
+                    false,
+                    &ArraySchema::new(
                         "List of backup source specifications ([<label.ext>:<path>] ...)",
-                        backup_source_schema,
-                    ).min_length(1)
-                )
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional(
+                        &BACKUP_SOURCE_SCHEMA,
+                    ).min_length(1).schema()
+                ),
+                (
+                    "repository",
+                    true,
+                    &REPO_URL_SCHEMA
+                ),
+                (
                     "include-dev",
-                    ArraySchema::new(
+                    true,
+                    &ArraySchema::new(
                         "Include mountpoints with same st_dev number (see ``man fstat``) as specified files.",
-                        StringSchema::new("Path to file.").into()
-                    )
-                )
-                .optional(
+                        &StringSchema::new("Path to file.").schema()
+                    ).schema()
+                ),
+                (
                     "keyfile",
-                    StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
-                .optional(
+                    true,
+                    &StringSchema::new("Path to encryption key. All data will be encrypted using this key.").schema()
+                ),
+                (
                     "verbose",
-                    BooleanSchema::new("Verbose output.").default(false))
-                .optional(
+                    true,
+                    &BooleanSchema::new("Verbose output.")
+                        .default(false)
+                        .schema()
+                ),
+                (
                     "skip-lost-and-found",
-                    BooleanSchema::new("Skip lost+found directory").default(false))
-                .optional(
+                    true,
+                    &BooleanSchema::new("Skip lost+found directory")
+                        .default(false)
+                        .schema()
+                ),
+                (
                     "backup-type",
-                    BACKUP_TYPE_SCHEMA.clone()
-                )
-                .optional(
+                    true,
+                    &BACKUP_TYPE_SCHEMA,
+                ),
+                (
                     "backup-id",
-                    BACKUP_ID_SCHEMA.clone()
-                )
-                .optional(
+                    true,
+                    &BACKUP_ID_SCHEMA
+                ),
+                (
                     "backup-time",
-                    BACKUP_TIME_SCHEMA.clone()
-                )
-                .optional(
+                    true,
+                    &BACKUP_TIME_SCHEMA
+                ),
+                (
                     "chunk-size",
-                    IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
+                    true,
+                    &IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
                         .minimum(64)
                         .maximum(4096)
                         .default(4096)
-                )
-        ))
+                        .schema()
+                ),
+            ],
+        )
+    );
+    
+    let backup_cmd_def = CliCommand::new(&API_METHOD_CREATE_BACKUP)
         .arg_param(vec!["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
-    let upload_log_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            upload_log,
-            ObjectSchema::new("Upload backup log file.")
-                .required("snapshot", StringSchema::new("Snapshot path."))
-                .required("logfile", StringSchema::new("The path to the log file you want to upload."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional(
+    const API_METHOD_UPLOAD_LOG: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&upload_log),
+        &ObjectSchema::new(
+            "Upload backup log file.",
+            &[
+                (
+                    "snapshot",
+                    false,
+                    &StringSchema::new("Snapshot path.").schema()
+                ),
+                (
+                    "logfile",
+                    false,
+                    &StringSchema::new("The path to the log file you want to upload.").schema()
+                ),
+                (
+                    "repository",
+                    true,
+                    &REPO_URL_SCHEMA
+                ),
+                (
                     "keyfile",
-                    StringSchema::new("Path to encryption key. All data will be encrypted using this key."))
-        ))
+                    true,
+                    &StringSchema::new("Path to encryption key. All data will be encrypted using this key.").schema()
+                ),
+            ],
+        )
+    );
+  
+    let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
         .arg_param(vec!["snapshot", "logfile"])
         .completion_cb("snapshot", complete_backup_snapshot)
         .completion_cb("logfile", tools::complete_file_name)
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("repository", complete_repository);
 
-    let list_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            list_backup_groups,
-            ObjectSchema::new("List backup groups.")
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("output-format", OUTPUT_FORMAT.clone())
-        ))
+    const API_METHOD_LIST_BACKUP_GROUPS: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&list_backup_groups),
+        &ObjectSchema::new(
+            "List backup groups.",
+            &[
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("output-format", true, &OUTPUT_FORMAT),
+            ],
+        )
+    );
+    
+    let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
-    let snapshots_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            list_snapshots,
-            ObjectSchema::new("List backup snapshots.")
-                .optional("group", StringSchema::new("Backup group."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("output-format", OUTPUT_FORMAT.clone())
-        ))
+    const API_METHOD_LIST_SNAPSHOTS: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&list_snapshots),
+        &ObjectSchema::new(
+            "List backup snapshots.",
+            &[
+                ("group", true, &StringSchema::new("Backup group.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("output-format", true, &OUTPUT_FORMAT),
+            ],
+        )
+    );
+    
+    let snapshots_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
         .arg_param(vec!["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
-    let forget_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            forget_snapshots,
-            ObjectSchema::new("Forget (remove) backup snapshots.")
-                .required("snapshot", StringSchema::new("Snapshot path."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-        ))
+    const API_METHOD_FORGET_SNAPSHOTS: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&forget_snapshots),
+        &ObjectSchema::new(
+            "Forget (remove) backup snapshots.",
+            &[
+                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+            ],
+        )
+    );
+    
+    let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
         .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
-    let garbage_collect_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            start_garbage_collection,
-            ObjectSchema::new("Start garbage collection for a specific repository.")
-                .optional("repository", REPO_URL_SCHEMA.clone())
-        ))
+    const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&start_garbage_collection),
+        &ObjectSchema::new(
+            "Start garbage collection for a specific repository.",
+            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+        )
+    );
+    
+    let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
         .completion_cb("repository", complete_repository);
 
-    let restore_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            restore,
-            ObjectSchema::new("Restore backup repository.")
-                .required("snapshot", StringSchema::new("Group/Snapshot path."))
-                .required("archive-name", StringSchema::new("Backup archive name."))
-                .required("target", StringSchema::new(r###"Target directory path. Use '-' to write to stdandard output.
+    const API_METHOD_RESTORE: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&restore),
+        &ObjectSchema::new(
+            "Restore backup repository.",
+            &[
+                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
+                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
+                (
+                    "target",
+                    false,
+                    &StringSchema::new(
+                        r###"Target directory path. Use '-' to write to stdandard output.
 
 We do not extraxt '.pxar' archives when writing to stdandard output.
 
 "###
-                ))
-                .optional(
+                    ).schema()
+                ),
+                (
                     "allow-existing-dirs",
-                    BooleanSchema::new("Do not fail if directories already exists.").default(false))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("keyfile", StringSchema::new("Path to encryption key."))
-                .optional(
+                    true,
+                    &BooleanSchema::new("Do not fail if directories already exists.")
+                        .default(false)
+                        .schema()
+                ),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
+                (
                     "verbose",
-                    BooleanSchema::new("Verbose output.").default(false)
-                )
-        ))
+                    true, 
+                    &BooleanSchema::new("Verbose output.")
+                        .default(false)
+                        .schema()
+                ),
+            ],
+        )
+    );
+  
+    let restore_cmd_def = CliCommand::new(&API_METHOD_RESTORE)
         .arg_param(vec!["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
-    let files_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            list_snapshot_files,
-            ObjectSchema::new("List snapshot files.")
-                .required("snapshot", StringSchema::new("Snapshot path."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("output-format", OUTPUT_FORMAT.clone())
-        ))
+    const API_METHOD_LIST_SNAPSHOT_FILES: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&list_snapshot_files),
+        &ObjectSchema::new(
+            "List snapshot files.",
+            &[
+                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("output-format", true, &OUTPUT_FORMAT),
+            ],
+        )
+    );
+    
+    let files_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
         .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
-    let catalog_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            dump_catalog,
-            ObjectSchema::new("Dump catalog.")
-                .required("snapshot", StringSchema::new("Snapshot path."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-        ))
+    const API_METHOD_DUMP_CATALOG: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&dump_catalog),
+        &ObjectSchema::new(
+            "Dump catalog.",
+            &[
+                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+            ],
+        )
+    );
+    
+    let catalog_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
         .arg_param(vec!["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
-    let prune_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            prune,
-            proxmox_backup::api2::admin::datastore::add_common_prune_prameters(
-                ObjectSchema::new("Prune backup repository.")
-                    .required("group", StringSchema::new("Backup group."))
-                    .optional("repository", REPO_URL_SCHEMA.clone())
+    const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&prune),
+        &ObjectSchema::new(
+            "Prune backup repository.",
+            &proxmox_backup::add_common_prune_prameters!(
+                ("group", false, &StringSchema::new("Backup group.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
             )
-        ))
+        )
+    );
+    
+    let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(vec!["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
-    let status_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            status,
-            ObjectSchema::new("Get repository status.")
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("output-format", OUTPUT_FORMAT.clone())
-        ))
+    const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&status),
+        &ObjectSchema::new(
+            "Get repository status.",
+            &[
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("output-format", true, &OUTPUT_FORMAT),
+            ],
+        )
+    );
+    
+    let status_cmd_def = CliCommand::new(&API_METHOD_STATUS)
         .completion_cb("repository", complete_repository);
 
-    let login_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            api_login,
-            ObjectSchema::new("Try to login. If successful, store ticket.")
-                .optional("repository", REPO_URL_SCHEMA.clone())
-        ))
+    const API_METHOD_API_LOGIN: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&api_login),
+        &ObjectSchema::new(
+            "Try to login. If successful, store ticket.",
+            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+        )
+    );
+    
+    let login_cmd_def = CliCommand::new(&API_METHOD_API_LOGIN)
         .completion_cb("repository", complete_repository);
 
-    let logout_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            api_logout,
-            ObjectSchema::new("Logout (delete stored ticket).")
-                .optional("repository", REPO_URL_SCHEMA.clone())
-        ))
+    const API_METHOD_API_LOGOUT: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&api_logout),
+        &ObjectSchema::new(
+            "Logout (delete stored ticket).",
+            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+        )
+    );
+    
+    let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
         .completion_cb("repository", complete_repository);
 
-    let mount_cmd_def = CliCommand::new(
-        ApiMethod::new(
-            mount,
-            ObjectSchema::new("Mount pxar archive.")
-                .required("snapshot", StringSchema::new("Group/Snapshot path."))
-                .required("archive-name", StringSchema::new("Backup archive name."))
-                .required("target", StringSchema::new("Target directory path."))
-                .optional("repository", REPO_URL_SCHEMA.clone())
-                .optional("keyfile", StringSchema::new("Path to encryption key."))
-                .optional("verbose", BooleanSchema::new("Verbose output.").default(false))
-        ))
+    const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&mount),
+        &ObjectSchema::new(
+            "Mount pxar archive.",
+            &[
+                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
+                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
+                ("target", false, &StringSchema::new("Target directory path.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
+                ("verbose", true, &BooleanSchema::new("Verbose output.").default(false).schema()),
+            ],
+        )
+    );
+    
+    let mount_cmd_def = CliCommand::new(&API_METHOD_MOUNT)
         .arg_param(vec!["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)

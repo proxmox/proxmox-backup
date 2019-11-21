@@ -23,7 +23,12 @@ impl ApiConfig {
         }
     }
 
-    pub fn find_method(&self, components: &[&str], method: Method, uri_param: &mut HashMap<String, String>) -> &'static MethodDefinition {
+    pub fn find_method(
+        &self,
+        components: &[&str],
+        method: Method,
+        uri_param: &mut HashMap<String, String>,
+    ) -> Option<&'static ApiMethod> {
 
         self.router.find_method(components, method, uri_param)
     }

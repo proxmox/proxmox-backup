@@ -2,20 +2,15 @@ use failure::*;
 
 use crate::api_schema::*;
 
-use std::sync::Arc;
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::fmt;
 
-lazy_static! {
+const_regex! {
     /// Regular expression to parse repository URLs
-    pub static ref BACKUP_REPO_URL_REGEX: Regex =
-        Regex::new(r"^(?:(?:([\w@]+)@)?([\w\-_.]+):)?(\w+)$").unwrap();
-
-    /// API schema format definition for repository URLs
-    pub static ref BACKUP_REPO_URL: Arc<ApiStringFormat> =
-        ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX).into();
+    pub BACKUP_REPO_URL_REGEX = r"^(?:(?:([\w@]+)@)?([\w\-_.]+):)?(\w+)$";
 }
+
+/// API schema format definition for repository URLs
+pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX);
 
 /// Reference remote backup locations
 ///
@@ -73,7 +68,7 @@ impl std::str::FromStr for BackupRepository {
     /// host, and `user` defaults to `root@pam`.
     fn from_str(url: &str) -> Result<Self, Self::Err> {
 
-        let cap = BACKUP_REPO_URL_REGEX.captures(url)
+        let cap = (BACKUP_REPO_URL_REGEX.regex_obj)().captures(url)
             .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
 
         Ok(Self {

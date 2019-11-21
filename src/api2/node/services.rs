@@ -5,7 +5,6 @@ use crate::api_schema::*;
 use crate::api_schema::router::*;
 use serde_json::{json, Value};
 
-use std::sync::Arc;
 use std::process::{Command, Stdio};
 
 use crate::api2::types::*;
@@ -214,92 +213,115 @@ fn reload_service(
     run_service_command(service, "reload")
 }
 
-pub fn router() -> Router {
 
-    let service_id_schema : Arc<Schema> = Arc::new(
-        StringSchema::new("Service ID.")
-            .max_length(256)
-            .into()
-    );
+const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.")
+    .max_length(256)
+    .schema();
 
-    let service_api = Router::new()
-        .subdir(
-            "state",
-            Router::new()
-                .get(ApiMethod::new(
-                    get_service_state,
-                    ObjectSchema::new("Read service properties.")
-                        .required("node", NODE_SCHEMA.clone())
-                       .required("service", service_id_schema.clone()))
-                )
-        )
-        .subdir(
-            "start",
-            Router::new()
-                .post(
-                    ApiMethod::new(
-                        start_service,
-                        ObjectSchema::new("Start service.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("service", service_id_schema.clone())
-                    ).protected(true)
-                )
-        )
-        .subdir(
-            "stop",
-            Router::new()
-                .post(
-                    ApiMethod::new(
-                        stop_service,
-                        ObjectSchema::new("Stop service.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("service", service_id_schema.clone())
-                    ).protected(true)
-                )
-        )
-        .subdir(
-            "restart",
-            Router::new()
-                .post(
-                    ApiMethod::new(
-                        restart_service,
-                        ObjectSchema::new("Restart service.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("service", service_id_schema.clone())
-                    ).protected(true)
-                )
-        )
-        .subdir(
-            "reload",
-            Router::new()
-                .post(
-                    ApiMethod::new(
-                        reload_service,
-                        ObjectSchema::new("Reload service.")
-                            .required("node", NODE_SCHEMA.clone())
-                            .required("service", service_id_schema.clone())
-                    ).protected(true)
-                )
-        )
-        .list_subdirs();
-
-    Router::new()
-        .get(
-            ApiMethod::new(
-                list_services,
-                ObjectSchema::new("Service list.")
-                    .required("node", NODE_SCHEMA.clone())
-            ).returns(
-                ArraySchema::new(
-                    "Returns a list of systemd services.",
-                    ObjectSchema::new("Service details.")
-                        .required("service", service_id_schema.clone())
-                        .required("name", StringSchema::new("systemd service name."))
-                        .required("desc", StringSchema::new("systemd service description."))
-                        .required("state", StringSchema::new("systemd service 'SubState'."))
-                        .into()
+const SERVICE_SUBDIRS: SubdirMap = &[
+    (
+        "reload", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&reload_service),
+                    &ObjectSchema::new(
+                        "Reload service.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("service", false, &SERVICE_ID_SCHEMA),
+                        ],
+                    )
+                ).protected(true)
+            )
+    ),
+    (
+        "restart", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&restart_service),
+                    &ObjectSchema::new(
+                        "Restart service.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("service", false, &SERVICE_ID_SCHEMA),
+                        ],
+                    )
+                ).protected(true)
+            )
+    ),
+    (
+        "start", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&start_service),
+                    &ObjectSchema::new(
+                        "Start service.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("service", false, &SERVICE_ID_SCHEMA),
+                        ],
+                    )
+                ).protected(true)
+            )
+    ),
+    (
+        "state", &Router::new()
+            .get(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&get_service_state),
+                    &ObjectSchema::new(
+                        "Read service properties.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("service", false, &SERVICE_ID_SCHEMA),
+                        ],
+                    )
                 )
             )
+    ),
+    (
+        "stop", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&stop_service),
+                    &ObjectSchema::new(
+                        "Stop service.",
+                        &[
+                            ("node", false, &NODE_SCHEMA),
+                            ("service", false, &SERVICE_ID_SCHEMA),
+                        ],
+                    )
+                ).protected(true)
+            )
+    ),
+];
+
+const SERVICE_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SERVICE_SUBDIRS))
+    .subdirs(SERVICE_SUBDIRS);
+
+pub const ROUTER: Router = Router::new()
+    .get(
+        &ApiMethod::new(
+            &ApiHandler::Sync(&list_services),
+            &ObjectSchema::new(
+                "Service list.",
+                &[ ("node", false, &NODE_SCHEMA) ],
+            )
+        ).returns(
+            &ArraySchema::new(
+                "Returns a list of systemd services.",
+                &ObjectSchema::new(
+                    "Service details.",
+                    &[
+                        ("service", false, &SERVICE_ID_SCHEMA),
+                        ("name", false, &StringSchema::new("systemd service name.").schema()),
+                        ("desc", false, &StringSchema::new("systemd service description.").schema()),
+                        ("state", false, &StringSchema::new("systemd service 'SubState'.").schema()),
+                    ],
+                ).schema()
+            ).schema()
         )
-        .match_all("service", service_api)
-}
+    )
+    .match_all("service", &SERVICE_ROUTER);
+

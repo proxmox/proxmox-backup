@@ -1,7 +1,4 @@
 use failure::*;
-use lazy_static::lazy_static;
-
-use std::sync::Arc;
 
 use futures::*;
 use hyper::header::{self, HeaderValue, UPGRADE};
@@ -21,30 +18,34 @@ use crate::api2::types::*;
 mod environment;
 use environment::*;
 
-pub fn router() -> Router {
-    Router::new()
-        .upgrade(api_method_upgrade_backup())
-}
+pub const ROUTER: Router = Router::new()
+    .upgrade(&API_METHOD_UPGRADE_BACKUP);
 
-pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upgrade_to_backup_reader_protocol,
-        ObjectSchema::new(concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."))
-            .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", StringSchema::new("Backup type.")
-                      .format(Arc::new(ApiStringFormat::Enum(&["vm", "ct", "host"]))))
-            .required("backup-id", StringSchema::new("Backup ID."))
-            .required("backup-time", IntegerSchema::new("Backup time (Unix epoch.)")
-                      .minimum(1_547_797_308))
-            .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
+pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upgrade_to_backup_reader_protocol),
+    &ObjectSchema::new(
+        concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."),
+        &[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &StringSchema::new("Backup type.")
+             .format(&ApiStringFormat::Enum(&["vm", "ct", "host"]))
+             .schema()
+            ),
+            ("backup-id", false, &StringSchema::new("Backup ID.").schema()),
+            ("backup-time", false, &IntegerSchema::new("Backup time (Unix epoch.)")
+             .minimum(1_547_797_308)
+             .schema()
+            ),
+            ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
+        ],
     )
-}
+);
 
 fn upgrade_to_backup_reader_protocol(
     parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -89,7 +90,7 @@ fn upgrade_to_backup_reader_protocol(
 
         env.log(format!("starting new backup reader datastore '{}': {:?}", store, path));
 
-        let service = H2Service::new(env.clone(), worker.clone(), &READER_ROUTER, debug);
+        let service = H2Service::new(env.clone(), worker.clone(), &READER_API_ROUTER, debug);
 
         let abort_future = worker.abort_future();
 
@@ -134,39 +135,35 @@ fn upgrade_to_backup_reader_protocol(
     Ok(Box::new(futures::future::ok(response)))
 }
 
-lazy_static!{
-    static ref READER_ROUTER: Router = reader_api();
-}
+pub const READER_API_ROUTER: Router = Router::new()
+    .subdirs(&[
+        (
+            "chunk", &Router::new()
+                .download(&API_METHOD_DOWNLOAD_CHUNK)
+        ),
+        (
+            "download", &Router::new()
+                .download(&API_METHOD_DOWNLOAD_FILE)
+        ),
+        (
+            "speedtest", &Router::new()
+                .download(&API_METHOD_SPEEDTEST)
+        ),
+    ]);
 
-pub fn reader_api() -> Router {
-    Router::new()
-        .subdir(
-            "chunk", Router::new()
-                .download(api_method_download_chunk())
-        )
-        .subdir(
-            "download", Router::new()
-                .download(api_method_download_file())
-        )
-        .subdir(
-            "speedtest", Router::new()
-                .download(api_method_speedtest())
-        )
-}
-
-pub fn api_method_download_file() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        download_file,
-        ObjectSchema::new("Download specified file.")
-            .required("file-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&download_file),
+    &ObjectSchema::new(
+        "Download specified file.",
+        &[ ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
     )
-}
+);
 
 fn download_file(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -202,19 +199,19 @@ fn download_file(
     Ok(Box::new(response_future))
 }
 
-pub fn api_method_download_chunk() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        download_chunk,
-        ObjectSchema::new("Download specified chunk.")
-            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
+pub const API_METHOD_DOWNLOAD_CHUNK: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&download_chunk),
+    &ObjectSchema::new(
+        "Download specified chunk.",
+        &[ ("digest", false, &CHUNK_DIGEST_SCHEMA) ],
     )
-}
+);
 
 fn download_chunk(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -250,7 +247,7 @@ fn download_chunk_old(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -286,18 +283,16 @@ fn download_chunk_old(
 }
 */
 
-pub fn api_method_speedtest() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        speedtest,
-        ObjectSchema::new("Test 4M block download speed.")
-    )
-}
+pub const API_METHOD_SPEEDTEST: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&speedtest),
+    &ObjectSchema::new("Test 4M block download speed.", &[])
+);
 
 fn speedtest(
     _parts: Parts,
     _req_body: Body,
     _param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 

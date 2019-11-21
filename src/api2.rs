@@ -10,19 +10,20 @@ mod access;
 
 use crate::api_schema::router::*;
 
-pub fn router() -> Router {
+const NODES_ROUTER: Router = Router::new()
+    .match_all("node", &node::ROUTER);
 
-    let nodes = Router::new()
-        .match_all("node", node::router());
+pub const SUBDIRS: SubdirMap = &[
+    ("access", &access::ROUTER),
+    ("admin", &admin::ROUTER),
+    ("backup", &backup::ROUTER),
+    ("config", &config::ROUTER),
+    ("nodes", &NODES_ROUTER),
+    ("reader", &reader::ROUTER),
+    ("subscription", &subscription::ROUTER),
+    ("version", &version::ROUTER),
+];
 
-    Router::new()
-        .subdir("access", access::router())
-        .subdir("admin", admin::router())
-        .subdir("backup", backup::router())
-        .subdir("reader", reader::router())
-        .subdir("config", config::router())
-        .subdir("nodes", nodes)
-        .subdir("subscription", subscription::router())
-        .subdir("version", version::router())
-        .list_subdirs()
-}
+pub const ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(SUBDIRS))
+    .subdirs(SUBDIRS);

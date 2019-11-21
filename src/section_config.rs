@@ -6,20 +6,18 @@ use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 
-use std::sync::Arc;
-
 use proxmox::tools::try_block;
 
 use crate::api_schema::*;
 
 pub struct SectionConfigPlugin {
     type_name: String,
-    properties: ObjectSchema,
+    properties: &'static ObjectSchema,
 }
 
 impl SectionConfigPlugin {
 
-    pub fn new(type_name: String, properties: ObjectSchema) -> Self {
+    pub fn new(type_name: String, properties: &'static ObjectSchema) -> Self {
         Self { type_name, properties }
     }
 
@@ -28,7 +26,7 @@ impl SectionConfigPlugin {
 pub struct SectionConfig {
     plugins: HashMap<String, SectionConfigPlugin>,
 
-    id_schema: Arc<Schema>,
+    id_schema: &'static Schema,
     parse_section_header: fn(&str) -> Option<(String, String)>,
     parse_section_content: fn(&str) -> Option<(String, String)>,
     format_section_header: fn(type_name: &str, section_id: &str, data: &Value) -> String,
@@ -75,7 +73,7 @@ impl SectionConfigData {
 
 impl SectionConfig {
 
-    pub fn new(id_schema: Arc<Schema>) -> Self {
+    pub fn new(id_schema: &'static Schema) -> Self {
         Self {
             plugins: HashMap::new(),
             id_schema,
@@ -151,7 +149,7 @@ impl SectionConfig {
         let mut state = ParseState::BeforeHeader;
 
         let test_required_properties = |value: &Value, schema: &ObjectSchema| -> Result<(), Error> {
-            for (name, (optional, _prop_schema)) in &schema.properties {
+            for (name, optional, _prop_schema) in schema.properties {
                 if *optional == false && value[name] == Value::Null {
                     return Err(format_err!("property '{}' is missing and it is not optional.", name));
                 }
@@ -206,7 +204,7 @@ impl SectionConfig {
                             if let Some((key, value)) = (self.parse_section_content)(line) {
                                 //println!("CONTENT: key: {} value: {}", key, value);
 
-                                if let Some((_optional, prop_schema)) = plugin.properties.properties.get::<str>(&key) {
+                                if let Some((_optional, prop_schema)) = plugin.properties.lookup(&key) {
                                     match parse_simple_value(&value, prop_schema) {
                                         Ok(value) => {
                                             if config[&key] == Value::Null {
@@ -309,19 +307,22 @@ fn test_section_config1() {
     //let mut contents = String::new();
     //file.read_to_string(&mut contents).unwrap();
 
-    let plugin = SectionConfigPlugin::new(
-        "lvmthin".to_string(),
-        ObjectSchema::new("lvmthin properties")
-            .required("thinpool", StringSchema::new("LVM thin pool name."))
-            .required("vgname", StringSchema::new("LVM volume group name."))
-            .optional("content", StringSchema::new("Storage content types."))
+    const PROPERTIES: ObjectSchema = ObjectSchema::new(
+        "lvmthin properties",
+        &[
+            ("content", true, &StringSchema::new("Storage content types.").schema()),
+            ("thinpool", false, &StringSchema::new("LVM thin pool name.").schema()),
+            ("vgname", false, &StringSchema::new("LVM volume group name.").schema()),
+        ],
     );
 
-    let id_schema = StringSchema::new("Storage ID schema.")
-        .min_length(3)
-        .into();
+    let plugin = SectionConfigPlugin::new("lvmthin".to_string(), &PROPERTIES);
 
-    let mut config = SectionConfig::new(id_schema);
+    const ID_SCHEMA: Schema = StringSchema::new("Storage ID schema.")
+        .min_length(3)
+        .schema();
+
+    let mut config = SectionConfig::new(&ID_SCHEMA);
     config.register_plugin(plugin);
 
     let raw = r"

@@ -1,11 +1,10 @@
 use failure::*;
-use lazy_static::lazy_static;
-use std::sync::Arc;
 use serde_json::Value;
 
 use std::collections::{HashMap, HashSet};
 
 use crate::api_schema::*;
+use crate::api_schema::api_handler::*;
 use crate::api_schema::router::*;
 use crate::api_schema::format::*;
 //use crate::api_schema::config::*;
@@ -13,14 +12,10 @@ use super::environment::CliEnvironment;
 
 use super::getopts;
 
-lazy_static!{
-
-    pub static ref OUTPUT_FORMAT: Arc<Schema> =
-        StringSchema::new("Output format.")
-        .format(Arc::new(ApiStringFormat::Enum(&["text", "json", "json-pretty"])))
-        .into();
-
-}
+pub const OUTPUT_FORMAT: Schema =
+    StringSchema::new("Output format.")
+    .format(&ApiStringFormat::Enum(&["text", "json", "json-pretty"]))
+    .schema();
 
 /// Helper function to format and print result
 ///
@@ -46,23 +41,22 @@ fn generate_usage_str(
 
     let arg_param = &cli_cmd.arg_param;
     let fixed_param = &cli_cmd.fixed_param;
-    let properties = &cli_cmd.info.parameters.properties;
-    let description = &cli_cmd.info.parameters.description;
-
+    let schema = cli_cmd.info.parameters;
+ 
     let mut done_hash = HashSet::<&str>::new();
     let mut args = String::new();
 
     for positional_arg in arg_param {
-        match properties.get(positional_arg) {
-            Some((optional, schema)) => {
+        match schema.lookup(positional_arg) {
+            Some((optional, param_schema)) => {
                 args.push(' ');
 
-                let is_array = if let Schema::Array(_) = schema.as_ref() { true } else { false };
-                if *optional { args.push('['); }
+                let is_array = if let Schema::Array(_) = param_schema { true } else { false };
+                if optional { args.push('['); }
                 if is_array { args.push('{'); }
                 args.push('<'); args.push_str(positional_arg); args.push('>');
                 if is_array { args.push('}'); }
-                if *optional { args.push(']'); }
+                if optional { args.push(']'); }
 
                 done_hash.insert(positional_arg);
             }
@@ -72,28 +66,24 @@ fn generate_usage_str(
 
     let mut arg_descr = String::new();
     for positional_arg in arg_param {
-        let (_optional, schema) = properties.get(positional_arg).unwrap();
+        let (_optional, param_schema) = schema.lookup(positional_arg).unwrap();
         let param_descr = get_property_description(
-            positional_arg, &schema, ParameterDisplayStyle::Fixed, format);
+            positional_arg, param_schema, ParameterDisplayStyle::Fixed, format);
         arg_descr.push_str(&param_descr);
     }
 
     let mut options = String::new();
 
-    let mut prop_names: Vec<&str> = properties.keys().map(|v| *v).collect();
-    prop_names.sort();
-
-    for prop in prop_names {
-        let (optional, schema) = properties.get(prop).unwrap();
+    for (prop, optional, param_schema) in schema.properties {
         if done_hash.contains(prop) { continue; }
-        if fixed_param.contains_key(&prop) { continue; }
+        if fixed_param.contains_key(prop) { continue; }
 
-        let type_text = get_schema_type_text(&schema, ParameterDisplayStyle::Arg);
+        let type_text = get_schema_type_text(param_schema, ParameterDisplayStyle::Arg);
 
         if *optional {
 
             if options.len() > 0 { options.push('\n'); }
-            options.push_str(&get_property_description(prop, &schema, ParameterDisplayStyle::Arg, format));
+            options.push_str(&get_property_description(prop, param_schema, ParameterDisplayStyle::Arg, format));
 
         } else {
             args.push_str(" --"); args.push_str(prop);
@@ -114,10 +104,10 @@ fn generate_usage_str(
             format!("{}{}{}{}\n\n", indent, prefix, args, option_indicator)
         }
         DocumentationFormat::Full => {
-            format!("{}{}{}{}\n\n{}\n\n", indent, prefix, args, option_indicator, description)
+            format!("{}{}{}{}\n\n{}\n\n", indent, prefix, args, option_indicator, schema.description)
         }
         DocumentationFormat::ReST => {
-            format!("``{}{}{}``\n\n{}\n\n", prefix, args, option_indicator, description)
+            format!("``{}{}{}``\n\n{}\n\n", prefix, args, option_indicator, schema.description)
         }
     };
 
@@ -138,7 +128,7 @@ fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
     eprint!("Error: {}\nUsage: {}", err, usage);
 }
 
-fn print_help(
+pub fn print_help(
     top_def: &CommandLineInterface,
     mut prefix: String,
     args: &Vec<String>,
@@ -175,7 +165,7 @@ fn print_help(
 }
 
 fn handle_simple_command(
-    top_def: &CommandLineInterface,
+    _top_def: &CommandLineInterface,
     prefix: &str,
     cli_cmd: &CliCommand,
     args: Vec<String>,
@@ -190,12 +180,6 @@ fn handle_simple_command(
         }
     };
 
-    if cli_cmd.info.handler.is_none() {
-        let prefix = prefix.split(' ').next().unwrap().to_string();
-        print_help(top_def, prefix, &rest, params["verbose"].as_bool());
-        return;
-    }
-
     if !rest.is_empty() {
         let err = format_err!("got additional arguments: {:?}", rest);
         print_simple_usage_error(prefix, cli_cmd, err);
@@ -204,17 +188,25 @@ fn handle_simple_command(
 
     let mut rpcenv = CliEnvironment::new();
 
-    match (cli_cmd.info.handler.as_ref().unwrap())(params, &cli_cmd.info, &mut rpcenv) {
-        Ok(value) => {
-            if value != Value::Null {
-                println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
+    match cli_cmd.info.handler {
+        ApiHandler::Sync(handler) => {
+            match (handler)(params, &cli_cmd.info, &mut rpcenv) {
+                Ok(value) => {
+                    if value != Value::Null {
+                        println!("Result: {}", serde_json::to_string_pretty(&value).unwrap());
+                    }
+                }
+                Err(err) => {
+                    eprintln!("Error: {}", err);
+                    std::process::exit(-1);
+                }
             }
         }
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            std::process::exit(-1);
+        ApiHandler::Async(_) => {
+            //fixme
+            unimplemented!();
         }
-    }
+    }    
 }
 
 fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLineInterface> {
@@ -335,8 +327,8 @@ fn print_property_completion(
     }
 
     if let Schema::String(StringSchema { format: Some(format),  ..} ) = schema {
-        if let ApiStringFormat::Enum(list) = *format.as_ref() {
-            for value in list {
+        if let ApiStringFormat::Enum(list) = format {
+            for value in list.iter() {
                 if value.starts_with(arg) {
                     println!("{}", value);
                 }
@@ -349,8 +341,8 @@ fn print_property_completion(
 
 fn record_done_argument(done: &mut HashMap<String, String>, parameters: &ObjectSchema, key: &str, value: &str) {
 
-    if let Some((_, schema)) = parameters.properties.get::<str>(key) {
-        match schema.as_ref() {
+    if let Some((_, schema)) = parameters.lookup(key) {
+        match schema {
             Schema::Array(_) => { /* do nothing ?? */ }
             _ => { done.insert(key.to_owned(), value.to_owned()); }
         }
@@ -370,12 +362,12 @@ fn print_simple_completion(
     if !arg_param.is_empty() {
         let prop_name = arg_param[0];
         if args.len() > 1 {
-            record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
+            record_done_argument(done, cli_cmd.info.parameters, prop_name, &args[0]);
             print_simple_completion(cli_cmd, done, arg_param, &arg_param[1..], &args[1..]);
             return;
         } else if args.len() == 1 {
-            record_done_argument(done, &cli_cmd.info.parameters, prop_name, &args[0]);
-            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
+            record_done_argument(done, cli_cmd.info.parameters, prop_name, &args[0]);
+            if let Some((_, schema)) = cli_cmd.info.parameters.lookup(prop_name) {
                 print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &args[0], done);
             }
         }
@@ -399,14 +391,14 @@ fn print_simple_completion(
         let last = &args[args.len()-2];
         if last.starts_with("--") && last.len() > 2 {
             let prop_name = &last[2..];
-            if let Some((_, schema)) = cli_cmd.info.parameters.properties.get(prop_name) {
+            if let Some((_, schema)) = cli_cmd.info.parameters.lookup(prop_name) {
                 print_property_completion(schema, prop_name, &cli_cmd.completion_functions, &prefix, done);
             }
             return;
         }
     }
 
-    for (name, (_optional, _schema)) in &cli_cmd.info.parameters.properties {
+    for (name, _optional, _schema) in cli_cmd.info.parameters.properties {
         if done.contains_key(*name) { continue; }
         if all_arg_param.contains(name) { continue; }
         let option = String::from("--") + name;
@@ -524,13 +516,16 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     }
 }
 
+const VERBOSE_HELP_SCHEMA: Schema = BooleanSchema::new("Verbose help.").schema();
+const COMMAND_HELP: ObjectSchema = ObjectSchema::new(
+    "Get help about specified command.",
+    &[ ("verbose", true, &VERBOSE_HELP_SCHEMA) ]
+);
+
+const API_METHOD_COMMAND_HELP: ApiMethod = ApiMethod::new_dummy(&COMMAND_HELP);
+
 fn help_command_def() ->  CliCommand {
-    CliCommand::new(
-        ApiMethod::new_dummy(
-            ObjectSchema::new("Get help about specified command.")
-                .optional("verbose", BooleanSchema::new("Verbose help."))
-        )
-    )
+    CliCommand::new(&API_METHOD_COMMAND_HELP)
 }
 
 pub fn run_cli_command(def: CommandLineInterface) {
@@ -579,7 +574,7 @@ pub fn run_cli_command(def: CommandLineInterface) {
 pub type CompletionFunction = fn(&str, &HashMap<String, String>) -> Vec<String>;
 
 pub struct CliCommand {
-    pub info: ApiMethod,
+    pub info: &'static ApiMethod,
     pub arg_param: Vec<&'static str>,
     pub fixed_param: HashMap<&'static str, String>,
     pub completion_functions: HashMap<String, CompletionFunction>,
@@ -587,7 +582,7 @@ pub struct CliCommand {
 
 impl CliCommand {
 
-    pub fn new(info: ApiMethod) -> Self {
+    pub fn new(info: &'static ApiMethod) -> Self {
         Self {
             info, arg_param: vec![],
             fixed_param: HashMap::new(),

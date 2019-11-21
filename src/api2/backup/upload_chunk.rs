@@ -81,31 +81,36 @@ impl Future for UploadChunk {
     }
 }
 
-pub fn api_method_upload_fixed_chunk() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upload_fixed_chunk,
-        ObjectSchema::new("Upload a new chunk.")
-            .required("wid", IntegerSchema::new("Fixed writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
-            .required("size", IntegerSchema::new("Chunk size.")
-                      .minimum(1)
-                      .maximum(1024*1024*16)
-            )
-            .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize)+1)
-                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
-            )
+pub const API_METHOD_UPLOAD_FIXED_CHUNK: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upload_fixed_chunk),
+    &ObjectSchema::new(
+        "Upload a new chunk.",
+        &[
+            ("wid", false, &IntegerSchema::new("Fixed writer ID.")
+             .minimum(1)
+             .maximum(256)
+             .schema()
+            ),
+            ("digest", false, &CHUNK_DIGEST_SCHEMA),
+            ("size", false, &IntegerSchema::new("Chunk size.")
+             .minimum(1)
+             .maximum(1024*1024*16)
+             .schema()
+            ),
+            ("encoded-size", false, &IntegerSchema::new("Encoded chunk size.")
+             .minimum((std::mem::size_of::<DataBlobHeader>() as isize)+1)
+             .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
+             .schema()
+            ),
+        ],
     )
-}
+);
 
 fn upload_fixed_chunk(
     _parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -137,31 +142,36 @@ fn upload_fixed_chunk(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_dynamic_chunk() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upload_dynamic_chunk,
-        ObjectSchema::new("Upload a new chunk.")
-            .required("wid", IntegerSchema::new("Dynamic writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("digest", CHUNK_DIGEST_SCHEMA.clone())
-            .required("size", IntegerSchema::new("Chunk size.")
-                      .minimum(1)
-                      .maximum(1024*1024*16)
-            )
-            .required("encoded-size", IntegerSchema::new("Encoded chunk size.")
-                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
-                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
-            )
+pub const API_METHOD_UPLOAD_DYNAMIC_CHUNK: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upload_dynamic_chunk),
+    &ObjectSchema::new(
+        "Upload a new chunk.",
+        &[
+            ("wid", false, &IntegerSchema::new("Dynamic writer ID.")
+             .minimum(1)
+             .maximum(256)
+             .schema()
+            ),
+            ("digest", false, &CHUNK_DIGEST_SCHEMA),
+            ("size", false, &IntegerSchema::new("Chunk size.")
+             .minimum(1)
+             .maximum(1024*1024*16)
+             .schema()
+            ),
+            ("encoded-size", false, &IntegerSchema::new("Encoded chunk size.")
+             .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
+             .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
+             .schema()
+            ),
+        ],
     )
-}
+);
 
 fn upload_dynamic_chunk(
     _parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -193,18 +203,16 @@ fn upload_dynamic_chunk(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_speedtest() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upload_speedtest,
-        ObjectSchema::new("Test uploadf speed.")
-    )
-}
+pub const API_METHOD_UPLOAD_SPEEDTEST: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upload_speedtest),
+    &ObjectSchema::new("Test upload speed.", &[])
+);
 
 fn upload_speedtest(
     _parts: Parts,
     req_body: Body,
     _param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -231,23 +239,26 @@ fn upload_speedtest(
     Ok(Box::new(resp))
 }
 
-pub fn api_method_upload_blob() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upload_blob,
-        ObjectSchema::new("Upload binary blob file.")
-            .required("file-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
-            .required("encoded-size", IntegerSchema::new("Encoded blob size.")
-                      .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
-                      .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
+pub const API_METHOD_UPLOAD_BLOB: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upload_blob),
+    &ObjectSchema::new(
+        "Upload binary blob file.",
+        &[
+            ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("encoded-size", false, &IntegerSchema::new("Encoded blob size.")
+             .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
+             .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
+             .schema()
             )
+        ],
     )
-}
+);
 
 fn upload_blob(
     _parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 

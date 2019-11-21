@@ -1,7 +1,4 @@
 use failure::*;
-use lazy_static::lazy_static;
-
-//use std::sync::Arc;
 
 use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
@@ -24,28 +21,28 @@ use environment::*;
 mod upload_chunk;
 use upload_chunk::*;
 
-pub fn router() -> Router {
-    Router::new()
-        .upgrade(api_method_upgrade_backup())
-}
+pub const ROUTER: Router = Router::new()
+    .upgrade(&API_METHOD_UPGRADE_BACKUP);
 
-pub fn api_method_upgrade_backup() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        upgrade_to_backup_protocol,
-        ObjectSchema::new(concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."))
-            .required("store", StringSchema::new("Datastore name."))
-            .required("backup-type", BACKUP_TYPE_SCHEMA.clone())
-            .required("backup-id", BACKUP_ID_SCHEMA.clone())
-            .required("backup-time", BACKUP_TIME_SCHEMA.clone())
-            .optional("debug", BooleanSchema::new("Enable verbose debug logging."))
+pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&upgrade_to_backup_protocol),
+    &ObjectSchema::new(
+        concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."),
+        &[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+            ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
+        ],
     )
-}
+);
 
 fn upgrade_to_backup_protocol(
     parts: Parts,
     req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -99,7 +96,7 @@ fn upgrade_to_backup_protocol(
 
         env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
 
-        let service = H2Service::new(env.clone(), worker.clone(), &BACKUP_ROUTER, debug);
+        let service = H2Service::new(env.clone(), worker.clone(), &BACKUP_API_ROUTER, debug);
 
         let abort_future = worker.abort_future();
 
@@ -162,67 +159,67 @@ fn upgrade_to_backup_protocol(
     Ok(Box::new(futures::future::ok(response)))
 }
 
-lazy_static!{
-    static ref BACKUP_ROUTER: Router = backup_api();
-}
-
-pub fn backup_api() -> Router {
-    Router::new()
-        .subdir(
-            "blob", Router::new()
-                .upload(api_method_upload_blob())
-        )
-        .subdir(
-            "dynamic_chunk", Router::new()
-                .upload(api_method_upload_dynamic_chunk())
-        )
-        .subdir(
-            "dynamic_index", Router::new()
-                .download(api_method_dynamic_chunk_index())
-                .post(api_method_create_dynamic_index())
-                .put(api_method_dynamic_append())
-        )
-        .subdir(
-            "dynamic_close", Router::new()
-                .post(api_method_close_dynamic_index())
-        )
-        .subdir(
-            "fixed_chunk", Router::new()
-                .upload(api_method_upload_fixed_chunk())
-        )
-        .subdir(
-            "fixed_index", Router::new()
-                .download(api_method_fixed_chunk_index())
-                .post(api_method_create_fixed_index())
-                .put(api_method_fixed_append())
-        )
-        .subdir(
-            "fixed_close", Router::new()
-                .post(api_method_close_fixed_index())
-        )
-        .subdir(
-            "finish", Router::new()
-                .post(
-                    ApiMethod::new(
-                        finish_backup,
-                        ObjectSchema::new("Mark backup as finished.")
-                    )
+pub const BACKUP_API_SUBDIRS: SubdirMap = &[
+    (
+        "blob", &Router::new()
+            .upload(&API_METHOD_UPLOAD_BLOB)
+    ),
+    (
+        "dynamic_chunk", &Router::new()
+            .upload(&API_METHOD_UPLOAD_DYNAMIC_CHUNK)
+    ),
+    (
+        "dynamic_close", &Router::new()
+            .post(&API_METHOD_CLOSE_DYNAMIC_INDEX)
+    ),
+    (
+        "dynamic_index", &Router::new()
+            .download(&API_METHOD_DYNAMIC_CHUNK_INDEX)
+            .post(&API_METHOD_CREATE_DYNAMIC_INDEX)
+            .put(&API_METHOD_DYNAMIC_APPEND)
+    ),
+    (
+        "finish", &Router::new()
+            .post(
+                &ApiMethod::new(
+                    &ApiHandler::Sync(&finish_backup),
+                    &ObjectSchema::new("Mark backup as finished.", &[])
                 )
-        )
-        .subdir(
-            "speedtest", Router::new()
-                .upload(api_method_upload_speedtest())
-        )
-        .list_subdirs()
-}
+            )
+    ),
+    (
+        "fixed_chunk", &Router::new()
+            .upload(&API_METHOD_UPLOAD_FIXED_CHUNK)
+    ),
+    (
+        "fixed_close", &Router::new()
+            .post(&API_METHOD_CLOSE_FIXED_INDEX)
+    ),
+    (
+        "fixed_index", &Router::new()
+            .download(&API_METHOD_FIXED_CHUNK_INDEX)
+            .post(&API_METHOD_CREATE_FIXED_INDEX)
+            .put(&API_METHOD_FIXED_APPEND)
+    ),
+    (
+        "speedtest", &Router::new()
+            .upload(&API_METHOD_UPLOAD_SPEEDTEST)
+    ),
+];
 
-pub fn api_method_create_dynamic_index() -> ApiMethod {
-    ApiMethod::new(
-        create_dynamic_index,
-        ObjectSchema::new("Create dynamic chunk index file.")
-            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+pub const BACKUP_API_ROUTER: Router = Router::new()
+    .get(&list_subdirs_api_method!(BACKUP_API_SUBDIRS))
+    .subdirs(BACKUP_API_SUBDIRS);
+
+pub const API_METHOD_CREATE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&create_dynamic_index),
+    &ObjectSchema::new(
+        "Create dynamic chunk index file.",
+        &[
+            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+        ],
     )
-}
+);
 
 fn create_dynamic_index(
     param: Value,
@@ -250,16 +247,19 @@ fn create_dynamic_index(
     Ok(json!(wid))
 }
 
-pub fn api_method_create_fixed_index() -> ApiMethod {
-    ApiMethod::new(
-        create_fixed_index,
-        ObjectSchema::new("Create fixed chunk index file.")
-            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
-            .required("size", IntegerSchema::new("File size.")
-                      .minimum(1)
-            )
+pub const API_METHOD_CREATE_FIXED_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&create_fixed_index),
+    &ObjectSchema::new(
+        "Create fixed chunk index file.",
+        &[
+            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+            ("size", false, &IntegerSchema::new("File size.")
+             .minimum(1)
+             .schema()
+            ),
+        ],
     )
-}
+);
 
 fn create_fixed_index(
     param: Value,
@@ -292,25 +292,37 @@ fn create_fixed_index(
     Ok(json!(wid))
 }
 
-pub fn api_method_dynamic_append() -> ApiMethod {
-    ApiMethod::new(
-        dynamic_append,
-        ObjectSchema::new("Append chunk to dynamic index writer.")
-            .required("wid", IntegerSchema::new("Dynamic writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("digest-list", ArraySchema::new(
-                "Chunk digest list.", CHUNK_DIGEST_SCHEMA.clone())
-            )
-            .required("offset-list", ArraySchema::new(
-                "Chunk offset list.",
-                IntegerSchema::new("Corresponding chunk offsets.")
-                    .minimum(0)
-                    .into())
-            )
+pub const API_METHOD_DYNAMIC_APPEND: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&dynamic_append),
+    &ObjectSchema::new(
+        "Append chunk to dynamic index writer.",
+        &[
+            (
+                "wid",
+                false,
+                &IntegerSchema::new("Dynamic writer ID.")
+                    .minimum(1)
+                    .maximum(256)
+                    .schema()
+            ),
+            (
+                "digest-list",
+                false,
+                &ArraySchema::new("Chunk digest list.", &CHUNK_DIGEST_SCHEMA).schema()
+            ),
+            (
+                "offset-list",
+                false,
+                &ArraySchema::new(
+                    "Chunk offset list.",
+                    &IntegerSchema::new("Corresponding chunk offsets.")
+                        .minimum(0)
+                        .schema()
+                ).schema()
+            ),
+        ],
     )
-}
+);
 
 fn dynamic_append (
     param: Value,
@@ -344,25 +356,37 @@ fn dynamic_append (
     Ok(Value::Null)
 }
 
-pub fn api_method_fixed_append() -> ApiMethod {
-    ApiMethod::new(
-        fixed_append,
-        ObjectSchema::new("Append chunk to fixed index writer.")
-            .required("wid", IntegerSchema::new("Fixed writer ID.")
-                      .minimum(1)
-                      .maximum(256)
+pub const API_METHOD_FIXED_APPEND: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&fixed_append),
+    &ObjectSchema::new(
+        "Append chunk to fixed index writer.",
+        &[
+            (
+                "wid",
+                false,
+                &IntegerSchema::new("Fixed writer ID.")
+                    .minimum(1)
+                    .maximum(256)
+                    .schema()
+            ),
+            (
+                "digest-list",
+                false,
+                &ArraySchema::new("Chunk digest list.", &CHUNK_DIGEST_SCHEMA).schema()
+            ),
+            (
+                "offset-list",
+                false,
+                &ArraySchema::new(
+                    "Chunk offset list.",
+                    &IntegerSchema::new("Corresponding chunk offsets.")
+                        .minimum(0)
+                        .schema()
+                ).schema()
             )
-            .required("digest-list", ArraySchema::new(
-                "Chunk digest list.", CHUNK_DIGEST_SCHEMA.clone())
-            )
-            .required("offset-list", ArraySchema::new(
-                "Chunk offset list.",
-                IntegerSchema::new("Corresponding chunk offsets.")
-                    .minimum(0)
-                    .into())
-            )
+        ],
     )
-}
+);
 
 fn fixed_append (
     param: Value,
@@ -396,23 +420,37 @@ fn fixed_append (
     Ok(Value::Null)
 }
 
-pub fn api_method_close_dynamic_index() -> ApiMethod {
-    ApiMethod::new(
-        close_dynamic_index,
-        ObjectSchema::new("Close dynamic index writer.")
-            .required("wid", IntegerSchema::new("Dynamic writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("chunk-count", IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
-                      .minimum(1)
-            )
-            .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
-                      .minimum(1)
-            )
-            .required("csum", StringSchema::new("Digest list checksum."))
+pub const API_METHOD_CLOSE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&close_dynamic_index),
+    &ObjectSchema::new(
+        "Close dynamic index writer.",
+        &[
+            (
+                "wid",
+                false,
+                &IntegerSchema::new("Dynamic writer ID.")
+                    .minimum(1)
+                    .maximum(256)
+                    .schema()
+            ),
+            (
+                "chunk-count",
+                false,
+                &IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "size",
+                false,
+                &IntegerSchema::new("File size. This is used to verify that the server got all data.")
+                    .minimum(1)
+                    .schema()
+            ),
+            ("csum", false, &StringSchema::new("Digest list checksum.").schema()),
+        ],
     )
-}
+);
 
 fn close_dynamic_index (
     param: Value,
@@ -435,23 +473,37 @@ fn close_dynamic_index (
     Ok(Value::Null)
 }
 
-pub fn api_method_close_fixed_index() -> ApiMethod {
-    ApiMethod::new(
-        close_fixed_index,
-        ObjectSchema::new("Close fixed index writer.")
-            .required("wid", IntegerSchema::new("Fixed writer ID.")
-                      .minimum(1)
-                      .maximum(256)
-            )
-            .required("chunk-count", IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
-                      .minimum(1)
-            )
-            .required("size", IntegerSchema::new("File size. This is used to verify that the server got all data.")
-                      .minimum(1)
-            )
-            .required("csum", StringSchema::new("Digest list checksum."))
+pub const API_METHOD_CLOSE_FIXED_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&close_fixed_index),
+    &ObjectSchema::new(
+        "Close fixed index writer.",
+        &[
+            (
+                "wid",
+                false,
+                &IntegerSchema::new("Fixed writer ID.")
+                    .minimum(1)
+                    .maximum(256)
+                    .schema()
+            ),
+            (
+                "chunk-count",
+                false,
+                &IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
+                "size",
+                false,
+                &IntegerSchema::new("File size. This is used to verify that the server got all data.")
+                    .minimum(1)
+                    .schema()
+            ),
+            ("csum", false, &StringSchema::new("Digest list checksum.").schema()),
+        ],
     )
-}
+);
 
 fn close_fixed_index (
     param: Value,
@@ -488,23 +540,22 @@ fn finish_backup (
     Ok(Value::Null)
 }
 
-pub fn api_method_dynamic_chunk_index() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        dynamic_chunk_index,
-        ObjectSchema::new(r###"
+pub const API_METHOD_DYNAMIC_CHUNK_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&dynamic_chunk_index),
+    &ObjectSchema::new(
+        r###"
 Download the dynamic chunk index from the previous backup.
 Simply returns an empty list if this is the first backup.
-"###
-        )
-            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+"### ,
+        &[ ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
     )
-}
+);
 
 fn dynamic_chunk_index(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
@@ -559,23 +610,22 @@ fn dynamic_chunk_index(
     Ok(Box::new(future::ok(response)))
 }
 
-pub fn api_method_fixed_chunk_index() -> ApiAsyncMethod {
-    ApiAsyncMethod::new(
-        fixed_chunk_index,
-        ObjectSchema::new(r###"
+pub const API_METHOD_FIXED_CHUNK_INDEX: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&fixed_chunk_index),
+    &ObjectSchema::new(
+        r###"
 Download the fixed chunk index from the previous backup.
 Simply returns an empty list if this is the first backup.
-"###
-        )
-            .required("archive-name", crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA.clone())
+"### ,
+        &[ ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
     )
-}
+);
 
 fn fixed_chunk_index(
     _parts: Parts,
     _req_body: Body,
     param: Value,
-    _info: &ApiAsyncMethod,
+    _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> Result<BoxFut, Error> {
 
