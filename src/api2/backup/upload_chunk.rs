@@ -9,10 +9,10 @@ use hyper::http::request::Parts;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
+use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox::api::schema::*;
 
 use crate::api2::types::*;
-use crate::api_schema::*;
-use crate::api_schema::router::*;
 use crate::backup::*;
 use crate::tools;
 

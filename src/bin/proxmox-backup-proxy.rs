@@ -1,21 +1,20 @@
+use std::sync::Arc;
+
+use failure::*;
+use futures::*;
+use hyper;
+use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
+
+use proxmox::tools::try_block;
+use proxmox::api::RpcEnvironmentType;
+
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
-use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::auth_helpers::*;
-
-use failure::*;
-use proxmox::tools::try_block;
-
-use futures::*;
-
-use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
-use std::sync::Arc;
-
-use hyper;
 
 #[tokio::main]
 async fn main() {

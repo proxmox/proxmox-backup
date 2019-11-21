@@ -1,7 +1,7 @@
-use crate::api_schema::router::*;
-
 use std::collections::HashMap;
 use serde_json::Value;
+
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
 /// Encapsulates information about the runtime environment
 pub struct RestEnvironment {

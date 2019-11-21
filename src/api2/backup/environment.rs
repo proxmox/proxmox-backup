@@ -8,8 +8,8 @@ use proxmox::tools::{
     digest_to_hex,
     fs::file_set_contents,
 };
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::api_schema::router::{RpcEnvironment, RpcEnvironmentType};
 use crate::server::WorkerTask;
 use crate::backup::*;
 use crate::server::formatter::*;

@@ -1,11 +1,10 @@
 use failure::*;
 
 use std::io::Write;
-//use super::*;
-use super::router::*;
-use super::schema::*;
-//use super::api_handler::*;
 
+use proxmox::api::{ApiHandler, ApiMethod};
+use proxmox::api::router::{Router, SubRoute};
+use proxmox::api::schema::*;
 
 #[derive(Copy, Clone)]
 pub enum ParameterDisplayStyle {

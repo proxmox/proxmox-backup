@@ -21,8 +21,3 @@ pub mod format;
 
 pub use proxmox::api::schema::*;
 pub use proxmox::api::*;
-
-pub mod router {
-    pub use super::{ApiHandler, ApiMethod, HttpError, RpcEnvironment, RpcEnvironmentType};
-    pub use proxmox::api::router::*;
-}

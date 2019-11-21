@@ -1,10 +1,10 @@
 use failure::*;
 use serde_json::{json, Value};
 
-use crate::api_schema::router::{HttpError, RpcEnvironment};
-
 use hyper::{Body, Response, StatusCode};
 use hyper::header;
+
+use proxmox::api::{HttpError, RpcEnvironment};
 
 /// Extension to set error message for server side logging
 pub struct ErrorMessageExtension(pub String);

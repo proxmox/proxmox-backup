@@ -1,8 +1,8 @@
 use failure::*;
-
-use crate::api_schema::*;
-use crate::api_schema::router::*;
 use serde_json::{json, Value};
+
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::schema::ObjectSchema;
 
 pub const PROXMOX_PKG_VERSION: &str =
     concat!(

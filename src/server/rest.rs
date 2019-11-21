@@ -16,13 +16,15 @@ use serde_json::{json, Value};
 use tokio::fs::File;
 use url::form_urlencoded;
 
+use proxmox::api::http_err;
+use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, HttpError};
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::schema::{parse_simple_value, verify_json_object, parse_parameter_strings};
+
 use super::environment::RestEnvironment;
 use super::formatter::*;
-use crate::api_schema::rpc_environment::*;
-use crate::api_schema::config::*;
-use crate::api_schema::router::*;
-use crate::api_schema::*;
 use crate::auth_helpers::*;
+use crate::api_schema::config::ApiConfig;
 use crate::tools;
 
 extern "C"  { fn tzset(); }

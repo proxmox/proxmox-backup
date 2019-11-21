@@ -1,9 +1,8 @@
 use failure::*;
-
-//use crate::tools;
-use crate::api_schema::*;
-use crate::api_schema::router::*;
 use serde_json::{json, Value};
+
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::schema::ObjectSchema;
 
 use crate::api2::types::*;
 

@@ -1,6 +1,5 @@
 use failure::*;
 
-use hyper::StatusCode;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};

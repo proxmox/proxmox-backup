@@ -2,9 +2,9 @@ use failure::*;
 use futures::*;
 
 use proxmox::tools::try_block;
+use proxmox::api::RpcEnvironmentType;
 
 //use proxmox_backup::tools;
-use proxmox_backup::api_schema::router::*;
 use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::server;

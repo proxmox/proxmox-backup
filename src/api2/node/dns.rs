@@ -1,21 +1,18 @@
+use std::sync::{Arc, Mutex};
+
 use failure::*;
+use lazy_static::lazy_static;
+use openssl::sha;
+use regex::Regex;
+use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::schema::*;
 use proxmox::tools::fs::{file_get_contents, file_set_contents};
 use proxmox::tools::*; // required to use IPRE!() macro ???
 
-use crate::api2::*;
-use crate::api_schema::*;
-//use crate::api_schema::router::*;
 use crate::api2::types::*;
-
-use lazy_static::lazy_static;
-
-use std::sync::{Arc, Mutex};
-use openssl::sha;
-use regex::Regex;
-
-use serde_json::{json, Value};
 
 static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 

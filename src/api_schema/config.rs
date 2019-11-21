@@ -1,9 +1,9 @@
-use crate::api_schema::router::*;
-
 use std::collections::HashMap;
 use std::path::{PathBuf};
 
 use hyper::Method;
+
+use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 
 pub struct ApiConfig {
     basedir: PathBuf,

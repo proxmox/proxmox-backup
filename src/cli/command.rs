@@ -3,10 +3,10 @@ use serde_json::Value;
 
 use std::collections::{HashMap, HashSet};
 
-use crate::api_schema::*;
-use crate::api_schema::router::*;
+use proxmox::api::schema::*;
+use proxmox::api::{ApiHandler, ApiMethod};
+
 use crate::api_schema::format::*;
-//use crate::api_schema::config::*;
 use super::environment::CliEnvironment;
 
 use super::getopts;

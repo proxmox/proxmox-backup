@@ -1,12 +1,12 @@
-use failure::*;
-//use std::collections::HashMap;
-
-use crate::api_schema::*;
-use crate::api_schema::router::*;
-use crate::backup::*;
-use serde_json::{json, Value};
 use std::path::PathBuf;
 
+use failure::*;
+use serde_json::{json, Value};
+
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::schema::*;
+
+use crate::backup::*;
 use crate::config::datastore;
 
 pub const GET: ApiMethod = ApiMethod::new(
