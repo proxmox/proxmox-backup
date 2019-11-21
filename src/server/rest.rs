@@ -19,7 +19,6 @@ use url::form_urlencoded;
 use super::environment::RestEnvironment;
 use super::formatter::*;
 use crate::api_schema::rpc_environment::*;
-use crate::api_schema::api_handler::*;
 use crate::api_schema::config::*;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
