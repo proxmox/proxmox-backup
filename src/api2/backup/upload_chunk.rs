@@ -115,7 +115,7 @@ fn upload_fixed_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let size = tools::required_integer_param(&param, "size")? as u32;
@@ -177,7 +177,7 @@ fn upload_dynamic_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let wid = tools::required_integer_param(&param, "wid")? as usize;
     let size = tools::required_integer_param(&param, "size")? as u32;
@@ -218,7 +218,7 @@ fn upload_speedtest(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let resp = req_body
         .map_err(Error::from)
@@ -265,7 +265,7 @@ fn upload_blob(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
     let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;

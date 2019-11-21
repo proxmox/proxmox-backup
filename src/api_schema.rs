@@ -22,10 +22,8 @@ pub mod format;
 pub use proxmox::api::schema::*;
 pub use proxmox::api::*;
 
-pub use proxmox::api::ApiFuture as BoxFut;
-
 pub mod api_handler {
-    pub use super::{ApiAsyncHandlerFn, ApiHandler, ApiHandlerFn, BoxFut};
+    pub use super::{ApiAsyncHandlerFn, ApiHandler, ApiHandlerFn, ApiFuture};
 }
 
 pub mod router {

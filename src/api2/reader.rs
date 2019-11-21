@@ -50,7 +50,7 @@ fn upgrade_to_backup_reader_protocol(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let debug = param["debug"].as_bool().unwrap_or(false);
 
@@ -171,7 +171,7 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let env: &ReaderEnvironment = rpcenv.as_ref();
     let env2 = env.clone();
@@ -222,7 +222,7 @@ fn download_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let env: &ReaderEnvironment = rpcenv.as_ref();
 
@@ -258,7 +258,7 @@ fn download_chunk_old(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let env: &ReaderEnvironment = rpcenv.as_ref();
     let env2 = env.clone();
@@ -303,7 +303,7 @@ fn speedtest(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A...]
 

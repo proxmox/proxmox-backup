@@ -47,7 +47,7 @@ fn upgrade_to_backup_protocol(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let debug = param["debug"].as_bool().unwrap_or(false);
 
@@ -569,7 +569,7 @@ fn dynamic_chunk_index(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
@@ -642,7 +642,7 @@ fn fixed_chunk_index(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 

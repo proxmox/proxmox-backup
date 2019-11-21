@@ -229,7 +229,7 @@ fn proxy_protected_request(
     info: &'static ApiMethod,
     mut parts: Parts,
     req_body: Body,
-) -> BoxFut {
+) -> ApiFuture {
 
     let mut uri_parts = parts.uri.clone().into_parts();
 
@@ -269,7 +269,7 @@ pub fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + S
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String, S>,
-) -> BoxFut
+) -> ApiFuture
 {
     let handler = match info.handler {
         ApiHandler::Async(_) => {
@@ -322,7 +322,7 @@ pub fn handle_async_api_request<Env: RpcEnvironment>(
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String>,
-) -> BoxFut
+) -> ApiFuture
 {
     let handler = match info.handler {
         ApiHandler::Sync(_) => {
@@ -489,7 +489,7 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
     )
 }
 
-fn handle_static_file_download(filename: PathBuf) ->  BoxFut {
+fn handle_static_file_download(filename: PathBuf) ->  ApiFuture {
 
     let response = tokio::fs::metadata(filename.clone())
         .map_err(|err| http_err!(BAD_REQUEST, format!("File access problems: {}", err)))
@@ -554,7 +554,7 @@ async fn delayed_response(
     Ok(resp)
 }
 
-pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> BoxFut {
+pub fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> ApiFuture {
 
     let (parts, body) = req.into_parts();
 

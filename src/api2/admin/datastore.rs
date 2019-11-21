@@ -481,7 +481,7 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
@@ -544,7 +544,7 @@ fn upload_backup_log(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<BoxFut, Error> {
+) -> Result<ApiFuture, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
