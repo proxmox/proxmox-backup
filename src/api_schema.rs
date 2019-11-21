@@ -30,7 +30,3 @@ pub mod router {
     pub use super::{ApiHandler, ApiMethod, HttpError, RpcEnvironment, RpcEnvironmentType};
     pub use proxmox::api::router::*;
 }
-
-pub mod schema {
-    pub use proxmox::api::schema::*;
-}
