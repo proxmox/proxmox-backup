@@ -181,3 +181,9 @@ pub use backup_info::*;
 
 mod datastore;
 pub use datastore::*;
+
+mod readline;
+pub use readline::*;
+
+mod catalog_shell;
+pub use catalog_shell::*;
