@@ -1,14 +1,16 @@
 use failure::*;
 
+use hyper::StatusCode;
+use serde_json::{json, Value};
+
+use proxmox::{sortable, identity};
+
 use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
 
-use hyper::StatusCode;
-
-use serde_json::{json, Value};
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
@@ -66,6 +68,7 @@ fn create_ticket(
     }
 }
 
+#[sortable]
 const SUBDIRS: SubdirMap = &[
     (
         "ticket", &Router::new()
@@ -74,7 +77,7 @@ const SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&create_ticket),
                     &ObjectSchema::new(
                         "Create or verify authentication ticket.",
-                        &[
+                        &sorted!([
                             (
                                 "username",
                                 false,
@@ -88,12 +91,12 @@ const SUBDIRS: SubdirMap = &[
                                 &StringSchema::new("The secret password. This can also be a valid ticket.")
                                     .schema()
                             ),
-                        ],
+                        ]),
                     )
                 ).returns(
                     &ObjectSchema::new(
                         "Returns authentication ticket with additional infos.",
-                        &[
+                        &sorted!([
                             (
                                 "username",
                                 false,
@@ -110,7 +113,7 @@ const SUBDIRS: SubdirMap = &[
                                 &StringSchema::new("Cross Site Request Forgery Prevention Token.")
                                     .schema()
                             ),
-                        ],
+                        ]),
                     ).schema()
                 ).protected(true)
             )

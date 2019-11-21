@@ -2,6 +2,8 @@ extern crate proxmox_backup;
 
 use failure::*;
 
+use proxmox::{sortable, identity};
+
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
 use proxmox_backup::api_schema::*;
@@ -259,11 +261,12 @@ fn mount_archive(
     Ok(Value::Null)
 }
 
+#[sortable]
 const API_METHOD_CREATE_ARCHIVE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&create_archive),
     &ObjectSchema::new(
         "Create new .pxar archive.",
-        &[
+        &sorted!([
             (
                 "archive",
                 false,
@@ -338,15 +341,16 @@ const API_METHOD_CREATE_ARCHIVE: ApiMethod = ApiMethod::new(
                     &StringSchema::new("Path or pattern matching files to restore.").schema()
                 ).schema()
             ),
-        ],
+        ]),
     )
 );
 
+#[sortable]
 const API_METHOD_EXTRACT_ARCHIVE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&extract_archive),
     &ObjectSchema::new(
         "Extract an archive.",
-        &[
+        &sorted!([
             (
                 "archive",
                 false,
@@ -426,15 +430,16 @@ const API_METHOD_EXTRACT_ARCHIVE: ApiMethod = ApiMethod::new(
                     .default(false)
                     .schema()
             ),
-        ],
+        ]),
     )
 );
 
+#[sortable]
 const API_METHOD_MOUNT_ARCHIVE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&mount_archive),
     &ObjectSchema::new(
         "Mount the archive as filesystem via FUSE.",
-        &[
+        &sorted!([
             (
                 "archive",
                 false,
@@ -459,21 +464,22 @@ const API_METHOD_MOUNT_ARCHIVE: ApiMethod = ApiMethod::new(
                     .default(false)
                     .schema()
             ),
-        ],
+        ]),
     )
 );
 
+#[sortable]
 const API_METHOD_DUMP_ARCHIVE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&dump_archive),
     &ObjectSchema::new(
         "List the contents of an archive.",
-        &[
+        &sorted!([
             ( "archive", false, &StringSchema::new("Archive name.").schema()),
             ( "verbose", true, &BooleanSchema::new("Verbose output.")
                .default(false)
                .schema()
             ),
-        ]
+        ])
     )
 );
 

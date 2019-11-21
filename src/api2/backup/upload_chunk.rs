@@ -8,6 +8,8 @@ use hyper::Body;
 use hyper::http::request::Parts;
 use serde_json::{json, Value};
 
+use proxmox::{sortable, identity};
+
 use crate::api2::types::*;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -81,11 +83,12 @@ impl Future for UploadChunk {
     }
 }
 
+#[sortable]
 pub const API_METHOD_UPLOAD_FIXED_CHUNK: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upload_fixed_chunk),
     &ObjectSchema::new(
         "Upload a new chunk.",
-        &[
+        &sorted!([
             ("wid", false, &IntegerSchema::new("Fixed writer ID.")
              .minimum(1)
              .maximum(256)
@@ -102,7 +105,7 @@ pub const API_METHOD_UPLOAD_FIXED_CHUNK: ApiMethod = ApiMethod::new(
              .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
              .schema()
             ),
-        ],
+        ]),
     )
 );
 
@@ -142,11 +145,12 @@ fn upload_fixed_chunk(
     Ok(Box::new(resp))
 }
 
+#[sortable]
 pub const API_METHOD_UPLOAD_DYNAMIC_CHUNK: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upload_dynamic_chunk),
     &ObjectSchema::new(
         "Upload a new chunk.",
-        &[
+        &sorted!([
             ("wid", false, &IntegerSchema::new("Dynamic writer ID.")
              .minimum(1)
              .maximum(256)
@@ -163,7 +167,7 @@ pub const API_METHOD_UPLOAD_DYNAMIC_CHUNK: ApiMethod = ApiMethod::new(
              .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
              .schema()
             ),
-        ],
+        ]),
     )
 );
 
@@ -239,18 +243,19 @@ fn upload_speedtest(
     Ok(Box::new(resp))
 }
 
+#[sortable]
 pub const API_METHOD_UPLOAD_BLOB: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upload_blob),
     &ObjectSchema::new(
         "Upload binary blob file.",
-        &[
+        &sorted!([
             ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
             ("encoded-size", false, &IntegerSchema::new("Encoded blob size.")
              .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
              .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
              .schema()
             )
-        ],
+        ]),
     )
 );
 

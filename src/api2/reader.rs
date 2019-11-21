@@ -8,6 +8,8 @@ use hyper::http::request::Parts;
 
 use serde_json::Value;
 
+use proxmox::{sortable, identity};
+
 use crate::tools;
 use crate::api_schema::router::*;
 use crate::api_schema::*;
@@ -21,11 +23,12 @@ use environment::*;
 pub const ROUTER: Router = Router::new()
     .upgrade(&API_METHOD_UPGRADE_BACKUP);
 
+#[sortable]
 pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upgrade_to_backup_reader_protocol),
     &ObjectSchema::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."),
-        &[
+        &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
             ("backup-type", false, &StringSchema::new("Backup type.")
              .format(&ApiStringFormat::Enum(&["vm", "ct", "host"]))
@@ -37,7 +40,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
              .schema()
             ),
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
-        ],
+        ]),
     )
 );
 
@@ -151,11 +154,14 @@ pub const READER_API_ROUTER: Router = Router::new()
         ),
     ]);
 
+#[sortable]
 pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&download_file),
     &ObjectSchema::new(
         "Download specified file.",
-        &[ ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
+        &sorted!([
+            ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
+        ]),
     )
 );
 
@@ -199,11 +205,14 @@ fn download_file(
     Ok(Box::new(response_future))
 }
 
+#[sortable]
 pub const API_METHOD_DOWNLOAD_CHUNK: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&download_chunk),
     &ObjectSchema::new(
         "Download specified chunk.",
-        &[ ("digest", false, &CHUNK_DIGEST_SCHEMA) ],
+        &sorted!([
+            ("digest", false, &CHUNK_DIGEST_SCHEMA),
+        ]),
     )
 );
 

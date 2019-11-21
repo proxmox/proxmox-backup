@@ -4,6 +4,7 @@ use chrono::prelude::*;
 use failure::*;
 use serde_json::{json, Value};
 
+use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_read_firstline, file_set_contents};
 
 use crate::api2::types::*;
@@ -80,18 +81,19 @@ fn set_timezone(
     Ok(Value::Null)
 }
 
+#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(
         &ApiMethod::new(
             &ApiHandler::Sync(&get_time),
             &ObjectSchema::new(
                 "Read server time and time zone settings.",
-                &[ ("node", false, &NODE_SCHEMA) ],
+                &sorted!([ ("node", false, &NODE_SCHEMA) ]),
             )
         ).returns(
             &ObjectSchema::new(
                 "Returns server time and timezone.",
-                &[
+                &sorted!([
                     ("timezone", false, &StringSchema::new("Time zone").schema()),
                     ("time", false, &IntegerSchema::new("Seconds since 1970-01-01 00:00:00 UTC.")
                      .minimum(1_297_163_644)
@@ -101,7 +103,7 @@ pub const ROUTER: Router = Router::new()
                      .minimum(1_297_163_644)
                      .schema()
                     ),
-                ],
+                ]),
             ).schema()
         )
     )
@@ -110,13 +112,13 @@ pub const ROUTER: Router = Router::new()
             &ApiHandler::Sync(&set_timezone),
             &ObjectSchema::new(
                 "Set time zone.",
-                &[
+                &sorted!([
                     ("node", false, &NODE_SCHEMA),
                     ("timezone", false, &StringSchema::new(
                         "Time zone. The file '/usr/share/zoneinfo/zone.tab' contains the list of valid names.")
                      .schema()
                     ),
-                ],
+                ]),
             )
         ).protected(true).reload_timezone(true)
     );

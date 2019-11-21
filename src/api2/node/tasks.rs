@@ -1,12 +1,14 @@
 use failure::*;
 
-use crate::tools;
-use crate::api_schema::*;
-use crate::api_schema::router::*;
 use serde_json::{json, Value};
 use std::fs::File;
 use std::io::{BufRead,BufReader};
 
+use proxmox::{sortable, identity};
+
+use crate::tools;
+use crate::api_schema::*;
+use crate::api_schema::router::*;
 use crate::api2::types::*;
 use crate::server::{self, UPID};
 
@@ -169,6 +171,7 @@ const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
     .max_length(256)
     .schema();
 
+#[sortable]
 const UPID_API_SUBDIRS: SubdirMap = &[
     (
         "log", &Router::new()
@@ -177,7 +180,7 @@ const UPID_API_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&read_task_log),
                     &ObjectSchema::new(
                         "Read task log.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("upid", false, &UPID_SCHEMA),
                             ("start", true, &IntegerSchema::new("Start at this line.")
@@ -190,7 +193,7 @@ const UPID_API_SUBDIRS: SubdirMap = &[
                              .default(50)
                              .schema()
                             ),
-                        ],
+                        ]),
                     )
                 )
             )
@@ -202,16 +205,17 @@ const UPID_API_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&get_task_status),
                     &ObjectSchema::new(
                         "Get task status.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("upid", false, &UPID_SCHEMA),
-                        ],
+                        ]),
                     )
                 )
             )
     )
 ];
 
+#[sortable]
 pub const UPID_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
     .delete(
@@ -219,22 +223,23 @@ pub const UPID_API_ROUTER: Router = Router::new()
             &ApiHandler::Sync(&stop_task),
             &ObjectSchema::new(
                 "Try to stop a task.",
-                &[
+                &sorted!([
                     ("node", false, &NODE_SCHEMA),
                     ("upid", false, &UPID_SCHEMA),
-                ],
+                ]),
             )
         ).protected(true)
     )
     .subdirs(&UPID_API_SUBDIRS);
 
+#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(
         &ApiMethod::new(
             &ApiHandler::Sync(&list_tasks),
             &ObjectSchema::new(
                 "List tasks.",
-                &[
+                &sorted!([
                     ("node", false, &NODE_SCHEMA),
                     ("start", true, &IntegerSchema::new("List tasks beginning from this offset.")
                      .minimum(0)
@@ -248,7 +253,7 @@ pub const ROUTER: Router = Router::new()
                     ),
                     ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
                     ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
-                ],
+                ]),
             )
         )
     )

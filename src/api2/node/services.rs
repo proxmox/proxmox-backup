@@ -1,5 +1,7 @@
 use failure::*;
 
+use proxmox::{sortable, identity};
+
 use crate::tools;
 use crate::api_schema::*;
 use crate::api_schema::router::*;
@@ -218,6 +220,7 @@ const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.")
     .max_length(256)
     .schema();
 
+#[sortable]
 const SERVICE_SUBDIRS: SubdirMap = &[
     (
         "reload", &Router::new()
@@ -226,10 +229,10 @@ const SERVICE_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&reload_service),
                     &ObjectSchema::new(
                         "Reload service.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("service", false, &SERVICE_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 ).protected(true)
             )
@@ -241,10 +244,10 @@ const SERVICE_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&restart_service),
                     &ObjectSchema::new(
                         "Restart service.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("service", false, &SERVICE_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 ).protected(true)
             )
@@ -256,10 +259,10 @@ const SERVICE_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&start_service),
                     &ObjectSchema::new(
                         "Start service.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("service", false, &SERVICE_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 ).protected(true)
             )
@@ -271,10 +274,10 @@ const SERVICE_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&get_service_state),
                     &ObjectSchema::new(
                         "Read service properties.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("service", false, &SERVICE_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 )
             )
@@ -286,10 +289,10 @@ const SERVICE_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&stop_service),
                     &ObjectSchema::new(
                         "Stop service.",
-                        &[
+                        &sorted!([
                             ("node", false, &NODE_SCHEMA),
                             ("service", false, &SERVICE_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 ).protected(true)
             )
@@ -300,25 +303,26 @@ const SERVICE_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SERVICE_SUBDIRS))
     .subdirs(SERVICE_SUBDIRS);
 
+#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(
         &ApiMethod::new(
             &ApiHandler::Sync(&list_services),
             &ObjectSchema::new(
                 "Service list.",
-                &[ ("node", false, &NODE_SCHEMA) ],
+                &sorted!([ ("node", false, &NODE_SCHEMA) ]),
             )
         ).returns(
             &ArraySchema::new(
                 "Returns a list of systemd services.",
                 &ObjectSchema::new(
                     "Service details.",
-                    &[
+                    &sorted!([
                         ("service", false, &SERVICE_ID_SCHEMA),
                         ("name", false, &StringSchema::new("systemd service name.").schema()),
                         ("desc", false, &StringSchema::new("systemd service description.").schema()),
                         ("state", false, &StringSchema::new("systemd service 'SubState'.").schema()),
-                    ],
+                    ]),
                 ).schema()
             ).schema()
         )

@@ -1,5 +1,6 @@
 use failure::*;
 
+use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_set_contents};
 use proxmox::tools::*; // required to use IPRE!() macro ???
 
@@ -107,24 +108,25 @@ fn get_dns(
     read_etc_resolv_conf()
 }
 
+#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(
         &ApiMethod::new(
             &ApiHandler::Sync(&get_dns),
             &ObjectSchema::new(
                 "Read DNS settings.",
-                &[ ("node", false, &NODE_SCHEMA) ],
+                &sorted!([ ("node", false, &NODE_SCHEMA) ]),
             )
         ).returns(
             &ObjectSchema::new(
                 "Returns DNS server IPs and sreach domain.",
-                &[
+                &sorted!([
                     ("digest", false, &PVE_CONFIG_DIGEST_SCHEMA),
                     ("search", true, &SEARCH_DOMAIN_SCHEMA),
                     ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
                     ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
                     ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
-                ],
+                ]),
             ).schema()
         )
     )
@@ -133,14 +135,14 @@ pub const ROUTER: Router = Router::new()
             &ApiHandler::Sync(&update_dns),
             &ObjectSchema::new(
                 "Returns DNS server IPs and sreach domain.",
-                &[
+                &sorted!([
                     ("node", false, &NODE_SCHEMA),
                     ("search", false, &SEARCH_DOMAIN_SCHEMA),
                     ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
                     ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
                     ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
                     ("digest", true, &PVE_CONFIG_DIGEST_SCHEMA),
-                ],
+                ]),
             )
         ).protected(true)
     );

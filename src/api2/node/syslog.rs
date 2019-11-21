@@ -1,5 +1,7 @@
 use failure::*;
 
+use proxmox::{sortable, identity};
+
 use crate::api_schema::*;
 use crate::api_schema::router::*;
 use crate::api2::types::*;
@@ -87,13 +89,14 @@ fn get_syslog(
     Ok(json!(lines))
 }
 
+#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(
         &ApiMethod::new(
             &ApiHandler::Sync(&get_syslog),
             &ObjectSchema::new(
                 "Read server time and time zone settings.",
-                &[
+                &sorted!([
                     ("node", false, &NODE_SCHEMA),
                     ("start", true, &IntegerSchema::new("Start line number.")
                      .minimum(0)
@@ -115,15 +118,15 @@ pub const ROUTER: Router = Router::new()
                      .max_length(128)
                      .schema()
                     ),
-                ],
+                ]),
             )
         ).returns(
             &ObjectSchema::new(
                 "Returns a list of syslog entries.",
-                &[
+                &sorted!([
                     ("n", false, &IntegerSchema::new("Line number.").schema()),
                     ("t", false, &StringSchema::new("Line text.").schema()),
-                ],
+                ]),
             ).schema()
         ).protected(true)
     );

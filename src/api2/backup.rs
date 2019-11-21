@@ -7,6 +7,8 @@ use hyper::http::request::Parts;
 
 use serde_json::{json, Value};
 
+use proxmox::{sortable, identity};
+
 use crate::tools;
 use crate::tools::wrapped_reader_stream::*;
 use crate::api_schema::router::*;
@@ -24,17 +26,18 @@ use upload_chunk::*;
 pub const ROUTER: Router = Router::new()
     .upgrade(&API_METHOD_UPGRADE_BACKUP);
 
+#[sortable]
 pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upgrade_to_backup_protocol),
     &ObjectSchema::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."),
-        &[
+        &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
-        ],
+        ]),
     )
 );
 
@@ -211,13 +214,14 @@ pub const BACKUP_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(BACKUP_API_SUBDIRS))
     .subdirs(BACKUP_API_SUBDIRS);
 
+#[sortable]
 pub const API_METHOD_CREATE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&create_dynamic_index),
     &ObjectSchema::new(
         "Create dynamic chunk index file.",
-        &[
+        &sorted!([
             ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
-        ],
+        ]),
     )
 );
 
@@ -247,17 +251,18 @@ fn create_dynamic_index(
     Ok(json!(wid))
 }
 
+#[sortable]
 pub const API_METHOD_CREATE_FIXED_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&create_fixed_index),
     &ObjectSchema::new(
         "Create fixed chunk index file.",
-        &[
+        &sorted!([
             ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
             ("size", false, &IntegerSchema::new("File size.")
              .minimum(1)
              .schema()
             ),
-        ],
+        ]),
     )
 );
 
@@ -292,11 +297,12 @@ fn create_fixed_index(
     Ok(json!(wid))
 }
 
+#[sortable]
 pub const API_METHOD_DYNAMIC_APPEND: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&dynamic_append),
     &ObjectSchema::new(
         "Append chunk to dynamic index writer.",
-        &[
+        &sorted!([
             (
                 "wid",
                 false,
@@ -320,7 +326,7 @@ pub const API_METHOD_DYNAMIC_APPEND: ApiMethod = ApiMethod::new(
                         .schema()
                 ).schema()
             ),
-        ],
+        ]),
     )
 );
 
@@ -356,11 +362,12 @@ fn dynamic_append (
     Ok(Value::Null)
 }
 
+#[sortable]
 pub const API_METHOD_FIXED_APPEND: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&fixed_append),
     &ObjectSchema::new(
         "Append chunk to fixed index writer.",
-        &[
+        &sorted!([
             (
                 "wid",
                 false,
@@ -384,7 +391,7 @@ pub const API_METHOD_FIXED_APPEND: ApiMethod = ApiMethod::new(
                         .schema()
                 ).schema()
             )
-        ],
+        ]),
     )
 );
 
@@ -420,11 +427,12 @@ fn fixed_append (
     Ok(Value::Null)
 }
 
+#[sortable]
 pub const API_METHOD_CLOSE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&close_dynamic_index),
     &ObjectSchema::new(
         "Close dynamic index writer.",
-        &[
+        &sorted!([
             (
                 "wid",
                 false,
@@ -448,7 +456,7 @@ pub const API_METHOD_CLOSE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
                     .schema()
             ),
             ("csum", false, &StringSchema::new("Digest list checksum.").schema()),
-        ],
+        ]),
     )
 );
 
@@ -473,11 +481,12 @@ fn close_dynamic_index (
     Ok(Value::Null)
 }
 
+#[sortable]
 pub const API_METHOD_CLOSE_FIXED_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&close_fixed_index),
     &ObjectSchema::new(
         "Close fixed index writer.",
-        &[
+        &sorted!([
             (
                 "wid",
                 false,
@@ -501,7 +510,7 @@ pub const API_METHOD_CLOSE_FIXED_INDEX: ApiMethod = ApiMethod::new(
                     .schema()
             ),
             ("csum", false, &StringSchema::new("Digest list checksum.").schema()),
-        ],
+        ]),
     )
 );
 
@@ -540,6 +549,7 @@ fn finish_backup (
     Ok(Value::Null)
 }
 
+#[sortable]
 pub const API_METHOD_DYNAMIC_CHUNK_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&dynamic_chunk_index),
     &ObjectSchema::new(
@@ -547,7 +557,9 @@ pub const API_METHOD_DYNAMIC_CHUNK_INDEX: ApiMethod = ApiMethod::new(
 Download the dynamic chunk index from the previous backup.
 Simply returns an empty list if this is the first backup.
 "### ,
-        &[ ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
+        &sorted!([
+            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA)
+        ]),
     )
 );
 
@@ -610,6 +622,7 @@ fn dynamic_chunk_index(
     Ok(Box::new(future::ok(response)))
 }
 
+#[sortable]
 pub const API_METHOD_FIXED_CHUNK_INDEX: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&fixed_chunk_index),
     &ObjectSchema::new(
@@ -617,7 +630,9 @@ pub const API_METHOD_FIXED_CHUNK_INDEX: ApiMethod = ApiMethod::new(
 Download the fixed chunk index from the previous backup.
 Simply returns an empty list if this is the first backup.
 "### ,
-        &[ ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA) ],
+        &sorted!([
+            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA)
+        ]),
     )
 );
 

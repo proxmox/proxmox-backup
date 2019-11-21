@@ -11,6 +11,7 @@ use std::ffi::OsStr;
 use std::io::{Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
+use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
 
 use proxmox_backup::tools;
@@ -1555,14 +1556,15 @@ fn key_mgmt_cli() -> CliCommandMap {
         .default("scrypt")
         .schema();
 
+    #[sortable]
     const API_METHOD_KEY_CREATE: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&key_create),
         &ObjectSchema::new(
             "Create a new encryption key.",
-            &[
+            &sorted!([
                 ("path", false, &StringSchema::new("File system path.").schema()),
                 ("kdf", true, &KDF_SCHEMA),
-            ],
+            ]),
         )
     );
     
@@ -1570,14 +1572,15 @@ fn key_mgmt_cli() -> CliCommandMap {
         .arg_param(vec!["path"])
         .completion_cb("path", tools::complete_file_name);
 
+    #[sortable]
     const API_METHOD_KEY_CHANGE_PASSPHRASE: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&key_change_passphrase),
         &ObjectSchema::new(
             "Change the passphrase required to decrypt the key.",
-            &[
+            &sorted!([
                 ("path", false, &StringSchema::new("File system path.").schema()),
                 ("kdf", true, &KDF_SCHEMA),
-            ],
+            ]),
         )
     );
         
@@ -1592,11 +1595,12 @@ fn key_mgmt_cli() -> CliCommandMap {
     
     let key_create_master_key_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE_MASTER_KEY);
 
+    #[sortable]
     const API_METHOD_KEY_IMPORT_MASTER_PUBKEY: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&key_import_master_pubkey),
         &ObjectSchema::new(
             "Import a new RSA public key and use it as master key. The key is expected to be in '.pem' format.",
-            &[ ("path", false, &StringSchema::new("File system path.").schema()) ],
+            &sorted!([ ("path", false, &StringSchema::new("File system path.").schema()) ]),
         )
     );
     
@@ -1754,11 +1758,12 @@ fn main() {
         .format(&ApiStringFormat::Pattern(&BACKUPSPEC_REGEX))
         .schema();
 
+    #[sortable]
     const API_METHOD_CREATE_BACKUP: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&create_backup),
         &ObjectSchema::new(
             "Create (host) backup.",
-            &[
+            &sorted!([
                 (
                     "backupspec",
                     false,
@@ -1823,7 +1828,7 @@ fn main() {
                         .default(4096)
                         .schema()
                 ),
-            ],
+            ]),
         )
     );
     
@@ -1834,11 +1839,12 @@ fn main() {
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
+    #[sortable]
     const API_METHOD_UPLOAD_LOG: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&upload_log),
         &ObjectSchema::new(
             "Upload backup log file.",
-            &[
+            &sorted!([
                 (
                     "snapshot",
                     false,
@@ -1859,7 +1865,7 @@ fn main() {
                     true,
                     &StringSchema::new("Path to encryption key. All data will be encrypted using this key.").schema()
                 ),
-            ],
+            ]),
         )
     );
   
@@ -1870,29 +1876,31 @@ fn main() {
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_LIST_BACKUP_GROUPS: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&list_backup_groups),
         &ObjectSchema::new(
             "List backup groups.",
-            &[
+            &sorted!([
                 ("repository", true, &REPO_URL_SCHEMA),
                 ("output-format", true, &OUTPUT_FORMAT),
-            ],
+            ]),
         )
     );
     
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_LIST_SNAPSHOTS: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&list_snapshots),
         &ObjectSchema::new(
             "List backup snapshots.",
-            &[
+            &sorted!([
                 ("group", true, &StringSchema::new("Backup group.").schema()),
                 ("repository", true, &REPO_URL_SCHEMA),
                 ("output-format", true, &OUTPUT_FORMAT),
-            ],
+            ]),
         )
     );
     
@@ -1901,14 +1909,15 @@ fn main() {
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_FORGET_SNAPSHOTS: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&forget_snapshots),
         &ObjectSchema::new(
             "Forget (remove) backup snapshots.",
-            &[
+            &sorted!([
                 ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
                 ("repository", true, &REPO_URL_SCHEMA),
-            ],
+            ]),
         )
     );
     
@@ -1917,22 +1926,24 @@ fn main() {
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
+    #[sortable]
     const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&start_garbage_collection),
         &ObjectSchema::new(
             "Start garbage collection for a specific repository.",
-            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
     
     let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_RESTORE: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&restore),
         &ObjectSchema::new(
             "Restore backup repository.",
-            &[
+            &sorted!([
                 ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
                 ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
                 (
@@ -1962,7 +1973,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
                         .default(false)
                         .schema()
                 ),
-            ],
+            ]),
         )
     );
   
@@ -1973,15 +1984,16 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
+    #[sortable]
     const API_METHOD_LIST_SNAPSHOT_FILES: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&list_snapshot_files),
         &ObjectSchema::new(
             "List snapshot files.",
-            &[
+            &sorted!([
                 ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
                 ("repository", true, &REPO_URL_SCHEMA),
                 ("output-format", true, &OUTPUT_FORMAT),
-            ],
+            ]),
         )
     );
     
@@ -1990,14 +2002,15 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
+    #[sortable]
     const API_METHOD_DUMP_CATALOG: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&dump_catalog),
         &ObjectSchema::new(
             "Dump catalog.",
-            &[
+            &sorted!([
                 ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
                 ("repository", true, &REPO_URL_SCHEMA),
-            ],
+            ]),
         )
     );
     
@@ -2010,10 +2023,11 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         &ApiHandler::Sync(&prune),
         &ObjectSchema::new(
             "Prune backup repository.",
-            &proxmox_backup::add_common_prune_prameters!(
+            &proxmox_backup::add_common_prune_prameters!([
                 ("group", false, &StringSchema::new("Backup group.").schema()),
+            ], [
                 ("repository", true, &REPO_URL_SCHEMA),
-            )
+            ])
         )
     );
     
@@ -2022,54 +2036,58 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&status),
         &ObjectSchema::new(
             "Get repository status.",
-            &[
+            &sorted!([
                 ("repository", true, &REPO_URL_SCHEMA),
                 ("output-format", true, &OUTPUT_FORMAT),
-            ],
+            ]),
         )
     );
     
     let status_cmd_def = CliCommand::new(&API_METHOD_STATUS)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_API_LOGIN: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&api_login),
         &ObjectSchema::new(
             "Try to login. If successful, store ticket.",
-            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
     
     let login_cmd_def = CliCommand::new(&API_METHOD_API_LOGIN)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_API_LOGOUT: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&api_logout),
         &ObjectSchema::new(
             "Logout (delete stored ticket).",
-            &[ ("repository", true, &REPO_URL_SCHEMA) ],
+            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
     
     let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
         .completion_cb("repository", complete_repository);
 
+    #[sortable]
     const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&mount),
         &ObjectSchema::new(
             "Mount pxar archive.",
-            &[
+            &sorted!([
                 ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
                 ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
                 ("target", false, &StringSchema::new("Target directory path.").schema()),
                 ("repository", true, &REPO_URL_SCHEMA),
                 ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
                 ("verbose", true, &BooleanSchema::new("Verbose output.").default(false).schema()),
-            ],
+            ]),
         )
     );
     

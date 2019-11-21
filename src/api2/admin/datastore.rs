@@ -11,6 +11,7 @@ use std::collections::{HashSet, HashMap};
 use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
 
+use proxmox::{sortable, identity};
 use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
 
 use crate::config::datastore;
@@ -238,15 +239,12 @@ fn status(
 
 #[macro_export]
 macro_rules! add_common_prune_prameters {
-    ($( $list:tt )*) => {
+    ( [ $( $list1:tt )* ] ) => {
+        add_common_prune_prameters!([$( $list1 )* ] ,  [])
+    };
+    ( [ $( $list1:tt )* ] ,  [ $( $list2:tt )* ] ) => {
         [
-            (
-                "keep-last",
-                true,
-                &IntegerSchema::new("Number of backups to keep.")
-                    .minimum(1)
-                    .schema()
-            ),
+            $( $list1 )*
             (
                 "keep-daily",
                 true,
@@ -255,9 +253,9 @@ macro_rules! add_common_prune_prameters {
                     .schema()
             ),
             (
-                "keep-weekly",
+                "keep-last",
                 true,
-                &IntegerSchema::new("Number of weekly backups to keep.")
+                &IntegerSchema::new("Number of backups to keep.")
                     .minimum(1)
                     .schema()
             ),
@@ -269,13 +267,20 @@ macro_rules! add_common_prune_prameters {
                     .schema()
             ),
             (
+                "keep-weekly",
+                true,
+                &IntegerSchema::new("Number of weekly backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
                 "keep-yearly",
                 true,
                 &IntegerSchema::new("Number of yearly backups to keep.")
                     .minimum(1)
                     .schema()
             ),
-            $( $list )*
+            $( $list2 )*
         ]
     }
 }
@@ -284,9 +289,9 @@ const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&status),
     &ObjectSchema::new(
         "Get datastore status.",
-        &add_common_prune_prameters!(
+        &add_common_prune_prameters!([],[
             ("store", false, &StringSchema::new("Datastore name.").schema()),
-        ),
+        ]),
     )
 );
 
@@ -386,11 +391,12 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&prune),
     &ObjectSchema::new(
         "Prune the datastore.",
-        &add_common_prune_prameters!(
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
-            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+        &add_common_prune_prameters!([
             ("backup-id", false, &BACKUP_ID_SCHEMA),
-        )
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+        ],[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ])
     )
 );
 
@@ -418,11 +424,14 @@ fn start_garbage_collection(
     Ok(json!(upid_str))
 }
 
+#[sortable]
 pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&start_garbage_collection),
     &ObjectSchema::new(
         "Start garbage collection.",
-        &[ ("store", false, &StringSchema::new("Datastore name.").schema()) ]
+        &sorted!([
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ])
     )
 );
 
@@ -443,11 +452,14 @@ fn garbage_collection_status(
     Ok(serde_json::to_value(&status)?)
 }
 
+#[sortable]
 pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&garbage_collection_status),
     &ObjectSchema::new(
         "Garbage collection status.",
-        &[ ("store", false, &StringSchema::new("Datastore name.").schema()) ]
+        &sorted!([
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ])
     )
 );
 
@@ -508,11 +520,12 @@ fn download_file(
     Ok(Box::new(response_future))
 }
 
+#[sortable]
 pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&download_file),
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
-        &[
+        &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
@@ -521,7 +534,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
              .format(&FILENAME_FORMAT)
              .schema()
             ),
-        ],
+        ]),
     )
 );
 
@@ -578,21 +591,23 @@ fn upload_backup_log(
     Ok(Box::new(resp))
 }
 
+#[sortable]
 pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&upload_backup_log),
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
-        &[
+        &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
-        ],
+        ]),
     )
 );
 
 const STORE_SCHEMA: Schema = StringSchema::new("Datastore name.").schema();
 
+#[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "download",
@@ -607,12 +622,12 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&list_snapshot_files),
                     &ObjectSchema::new(
                         "List snapshot files.",
-                        &[
+                        &sorted!([
                             ("store", false, &STORE_SCHEMA),
                             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", false, &BACKUP_ID_SCHEMA),
                             ("backup-time", false, &BACKUP_TIME_SCHEMA),
-                        ],
+                        ]),
                     )
                 )
             )
@@ -631,7 +646,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&list_groups),
                     &ObjectSchema::new(
                         "List backup groups.",
-                        &[ ("store", false, &STORE_SCHEMA) ],
+                        &sorted!([ ("store", false, &STORE_SCHEMA) ]),
                     )
                 )
             )
@@ -649,11 +664,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&list_snapshots),
                     &ObjectSchema::new(
                         "List backup groups.",
-                        &[
+                        &sorted!([
                             ("store", false, &STORE_SCHEMA),
                             ("backup-type", true, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", true, &BACKUP_ID_SCHEMA),
-                        ],
+                        ]),
                     )
                 )
             )
@@ -662,12 +677,12 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&delete_snapshots),
                     &ObjectSchema::new(
                         "Delete backup snapshot.",
-                        &[
+                        &sorted!([
                             ("store", false, &STORE_SCHEMA),
                             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", false, &BACKUP_ID_SCHEMA),
                             ("backup-time", false, &BACKUP_TIME_SCHEMA),
-                        ],
+                        ]),
                     )
                 )
             )
