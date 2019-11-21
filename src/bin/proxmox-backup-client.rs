@@ -1749,6 +1749,124 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+fn shell(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    async_main(catalog_shell(param))
+}
+
+async fn catalog_shell(param: Value) -> Result<Value, Error> {
+    let repo = extract_repository_from_value(&param)?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let archive_name = tools::required_string_param(&param, "archive-name")?;
+
+    let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
+        let group = BackupGroup::parse(path)?;
+
+        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+        let result = client.get(&path, Some(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+        }))).await?;
+
+        let list = result["data"].as_array().unwrap();
+        if list.len() == 0 {
+            bail!("backup group '{}' does not contain any snapshots:", path);
+        }
+
+        let epoch = list[0]["backup-time"].as_i64().unwrap();
+        let backup_time = Utc.timestamp(epoch, 0);
+        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
+    } else {
+        let snapshot = BackupDir::parse(path)?;
+        (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
+    };
+
+    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
+    let crypt_config = match keyfile {
+        None => None,
+        Some(path) => {
+            let (key, _) = load_and_decrtypt_key(&path, &get_encryption_key_password)?;
+            Some(Arc::new(CryptConfig::new(key)?))
+        }
+    };
+
+    let server_archive_name = if archive_name.ends_with(".pxar") {
+        format!("{}.didx", archive_name)
+    } else {
+        bail!("Can only mount pxar archives.");
+    };
+
+    let client = BackupReader::start(
+        client,
+        crypt_config.clone(),
+        repo.store(),
+        &backup_type,
+        &backup_id,
+        backup_time,
+        true,
+    ).await?;
+
+    let tmpfile = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
+
+    let manifest = client.download_manifest().await?;
+
+    let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
+    let most_used = index.find_most_used_chunks(8);
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), most_used);
+    let reader = BufferedDynamicReader::new(index, chunk_reader);
+    let decoder =
+        pxar::Decoder::<BufferedDynamicReader<RemoteChunkReader>, fn(&Path) -> Result<(), Error>>::new(
+            reader,
+            |path| {
+                println!("{:?}", path);
+                Ok(())
+            }
+        )?;
+
+    let tmpfile = client.download(CATALOG_NAME, tmpfile).await?;
+    let index = DynamicIndexReader::new(tmpfile)
+        .map_err(|err| format_err!("unable to read catalog index - {}", err))?;
+
+    // Note: do not use values stored in index (not trusted) - instead, computed them again
+    let (csum, size) = index.compute_csum();
+    manifest.verify_file(CATALOG_NAME, &csum, size)?;
+
+    let most_used = index.find_most_used_chunks(8);
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+    let mut reader = BufferedDynamicReader::new(index, chunk_reader);
+    let mut catalogfile = std::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .custom_flags(libc::O_TMPFILE)
+        .open("/tmp")?;
+
+    std::io::copy(&mut reader, &mut catalogfile)
+        .map_err(|err| format_err!("unable to download catalog - {}", err))?;
+
+    catalogfile.seek(SeekFrom::Start(0))?;
+    let catalog_reader = CatalogReader::new(catalogfile);
+    let state = Shell::new(
+        catalog_reader,
+        &server_archive_name,
+        decoder,
+    )?;
+
+    println!("Starting interactive shell");
+    state.shell()?;
+
+    record_repository(&repo);
+
+    Ok(Value::Null)
+}
+
 fn main() {
 
     const BACKUP_SOURCE_SCHEMA: Schema = StringSchema::new("Backup source specification ([<label>:<path>]).")
@@ -2095,6 +2213,26 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
+    #[sortable]
+    const API_METHOD_SHELL: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&shell),
+        &ObjectSchema::new(
+            "Shell to interactively inspect and restore snapshots.",
+            &sorted!([
+                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
+                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
+            ]),
+        )
+    );
+
+    let shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
+        .arg_param(vec!["snapshot", "archive-name"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("snapshot", complete_group_or_snapshot);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("upload-log".to_owned(), upload_log_cmd_def.into())
@@ -2110,7 +2248,8 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("files".to_owned(), files_cmd_def.into())
         .insert("status".to_owned(), status_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into())
-        .insert("mount".to_owned(), mount_cmd_def.into());
+        .insert("mount".to_owned(), mount_cmd_def.into())
+        .insert("shell".to_owned(), shell_cmd_def.into());
 
     run_cli_command(cmd_def.into());
 }
