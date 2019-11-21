@@ -5,11 +5,11 @@ use failure::*;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::schema::*;
 use proxmox::tools::fs::{file_read_firstline, file_set_contents};
 
 use crate::api2::types::*;
-use crate::api_schema::router::*;
-use crate::api_schema::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
     // use /etc/timezone

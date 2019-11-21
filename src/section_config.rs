@@ -6,9 +6,8 @@ use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 
+use proxmox::api::schema::*;
 use proxmox::tools::try_block;
-
-use crate::api_schema::*;
 
 pub struct SectionConfigPlugin {
     type_name: String,

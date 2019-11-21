@@ -1,8 +1,9 @@
+use std::fmt;
+
 use failure::*;
 
-use crate::api_schema::*;
-
-use std::fmt;
+use proxmox::api::const_regex;
+use proxmox::api::schema::*;
 
 const_regex! {
     /// Regular expression to parse repository URLs

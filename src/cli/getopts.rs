@@ -1,8 +1,7 @@
-use crate::api_schema::*;
-
 use failure::*;
-
 use serde_json::Value;
+
+use proxmox::api::schema::*;
 
 #[derive(Debug)]
 enum RawArgument {

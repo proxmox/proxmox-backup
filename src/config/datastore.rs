@@ -5,8 +5,8 @@ use failure::*;
 use lazy_static::lazy_static;
 
 use proxmox::tools::{fs::file_set_contents, try_block};
+use proxmox::api::schema::{Schema, ObjectSchema, StringSchema};
 
-use crate::api_schema::{Schema, ObjectSchema, StringSchema};
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 lazy_static! {

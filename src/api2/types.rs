@@ -1,8 +1,10 @@
-use failure::*;
-//use lazy_static::lazy_static;
 //use std::sync::Arc;
 
-use crate::api_schema::*;
+use failure::*;
+//use lazy_static::lazy_static;
+
+use proxmox::api::const_regex;
+use proxmox::api::schema::*;
 use proxmox::tools::*; // required to use IPRE!() macro ???
 
 // File names: may not contain slashes, may not start with "."

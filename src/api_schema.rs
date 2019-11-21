@@ -11,13 +11,3 @@
 //pub mod registry;
 pub mod config;
 pub mod format;
-
-/*
- * --------------------------------------------------------------------------------------------
- * Everything below is a compatibility layer to support building the current code until api2.rs
- * and the api2/ directory have been updated to the proxmox::api crate:
- * --------------------------------------------------------------------------------------------
- */
-
-pub use proxmox::api::schema::*;
-pub use proxmox::api::*;

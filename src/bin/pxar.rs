@@ -3,11 +3,11 @@ extern crate proxmox_backup;
 use failure::*;
 
 use proxmox::{sortable, identity};
+use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox::api::schema::*;
 
 use proxmox_backup::tools;
 use proxmox_backup::cli::*;
-use proxmox_backup::api_schema::*;
-use proxmox_backup::api_schema::router::*;
 
 use serde_json::{Value};
 

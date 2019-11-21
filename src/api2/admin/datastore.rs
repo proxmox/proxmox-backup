@@ -1,26 +1,25 @@
-use failure::*;
-use futures::*;
-
-use crate::tools;
-use crate::api2::types::*;
-use crate::api_schema::*;
-use crate::api_schema::router::*;
-//use crate::server::rest::*;
-use serde_json::{json, Value};
 use std::collections::{HashSet, HashMap};
-use chrono::{DateTime, Datelike, TimeZone, Local};
 use std::path::PathBuf;
 
+use chrono::{DateTime, Datelike, TimeZone, Local};
+use failure::*;
+use futures::*;
+use hyper::http::request::Parts;
+use hyper::{header, Body, Response, StatusCode};
+use serde_json::{json, Value};
+
 use proxmox::{sortable, identity};
+use proxmox::api::{http_err, list_subdirs_api_method};
+use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::router::SubdirMap;
+use proxmox::api::schema::*;
 use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
 
-use crate::config::datastore;
-
+use crate::api2::types::*;
 use crate::backup::*;
+use crate::config::datastore;
 use crate::server::WorkerTask;
-
-use hyper::{header, Body, Response, StatusCode};
-use hyper::http::request::Parts;
+use crate::tools;
 
 fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Value, Error> {
 
