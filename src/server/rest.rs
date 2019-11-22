@@ -23,8 +23,9 @@ use proxmox::api::schema::{parse_simple_value, verify_json_object, parse_paramet
 
 use super::environment::RestEnvironment;
 use super::formatter::*;
+use super::ApiConfig;
+
 use crate::auth_helpers::*;
-use crate::api_schema::config::ApiConfig;
 use crate::tools;
 
 extern "C"  { fn tzset(); }

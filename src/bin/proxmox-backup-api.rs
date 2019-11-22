@@ -5,7 +5,7 @@ use proxmox::tools::try_block;
 use proxmox::api::RpcEnvironmentType;
 
 //use proxmox_backup::tools;
-use proxmox_backup::api_schema::config::*;
+//use proxmox_backup::api_schema::config::*;
 use proxmox_backup::server::rest::*;
 use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
@@ -43,7 +43,7 @@ async fn run() -> Result<(), Error> {
     }
     let _ = csrf_secret(); // load with lazy_static
 
-    let config = ApiConfig::new(
+    let config = server::ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED);
  
     let rest_server = RestServer::new(config);
