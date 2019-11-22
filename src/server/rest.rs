@@ -149,7 +149,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
     }
 }
 
-async fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
+async fn get_request_parameters<S: 'static + BuildHasher + Send>(
     param_schema: &ObjectSchema,
     parts: Parts,
     req_body: Body,
@@ -267,7 +267,7 @@ pub async fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHash
         ApiHandler::Sync(handler) => handler,
     };
 
-    let params = get_request_parameters_async(info.parameters, parts, req_body, uri_param).await?;
+    let params = get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
