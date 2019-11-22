@@ -5,9 +5,6 @@ pub mod buildcfg;
 pub mod tools;
 
 #[macro_use]
-pub mod api_schema;
-
-#[macro_use]
 pub mod server;
 
 pub mod pxar;

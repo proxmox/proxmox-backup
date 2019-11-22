@@ -1,7 +1,8 @@
 use failure::*;
 
+use proxmox::api::format::dump_api;
+
 use proxmox_backup::api2;
-use proxmox_backup::api_schema::format::*;
 
 fn main() -> Result<(), Error> {
 
