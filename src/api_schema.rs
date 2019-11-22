@@ -8,6 +8,5 @@
 //! hierarchy of API entries, and provides ways to find an API
 //! definition by path.
 
-//pub mod registry;
 pub mod config;
 pub mod format;
