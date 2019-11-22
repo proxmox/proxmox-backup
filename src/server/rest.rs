@@ -19,7 +19,7 @@ use url::form_urlencoded;
 use proxmox::api::http_err;
 use proxmox::api::{ApiHandler, ApiMethod, HttpError};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
-use proxmox::api::schema::{parse_simple_value, verify_json_object, parse_parameter_strings};
+use proxmox::api::schema::{ObjectSchema, parse_simple_value, verify_json_object, parse_parameter_strings};
 
 use super::environment::RestEnvironment;
 use super::formatter::*;
@@ -150,7 +150,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
 }
 
 async fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
-    info: &'static ApiMethod,
+    param_schema: &ObjectSchema,
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String, S>,
@@ -184,16 +184,14 @@ async fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
     let utf8 = std::str::from_utf8(&body)
         .map_err(|err| format_err!("Request body not uft8: {}", err))?;
 
-    let obj_schema = &info.parameters;
-
     if is_json {
         let mut params: Value = serde_json::from_str(utf8)?;
         for (k, v) in uri_param {
-            if let Some((_optional, prop_schema)) = obj_schema.lookup(&k) {
+            if let Some((_optional, prop_schema)) = param_schema.lookup(&k) {
                 params[&k] = parse_simple_value(&v, prop_schema)?;
             }
         }
-        verify_json_object(&params, obj_schema)?;
+        verify_json_object(&params, param_schema)?;
         return Ok(params);
     }
 
@@ -216,7 +214,7 @@ async fn get_request_parameters_async<S: 'static + BuildHasher + Send>(
         param_list.push((k.clone(), v.clone()));
     }
 
-    let params = parse_parameter_strings(&param_list, obj_schema, true)?;
+    let params = parse_parameter_strings(&param_list, param_schema, true)?;
 
     Ok(params)
 }
@@ -269,7 +267,7 @@ pub async fn handle_sync_api_request<Env: RpcEnvironment, S: 'static + BuildHash
         ApiHandler::Sync(handler) => handler,
     };
 
-    let params = get_request_parameters_async(info, parts, req_body, uri_param).await?;
+    let params = get_request_parameters_async(info.parameters, parts, req_body, uri_param).await?;
 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
