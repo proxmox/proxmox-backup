@@ -115,34 +115,30 @@ fn upload_fixed_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let size = tools::required_integer_param(&param, "size")? as u32;
-    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+    async move {
+        let wid = tools::required_integer_param(&param, "wid")? as usize;
+        let size = tools::required_integer_param(&param, "size")? as u32;
+        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
 
-    let digest_str = tools::required_string_param(&param, "digest")?;
-    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
-    let env: &BackupEnvironment = rpcenv.as_ref();
+        let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let upload = UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size);
+        let (digest, size, compressed_size, is_duplicate) =
+            UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size).await?;
 
-    let resp = upload
-        .then(move |result| {
-            let env: &BackupEnvironment = rpcenv.as_ref();
+        env.register_fixed_chunk(wid, digest, size, compressed_size, is_duplicate)?;
+        let digest_str = proxmox::tools::digest_to_hex(&digest);
+        env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
-            let result = result.and_then(|(digest, size, compressed_size, is_duplicate)| {
-                env.register_fixed_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-                let digest_str = proxmox::tools::digest_to_hex(&digest);
-                env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
-                Ok(json!(digest_str))
-            });
+        let result = Ok(json!(digest_str));
 
-            future::ok(env.format_response(result))
-        });
-
-    Ok(Box::new(resp))
+        Ok(env.format_response(result))
+    }
+    .boxed()
 }
 
 #[sortable]
@@ -177,34 +173,29 @@ fn upload_dynamic_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let wid = tools::required_integer_param(&param, "wid")? as usize;
-    let size = tools::required_integer_param(&param, "size")? as u32;
-    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
+    async move {
+        let wid = tools::required_integer_param(&param, "wid")? as usize;
+        let size = tools::required_integer_param(&param, "size")? as u32;
+        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as u32;
 
-    let digest_str = tools::required_string_param(&param, "digest")?;
-    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
-    let env: &BackupEnvironment = rpcenv.as_ref();
+        let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let upload = UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size);
+        let (digest, size, compressed_size, is_duplicate) =
+            UploadChunk::new(req_body, env.datastore.clone(), digest, size, encoded_size)
+            .await?;
 
-    let resp = upload
-        .then(move |result| {
-            let env: &BackupEnvironment = rpcenv.as_ref();
+        env.register_dynamic_chunk(wid, digest, size, compressed_size, is_duplicate)?;
+        let digest_str = proxmox::tools::digest_to_hex(&digest);
+        env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
 
-            let result = result.and_then(|(digest, size, compressed_size, is_duplicate)| {
-                env.register_dynamic_chunk(wid, digest, size, compressed_size, is_duplicate)?;
-                let digest_str = proxmox::tools::digest_to_hex(&digest);
-                env.debug(format!("upload_chunk done: {} bytes, {}", size, digest_str));
-                Ok(json!(digest_str))
-            });
-
-            future::ok(env.format_response(result))
-        });
-
-    Ok(Box::new(resp))
+        let result = Ok(json!(digest_str));
+        Ok(env.format_response(result))
+    }.boxed()
 }
 
 pub const API_METHOD_UPLOAD_SPEEDTEST: ApiMethod = ApiMethod::new(
@@ -218,29 +209,30 @@ fn upload_speedtest(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let resp = req_body
-        .map_err(Error::from)
-        .try_fold(0, |size: usize, chunk| {
-            let sum = size + chunk.len();
-            //println!("UPLOAD {} bytes, sum {}", chunk.len(), sum);
-            future::ok::<usize, Error>(sum)
-        })
-        .then(move |result| {
-            match result {
-                Ok(size) => {
-                    println!("UPLOAD END {} bytes", size);
-                }
-                Err(err) => {
-                    println!("Upload error: {}", err);
-                }
+    async move {
+
+        let result = req_body
+            .map_err(Error::from)
+            .try_fold(0, |size: usize, chunk| {
+                let sum = size + chunk.len();
+                //println!("UPLOAD {} bytes, sum {}", chunk.len(), sum);
+                future::ok::<usize, Error>(sum)
+            })
+            .await;
+
+        match result {
+            Ok(size) => {
+                println!("UPLOAD END {} bytes", size);
             }
-            let env: &BackupEnvironment = rpcenv.as_ref();
-            future::ok(env.format_response(Ok(Value::Null)))
-        });
-
-    Ok(Box::new(resp))
+            Err(err) => {
+                println!("Upload error: {}", err);
+            }
+        }
+        let env: &BackupEnvironment = rpcenv.as_ref();
+        Ok(env.format_response(Ok(Value::Null)))
+    }.boxed()
 }
 
 #[sortable]
@@ -265,40 +257,32 @@ fn upload_blob(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
-    let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
+    async move {
+        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let encoded_size = tools::required_integer_param(&param, "encoded-size")? as usize;
 
+        let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let env: &BackupEnvironment = rpcenv.as_ref();
+        if !file_name.ends_with(".blob") {
+            bail!("wrong blob file extension: '{}'", file_name);
+        }
 
-    if !file_name.ends_with(".blob") {
-        bail!("wrong blob file extension: '{}'", file_name);
-    }
+        let data = req_body
+            .map_err(Error::from)
+            .try_fold(Vec::new(), |mut acc, chunk| {
+                acc.extend_from_slice(&*chunk);
+                future::ok::<_, Error>(acc)
+            })
+            .await?;
 
-    let env2 = env.clone();
-    let env3 = env.clone();
+        if encoded_size != data.len() {
+            bail!("got blob with unexpected length ({} != {})", encoded_size, data.len());
+        }
 
-    let resp = req_body
-        .map_err(Error::from)
-        .try_fold(Vec::new(), |mut acc, chunk| {
-            acc.extend_from_slice(&*chunk);
-            future::ok::<_, Error>(acc)
-        })
-        .and_then(move |data| async move {
-            if encoded_size != data.len() {
-                bail!("got blob with unexpected length ({} != {})", encoded_size, data.len());
-            }
+        env.add_blob(&file_name, data)?;
 
-            env2.add_blob(&file_name, data)?;
-
-            Ok(())
-        })
-        .and_then(move |_| {
-            future::ok(env3.format_response(Ok(Value::Null)))
-        })
-        ;
-
-    Ok(Box::new(resp))
+        Ok(env.format_response(Ok(Value::Null)))
+    }.boxed()
 }

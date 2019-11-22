@@ -47,8 +47,9 @@ fn upgrade_to_backup_protocol(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
+    async move {
     let debug = param["debug"].as_bool().unwrap_or(false);
 
     let store = tools::required_string_param(&param, "store")?.to_owned();
@@ -159,7 +160,8 @@ fn upgrade_to_backup_protocol(
         .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_PROTOCOL_ID_V1!()))
         .body(Body::empty())?;
 
-    Ok(Box::new(futures::future::ok(response)))
+    Ok(response)
+    }.boxed()
 }
 
 pub const BACKUP_API_SUBDIRS: SubdirMap = &[
@@ -569,57 +571,59 @@ fn dynamic_chunk_index(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let env: &BackupEnvironment = rpcenv.as_ref();
+    async move {
+        let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+        let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".didx") {
-        bail!("wrong archive extension: '{}'", archive_name);
-    }
-
-    let empty_response = {
-        Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())?
-    };
-
-    let last_backup = match &env.last_backup {
-        Some(info) => info,
-        None => return Ok(Box::new(future::ok(empty_response))),
-    };
-
-    let mut path = last_backup.backup_dir.relative_path();
-    path.push(&archive_name);
-
-    let index = match env.datastore.open_dynamic_reader(path) {
-        Ok(index) => index,
-        Err(_) => {
-            env.log(format!("there is no last backup for archive '{}'", archive_name));
-            return Ok(Box::new(future::ok(empty_response)));
+        if !archive_name.ends_with(".didx") {
+            bail!("wrong archive extension: '{}'", archive_name);
         }
-    };
 
-    env.log(format!("download last backup index for archive '{}'", archive_name));
+        let empty_response = {
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())?
+        };
 
-    let count = index.index_count();
-    for pos in 0..count {
-        let (start, end, digest) = index.chunk_info(pos)?;
-        let size = (end - start) as u32;
-        env.register_chunk(digest, size)?;
-    }
+        let last_backup = match &env.last_backup {
+            Some(info) => info,
+            None => return Ok(empty_response),
+        };
 
-    let reader = DigestListEncoder::new(Box::new(index));
+        let mut path = last_backup.backup_dir.relative_path();
+        path.push(&archive_name);
 
-    let stream = WrappedReaderStream::new(reader);
+        let index = match env.datastore.open_dynamic_reader(path) {
+            Ok(index) => index,
+            Err(_) => {
+                env.log(format!("there is no last backup for archive '{}'", archive_name));
+                return Ok(empty_response);
+            }
+        };
 
-    // fixme: set size, content type?
-    let response = http::Response::builder()
-        .status(200)
-        .body(Body::wrap_stream(stream))?;
+        env.log(format!("download last backup index for archive '{}'", archive_name));
 
-    Ok(Box::new(future::ok(response)))
+        let count = index.index_count();
+        for pos in 0..count {
+            let (start, end, digest) = index.chunk_info(pos)?;
+            let size = (end - start) as u32;
+            env.register_chunk(digest, size)?;
+        }
+
+        let reader = DigestListEncoder::new(Box::new(index));
+
+        let stream = WrappedReaderStream::new(reader);
+
+        // fixme: set size, content type?
+        let response = http::Response::builder()
+            .status(200)
+            .body(Body::wrap_stream(stream))?;
+
+        Ok(response)
+    }.boxed()
 }
 
 #[sortable]
@@ -642,60 +646,62 @@ fn fixed_chunk_index(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let env: &BackupEnvironment = rpcenv.as_ref();
+    async move {
+        let env: &BackupEnvironment = rpcenv.as_ref();
 
-    let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
+        let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-    if !archive_name.ends_with(".fidx") {
-        bail!("wrong archive extension: '{}'", archive_name);
-    }
-
-    let empty_response = {
-        Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())?
-    };
-
-    let last_backup = match &env.last_backup {
-        Some(info) => info,
-        None => return Ok(Box::new(future::ok(empty_response))),
-    };
-
-    let mut path = last_backup.backup_dir.relative_path();
-    path.push(&archive_name);
-
-    let index = match env.datastore.open_fixed_reader(path) {
-        Ok(index) => index,
-        Err(_) => {
-            env.log(format!("there is no last backup for archive '{}'", archive_name));
-            return Ok(Box::new(future::ok(empty_response)));
+        if !archive_name.ends_with(".fidx") {
+            bail!("wrong archive extension: '{}'", archive_name);
         }
-    };
 
-    env.log(format!("download last backup index for archive '{}'", archive_name));
+        let empty_response = {
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())?
+        };
 
-    let count = index.index_count();
-    let image_size = index.index_bytes();
-    for pos in 0..count {
-        let digest = index.index_digest(pos).unwrap();
-        // Note: last chunk can be smaller
-        let start = (pos*index.chunk_size) as u64;
-        let mut end = start + index.chunk_size as u64;
-        if end > image_size { end = image_size; }
-        let size = (end - start) as u32;
-        env.register_chunk(*digest, size)?;
-    }
+        let last_backup = match &env.last_backup {
+            Some(info) => info,
+            None => return Ok(empty_response),
+        };
 
-    let reader = DigestListEncoder::new(Box::new(index));
+        let mut path = last_backup.backup_dir.relative_path();
+        path.push(&archive_name);
 
-    let stream = WrappedReaderStream::new(reader);
+        let index = match env.datastore.open_fixed_reader(path) {
+            Ok(index) => index,
+            Err(_) => {
+                env.log(format!("there is no last backup for archive '{}'", archive_name));
+                return Ok(empty_response);
+            }
+        };
 
-    // fixme: set size, content type?
-    let response = http::Response::builder()
-        .status(200)
-        .body(Body::wrap_stream(stream))?;
+        env.log(format!("download last backup index for archive '{}'", archive_name));
 
-    Ok(Box::new(future::ok(response)))
+        let count = index.index_count();
+        let image_size = index.index_bytes();
+        for pos in 0..count {
+            let digest = index.index_digest(pos).unwrap();
+            // Note: last chunk can be smaller
+            let start = (pos*index.chunk_size) as u64;
+            let mut end = start + index.chunk_size as u64;
+            if end > image_size { end = image_size; }
+            let size = (end - start) as u32;
+            env.register_chunk(*digest, size)?;
+        }
+
+        let reader = DigestListEncoder::new(Box::new(index));
+
+        let stream = WrappedReaderStream::new(reader);
+
+        // fixme: set size, content type?
+        let response = http::Response::builder()
+            .status(200)
+            .body(Body::wrap_stream(stream))?;
+
+        Ok(response)
+    }.boxed()
 }

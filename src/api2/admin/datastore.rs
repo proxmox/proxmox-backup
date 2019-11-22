@@ -480,43 +480,43 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let store = tools::required_string_param(&param, "store")?;
+    async move {
+        let store = tools::required_string_param(&param, "store")?;
 
-    let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(store)?;
 
-    let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
 
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = tools::required_string_param(&param, "backup-type")?;
+        let backup_id = tools::required_string_param(&param, "backup-id")?;
+        let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    println!("Download {} from {} ({}/{}/{}/{})", file_name, store,
-             backup_type, backup_id, Local.timestamp(backup_time, 0), file_name);
+        println!("Download {} from {} ({}/{}/{}/{})", file_name, store,
+                 backup_type, backup_id, Local.timestamp(backup_time, 0), file_name);
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
-    let mut path = datastore.base_path();
-    path.push(backup_dir.relative_path());
-    path.push(&file_name);
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(&file_name);
 
-    let response_future = tokio::fs::File::open(path)
-        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
-        .and_then(move |file| {
-            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-                .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
-            let body = Body::wrap_stream(payload);
+        let file = tokio::fs::File::open(path)
+            .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
+            .await?;
 
-            // fixme: set other headers ?
-            futures::future::ok(Response::builder()
-               .status(StatusCode::OK)
-               .header(header::CONTENT_TYPE, "application/octet-stream")
-               .body(body)
-               .unwrap())
-        });
+        let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+            .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+        let body = Body::wrap_stream(payload);
 
-    Ok(Box::new(response_future))
+        // fixme: set other headers ?
+        Ok(Response::builder()
+           .status(StatusCode::OK)
+           .header(header::CONTENT_TYPE, "application/octet-stream")
+           .body(body)
+           .unwrap())
+    }.boxed()
 }
 
 #[sortable]
@@ -543,51 +543,49 @@ fn upload_backup_log(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let store = tools::required_string_param(&param, "store")?;
+    async move {
+        let store = tools::required_string_param(&param, "store")?;
 
-    let datastore = DataStore::lookup_datastore(store)?;
+        let datastore = DataStore::lookup_datastore(store)?;
 
-    let file_name = "client.log.blob";
+        let file_name = "client.log.blob";
 
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = tools::required_string_param(&param, "backup-type")?;
+        let backup_id = tools::required_string_param(&param, "backup-id")?;
+        let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
-    let mut path = datastore.base_path();
-    path.push(backup_dir.relative_path());
-    path.push(&file_name);
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(&file_name);
 
-    if path.exists() {
-        bail!("backup already contains a log.");
-    }
+        if path.exists() {
+            bail!("backup already contains a log.");
+        }
 
-    println!("Upload backup log to {}/{}/{}/{}/{}", store,
-             backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
+        println!("Upload backup log to {}/{}/{}/{}/{}", store,
+                 backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
 
-    let resp = req_body
-        .map_err(Error::from)
-        .try_fold(Vec::new(), |mut acc, chunk| {
-            acc.extend_from_slice(&*chunk);
-            future::ok::<_, Error>(acc)
-        })
-        .and_then(move |data| async move {
-            let blob = DataBlob::from_raw(data)?;
-            // always verify CRC at server side
-            blob.verify_crc()?;
-            let raw_data = blob.raw_data();
-            file_set_contents(&path, raw_data, None)?;
-            Ok(())
-        })
-        .and_then(move |_| {
-            future::ok(crate::server::formatter::json_response(Ok(Value::Null)))
-        })
-        ;
+        let data = req_body
+            .map_err(Error::from)
+            .try_fold(Vec::new(), |mut acc, chunk| {
+                acc.extend_from_slice(&*chunk);
+                future::ok::<_, Error>(acc)
+            })
+            .await?;
 
-    Ok(Box::new(resp))
+        let blob = DataBlob::from_raw(data)?;
+        // always verify CRC at server side
+        blob.verify_crc()?;
+        let raw_data = blob.raw_data();
+        file_set_contents(&path, raw_data, None)?;
+
+        // fixme: use correct formatter
+        Ok(crate::server::formatter::json_response(Ok(Value::Null)))
+    }.boxed()
 }
 
 #[sortable]
@@ -698,7 +696,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     ),
 ];
 
-const DATASTORE_INFO_ROUTER: Router = Router::new()    
+const DATASTORE_INFO_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(DATASTORE_INFO_SUBDIRS))
     .subdirs(DATASTORE_INFO_SUBDIRS);
 

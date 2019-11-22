@@ -49,92 +49,94 @@ fn upgrade_to_backup_reader_protocol(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let debug = param["debug"].as_bool().unwrap_or(false);
+    async move {
+        let debug = param["debug"].as_bool().unwrap_or(false);
 
-    let store = tools::required_string_param(&param, "store")?.to_owned();
-    let datastore = DataStore::lookup_datastore(&store)?;
+        let store = tools::required_string_param(&param, "store")?.to_owned();
+        let datastore = DataStore::lookup_datastore(&store)?;
 
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
+        let backup_type = tools::required_string_param(&param, "backup-type")?;
+        let backup_id = tools::required_string_param(&param, "backup-id")?;
+        let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-    let protocols = parts
-        .headers
-        .get("UPGRADE")
-        .ok_or_else(|| format_err!("missing Upgrade header"))?
+        let protocols = parts
+            .headers
+            .get("UPGRADE")
+            .ok_or_else(|| format_err!("missing Upgrade header"))?
         .to_str()?;
 
-    if protocols != PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!() {
-        bail!("invalid protocol name");
-    }
+        if protocols != PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!() {
+            bail!("invalid protocol name");
+        }
 
-    if parts.version >=  http::version::Version::HTTP_2 {
-        bail!("unexpected http version '{:?}' (expected version < 2)", parts.version);
-    }
+        if parts.version >=  http::version::Version::HTTP_2 {
+            bail!("unexpected http version '{:?}' (expected version < 2)", parts.version);
+        }
 
-    let username = rpcenv.get_user().unwrap();
-    let env_type = rpcenv.env_type();
+        let username = rpcenv.get_user().unwrap();
+        let env_type = rpcenv.env_type();
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
-    let path = datastore.base_path();
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let path = datastore.base_path();
 
-    //let files = BackupInfo::list_files(&path, &backup_dir)?;
+        //let files = BackupInfo::list_files(&path, &backup_dir)?;
 
-    let worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_dir.backup_time().timestamp());
+        let worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_dir.backup_time().timestamp());
 
-    WorkerTask::spawn("reader", Some(worker_id), &username.clone(), true, move |worker| {
-        let mut env = ReaderEnvironment::new(
-            env_type, username.clone(), worker.clone(), datastore, backup_dir);
+        WorkerTask::spawn("reader", Some(worker_id), &username.clone(), true, move |worker| {
+            let mut env = ReaderEnvironment::new(
+                env_type, username.clone(), worker.clone(), datastore, backup_dir);
 
-        env.debug = debug;
+            env.debug = debug;
 
-        env.log(format!("starting new backup reader datastore '{}': {:?}", store, path));
+            env.log(format!("starting new backup reader datastore '{}': {:?}", store, path));
 
-        let service = H2Service::new(env.clone(), worker.clone(), &READER_API_ROUTER, debug);
+            let service = H2Service::new(env.clone(), worker.clone(), &READER_API_ROUTER, debug);
 
-        let abort_future = worker.abort_future();
+            let abort_future = worker.abort_future();
 
-        let req_fut = req_body
-            .on_upgrade()
-            .map_err(Error::from)
-            .and_then({
-                let env = env.clone();
-                move |conn| {
-                    env.debug("protocol upgrade done");
+            let req_fut = req_body
+                .on_upgrade()
+                .map_err(Error::from)
+                .and_then({
+                    let env = env.clone();
+                    move |conn| {
+                        env.debug("protocol upgrade done");
 
-                    let mut http = hyper::server::conn::Http::new();
-                    http.http2_only(true);
-                    // increase window size: todo - find optiomal size
-                    let window_size = 32*1024*1024; // max = (1 << 31) - 2
-                    http.http2_initial_stream_window_size(window_size);
-                    http.http2_initial_connection_window_size(window_size);
+                        let mut http = hyper::server::conn::Http::new();
+                        http.http2_only(true);
+                        // increase window size: todo - find optiomal size
+                        let window_size = 32*1024*1024; // max = (1 << 31) - 2
+                        http.http2_initial_stream_window_size(window_size);
+                        http.http2_initial_connection_window_size(window_size);
 
-                    http.serve_connection(conn, service)
-                        .map_err(Error::from)
-                }
-            });
-        let abort_future = abort_future
-            .map(|_| Err(format_err!("task aborted")));
+                        http.serve_connection(conn, service)
+                            .map_err(Error::from)
+                    }
+                });
+            let abort_future = abort_future
+                .map(|_| Err(format_err!("task aborted")));
 
-        use futures::future::Either;
-        futures::future::select(req_fut, abort_future)
-            .map(|res| match res {
-                Either::Left((Ok(res), _)) => Ok(res),
-                Either::Left((Err(err), _)) => Err(err),
-                Either::Right((Ok(res), _)) => Ok(res),
-                Either::Right((Err(err), _)) => Err(err),
-            })
-            .map_ok(move |_| env.log("reader finished sucessfully"))
-    })?;
+            use futures::future::Either;
+            futures::future::select(req_fut, abort_future)
+                .map(|res| match res {
+                    Either::Left((Ok(res), _)) => Ok(res),
+                    Either::Left((Err(err), _)) => Err(err),
+                    Either::Right((Ok(res), _)) => Ok(res),
+                    Either::Right((Err(err), _)) => Err(err),
+                })
+                .map_ok(move |_| env.log("reader finished sucessfully"))
+        })?;
 
-    let response = Response::builder()
-        .status(StatusCode::SWITCHING_PROTOCOLS)
-        .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!()))
-        .body(Body::empty())?;
+        let response = Response::builder()
+            .status(StatusCode::SWITCHING_PROTOCOLS)
+            .header(UPGRADE, HeaderValue::from_static(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!()))
+            .body(Body::empty())?;
 
-    Ok(Box::new(futures::future::ok(response)))
+        Ok(response)
+    }.boxed()
 }
 
 pub const READER_API_ROUTER: Router = Router::new()
@@ -170,38 +172,38 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let env: &ReaderEnvironment = rpcenv.as_ref();
-    let env2 = env.clone();
+    async move {
+        let env: &ReaderEnvironment = rpcenv.as_ref();
 
-    let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
 
-    let mut path = env.datastore.base_path();
-    path.push(env.backup_dir.relative_path());
-    path.push(&file_name);
+        let mut path = env.datastore.base_path();
+        path.push(env.backup_dir.relative_path());
+        path.push(&file_name);
 
-    let path2 = path.clone();
-    let path3 = path.clone();
+        let path2 = path.clone();
+        let path3 = path.clone();
 
-    let response_future = tokio::fs::File::open(path)
-        .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
-        .and_then(move |file| {
-            env2.log(format!("download {:?}", path3));
-            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-                .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+        let file = tokio::fs::File::open(path)
+            .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
+            .await?;
 
-            let body = Body::wrap_stream(payload);
+        env.log(format!("download {:?}", path3));
 
-            // fixme: set other headers ?
-            futures::future::ok(Response::builder()
-               .status(StatusCode::OK)
-               .header(header::CONTENT_TYPE, "application/octet-stream")
-               .body(body)
-               .unwrap())
-        });
+        let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+            .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
 
-    Ok(Box::new(response_future))
+        let body = Body::wrap_stream(payload);
+
+        // fixme: set other headers ?
+        Ok(Response::builder()
+           .status(StatusCode::OK)
+           .header(header::CONTENT_TYPE, "application/octet-stream")
+           .body(body)
+           .unwrap())
+    }.boxed()
 }
 
 #[sortable]
@@ -221,33 +223,32 @@ fn download_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
-    let env: &ReaderEnvironment = rpcenv.as_ref();
+    async move {
+        let env: &ReaderEnvironment = rpcenv.as_ref();
 
-    let digest_str = tools::required_string_param(&param, "digest")?;
-    let digest = proxmox::tools::hex_to_digest(digest_str)?;
+        let digest_str = tools::required_string_param(&param, "digest")?;
+        let digest = proxmox::tools::hex_to_digest(digest_str)?;
 
-    let (path, _) = env.datastore.chunk_path(&digest);
-    let path2 = path.clone();
+        let (path, _) = env.datastore.chunk_path(&digest);
+        let path2 = path.clone();
 
-    env.debug(format!("download chunk {:?}", path));
+        env.debug(format!("download chunk {:?}", path));
 
-    let response_future = tokio::fs::read(path)
-        .map_err(move |err| http_err!(BAD_REQUEST, format!("reading file {:?} failed: {}", path2, err)))
-        .and_then(move |data| {
-            let body = Body::from(data);
+        let data = tokio::fs::read(path)
+            .map_err(move |err| http_err!(BAD_REQUEST, format!("reading file {:?} failed: {}", path2, err)))
+            .await?;
 
-            // fixme: set other headers ?
-            futures::future::ok(
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .header(header::CONTENT_TYPE, "application/octet-stream")
-                    .body(body)
-                    .unwrap())
-        });
+        let body = Body::from(data);
 
-    Ok(Box::new(response_future))
+        // fixme: set other headers ?
+        Ok(Response::builder()
+           .status(StatusCode::OK)
+           .header(header::CONTENT_TYPE, "application/octet-stream")
+           .body(body)
+           .unwrap())
+    }.boxed()
 }
 
 /* this is too slow
@@ -302,7 +303,7 @@ fn speedtest(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> ApiFuture {
 
     let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A...]
 
@@ -314,5 +315,5 @@ fn speedtest(
         .body(body)
         .unwrap();
 
-    Ok(Box::new(future::ok(response)))
+    future::ok(response).boxed()
 }

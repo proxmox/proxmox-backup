@@ -43,7 +43,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         let (path, components) = match tools::normalize_uri_path(parts.uri.path()) {
             Ok((p,c)) => (p, c),
-            Err(err) => return Box::new(future::err(http_err!(BAD_REQUEST, err.to_string()))),
+            Err(err) => return future::err(http_err!(BAD_REQUEST, err.to_string())).boxed(),
         };
 
         self.debug(format!("{} {}", method, path));
@@ -55,17 +55,17 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
         match self.router.find_method(&components, method, &mut uri_param) {
             None => {
                 let err = http_err!(NOT_FOUND, "Path not found.".to_string());
-                Box::new(future::ok((formatter.format_error)(err)))
+                future::ok((formatter.format_error)(err)).boxed()
             }
             Some(api_method) => {
                 match api_method.handler {
                     ApiHandler::Sync(_) => {
                         crate::server::rest::handle_sync_api_request(
-                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
+                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param).boxed()
                     }
                     ApiHandler::Async(_) => {
                         crate::server::rest::handle_async_api_request(
-                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param)
+                            self.rpcenv.clone(), api_method, formatter, parts, body, uri_param).boxed()
                     }
                 }
             }
