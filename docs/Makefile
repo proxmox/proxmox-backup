@@ -9,7 +9,8 @@ endif
 GENERATED_SYNOPSIS := 				\
 	proxmox-backup-client/synopsis.rst	\
 	proxmox-backup-manager/synopsis.rst	\
-	backup-protocol-api.rst
+	backup-protocol-api.rst			\
+	reader-protocol-api.rst
 
 MANUAL_PAGES := 			\
 	pxar.1				\
@@ -35,6 +36,10 @@ all: ${MANUAL_PAGES}
 
 # Extract backup protocol docs
 backup-protocol-api.rst: ${COMPILEDIR}/dump-backup-api
+	${COMPILEDIR}/dump-backup-api >$@
+
+# Extract reader protocol docs
+reader-protocol-api.rst: ${COMPILEDIR}/dump-reader-api
 	${COMPILEDIR}/dump-backup-api >$@
 
 # Build manual pages using rst2man
@@ -80,7 +85,7 @@ epub3: ${GENERATED_SYNOPSIS}
 	@echo "Build finished. The epub3 file is in $(BUILDDIR)/epub3."
 
 clean:
-	rm -r -f *~ *.1 */synopsis.rst ${BUILDDIR} backup-protocol-api.rst
+	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS}
 
 install: ${MANUAL_PAGES}
 	install -dm755 $(DESTDIR)$(MAN1DIR)

@@ -11,3 +11,8 @@ Command Syntax
 
 .. include:: proxmox-backup-manager/synopsis.rst
 
+``pxar``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. include:: pxar/synopsis.rst
+
