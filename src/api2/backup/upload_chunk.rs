@@ -85,7 +85,7 @@ impl Future for UploadChunk {
 
 #[sortable]
 pub const API_METHOD_UPLOAD_FIXED_CHUNK: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upload_fixed_chunk),
+    &ApiHandler::AsyncHttp(&upload_fixed_chunk),
     &ObjectSchema::new(
         "Upload a new chunk.",
         &sorted!([
@@ -143,7 +143,7 @@ fn upload_fixed_chunk(
 
 #[sortable]
 pub const API_METHOD_UPLOAD_DYNAMIC_CHUNK: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upload_dynamic_chunk),
+    &ApiHandler::AsyncHttp(&upload_dynamic_chunk),
     &ObjectSchema::new(
         "Upload a new chunk.",
         &sorted!([
@@ -199,7 +199,7 @@ fn upload_dynamic_chunk(
 }
 
 pub const API_METHOD_UPLOAD_SPEEDTEST: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upload_speedtest),
+    &ApiHandler::AsyncHttp(&upload_speedtest),
     &ObjectSchema::new("Test upload speed.", &[])
 );
 
@@ -237,7 +237,7 @@ fn upload_speedtest(
 
 #[sortable]
 pub const API_METHOD_UPLOAD_BLOB: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upload_blob),
+    &ApiHandler::AsyncHttp(&upload_blob),
     &ObjectSchema::new(
         "Upload binary blob file.",
         &sorted!([

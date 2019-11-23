@@ -201,9 +201,11 @@ fn handle_simple_command(
                 }
             }
         }
-        ApiHandler::Async(_) => {
-            //fixme
-            unimplemented!();
+        ApiHandler::AsyncHttp(_) => {
+            let err = format_err!(
+                "CliHandler does not support ApiHandler::AsyncHttp - internal error");
+            print_simple_usage_error(prefix, cli_cmd, err);
+            std::process::exit(-1);
         }
     }    
 }

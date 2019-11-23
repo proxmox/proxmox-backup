@@ -28,7 +28,7 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upgrade_to_backup_protocol),
+    &ApiHandler::AsyncHttp(&upgrade_to_backup_protocol),
     &ObjectSchema::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
@@ -553,7 +553,7 @@ fn finish_backup (
 
 #[sortable]
 pub const API_METHOD_DYNAMIC_CHUNK_INDEX: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&dynamic_chunk_index),
+    &ApiHandler::AsyncHttp(&dynamic_chunk_index),
     &ObjectSchema::new(
         r###"
 Download the dynamic chunk index from the previous backup.
@@ -628,7 +628,7 @@ fn dynamic_chunk_index(
 
 #[sortable]
 pub const API_METHOD_FIXED_CHUNK_INDEX: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&fixed_chunk_index),
+    &ApiHandler::AsyncHttp(&fixed_chunk_index),
     &ObjectSchema::new(
         r###"
 Download the fixed chunk index from the previous backup.

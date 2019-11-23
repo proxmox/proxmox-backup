@@ -275,7 +275,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
     let result = match info.handler {
-        ApiHandler::Async(handler) => {
+        ApiHandler::AsyncHttp(handler) => {
             let params = parse_query_parameters(info.parameters, "", &parts, &uri_param)?;
             (handler)(parts, req_body, params, info, Box::new(rpcenv)).await
         }

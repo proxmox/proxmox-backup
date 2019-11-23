@@ -24,7 +24,7 @@ pub const ROUTER: Router = Router::new()
 
 #[sortable]
 pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upgrade_to_backup_reader_protocol),
+    &ApiHandler::AsyncHttp(&upgrade_to_backup_reader_protocol),
     &ObjectSchema::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
@@ -157,7 +157,7 @@ pub const READER_API_ROUTER: Router = Router::new()
 
 #[sortable]
 pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&download_file),
+    &ApiHandler::AsyncHttp(&download_file),
     &ObjectSchema::new(
         "Download specified file.",
         &sorted!([
@@ -208,7 +208,7 @@ fn download_file(
 
 #[sortable]
 pub const API_METHOD_DOWNLOAD_CHUNK: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&download_chunk),
+    &ApiHandler::AsyncHttp(&download_chunk),
     &ObjectSchema::new(
         "Download specified chunk.",
         &sorted!([
@@ -293,7 +293,7 @@ fn download_chunk_old(
 */
 
 pub const API_METHOD_SPEEDTEST: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&speedtest),
+    &ApiHandler::AsyncHttp(&speedtest),
     &ObjectSchema::new("Test 4M block download speed.", &[])
 );
 

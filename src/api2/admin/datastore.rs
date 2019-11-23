@@ -521,7 +521,7 @@ fn download_file(
 
 #[sortable]
 pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&download_file),
+    &ApiHandler::AsyncHttp(&download_file),
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
@@ -590,7 +590,7 @@ fn upload_backup_log(
 
 #[sortable]
 pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
-    &ApiHandler::Async(&upload_backup_log),
+    &ApiHandler::AsyncHttp(&upload_backup_log),
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
