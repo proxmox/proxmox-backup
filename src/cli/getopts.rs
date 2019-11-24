@@ -145,7 +145,7 @@ pub (crate) fn parse_argument_list<T: AsRef<str>>(
 /// list of additional command line arguments.
 pub fn parse_arguments<T: AsRef<str>>(
     args: &[T],
-    arg_param: &Vec<&'static str>,
+    arg_param: &[&str],
     schema: &ObjectSchema,
 ) -> Result<(Value, Vec<String>), ParameterError> {
     let mut errors = ParameterError::new();

@@ -12,11 +12,11 @@ fn datastore_commands() -> CommandLineInterface {
         .insert("list", CliCommand::new(&api2::config::datastore::GET).into())
         .insert("create",
                 CliCommand::new(&api2::config::datastore::POST)
-                .arg_param(vec!["name", "path"])
+                .arg_param(&["name", "path"])
                 .into())
         .insert("remove",
                 CliCommand::new(&api2::config::datastore::DELETE)
-                .arg_param(vec!["name"])
+                .arg_param(&["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
                 .into());
 
@@ -33,12 +33,12 @@ fn garbage_collection_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("status",
                 CliCommand::new(&api2::admin::datastore::API_METHOD_GARBAGE_COLLECTION_STATUS)
-                .arg_param(vec!["store"])
+                .arg_param(&["store"])
                 .completion_cb("store", config::datastore::complete_datastore_name)
                 .into())
         .insert("start",
                 CliCommand::new(&api2::admin::datastore::API_METHOD_START_GARBAGE_COLLECTION)
-                .arg_param(vec!["store"])
+                .arg_param(&["store"])
                 .completion_cb("store", config::datastore::complete_datastore_name)
                 .into());
 

@@ -1566,7 +1566,7 @@ fn key_mgmt_cli() -> CliCommandMap {
     );
     
     let key_create_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE)
-        .arg_param(vec!["path"])
+        .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
     #[sortable]
@@ -1582,7 +1582,7 @@ fn key_mgmt_cli() -> CliCommandMap {
     );
         
     let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_KEY_CHANGE_PASSPHRASE)
-        .arg_param(vec!["path"])
+        .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
     const API_METHOD_KEY_CREATE_MASTER_KEY: ApiMethod = ApiMethod::new(
@@ -1602,7 +1602,7 @@ fn key_mgmt_cli() -> CliCommandMap {
     );
     
     let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_KEY_IMPORT_MASTER_PUBKEY)
-        .arg_param(vec!["path"])
+        .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
     CliCommandMap::new()
@@ -1948,7 +1948,7 @@ fn main() {
     );
     
     let backup_cmd_def = CliCommand::new(&API_METHOD_CREATE_BACKUP)
-        .arg_param(vec!["backupspec"])
+        .arg_param(&["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
         .completion_cb("keyfile", tools::complete_file_name)
@@ -1985,7 +1985,7 @@ fn main() {
     );
   
     let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
-        .arg_param(vec!["snapshot", "logfile"])
+        .arg_param(&["snapshot", "logfile"])
         .completion_cb("snapshot", complete_backup_snapshot)
         .completion_cb("logfile", tools::complete_file_name)
         .completion_cb("keyfile", tools::complete_file_name)
@@ -2020,7 +2020,7 @@ fn main() {
     );
     
     let snapshots_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
-        .arg_param(vec!["group"])
+        .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
@@ -2037,7 +2037,7 @@ fn main() {
     );
     
     let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
-        .arg_param(vec!["snapshot"])
+        .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
@@ -2093,7 +2093,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
   
     let restore_cmd_def = CliCommand::new(&API_METHOD_RESTORE)
-        .arg_param(vec!["snapshot", "archive-name", "target"])
+        .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
@@ -2113,7 +2113,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
     
     let files_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
-        .arg_param(vec!["snapshot"])
+        .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
@@ -2130,7 +2130,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
     
     let catalog_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
-        .arg_param(vec!["snapshot"])
+        .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
@@ -2147,7 +2147,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
     
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
-        .arg_param(vec!["group"])
+        .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
@@ -2207,7 +2207,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
     
     let mount_cmd_def = CliCommand::new(&API_METHOD_MOUNT)
-        .arg_param(vec!["snapshot", "archive-name", "target"])
+        .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_archive_name)
@@ -2228,7 +2228,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
     );
 
     let shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
-        .arg_param(vec!["snapshot", "archive-name"])
+        .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("snapshot", complete_group_or_snapshot);

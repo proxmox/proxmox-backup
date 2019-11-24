@@ -38,7 +38,7 @@ fn generate_usage_str(
     format: DocumentationFormat,
     indent: &str) -> String {
 
-    let arg_param = &cli_cmd.arg_param;
+    let arg_param = cli_cmd.arg_param;
     let fixed_param = &cli_cmd.fixed_param;
     let schema = cli_cmd.info.parameters;
  
@@ -171,7 +171,7 @@ fn handle_simple_command(
 ) {
 
     let (params, rest) = match getopts::parse_arguments(
-        &args, &cli_cmd.arg_param, &cli_cmd.info.parameters) {
+        &args, cli_cmd.arg_param, &cli_cmd.info.parameters) {
         Ok((p, r)) => (p, r),
         Err(err) => {
             print_simple_usage_error(prefix, cli_cmd, err.into());
@@ -415,7 +415,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
 
     match def {
         CommandLineInterface::Simple(_) => {
-            print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, &help_cmd.arg_param, args);
+            print_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &help_cmd.arg_param, args);
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
@@ -428,7 +428,7 @@ fn print_help_completion(def: &CommandLineInterface, help_cmd: &CliCommand, args
             let first = &args[0];
 
             if first.starts_with("-") {
-                print_simple_completion(help_cmd, &mut done, &help_cmd.arg_param, &help_cmd.arg_param, args);
+                print_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &help_cmd.arg_param, args);
                 return;
             }
 
@@ -454,7 +454,7 @@ fn print_nested_completion(def: &CommandLineInterface, args: &[String]) {
             cli_cmd.fixed_param.iter().for_each(|(key, value)| {
                 record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
             });
-            print_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, &cli_cmd.arg_param, args);
+            print_simple_completion(cli_cmd, &mut done, cli_cmd.arg_param, &cli_cmd.arg_param, args);
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
@@ -576,7 +576,7 @@ pub type CompletionFunction = fn(&str, &HashMap<String, String>) -> Vec<String>;
 
 pub struct CliCommand {
     pub info: &'static ApiMethod,
-    pub arg_param: Vec<&'static str>,
+    pub arg_param: &'static [&'static str],
     pub fixed_param: HashMap<&'static str, String>,
     pub completion_functions: HashMap<String, CompletionFunction>,
 }
@@ -585,13 +585,13 @@ impl CliCommand {
 
     pub fn new(info: &'static ApiMethod) -> Self {
         Self {
-            info, arg_param: vec![],
+            info, arg_param: &[],
             fixed_param: HashMap::new(),
             completion_functions: HashMap::new(),
         }
     }
 
-    pub fn arg_param(mut self, names: Vec<&'static str>) -> Self {
+    pub fn arg_param(mut self, names: &'static [&'static str]) -> Self {
         self.arg_param = names;
         self
     }
