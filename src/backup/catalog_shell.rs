@@ -7,8 +7,6 @@ use std::path::Path;
 use failure::*;
 use libc;
 
-use crate::backup::*;
-use crate::client::*;
 use crate::pxar::*;
 
 use super::catalog::{CatalogReader, DirEntry};
@@ -21,7 +19,7 @@ pub struct Shell {
     /// List of paths selected for a restore
     selected: HashSet<Vec<u8>>,
     /// Decoder instance for the current pxar archive
-    decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>>,
+    decoder: Decoder,
     /// Root directory for the give archive as stored in the catalog
     root: Vec<DirEntry>,
 }
@@ -60,7 +58,7 @@ impl Shell {
     pub fn new(
         mut catalog: CatalogReader<std::fs::File>,
         archive_name: &str,
-        decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>>
+        decoder: Decoder,
     ) -> Result<Self, Error> {
         let catalog_root = catalog.root()?;
         // The root for the given archive as stored in the catalog

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
-use std::io::{BufReader, Read, Seek};
+use std::io::BufReader;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use std::sync::Mutex;
@@ -83,8 +83,8 @@ struct FuseArgs {
 
 /// `Context` for callback functions providing the decoder, caches and the
 /// offset within the archive for the i-node given by the caller.
-struct Context<R: Read + Seek> {
-    decoder: Decoder<R>,
+struct Context {
+    decoder: Decoder,
     goodbye_cache: Option<(Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>)>,
     attr_cache: Option<(Inode, PxarAttributes)>,
     ino_offset: Offset,
@@ -92,10 +92,9 @@ struct Context<R: Read + Seek> {
 
 /// `Session` stores a pointer to the session context and is used to mount the
 /// archive to the given mountpoint.
-pub struct Session<R: Read + Seek> {
+pub struct Session {
     ptr: MutPtr,
     verbose: bool,
-    _phantom: std::marker::PhantomData<R>,
 }
 
 /// `Operations` defines the callback function table of supported operations.
@@ -151,7 +150,9 @@ struct Operations {
     copy_file_range: Option<extern fn(req: Request, ino_in: u64, off_in: c_int, fi_in: MutPtr, ino_out: u64, off_out: c_int, fi_out: MutPtr, len: size_t, flags: c_int)>,
 }
 
-impl Session<BufReader<File>>  {
+
+impl Session  {
+
     /// Create a new low level fuse session.
     ///
     /// `Session` is created using the provided mount options and sets the
@@ -169,9 +170,7 @@ impl Session<BufReader<File>>  {
         let decoder = Decoder::new(reader)?;
         Self::setup_session(decoder, args, oprs, verbose)
     }
-}
 
-impl <R: Read + Seek> Session<R>  {
     fn setup_args(options: &OsStr, verbose: bool) -> Result<Vec<CString>, Error> {
         // First argument should be the executable name
         let mut arguments = vec![
@@ -202,7 +201,7 @@ impl <R: Read + Seek> Session<R>  {
     }
 
     fn setup_session(
-        decoder: Decoder<R>,
+        decoder: Decoder,
         args: Vec<CString>,
         oprs: Operations,
         verbose: bool,
@@ -244,7 +243,6 @@ impl <R: Read + Seek> Session<R>  {
         Ok(Self {
             ptr: session_ptr,
             verbose,
-            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -255,7 +253,7 @@ impl <R: Read + Seek> Session<R>  {
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
     pub fn from_decoder(
-        decoder: Decoder<R>,
+        decoder: Decoder,
         options: &OsStr,
         verbose: bool,
     ) -> Result<Self, Error> {
@@ -319,10 +317,10 @@ impl <R: Read + Seek> Session<R>  {
     /// The error code will be used to reply to libfuse.
     fn run_in_context<F>(req: Request, inode: u64, code: F)
         where
-        F: FnOnce(&mut Context<R>) -> Result<(), i32>,
+        F: FnOnce(&mut Context) -> Result<(), i32>,
     {
         let boxed_ctx = unsafe {
-            let ptr = fuse_req_userdata(req) as *mut Mutex<Context<R>>;
+            let ptr = fuse_req_userdata(req) as *mut Mutex<Context>;
             Box::from_raw(ptr)
         };
         let result = boxed_ctx
@@ -532,7 +530,7 @@ impl <R: Read + Seek> Session<R>  {
     }
 }
 
-impl <R: Read + Seek> Drop for Session<R> {
+impl Drop for Session {
     fn drop(&mut self) {
         unsafe {
             fuse_session_unmount(self.ptr);
@@ -593,7 +591,7 @@ struct EntryParam {
 
 /// Update the goodbye table to the one corresponding to the i-node offset, both
 /// given in the `Context`.
-fn update_goodbye_cache<R: Read + Seek>(mut ctx: &mut Context<R>) -> Result<(), i32> {
+fn update_goodbye_cache(mut ctx: &mut Context) -> Result<(), i32> {
     if let Some((off, _)) = &ctx.goodbye_cache {
         if *off == ctx.ino_offset {
             // Cache contains already the correct goodbye table
@@ -623,8 +621,8 @@ fn update_goodbye_cache<R: Read + Seek>(mut ctx: &mut Context<R>) -> Result<(), 
 /// The matching items archive offset, entry and payload size are returned.
 /// If there is no entry with matching `filename` and `hash` a `libc::ENOENT` is
 /// returned.
-fn find_goodbye_entry<R: Read + Seek>(
-    mut ctx: &mut Context<R>,
+fn find_goodbye_entry(
+    mut ctx: &mut Context,
     filename: &CStr,
     hash: u64,
 ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {

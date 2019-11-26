@@ -1707,7 +1707,6 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         let most_used = index.find_most_used_chunks(8);
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
-        //let decoder = pxar::Decoder::new(Box::<dyn pxar::fuse::ReadSeek>::new(reader))?;
         let decoder = pxar::Decoder::new(reader)?;
         let options = OsStr::new("ro,default_permissions");
         let mut session = pxar::fuse::Session::from_decoder(decoder, &options, pipe.is_none())

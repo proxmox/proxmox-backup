@@ -26,9 +26,13 @@ pub struct DirectoryEntry {
     pub entry: PxarEntry,
 }
 
+/// Trait to create ReadSeek Decoder trait objects.
+trait ReadSeek: Read + Seek {}
+impl <R: Read + Seek> ReadSeek for R {}
+
 // This one needs Read+Seek
-pub struct Decoder<R: Read + Seek> {
-    inner: SequentialDecoder<R>,
+pub struct Decoder {
+    inner: SequentialDecoder<Box<dyn ReadSeek>>,
     root_start: u64,
     root_end: u64,
 }
@@ -36,10 +40,11 @@ pub struct Decoder<R: Read + Seek> {
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
-impl<R: Read + Seek> Decoder<R> {
-    pub fn new(mut reader: R) -> Result<Self, Error> {
+impl Decoder {
+    pub fn new<R: Read + Seek + 'static>(mut reader: R) -> Result<Self, Error> {
         let root_end = reader.seek(SeekFrom::End(0))?;
-        let inner = SequentialDecoder::new(reader, super::flags::DEFAULT);
+        let boxed_reader: Box<dyn ReadSeek + 'static> = Box::new(reader);
+        let inner = SequentialDecoder::new(boxed_reader, super::flags::DEFAULT);
   
         Ok(Self { inner, root_start: 0, root_end })
     }
