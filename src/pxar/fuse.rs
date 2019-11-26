@@ -161,14 +161,9 @@ impl Session  {
     /// ("ro,default_permissions").
     pub fn from_path(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let file = File::open(archive_path)?;
-        let args = Self::setup_args(options, verbose)?;
-        let oprs = Self::setup_callbacks();
-
-        // By storing the decoder as userdata of the session, each request may
-        // access it.
         let reader = BufReader::new(file);
         let decoder = Decoder::new(reader)?;
-        Self::setup_session(decoder, args, oprs, verbose)
+        Self::new(decoder, options, verbose)
     }
 
     /// Create a new low level fuse session using the given `Decoder`.
@@ -184,7 +179,43 @@ impl Session  {
     ) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
-        Self::setup_session(decoder, args, oprs, verbose)
+
+        let ctx = Context {
+            decoder,
+            goodbye_cache: None,
+            attr_cache: None,
+            ino_offset: 0,
+        };
+
+        let session_ctx = Box::new(Mutex::new(ctx));
+        let arg_ptrs: Vec<_> = args.iter().map(|opt| opt.as_ptr()).collect();
+        let fuse_args = FuseArgs {
+            argc: arg_ptrs.len() as i32,
+            argv: arg_ptrs.as_ptr(),
+            allocated: 0,
+        };
+        let session_ptr = unsafe {
+            fuse_session_new(
+                Some(&fuse_args),
+                Some(&oprs),
+                std::mem::size_of::<Operations>(),
+                // Ownership of session_ctx is passed to the session here.
+                // It has to be reclaimed before dropping the session to free
+                // the `Context` and close the underlying file. This is done inside
+                // the destroy callback function.
+                Box::into_raw(session_ctx) as ConstPtr,
+            )
+        };
+
+        if session_ptr.is_null() {
+            bail!("error while creating new fuse session");
+        }
+
+        if unsafe { fuse_set_signal_handlers(session_ptr) } != 0 {
+            bail!("error while setting signal handlers");
+        }
+
+        Ok(Self { ptr: session_ptr, verbose })
     }
 
     fn setup_args(options: &OsStr, verbose: bool) -> Result<Vec<CString>, Error> {
@@ -214,52 +245,6 @@ impl Session  {
         oprs.opendir = Some(Self::opendir);
         oprs.readdir = Some(Self::readdir);
         oprs
-    }
-
-    fn setup_session(
-        decoder: Decoder,
-        args: Vec<CString>,
-        oprs: Operations,
-        verbose: bool,
-    ) -> Result<Self, Error> {
-        let ctx = Context {
-            decoder,
-            goodbye_cache: None,
-            attr_cache: None,
-            ino_offset: 0,
-        };
-        let session_ctx = Box::new(Mutex::new(ctx));
-        let arg_ptrs: Vec<_> = args.iter().map(|opt| opt.as_ptr()).collect();
-        let fuse_args = FuseArgs {
-            argc: arg_ptrs.len() as i32,
-            argv: arg_ptrs.as_ptr(),
-            allocated: 0,
-        };
-        let session_ptr = unsafe {
-            fuse_session_new(
-                Some(&fuse_args),
-                Some(&oprs),
-                std::mem::size_of::<Operations>(),
-                // Ownership of session_ctx is passed to the session here.
-                // It has to be reclaimed before dropping the session to free
-                // the `Context` and close the underlying file. This is done inside
-                // the destroy callback function.
-                Box::into_raw(session_ctx) as ConstPtr,
-            )
-        };
-
-        if session_ptr.is_null() {
-            bail!("error while creating new fuse session");
-        }
-
-        if unsafe { fuse_set_signal_handlers(session_ptr) } != 0 {
-            bail!("error while setting signal handlers");
-        }
-
-        Ok(Self {
-            ptr: session_ptr,
-            verbose,
-        })
     }
 
     /// Mount the filesystem on the given mountpoint.
