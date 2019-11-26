@@ -144,7 +144,7 @@ impl ShellCmdMap {
 
     /// List all known commands with their help text.
     fn list_commands(&self) {
-        println!("");
+        println!();
         for cmd in &self.cmds {
             println!("{}\n", cmd.1.help());
         }
@@ -191,16 +191,14 @@ impl ShellCmdMap {
                 } else {
                     bail!("invalid option");
                 }
+            } else if let Some(name) = required.next() {
+                // First fill all required parameters
+                given.parameters.insert(name, arg);
+            } else if let Some(name) = optional.next() {
+                // Now fill all optional parameters
+                given.parameters.insert(name, arg);
             } else {
-                if let Some(name) = required.next() {
-                    // First fill all required parameters
-                    given.parameters.insert(name, arg);
-                } else if let Some(name) = optional.next() {
-                    // Now fill all optional parameters
-                    given.parameters.insert(name, arg);
-                } else {
-                    bail!("to many arguments");
-                }
+                bail!("to many arguments");
             }
         }
         // Check that we have got all required parameters
@@ -379,7 +377,7 @@ impl ShellInstance {
         self.context().current = path;
         // Update the directory displayed in the prompt
         let prompt =
-            Self::generate_prompt(Self::to_path(&self.context().current.clone())?.as_slice());
+            Self::generate_prompt(Self::path(&self.context().current.clone())?.as_slice());
         self.rl.update_prompt(prompt);
         Ok(())
     }
@@ -409,12 +407,12 @@ impl ShellInstance {
 
     /// Print the current working directory
     fn pwd(&mut self, _args: Args) -> Result<(), Error> {
-        let pwd = Self::to_path(&self.context().current.clone())?;
+        let pwd = Self::path(&self.context().current.clone())?;
         Self::print_slice(&pwd).map_err(|err| format_err!("{}", err))
     }
 
     /// Generate an absolute path from a directory stack.
-    fn to_path(dir_stack: &[DirEntry]) -> Result<Vec<u8>, Error> {
+    fn path(dir_stack: &[DirEntry]) -> Result<Vec<u8>, Error> {
         let mut path = vec![b'/'];
         // Skip the archive root, '/' is displayed for it
         for item in dir_stack.iter().skip(1) {
@@ -544,7 +542,7 @@ impl ShellInstance {
         // Calling canonical_path() makes sure the provided path is valid and
         // actually contained within the catalog and therefore also the archive.
         let path = self.canonical_path(path)?;
-        if self.selected.insert(Self::to_path(&path)?) {
+        if self.selected.insert(Self::path(&path)?) {
             Ok(())
         } else {
             bail!("entry already selected for restore")
@@ -641,7 +639,7 @@ impl ShellInstance {
     }
 
     /// Print the list of `DirEntry`s to stdout.
-    fn print_list(list: &Vec<DirEntry>) -> Result<(), std::io::Error> {
+    fn print_list(list: &[DirEntry]) -> Result<(), std::io::Error> {
         if list.is_empty() {
             return Ok(());
         }
@@ -686,21 +684,19 @@ impl ShellInstance {
         size: u64,
     ) -> Result<(), std::io::Error> {
         let mut out = std::io::stdout();
-        out.write_all("File: ".as_bytes())?;
+        out.write_all(b"File: ")?;
         out.write_all(&item.filename.as_bytes())?;
         out.write_all(&[b'\n'])?;
         out.write_all(format!("Size: {}\n", size).as_bytes())?;
-        let mode = match item.entry.mode as u32 & libc::S_IFMT {
-            libc::S_IFDIR => "directory".as_bytes(),
-            libc::S_IFREG => "regular file".as_bytes(),
-            libc::S_IFLNK => "symbolic link".as_bytes(),
-            libc::S_IFBLK => "block special file".as_bytes(),
-            libc::S_IFCHR => "character special file".as_bytes(),
-            _ => "unknown".as_bytes(),
+        out.write_all(b"Type: ")?;
+        match item.entry.mode as u32 & libc::S_IFMT {
+            libc::S_IFDIR => out.write_all(b"directory\n")?,
+            libc::S_IFREG => out.write_all(b"regular file\n")?,
+            libc::S_IFLNK => out.write_all(b"symbolic link\n")?,
+            libc::S_IFBLK => out.write_all(b"block special file\n")?,
+            libc::S_IFCHR => out.write_all(b"character special file\n")?,
+            _ => out.write_all(b"unknown\n")?,
         };
-        out.write_all("Type: ".as_bytes())?;
-        out.write_all(&mode)?;
-        out.write_all(&[b'\n'])?;
         out.write_all(format!("Uid: {}\n", item.entry.uid).as_bytes())?;
         out.write_all(format!("Gid: {}\n", item.entry.gid).as_bytes())?;
         out.flush()?;
@@ -708,10 +704,11 @@ impl ShellInstance {
     }
 
     /// Get the current size of the terminal
+    /// # Safety
     ///
-    /// uses tty_ioctl, see man tty_ioctl(2)
+    /// uses unsafe call to tty_ioctl, see man tty_ioctl(2)
     fn get_terminal_size() -> (usize, usize) {
-        const TIOCGWINSZ: libc::c_ulong = 0x00005413;
+        const TIOCGWINSZ: libc::c_ulong = 0x5413;
 
         #[repr(C)]
         struct WinSize {

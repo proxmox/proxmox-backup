@@ -1770,7 +1770,7 @@ async fn catalog_shell(param: Value) -> Result<Value, Error> {
         }))).await?;
 
         let list = result["data"].as_array().unwrap();
-        if list.len() == 0 {
+        if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
