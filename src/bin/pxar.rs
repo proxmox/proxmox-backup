@@ -26,7 +26,7 @@ fn dump_archive_from_reader<R: std::io::Read>(
     feature_flags: u64,
     verbose: bool,
 ) -> Result<(), Error> {
-    let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |_| Ok(()));
+    let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags);
 
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
@@ -70,7 +70,8 @@ fn extract_archive_from_reader<R: std::io::Read>(
     verbose: bool,
     pattern: Option<Vec<pxar::MatchPattern>>
 ) -> Result<(), Error> {
-    let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags, |path| {
+    let mut decoder = pxar::SequentialDecoder::new(reader, feature_flags);
+    decoder.set_callback(move |path| {
         if verbose {
             println!("{:?}", path);
         }

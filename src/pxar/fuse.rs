@@ -41,13 +41,6 @@ lazy_static! {
     static ref CHILD_PARENT: Mutex<HashMap<u64, u64>> = Mutex::new(HashMap::new());
 }
 
-/// Callback function for `super::decoder::Decoder`.
-///
-/// At the moment, this is only needed to satisfy the `SequentialDecoder`.
-fn decoder_callback(_path: &Path) -> Result<(), Error> {
-    Ok(())
-}
-
 type Inode = u64;
 type Offset = u64;
 /// FFI types for easier readability
@@ -88,14 +81,10 @@ struct FuseArgs {
     allocated: c_int,
 }
 
-/// Trait to create ReadSeek Decoder trait objects.
-pub trait ReadSeek: Read + Seek {}
-impl<T: Read + Seek> ReadSeek for T {}
-
 /// `Context` for callback functions providing the decoder, caches and the
 /// offset within the archive for the i-node given by the caller.
-struct Context {
-    decoder: Decoder<Box<dyn ReadSeek>, fn(&Path) -> Result<(), Error>>,
+struct Context<R: Read + Seek> {
+    decoder: Decoder<R>,
     goodbye_cache: Option<(Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>)>,
     attr_cache: Option<(Inode, PxarAttributes)>,
     ino_offset: Offset,
@@ -103,9 +92,10 @@ struct Context {
 
 /// `Session` stores a pointer to the session context and is used to mount the
 /// archive to the given mountpoint.
-pub struct Session {
+pub struct Session<R: Read + Seek> {
     ptr: MutPtr,
     verbose: bool,
+    _phantom: std::marker::PhantomData<R>,
 }
 
 /// `Operations` defines the callback function table of supported operations.
@@ -161,7 +151,27 @@ struct Operations {
     copy_file_range: Option<extern fn(req: Request, ino_in: u64, off_in: c_int, fi_in: MutPtr, ino_out: u64, off_out: c_int, fi_out: MutPtr, len: size_t, flags: c_int)>,
 }
 
-impl Session {
+impl Session<BufReader<File>>  {
+    /// Create a new low level fuse session.
+    ///
+    /// `Session` is created using the provided mount options and sets the
+    /// default signal handlers.
+    /// Options have to be provided as comma separated OsStr, e.g.
+    /// ("ro,default_permissions").
+    pub fn new(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
+        let file = File::open(archive_path)?;
+        let args = Self::setup_args(options, verbose)?;
+        let oprs = Self::setup_callbacks();
+
+        // By storing the decoder as userdata of the session, each request may
+        // access it.
+        let reader = BufReader::new(file);
+        let decoder = Decoder::new(reader)?;
+        Self::setup_session(decoder, args, oprs, verbose)
+    }
+}
+
+impl <R: Read + Seek> Session<R>  {
     fn setup_args(options: &OsStr, verbose: bool) -> Result<Vec<CString>, Error> {
         // First argument should be the executable name
         let mut arguments = vec![
@@ -181,18 +191,18 @@ impl Session {
         let mut oprs = Operations::default();
         oprs.init = Some(init);
         oprs.destroy = Some(destroy);
-        oprs.lookup = Some(lookup);
-        oprs.getattr = Some(getattr);
-        oprs.readlink = Some(readlink);
-        oprs.open = Some(open);
-        oprs.read = Some(read);
-        oprs.opendir = Some(opendir);
-        oprs.readdir = Some(readdir);
+        oprs.lookup = Some(Self::lookup);
+        oprs.getattr = Some(Self::getattr);
+        oprs.readlink = Some(Self::readlink);
+        oprs.open = Some(Self::open);
+        oprs.read = Some(Self::read);
+        oprs.opendir = Some(Self::opendir);
+        oprs.readdir = Some(Self::readdir);
         oprs
     }
 
     fn setup_session(
-        decoder: Decoder<Box<dyn ReadSeek>, fn(&Path) -> Result<(), Error>>,
+        decoder: Decoder<R>,
         args: Vec<CString>,
         oprs: Operations,
         verbose: bool,
@@ -234,25 +244,8 @@ impl Session {
         Ok(Self {
             ptr: session_ptr,
             verbose,
+            _phantom: std::marker::PhantomData,
         })
-    }
-
-    /// Create a new low level fuse session.
-    ///
-    /// `Session` is created using the provided mount options and sets the
-    /// default signal handlers.
-    /// Options have to be provided as comma separated OsStr, e.g.
-    /// ("ro,default_permissions").
-    pub fn new(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
-        let file = File::open(archive_path)?;
-        let args = Self::setup_args(options, verbose)?;
-        let oprs = Self::setup_callbacks();
-
-        // By storing the decoder as userdata of the session, each request may
-        // access it.
-        let reader: Box<dyn ReadSeek> = Box::new(BufReader::new(file));
-        let decoder = Decoder::new(reader, decoder_callback as fn(&Path) -> Result<(), Error>)?;
-        Self::setup_session(decoder, args, oprs, verbose)
     }
 
     /// Create a new low level fuse session using the given `Decoder`.
@@ -262,7 +255,7 @@ impl Session {
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
     pub fn from_decoder(
-        decoder: Decoder<Box<dyn ReadSeek>, fn(&Path) -> Result<(), Error>>,
+        decoder: Decoder<R>,
         options: &OsStr,
         verbose: bool,
     ) -> Result<Self, Error> {
@@ -316,9 +309,230 @@ impl Session {
 
         Ok(())
     }
+
+    /// Creates a context providing an exclusive mutable reference to the `Context`.
+    ///
+    /// Each callback function needing access to the `Context` can easily get an
+    /// exclusive handle by running the code inside this context.
+    /// Responses with error code can easily be generated by returning with the
+    /// error code.
+    /// The error code will be used to reply to libfuse.
+    fn run_in_context<F>(req: Request, inode: u64, code: F)
+        where
+        F: FnOnce(&mut Context<R>) -> Result<(), i32>,
+    {
+        let boxed_ctx = unsafe {
+            let ptr = fuse_req_userdata(req) as *mut Mutex<Context<R>>;
+            Box::from_raw(ptr)
+        };
+        let result = boxed_ctx
+            .lock()
+            .map(|mut ctx| {
+                ctx.ino_offset = match inode {
+                    FUSE_ROOT_ID => ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE,
+                    _ => inode,
+                };
+                code(&mut ctx)
+            })
+            .unwrap_or(Err(libc::EIO));
+
+        if let Err(err) = result {
+            unsafe {
+                let _res = fuse_reply_err(req, err);
+            }
+        }
+
+        // Release ownership of boxed context, do not drop it.
+        let _ = Box::into_raw(boxed_ctx);
+    }
+
+    /// Lookup `name` in the directory referenced by `parent` i-node.
+    ///
+    /// Inserts also the child and parent file offset in the hashmap to quickly
+    /// obtain the parent offset based on the child offset.
+    /// Caches goodbye table of parent and attributes of child, if found.
+    extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
+        let filename = unsafe { CStr::from_ptr(name) };
+        let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
+
+        Self::run_in_context(req, parent, |mut ctx| {
+            // find_ goodbye_entry() will also update the goodbye cache
+            let (child_offset, entry, attr, payload_size) =
+                find_goodbye_entry(&mut ctx, &filename, hash)?;
+            ctx.attr_cache = Some((child_offset, attr));
+            let child_inode = calculate_inode(child_offset, ctx.decoder.root_end_offset());
+
+            let e = EntryParam {
+                inode: child_inode,
+                generation: 1,
+                attr: stat(child_inode, &entry, payload_size)?,
+                attr_timeout: std::f64::MAX,
+                entry_timeout: std::f64::MAX,
+            };
+
+            // Update the parent for this child entry. Used to get parent offset if
+            // only child offset is known.
+            CHILD_PARENT
+                .lock()
+                .map_err(|_| libc::EIO)?
+            .insert(child_offset, ctx.ino_offset);
+            let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
+
+            Ok(())
+        });
+    }
+
+    extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
+        Self::run_in_context(req, inode, |ctx| {
+            let (_, entry, attr, payload_size) = ctx
+                .decoder
+                .attributes(ctx.ino_offset)
+                .map_err(|_| libc::EIO)?;
+            ctx.attr_cache = Some((ctx.ino_offset, attr));
+            let attr = stat(inode, &entry, payload_size)?;
+            let _res = unsafe {
+                // Since fs is read-only, the timeout can be max.
+                let timeout = std::f64::MAX;
+                fuse_reply_attr(req, Some(&attr), timeout)
+            };
+
+            Ok(())
+        });
+    }
+
+    extern "C" fn readlink(req: Request, inode: u64) {
+        Self::run_in_context(req, inode, |ctx| {
+            let (target, _) = ctx
+                .decoder
+                .read_link(ctx.ino_offset)
+                .map_err(|_| libc::EIO)?;
+            let link = CString::new(target.into_os_string().into_vec()).map_err(|_| libc::EIO)?;
+            let _ret = unsafe { fuse_reply_readlink(req, link.as_ptr()) };
+
+            Ok(())
+        });
+    }
+
+    extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
+        Self::run_in_context(req, inode, |ctx| {
+            ctx.decoder.open(ctx.ino_offset).map_err(|_| libc::ENOENT)?;
+            let _ret = unsafe { fuse_reply_open(req, fileinfo) };
+
+            Ok(())
+        });
+    }
+
+    extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
+        Self::run_in_context(req, inode, |ctx| {
+            let mut data = ctx
+                .decoder
+                .read(ctx.ino_offset, size, offset as u64)
+                .map_err(|_| libc::EIO)?;
+
+            let _res = unsafe {
+                let len = data.len();
+                let dptr = data.as_mut_ptr() as *mut c_char;
+                fuse_reply_buf(req, dptr, len)
+            };
+
+            Ok(())
+        });
+    }
+
+    /// Open the directory referenced by the given inode for reading.
+    ///
+    /// This simply checks if the inode references a valid directory, no internal
+    /// state identifies the directory as opened.
+    extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
+        Self::run_in_context(req, inode, |ctx| {
+            let (_, entry, _, _) = ctx
+                .decoder
+                .attributes(ctx.ino_offset)
+                .map_err(|_| libc::EIO)?;
+            if (entry.mode as u32 & libc::S_IFMT) != libc::S_IFDIR {
+                return Err(libc::ENOENT);
+            }
+            let _ret = unsafe { fuse_reply_open(req, fileinfo) };
+
+            Ok(())
+        });
+    }
+
+    /// Read and return the entries of the directory referenced by i-node.
+    ///
+    /// Replies to the request with the entries fitting into a buffer of length
+    /// `size`, as requested by the caller.
+    /// `offset` identifies the start index of entries to return. This is used on
+    /// repeated calls, occurring if not all entries fitted into the buffer.
+    /// The goodbye table of the directory is cached in order to speedup repeated
+    /// calls occurring when not all entries fitted in the reply buffer.
+    extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
+        let offset = offset as usize;
+
+        Self::run_in_context(req, inode, |mut ctx| {
+            update_goodbye_cache(&mut ctx)?;
+            let gb_table = &ctx.goodbye_cache.as_ref().unwrap().1;
+            let n_entries = gb_table.len();
+            let mut buf = ReplyBuf::new(req, size, offset);
+
+            if offset < n_entries {
+                for e in gb_table[offset..gb_table.len()].iter() {
+                    let (filename, entry, _, payload_size) =
+                        ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
+                    let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
+                    let item_offset = find_offset(&entry, e.1, e.2);
+                    let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
+                    let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
+                    match buf.add_entry(&name, &attr) {
+                        Ok(ReplyBufState::Okay) => {}
+                        Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                        Err(_) => return Err(libc::EIO),
+                    }
+                }
+            }
+
+            // Add current directory entry "."
+            if offset <= n_entries {
+                let (_, entry, _, payload_size) = ctx
+                    .decoder
+                    .attributes(ctx.ino_offset)
+                    .map_err(|_| libc::EIO)?;
+                // No need to calculate i-node for current dir, since it is given as parameter
+                let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
+                let name = CString::new(".").unwrap();
+                match buf.add_entry(&name, &attr) {
+                    Ok(ReplyBufState::Okay) => {}
+                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                    Err(_) => return Err(libc::EIO),
+                }
+            }
+
+            // Add parent directory entry ".."
+            if offset <= n_entries + 1 {
+                let parent_off = if inode == FUSE_ROOT_ID {
+                    ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
+                } else {
+                    let guard = CHILD_PARENT.lock().map_err(|_| libc::EIO)?;
+                    *guard.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
+                };
+                let (_, entry, _, payload_size) =
+                    ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
+                let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
+                let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
+                let name = CString::new("..").unwrap();
+                match buf.add_entry(&name, &attr) {
+                    Ok(ReplyBufState::Okay) => {}
+                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                    Err(_) => return Err(libc::EIO),
+                }
+            }
+
+            buf.reply_filled()
+        });
+    }
 }
 
-impl Drop for Session {
+impl <R: Read + Seek> Drop for Session<R> {
     fn drop(&mut self) {
         unsafe {
             fuse_session_unmount(self.ptr);
@@ -328,41 +542,6 @@ impl Drop for Session {
     }
 }
 
-/// Creates a context providing an exclusive mutable reference to the `Context`.
-///
-/// Each callback function needing access to the `Context` can easily get an
-/// exclusive handle by running the code inside this context.
-/// Responses with error code can easily be generated by returning with the
-/// error code.
-/// The error code will be used to reply to libfuse.
-fn run_in_context<F>(req: Request, inode: u64, code: F)
-where
-    F: FnOnce(&mut Context) -> Result<(), i32>,
-{
-    let boxed_ctx = unsafe {
-        let ptr = fuse_req_userdata(req) as *mut Mutex<Context>;
-        Box::from_raw(ptr)
-    };
-    let result = boxed_ctx
-        .lock()
-        .map(|mut ctx| {
-            ctx.ino_offset = match inode {
-                FUSE_ROOT_ID => ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE,
-                _ => inode,
-            };
-            code(&mut ctx)
-        })
-        .unwrap_or(Err(libc::EIO));
-
-    if let Err(err) = result {
-        unsafe {
-            let _res = fuse_reply_err(req, err);
-        }
-    }
-
-    // Release ownership of boxed context, do not drop it.
-    let _ = Box::into_raw(boxed_ctx);
-}
 
 /// Return the correct offset for the item based on its `PxarEntry` mode
 ///
@@ -414,7 +593,7 @@ struct EntryParam {
 
 /// Update the goodbye table to the one corresponding to the i-node offset, both
 /// given in the `Context`.
-fn update_goodbye_cache(mut ctx: &mut Context) -> Result<(), i32> {
+fn update_goodbye_cache<R: Read + Seek>(mut ctx: &mut Context<R>) -> Result<(), i32> {
     if let Some((off, _)) = &ctx.goodbye_cache {
         if *off == ctx.ino_offset {
             // Cache contains already the correct goodbye table
@@ -444,8 +623,8 @@ fn update_goodbye_cache(mut ctx: &mut Context) -> Result<(), i32> {
 /// The matching items archive offset, entry and payload size are returned.
 /// If there is no entry with matching `filename` and `hash` a `libc::ENOENT` is
 /// returned.
-fn find_goodbye_entry(
-    mut ctx: &mut Context,
+fn find_goodbye_entry<R: Read + Seek>(
+    mut ctx: &mut Context<R>,
     filename: &CStr,
     hash: u64,
 ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
@@ -477,41 +656,6 @@ fn find_goodbye_entry(
     Err(libc::ENOENT)
 }
 
-/// Lookup `name` in the directory referenced by `parent` i-node.
-///
-/// Inserts also the child and parent file offset in the hashmap to quickly
-/// obtain the parent offset based on the child offset.
-/// Caches goodbye table of parent and attributes of child, if found.
-extern "C" fn lookup(req: Request, parent: u64, name: StrPtr) {
-    let filename = unsafe { CStr::from_ptr(name) };
-    let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
-
-    run_in_context(req, parent, |mut ctx| {
-        // find_ goodbye_entry() will also update the goodbye cache
-        let (child_offset, entry, attr, payload_size) =
-            find_goodbye_entry(&mut ctx, &filename, hash)?;
-        ctx.attr_cache = Some((child_offset, attr));
-        let child_inode = calculate_inode(child_offset, ctx.decoder.root_end_offset());
-
-        let e = EntryParam {
-            inode: child_inode,
-            generation: 1,
-            attr: stat(child_inode, &entry, payload_size)?,
-            attr_timeout: std::f64::MAX,
-            entry_timeout: std::f64::MAX,
-        };
-
-        // Update the parent for this child entry. Used to get parent offset if
-        // only child offset is known.
-        CHILD_PARENT
-            .lock()
-            .map_err(|_| libc::EIO)?
-            .insert(child_offset, ctx.ino_offset);
-        let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
-
-        Ok(())
-    });
-}
 
 /// Create a `libc::stat` with the provided i-node, entry and payload size
 fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, i32> {
@@ -538,82 +682,6 @@ fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, 
     attr.st_ctime_nsec = nsec;
 
     Ok(attr)
-}
-
-extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |ctx| {
-        let (_, entry, attr, payload_size) = ctx
-            .decoder
-            .attributes(ctx.ino_offset)
-            .map_err(|_| libc::EIO)?;
-        ctx.attr_cache = Some((ctx.ino_offset, attr));
-        let attr = stat(inode, &entry, payload_size)?;
-        let _res = unsafe {
-            // Since fs is read-only, the timeout can be max.
-            let timeout = std::f64::MAX;
-            fuse_reply_attr(req, Some(&attr), timeout)
-        };
-
-        Ok(())
-    });
-}
-
-extern "C" fn readlink(req: Request, inode: u64) {
-    run_in_context(req, inode, |ctx| {
-        let (target, _) = ctx
-            .decoder
-            .read_link(ctx.ino_offset)
-            .map_err(|_| libc::EIO)?;
-        let link = CString::new(target.into_os_string().into_vec()).map_err(|_| libc::EIO)?;
-        let _ret = unsafe { fuse_reply_readlink(req, link.as_ptr()) };
-
-        Ok(())
-    });
-}
-
-extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
-    run_in_context(req, inode, |ctx| {
-        ctx.decoder.open(ctx.ino_offset).map_err(|_| libc::ENOENT)?;
-        let _ret = unsafe { fuse_reply_open(req, fileinfo) };
-
-        Ok(())
-    });
-}
-
-extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
-    run_in_context(req, inode, |ctx| {
-        let mut data = ctx
-            .decoder
-            .read(ctx.ino_offset, size, offset as u64)
-            .map_err(|_| libc::EIO)?;
-
-        let _res = unsafe {
-            let len = data.len();
-            let dptr = data.as_mut_ptr() as *mut c_char;
-            fuse_reply_buf(req, dptr, len)
-        };
-
-        Ok(())
-    });
-}
-
-/// Open the directory referenced by the given inode for reading.
-///
-/// This simply checks if the inode references a valid directory, no internal
-/// state identifies the directory as opened.
-extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
-    run_in_context(req, inode, |ctx| {
-        let (_, entry, _, _) = ctx
-            .decoder
-            .attributes(ctx.ino_offset)
-            .map_err(|_| libc::EIO)?;
-        if (entry.mode as u32 & libc::S_IFMT) != libc::S_IFDIR {
-            return Err(libc::ENOENT);
-        }
-        let _ret = unsafe { fuse_reply_open(req, fileinfo) };
-
-        Ok(())
-    });
 }
 
 /// State of ReplyBuf after last add_entry call
@@ -685,77 +753,4 @@ impl ReplyBuf {
 
         Ok(ReplyBufState::Okay)
     }
-}
-
-/// Read and return the entries of the directory referenced by i-node.
-///
-/// Replies to the request with the entries fitting into a buffer of length
-/// `size`, as requested by the caller.
-/// `offset` identifies the start index of entries to return. This is used on
-/// repeated calls, occurring if not all entries fitted into the buffer.
-/// The goodbye table of the directory is cached in order to speedup repeated
-/// calls occurring when not all entries fitted in the reply buffer.
-extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
-    let offset = offset as usize;
-
-    run_in_context(req, inode, |mut ctx| {
-        update_goodbye_cache(&mut ctx)?;
-        let gb_table = &ctx.goodbye_cache.as_ref().unwrap().1;
-        let n_entries = gb_table.len();
-        let mut buf = ReplyBuf::new(req, size, offset);
-
-        if offset < n_entries {
-            for e in gb_table[offset..gb_table.len()].iter() {
-                let (filename, entry, _, payload_size) =
-                    ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
-                let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
-                let item_offset = find_offset(&entry, e.1, e.2);
-                let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
-                let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-                match buf.add_entry(&name, &attr) {
-                    Ok(ReplyBufState::Okay) => {}
-                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                    Err(_) => return Err(libc::EIO),
-                }
-            }
-        }
-
-        // Add current directory entry "."
-        if offset <= n_entries {
-            let (_, entry, _, payload_size) = ctx
-                .decoder
-                .attributes(ctx.ino_offset)
-                .map_err(|_| libc::EIO)?;
-            // No need to calculate i-node for current dir, since it is given as parameter
-            let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-            let name = CString::new(".").unwrap();
-            match buf.add_entry(&name, &attr) {
-                Ok(ReplyBufState::Okay) => {}
-                Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                Err(_) => return Err(libc::EIO),
-            }
-        }
-
-        // Add parent directory entry ".."
-        if offset <= n_entries + 1 {
-            let parent_off = if inode == FUSE_ROOT_ID {
-                ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
-            } else {
-                let guard = CHILD_PARENT.lock().map_err(|_| libc::EIO)?;
-                *guard.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
-            };
-            let (_, entry, _, payload_size) =
-                ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
-            let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
-            let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-            let name = CString::new("..").unwrap();
-            match buf.add_entry(&name, &attr) {
-                Ok(ReplyBufState::Okay) => {}
-                Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                Err(_) => return Err(libc::EIO),
-            }
-        }
-
-        buf.reply_filled()
-    });
 }

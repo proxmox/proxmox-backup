@@ -1032,7 +1032,8 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
         if let Some(target) = target {
 
             let feature_flags = pxar::flags::DEFAULT;
-            let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags, |path| {
+            let mut decoder = pxar::SequentialDecoder::new(&mut reader, feature_flags);
+            decoder.set_callback(move |path| {
                 if verbose {
                     eprintln!("{:?}", path);
                 }
@@ -1706,11 +1707,8 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         let most_used = index.find_most_used_chunks(8);
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
-        let decoder =
-            pxar::Decoder::<Box<dyn pxar::fuse::ReadSeek>, fn(&Path) -> Result<(), Error>>::new(
-                Box::new(reader),
-                |_| Ok(()),
-            )?;
+        //let decoder = pxar::Decoder::new(Box::<dyn pxar::fuse::ReadSeek>::new(reader))?;
+        let decoder = pxar::Decoder::new(reader)?;
         let options = OsStr::new("ro,default_permissions");
         let mut session = pxar::fuse::Session::from_decoder(decoder, &options, pipe.is_none())
             .map_err(|err| format_err!("pxar mount failed: {}", err))?;
@@ -1822,14 +1820,11 @@ async fn catalog_shell(param: Value) -> Result<Value, Error> {
     let most_used = index.find_most_used_chunks(8);
     let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), most_used);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
-    let decoder =
-        pxar::Decoder::<BufferedDynamicReader<RemoteChunkReader>, fn(&Path) -> Result<(), Error>>::new(
-            reader,
-            |path| {
-                println!("{:?}", path);
-                Ok(())
-            }
-        )?;
+    let mut decoder = pxar::Decoder::new(reader)?;
+    decoder.set_callback(|path| {
+        println!("{:?}", path);
+        Ok(())
+    });
 
     let tmpfile = client.download(CATALOG_NAME, tmpfile).await?;
     let index = DynamicIndexReader::new(tmpfile)

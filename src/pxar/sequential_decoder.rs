@@ -30,18 +30,22 @@ use crate::tools::fs;
 use crate::tools::xattr;
 
 // This one need Read, but works without Seek
-pub struct SequentialDecoder<R: Read, F: Fn(&Path) -> Result<(), Error>> {
+pub struct SequentialDecoder<R: Read> {
     reader: R,
     feature_flags: u64,
     allow_existing_dirs: bool,
     skip_buffer: Vec<u8>,
-    callback: F,
+    callback: Option<Box<dyn Fn(&Path) -> Result<(), Error>>>,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
 
-impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
-    pub fn new(reader: R, feature_flags: u64, callback: F) -> Self {
+impl<R: Read> SequentialDecoder<R> {
+
+    pub fn new(
+        reader: R,
+        feature_flags: u64,
+    ) -> Self {
         let skip_buffer = vec::undefined(64 * 1024);
 
         Self {
@@ -49,8 +53,12 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             feature_flags,
             allow_existing_dirs: false,
             skip_buffer,
-            callback,
+            callback: None,
         }
+    }
+
+    pub fn set_callback<F: Fn(&Path) -> Result<(), Error> + 'static>(&mut self, callback: F ) {
+        self.callback = Some(Box::new(callback));
     }
 
     pub fn set_allow_existing_dirs(&mut self, allow: bool) {
@@ -793,7 +801,9 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
             let (target, _offset) = self.read_hardlink(head.size)?;
             let target_path = base_path.join(&target);
             if dirs.last_dir_fd().is_some() {
-                (self.callback)(&full_path)?;
+                if let Some(ref callback) = self.callback {
+                    (callback)(&full_path)?;
+                }
                 hardlink(&target_path, &full_path)?;
             }
             return Ok(());
@@ -826,7 +836,9 @@ impl<R: Read, F: Fn(&Path) -> Result<(), Error>> SequentialDecoder<R, F> {
         };
 
         if fd.is_some() {
-            (self.callback)(&full_path)?;
+            if let Some(ref callback) = self.callback {
+                (callback)(&full_path)?;
+            }
         }
 
         match ifmt {

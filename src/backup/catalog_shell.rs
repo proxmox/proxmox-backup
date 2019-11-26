@@ -21,7 +21,7 @@ pub struct Shell {
     /// List of paths selected for a restore
     selected: HashSet<Vec<u8>>,
     /// Decoder instance for the current pxar archive
-    decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>, fn(&Path) -> Result<(), Error>>,
+    decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>>,
     /// Root directory for the give archive as stored in the catalog
     root: Vec<DirEntry>,
 }
@@ -60,7 +60,7 @@ impl Shell {
     pub fn new(
         mut catalog: CatalogReader<std::fs::File>,
         archive_name: &str,
-        decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>, fn(&Path) -> Result<(), Error>>
+        decoder: Decoder<BufferedDynamicReader<RemoteChunkReader>>
     ) -> Result<Self, Error> {
         let catalog_root = catalog.root()?;
         // The root for the given archive as stored in the catalog
