@@ -1709,7 +1709,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         let reader = BufferedDynamicReader::new(index, chunk_reader);
         let decoder = pxar::Decoder::new(reader)?;
         let options = OsStr::new("ro,default_permissions");
-        let mut session = pxar::fuse::Session::from_decoder(decoder, &options, pipe.is_none())
+        let mut session = pxar::fuse::Session::new(decoder, &options, pipe.is_none())
             .map_err(|err| format_err!("pxar mount failed: {}", err))?;
 
         // Mount the session but not call fuse deamonize as this will cause

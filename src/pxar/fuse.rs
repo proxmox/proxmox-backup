@@ -159,7 +159,7 @@ impl Session  {
     /// default signal handlers.
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
-    pub fn new(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
+    pub fn from_path(archive_path: &Path, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let file = File::open(archive_path)?;
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
@@ -168,6 +168,22 @@ impl Session  {
         // access it.
         let reader = BufReader::new(file);
         let decoder = Decoder::new(reader)?;
+        Self::setup_session(decoder, args, oprs, verbose)
+    }
+
+    /// Create a new low level fuse session using the given `Decoder`.
+    ///
+    /// `Session` is created using the provided mount options and sets the
+    /// default signal handlers.
+    /// Options have to be provided as comma separated OsStr, e.g.
+    /// ("ro,default_permissions").
+    pub fn new(
+        decoder: Decoder,
+        options: &OsStr,
+        verbose: bool,
+    ) -> Result<Self, Error> {
+        let args = Self::setup_args(options, verbose)?;
+        let oprs = Self::setup_callbacks();
         Self::setup_session(decoder, args, oprs, verbose)
     }
 
@@ -244,22 +260,6 @@ impl Session  {
             ptr: session_ptr,
             verbose,
         })
-    }
-
-    /// Create a new low level fuse session using the given `Decoder`.
-    ///
-    /// `Session` is created using the provided mount options and sets the
-    /// default signal handlers.
-    /// Options have to be provided as comma separated OsStr, e.g.
-    /// ("ro,default_permissions").
-    pub fn from_decoder(
-        decoder: Decoder,
-        options: &OsStr,
-        verbose: bool,
-    ) -> Result<Self, Error> {
-        let args = Self::setup_args(options, verbose)?;
-        let oprs = Self::setup_callbacks();
-        Self::setup_session(decoder, args, oprs, verbose)
     }
 
     /// Mount the filesystem on the given mountpoint.
