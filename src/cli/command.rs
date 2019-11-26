@@ -1,7 +1,6 @@
 use failure::*;
 use serde_json::Value;
-
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use proxmox::api::format::*;
 use proxmox::api::schema::*;
@@ -10,158 +9,14 @@ use proxmox::api::{ApiHandler, ApiMethod};
 use super::environment::CliEnvironment;
 
 use super::getopts;
+use super::{CommandLineInterface, CliCommand, CliCommandMap, CompletionFunction};
+use super::format::*;
 
 pub const OUTPUT_FORMAT: Schema =
     StringSchema::new("Output format.")
     .format(&ApiStringFormat::Enum(&["text", "json", "json-pretty"]))
     .schema();
 
-/// Helper function to format and print result
-///
-/// This is implemented for machine generatable formats 'json' and
-/// 'json-pretty'. The 'text' format needs to be handled somewhere
-/// else.
-pub fn format_and_print_result(result: &Value, output_format: &str) {
-
-    if output_format == "json-pretty" {
-        println!("{}", serde_json::to_string_pretty(&result).unwrap());
-    } else if output_format == "json" {
-        println!("{}", serde_json::to_string(&result).unwrap());
-    } else {
-        unimplemented!();
-    }
-}
-
-fn generate_usage_str(
-    prefix: &str,
-    cli_cmd: &CliCommand,
-    format: DocumentationFormat,
-    indent: &str) -> String {
-
-    let arg_param = cli_cmd.arg_param;
-    let fixed_param = &cli_cmd.fixed_param;
-    let schema = cli_cmd.info.parameters;
- 
-    let mut done_hash = HashSet::<&str>::new();
-    let mut args = String::new();
-
-    for positional_arg in arg_param {
-        match schema.lookup(positional_arg) {
-            Some((optional, param_schema)) => {
-                args.push(' ');
-
-                let is_array = if let Schema::Array(_) = param_schema { true } else { false };
-                if optional { args.push('['); }
-                if is_array { args.push('{'); }
-                args.push('<'); args.push_str(positional_arg); args.push('>');
-                if is_array { args.push('}'); }
-                if optional { args.push(']'); }
-
-                done_hash.insert(positional_arg);
-            }
-            None => panic!("no such property '{}' in schema", positional_arg),
-        }
-    }
-
-    let mut arg_descr = String::new();
-    for positional_arg in arg_param {
-        let (_optional, param_schema) = schema.lookup(positional_arg).unwrap();
-        let param_descr = get_property_description(
-            positional_arg, param_schema, ParameterDisplayStyle::Fixed, format);
-        arg_descr.push_str(&param_descr);
-    }
-
-    let mut options = String::new();
-
-    for (prop, optional, param_schema) in schema.properties {
-        if done_hash.contains(prop) { continue; }
-        if fixed_param.contains_key(prop) { continue; }
-
-        let type_text = get_schema_type_text(param_schema, ParameterDisplayStyle::Arg);
-
-        if *optional {
-
-            if options.len() > 0 { options.push('\n'); }
-            options.push_str(&get_property_description(prop, param_schema, ParameterDisplayStyle::Arg, format));
-
-        } else {
-            args.push_str(" --"); args.push_str(prop);
-            args.push(' ');
-            args.push_str(&type_text);
-        }
-
-        done_hash.insert(prop);
-    }
-
-    let option_indicator = if options.len() > 0 { " [OPTIONS]" } else { "" };
-
-    let mut text = match format {
-        DocumentationFormat::Short => {
-            return format!("{}{}{}{}\n\n", indent, prefix, args, option_indicator);
-        }
-        DocumentationFormat::Long => {
-            format!("{}{}{}{}\n\n", indent, prefix, args, option_indicator)
-        }
-        DocumentationFormat::Full => {
-            format!("{}{}{}{}\n\n{}\n\n", indent, prefix, args, option_indicator, schema.description)
-        }
-        DocumentationFormat::ReST => {
-            format!("``{}{}{}``\n\n{}\n\n", prefix, args, option_indicator, schema.description)
-        }
-    };
-
-    if arg_descr.len() > 0 {
-        text.push_str(&arg_descr);
-        text.push('\n');
-    }
-    if options.len() > 0 {
-        text.push_str(&options);
-        text.push('\n');
-    }
-    text
-}
-
-fn print_simple_usage_error(prefix: &str, cli_cmd: &CliCommand, err: Error) {
-
-    let usage =  generate_usage_str(prefix, cli_cmd, DocumentationFormat::Long, "");
-    eprint!("Error: {}\nUsage: {}", err, usage);
-}
-
-pub fn print_help(
-    top_def: &CommandLineInterface,
-    mut prefix: String,
-    args: &Vec<String>,
-    verbose: Option<bool>,
-) {
-    let mut iface = top_def;
-
-    for cmd in args {
-        if let CommandLineInterface::Nested(map) = iface {
-            if let Some(subcmd) = find_command(map, cmd) {
-                iface = subcmd;
-                prefix.push(' ');
-                prefix.push_str(cmd);
-                continue;
-            }
-        }
-        eprintln!("no such command '{}'", cmd);
-        std::process::exit(-1);
-    }
-
-    let format = match verbose.unwrap_or(false) {
-        true => DocumentationFormat::Full,
-        false => DocumentationFormat::Short,
-    };
-
-    match iface {
-        CommandLineInterface::Nested(map) => {
-            println!("Usage:\n\n{}", generate_nested_usage(&prefix, map, format));
-        }
-        CommandLineInterface::Simple(cli_cmd) => {
-            println!("Usage: {}", generate_usage_str(&prefix, cli_cmd, format, ""));
-        }
-    }
-}
 
 fn handle_simple_command(
     _top_def: &CommandLineInterface,
@@ -210,61 +65,6 @@ fn handle_simple_command(
     }    
 }
 
-fn find_command<'a>(def: &'a CliCommandMap, name: &str) -> Option<&'a CommandLineInterface> {
-
-    if let Some(sub_cmd) = def.commands.get(name) {
-        return Some(sub_cmd);
-    };
-
-    let mut matches: Vec<&str> = vec![];
-
-    for cmd in def.commands.keys() {
-        if cmd.starts_with(name) {
-             matches.push(cmd); }
-    }
-
-    if matches.len() != 1 { return None; }
-
-    if let Some(sub_cmd) = def.commands.get(matches[0]) {
-        return Some(sub_cmd);
-    };
-
-    None
-}
-
-fn print_nested_usage_error(prefix: &str, def: &CliCommandMap, err: Error) {
-
-    let usage = generate_nested_usage(prefix, def, DocumentationFormat::Short);
-
-    eprintln!("Error: {}\n\nUsage:\n\n{}", err, usage);
-}
-
-fn generate_nested_usage(prefix: &str, def: &CliCommandMap, format: DocumentationFormat) -> String {
-
-    let mut cmds: Vec<&String> = def.commands.keys().collect();
-    cmds.sort();
-
-    let mut usage = String::new();
-
-    for cmd in cmds {
-        let new_prefix = format!("{} {}", prefix, cmd);
-
-        match def.commands.get(cmd).unwrap() {
-            CommandLineInterface::Simple(cli_cmd) => {
-                if usage.len() > 0 && format == DocumentationFormat::ReST {
-                    usage.push_str("----\n\n");
-                }
-                usage.push_str(&generate_usage_str(&new_prefix, cli_cmd, format, ""));
-            }
-            CommandLineInterface::Nested(map) => {
-                usage.push_str(&generate_nested_usage(&new_prefix, map, format));
-            }
-        }
-    }
-
-    usage
-}
-
 fn handle_nested_command(
     top_def: &CommandLineInterface,
     prefix: &str,
@@ -289,7 +89,7 @@ fn handle_nested_command(
 
     let command = args.remove(0);
 
-    let sub_cmd = match find_command(def, &command) {
+    let sub_cmd = match def.find_command(&command) {
         Some(cmd) => cmd,
         None => {
             let err = format_err!("no such command '{}'", command);
@@ -572,70 +372,3 @@ pub fn run_cli_command(def: CommandLineInterface) {
     };
 }
 
-pub type CompletionFunction = fn(&str, &HashMap<String, String>) -> Vec<String>;
-
-pub struct CliCommand {
-    pub info: &'static ApiMethod,
-    pub arg_param: &'static [&'static str],
-    pub fixed_param: HashMap<&'static str, String>,
-    pub completion_functions: HashMap<String, CompletionFunction>,
-}
-
-impl CliCommand {
-
-    pub fn new(info: &'static ApiMethod) -> Self {
-        Self {
-            info, arg_param: &[],
-            fixed_param: HashMap::new(),
-            completion_functions: HashMap::new(),
-        }
-    }
-
-    pub fn arg_param(mut self, names: &'static [&'static str]) -> Self {
-        self.arg_param = names;
-        self
-    }
-
-    pub fn fixed_param(mut self, key: &'static str, value: String) -> Self {
-        self.fixed_param.insert(key, value);
-        self
-    }
-
-    pub fn completion_cb(mut self, param_name: &str, cb:  CompletionFunction) -> Self {
-        self.completion_functions.insert(param_name.into(), cb);
-        self
-    }
-}
-
-pub struct CliCommandMap {
-    pub commands: HashMap<String, CommandLineInterface>,
-}
-
-impl CliCommandMap {
-
-    pub fn new() -> Self {
-        Self { commands: HashMap:: new() }
-    }
-
-    pub fn insert<S: Into<String>>(mut self, name: S, cli: CommandLineInterface) -> Self {
-        self.commands.insert(name.into(), cli);
-        self
-    }
-}
-
-pub enum CommandLineInterface {
-    Simple(CliCommand),
-    Nested(CliCommandMap),
-}
-
-impl From<CliCommand> for CommandLineInterface {
-    fn from(cli_cmd: CliCommand) -> Self {
-         CommandLineInterface::Simple(cli_cmd)
-    }
-}
-
-impl From<CliCommandMap> for CommandLineInterface {
-    fn from(list: CliCommandMap) -> Self {
-        CommandLineInterface::Nested(list)
-    }
-}
