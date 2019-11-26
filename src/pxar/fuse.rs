@@ -90,6 +90,73 @@ struct Context {
     ino_offset: Offset,
 }
 
+impl Context {
+    /// Update the goodbye table to the one corresponding to the i-node offset, both
+    /// given in the `Context`.
+    fn update_goodbye_cache(&mut self) -> Result<(), i32> {
+        if let Some((off, _)) = self.goodbye_cache {
+            if off == self.ino_offset {
+                // Cache contains already the correct goodbye table
+                return Ok(());
+            }
+        }
+        // Inode did not match or cache is empty, need to update the cache
+        let gbt = self.decoder
+            .goodbye_table(None, self.ino_offset + GOODBYE_ITEM_SIZE)
+            .map_err(|_| libc::EIO)?;
+        self.goodbye_cache = Some((self.ino_offset, gbt));
+
+        Ok(())
+    }
+
+    /// Lookup the goodbye item identified by `filename` and its corresponding `hash`
+    ///
+    /// Updates the goodbye table cache to contain the table for the directory given
+    /// by the i-node in the provided `Context`.
+    /// Search the first matching `hash` in the goodbye table, allowing for a fast
+    /// comparison with the items.
+    /// As there could be a hash collision, the found items filename is then compared
+    /// by seek to the corresponding item in the archive and reading its attributes
+    /// (which the lookup callback needs to do anyway).
+    /// If the filename does not match, the function is called recursively with the
+    /// rest of the goodbye table to lookup the next match.
+    /// The matching items archive offset, entry and payload size are returned.
+    /// If there is no entry with matching `filename` and `hash` a `libc::ENOENT` is
+    /// returned.
+    fn find_goodbye_entry(
+        &mut self,
+        filename: &CStr,
+        hash: u64,
+    ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
+        self.update_goodbye_cache()?;
+        if let Some((_, gbt)) = &self.goodbye_cache {
+            let mut iterator = gbt.iter();
+            loop {
+                // Search for the next goodbye entry with matching hash.
+                let (_item, start, end) = iterator.find(|(i, _, _)| i.hash == hash)
+                    .ok_or(libc::ENOENT)?;
+
+                // At this point it is not clear if the item is a directory or not, this
+                // has to be decided based on the entry mode.
+                // `Decoder`s attributes function accepts both, offsets pointing to
+                // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
+                // of directories, so the use of start offset is fine for both cases.
+                let (entry_name, entry, attr, payload_size) =
+                    self.decoder.attributes(*start).map_err(|_| libc::EIO)?;
+
+                // Possible hash collision, need to check if the found entry is indeed
+                // the filename to lookup.
+                if entry_name.as_bytes() == filename.to_bytes() {
+                    let child_offset = find_offset(&entry, *start, *end);
+                    return Ok((child_offset, entry, attr, payload_size));
+                }
+            }
+        }
+
+        Err(libc::ENOENT)
+    }
+}
+
 /// `Session` stores a pointer to the session context and is used to mount the
 /// archive to the given mountpoint.
 pub struct Session {
@@ -352,7 +419,7 @@ impl Session  {
         Self::run_in_context(req, parent, |mut ctx| {
             // find_ goodbye_entry() will also update the goodbye cache
             let (child_offset, entry, attr, payload_size) =
-                find_goodbye_entry(&mut ctx, &filename, hash)?;
+                ctx.find_goodbye_entry(&filename, hash)?;
             ctx.attr_cache = Some((child_offset, attr));
             let child_inode = calculate_inode(child_offset, ctx.decoder.root_end_offset());
 
@@ -463,8 +530,8 @@ impl Session  {
     extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         let offset = offset as usize;
 
-        Self::run_in_context(req, inode, |mut ctx| {
-            update_goodbye_cache(&mut ctx)?;
+        Self::run_in_context(req, inode, |ctx| {
+            ctx.update_goodbye_cache()?;
             let gb_table = &ctx.goodbye_cache.as_ref().unwrap().1;
             let n_entries = gb_table.len();
             let mut buf = ReplyBuf::new(req, size, offset);
@@ -573,72 +640,6 @@ struct EntryParam {
     attr_timeout: f64,
     entry_timeout: f64,
 }
-
-/// Update the goodbye table to the one corresponding to the i-node offset, both
-/// given in the `Context`.
-fn update_goodbye_cache(mut ctx: &mut Context) -> Result<(), i32> {
-    if let Some((off, _)) = &ctx.goodbye_cache {
-        if *off == ctx.ino_offset {
-            // Cache contains already the correct goodbye table
-            return Ok(());
-        }
-    }
-    // Inode did not match or cache is empty, need to update the cache
-    let gbt = ctx.decoder
-        .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
-        .map_err(|_| libc::EIO)?;
-    ctx.goodbye_cache = Some((ctx.ino_offset, gbt));
-
-    Ok(())
-}
-
-/// Lookup the goodbye item identified by `filename` and its corresponding `hash`
-///
-/// Updates the goodbye table cache to contain the table for the directory given
-/// by the i-node in the provided `Context`.
-/// Search the first matching `hash` in the goodbye table, allowing for a fast
-/// comparison with the items.
-/// As there could be a hash collision, the found items filename is then compared
-/// by seek to the corresponding item in the archive and reading its attributes
-/// (which the lookup callback needs to do anyway).
-/// If the filename does not match, the function is called recursively with the
-/// rest of the goodbye table to lookup the next match.
-/// The matching items archive offset, entry and payload size are returned.
-/// If there is no entry with matching `filename` and `hash` a `libc::ENOENT` is
-/// returned.
-fn find_goodbye_entry(
-    mut ctx: &mut Context,
-    filename: &CStr,
-    hash: u64,
-) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
-    update_goodbye_cache(&mut ctx)?;
-    if let Some((_, gbt)) = &ctx.goodbye_cache {
-        let mut iterator = gbt.iter();
-        loop {
-            // Search for the next goodbye entry with matching hash.
-            let (_item, start, end) = iterator.find(|(i, _, _)| i.hash == hash)
-                .ok_or(libc::ENOENT)?;
-
-            // At this point it is not clear if the item is a directory or not, this
-            // has to be decided based on the entry mode.
-            // `Decoder`s attributes function accepts both, offsets pointing to
-            // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
-            // of directories, so the use of start offset is fine for both cases.
-            let (entry_name, entry, attr, payload_size) =
-                ctx.decoder.attributes(*start).map_err(|_| libc::EIO)?;
-
-            // Possible hash collision, need to check if the found entry is indeed
-            // the filename to lookup.
-            if entry_name.as_bytes() == filename.to_bytes() {
-                let child_offset = find_offset(&entry, *start, *end);
-                return Ok((child_offset, entry, attr, payload_size));
-            }
-        }
-    }
-
-    Err(libc::ENOENT)
-}
-
 
 /// Create a `libc::stat` with the provided i-node, entry and payload size
 fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, i32> {
