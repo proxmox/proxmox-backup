@@ -431,6 +431,9 @@ impl Shell {
     }
 
     fn print_list(list: &Vec<DirEntry>) -> Result<(), std::io::Error> {
+        if list.is_empty() {
+            return Ok(());
+        }
         let max = list
             .iter()
             .max_by(|x, y| x.name.len().cmp(&y.name.len()));
