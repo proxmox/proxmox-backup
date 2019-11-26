@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString, OsStr};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
@@ -10,10 +10,305 @@ use libc;
 use crate::pxar::*;
 
 use super::catalog::{CatalogReader, DirEntry};
-use super::readline::{Readline, Context};
+use super::readline::{Context, Readline};
+
+const PROMPT_PREFIX: &str = "pxar:";
+const PROMPT_POST: &str = " > ";
+
+/// Interactive shell for interacton with the catalog.
+pub struct Shell {
+    /// Actual shell instance with context.
+    sh: ShellInstance,
+    /// Map containing all the defined commands.
+    cmds: ShellCmdMap,
+}
+
+impl Shell {
+    /// Create a new shell for the given catalog and pxar archive.
+    pub fn new(
+        catalog: CatalogReader<std::fs::File>,
+        archive_name: &str,
+        decoder: Decoder,
+    ) -> Result<Self, Error> {
+        const OPTIONAL: bool = true;
+        const REQUIRED: bool = false;
+
+        Ok(Self {
+            sh: ShellInstance::new(catalog, archive_name, decoder)?,
+            // This list defines all the commands for the shell including their
+            // parameters, options and help description.
+            cmds: ShellCmdMap::new()
+                .insert(ShellCmd::new(
+                    "pwd",
+                    "List the current working directory.",
+                    ShellInstance::pwd,
+                ))
+                .insert(ShellCmd::new(
+                    "ls",
+                    "List contents of directory.",
+                    ShellInstance::list,
+                ).parameter("path", OPTIONAL))
+                .insert(ShellCmd::new(
+                    "cd",
+                    "Change current working directory.",
+                    ShellInstance::change_dir,
+                ).parameter("path", OPTIONAL))
+                .insert(ShellCmd::new(
+                    "stat",
+                    "Show the status of a file or directory.",
+                    ShellInstance::stat,
+                ).parameter("path", REQUIRED))
+                .insert(ShellCmd::new(
+                    "restore",
+                    "Restore archive to target (restores only matching entries if match-pattern is provided)",
+                    ShellInstance::restore,
+                ).option("match", Some("match-pattern")).parameter("target", REQUIRED))
+                .insert(ShellCmd::new(
+                        "select",
+                        "Add a file/directory to the list of entries selected for restore.",
+                        ShellInstance::select,
+                ).parameter("path", REQUIRED))
+                .insert(ShellCmd::new(
+                    "selected",
+                    "Show the list of entries currently selected for restore.",
+                    ShellInstance::list_selected,
+                ))
+                .insert(ShellCmd::new(
+                    "deselect",
+                    "Remove a file/directory from the list of entries selected for restore.",
+                    ShellInstance::deselect,
+                ).parameter("path", REQUIRED))
+                .insert(ShellCmd::new(
+                    "restore-selected",
+                    "Restore the file/directory on the list of entries selected for restore.",
+                    ShellInstance::restore_selected,
+                ).parameter("target", REQUIRED))
+                .insert(ShellCmd::new(
+                    "help",
+                    "Show all commands or the help for the provided command",
+                    ShellInstance::help,
+                ).parameter("command", OPTIONAL))
+        })
+    }
+
+    /// Start the interactive shell loop
+    pub fn shell(mut self) -> Result<(), Error> {
+        while let Some(line) = self.sh.rl.readline() {
+            let (cmd, args) = match self.cmds.parse(&line) {
+                Ok(res) => res,
+                Err(err) => {
+                    println!("error: {}", err);
+                    continue;
+                }
+            };
+            // Help is treated a bit separate as we need the full command list,
+            // which would not be accessible in the callback.
+            if cmd.command == "help" {
+                match args.get_param("command") {
+                    Some(name) => match self.cmds.cmds.get(name) {
+                        Some(cmd) => println!("{}", cmd.help()),
+                        None => println!("no help for command"),
+                    },
+                    None => self.cmds.list_commands(),
+                }
+            }
+            match (cmd.callback)(&mut self.sh, args) {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("error: {}", err);
+                    continue;
+                }
+            };
+        }
+        Ok(())
+    }
+}
+
+/// Stores the command definitions for the known commands.
+struct ShellCmdMap {
+    cmds: HashMap<&'static [u8], ShellCmd>,
+}
+
+impl ShellCmdMap {
+    fn new() -> Self {
+        Self {
+            cmds: HashMap::new(),
+        }
+    }
+
+    /// Insert a new `ShellCmd` into the `ShellCmdMap`
+    fn insert(mut self, cmd: ShellCmd) -> Self {
+        self.cmds.insert(cmd.command.as_bytes(), cmd);
+        self
+    }
+
+    /// List all known commands with their help text.
+    fn list_commands(&self) {
+        println!("");
+        for cmd in &self.cmds {
+            println!("{}\n", cmd.1.help());
+        }
+    }
+
+    /// Parse the given line and interprete it based on the known commands in
+    /// this `ShellCmdMap` instance.
+    fn parse<'a>(&'a self, line: &'a [u8]) -> Result<(&'a ShellCmd, Args), Error> {
+        // readline already handles tabs, so here we only split on spaces
+        let args: Vec<&[u8]> = line
+            .split(|b| *b == b' ')
+            .filter(|word| !word.is_empty())
+            .collect();
+        let mut args = args.iter();
+        let arg0 = args
+            .next()
+            .ok_or_else(|| format_err!("no command provided"))?;
+        let cmd = self
+            .cmds
+            .get(arg0)
+            .ok_or_else(|| format_err!("invalid command"))?;
+        let mut given = Args {
+            options: HashMap::new(),
+            parameters: HashMap::new(),
+        };
+        let mut required = cmd.required_parameters.iter();
+        let mut optional = cmd.optional_parameters.iter();
+        while let Some(arg) = args.next() {
+            if arg.starts_with(b"--") {
+                let opt = cmd
+                    .options
+                    .iter()
+                    .find(|opt| opt.0.as_bytes() == &arg[2..arg.len()]);
+                if let Some(opt) = opt {
+                    if opt.1.is_some() {
+                        // Expect a parameter for the given option
+                        let opt_param = args.next().ok_or_else(|| {
+                            format_err!("expected parameter for option {}", opt.0)
+                        })?;
+                        given.options.insert(opt.0, Some(opt_param));
+                    } else {
+                        given.options.insert(opt.0, None);
+                    }
+                } else {
+                    bail!("invalid option");
+                }
+            } else {
+                if let Some(name) = required.next() {
+                    // First fill all required parameters
+                    given.parameters.insert(name, arg);
+                } else if let Some(name) = optional.next() {
+                    // Now fill all optional parameters
+                    given.parameters.insert(name, arg);
+                } else {
+                    bail!("to many arguments");
+                }
+            }
+        }
+        // Check that we have got all required parameters
+        if required.next().is_some() {
+            bail!("not all required parameters provided");
+        }
+        Ok((cmd, given))
+    }
+}
+
+/// Interpreted CLI arguments, stores parameters and options.
+struct Args<'a> {
+    parameters: HashMap<&'static str, &'a [u8]>,
+    options: HashMap<&'static str, Option<&'a [u8]>>,
+}
+
+impl<'a> Args<'a> {
+    /// Get a reference to the parameter give by name if present
+    fn get_param(&self, name: &str) -> Option<&&'a [u8]> {
+        self.parameters.get(name)
+    }
+
+    /// Get a reference to the option give by name if present
+    fn get_opt(&self, name: &str) -> Option<&Option<&'a [u8]>> {
+        self.options.get(name)
+    }
+}
+
+/// Definition of a shell command with its name, callback, description and
+/// argument definition.
+struct ShellCmd {
+    command: &'static str,
+    callback: fn(&mut ShellInstance, Args) -> Result<(), Error>,
+    description: &'static str,
+    options: Vec<(&'static str, Option<&'static str>)>,
+    required_parameters: Vec<&'static str>,
+    optional_parameters: Vec<&'static str>,
+}
+
+impl ShellCmd {
+    /// Define a new `ShellCmd` with given command name, description and callback function.
+    fn new(
+        command: &'static str,
+        description: &'static str,
+        callback: fn(&mut ShellInstance, Args) -> Result<(), Error>,
+    ) -> Self {
+        Self {
+            command,
+            callback,
+            description,
+            options: Vec::new(),
+            required_parameters: Vec::new(),
+            optional_parameters: Vec::new(),
+        }
+    }
+
+    /// Add additional named parameter `parameter` to command definition.
+    ///
+    /// The optional flag indicates if this parameter is required or optional.
+    fn parameter(mut self, parameter: &'static str, optional: bool) -> Self {
+        if optional {
+            self.optional_parameters.push(parameter);
+        } else {
+            self.required_parameters.push(parameter);
+        }
+        self
+    }
+
+    /// Add additional named option `option` to command definition.
+    ///
+    /// The Option `parameter` indicates if this option has an additional parameter or not.
+    fn option(mut self, option: &'static str, parameter: Option<&'static str>) -> Self {
+        self.options.push((option, parameter));
+        self
+    }
+
+    /// Create the help String for this command
+    fn help(&self) -> String {
+        let mut help = String::new();
+        help.push_str(self.command);
+        help.push_str("\n  Usage:\t");
+        help.push_str(self.command);
+        for opt in &self.options {
+            help.push_str(" [--");
+            help.push_str(opt.0);
+            if let Some(opt_param) = opt.1 {
+                help.push(' ');
+                help.push_str(opt_param);
+            }
+            help.push(']');
+        }
+        for par in &self.required_parameters {
+            help.push(' ');
+            help.push_str(par);
+        }
+        for par in &self.optional_parameters {
+            help.push_str(" [");
+            help.push_str(par);
+            help.push(']');
+        }
+        help.push_str("\n  Description:\t");
+        help.push_str(self.description);
+        help
+    }
+}
 
 /// State of the shell instance
-pub struct Shell {
+struct ShellInstance {
     /// Readline context
     rl: Readline,
     /// List of paths selected for a restore
@@ -24,37 +319,8 @@ pub struct Shell {
     root: Vec<DirEntry>,
 }
 
-/// All supported commands of the shell
-enum Command<'a> {
-    /// List the content of the current dir or in path, if provided
-    List(&'a [u8]),
-    /// Stat of the provided path
-    Stat(&'a [u8]),
-    /// Select the given entry for a restore
-    Select(&'a [u8]),
-    /// Remove the entry from the list of entries to restore
-    Deselect(&'a [u8]),
-    /// Restore an archive to the provided target, can be limited to files
-    /// matching the provided match pattern
-    Restore(&'a [u8], &'a [u8]),
-    /// Restore the selected entries to the provided target
-    RestoreSelected(&'a [u8]),
-    /// List the entries currently selected for restore
-    ListSelected,
-    /// Change the current working directory
-    ChangeDir(&'a [u8]),
-    /// Print the working directory
-    PrintWorkingDir,
-    /// Terminate the shell loop, returns from the shell
-    Quit,
-    /// Empty line from readline
-    Empty,
-}
-
-const PROMPT_PREFIX: &str = "pxar:";
-const PROMPT_POST: &str = " > ";
-
-impl Shell {
+impl ShellInstance {
+    /// Create a new `ShellInstance` for the given catalog and archive.
     pub fn new(
         mut catalog: CatalogReader<std::fs::File>,
         archive_name: &str,
@@ -64,6 +330,7 @@ impl Shell {
         // The root for the given archive as stored in the catalog
         let archive_root = catalog.lookup(&catalog_root, archive_name.as_bytes())?;
         let root = vec![archive_root];
+
         Ok(Self {
             rl: Readline::new(
                 Self::generate_prompt(b"/"),
@@ -77,111 +344,14 @@ impl Shell {
         })
     }
 
+    /// Generate the CString to display by readline based on the
+    /// PROMPT_PREFIX, PROMPT_POST and the given byte slice.
     fn generate_prompt(path: &[u8]) -> CString {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(PROMPT_PREFIX.as_bytes());
         buffer.extend_from_slice(path);
         buffer.extend_from_slice(PROMPT_POST.as_bytes());
         unsafe { CString::from_vec_unchecked(buffer) }
-    }
-
-    /// Start the interactive shell loop
-    pub fn shell(mut self) -> Result<(), Error> {
-        while let Some(line) = self.rl.readline() {
-            let res = match self.parse_command(&line) {
-                Ok(Command::List(path)) => self.list(path).and_then(|list| {
-                    Self::print_list(&list).map_err(|err| format_err!("{}", err))?;
-                    Ok(())
-                }),
-                Ok(Command::ChangeDir(path)) => self.change_dir(path),
-                Ok(Command::Restore(target, pattern)) => self.restore(target, pattern),
-                Ok(Command::Select(path)) => self.select(path),
-                Ok(Command::Deselect(path)) => self.deselect(path),
-                Ok(Command::RestoreSelected(target)) => self.restore_selected(target),
-                Ok(Command::Stat(path)) => self.stat(&path).and_then(|(item, attr, size)| {
-                    Self::print_stat(&item, &attr, size)?;
-                    Ok(())
-                }),
-                Ok(Command::ListSelected) => {
-                    self.list_selected().map_err(|err| format_err!("{}", err))
-                }
-                Ok(Command::PrintWorkingDir) => self.pwd().and_then(|pwd| {
-                    Self::print_pwd(&pwd).map_err(|err| format_err!("{}", err))?;
-                    Ok(())
-                }),
-                Ok(Command::Quit) => break,
-                Ok(Command::Empty) => continue,
-                Err(err) => Err(err),
-            };
-            if let Err(err) = res {
-                println!("error: {}", err);
-            }
-        }
-        Ok(())
-    }
-
-    /// Command parser mapping the line returned by readline to a command.
-    fn parse_command<'a>(&self, line: &'a [u8]) -> Result<Command<'a>, Error> {
-        // readline already handles tabs, so here we only split on spaces
-        let args: Vec<&[u8]> = line
-            .split(|b| *b == b' ')
-            .filter(|word| !word.is_empty())
-            .collect();
-
-        if args.is_empty() {
-            return Ok(Command::Empty);
-        }
-
-        match args[0] {
-            b"quit" => Ok(Command::Quit),
-            b"exit" => Ok(Command::Quit),
-            b"ls" => match args.len() {
-                1 => Ok(Command::List(&[])),
-                2 => Ok(Command::List(args[1])),
-                _ => bail!("To many parameters!"),
-            },
-            b"pwd" => Ok(Command::PrintWorkingDir),
-            b"restore" => match args.len() {
-                1 => bail!("no target provided"),
-                2 => Ok(Command::Restore(args[1], &[])),
-                4 => if args[2] == b"-p" {
-                    Ok(Command::Restore(args[1], args[3]))
-                } else {
-                    bail!("invalid parameter")
-                }
-                _ => bail!("to many parameters"),
-            },
-            b"cd" => match args.len() {
-                1 => Ok(Command::ChangeDir(&[])),
-                2 => Ok(Command::ChangeDir(args[1])),
-                _ => bail!("to many parameters"),
-            },
-            b"stat" => match args.len() {
-                1 => bail!("no path provided"),
-                2 => Ok(Command::Stat(args[1])),
-                _ => bail!("to many parameters"),
-            },
-            b"select" => match args.len() {
-                1 => bail!("no path provided"),
-                2 => Ok(Command::Select(args[1])),
-                _ => bail!("to many parameters"),
-            },
-            b"deselect" => match args.len() {
-                1 => bail!("no path provided"),
-                2 => Ok(Command::Deselect(args[1])),
-                _ => bail!("to many parameters"),
-            },
-            b"selected" => match args.len() {
-                1 => Ok(Command::ListSelected),
-                _ => bail!("to many parameters"),
-            },
-            b"restore-selected" => match args.len() {
-                1 => bail!("no path provided"),
-                2 => Ok(Command::RestoreSelected(args[1])),
-                _ => bail!("to many parameters"),
-            },
-            _ => bail!("command not known"),
-        }
     }
 
     /// Get a mut ref to the context in order to be able to access the
@@ -191,7 +361,11 @@ impl Shell {
     }
 
     /// Change the current working directory to the new directory
-    fn change_dir(&mut self, path: &[u8]) -> Result<(), Error> {
+    fn change_dir(&mut self, args: Args) -> Result<(), Error> {
+        let path = match args.get_param("path") {
+            Some(path) => *path,
+            None => &[],
+        };
         let mut path = self.canonical_path(path)?;
         if !path
             .last()
@@ -204,7 +378,8 @@ impl Shell {
         }
         self.context().current = path;
         // Update the directory displayed in the prompt
-        let prompt = Self::generate_prompt(self.pwd()?.as_slice());
+        let prompt =
+            Self::generate_prompt(Self::to_path(&self.context().current.clone())?.as_slice());
         self.rl.update_prompt(prompt);
         Ok(())
     }
@@ -213,8 +388,9 @@ impl Shell {
     ///
     /// Executed on files it returns the DirEntry of the file as single element
     /// in the list.
-    fn list(&mut self, path: &[u8]) -> Result<Vec<DirEntry>, Error> {
-        let parent = if !path.is_empty() {
+    fn list(&mut self, args: Args) -> Result<(), Error> {
+        let parent = if let Some(path) = args.get_param("path") {
+            // !path.is_empty() {
             self.canonical_path(path)?
                 .last()
                 .ok_or_else(|| format_err!("invalid path component"))?
@@ -228,12 +404,13 @@ impl Shell {
         } else {
             vec![parent]
         };
-        Ok(list)
+        Self::print_list(&list).map_err(|err| format_err!("{}", err))
     }
 
-    /// Return the current working directory as string
-    fn pwd(&mut self) -> Result<Vec<u8>, Error> {
-        Self::to_path(&self.context().current.clone())
+    /// Print the current working directory
+    fn pwd(&mut self, _args: Args) -> Result<(), Error> {
+        let pwd = Self::to_path(&self.context().current.clone())?;
+        Self::print_slice(&pwd).map_err(|err| format_err!("{}", err))
     }
 
     /// Generate an absolute path from a directory stack.
@@ -291,14 +468,19 @@ impl Shell {
                     }
                 }
                 _ => {
-                    let entry = self.context().catalog.lookup(dir_stack.last().unwrap(), name)?;
+                    let entry = self
+                        .context()
+                        .catalog
+                        .lookup(dir_stack.last().unwrap(), name)?;
                     dir_stack.push(entry);
                 }
             }
         }
-        if should_end_dir && !dir_stack.last()
-            .ok_or_else(|| format_err!("invalid path component"))?
-            .is_directory()
+        if should_end_dir
+            && !dir_stack
+                .last()
+                .ok_or_else(|| format_err!("invalid path component"))?
+                .is_directory()
         {
             bail!("entry is not a directory");
         }
@@ -310,13 +492,17 @@ impl Shell {
     ///
     /// This is expensive because the data has to be read from the pxar `Decoder`,
     /// which means reading over the network.
-    fn stat(&mut self, path: &[u8]) -> Result<(DirectoryEntry, PxarAttributes, u64), Error> {
+    fn stat(&mut self, args: Args) -> Result<(), Error> {
+        let path = args
+            .get_param("path")
+            .ok_or_else(|| format_err!("no path provided"))?;
         // First check if the file exists in the catalog, therefore avoiding
         // expensive calls to the decoder just to find out that there could be no
         // such entry. This is done by calling canonical_path(), which returns
         // the full path if it exists, error otherwise.
         let path = self.canonical_path(path)?;
-        self.lookup(&path)
+        let (entry, attr, size) = self.lookup(&path)?;
+        Self::print_stat(&entry, &attr, size).map_err(|err| format_err!("{}", err))
     }
 
     /// Look up the entry given by a canonical absolute `path` in the archive.
@@ -331,7 +517,10 @@ impl Shell {
         let (_, _, mut attr, mut size) = self.decoder.attributes(0)?;
         // Ignore the archive root, don't need it.
         for item in absolute_path.iter().skip(1) {
-            match self.decoder.lookup(&current, &OsStr::from_bytes(&item.name))? {
+            match self
+                .decoder
+                .lookup(&current, &OsStr::from_bytes(&item.name))?
+            {
                 Some((item, item_attr, item_size)) => {
                     current = item;
                     attr = item_attr;
@@ -348,7 +537,10 @@ impl Shell {
     ///
     /// This will return an error if the entry is already present in the list or
     /// if an invalid path was provided.
-    fn select(&mut self, path: &[u8]) -> Result<(), Error> {
+    fn select(&mut self, args: Args) -> Result<(), Error> {
+        let path = args
+            .get_param("path")
+            .ok_or_else(|| format_err!("no path provided"))?;
         // Calling canonical_path() makes sure the provided path is valid and
         // actually contained within the catalog and therefore also the archive.
         let path = self.canonical_path(path)?;
@@ -363,8 +555,11 @@ impl Shell {
     ///
     /// This will return an error if the entry was not found in the list of entries
     /// selected for restore.
-    fn deselect(&mut self, path: &[u8]) -> Result<(), Error> {
-        if self.selected.remove(path) {
+    fn deselect(&mut self, args: Args) -> Result<(), Error> {
+        let path = args
+            .get_param("path")
+            .ok_or_else(|| format_err!("no path provided"))?;
+        if self.selected.remove(*path) {
             Ok(())
         } else {
             bail!("entry not selected for restore")
@@ -374,7 +569,10 @@ impl Shell {
     /// Restore the selected entries to the given target path.
     ///
     /// Target must not exist on the clients filesystem.
-    fn restore_selected(&mut self, target: &[u8]) -> Result<(), Error> {
+    fn restore_selected(&mut self, args: Args) -> Result<(), Error> {
+        let target = args
+            .get_param("target")
+            .ok_or_else(|| format_err!("no target provided"))?;
         let mut list = Vec::new();
         for path in &self.selected {
             let pattern = MatchPattern::from_line(path)?
@@ -389,18 +587,20 @@ impl Shell {
         // patterns are relative to root as well.
         let start_dir = self.decoder.root()?;
         let target: &OsStr = OsStrExt::from_bytes(target);
-        self.decoder.restore(&start_dir, &Path::new(target), &list)?;
+        self.decoder
+            .restore(&start_dir, &Path::new(target), &list)?;
         Ok(())
     }
 
     /// List entries currently selected for restore.
-    fn list_selected(&self) -> Result<(), std::io::Error> {
+    fn list_selected(&mut self, _args: Args) -> Result<(), Error> {
         let mut out = std::io::stdout();
         for entry in &self.selected {
-            out.write_all(entry)?;
-            out.write_all(&[b'\n'])?;
+            out.write_all(entry).map_err(|err| format_err!("{}", err))?;
+            out.write_all(&[b'\n'])
+                .map_err(|err| format_err!("{}", err))?;
         }
-        out.flush()?;
+        out.flush().map_err(|err| format_err!("{}", err))?;
         Ok(())
     }
 
@@ -409,7 +609,9 @@ impl Shell {
     /// By further providing a pattern, the restore can be limited to a narrower
     /// subset of this sub-archive.
     /// If pattern is an empty slice, the full dir is restored.
-    fn restore(&mut self, target: &[u8], pattern: &[u8]) -> Result<(), Error> {
+    fn restore(&mut self, args: Args) -> Result<(), Error> {
+        let target = args.get_param("target").unwrap();
+        let pattern = args.get_opt("pattern").unwrap().unwrap_or(&[]);
         let match_pattern = match pattern {
             b"" | b"/" | b"." => Vec::new(),
             _ => vec![MatchPattern::from_line(pattern)?.unwrap()],
@@ -426,17 +628,24 @@ impl Shell {
         };
 
         let target: &OsStr = OsStrExt::from_bytes(target);
-        self.decoder.restore(&start_dir, &Path::new(target), &match_pattern)?;
+        self.decoder
+            .restore(&start_dir, &Path::new(target), &match_pattern)?;
         Ok(())
     }
 
+    /// Dummy callback for the help command.
+    fn help(&mut self, _args: Args) -> Result<(), Error> {
+        // this is a dummy, the actual help is handled before calling the callback
+        // as the full set of available commands is needed.
+        Ok(())
+    }
+
+    /// Print the list of `DirEntry`s to stdout.
     fn print_list(list: &Vec<DirEntry>) -> Result<(), std::io::Error> {
         if list.is_empty() {
             return Ok(());
         }
-        let max = list
-            .iter()
-            .max_by(|x, y| x.name.len().cmp(&y.name.len()));
+        let max = list.iter().max_by(|x, y| x.name.len().cmp(&y.name.len()));
         let max = match max {
             Some(dir_entry) => dir_entry.name.len() + 1,
             None => 0,
@@ -449,7 +658,7 @@ impl Shell {
             out.write_all(&item.name)?;
             // Fill with whitespaces
             out.write_all(&vec![b' '; max - item.name.len()])?;
-            if index % cols == (cols - 1)  {
+            if index % cols == (cols - 1) {
                 out.write_all(&[b'\n'])?;
             }
         }
@@ -461,15 +670,21 @@ impl Shell {
         Ok(())
     }
 
-    fn print_pwd(pwd: &[u8]) -> Result<(), std::io::Error> {
+    /// Print the given byte slice to stdout.
+    fn print_slice(slice: &[u8]) -> Result<(), std::io::Error> {
         let mut out = std::io::stdout();
-        out.write_all(pwd)?;
+        out.write_all(slice)?;
         out.write_all(&[b'\n'])?;
         out.flush()?;
         Ok(())
     }
 
-    fn print_stat(item: &DirectoryEntry, _attr: &PxarAttributes, size: u64) -> Result<(), std::io::Error> {
+    /// Print the stats of `DirEntry` item to stdout.
+    fn print_stat(
+        item: &DirectoryEntry,
+        _attr: &PxarAttributes,
+        size: u64,
+    ) -> Result<(), std::io::Error> {
         let mut out = std::io::stdout();
         out.write_all("File: ".as_bytes())?;
         out.write_all(&item.filename.as_bytes())?;
@@ -496,7 +711,6 @@ impl Shell {
     ///
     /// uses tty_ioctl, see man tty_ioctl(2)
     fn get_terminal_size() -> (usize, usize) {
-
         const TIOCGWINSZ: libc::c_ulong = 0x00005413;
 
         #[repr(C)]
@@ -520,16 +734,8 @@ impl Shell {
 
 /// Filename completion callback for the shell
 // TODO: impl command completion. For now only filename completion.
-fn complete(
-    ctx: &mut Context,
-    text: &CStr,
-    _start: usize,
-    _end: usize
-) -> Vec<CString> {
-    let slices: Vec<_> = text
-        .to_bytes()
-        .split(|b| *b == b'/')
-        .collect();
+fn complete(ctx: &mut Context, text: &CStr, _start: usize, _end: usize) -> Vec<CString> {
+    let slices: Vec<_> = text.to_bytes().split(|b| *b == b'/').collect();
     let to_complete = match slices.last() {
         Some(last) => last,
         None => return Vec::new(),
@@ -543,7 +749,9 @@ fn complete(
                     continue;
                 } else if component == b".." {
                     // Never leave the current archive in the catalog
-                    if current.len() > 1 { current.pop(); }
+                    if current.len() > 1 {
+                        current.pop();
+                    }
                 } else {
                     match ctx.catalog.lookup(current.last().unwrap(), component) {
                         Err(_) => return Vec::new(),
