@@ -235,8 +235,8 @@ impl Session  {
     fn setup_callbacks() -> Operations {
         // Register the callback functions for the session
         let mut oprs = Operations::default();
-        oprs.init = Some(init);
-        oprs.destroy = Some(destroy);
+        oprs.init = Some(Self::init);
+        oprs.destroy = Some(Self::destroy);
         oprs.lookup = Some(Self::lookup);
         oprs.getattr = Some(Self::getattr);
         oprs.readlink = Some(Self::readlink);
@@ -327,6 +327,17 @@ impl Session  {
 
         // Release ownership of boxed context, do not drop it.
         let _ = Box::into_raw(boxed_ctx);
+    }
+
+    /// Callback functions for fuse kernel driver.
+    extern "C" fn init(_decoder: MutPtr) {
+        // Notting to do here for now
+    }
+
+    /// Cleanup the userdata created while creating the session, which is the `Context`
+    extern "C" fn destroy(ctx: MutPtr) {
+        // Get ownership of the `Context` and drop it when Box goes out of scope.
+        unsafe { Box::from_raw(ctx) };
     }
 
     /// Lookup `name` in the directory referenced by `parent` i-node.
@@ -551,17 +562,6 @@ fn calculate_inode(offset: u64, root_end: u64) -> u64 {
     } else {
         offset
     }
-}
-
-/// Callback functions for fuse kernel driver.
-extern "C" fn init(_decoder: MutPtr) {
-    // Notting to do here for now
-}
-
-/// Cleanup the userdata created while creating the session, which is the `Context`
-extern "C" fn destroy(ctx: MutPtr) {
-    // Get ownership of the `Context` and drop it when Box goes out of scope.
-    unsafe { Box::from_raw(ctx) };
 }
 
 /// FUSE entry for fuse_reply_entry in lookup callback
