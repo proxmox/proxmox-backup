@@ -381,6 +381,9 @@ impl Shell {
                 .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
             list.push(pattern);
         }
+        if list.is_empty() {
+            bail!("no entries selected for restore");
+        }
 
         // Entry point for the restore is always root here as the provided match
         // patterns are relative to root as well.
