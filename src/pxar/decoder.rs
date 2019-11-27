@@ -381,6 +381,10 @@ impl Decoder {
         let _filename = self.inner.read_filename(head.size)?;
 
         let head: PxarHeader = self.inner.read_item()?;
+        if head.htype == PXAR_FORMAT_HARDLINK {
+            let (_, diff) = self.inner.read_hardlink(head.size)?;
+            return self.read(offset - diff, size, data_offset);
+        }
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let _: PxarEntry = self.inner.read_item()?;
 
