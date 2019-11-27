@@ -36,37 +36,38 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
     bail!("inavlid credentials");
 }
 
-#[api]
-#[input({
-    properties: {
-        username: {
-            type: String,
-            description: "User name.",
-            max_length: 64,
-        },
-        password: {
-            type: String,
-            description: "The secret password. This can also be a valid ticket.",
-        },
-    },
-})]
-#[returns({
-    properties: {
-        username: {
-            type: String,
-            description: "User name.",
-        },
-        ticket: {
-            type: String,
-            description: "Auth ticket.",
-        },
-        CSRFPreventionToken: {
-            type: String,
-            description: "Cross Site Request Forgery Prevention Token.",
+#[api(
+    input: {
+        properties: {
+            username: {
+                type: String,
+                description: "User name.",
+                max_length: 64,
+            },
+            password: {
+                type: String,
+                description: "The secret password. This can also be a valid ticket.",
+            },
         },
     },
-})]
-#[protected]
+    returns: {
+        properties: {
+            username: {
+                type: String,
+                description: "User name.",
+            },
+            ticket: {
+                type: String,
+                description: "Auth ticket.",
+            },
+            CSRFPreventionToken: {
+                type: String,
+                description: "Cross Site Request Forgery Prevention Token.",
+            },
+        },
+    },
+    protected: true,
+)]
 /// Create or verify authentication ticket.
 ///
 /// Returns: An authentication ticket with additional infos.
