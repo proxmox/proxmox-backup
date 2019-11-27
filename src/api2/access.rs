@@ -2,11 +2,11 @@ use failure::*;
 
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity};
+use proxmox::sortable;
 use proxmox::api::{http_err, list_subdirs_api_method};
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::*;
+use proxmox::api::api;
 
 use crate::tools;
 use crate::tools::ticket::*;
@@ -36,6 +36,40 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
     bail!("inavlid credentials");
 }
 
+#[api]
+#[input({
+    properties: {
+        username: {
+            type: String,
+            description: "User name.",
+            max_length: 64,
+        },
+        password: {
+            type: String,
+            description: "The secret password. This can also be a valid ticket.",
+        },
+    },
+})]
+#[returns({
+    properties: {
+        username: {
+            type: String,
+            description: "User name.",
+        },
+        ticket: {
+            type: String,
+            description: "Auth ticket.",
+        },
+        CSRFPreventionToken: {
+            type: String,
+            description: "Cross Site Request Forgery Prevention Token.",
+        },
+    },
+})]
+#[protected]
+/// Create or verify authentication ticket.
+///
+/// Returns: An authentication ticket with additional infos.
 fn create_ticket(
     param: Value,
     _info: &ApiMethod,
@@ -72,51 +106,7 @@ fn create_ticket(
 const SUBDIRS: SubdirMap = &[
     (
         "ticket", &Router::new()
-            .post(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&create_ticket),
-                    &ObjectSchema::new(
-                        "Create or verify authentication ticket.",
-                        &sorted!([
-                            (
-                                "username",
-                                false,
-                                &StringSchema::new("User name.")
-                                    .max_length(64)
-                                    .schema()
-                            ),
-                            (
-                                "password",
-                                false,
-                                &StringSchema::new("The secret password. This can also be a valid ticket.")
-                                    .schema()
-                            ),
-                        ]),
-                    )
-                ).returns(
-                    &ObjectSchema::new(
-                        "Returns authentication ticket with additional infos.",
-                        &sorted!([
-                            (
-                                "username",
-                                false,
-                                &StringSchema::new("User name.").schema()
-                            ),
-                            (
-                                "ticket",
-                                false,
-                                &StringSchema::new("Auth ticket.").schema()
-                            ),
-                            (
-                                "CSRFPreventionToken",
-                                false,
-                                &StringSchema::new("Cross Site Request Forgery Prevention Token.")
-                                    .schema()
-                            ),
-                        ]),
-                    ).schema()
-                ).protected(true)
-            )
+            .post(&API_METHOD_CREATE_TICKET)
     )
 ];
 
