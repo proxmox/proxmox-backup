@@ -1,4 +1,3 @@
-use failure::*;
 use serde_json::Value;
 
 use std::collections::HashSet;
@@ -119,19 +118,19 @@ pub fn generate_usage_str(
 pub fn print_simple_usage_error(
     prefix: &str,
     cli_cmd: &CliCommand,
-    err: Error,
+    err_msg: &str,
 ) {
     let usage =  generate_usage_str(prefix, cli_cmd, DocumentationFormat::Long, "");
-    eprint!("Error: {}\nUsage: {}", err, usage);
+    eprint!("Error: {}\nUsage: {}", err_msg, usage);
 }
 
 pub fn print_nested_usage_error(
     prefix: &str,
     def: &CliCommandMap,
-    err: Error,
+    err_msg: &str,
 ) {
     let usage = generate_nested_usage(prefix, def, DocumentationFormat::Short);
-    eprintln!("Error: {}\n\nUsage:\n\n{}", err, usage);
+    eprintln!("Error: {}\n\nUsage:\n\n{}", err_msg, usage);
 }
 
 pub fn generate_nested_usage(
