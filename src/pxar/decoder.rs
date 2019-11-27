@@ -339,7 +339,10 @@ impl Decoder {
         if marker == PXAR_FORMAT_HARDLINK {
             let size: u64 = self.inner.read_item()?;
             let (_, diff) = self.inner.read_hardlink(size)?;
-            return self.attributes(offset - diff);
+            // Make sure to return the original filename,
+            // not the one read from the hardlink.
+            let (_, entry, xattr, file_size) = self.attributes(offset - diff)?;
+            return Ok((filename, entry, xattr, file_size));
         }
 
         if marker != PXAR_ENTRY {
