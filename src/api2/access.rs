@@ -4,8 +4,7 @@ use serde_json::{json, Value};
 
 use proxmox::sortable;
 use proxmox::api::{http_err, list_subdirs_api_method};
-use proxmox::api::{ApiMethod, Router, RpcEnvironment};
-use proxmox::api::router::SubdirMap;
+use proxmox::api::router::{Router, SubdirMap};
 use proxmox::api::api;
 
 use crate::tools;
@@ -71,21 +70,13 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 /// Create or verify authentication ticket.
 ///
 /// Returns: An authentication ticket with additional infos.
-fn create_ticket(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let username = tools::required_string_param(&param, "username")?;
-    let password = tools::required_string_param(&param, "password")?;
-
-    match authenticate_user(username, password) {
+fn create_ticket(username: String, password: String) -> Result<Value, Error> {
+    match authenticate_user(&username, &password) {
         Ok(_) => {
 
-            let ticket = assemble_rsa_ticket( private_auth_key(), "PBS", Some(username), None)?;
+            let ticket = assemble_rsa_ticket( private_auth_key(), "PBS", Some(&username), None)?;
 
-            let token = assemble_csrf_prevention_token(csrf_secret(), username);
+            let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
             log::info!("successful auth for user '{}'", username);
 
