@@ -36,19 +36,21 @@ pub fn shellword_split_unclosed(s: &str, finalize: bool) -> (Vec<String>, Option
 
     for (index, c) in char_indices {
         match mode {
-            ParseMode::Space => {
-                if c == '"' {
+            ParseMode::Space => match c {
+                '"' => {
                     mode = ParseMode::DoubleQuote;
                     field_start = Some((index, Quote::Double));
-                } else if c == '\\' {
+                }
+                '\\' => {
                     mode = ParseMode::EscapeNormal;
                     field_start = Some((index, Quote::None));
-                } else if c == '\'' {
+                }
+                '\'' => {
                     mode = ParseMode::SingleQuote;
                     field_start = Some((index, Quote::Single));
-                } else if space_chars.iter().any(|s| c == *s) {
-                    /* skip space */
-                } else {
+                }
+                c if space_chars.contains(&c) => (), // skip space
+                c => {
                     mode = ParseMode::Normal;
                     field_start = Some((index, Quote::None));
                     field.push(c);
@@ -62,45 +64,33 @@ pub fn shellword_split_unclosed(s: &str, finalize: bool) -> (Vec<String>, Option
                 // Within double quoted strings, backslashes are only
                 // treated as metacharacters when followed by one of
                 // the following characters: $ ' " \ newline
-                if c == '$' || c == '\'' || c == '"' || c == '\\' || c == '\n' {
-                     field.push(c);
-                } else {
-                    field.push('\\');
-                    field.push(c);
+                match c {
+                    '$' | '\'' | '"' | '\\' | '\n' => (),
+                    _ => field.push('\\'),
                 }
+                field.push(c);
                 mode = ParseMode::DoubleQuote;
             }
-            ParseMode::Normal => {
-                if c == '"' {
-                    mode = ParseMode::DoubleQuote;
-                } else if c == '\'' {
-                     mode = ParseMode::SingleQuote;
-                } else if c == '\\' {
-                    mode = ParseMode::EscapeNormal;
-                } else if space_chars.iter().any(|s| c == *s) {
+            ParseMode::Normal => match c {
+                '"' => mode = ParseMode::DoubleQuote,
+                '\'' => mode = ParseMode::SingleQuote,
+                '\\' => mode = ParseMode::EscapeNormal,
+                c if space_chars.contains(&c) => {
                     mode = ParseMode::Space;
                     let (_start, _quote) = field_start.take().unwrap();
                     args.push(field.split_off(0));
-                } else {
-                    field.push(c); // continue
                 }
+                c => field.push(c), // continue
             }
-            ParseMode::DoubleQuote => {
-                if c == '"' {
-                    mode = ParseMode::Normal;
-                } else if c == '\\' {
-                    mode = ParseMode::EscapeInDoubleQuote;
-                } else {
-                   field.push(c); // continue
-                }
+            ParseMode::DoubleQuote => match c {
+                '"' => mode = ParseMode::Normal,
+                '\\' => mode = ParseMode::EscapeInDoubleQuote,
+                c => field.push(c), // continue
             }
-            ParseMode::SingleQuote => {
+            ParseMode::SingleQuote => match c {
                 // Note: no escape in single quotes
-                if c == '\'' {
-                    mode = ParseMode::Normal;
-                }  else {
-                    field.push(c); // continue
-                }
+                '\'' => mode = ParseMode::Normal,
+                c => field.push(c), // continue
             }
         }
     }
