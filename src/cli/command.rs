@@ -314,25 +314,7 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
         Err(_) => return,
     };
 
-    let mut args = match shellwords::split(&cmdline) {
-        Ok(v) => v,
-        Err(_) => return,
-    };
-
-    if args.len() == 0 { return; }
-
-    args.remove(0); //no need for program name
-
-    if cmdline.ends_with(char::is_whitespace) {
-        //eprintln!("CMDLINE {:?}", cmdline);
-        args.push("".into());
-    }
-
-    let completions = if !args.is_empty() && args[0] == "help" {
-        get_help_completion(def, &help_command_def(), &args[1..])
-    } else {
-        get_nested_completion(def, &args)
-    };
+    let (_start, completions) = super::get_completions(def, &cmdline, true);
 
     for item in completions {
         println!("{}", item);
