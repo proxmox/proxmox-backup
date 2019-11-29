@@ -10,6 +10,9 @@ pub use environment::*;
 mod format;
 pub use format::*;
 
+mod completion;
+pub use completion::*;
+
 mod getopts;
 pub use getopts::*;
 
