@@ -87,7 +87,7 @@ fn create_ticket(username: String, password: String) -> Result<Value, Error> {
             }))
         }
         Err(err) => {
-	    let client_ip = "unknown"; // $rpcenv->get_client_ip() || '';
+            let client_ip = "unknown"; // $rpcenv->get_client_ip() || '';
             log::error!("authentication failure; rhost={} user={} msg={}", client_ip, username, err.to_string());
             Err(http_err!(UNAUTHORIZED, "permission check failed.".into()))
         }
