@@ -388,24 +388,22 @@ pub fn handle_command(
     def: Arc<CommandLineInterface>,
     prefix: &str,
     args: Vec<String>,
-) {
+) -> Result<(), Error> {
 
     set_help_context(Some(def.clone()));
 
-    match &*def {
+    let result = match &*def {
         CommandLineInterface::Simple(ref cli_cmd) => {
-            if let Err(_) = handle_simple_command(&def, &prefix, &cli_cmd, args) {
-                std::process::exit(-1);
-            }
+            handle_simple_command(&def, &prefix, &cli_cmd, args)
         }
         CommandLineInterface::Nested(ref map) => {
-            if let Err(_) = handle_nested_command(&def, &prefix, &map, args) {
-                std::process::exit(-1);
-            }
+            handle_nested_command(&def, &prefix, &map, args)
         }
     };
 
     set_help_context(None);
+
+    result
 }
 
 pub fn run_cli_command(def: CommandLineInterface) {
@@ -443,5 +441,7 @@ pub fn run_cli_command(def: CommandLineInterface) {
         }
     }
 
-    handle_command(Arc::new(def), &prefix, args);
+    if let Err(_) = handle_command(Arc::new(def), &prefix, args) {
+        std::process::exit(-1);
+    }
 }
