@@ -37,7 +37,6 @@ fn command_map() -> CliCommandMap {
     cmd_def
 }
 
-
 fn main() -> Result<(), Error> {
 
     let def = CommandLineInterface::Nested(command_map());
@@ -58,14 +57,8 @@ fn main() -> Result<(), Error> {
         let args = shellword_split(&line)?;
 
         let def = helper.cmd_def();
-        let _ = match def {
-            CommandLineInterface::Simple(ref cli_cmd) => {
-                handle_simple_command(def, "", &cli_cmd, args)
-            }
-            CommandLineInterface::Nested(ref map) => {
-                handle_nested_command(def, "", &map, args)
-            }
-        };
+
+        handle_command(def, "", args);
     }
 
     Ok(())

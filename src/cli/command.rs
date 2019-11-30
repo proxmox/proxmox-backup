@@ -1,7 +1,10 @@
 use failure::*;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::cell::RefCell;
 
+use proxmox::api::*;
 use proxmox::api::format::*;
 use proxmox::api::schema::*;
 use proxmox::api::{ApiHandler, ApiMethod};
@@ -321,16 +324,88 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     }
 }
 
-const VERBOSE_HELP_SCHEMA: Schema = BooleanSchema::new("Verbose help.").schema();
-const COMMAND_HELP: ObjectSchema = ObjectSchema::new(
-    "Get help about specified command.",
-    &[ ("verbose", true, &VERBOSE_HELP_SCHEMA) ]
+const API_METHOD_COMMAND_HELP: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&help_command),
+    &ObjectSchema::new(
+        "Get help about specified command.",
+        &[
+            ( "command",
+               true,
+               &StringSchema::new("Command name.").schema()
+            ),
+            ( "verbose",
+               true,
+               &BooleanSchema::new("Verbose help.").schema()
+            ),
+        ],
+    )
 );
 
-const API_METHOD_COMMAND_HELP: ApiMethod = ApiMethod::new_dummy(&COMMAND_HELP);
+std::thread_local! {
+    static HELP_CONTEXT: RefCell<Option<Arc<CommandLineInterface>>> = RefCell::new(None);
+}
+
+fn help_command(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+
+    let command = param["command"].as_str();
+    let verbose = param["verbose"].as_bool();
+
+    HELP_CONTEXT.with(|ctx| {
+        match &*ctx.borrow() {
+            Some(def) => {
+                let mut args = Vec::new();
+                // TODO: Handle multilevel sub commands
+                if let Some(command) = command {
+                    args.push(command.to_string());
+                }
+
+                print_help(def, String::from(""), &args, verbose);
+            }
+            None => {
+                eprintln!("Sorry, help context not set - internal error.");
+            }
+        }
+    });
+
+    Ok(Value::Null)
+}
+
+pub fn set_help_context(def: Option<Arc<CommandLineInterface>>) {
+    HELP_CONTEXT.with(|ctx| { *ctx.borrow_mut() = def; });
+}
 
 pub fn help_command_def() ->  CliCommand {
     CliCommand::new(&API_METHOD_COMMAND_HELP)
+        .arg_param(&["command"])
+}
+
+pub fn handle_command(
+    def: Arc<CommandLineInterface>,
+    prefix: &str,
+    args: Vec<String>,
+) {
+
+    set_help_context(Some(def.clone()));
+
+    match &*def {
+        CommandLineInterface::Simple(ref cli_cmd) => {
+            if let Err(_) = handle_simple_command(&def, &prefix, &cli_cmd, args) {
+                std::process::exit(-1);
+            }
+        }
+        CommandLineInterface::Nested(ref map) => {
+            if let Err(_) = handle_nested_command(&def, &prefix, &map, args) {
+                std::process::exit(-1);
+            }
+        }
+    };
+
+    set_help_context(None);
 }
 
 pub fn run_cli_command(def: CommandLineInterface) {
@@ -340,8 +415,6 @@ pub fn run_cli_command(def: CommandLineInterface) {
         CommandLineInterface::Nested(map) =>
             CommandLineInterface::Nested(map.insert("help", help_command_def().into())),
     };
-
-    let top_def = &def; // we pass this to the help function ...
 
     let mut args = std::env::args();
 
@@ -370,16 +443,5 @@ pub fn run_cli_command(def: CommandLineInterface) {
         }
     }
 
-    match def {
-        CommandLineInterface::Simple(ref cli_cmd) => {
-            if let Err(_) = handle_simple_command(top_def, &prefix, &cli_cmd, args) {
-                std::process::exit(-1);
-            }
-        }
-        CommandLineInterface::Nested(ref map) => {
-            if let Err(_) = handle_nested_command(top_def, &prefix, &map, args) {
-                std::process::exit(-1);
-            }
-        }
-    };
+    handle_command(Arc::new(def), &prefix, args);
 }
