@@ -230,7 +230,7 @@ pub fn get_help_completion(
 
     match def {
         CommandLineInterface::Simple(_) => {
-            return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &help_cmd.arg_param, args);
+            return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &[], args);
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
@@ -244,7 +244,7 @@ pub fn get_help_completion(
             let first = &args[0];
 
             if first.starts_with("-") {
-                return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &help_cmd.arg_param, args);
+                return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &[], args);
             }
 
             if let Some(sub_cmd) = map.commands.get(first) {
