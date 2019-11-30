@@ -56,7 +56,9 @@ fn main() -> Result<(), Error> {
 
         let args = shellword_split(&line)?;
 
-        handle_command(helper.cmd_def(), "", args);
+        let _ = handle_command(helper.cmd_def(), "", args);
+
+        rl.add_history_entry(line);
     }
 
     Ok(())
