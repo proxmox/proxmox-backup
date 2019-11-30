@@ -73,6 +73,11 @@ impl CliCommandMap {
         self
     }
 
+    pub fn insert_help(mut self) -> Self {
+        self.commands.insert(String::from("help"), help_command_def().into());
+        self
+    }
+
     fn find_command(&self, name: &str) -> Option<&CommandLineInterface> {
 
         if let Some(sub_cmd) = self.commands.get(name) {

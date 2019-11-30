@@ -32,7 +32,7 @@ fn command_map() -> CliCommandMap {
     let cmd_def = CliCommandMap::new()
         .insert("ls", CliCommand::new(&API_METHOD_TEST_COMMAND).into())
         .insert("test", CliCommand::new(&API_METHOD_TEST_COMMAND).into())
-        .insert("help", help_command_def().into());
+        .insert_help();
 
     cmd_def
 }
@@ -53,12 +53,10 @@ fn main() -> Result<(), Error> {
 
     while let Ok(line) = rl.readline("# prompt: ") {
         let helper = rl.helper().unwrap();
-        // readline already handles tabs, so here we only split on spaces
+
         let args = shellword_split(&line)?;
 
-        let def = helper.cmd_def();
-
-        handle_command(def, "", args);
+        handle_command(helper.cmd_def(), "", args);
     }
 
     Ok(())
