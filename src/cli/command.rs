@@ -286,6 +286,7 @@ pub fn get_nested_completion(
                 if let Some(sub_cmd) = map.commands.get(first) {
                     return get_nested_completion(sub_cmd, &args[1..]);
                 }
+                return Vec::new();
             }
             let mut completions = Vec::new();
             for cmd in map.commands.keys() {
