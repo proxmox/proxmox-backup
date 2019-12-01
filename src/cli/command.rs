@@ -283,7 +283,7 @@ pub fn get_nested_completion(
             }
             let first = &args[0];
             if args.len() > 1 {
-                if let Some(sub_cmd) = map.commands.get(first) {
+                if let Some((_, sub_cmd)) = map.find_command(first) {
                     return get_nested_completion(sub_cmd, &args[1..]);
                 }
                 return Vec::new();
