@@ -7,7 +7,7 @@ use proxmox::api::format::*;
 
 use super::{CommandLineInterface, CliCommand, CliCommandMap};
 
-/// Helper function to format and print result
+/// Helper function to format and print result.
 ///
 /// This is implemented for machine generatable formats 'json' and
 /// 'json-pretty'. The 'text' format needs to be handled somewhere
@@ -26,6 +26,7 @@ pub fn format_and_print_result(
     }
 }
 
+/// Helper to generate command usage text for simple commands.
 pub fn generate_usage_str(
     prefix: &str,
     cli_cmd: &CliCommand,
@@ -115,6 +116,7 @@ pub fn generate_usage_str(
     text
 }
 
+/// Print command usage for simple commands to ``stderr``.
 pub fn print_simple_usage_error(
     prefix: &str,
     cli_cmd: &CliCommand,
@@ -124,6 +126,7 @@ pub fn print_simple_usage_error(
     eprint!("Error: {}\nUsage: {}", err_msg, usage);
 }
 
+/// Print command usage for nested commands to ``stderr``.
 pub fn print_nested_usage_error(
     prefix: &str,
     def: &CliCommandMap,
@@ -133,6 +136,7 @@ pub fn print_nested_usage_error(
     eprintln!("Error: {}\n\nUsage:\n\n{}", err_msg, usage);
 }
 
+/// Helper to generate command usage text for nested commands.
 pub fn generate_nested_usage(
     prefix: &str,
     def: &CliCommandMap,
@@ -163,6 +167,7 @@ pub fn generate_nested_usage(
     usage
 }
 
+/// Print help text to ``stderr``.
 pub fn print_help(
     top_def: &CommandLineInterface,
     mut prefix: String,

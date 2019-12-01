@@ -2,6 +2,11 @@ use std::sync::Arc;
 
 use super::*;
 
+/// Helper trait implementation for ``rustyline``.
+///
+/// This can be used to generate interactive commands using
+/// ``rustyline`` (readline implementation).
+///
 pub struct CliHelper {
     cmd_def: Arc<CommandLineInterface>,
 }

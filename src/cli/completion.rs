@@ -189,6 +189,12 @@ fn get_nested_completion(
     }
 }
 
+/// Helper to generate bash completions.
+///
+/// This helper extracts the command line from environment variable
+/// set by ``bash``, namely ``COMP_LINE`` and ``COMP_POINT``. This is
+/// passed to ``get_completions()``. Returned values are printed to
+/// ``stdout``.
 pub fn print_bash_completion(def: &CommandLineInterface) {
 
     let comp_point: usize = match std::env::var("COMP_POINT") {
@@ -213,6 +219,7 @@ pub fn print_bash_completion(def: &CommandLineInterface) {
     }
 }
 
+/// Compute possible completions for a partial command
 pub fn get_completions(
     cmd_def: &CommandLineInterface,
     line: &str,

@@ -14,12 +14,18 @@ use super::getopts;
 use super::{CommandLineInterface, CliCommand, CliCommandMap, completion::*};
 use super::format::*;
 
+/// Schema definition for ``--output-format`` parameter.
+///
+/// - ``text``: command specific text format.
+/// - ``json``: JSON, single line.
+/// - ``json-pretty``: JSON, human readable.
+///
 pub const OUTPUT_FORMAT: Schema =
     StringSchema::new("Output format.")
     .format(&ApiStringFormat::Enum(&["text", "json", "json-pretty"]))
     .schema();
 
-pub fn handle_simple_command(
+fn handle_simple_command(
     _top_def: &CommandLineInterface,
     prefix: &str,
     cli_cmd: &CliCommand,
@@ -69,7 +75,7 @@ pub fn handle_simple_command(
     Ok(())
 }
 
-pub fn handle_nested_command(
+fn handle_nested_command(
     top_def: &CommandLineInterface,
     prefix: &str,
     def: &CliCommandMap,
@@ -172,11 +178,15 @@ fn set_help_context(def: Option<Arc<CommandLineInterface>>) {
     HELP_CONTEXT.with(|ctx| { *ctx.borrow_mut() = def; });
 }
 
-pub fn help_command_def() ->  CliCommand {
+pub(crate) fn help_command_def() ->  CliCommand {
     CliCommand::new(&API_METHOD_COMMAND_HELP)
         .arg_param(&["command"])
 }
 
+/// Handle command invocation.
+///
+/// This command gets the command line ``args`` and tries to invoke
+/// the corresponding API handler.
 pub fn handle_command(
     def: Arc<CommandLineInterface>,
     prefix: &str,
@@ -199,6 +209,18 @@ pub fn handle_command(
     result
 }
 
+/// Helper to get arguments and invoke the command.
+///
+/// This helper reads arguments with ``std::env::args()``. The first
+/// argument is assumed to be the program name, and is passed as ``prefix`` to
+/// ``handle_command()``.
+///
+/// This helper automatically add the help command, and two special
+/// sub-command:
+///
+/// - ``bashcomplete``: Output bash completions instead of running the command.
+/// - ``printdoc``: Output ReST documentation.
+///
 pub fn run_cli_command(def: CommandLineInterface) {
 
     let def = match def {
