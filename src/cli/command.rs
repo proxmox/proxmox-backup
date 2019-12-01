@@ -168,7 +168,7 @@ fn help_command(
     Ok(Value::Null)
 }
 
-pub fn set_help_context(def: Option<Arc<CommandLineInterface>>) {
+fn set_help_context(def: Option<Arc<CommandLineInterface>>) {
     HELP_CONTEXT.with(|ctx| { *ctx.borrow_mut() = def; });
 }
 
