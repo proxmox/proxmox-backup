@@ -119,12 +119,12 @@ pub fn handle_nested_command(
 const API_METHOD_COMMAND_HELP: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&help_command),
     &ObjectSchema::new(
-        "Get help about specified command.",
+        "Get help about specified command (or sub-command).",
         &[
             ( "command",
                true,
                &ArraySchema::new(
-                   "Command",
+                   "Command. This may be a list in order to spefify nested sub-commands.",
                    &StringSchema::new("Name.").schema()
                ).schema()
             ),
