@@ -7,6 +7,9 @@
 mod environment;
 pub use environment::*;
 
+mod shellword;
+pub use shellword::*;
+
 mod format;
 pub use format::*;
 
