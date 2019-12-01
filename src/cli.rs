@@ -22,6 +22,9 @@ pub use getopts::*;
 mod command;
 pub use command::*;
 
+mod readline;
+pub use readline::*;
+
 use std::collections::HashMap;
 
 use proxmox::api::ApiMethod;
