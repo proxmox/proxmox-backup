@@ -242,13 +242,11 @@ pub fn get_help_completion(
             }
 
             let first = &args[0];
-
-            if first.starts_with("-") {
-                return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &[], args);
-            }
-
-            if let Some(sub_cmd) = map.commands.get(first) {
-                return get_help_completion(sub_cmd, help_cmd, &args[1..]);
+            if args.len() > 1 {
+                if let Some(sub_cmd) = map.commands.get(first) { // do exact match here
+                    return get_help_completion(sub_cmd, help_cmd, &args[1..]);
+                }
+                return Vec::new();
             }
 
             let mut completions = Vec::new();
