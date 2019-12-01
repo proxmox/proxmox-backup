@@ -94,7 +94,7 @@ pub fn handle_nested_command(
 
     let command = args.remove(0);
 
-    let sub_cmd = match def.find_command(&command) {
+    let (_, sub_cmd) = match def.find_command(&command) {
         Some(cmd) => cmd,
         None => {
             let err_msg = format!("no such command '{}'", command);
@@ -331,7 +331,10 @@ const API_METHOD_COMMAND_HELP: ApiMethod = ApiMethod::new(
         &[
             ( "command",
                true,
-               &StringSchema::new("Command name.").schema()
+               &ArraySchema::new(
+                   "Command",
+                   &StringSchema::new("Name.").schema()
+               ).schema()
             ),
             ( "verbose",
                true,
@@ -351,20 +354,18 @@ fn help_command(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
+    let command: Vec<String> = param["command"].as_array().unwrap_or(&Vec::new())
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
 
-    let command = param["command"].as_str();
+
     let verbose = param["verbose"].as_bool();
 
     HELP_CONTEXT.with(|ctx| {
         match &*ctx.borrow() {
             Some(def) => {
-                let mut args = Vec::new();
-                // TODO: Handle multilevel sub commands
-                if let Some(command) = command {
-                    args.push(command.to_string());
-                }
-
-                print_help(def, String::from(""), &args, verbose);
+                 print_help(def, String::from(""), &command, verbose);
             }
             None => {
                 eprintln!("Sorry, help context not set - internal error.");

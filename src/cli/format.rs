@@ -173,15 +173,19 @@ pub fn print_help(
 
     for cmd in args {
         if let CommandLineInterface::Nested(map) = iface {
-            if let Some(subcmd) = map.find_command(cmd) {
+            if let Some((full_name, subcmd)) = map.find_command(cmd) {
                 iface = subcmd;
-                prefix.push(' ');
-                prefix.push_str(cmd);
+                if !prefix.is_empty() { prefix.push(' '); }
+                prefix.push_str(&full_name);
                 continue;
             }
         }
-        eprintln!("no such command '{}'", cmd);
-        std::process::exit(-1);
+        if prefix.is_empty() {
+            eprintln!("no such command '{}'", cmd);
+        } else {
+            eprintln!("no such command '{} {}'", prefix, cmd);
+        }
+        return;
     }
 
     let format = match verbose.unwrap_or(false) {

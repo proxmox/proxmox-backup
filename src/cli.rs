@@ -78,10 +78,10 @@ impl CliCommandMap {
         self
     }
 
-    fn find_command(&self, name: &str) -> Option<&CommandLineInterface> {
+    fn find_command(&self, name: &str) -> Option<(String, &CommandLineInterface)> {
 
         if let Some(sub_cmd) = self.commands.get(name) {
-            return Some(sub_cmd);
+            return Some((name.to_string(), sub_cmd));
         };
 
         let mut matches: Vec<&str> = vec![];
@@ -94,7 +94,7 @@ impl CliCommandMap {
         if matches.len() != 1 { return None; }
 
         if let Some(sub_cmd) = self.commands.get(matches[0]) {
-            return Some(sub_cmd);
+            return Some((matches[0].to_string(), sub_cmd));
         };
 
         None
