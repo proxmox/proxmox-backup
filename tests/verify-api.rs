@@ -3,7 +3,6 @@ use failure::*;
 use proxmox_backup::api2;
 use proxmox::api::*;
 use proxmox::api::schema::*;
-use proxmox::api::router::*;
 
 // Simply test if api lookup tables inside Routers and Schemas are
 // correctly sorted.
