@@ -1,54 +1,60 @@
 use failure::*;
-use serde_json::Value;
 
-use proxmox::{sortable, identity};
 use proxmox::api::*;
-use proxmox::api::schema::*;
 
 use proxmox_backup::cli::*;
 
-#[sortable]
-const API_METHOD_TEST_COMMAND: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&test_command),
-    &ObjectSchema::new(
-        "Test command.",
-        &sorted!([
-            ( "verbose", true, &BooleanSchema::new("Verbose output.").schema() ),
-        ])
-    )
-);
+#[api(
+    input: {
+        properties: {
+            verbose: {
+                type: Boolean,
+                optional: true,
+                description: "Verbose output.",
+            }
+        }
+    },
+)]
+/// Hello command.
+///
+/// Returns: nothing
+fn hello_command(
+    verbose: Option<bool>,
+) -> Result<(), Error> {
+    if verbose.unwrap_or(false) {
+        println!("Hello, how are you!");
+    } else {
+        println!("Hello!");
+    }
 
-fn test_command(
-    _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-
-    Ok(Value::Null)
+    Ok(())
 }
 
-fn command_map() -> CliCommandMap {
+#[api(input: { properties: {} })]
+/// Quit command. Exit the programm.
+///
+/// Returns: nothing
+fn quit_command() -> Result<(), Error> {
+
+    println!("Goodbye.");
+
+    std::process::exit(0);
+}
+
+fn cli_definition() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
-        .insert("ls", CliCommand::new(&API_METHOD_TEST_COMMAND).into())
-        .insert("test", CliCommand::new(&API_METHOD_TEST_COMMAND).into())
+        .insert("quit", CliCommand::new(&API_METHOD_QUIT_COMMAND).into())
+        .insert("hello", CliCommand::new(&API_METHOD_HELLO_COMMAND).into())
         .insert_help();
 
-    cmd_def
+    CommandLineInterface::Nested(cmd_def)
 }
 
 fn main() -> Result<(), Error> {
 
-    let def = CommandLineInterface::Nested(command_map());
+    let helper = CliHelper::new(cli_definition());
 
-    let helper = CliHelper::new(def);
-
-    let config = rustyline::config::Builder::new()
-    //.completion_type(rustyline::config::CompletionType::List)
-    //.completion_prompt_limit(0)
-        .build();
-
-    let mut rl = rustyline::Editor::<CliHelper>::with_config(config);
+    let mut rl = rustyline::Editor::<CliHelper>::new();
     rl.set_helper(Some(helper));
 
     while let Ok(line) = rl.readline("# prompt: ") {
