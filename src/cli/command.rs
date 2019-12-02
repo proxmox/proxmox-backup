@@ -224,7 +224,7 @@ pub fn run_cli_command(def: CommandLineInterface) {
     let def = match def {
         CommandLineInterface::Simple(cli_cmd) => CommandLineInterface::Simple(cli_cmd),
         CommandLineInterface::Nested(map) =>
-            CommandLineInterface::Nested(map.insert("help", help_command_def().into())),
+            CommandLineInterface::Nested(map.insert_help().into()),
     };
 
     let mut args = std::env::args();
