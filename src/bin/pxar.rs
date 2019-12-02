@@ -5,9 +5,9 @@ use failure::*;
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
+use proxmox::api::cli::*;
 
 use proxmox_backup::tools;
-use proxmox_backup::cli::*;
 
 use serde_json::{Value};
 

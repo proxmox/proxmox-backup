@@ -12,9 +12,9 @@ use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
+use proxmox::api::cli::*;
 
 use proxmox_backup::tools;
-use proxmox_backup::cli::*;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::client::*;
 use proxmox_backup::backup::*;

@@ -1,7 +1,6 @@
 extern crate proxmox_backup;
 
-//use proxmox_backup::api2;
-use proxmox_backup::cli::*;
+use proxmox::api::cli::*;
 
 fn datastore_commands() -> CommandLineInterface {
 

@@ -1,8 +1,6 @@
 use failure::*;
 
-use proxmox::api::*;
-
-use proxmox_backup::cli::*;
+use proxmox::api::{*, cli::*};
 
 #[api(
     input: {

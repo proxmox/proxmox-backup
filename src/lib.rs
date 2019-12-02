@@ -20,8 +20,6 @@ pub mod storage {
     pub mod config;
 }
 
-pub mod cli;
-
 pub mod api2;
 
 pub mod client;
