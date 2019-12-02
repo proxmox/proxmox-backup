@@ -53,7 +53,6 @@ fn get_property_completion(
 fn get_simple_completion(
     cli_cmd: &CliCommand,
     done: &mut HashMap<String, String>,
-    all_arg_param: &[&str], // this is always the full list
     arg_param: &[&str], // we remove done arguments
     args: &[String],
 ) -> Vec<String> {
@@ -64,7 +63,7 @@ fn get_simple_completion(
         let prop_name = arg_param[0];
         if args.len() > 1 {
             record_done_argument(done, cli_cmd.info.parameters, prop_name, &args[0]);
-            return get_simple_completion(cli_cmd, done, arg_param, &arg_param[1..], &args[1..]);
+            return get_simple_completion(cli_cmd, done, &arg_param[1..], &args[1..]);
         } else if args.len() == 1 {
             record_done_argument(done, cli_cmd.info.parameters, prop_name, &args[0]);
             if let Some((_, schema)) = cli_cmd.info.parameters.lookup(prop_name) {
@@ -101,7 +100,7 @@ fn get_simple_completion(
     let mut completions = Vec::new();
     for (name, _optional, _schema) in cli_cmd.info.parameters.properties {
         if done.contains_key(*name) { continue; }
-        if all_arg_param.contains(name) { continue; }
+        if cli_cmd.arg_param.contains(name) { continue; }
         let option = String::from("--") + name;
         if option.starts_with(prefix) {
             completions.push(option);
@@ -120,7 +119,7 @@ fn get_help_completion(
 
     match def {
         CommandLineInterface::Simple(_) => {
-            return get_simple_completion(help_cmd, &mut done, help_cmd.arg_param, &[], args);
+            return get_simple_completion(help_cmd, &mut done, &[], args);
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
@@ -161,7 +160,7 @@ fn get_nested_completion(
             cli_cmd.fixed_param.iter().for_each(|(key, value)| {
                 record_done_argument(&mut done, &cli_cmd.info.parameters, &key, &value);
             });
-            return get_simple_completion(cli_cmd, &mut done, cli_cmd.arg_param, &cli_cmd.arg_param, args);
+            return get_simple_completion(cli_cmd, &mut done, &cli_cmd.arg_param, args);
         }
         CommandLineInterface::Nested(map) => {
             if args.is_empty() {
