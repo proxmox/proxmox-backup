@@ -138,6 +138,10 @@ fn get_help_completion(
                 return Vec::new();
             }
 
+            if first.starts_with("-") {
+                return get_simple_completion(help_cmd, &mut done, &[], args);
+            }
+
             let mut completions = Vec::new();
             for cmd in map.commands.keys() {
                 if cmd.starts_with(first) {
