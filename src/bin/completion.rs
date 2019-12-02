@@ -7,6 +7,26 @@ use proxmox_backup::cli::*;
 #[api(
     input: {
         properties: {
+            text: {
+                type: String,
+                description: "Some text.",
+            }
+        }
+    },
+)]
+/// Echo command. Print the passed text.
+///
+/// Returns: nothing
+fn echo_command(
+    text: String,
+) -> Result<(), Error> {
+    println!("{}", text);
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
             verbose: {
                 type: Boolean,
                 optional: true,
@@ -45,6 +65,8 @@ fn cli_definition() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("quit", CliCommand::new(&API_METHOD_QUIT_COMMAND).into())
         .insert("hello", CliCommand::new(&API_METHOD_HELLO_COMMAND).into())
+        .insert("echo", CliCommand::new(&API_METHOD_ECHO_COMMAND)
+                .arg_param(&["text"]).into())
         .insert_help();
 
     CommandLineInterface::Nested(cmd_def)
