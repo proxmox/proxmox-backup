@@ -26,7 +26,6 @@ pub const OUTPUT_FORMAT: Schema =
     .schema();
 
 fn handle_simple_command(
-    _top_def: &CommandLineInterface,
     prefix: &str,
     cli_cmd: &CliCommand,
     args: Vec<String>,
@@ -76,7 +75,6 @@ fn handle_simple_command(
 }
 
 fn handle_nested_command(
-    top_def: &CommandLineInterface,
     prefix: &str,
     def: &CliCommandMap,
     mut args: Vec<String>,
@@ -112,10 +110,10 @@ fn handle_nested_command(
 
     match sub_cmd {
         CommandLineInterface::Simple(cli_cmd) => {
-            handle_simple_command(top_def, &new_prefix, cli_cmd, args)?;
+            handle_simple_command(&new_prefix, cli_cmd, args)?;
         }
         CommandLineInterface::Nested(map) => {
-            handle_nested_command(top_def, &new_prefix, map, args)?;
+            handle_nested_command(&new_prefix, map, args)?;
         }
     }
 
@@ -197,10 +195,10 @@ pub fn handle_command(
 
     let result = match &*def {
         CommandLineInterface::Simple(ref cli_cmd) => {
-            handle_simple_command(&def, &prefix, &cli_cmd, args)
+            handle_simple_command(&prefix, &cli_cmd, args)
         }
         CommandLineInterface::Nested(ref map) => {
-            handle_nested_command(&def, &prefix, &map, args)
+            handle_nested_command(&prefix, &map, args)
         }
     };
 
