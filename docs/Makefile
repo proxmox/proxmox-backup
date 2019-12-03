@@ -22,15 +22,10 @@ MANUAL_PAGES := 			\
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
-PAPER         =
 BUILDDIR      = output
 
 # Sphinx internal variables.
-PAPEROPT_a4     = -D latex_paper_size=a4
-PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
-# the i18n builder cannot share the environment and doctrees with the others
-I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
+ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
 all: ${MANUAL_PAGES}
 
