@@ -6,7 +6,7 @@ use hyper::{Body, Response, StatusCode};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
-use proxmox::api::list_subdirs_api_method;
+use proxmox::api::{api, list_subdirs_api_method};
 use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
@@ -216,20 +216,18 @@ pub const BACKUP_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(BACKUP_API_SUBDIRS))
     .subdirs(BACKUP_API_SUBDIRS);
 
-#[sortable]
-pub const API_METHOD_CREATE_DYNAMIC_INDEX: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&create_dynamic_index),
-    &ObjectSchema::new(
-        "Create dynamic chunk index file.",
-        &sorted!([
-            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
-        ]),
-    )
-);
-
+#[api(
+    input: {
+        properties: {
+            "archive-name": {
+                schema: crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA,
+            },
+        },
+    },
+)]
+/// Create dynamic chunk index file.
 fn create_dynamic_index(
     param: Value,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
