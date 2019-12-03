@@ -124,9 +124,9 @@ top of a standard Debian installation.  After configuring the
 Installing from source
 ~~~~~~~~~~~~~~~~~~~~~~
 
-FIXME
+.. todo:: Add section "Installing from source"
 
 Installing statically linked binary
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-FIXME
+.. todo:: Add section "Installing statically linked binary"
