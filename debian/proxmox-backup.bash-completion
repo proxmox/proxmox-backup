@@ -1,3 +1,0 @@
-debian/proxmox-backup-manager.bash-completion proxmox-backup-manager
-debian/proxmox-backup-client.bash-completion proxmox-backup-client
-debian/pxar.bash-completion pxar

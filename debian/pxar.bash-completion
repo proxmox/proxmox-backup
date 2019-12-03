@@ -1,3 +1,0 @@
-# pxar bash completion
-
-complete -C 'pxar bashcomplete' pxar
