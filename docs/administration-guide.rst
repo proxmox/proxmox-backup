@@ -201,7 +201,6 @@ Environment Variables
   backup server.
 
 ``PBS_ENCRYPTION_PASSWORD``
-
   When set, this value is used to access the secret encryption key (if
   protected by password).
 
@@ -235,7 +234,7 @@ This will prompt you for a password and then uploads a file archive named
 ``root.pxar`` containing all the files in the ``/`` directory.
 
 .. Caution:: Please note that proxmox-backup-client does not
-   automatically include mount points. Insted, you will see a short
+   automatically include mount points. Instead, you will see a short
    ``skip mount point`` notice for each of them. The idea is that you
    create a separate file archive for each mounted disk. You can also
    explicitly include them using the ``--include-dev`` option
