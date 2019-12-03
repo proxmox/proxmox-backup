@@ -93,10 +93,9 @@ Another reason for backups are legal requirements. Some data must be
 kept in a safe place for several years so that you can access it if
 required by law.
 
-
-- value of data, importance for your business, legal regulations
-
-- restore tests. to make sure backup/restore works
+Data loss can be very costly as it can severely restrict your
+business. Therefore, make sure that you regularly perform a backup
+and run restore tests.
 
 
 Software Stack
