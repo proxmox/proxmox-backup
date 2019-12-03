@@ -72,18 +72,18 @@ Backup Type
 The backup server groups backups by *type*, where *type* is one of:
 
 ``vm``
-    This type is use for :term:`virtual machine`\ s. Typically
+    This type is used for :term:`virtual machine`\ s. Typically
     contains the virtual machine configuration and an image archive
     for each disk.
 
 ``ct``
-    This type is use for :term:`container`\ s. Contains the container
+    This type is used for :term:`container`\ s. Contains the container
     configuration and a single file archive for the container content.
 
 ``host``
-    This type is used for physical host, or if you want to run backup
-    manually from inside virtual machines or containers. Such backup
-    may contains file and image archives (no restrictions here).
+    This type is used for physical host, or if you want to run backups
+    manually from inside virtual machines or containers. Such backups
+    may contain file and image archives (no restrictions here).
 
 
 Backup ID
@@ -173,6 +173,7 @@ Backup Client usage
 
 The command line client is called :command:`proxmox-backup-client`.
 
+
 Respository Locations
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -208,6 +209,74 @@ Environment Variables
 Creating Backups
 ~~~~~~~~~~~~~~~~
 
+This section explains how to create backup on physical host, or from
+inside virtual machines or containers. Such backups may contain file
+and image archives (no restrictions here).
+
+.. note:: If you want to backup virtual machines or containers see :ref:`pve-integration`.
+
+The prerequisite is that you have already set up (or can access) a
+backup server. It is assumed that you know the repository name and
+credentials. In the following examples we simply use ``backup-server:store1``.
+
+.. code-block:: console
+
+  # proxmox-backup-client backup root.pxar:/ --repository backup-server:store1
+  Starting backup: host/elsa/2019-12-03T09:35:01Z
+  Client name: elsa
+  skip mount point: "/boot/efi"
+  skip mount point: "/dev"
+  skip mount point: "/run"
+  skip mount point: "/sys"
+  Uploaded 12129 chunks in 87 seconds (564 MB/s).
+  End Time: 2019-12-03T10:36:29+01:00
+
+This will prompt you for a password and then uploads a file archive named
+``root.pxar`` containing all the files in the ``/`` directory.
+
+.. Caution:: Please note that proxmox-backup-client does not
+   automatically include mount points. Insted, you will see a short
+   ``skip mount point`` notice for each of them. The idea is that you
+   create a separate file archive for each mounted disk. You can also
+   explicitly include them using the ``--include-dev`` option
+   (i.e. ``--include-dev /boot/efi``). You can use this option
+   multiple times, once for each mount point you want to include.
+
+The ``--repository`` option is sometimes quite long and is used by all
+commands. You can avoid having to enter this value by setting the
+environment variable ``PBS_REPOSITORY``.
+
+.. code-block:: console
+
+  # export PBS_REPOSTORY=backup-server:store1
+
+You can then execute all commands without specifying the ``--repository``
+option.
+
+One signle backup is allowed to contain more than one archive. For example, assume you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
+
+.. code-block:: console
+
+  # proxmox-backup-client backup disk1.pxar:/mnt/disk1 disk2.pxar:/mnt/disk2
+
+This create a backup of both disks.
+
+The backup command takes a list of backup specifications, which
+include archive name on the server, the type of the archive, and the
+archive source at the client. The format is quite simple to understand:
+
+    <archive-name>.<type>:<source-path>
+
+Common types are ``.pxar`` for file archives, and ``.img`` for block
+device images. Thus it is quite easy to create a backup for a block
+device:
+
+.. code-block:: console
+
+  # proxmox-backup-client backup mydata.img:/dev/mylvm/mydata
+
+
+
 
 Encryption
 ^^^^^^^^^^
@@ -216,6 +285,8 @@ Encryption
 Restoring Data
 ~~~~~~~~~~~~~~
 
+
+.. _pve-integration:
 
 `Proxmox VE`_ integration
 -------------------------
