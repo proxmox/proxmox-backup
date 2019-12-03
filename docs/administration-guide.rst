@@ -12,7 +12,7 @@ Backup Content
 
 When doing deduplication, there are different strategies to get
 optimal results in terms of performance and/or deduplication rates.
-Depending on the type of data, one can split it into fixed or variable
+Depending on the type of data, one can split data into fixed or variable
 sized chunks.
 
 Fixed sized chunking needs almost no CPU performance, and is used to
@@ -24,8 +24,8 @@ good deduplication rates for file archives.
 Therefore, the backup server supports both strategies.
 
 
-File Archives
-^^^^^^^^^^^^^
+File Archives: ``<name>.pxar``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. see https://moinakg.wordpress.com/2013/06/22/high-performance-content-defined-chunking/
 
@@ -34,8 +34,8 @@ the :ref:`pxar-format`, split into variable sized chunks. The format
 is specially optimized to achieve good deduplication rates.
 
 
-Image Archives
-^^^^^^^^^^^^^^
+Image Archives: ``<name>.img``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is used for virtual machine images and other large binary
 data. Content is split into fixed sized chunks.
@@ -49,6 +49,21 @@ configuration data. Larger files should be stored as image archive.
 
 .. caution:: Please do not store all files as BLOBs. Instead, use the
    file archive to store whole directory trees.
+
+
+Catalog File: ``catalog.pcat1``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The catalog file is basically an index for file archive. It contains
+the list of files, and is used to speedup search operations.
+
+
+The Manifest: ``index.json``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The manifest contains the list of all backup files, including
+file sizes and checksums. It is used to verify the consistency of a
+backup.
 
 
 Backup Type
