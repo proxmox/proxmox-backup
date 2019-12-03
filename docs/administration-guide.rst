@@ -312,6 +312,65 @@ variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 Restoring Data
 ~~~~~~~~~~~~~~
 
+The regular creation of backups is a necessary step to avoid data
+loss. More important, however, is the restoration. Be sure to perform
+periodic recovery tests to ensure that you can access your data in
+case of problems.
+
+First, you need to find the snapshot you want to restore. The snapshot
+command gives you a list of all snapshots on the server:
+
+.. code-block:: console
+
+  # proxmox-backup-client snapshots
+  ...
+  host/elsa/2019-12-03T09:30:15Z | 51788646825 | root.pxar catalog.pcat1 index.json
+  host/elsa/2019-12-03T09:35:01Z | 51790622048 | root.pxar catalog.pcat1 index.json
+  ...
+
+You can also inspect the catalog to find specific files.
+
+.. code-block:: console
+
+  # proxmox-backup-client catalog host/elsa/2019-12-03T09:35:01Z
+  ...
+  d "./root.pxar.didx/etc/cifs-utils"
+  l "./root.pxar.didx/etc/cifs-utils/idmap-plugin"
+  d "./root.pxar.didx/etc/console-setup"
+  ...
+
+The restore command lets you restore a single archive from the
+backup.
+
+.. code-block:: console
+
+  # proxmox-backup-client restore host/elsa/2019-12-03T09:35:01Z root.pxar /target/path/
+
+You can instead simply download the contents of any archive using '-'
+instead of ``/target/path``. This dumps the content to standard
+output:
+
+.. code-block:: console
+
+  # proxmox-backup-client restore host/elsa/2019-12-03T09:35:01Z index.json -
+
+
+Interactive Restores
+^^^^^^^^^^^^^^^^^^^^
+
+If you only want to restore a few individual files, it is often easier
+to use the interactive recovery shell.
+
+.. code-block:: console
+
+  # proxmox-backup-client shell host/elsa/2019-12-03T09:35:01Z root.pxar
+  Starting interactive shell
+  pxar:/ > ls
+  bin        boot       dev        etc        home       lib        lib32
+  ...
+
+.. todo:: Explain interactive restore
+
 
 .. _pve-integration:
 
