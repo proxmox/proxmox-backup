@@ -276,10 +276,37 @@ device:
   # proxmox-backup-client backup mydata.img:/dev/mylvm/mydata
 
 
-
-
 Encryption
 ^^^^^^^^^^
+
+Proxmox backup support client side encryption using AES-256 in GCM_
+mode. You first need to create an encryption key in order to use that:
+
+.. code-block:: console
+
+  # proxmox-backup-client key create my-backup.key
+  Encryption Key Password: **************
+
+The key is password protected by default. If you do not need this
+extra protection, you can also create it without a password:
+
+.. code-block:: console
+
+  # proxmox-backup-client key create /path/to/my-backup.key --kdf  none
+
+
+.. code-block:: console
+
+  # proxmox-backup-client backup etc.pxar:/etc --keyfile /path/to/my-backup.key
+  Password: *********
+  Encryption Key Password: **************
+  ...
+
+
+You can avoid having to enter the passwords by setting the environment
+variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
+
+.. todo:: Explain master-key
 
 
 Restoring Data
