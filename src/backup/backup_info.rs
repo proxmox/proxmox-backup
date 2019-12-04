@@ -3,8 +3,9 @@ use crate::tools;
 use failure::*;
 use regex::Regex;
 use std::os::unix::io::RawFd;
+use std::collections::HashSet;
 
-use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
+use chrono::{DateTime, Datelike, TimeZone, SecondsFormat, Utc, Local};
 
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
@@ -98,6 +99,76 @@ impl BackupGroup {
             Ok(())
         })?;
         Ok(list)
+    }
+
+    fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
+        mark: &mut HashSet<PathBuf>,
+        list: &Vec<BackupInfo>,
+        keep: usize,
+        select_id: F,
+    ){
+        let mut hash = HashSet::new();
+        for info in list {
+            let local_time = info.backup_dir.backup_time().with_timezone(&Local);
+            if hash.len() >= keep as usize { break; }
+            let backup_id = info.backup_dir.relative_path();
+            let sel_id: String = select_id(local_time, &info);
+            if !hash.contains(&sel_id) {
+                hash.insert(sel_id);
+                mark.insert(backup_id);
+            }
+        }
+    }
+
+    pub fn compute_prune_list(
+        mut list: Vec<BackupInfo>,
+        keep_last: Option<u64>,
+        keep_daily: Option<u64>,
+        keep_weekly: Option<u64>,
+        keep_monthly: Option<u64>,
+        keep_yearly: Option<u64>,
+    ) -> Result<Vec<BackupInfo>, Error> {
+
+        let mut mark = HashSet::new();
+
+        BackupInfo::sort_list(&mut list, false);
+
+        if let Some(keep_last) = keep_last {
+            list.iter().take(keep_last as usize).for_each(|info| {
+                mark.insert(info.backup_dir.relative_path());
+            });
+        }
+
+        if let Some(keep_daily) = keep_daily {
+            Self::mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
+                format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
+            });
+        }
+
+        if let Some(keep_weekly) = keep_weekly {
+            Self::mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.iso_week().week())
+            });
+        }
+
+        if let Some(keep_monthly) = keep_monthly {
+            Self::mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.month())
+            });
+        }
+
+        if let Some(keep_yearly) = keep_yearly {
+            Self::mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
+                format!("{}/{}", local_time.year(), local_time.year())
+            });
+        }
+
+        let mut remove_list: Vec<BackupInfo> = list.into_iter()
+            .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
+
+        BackupInfo::sort_list(&mut remove_list, true);
+
+        Ok(remove_list)
     }
 }
 

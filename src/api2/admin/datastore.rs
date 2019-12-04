@@ -1,7 +1,6 @@
 use std::collections::{HashSet, HashMap};
-use std::path::PathBuf;
 
-use chrono::{DateTime, Datelike, TimeZone, Local};
+use chrono::{TimeZone, Local};
 use failure::*;
 use futures::*;
 use hyper::http::request::Parts;
@@ -57,26 +56,6 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     }
 
     group_hash
-}
-
-fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
-    mark: &mut HashSet<PathBuf>,
-    list: &Vec<BackupInfo>,
-    keep: usize,
-    select_id: F,
-){
-    let mut hash = HashSet::new();
-    for info in list {
-        let local_time = info.backup_dir.backup_time().with_timezone(&Local);
-        if hash.len() >= keep as usize { break; }
-        let backup_id = info.backup_dir.relative_path();
-        let sel_id: String = select_id(local_time, &info);
-        if !hash.contains(&sel_id) {
-            hash.insert(sel_id);
-            //println!(" KEEP ID {} {}", backup_id, local_time.format("%c"));
-            mark.insert(backup_id);
-        }
-    }
 }
 
 fn list_groups(
@@ -300,7 +279,6 @@ const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
     )
 );
 
-
 fn prune(
     param: Value,
     _info: &ApiMethod,
@@ -334,46 +312,16 @@ fn prune(
             worker.log(format!("Starting prune on store {}", store));
         }
 
-        let mut list = group.list_backups(&datastore.base_path())?;
+        let list = group.list_backups(&datastore.base_path())?;
 
-        let mut mark = HashSet::new();
-
-        BackupInfo::sort_list(&mut list, false);
-
-        if let Some(keep_last) = param["keep-last"].as_u64() {
-            list.iter().take(keep_last as usize).for_each(|info| {
-                mark.insert(info.backup_dir.relative_path());
-            });
-        }
-
-        if let Some(keep_daily) = param["keep-daily"].as_u64() {
-            mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
-                format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
-            });
-        }
-
-        if let Some(keep_weekly) = param["keep-weekly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.iso_week().week())
-            });
-        }
-
-        if let Some(keep_monthly) = param["keep-monthly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.month())
-            });
-        }
-
-        if let Some(keep_yearly) = param["keep-yearly"].as_u64() {
-            mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
-                format!("{}/{}", local_time.year(), local_time.year())
-            });
-        }
-
-        let mut remove_list: Vec<BackupInfo> = list.into_iter()
-            .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
-
-        BackupInfo::sort_list(&mut remove_list, true);
+        let remove_list = BackupGroup::compute_prune_list(
+            list,
+            param["keep-last"].as_u64(),
+            param["keep-daily"].as_u64(),
+            param["keep-weekly"].as_u64(),
+            param["keep-monthly"].as_u64(),
+            param["keep-yearly"].as_u64(),
+        )?;
 
         for info in remove_list {
             worker.log(format!("remove {:?}", info.backup_dir));
