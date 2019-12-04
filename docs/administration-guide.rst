@@ -371,6 +371,30 @@ to use the interactive recovery shell.
 .. todo:: Explain interactive restore
 
 
+Login and Logout
+~~~~~~~~~~~~~~~~
+
+The client tool prompts you to enter the logon password as soon as you
+want to access the backup server. The server checks your credentials
+and responds with a ticket that is valid for two hours. The client
+tool automatically stores that ticket and use it for further requests
+to this server.
+
+You can also manually trigger this login/logout using the login and
+logout commands:
+
+.. code-block:: console
+
+  # proxmox-backup-client login
+  Password: **********
+
+To remove the ticket, simply issue a logout:
+
+.. code-block:: console
+
+  # proxmox-backup-client logout
+
+
 .. _pve-integration:
 
 `Proxmox VE`_ integration
