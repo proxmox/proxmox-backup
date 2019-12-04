@@ -99,6 +99,13 @@ Backup Time
 The time when the backup was made.
 
 
+Backup Group
+~~~~~~~~~~~~
+
+We call the tuple ``<type>/<ID>`` a backup group. Such group
+may contains one or more backup snapshots.
+
+
 Backup Snapshot
 ~~~~~~~~~~~~~~~
 
@@ -393,6 +400,42 @@ To remove the ticket, simply issue a logout:
 .. code-block:: console
 
   # proxmox-backup-client logout
+
+
+Pruning and Removing Backups
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can manually delete a backup snapshot using the ``forget``
+command:
+
+.. code-block:: console
+
+  # proxmox-backup-client forget <snapshot>
+
+
+.. caution:: This command removes all the archives in this backup
+   snapshot so that they are inaccessible and unrecoverable.
+
+
+Such manual removal is sometimes necessary, but usually the prune
+command is used to systematically delete older backups.
+
+.. code-block:: console
+
+  # proxmox-backup-client prune <group> --keep-daily 7 --keep-weekly 4 --keep-monthly 3
+
+
+.. note:: Neither the prune command nor the remove command free space
+   in the chunk-store. The chunk-store still contains the data blocks
+   unless you are performing :ref:`garbage-collection`.
+
+
+.. _garbage-collection:
+
+Garbage Collection
+~~~~~~~~~~~~~~~~~~
+
+.. todo:: write garbage-collection section
 
 
 .. _pve-integration:
