@@ -29,13 +29,19 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Value,
 
     let raw_data = file_get_contents(&path)?;
     let data = DataBlob::from_raw(raw_data)?.decode(None)?;
+    let index_size = data.len();
     let mut result: Value = serde_json::from_reader(&mut &data[..])?;
 
-    let result = result["files"].take();
+    let mut result = result["files"].take();
 
     if result == Value::Null {
         bail!("missing 'files' property in backup index {:?}", path);
     }
+
+    result.as_array_mut().unwrap().push(json!({
+        "filename": "index.json.blob",
+        "size": index_size,
+    }));
 
     Ok(result)
 }
