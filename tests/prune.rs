@@ -14,12 +14,20 @@ fn get_prune_list(
     keep_yearly: Option<u64>,
 ) -> Vec<PathBuf> {
 
-    let remove_list = BackupGroup::compute_prune_list(
+   let mut prune_info = BackupGroup::compute_prune_info(
         list, keep_last, keep_daily, keep_weekly, keep_monthly, keep_yearly).unwrap();
 
-    remove_list
+    prune_info.reverse();
+    
+    prune_info
         .iter()
-        .map(|d| d.backup_dir.relative_path())
+        .filter_map(|(info, keep)| {
+            if *keep {
+                None
+            } else {
+                Some(info.backup_dir.relative_path())
+            }
+        })
         .collect()
 }
 

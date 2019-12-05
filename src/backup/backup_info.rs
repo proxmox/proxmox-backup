@@ -128,14 +128,14 @@ impl BackupGroup {
         }
     }
 
-    pub fn compute_prune_list(
+    pub fn compute_prune_info(
         mut list: Vec<BackupInfo>,
         keep_last: Option<u64>,
         keep_daily: Option<u64>,
         keep_weekly: Option<u64>,
         keep_monthly: Option<u64>,
         keep_yearly: Option<u64>,
-    ) -> Result<Vec<BackupInfo>, Error> {
+    ) -> Result<Vec<(BackupInfo, bool)>, Error> {
 
         let mut mark = HashMap::new();
 
@@ -190,19 +190,18 @@ impl BackupGroup {
             });
         }
 
-        let mut remove_list: Vec<BackupInfo> = list.into_iter()
-            .filter(|info| {
+        let prune_info: Vec<(BackupInfo, bool)> = list.into_iter()
+            .map(|info| {
                 let backup_id = info.backup_dir.relative_path();
-                match mark.get(&backup_id) {
-                    Some(PruneMark::Keep) => false,
-                    _ => true,
-                }
+                let keep = match mark.get(&backup_id) {
+                    Some(PruneMark::Keep) => true,
+                    _ => false,
+                };
+                (info, keep)
             })
             .collect();
 
-        BackupInfo::sort_list(&mut remove_list, true);
-
-        Ok(remove_list)
+        Ok(prune_info)
     }
 }
 

@@ -314,7 +314,7 @@ fn prune(
 
         let list = group.list_backups(&datastore.base_path())?;
 
-        let remove_list = BackupGroup::compute_prune_list(
+        let mut prune_info = BackupGroup::compute_prune_info(
             list,
             param["keep-last"].as_u64(),
             param["keep-daily"].as_u64(),
@@ -323,9 +323,15 @@ fn prune(
             param["keep-yearly"].as_u64(),
         )?;
 
-        for info in remove_list {
-            worker.log(format!("remove {:?}", info.backup_dir));
-            datastore.remove_backup_dir(&info.backup_dir)?;
+        prune_info.reverse(); // delete older snapshots first
+
+        for (info, keep) in prune_info {
+            if keep {
+                worker.log(format!("keep {:?}", info.backup_dir.relative_path()));
+            } else {
+                worker.log(format!("remove {:?}", info.backup_dir.relative_path()));
+                datastore.remove_backup_dir(&info.backup_dir)?;
+            }
         }
 
         Ok(())
