@@ -3,7 +3,7 @@ use crate::tools;
 use failure::*;
 use regex::Regex;
 use std::os::unix::io::RawFd;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Datelike, TimeZone, SecondsFormat, Utc, Local};
 
@@ -43,6 +43,8 @@ pub struct BackupGroup {
     /// Unique (for this type) ID
     backup_id: String,
 }
+
+enum PruneMark { Keep, Remove }
 
 impl BackupGroup {
 
@@ -102,20 +104,26 @@ impl BackupGroup {
     }
 
     fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
-        mark: &mut HashSet<PathBuf>,
+        mark: &mut HashMap<PathBuf, PruneMark>,
         list: &Vec<BackupInfo>,
         keep: usize,
         select_id: F,
-    ){
+    ) {
+
         let mut hash = HashSet::new();
         for info in list {
-            let local_time = info.backup_dir.backup_time().with_timezone(&Local);
-            if hash.len() >= keep as usize { break; }
             let backup_id = info.backup_dir.relative_path();
+            if let Some(_) = mark.get(&backup_id) {
+                continue;
+            }
+            let local_time = info.backup_dir.backup_time().with_timezone(&Local);
             let sel_id: String = select_id(local_time, &info);
             if !hash.contains(&sel_id) {
+                if hash.len() >= keep { break; }
                 hash.insert(sel_id);
-                mark.insert(backup_id);
+                mark.insert(backup_id, PruneMark::Keep);
+            } else {
+                mark.insert(backup_id, PruneMark::Remove);
             }
         }
     }
@@ -129,14 +137,17 @@ impl BackupGroup {
         keep_yearly: Option<u64>,
     ) -> Result<Vec<BackupInfo>, Error> {
 
-        let mut mark = HashSet::new();
-
+        let mut mark = HashMap::new();
+        
         BackupInfo::sort_list(&mut list, false);
-
+        
         if let Some(keep_last) = keep_last {
-            list.iter().take(keep_last as usize).for_each(|info| {
-                mark.insert(info.backup_dir.relative_path());
-            });
+            for _ in 0..keep_last {
+                if list.is_empty() { break; }
+                let info = list.remove(0);
+                let backup_id = info.backup_dir.relative_path();
+                mark.insert(backup_id, PruneMark::Keep);
+            }
         }
 
         if let Some(keep_daily) = keep_daily {
@@ -164,7 +175,14 @@ impl BackupGroup {
         }
 
         let mut remove_list: Vec<BackupInfo> = list.into_iter()
-            .filter(|info| !mark.contains(&info.backup_dir.relative_path())).collect();
+            .filter(|info| {
+                let backup_id = info.backup_dir.relative_path();
+                match mark.get(&backup_id) {
+                    Some(PruneMark::Keep) => false,
+                    _ => true,
+                }
+            })
+            .collect();
 
         BackupInfo::sort_list(&mut remove_list, true);
 
