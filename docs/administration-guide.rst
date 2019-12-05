@@ -447,6 +447,10 @@ option covers a specific period of time. We say that backups within
 this period are covered by this option. The next option does not take
 care of already covered backups and only considers older backups.
 
+The prune command also looks for unfinished and incomplete backups and
+removes them unless they are newer than the last successful backup. In
+this case, the last failed backup is retained.
+
 
 .. code-block:: console
 
