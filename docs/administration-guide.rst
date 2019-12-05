@@ -417,15 +417,43 @@ command:
    snapshot so that they are inaccessible and unrecoverable.
 
 
-Such manual removal is sometimes necessary, but usually the prune
-command is used to systematically delete older backups.
+Such manual removal is sometimes required, but normally the prune
+command is used to systematically delete older backups. Prune lets
+you specify which backup snapshots you want to keep. There are the
+following retention options:
+
+``--keep-last <N>``
+  Keep the last ``<N>`` backup snapshots.
+
+``--keep-daily <N>``
+  Keep backups for ``<N>`` different days. If there is more than one
+  backup for a single day, only the latest one is kept.
+
+``--keep-weekly <N>``
+  Keep backups for ``<N>`` different weeks. If there is more than one
+  backup for a single week, only the latest one is kept.
+
+``--keep-monthly <N>``
+  Keep backups for ``<N>`` different months. If there is more than one
+  backup for a single month, only the latest one is kept.
+
+``--keep-yearly <N>``
+  Keep backups for ``<N>`` different year. If there is more than one
+  backup for a single year, only the latest one is kept.
+
+
+Those retention options are processed in the order given above. Each
+option covers a specific period of time. We say that backups within
+this period are covered by this option. The next option does not take
+care of already covered backups and only considers older backups.
+
 
 .. code-block:: console
 
   # proxmox-backup-client prune <group> --keep-daily 7 --keep-weekly 4 --keep-monthly 3
 
 
-.. note:: Neither the prune command nor the remove command free space
+.. note:: Neither the ``prune`` command nor the ``forget`` command free space
    in the chunk-store. The chunk-store still contains the data blocks
    unless you are performing :ref:`garbage-collection`.
 
