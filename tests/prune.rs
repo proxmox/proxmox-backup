@@ -134,6 +134,7 @@ fn test_prune_simple() -> Result<(), Error> {
     let remove_list = get_prune_list(list, None, Some(1), Some(5), None, None);
     let expect: Vec<PathBuf> = vec![
         PathBuf::from("host/elsa/2019-12-02T11:59:15Z"),
+        PathBuf::from("host/elsa/2019-12-03T11:59:15Z"),
         PathBuf::from("host/elsa/2019-12-04T11:59:15Z"),
     ];
     assert_eq!(remove_list, expect);

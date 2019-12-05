@@ -110,17 +110,29 @@ impl BackupGroup {
         select_id: F,
     ) {
 
-        let mut hash = HashSet::new();
+        let mut include_hash = HashSet::new();
+
+        let mut already_included = HashSet::new();
         for info in list {
             let backup_id = info.backup_dir.relative_path();
-            if let Some(_) = mark.get(&backup_id) {
-                continue;
+            if let Some(PruneMark::Keep) = mark.get(&backup_id) {
+                let local_time = info.backup_dir.backup_time().with_timezone(&Local);
+                let sel_id: String = select_id(local_time, &info);
+                already_included.insert(sel_id);
             }
+        }
+
+        for info in list {
+            let backup_id = info.backup_dir.relative_path();
+            if let Some(_) = mark.get(&backup_id) { continue; }
             let local_time = info.backup_dir.backup_time().with_timezone(&Local);
             let sel_id: String = select_id(local_time, &info);
-            if !hash.contains(&sel_id) {
-                if hash.len() >= keep { break; }
-                hash.insert(sel_id);
+
+            if already_included.contains(&sel_id) { continue; }
+
+            if !include_hash.contains(&sel_id) {
+                if include_hash.len() >= keep { break; }
+                include_hash.insert(sel_id);
                 mark.insert(backup_id, PruneMark::Keep);
             } else {
                 mark.insert(backup_id, PruneMark::Remove);
