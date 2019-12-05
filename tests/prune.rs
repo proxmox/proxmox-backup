@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use proxmox_backup::backup::*;
 
-const TESTDIR: &str = "./tests/prune_data/simple1";
-
 fn get_prune_list(
     list: Vec<BackupInfo>,
     keep_last: Option<u64>,
@@ -31,11 +29,33 @@ fn get_prune_list(
         .collect()
 }
 
+fn create_info(
+    snapshot: &str,
+    partial: bool,
+) -> BackupInfo {
+
+    let backup_dir = BackupDir::parse(snapshot).unwrap();
+
+    let mut files = Vec::new();
+
+    if !partial {
+        files.push(String::from(MANIFEST_BLOB_NAME));
+    }
+    
+    BackupInfo { backup_dir, files }
+}
+
 #[test]
 fn test_prune_simple() -> Result<(), Error> {
 
-    let orig_list = BackupInfo::list_backups(std::path::Path::new(TESTDIR))?;
+    let mut orig_list = Vec::new();
 
+    orig_list.push(create_info("host/elsa/2019-12-02T11:59:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-12-03T11:59:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-12-04T11:59:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-12-04T12:59:15Z", false));
+
+    
     // keep-last tests
 
     let list = orig_list.clone();
