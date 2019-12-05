@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use proxmox_backup::backup::*;
 
-const TESTDIR: &str = "/tmp/prunetest";
+const TESTDIR: &str = "./tests/prune_data/simple1";
 
 fn get_prune_list(
     list: Vec<BackupInfo>,
@@ -25,15 +25,6 @@ fn get_prune_list(
 
 #[test]
 fn test_prune_simple() -> Result<(), Error> {
-
-    let _ = std::fs::remove_dir_all(TESTDIR);
-    std::fs::create_dir(TESTDIR)?;
-
-    std::fs::create_dir_all(format!("{}/{}", TESTDIR, "host/elsa/2019-12-02T11:59:15Z"))?;
-    std::fs::create_dir_all(format!("{}/{}", TESTDIR, "host/elsa/2019-12-03T11:59:15Z"))?;
-    std::fs::create_dir_all(format!("{}/{}", TESTDIR, "host/elsa/2019-12-04T11:59:15Z"))?;
-    std::fs::create_dir_all(format!("{}/{}", TESTDIR, "host/elsa/2019-12-04T12:59:15Z"))?;
-
 
     let orig_list = BackupInfo::list_backups(std::path::Path::new(TESTDIR))?;
 
