@@ -138,16 +138,32 @@ impl BackupGroup {
     ) -> Result<Vec<BackupInfo>, Error> {
 
         let mut mark = HashMap::new();
-        
+
         BackupInfo::sort_list(&mut list, false);
-        
-        if let Some(keep_last) = keep_last {
-            for _ in 0..keep_last {
-                if list.is_empty() { break; }
-                let info = list.remove(0);
+
+        // remove inclomplete snapshots
+        let mut keep_unfinished = true;
+        for info in list.iter() {
+            // backup is considered unfinished if there is no manifest
+            if info.files.iter().any(|name| name == super::MANIFEST_BLOB_NAME) {
+                // There is a new finished backup, so there is no need
+                // to keep older unfinished backups.
+                keep_unfinished = false;
+            } else {
                 let backup_id = info.backup_dir.relative_path();
-                mark.insert(backup_id, PruneMark::Keep);
+                if keep_unfinished { // keep first unfinished
+                    mark.insert(backup_id, PruneMark::Keep);
+                } else {
+                    mark.insert(backup_id, PruneMark::Remove);
+                }
+                keep_unfinished = false;
             }
+        }
+
+        if let Some(keep_last) = keep_last {
+             Self::mark_selections(&mut mark, &list, keep_last as usize, |_local_time, info| {
+                 BackupDir::backup_time_to_string(info.backup_dir.backup_time)
+             });
         }
 
         if let Some(keep_daily) = keep_daily {

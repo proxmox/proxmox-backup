@@ -86,6 +86,9 @@ fn upgrade_to_backup_protocol(
         if backup_dir.backup_time() <= last.backup_dir.backup_time() {
             bail!("backup timestamp is older than last backup.");
         }
+        // fixme: abort if last backup is still running - howto test?
+        // Idea: write upid into a file inside snapshot dir. then test if
+        // it is still running here.
     }
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
