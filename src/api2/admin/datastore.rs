@@ -280,6 +280,64 @@ macro_rules! add_common_prune_prameters {
     }
 }
 
+const API_METHOD_TEST_PRUNE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&test_prune),
+    &ObjectSchema::new(
+        "Test what prune would do.",
+        &add_common_prune_prameters!([
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+        ],[
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ])
+    )
+);
+
+fn test_prune(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let store = param["store"].as_str().unwrap();
+
+    let backup_type = tools::required_string_param(&param, "backup-type")?;
+    let backup_id = tools::required_string_param(&param, "backup-id")?;
+
+    let group = BackupGroup::new(backup_type, backup_id);
+
+    let datastore = DataStore::lookup_datastore(store)?;
+
+    let prune_options = PruneOptions {
+        keep_last: param["keep-last"].as_u64(),
+        keep_daily: param["keep-daily"].as_u64(),
+        keep_weekly: param["keep-weekly"].as_u64(),
+        keep_monthly: param["keep-monthly"].as_u64(),
+        keep_yearly: param["keep-yearly"].as_u64(),
+    };
+
+    let list = group.list_backups(&datastore.base_path())?;
+
+    let result: Vec<(Value)> = if !prune_options.keeps_something() {
+        list.iter().map(|info| {
+            json!({
+                "backup-time": info.backup_dir.backup_time().timestamp(),
+                "keep": true,
+            })
+        }).collect()
+    } else {
+        let prune_info = compute_prune_info(list, &prune_options)?;
+        prune_info.iter().map(|(info, keep)| {
+            json!({
+                "backup-time": info.backup_dir.backup_time().timestamp(),
+                "keep": keep,
+            })
+        }).collect()
+    };
+
+    Ok(json!(result))
+}
+
 const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&prune),
     &ObjectSchema::new(
@@ -604,6 +662,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "prune",
         &Router::new()
+            .get(&API_METHOD_TEST_PRUNE)
             .post(&API_METHOD_PRUNE)
     ),
     (
