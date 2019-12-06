@@ -451,10 +451,23 @@ The prune command also looks for unfinished and incomplete backups and
 removes them unless they are newer than the last successful backup. In
 this case, the last failed backup is retained.
 
-
 .. code-block:: console
 
   # proxmox-backup-client prune <group> --keep-daily 7 --keep-weekly 4 --keep-monthly 3
+
+
+You can use the ``--dry-run`` option to test your settings. This just
+shows the list of existing snapshots and what action prune would take
+on that.
+
+.. code-block:: console
+
+  # proxmox-backup-client prune host/elsa --dry-run --keep-daily 1 --keep-weekly 3
+  host/elsa/2019-12-04T13:20:37Z keep
+  host/elsa/2019-12-03T09:35:01Z remove
+  host/elsa/2019-11-22T11:54:47Z keep
+  host/elsa/2019-11-21T12:36:25Z remove
+  host/elsa/2019-11-10T10:42:20Z keep
 
 
 .. note:: Neither the ``prune`` command nor the ``forget`` command free space
