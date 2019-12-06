@@ -113,6 +113,16 @@ impl PruneOptions {
         self.keep_yearly = value;
         self
     }
+
+    pub fn keeps_something(&self) -> bool {
+        let mut keep_something = false;
+        if let Some(count) = self.keep_last { if count > 0 { keep_something = true; } }
+        if let Some(count) = self.keep_daily { if count > 0 { keep_something = true; } }
+        if let Some(count) = self.keep_weekly { if count > 0 { keep_something = true; } }
+        if let Some(count) = self.keep_monthly { if count > 0 { keep_something = true; } }
+        if let Some(count) = self.keep_yearly { if count > 0 { keep_something = true; } }
+        keep_something
+    }
 }
 
 pub fn compute_prune_info(

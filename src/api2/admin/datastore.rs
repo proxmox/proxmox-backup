@@ -294,18 +294,17 @@ fn prune(
 
     let datastore = DataStore::lookup_datastore(store)?;
 
-    let mut keep_all = true;
-
-    for opt in &["keep-last", "keep-daily", "keep-weekly", "keep-weekly", "keep-yearly"] {
-        if !param[opt].is_null() {
-            keep_all = false;
-            break;
-        }
-    }
+    let prune_options = PruneOptions {
+        keep_last: param["keep-last"].as_u64(),
+        keep_daily: param["keep-daily"].as_u64(),
+        keep_weekly: param["keep-weekly"].as_u64(),
+        keep_monthly: param["keep-monthly"].as_u64(),
+        keep_yearly: param["keep-yearly"].as_u64(),
+    };
 
     let worker = WorkerTask::new("prune", Some(store.to_owned()), "root@pam", true)?;
     let result = try_block! {
-        if keep_all {
+        if !prune_options.keeps_something() {
             worker.log("No prune selection - keeping all files.");
             return Ok(());
         } else {
@@ -313,14 +312,6 @@ fn prune(
         }
 
         let list = group.list_backups(&datastore.base_path())?;
-
-        let prune_options = PruneOptions {
-            keep_last: param["keep-last"].as_u64(),
-            keep_daily: param["keep-daily"].as_u64(),
-            keep_weekly: param["keep-weekly"].as_u64(),
-            keep_monthly: param["keep-monthly"].as_u64(),
-            keep_yearly: param["keep-yearly"].as_u64(),
-        };
 
         let mut prune_info = compute_prune_info(list, &prune_options)?;
 
