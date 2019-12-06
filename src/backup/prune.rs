@@ -45,20 +45,11 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     }
 }
 
-pub fn compute_prune_info(
-    mut list: Vec<BackupInfo>,
-    keep_last: Option<u64>,
-    keep_daily: Option<u64>,
-    keep_weekly: Option<u64>,
-    keep_monthly: Option<u64>,
-    keep_yearly: Option<u64>,
-) -> Result<Vec<(BackupInfo, bool)>, Error> {
+fn remove_incomplete_snapshots(
+    mark: &mut HashMap<PathBuf, PruneMark>,
+    list: &Vec<BackupInfo>,
+) {
 
-    let mut mark = HashMap::new();
-
-    BackupInfo::sort_list(&mut list, false);
-
-    // remove inclomplete snapshots
     let mut keep_unfinished = true;
     for info in list.iter() {
         // backup is considered unfinished if there is no manifest
@@ -76,6 +67,22 @@ pub fn compute_prune_info(
             keep_unfinished = false;
         }
     }
+}
+
+pub fn compute_prune_info(
+    mut list: Vec<BackupInfo>,
+    keep_last: Option<u64>,
+    keep_daily: Option<u64>,
+    keep_weekly: Option<u64>,
+    keep_monthly: Option<u64>,
+    keep_yearly: Option<u64>,
+) -> Result<Vec<(BackupInfo, bool)>, Error> {
+
+    let mut mark = HashMap::new();
+
+    BackupInfo::sort_list(&mut list, false);
+
+    remove_incomplete_snapshots(&mut mark, &list);
 
     if let Some(keep_last) = keep_last {
         mark_selections(&mut mark, &list, keep_last as usize, |_local_time, info| {
