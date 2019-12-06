@@ -179,6 +179,9 @@ pub use dynamic_index::*;
 mod backup_info;
 pub use backup_info::*;
 
+mod prune;
+pub use prune::*;
+
 mod datastore;
 pub use datastore::*;
 
