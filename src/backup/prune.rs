@@ -150,7 +150,11 @@ pub fn compute_prune_info(
 
     if let Some(keep_weekly) = options.keep_weekly {
         mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
-            format!("{}/{}", local_time.year(), local_time.iso_week().week())
+            let iso_week = local_time.iso_week();
+            let week = iso_week.week();
+            // Note: This year number might not match the calendar year number.
+            let iso_week_year = iso_week.year();
+            format!("{}/{}", iso_week_year, week);
         });
     }
 
