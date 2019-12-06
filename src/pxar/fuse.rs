@@ -86,30 +86,12 @@ struct FuseArgs {
 /// offset within the archive for the i-node given by the caller.
 struct Context {
     decoder: Decoder,
-    goodbye_cache: Option<(Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>)>,
+    goodbye_cache: HashMap<Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>>,
     attr_cache: Option<(Inode, PxarAttributes)>,
     ino_offset: Offset,
 }
 
 impl Context {
-    /// Update the goodbye table to the one corresponding to the i-node offset, both
-    /// given in the `Context`.
-    fn update_goodbye_cache(&mut self) -> Result<(), i32> {
-        if let Some((off, _)) = self.goodbye_cache {
-            if off == self.ino_offset {
-                // Cache contains already the correct goodbye table
-                return Ok(());
-            }
-        }
-        // Inode did not match or cache is empty, need to update the cache
-        let gbt = self.decoder
-            .goodbye_table(None, self.ino_offset + GOODBYE_ITEM_SIZE)
-            .map_err(|_| libc::EIO)?;
-        self.goodbye_cache = Some((self.ino_offset, gbt));
-
-        Ok(())
-    }
-
     /// Lookup the goodbye item identified by `filename` and its corresponding `hash`
     ///
     /// Updates the goodbye table cache to contain the table for the directory given
@@ -129,43 +111,40 @@ impl Context {
         filename: &CStr,
         hash: u64,
     ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
-        self.update_goodbye_cache()?;
-        if let Some((_, gbt)) = &self.goodbye_cache {
-            let mut start_idx = 0;
-            let mut skip_multiple = 0;
-            loop {
-                // Search for the next goodbye entry with matching hash.
-                let idx = search_binary_tree_by(
-                    start_idx,
-                    gbt.len(),
-                    skip_multiple,
-                    |idx| hash.cmp(&gbt[idx].0.hash),
-                ).ok_or(libc::ENOENT)?;
+        let gbt = self.goodbye_cache.get(&self.ino_offset)
+            .ok_or_else(|| libc::EIO)?;
+        let mut start_idx = 0;
+        let mut skip_multiple = 0;
+        loop {
+            // Search for the next goodbye entry with matching hash.
+            let idx = search_binary_tree_by(
+                start_idx,
+                gbt.len(),
+                skip_multiple,
+                |idx| hash.cmp(&gbt[idx].0.hash),
+            ).ok_or(libc::ENOENT)?;
 
-                let (_item, start, end) = &gbt[idx];
+            let (_item, start, end) = &gbt[idx];
 
-                // At this point it is not clear if the item is a directory or not, this
-                // has to be decided based on the entry mode.
-                // `Decoder`s attributes function accepts both, offsets pointing to
-                // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
-                // of directories, so the use of start offset is fine for both cases.
-                let (entry_name, entry, attr, payload_size) =
-                    self.decoder.attributes(*start).map_err(|_| libc::EIO)?;
+            // At this point it is not clear if the item is a directory or not, this
+            // has to be decided based on the entry mode.
+            // `Decoder`s attributes function accepts both, offsets pointing to
+            // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
+            // of directories, so the use of start offset is fine for both cases.
+            let (entry_name, entry, attr, payload_size) =
+                self.decoder.attributes(*start).map_err(|_| libc::EIO)?;
 
-                // Possible hash collision, need to check if the found entry is indeed
-                // the filename to lookup.
-                if entry_name.as_bytes() == filename.to_bytes() {
-                    let child_offset = find_offset(&entry, *start, *end);
-                    return Ok((child_offset, entry, attr, payload_size));
-                }
-                // Hash collision, check the next entry in the goodbye table by starting
-                // from given index but skipping one more match (so hash at index itself).
-                start_idx = idx;
-                skip_multiple = 1;
+            // Possible hash collision, need to check if the found entry is indeed
+            // the filename to lookup.
+            if entry_name.as_bytes() == filename.to_bytes() {
+                let child_offset = find_offset(&entry, *start, *end);
+                return Ok((child_offset, entry, attr, payload_size));
             }
+            // Hash collision, check the next entry in the goodbye table by starting
+            // from given index but skipping one more match (so hash at index itself).
+            start_idx = idx;
+            skip_multiple = 1;
         }
-
-        Err(libc::ENOENT)
     }
 }
 
@@ -252,16 +231,21 @@ impl Session  {
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
     pub fn new(
-        decoder: Decoder,
+        mut decoder: Decoder,
         options: &OsStr,
         verbose: bool,
     ) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
 
+        let root_ino_offset = decoder.root_end_offset() - GOODBYE_ITEM_SIZE;
+        let root_goodbye_table = decoder.goodbye_table(None, root_ino_offset + GOODBYE_ITEM_SIZE)?;
+        let mut goodbye_cache = HashMap::new();
+        goodbye_cache.insert(root_ino_offset, root_goodbye_table);
+
         let ctx = Context {
             decoder,
-            goodbye_cache: None,
+            goodbye_cache,
             attr_cache: None,
             ino_offset: 0,
         };
@@ -323,6 +307,7 @@ impl Session  {
         oprs.read = Some(Self::read);
         oprs.opendir = Some(Self::opendir);
         oprs.readdir = Some(Self::readdir);
+        oprs.releasedir = Some(Self::releasedir);
         oprs
     }
 
@@ -518,14 +503,12 @@ impl Session  {
     /// state identifies the directory as opened.
     extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
-            let (_, entry, _, _) = ctx
-                .decoder
-                .attributes(ctx.ino_offset)
+            let gbt = ctx.decoder
+                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
                 .map_err(|_| libc::EIO)?;
-            if (entry.mode as u32 & libc::S_IFMT) != libc::S_IFDIR {
-                return Err(libc::ENOENT);
-            }
-            let _ret = unsafe { fuse_reply_open(req, fileinfo) };
+            ctx.goodbye_cache.insert(ctx.ino_offset, gbt);
+
+            let _ret = unsafe { fuse_reply_open(req, fileinfo as MutPtr) };
 
             Ok(())
         });
@@ -543,8 +526,8 @@ impl Session  {
         let offset = offset as usize;
 
         Self::run_in_context(req, inode, |ctx| {
-            ctx.update_goodbye_cache()?;
-            let gb_table = &ctx.goodbye_cache.as_ref().unwrap().1;
+            let gb_table = ctx.goodbye_cache.get(&ctx.ino_offset)
+                .ok_or_else(|| libc::EIO)?;
             let n_entries = gb_table.len();
             let mut buf = ReplyBuf::new(req, size, offset);
 
@@ -601,6 +584,14 @@ impl Session  {
             }
 
             buf.reply_filled()
+        });
+    }
+
+
+    extern "C" fn releasedir(req: Request, inode: u64, _fileinfo: MutPtr) {
+        Self::run_in_context(req, inode, |ctx| {
+            let _gbt = ctx.goodbye_cache.remove(&ctx.ino_offset);
+            Ok(())
         });
     }
 }
