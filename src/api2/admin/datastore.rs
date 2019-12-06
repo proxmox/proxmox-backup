@@ -314,14 +314,15 @@ fn prune(
 
         let list = group.list_backups(&datastore.base_path())?;
 
-        let mut prune_info = compute_prune_info(
-            list,
-            param["keep-last"].as_u64(),
-            param["keep-daily"].as_u64(),
-            param["keep-weekly"].as_u64(),
-            param["keep-monthly"].as_u64(),
-            param["keep-yearly"].as_u64(),
-        )?;
+        let prune_options = PruneOptions {
+            keep_last: param["keep-last"].as_u64(),
+            keep_daily: param["keep-daily"].as_u64(),
+            keep_weekly: param["keep-weekly"].as_u64(),
+            keep_monthly: param["keep-monthly"].as_u64(),
+            keep_yearly: param["keep-yearly"].as_u64(),
+        };
+
+        let mut prune_info = compute_prune_info(list, &prune_options)?;
 
         prune_info.reverse(); // delete older snapshots first
 

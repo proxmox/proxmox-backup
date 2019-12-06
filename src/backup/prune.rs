@@ -69,13 +69,55 @@ fn remove_incomplete_snapshots(
     }
 }
 
+pub struct PruneOptions {
+    pub keep_last: Option<u64>,
+    pub keep_daily: Option<u64>,
+    pub keep_weekly: Option<u64>,
+    pub keep_monthly: Option<u64>,
+    pub keep_yearly: Option<u64>,
+}
+
+impl PruneOptions {
+
+    pub fn new() -> Self {
+        Self {
+            keep_last: None,
+            keep_daily: None,
+            keep_weekly: None,
+            keep_monthly: None,
+            keep_yearly: None,
+        }
+    }
+
+    pub fn keep_last(mut self, value: Option<u64>) -> Self {
+        self.keep_last = value;
+        self
+    }
+
+    pub fn keep_daily(mut self, value: Option<u64>) -> Self {
+        self.keep_daily = value;
+        self
+    }
+
+    pub fn keep_weekly(mut self, value: Option<u64>) -> Self {
+        self.keep_weekly = value;
+        self
+    }
+
+    pub fn keep_monthly(mut self, value: Option<u64>) -> Self {
+        self.keep_monthly = value;
+        self
+    }
+
+    pub fn keep_yearly(mut self, value: Option<u64>) -> Self {
+        self.keep_yearly = value;
+        self
+    }
+}
+
 pub fn compute_prune_info(
     mut list: Vec<BackupInfo>,
-    keep_last: Option<u64>,
-    keep_daily: Option<u64>,
-    keep_weekly: Option<u64>,
-    keep_monthly: Option<u64>,
-    keep_yearly: Option<u64>,
+    options: &PruneOptions,
 ) -> Result<Vec<(BackupInfo, bool)>, Error> {
 
     let mut mark = HashMap::new();
@@ -84,31 +126,31 @@ pub fn compute_prune_info(
 
     remove_incomplete_snapshots(&mut mark, &list);
 
-    if let Some(keep_last) = keep_last {
+    if let Some(keep_last) = options.keep_last {
         mark_selections(&mut mark, &list, keep_last as usize, |_local_time, info| {
             BackupDir::backup_time_to_string(info.backup_dir.backup_time())
         });
     }
 
-    if let Some(keep_daily) = keep_daily {
+    if let Some(keep_daily) = options.keep_daily {
         mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
             format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
         });
     }
 
-    if let Some(keep_weekly) = keep_weekly {
+    if let Some(keep_weekly) = options.keep_weekly {
         mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
             format!("{}/{}", local_time.year(), local_time.iso_week().week())
         });
     }
 
-    if let Some(keep_monthly) = keep_monthly {
+    if let Some(keep_monthly) = options.keep_monthly {
         mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
             format!("{}/{}", local_time.year(), local_time.month())
         });
     }
 
-    if let Some(keep_yearly) = keep_yearly {
+    if let Some(keep_yearly) = options.keep_yearly {
         mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
             format!("{}/{}", local_time.year(), local_time.year())
         });
