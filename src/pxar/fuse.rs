@@ -16,6 +16,7 @@ use lazy_static::lazy_static;
 use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
+use super::binary_search_tree::search_binary_tree_by;
 use super::decoder::Decoder;
 use super::format_definition::{PxarAttributes, PxarEntry, PxarGoodbyeItem};
 
@@ -130,11 +131,18 @@ impl Context {
     ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
         self.update_goodbye_cache()?;
         if let Some((_, gbt)) = &self.goodbye_cache {
-            let mut iterator = gbt.iter();
+            let mut start_idx = 0;
+            let mut skip_multiple = 0;
             loop {
                 // Search for the next goodbye entry with matching hash.
-                let (_item, start, end) = iterator.find(|(i, _, _)| i.hash == hash)
-                    .ok_or(libc::ENOENT)?;
+                let idx = search_binary_tree_by(
+                    start_idx,
+                    gbt.len(),
+                    skip_multiple,
+                    |idx| hash.cmp(&gbt[idx].0.hash),
+                ).ok_or(libc::ENOENT)?;
+
+                let (_item, start, end) = &gbt[idx];
 
                 // At this point it is not clear if the item is a directory or not, this
                 // has to be decided based on the entry mode.
@@ -150,6 +158,10 @@ impl Context {
                     let child_offset = find_offset(&entry, *start, *end);
                     return Ok((child_offset, entry, attr, payload_size));
                 }
+                // Hash collision, check the next entry in the goodbye table by starting
+                // from given index but skipping one more match (so hash at index itself).
+                start_idx = idx;
+                skip_multiple = 1;
             }
         }
 

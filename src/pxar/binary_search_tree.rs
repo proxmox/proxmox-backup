@@ -27,6 +27,8 @@
 //! Heap](https://en.wikipedia.org/wiki/Binary_heap) gives a short
 //! intro howto store binary trees using an array.
 
+use std::cmp::Ordering;
+
 #[allow(clippy::many_single_char_names)]
 fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     copy_func: &mut F,
@@ -89,6 +91,86 @@ pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
     let e = (64 - n.leading_zeros() - 1) as usize; // fast log2(n)
 
     copy_binary_search_tree_inner(&mut copy_func, n, 0, e, 0);
+}
+
+
+/// This function searches for the index where the comparison by the provided
+/// `compare()` function returns `Ordering::Equal`.
+/// The order of the comparison matters (noncommutative) and should be search
+/// value compared to value at given index as shown in the examples.
+/// The parameter `skip_multiples` defines the number of matches to ignore while
+/// searching before returning the index in order to lookup duplicate entries in
+/// the tree.
+///
+/// ```
+/// # use proxmox_backup::pxar::{copy_binary_search_tree, search_binary_tree_by};
+/// let mut vals = vec![0,1,2,2,2,3,4,5,6,6,7,8,8,8];
+///
+/// let clone = vals.clone();
+/// copy_binary_search_tree(vals.len(), |s, d| {
+///     vals[d] = clone[s];
+/// });
+/// let should_be = vec![5,2,8,1,3,6,8,0,2,2,4,6,7,8];
+/// assert_eq!(vals, should_be);
+///
+/// let find = 8;
+/// let skip_multiples = 0;
+/// let idx = search_binary_tree_by(0, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert_eq!(idx, Some(2));
+///
+/// let find = 8;
+/// let skip_multiples = 1;
+/// let idx = search_binary_tree_by(2, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert_eq!(idx, Some(6));
+///
+/// let find = 8;
+/// let skip_multiples = 1;
+/// let idx = search_binary_tree_by(6, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert_eq!(idx, Some(13));
+///
+/// let find = 5;
+/// let skip_multiples = 1;
+/// let idx = search_binary_tree_by(0, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert!(idx.is_none());
+/// ```
+
+pub fn search_binary_tree_by<F: Copy + Fn(usize) -> Ordering>(
+    start: usize,
+    size: usize,
+    skip_multiples: usize,
+    compare: F
+) -> Option<usize> {
+    if start > size {
+        return None;
+    }
+
+    let mut skip = skip_multiples;
+    let cmp = compare(start);
+    if cmp == Ordering::Equal {
+        if skip == 0 {
+            // Found matching hash and want this one
+            return Some(start);
+        }
+        // Found matching hash, but we should skip the first `skip_multiple`,
+        // so continue search with reduced skip count.
+        skip -= 1;
+    }
+
+    if cmp == Ordering::Less || cmp == Ordering::Equal {
+        let res = search_binary_tree_by(2 * start + 1, size, skip, compare);
+        if res.is_some() {
+            return res;
+        }
+    }
+
+    if cmp == Ordering::Greater || cmp == Ordering::Equal {
+        let res = search_binary_tree_by(2 * start + 2, size, skip, compare);
+        if res.is_some() {
+            return res;
+        }
+    }
+
+    None
 }
 
 #[test]

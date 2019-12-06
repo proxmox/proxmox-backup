@@ -11,6 +11,7 @@ use std::os::unix::ffi::OsStrExt;
 use failure::*;
 use libc;
 
+use super::binary_search_tree::search_binary_tree_by;
 use super::format_definition::*;
 use super::sequential_decoder::SequentialDecoder;
 use super::match_pattern::MatchPattern;
@@ -276,11 +277,18 @@ impl Decoder {
         let gbt = self.goodbye_table(Some(dir.start), dir.end)?;
         let hash = compute_goodbye_hash(filename.as_bytes());
 
-        let mut iterator = gbt.iter();
+        let mut start_idx = 0;
+        let mut skip_multiple = 0;
         loop {
             // Search for the next goodbye entry with matching hash.
-            let (start, end) = match iterator.find(|(i, _, _)| i.hash == hash) {
-                Some((_item, start, end)) => (start, end),
+            let idx = search_binary_tree_by(
+                start_idx,
+                gbt.len(),
+                skip_multiple,
+                |idx| hash.cmp(&gbt[idx].0.hash),
+            );
+            let (_item, start, end) = match idx {
+                Some(idx) => &gbt[idx],
                 None => return Ok(None),
             };
 
@@ -303,6 +311,10 @@ impl Decoder {
                 };
                 return Ok(Some((dir_entry, attr, payload_size)));
             }
+            // Hash collision, check the next entry in the goodbye table by starting
+            // from given index but skipping one more match (so hash at index itself).
+            start_idx = idx.unwrap();
+            skip_multiple = 1;
         }
     }
 
