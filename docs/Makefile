@@ -6,10 +6,12 @@ else
 COMPILEDIR := ../target/debug
 endif
 
-GENERATED_SYNOPSIS := 				\
-	proxmox-backup-client/synopsis.rst	\
-	proxmox-backup-manager/synopsis.rst	\
-	backup-protocol-api.rst			\
+GENERATED_SYNOPSIS := 						\
+	proxmox-backup-client/synopsis.rst			\
+	proxmox-backup-client/catalog-shell-synopsis.rst 	\
+	proxmox-backup-manager/synopsis.rst			\
+	pxar/synopsis.rst					\
+	backup-protocol-api.rst					\
 	reader-protocol-api.rst
 
 MANUAL_PAGES := 			\
@@ -48,7 +50,10 @@ pxar.1: pxar/man1.rst  pxar/description.rst pxar/synopsis.rst
 proxmox-backup-client/synopsis.rst: ${COMPILEDIR}/proxmox-backup-client
 	${COMPILEDIR}/proxmox-backup-client printdoc > proxmox-backup-client/synopsis.rst
 
-proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst
+proxmox-backup-client/catalog-shell-synopsis.rst: ${COMPILEDIR}/dump-catalog-shell-cli
+	${COMPILEDIR}/dump-catalog-shell-cli > proxmox-backup-client/catalog-shell-synopsis.rst
+
+proxmox-backup-client.1: proxmox-backup-client/man1.rst  proxmox-backup-client/description.rst proxmox-backup-client/synopsis.rst  proxmox-backup-client/catalog-shell-synopsis.rst
 	rst2man $< >$@
 
 proxmox-backup-manager/synopsis.rst: ${COMPILEDIR}/proxmox-backup-manager
