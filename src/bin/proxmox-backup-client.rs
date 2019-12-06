@@ -1584,7 +1584,7 @@ fn key_mgmt_cli() -> CliCommandMap {
             ]),
         )
     );
-    
+
     let key_create_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -1600,7 +1600,7 @@ fn key_mgmt_cli() -> CliCommandMap {
             ]),
         )
     );
-        
+
     let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_KEY_CHANGE_PASSPHRASE)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -1609,7 +1609,7 @@ fn key_mgmt_cli() -> CliCommandMap {
         &ApiHandler::Sync(&key_create_master_key),
         &ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.", &[])
     );
-    
+
     let key_create_master_key_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE_MASTER_KEY);
 
     #[sortable]
@@ -1620,7 +1620,7 @@ fn key_mgmt_cli() -> CliCommandMap {
             &sorted!([ ("path", false, &StringSchema::new("File system path.").schema()) ]),
         )
     );
-    
+
     let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_KEY_IMPORT_MASTER_PUBKEY)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -1959,7 +1959,7 @@ fn main() {
             ]),
         )
     );
-    
+
     let backup_cmd_def = CliCommand::new(&API_METHOD_CREATE_BACKUP)
         .arg_param(&["backupspec"])
         .completion_cb("repository", complete_repository)
@@ -1996,7 +1996,7 @@ fn main() {
             ]),
         )
     );
-  
+
     let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
         .arg_param(&["snapshot", "logfile"])
         .completion_cb("snapshot", complete_backup_snapshot)
@@ -2015,7 +2015,7 @@ fn main() {
             ]),
         )
     );
-    
+
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
@@ -2031,7 +2031,7 @@ fn main() {
             ]),
         )
     );
-    
+
     let snapshots_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
         .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
@@ -2048,7 +2048,7 @@ fn main() {
             ]),
         )
     );
-    
+
     let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
@@ -2062,7 +2062,7 @@ fn main() {
             &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
-    
+
     let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
         .completion_cb("repository", complete_repository);
 
@@ -2096,7 +2096,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
                 ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
                 (
                     "verbose",
-                    true, 
+                    true,
                     &BooleanSchema::new("Verbose output.")
                         .default(false)
                         .schema()
@@ -2104,7 +2104,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ]),
         )
     );
-  
+
     let restore_cmd_def = CliCommand::new(&API_METHOD_RESTORE)
         .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
@@ -2124,7 +2124,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ]),
         )
     );
-    
+
     let files_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
@@ -2141,7 +2141,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ]),
         )
     );
-    
+
     let catalog_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
@@ -2161,7 +2161,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ])
         )
     );
-    
+
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
@@ -2178,7 +2178,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ]),
         )
     );
-    
+
     let status_cmd_def = CliCommand::new(&API_METHOD_STATUS)
         .completion_cb("repository", complete_repository);
 
@@ -2190,7 +2190,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
-    
+
     let login_cmd_def = CliCommand::new(&API_METHOD_API_LOGIN)
         .completion_cb("repository", complete_repository);
 
@@ -2202,7 +2202,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
         )
     );
-    
+
     let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
         .completion_cb("repository", complete_repository);
 
@@ -2221,7 +2221,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
             ]),
         )
     );
-    
+
     let mount_cmd_def = CliCommand::new(&API_METHOD_MOUNT)
         .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
