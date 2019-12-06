@@ -23,6 +23,70 @@ pub struct Shell {
     prompt: String,
 }
 
+/// This list defines all the shell commands and their properties
+/// using the api schema
+pub fn catalog_shell_api() -> CommandLineInterface {
+
+    let map = CliCommandMap::new()
+        .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND).into())
+        .insert(
+            "cd",
+            CliCommand::new(&API_METHOD_CD_COMMAND)
+                .arg_param(&["path"])
+                .completion_cb("path", Shell::complete_path)
+                .into(),
+        )
+        .insert(
+            "ls",
+            CliCommand::new(&API_METHOD_LS_COMMAND)
+                .arg_param(&["path"])
+                .completion_cb("path", Shell::complete_path)
+                .into(),
+        )
+        .insert(
+            "stat",
+            CliCommand::new(&API_METHOD_STAT_COMMAND)
+                .arg_param(&["path"])
+                .completion_cb("path", Shell::complete_path)
+                .into(),
+        )
+        .insert(
+            "select",
+            CliCommand::new(&API_METHOD_SELECT_COMMAND)
+                .arg_param(&["path"])
+                .completion_cb("path", Shell::complete_path)
+                .into(),
+        )
+        .insert(
+            "deselect",
+            CliCommand::new(&API_METHOD_DESELECT_COMMAND)
+                .arg_param(&["path"])
+                .completion_cb("path", Shell::complete_path)
+                .into(),
+        )
+        .insert(
+            "restore-selected",
+            CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
+                .arg_param(&["target"])
+                .completion_cb("target", tools::complete_file_name)
+                .into(),
+        )
+        .insert(
+            "list-selected",
+            CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND).into(),
+        )
+        .insert(
+            "restore",
+            CliCommand::new(&API_METHOD_RESTORE_COMMAND)
+                .arg_param(&["target"])
+                .completion_cb("target", tools::complete_file_name)
+                .into(),
+        )
+        .insert_help();
+
+    CommandLineInterface::Nested(map)
+}
+
 impl Shell {
     /// Create a new shell for the given catalog and pxar archive.
     pub fn new(
@@ -46,66 +110,7 @@ impl Shell {
             });
         });
 
-        // This list defines all the shell commands and their properties using the api schema
-        let cli_helper = CliHelper::new(CommandLineInterface::Nested(
-            CliCommandMap::new()
-                .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND).into())
-                .insert(
-                    "cd",
-                    CliCommand::new(&API_METHOD_CD_COMMAND)
-                        .arg_param(&["path"])
-                        .completion_cb("path", Self::complete_path)
-                        .into(),
-                )
-                .insert(
-                    "ls",
-                    CliCommand::new(&API_METHOD_LS_COMMAND)
-                        .arg_param(&["path"])
-                        .completion_cb("path", Self::complete_path)
-                        .into(),
-                )
-                .insert(
-                    "stat",
-                    CliCommand::new(&API_METHOD_STAT_COMMAND)
-                        .arg_param(&["path"])
-                        .completion_cb("path", Self::complete_path)
-                        .into(),
-                )
-                .insert(
-                    "select",
-                    CliCommand::new(&API_METHOD_SELECT_COMMAND)
-                        .arg_param(&["path"])
-                        .completion_cb("path", Self::complete_path)
-                        .into(),
-                )
-                .insert(
-                    "deselect",
-                    CliCommand::new(&API_METHOD_DESELECT_COMMAND)
-                        .arg_param(&["path"])
-                        .completion_cb("path", Self::complete_path)
-                        .into(),
-                )
-                .insert(
-                    "restore-selected",
-                    CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
-                        .arg_param(&["target"])
-                        .completion_cb("target", tools::complete_file_name)
-                        .into(),
-                )
-                .insert(
-                    "list-selected",
-                    CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND).into(),
-                )
-                .insert(
-                    "restore",
-                    CliCommand::new(&API_METHOD_RESTORE_COMMAND)
-                        .arg_param(&["target"])
-                        .completion_cb("target", tools::complete_file_name)
-                        .into(),
-                )
-                .insert_help(),
-        ));
-
+        let cli_helper = CliHelper::new(catalog_shell_api());
         let mut rl = rustyline::Editor::<CliHelper>::new();
         rl.set_helper(Some(cli_helper));
 
