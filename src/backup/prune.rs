@@ -6,7 +6,7 @@ use chrono::{DateTime, Datelike, Local};
 
 use super::{BackupDir, BackupInfo};
 
-enum PruneMark { Keep, Remove }
+enum PruneMark { Keep, KeepPartial, Remove }
 
 fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     mark: &mut HashMap<PathBuf, PruneMark>,
@@ -60,7 +60,7 @@ fn remove_incomplete_snapshots(
         } else {
             let backup_id = info.backup_dir.relative_path();
             if keep_unfinished { // keep first unfinished
-                mark.insert(backup_id, PruneMark::Keep);
+                mark.insert(backup_id, PruneMark::KeepPartial);
             } else {
                 mark.insert(backup_id, PruneMark::Remove);
             }
@@ -119,7 +119,8 @@ pub fn compute_prune_info(
             let backup_id = info.backup_dir.relative_path();
             let keep = match mark.get(&backup_id) {
                 Some(PruneMark::Keep) => true,
-                _ => false,
+                Some(PruneMark::KeepPartial) => true,
+               _ => false,
             };
             (info, keep)
         })
