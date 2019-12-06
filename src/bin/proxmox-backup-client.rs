@@ -1139,14 +1139,33 @@ fn prune(
     let group = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(group)?;
 
+    let dry_run = param["dry-run"].as_bool().unwrap_or(false);
+
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
+    param.as_object_mut().unwrap().remove("dry-run");
 
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    let _result = async_main(async move { client.post(&path, Some(param)).await })?;
+    if dry_run {
+        let result = async_main(async move { client.get(&path, Some(param)).await })?;
+        let data = &result["data"];
 
+        for item in data.as_array().unwrap() {
+            let timestamp = item["backup-time"].as_i64().unwrap();
+            let timestamp = BackupDir::backup_time_to_string(Utc.timestamp(timestamp, 0));
+            let keep =  item["keep"].as_bool().unwrap();
+            println!("{}/{}/{} {}",
+                     group.backup_type(),
+                     group.backup_id(),
+                     timestamp,
+                     if keep { "keep" } else { "remove" },
+             );
+        }
+    } else {
+        let _result = async_main(async move { client.post(&path, Some(param)).await })?;
+    }
     record_repository(&repo);
 
     Ok(Value::Null)
@@ -2133,6 +2152,9 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         &ObjectSchema::new(
             "Prune backup repository.",
             &proxmox_backup::add_common_prune_prameters!([
+                ("dry-run", true, &BooleanSchema::new(
+                    "Just show what prune would do, but do not delete anything.")
+                 .schema()),
                 ("group", false, &StringSchema::new("Backup group.").schema()),
             ], [
                 ("repository", true, &REPO_URL_SCHEMA),
