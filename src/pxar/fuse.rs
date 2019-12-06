@@ -68,6 +68,7 @@ extern "C" {
     fn fuse_reply_open(req: Request, fileinfo: ConstPtr) -> c_int;
     fn fuse_reply_buf(req: Request, buf: MutStrPtr, size: size_t) -> c_int;
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
+    fn fuse_reply_xattr(req: Request, size: size_t) -> c_int;
     fn fuse_reply_readlink(req: Request, link: StrPtr) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
     fn fuse_add_direntry(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&libc::stat>, off: c_int) -> c_int;
@@ -308,6 +309,8 @@ impl Session  {
         oprs.opendir = Some(Self::opendir);
         oprs.readdir = Some(Self::readdir);
         oprs.releasedir = Some(Self::releasedir);
+        oprs.getxattr = Some(Self::getxattr);
+        oprs.listxattr = Some(Self::listxattr);
         oprs
     }
 
@@ -587,12 +590,79 @@ impl Session  {
         });
     }
 
-
     extern "C" fn releasedir(req: Request, inode: u64, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
             let _gbt = ctx.goodbye_cache.remove(&ctx.ino_offset);
             Ok(())
         });
+    }
+
+    /// Get the value of the extended attribute of `inode` identified by `name`.
+    extern "C" fn getxattr(req: Request, inode: u64, name: StrPtr, size: size_t) {
+        let name = unsafe { CStr::from_ptr(name) };
+
+        Self::run_in_context(req, inode, |ctx| {
+            let (_, _, xattrs, _) = ctx
+                .decoder
+                .attributes(ctx.ino_offset)
+                .map_err(|_| libc::EIO)?;
+            // security.capability is stored separately, check it first
+            if name.to_bytes() == b"security.capability" {
+                match xattrs.fcaps {
+                    None => return Err(libc::ENODATA),
+                    Some(mut fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
+                }
+            }
+
+            for mut xattr in xattrs.xattrs {
+                if name.to_bytes() == xattr.name.as_slice() {
+                    return Self::xattr_reply_value(req, &mut xattr.value, size);
+                }
+            }
+
+            Err(libc::ENODATA)
+        });
+    }
+
+    /// Get a list of the extended attribute of `inode`.
+    extern "C" fn listxattr(req: Request, inode: u64, size: size_t) {
+        Self::run_in_context(req, inode, |ctx| {
+            let (_, _, xattrs, _) = ctx
+                .decoder
+                .attributes(ctx.ino_offset)
+                .map_err(|_| libc::EIO)?;
+            let mut buffer = Vec::new();
+            if xattrs.fcaps.is_some() {
+                buffer.extend_from_slice(b"security.capability\0");
+            }
+            for mut xattr in xattrs.xattrs {
+                buffer.append(&mut xattr.name);
+                buffer.push(b'\0');
+            }
+            Self::xattr_reply_value(req, &mut buffer, size)
+        });
+    }
+
+    /// Helper function used to respond to get- and listxattr calls in order to
+    /// de-duplicate code.
+    fn xattr_reply_value(req: Request, value: &mut Vec<u8>, size: size_t) -> Result<(), i32> {
+        let len = value.len();
+
+        if size == 0 {
+            // reply the needed buffer size to fit value
+            let _res = unsafe { fuse_reply_xattr(req, len) };
+        } else if size < len {
+            // value does not fit into requested buffer size
+            return Err(libc::ERANGE);
+        } else {
+            // value fits into requested buffer size, send value
+            let _res = unsafe {
+                let vptr = value.as_mut_ptr() as *mut c_char;
+                fuse_reply_buf(req, vptr, len)
+            };
+        }
+
+        Ok(())
     }
 }
 
@@ -605,7 +675,6 @@ impl Drop for Session {
         }
     }
 }
-
 
 /// Return the correct offset for the item based on its `PxarEntry` mode
 ///
