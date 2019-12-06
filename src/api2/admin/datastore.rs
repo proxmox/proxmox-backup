@@ -314,7 +314,7 @@ fn prune(
 
         let list = group.list_backups(&datastore.base_path())?;
 
-        let mut prune_info = BackupGroup::compute_prune_info(
+        let mut prune_info = compute_prune_info(
             list,
             param["keep-last"].as_u64(),
             param["keep-daily"].as_u64(),
