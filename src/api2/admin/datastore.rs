@@ -194,6 +194,17 @@ fn list_snapshots (
     Ok(json!(snapshots))
 }
 
+#[sortable]
+const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&status),
+    &ObjectSchema::new(
+        "Get datastore status.",
+        &sorted!([
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+        ]),
+    )
+);
+
 fn status(
     param: Value,
     _info: &ApiMethod,
@@ -269,13 +280,16 @@ macro_rules! add_common_prune_prameters {
     }
 }
 
-const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&status),
+const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&prune),
     &ObjectSchema::new(
-        "Get datastore status.",
-        &[
+        "Prune the datastore.",
+        &add_common_prune_prameters!([
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+        ],[
             ("store", false, &StringSchema::new("Datastore name.").schema()),
-        ],
+        ])
     )
 );
 
@@ -338,14 +352,12 @@ fn prune(
     Ok(json!(null))
 }
 
-const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&prune),
+#[sortable]
+pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&start_garbage_collection),
     &ObjectSchema::new(
-        "Prune the datastore.",
-        &add_common_prune_prameters!([
-            ("backup-id", false, &BACKUP_ID_SCHEMA),
-            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-        ],[
+        "Start garbage collection.",
+        &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
         ])
     )
@@ -376,10 +388,10 @@ fn start_garbage_collection(
 }
 
 #[sortable]
-pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&start_garbage_collection),
+pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&garbage_collection_status),
     &ObjectSchema::new(
-        "Start garbage collection.",
+        "Garbage collection status.",
         &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
         ])
@@ -403,16 +415,6 @@ fn garbage_collection_status(
     Ok(serde_json::to_value(&status)?)
 }
 
-#[sortable]
-pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&garbage_collection_status),
-    &ObjectSchema::new(
-        "Garbage collection status.",
-        &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
-        ])
-    )
-);
 
 fn get_datastore_list(
     _param: Value,
@@ -425,6 +427,23 @@ fn get_datastore_list(
     Ok(config.convert_to_array("store"))
 }
 
+#[sortable]
+pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&download_file),
+    &ObjectSchema::new(
+        "Download single raw file from backup snapshot.",
+        &sorted!([
+            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+            ("file-name", false, &StringSchema::new("Raw file name.")
+             .format(&FILENAME_FORMAT)
+             .schema()
+            ),
+        ]),
+    )
+);
 
 fn download_file(
     _parts: Parts,
@@ -472,19 +491,15 @@ fn download_file(
 }
 
 #[sortable]
-pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
-    &ApiHandler::AsyncHttp(&download_file),
+pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&upload_backup_log),
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
             ("store", false, &StringSchema::new("Datastore name.").schema()),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
-            ("file-name", false, &StringSchema::new("Raw file name.")
-             .format(&FILENAME_FORMAT)
-             .schema()
-            ),
         ]),
     )
 );
@@ -539,20 +554,6 @@ fn upload_backup_log(
         Ok(crate::server::formatter::json_response(Ok(Value::Null)))
     }.boxed()
 }
-
-#[sortable]
-pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
-    &ApiHandler::AsyncHttp(&upload_backup_log),
-    &ObjectSchema::new(
-        "Download single raw file from backup snapshot.",
-        &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
-            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-            ("backup-id", false, &BACKUP_ID_SCHEMA),
-            ("backup-time", false, &BACKUP_TIME_SCHEMA),
-        ]),
-    )
-);
 
 const STORE_SCHEMA: Schema = StringSchema::new("Datastore name.").schema();
 
