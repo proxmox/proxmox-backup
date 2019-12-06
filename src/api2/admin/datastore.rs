@@ -273,9 +273,9 @@ const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&status),
     &ObjectSchema::new(
         "Get datastore status.",
-        &add_common_prune_prameters!([],[
+        &[
             ("store", false, &StringSchema::new("Datastore name.").schema()),
-        ]),
+        ],
     )
 );
 
