@@ -25,7 +25,7 @@ pub struct Shell {
 
 /// This list defines all the shell commands and their properties
 /// using the api schema
-pub fn catalog_shell_api() -> CommandLineInterface {
+pub fn catalog_shell_cli() -> CommandLineInterface {
 
     let map = CliCommandMap::new()
         .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND).into())
@@ -110,7 +110,7 @@ impl Shell {
             });
         });
 
-        let cli_helper = CliHelper::new(catalog_shell_api());
+        let cli_helper = CliHelper::new(catalog_shell_cli());
         let mut rl = rustyline::Editor::<CliHelper>::new();
         rl.set_helper(Some(cli_helper));
 
