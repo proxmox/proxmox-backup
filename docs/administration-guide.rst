@@ -425,12 +425,16 @@ following retention options:
 ``--keep-last <N>``
   Keep the last ``<N>`` backup snapshots.
 
+``--keep-hourly <N>``
+  Keep backups for the last ``<N>`` different hours. If there is more than one
+  backup for a single hour, only the latest one is kept.
+
 ``--keep-daily <N>``
-  Keep backups for ``<N>`` different days. If there is more than one
+  Keep backups for the last ``<N>`` different days. If there is more than one
   backup for a single day, only the latest one is kept.
 
 ``--keep-weekly <N>``
-  Keep backups for ``<N>`` different weeks. If there is more than one
+  Keep backups for the last ``<N>`` different weeks. If there is more than one
   backup for a single week, only the latest one is kept.
 
   .. note:: The weeks start on Monday and end on Sunday. The software
@@ -438,11 +442,11 @@ following retention options:
      the end of the year.
 
 ``--keep-monthly <N>``
-  Keep backups for ``<N>`` different months. If there is more than one
+  Keep backups for the last ``<N>`` different months. If there is more than one
   backup for a single month, only the latest one is kept.
 
 ``--keep-yearly <N>``
-  Keep backups for ``<N>`` different year. If there is more than one
+  Keep backups for the last ``<N>`` different years. If there is more than one
   backup for a single year, only the latest one is kept.
 
 

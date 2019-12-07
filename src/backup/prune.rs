@@ -2,7 +2,7 @@ use failure::*;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Timelike, Datelike, Local};
 
 use super::{BackupDir, BackupInfo};
 
@@ -71,6 +71,7 @@ fn remove_incomplete_snapshots(
 
 pub struct PruneOptions {
     pub keep_last: Option<u64>,
+    pub keep_hourly: Option<u64>,
     pub keep_daily: Option<u64>,
     pub keep_weekly: Option<u64>,
     pub keep_monthly: Option<u64>,
@@ -82,11 +83,17 @@ impl PruneOptions {
     pub fn new() -> Self {
         Self {
             keep_last: None,
+            keep_hourly: None,
             keep_daily: None,
             keep_weekly: None,
             keep_monthly: None,
             keep_yearly: None,
         }
+    }
+
+    pub fn keep_hourly(mut self, value: Option<u64>) -> Self {
+        self.keep_hourly = value;
+        self
     }
 
     pub fn keep_last(mut self, value: Option<u64>) -> Self {
@@ -117,6 +124,7 @@ impl PruneOptions {
     pub fn keeps_something(&self) -> bool {
         let mut keep_something = false;
         if let Some(count) = self.keep_last { if count > 0 { keep_something = true; } }
+        if let Some(count) = self.keep_hourly { if count > 0 { keep_something = true; } }
         if let Some(count) = self.keep_daily { if count > 0 { keep_something = true; } }
         if let Some(count) = self.keep_weekly { if count > 0 { keep_something = true; } }
         if let Some(count) = self.keep_monthly { if count > 0 { keep_something = true; } }
@@ -142,6 +150,13 @@ pub fn compute_prune_info(
         });
     }
 
+    if let Some(keep_hourly) = options.keep_hourly {
+        mark_selections(&mut mark, &list, keep_hourly as usize, |local_time, _info| {
+            format!("{}/{}/{}/{}", local_time.year(), local_time.month(),
+                    local_time.day(), local_time.hour())
+        });
+    }
+
     if let Some(keep_daily) = options.keep_daily {
         mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
             format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
@@ -154,7 +169,7 @@ pub fn compute_prune_info(
             let week = iso_week.week();
             // Note: This year number might not match the calendar year number.
             let iso_week_year = iso_week.year();
-            format!("{}/{}", iso_week_year, week);
+            format!("{}/{}", iso_week_year, week)
         });
     }
 

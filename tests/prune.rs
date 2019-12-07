@@ -42,6 +42,40 @@ fn create_info(
 }
 
 #[test]
+fn test_prune_hourly() -> Result<(), Error> {
+
+    let mut orig_list = Vec::new();
+
+    orig_list.push(create_info("host/elsa/2019-11-15T09:39:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T10:49:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T10:59:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T11:39:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T11:49:15Z", false));
+    orig_list.push(create_info("host/elsa/2019-11-15T11:59:15Z", false));
+
+    let list = orig_list.clone();
+    let options = PruneOptions::new().keep_hourly(Some(3));
+    let remove_list = get_prune_list(list, false, &options);
+    let expect: Vec<PathBuf> = vec![
+        PathBuf::from("host/elsa/2019-11-15T10:49:15Z"),
+        PathBuf::from("host/elsa/2019-11-15T11:39:15Z"),
+        PathBuf::from("host/elsa/2019-11-15T11:49:15Z"),
+    ];
+    assert_eq!(remove_list, expect);
+
+    let list = orig_list.clone();
+    let options = PruneOptions::new().keep_hourly(Some(2));
+    let remove_list = get_prune_list(list, true, &options);
+    let expect: Vec<PathBuf> = vec![
+        PathBuf::from("host/elsa/2019-11-15T10:59:15Z"),
+        PathBuf::from("host/elsa/2019-11-15T11:59:15Z"),
+    ];
+    assert_eq!(remove_list, expect);
+
+    Ok(())
+}
+
+    #[test]
 fn test_prune_simple2() -> Result<(), Error> {
 
     let mut orig_list = Vec::new();

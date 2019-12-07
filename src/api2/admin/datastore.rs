@@ -248,6 +248,13 @@ macro_rules! add_common_prune_prameters {
                     .schema()
             ),
             (
+                "keep-hourly",
+                true,
+                &IntegerSchema::new("Number of hourly backups to keep.")
+                    .minimum(1)
+                    .schema()
+            ),
+            (
                 "keep-last",
                 true,
                 &IntegerSchema::new("Number of backups to keep.")
@@ -310,6 +317,7 @@ fn test_prune(
 
     let prune_options = PruneOptions {
         keep_last: param["keep-last"].as_u64(),
+        keep_hourly: param["keep-hourly"].as_u64(),
         keep_daily: param["keep-daily"].as_u64(),
         keep_weekly: param["keep-weekly"].as_u64(),
         keep_monthly: param["keep-monthly"].as_u64(),
@@ -368,6 +376,7 @@ fn prune(
 
     let prune_options = PruneOptions {
         keep_last: param["keep-last"].as_u64(),
+        keep_hourly: param["keep-hourly"].as_u64(),
         keep_daily: param["keep-daily"].as_u64(),
         keep_weekly: param["keep-weekly"].as_u64(),
         keep_monthly: param["keep-monthly"].as_u64(),
