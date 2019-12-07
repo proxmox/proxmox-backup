@@ -433,6 +433,10 @@ following retention options:
   Keep backups for ``<N>`` different weeks. If there is more than one
   backup for a single week, only the latest one is kept.
 
+  .. note:: The weeks start on Monday and end on Sunday. The software
+     uses the `ISO week date`_ system and correctly handles weeks at
+     the end of the year.
+
 ``--keep-monthly <N>``
   Keep backups for ``<N>`` different months. If there is more than one
   backup for a single month, only the latest one is kept.
