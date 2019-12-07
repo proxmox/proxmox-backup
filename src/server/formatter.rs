@@ -39,19 +39,28 @@ pub fn json_data_response(data: Value) -> Response<Body> {
     response
 }
 
+fn add_result_attributes(result: &mut Value, rpcenv: &dyn RpcEnvironment)
+{
+    if let Some(total) = rpcenv.get_result_attrib("total").and_then(|v| v.as_u64()) {
+        result["total"] = Value::from(total);
+    }
+
+    if let Some(active) = rpcenv.get_result_attrib("active").and_then(|v| v.as_bool()) {
+        result["active"] = Value::from(active);
+    }
+
+    if let Some(changes) = rpcenv.get_result_attrib("changes") {
+        result["changes"] = changes.clone();
+    }
+}
+
 fn json_format_data(data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body> {
 
     let mut result = json!({
         "data": data
     });
 
-    if let Some(total) = rpcenv.get_result_attrib("total").and_then(|v| v.as_u64()) {
-        result["total"] = Value::from(total);
-    }
-
-    if let Some(changes) = rpcenv.get_result_attrib("changes") {
-        result["changes"] = changes.clone();
-    }
+    add_result_attributes(&mut result, rpcenv);
 
     json_data_response(result)
 }
@@ -89,14 +98,7 @@ fn extjs_format_data(data: Value, rpcenv: &dyn RpcEnvironment) -> Response<Body>
         "success": true
     });
 
-    if let Some(total) = rpcenv.get_result_attrib("total").and_then(|v| v.as_u64()) {
-        result["total"] = Value::from(total);
-    }
-
-    if let Some(changes) = rpcenv.get_result_attrib("changes") {
-        result["changes"] = changes.clone();
-    }
-
+    add_result_attributes(&mut result, rpcenv);
 
     json_data_response(result)
 }

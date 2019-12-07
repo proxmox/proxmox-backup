@@ -63,8 +63,12 @@ fn read_task_log(
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
+
+    let test_status = param["test-status"].as_bool().unwrap_or(false);
+
     let start = param["start"].as_u64().unwrap_or(0);
     let mut limit = param["limit"].as_u64().unwrap_or(50);
+
     let mut count: u64 = 0;
 
     let path = upid.log_path();
@@ -92,6 +96,11 @@ fn read_task_log(
     }
 
     rpcenv.set_result_attrib("total", Value::from(count));
+
+    if test_status {
+        let active = crate::server::worker_is_active(&upid);
+        rpcenv.set_result_attrib("active", Value::from(active));
+    }
 
     Ok(json!(lines))
 }
@@ -184,6 +193,12 @@ const UPID_API_SUBDIRS: SubdirMap = &[
                         "Read task log.",
                         &sorted!([
                             ("node", false, &NODE_SCHEMA),
+                            ( "test-status",
+                               true,
+                               &BooleanSchema::new(
+                                   "Test task status, and set result attribute \"active\" accordingly."
+                               ).schema()
+                            ),
                             ("upid", false, &UPID_SCHEMA),
                             ("start", true, &IntegerSchema::new("Start at this line.")
                              .minimum(0)
