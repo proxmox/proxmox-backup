@@ -383,6 +383,7 @@ fn prune(
         keep_yearly: param["keep-yearly"].as_u64(),
     };
 
+    // We use a WorkerTask just to have a task log, but run synchrounously
     let worker = WorkerTask::new("prune", Some(store.to_owned()), "root@pam", true)?;
     let result = try_block! {
         if !prune_options.keeps_something() {
@@ -416,7 +417,7 @@ fn prune(
         bail!("prune failed - {}", err);
     }
 
-    Ok(json!(null))
+    Ok(json!(worker.to_string())) // return the UPID
 }
 
 #[sortable]

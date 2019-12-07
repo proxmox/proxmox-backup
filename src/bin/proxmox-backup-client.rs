@@ -1124,6 +1124,49 @@ fn upload_log(
     })
 }
 
+fn display_task_log(
+    client: HttpClient,
+    upid_str: &str,
+) -> Result<(), Error> {
+    println!("TESTLOG {}", upid_str);
+
+    let path = format!("api2/json/nodes/localhost/tasks/{}/log", upid_str);
+
+    let mut start = 1;
+    let limit = 500;
+
+    loop {
+        let param = json!({ "start": start, "limit": limit, "test-status": true });
+        let result = async_main(async { client.get(&path, Some(param)).await })?;
+
+        let active = result["active"].as_bool().unwrap();
+        let total = result["total"].as_u64().unwrap();
+        let data = result["data"].as_array().unwrap();
+
+        let lines = data.len();
+
+        for item in data {
+            let n = item["n"].as_u64().unwrap();
+            let t = item["t"].as_str().unwrap();
+            if n != start { bail!("got wrong line number in response data ({} != {}", n, start); }
+            start += 1;
+            println!("{}", t);
+        }
+
+        if start > total {
+            if active {
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+            } else {
+                break;
+            }
+        } else {
+            if lines != limit { bail!("got wrong number of lines from server ({} != {})", lines, limit); }
+        }
+    }
+
+    Ok(())
+}
+
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
@@ -1138,33 +1181,48 @@ fn prune(
 
     let group = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(group)?;
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
     let dry_run = param["dry-run"].as_bool().unwrap_or(false);
 
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
     param.as_object_mut().unwrap().remove("dry-run");
+    param.as_object_mut().unwrap().remove("output-format");
 
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
     if dry_run {
-        let result = async_main(async move { client.get(&path, Some(param)).await })?;
+        let result = async_main(async { client.get(&path, Some(param)).await })?;
         let data = &result["data"];
 
-        for item in data.as_array().unwrap() {
-            let timestamp = item["backup-time"].as_i64().unwrap();
-            let timestamp = BackupDir::backup_time_to_string(Utc.timestamp(timestamp, 0));
-            let keep =  item["keep"].as_bool().unwrap();
-            println!("{}/{}/{} {}",
-                     group.backup_type(),
-                     group.backup_id(),
-                     timestamp,
-                     if keep { "keep" } else { "remove" },
-             );
+        if output_format == "text" {
+            for item in data.as_array().unwrap() {
+                let timestamp = item["backup-time"].as_i64().unwrap();
+                let timestamp = BackupDir::backup_time_to_string(Utc.timestamp(timestamp, 0));
+                let keep =  item["keep"].as_bool().unwrap();
+                println!("{}/{}/{} {}",
+                         group.backup_type(),
+                         group.backup_id(),
+                         timestamp,
+                         if keep { "keep" } else { "remove" },
+                );
+            }
+        } else {
+            format_and_print_result(&data, &output_format);
         }
     } else {
-        let _result = async_main(async move { client.post(&path, Some(param)).await })?;
+        let result = async_main(async { client.post(&path, Some(param)).await })?;
+        let data = &result["data"];
+        if output_format == "text" {
+            if let Some(upid) = data.as_str() {
+                println!("UPID {:?}", data);
+                display_task_log(client, upid)?;
+             }
+        } else {
+            format_and_print_result(&data, &output_format);
+        }
     }
     record_repository(&repo);
 
@@ -2157,6 +2215,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
                  .schema()),
                 ("group", false, &StringSchema::new("Backup group.").schema()),
             ], [
+                ("output-format", true, &OUTPUT_FORMAT),
                 ("repository", true, &REPO_URL_SCHEMA),
             ])
         )
