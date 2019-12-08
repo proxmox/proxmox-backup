@@ -1149,8 +1149,7 @@ fn display_task_log(
             let n = item["n"].as_u64().unwrap();
             let t = item["t"].as_str().unwrap();
             if n != start { bail!("got wrong line number in response data ({} != {}", n, start); }
-            let b = t.as_bytes();
-            if strip_date && b.len() > 27 && b[25] == b':' && b[26] == b' '{
+             if strip_date && t.len() > 27 && &t[25..27] == ": " {
                 let line = &t[27..];
                 println!("{}", line);
             } else {
