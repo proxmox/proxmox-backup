@@ -1127,8 +1127,8 @@ fn upload_log(
 fn display_task_log(
     client: HttpClient,
     upid_str: &str,
+    strip_date: bool,
 ) -> Result<(), Error> {
-    println!("TESTLOG {}", upid_str);
 
     let path = format!("api2/json/nodes/localhost/tasks/{}/log", upid_str);
 
@@ -1149,9 +1149,15 @@ fn display_task_log(
             let n = item["n"].as_u64().unwrap();
             let t = item["t"].as_str().unwrap();
             if n != start { bail!("got wrong line number in response data ({} != {}", n, start); }
+            let b = t.as_bytes();
+            if strip_date && b.len() > 27 && b[25] == b':' && b[26] == b' '{
+                let line = &t[27..];
+                println!("{}", line);
+            } else {
+                println!("{}", t);
+            }
             start += 1;
-            println!("{}", t);
-        }
+       }
 
         if start > total {
             if active {
@@ -1217,8 +1223,7 @@ fn prune(
         let data = &result["data"];
         if output_format == "text" {
             if let Some(upid) = data.as_str() {
-                println!("UPID {:?}", data);
-                display_task_log(client, upid)?;
+                display_task_log(client, upid, true)?;
              }
         } else {
             format_and_print_result(&data, &output_format);
