@@ -1188,47 +1188,26 @@ fn prune(
     let group = BackupGroup::parse(group)?;
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let dry_run = param["dry-run"].as_bool().unwrap_or(false);
-
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
-    param.as_object_mut().unwrap().remove("dry-run");
     param.as_object_mut().unwrap().remove("output-format");
 
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    if dry_run {
-        let result = async_main(async { client.get(&path, Some(param)).await })?;
-        let data = &result["data"];
+    let result = async_main(async { client.post(&path, Some(param)).await })?;
 
-        if output_format == "text" {
-            for item in data.as_array().unwrap() {
-                let timestamp = item["backup-time"].as_i64().unwrap();
-                let timestamp = BackupDir::backup_time_to_string(Utc.timestamp(timestamp, 0));
-                let keep =  item["keep"].as_bool().unwrap();
-                println!("{}/{}/{} {}",
-                         group.backup_type(),
-                         group.backup_id(),
-                         timestamp,
-                         if keep { "keep" } else { "remove" },
-                );
-            }
-        } else {
-            format_and_print_result(&data, &output_format);
+    record_repository(&repo);
+
+    let data = &result["data"];
+    if output_format == "text" {
+        if let Some(upid) = data.as_str() {
+            display_task_log(client, upid, true)?;
         }
     } else {
-        let result = async_main(async { client.post(&path, Some(param)).await })?;
-        let data = &result["data"];
-        if output_format == "text" {
-            if let Some(upid) = data.as_str() {
-                display_task_log(client, upid, true)?;
-             }
-        } else {
-            format_and_print_result(&data, &output_format);
-        }
+        format_and_print_result(&data, &output_format);
     }
-    record_repository(&repo);
+
 
     Ok(Value::Null)
 }
