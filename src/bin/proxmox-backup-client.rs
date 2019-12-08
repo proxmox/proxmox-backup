@@ -1124,54 +1124,6 @@ fn upload_log(
     })
 }
 
-fn display_task_log(
-    client: HttpClient,
-    upid_str: &str,
-    strip_date: bool,
-) -> Result<(), Error> {
-
-    let path = format!("api2/json/nodes/localhost/tasks/{}/log", upid_str);
-
-    let mut start = 1;
-    let limit = 500;
-
-    loop {
-        let param = json!({ "start": start, "limit": limit, "test-status": true });
-        let result = async_main(async { client.get(&path, Some(param)).await })?;
-
-        let active = result["active"].as_bool().unwrap();
-        let total = result["total"].as_u64().unwrap();
-        let data = result["data"].as_array().unwrap();
-
-        let lines = data.len();
-
-        for item in data {
-            let n = item["n"].as_u64().unwrap();
-            let t = item["t"].as_str().unwrap();
-            if n != start { bail!("got wrong line number in response data ({} != {}", n, start); }
-             if strip_date && t.len() > 27 && &t[25..27] == ": " {
-                let line = &t[27..];
-                println!("{}", line);
-            } else {
-                println!("{}", t);
-            }
-            start += 1;
-       }
-
-        if start > total {
-            if active {
-                std::thread::sleep(std::time::Duration::from_millis(1000));
-            } else {
-                break;
-            }
-        } else {
-            if lines != limit { bail!("got wrong number of lines from server ({} != {})", lines, limit); }
-        }
-    }
-
-    Ok(())
-}
-
 fn prune(
     mut param: Value,
     _info: &ApiMethod,
@@ -1195,19 +1147,22 @@ fn prune(
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    let result = async_main(async { client.post(&path, Some(param)).await })?;
+    async_main(async {
+        let result = client.post(&path, Some(param)).await?;
 
-    record_repository(&repo);
+        record_repository(&repo);
 
-    let data = &result["data"];
-    if output_format == "text" {
-        if let Some(upid) = data.as_str() {
-            display_task_log(client, upid, true)?;
+        let data = &result["data"];
+        if output_format == "text" {
+            if let Some(upid) = data.as_str() {
+                display_task_log(client, upid, true).await?;
+            }
+        } else {
+            format_and_print_result(&data, &output_format);
         }
-    } else {
-        format_and_print_result(&data, &output_format);
-    }
 
+        Ok::<_, Error>(())
+    })?;
 
     Ok(Value::Null)
 }

@@ -9,6 +9,9 @@ mod merge_known_chunks;
 mod http_client;
 pub use  http_client::*;
 
+mod task_log;
+pub use task_log::*;
+
 mod backup_reader;
 pub use backup_reader::*;
 
