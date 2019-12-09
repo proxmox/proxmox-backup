@@ -1761,15 +1761,15 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn shell(
+fn catalog_shell(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    async_main(catalog_shell(param))
+    async_main(catalog_shell_async(param))
 }
 
-async fn catalog_shell(param: Value) -> Result<Value, Error> {
+async fn catalog_shell_async(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let client = HttpClient::new(repo.host(), repo.user(), None)?;
     let path = tools::required_string_param(&param, "snapshot")?;
@@ -1875,6 +1875,51 @@ async fn catalog_shell(param: Value) -> Result<Value, Error> {
 
     Ok(Value::Null)
 }
+
+fn catalog_mgmt_cli() -> CliCommandMap {
+
+    #[sortable]
+    const API_METHOD_SHELL: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&catalog_shell),
+        &ObjectSchema::new(
+            "Shell to interactively inspect and restore snapshots.",
+            &sorted!([
+                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
+                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
+            ]),
+        )
+    );
+
+    let catalog_shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
+        .arg_param(&["snapshot", "archive-name"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("snapshot", complete_group_or_snapshot);
+
+    #[sortable]
+    const API_METHOD_DUMP_CATALOG: ApiMethod = ApiMethod::new(
+        &ApiHandler::Sync(&dump_catalog),
+        &ObjectSchema::new(
+            "Dump catalog.",
+            &sorted!([
+                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
+                ("repository", true, &REPO_URL_SCHEMA),
+            ]),
+        )
+    );
+
+    let catalog_dump_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
+        .arg_param(&["snapshot"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_backup_snapshot);
+
+    CliCommandMap::new()
+        .insert("dump".to_owned(), catalog_dump_cmd_def.into())
+        .insert("shell".to_owned(), catalog_shell_cmd_def.into())
+}
+
 
 fn main() {
 
@@ -2126,23 +2171,6 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
-    #[sortable]
-    const API_METHOD_DUMP_CATALOG: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&dump_catalog),
-        &ObjectSchema::new(
-            "Dump catalog.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-            ]),
-        )
-    );
-
-    let catalog_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
-        .arg_param(&["snapshot"])
-        .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_backup_snapshot);
-
     const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
         &ApiHandler::Sync(&prune),
         &ObjectSchema::new(
@@ -2226,31 +2254,11 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
-    #[sortable]
-    const API_METHOD_SHELL: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&shell),
-        &ObjectSchema::new(
-            "Shell to interactively inspect and restore snapshots.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
-                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
-            ]),
-        )
-    );
-
-    let shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
-        .arg_param(&["snapshot", "archive-name"])
-        .completion_cb("repository", complete_repository)
-        .completion_cb("archive-name", complete_archive_name)
-        .completion_cb("snapshot", complete_group_or_snapshot);
 
     let cmd_def = CliCommandMap::new()
         .insert("backup".to_owned(), backup_cmd_def.into())
         .insert("upload-log".to_owned(), upload_log_cmd_def.into())
         .insert("forget".to_owned(), forget_cmd_def.into())
-        .insert("catalog".to_owned(), catalog_cmd_def.into())
         .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
         .insert("list".to_owned(), list_cmd_def.into())
         .insert("login".to_owned(), login_cmd_def.into())
@@ -2262,7 +2270,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .insert("status".to_owned(), status_cmd_def.into())
         .insert("key".to_owned(), key_mgmt_cli().into())
         .insert("mount".to_owned(), mount_cmd_def.into())
-        .insert("shell".to_owned(), shell_cmd_def.into());
+        .insert("catalog".to_owned(), catalog_mgmt_cli().into());
 
     run_cli_command(cmd_def.into());
 }
