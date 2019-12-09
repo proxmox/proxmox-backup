@@ -491,26 +491,22 @@ fn main() {
             .arg_param(&["archive", "source", "exclude"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
-            .into()
         )
         .insert("extract", CliCommand::new(&API_METHOD_EXTRACT_ARCHIVE)
             .arg_param(&["archive", "pattern"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .completion_cb("files-from", tools::complete_file_name)
-            .into()
-        )
+         )
         .insert("mount", CliCommand::new(&API_METHOD_MOUNT_ARCHIVE)
             .arg_param(&["archive", "mountpoint"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("mountpoint", tools::complete_file_name)
-            .into()
         )
         .insert("list", CliCommand::new(&API_METHOD_DUMP_ARCHIVE)
             .arg_param(&["archive"])
             .completion_cb("archive", tools::complete_file_name)
-            .into()
         );
 
-    run_cli_command(cmd_def.into());
+    run_cli_command(cmd_def);
 }

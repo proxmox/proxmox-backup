@@ -28,59 +28,52 @@ pub struct Shell {
 pub fn catalog_shell_cli() -> CommandLineInterface {
 
     let map = CliCommandMap::new()
-        .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND).into())
+        .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND))
         .insert(
             "cd",
             CliCommand::new(&API_METHOD_CD_COMMAND)
                 .arg_param(&["path"])
                 .completion_cb("path", Shell::complete_path)
-                .into(),
         )
         .insert(
             "ls",
             CliCommand::new(&API_METHOD_LS_COMMAND)
                 .arg_param(&["path"])
                 .completion_cb("path", Shell::complete_path)
-                .into(),
-        )
+         )
         .insert(
             "stat",
             CliCommand::new(&API_METHOD_STAT_COMMAND)
                 .arg_param(&["path"])
                 .completion_cb("path", Shell::complete_path)
-                .into(),
-        )
+         )
         .insert(
             "select",
             CliCommand::new(&API_METHOD_SELECT_COMMAND)
                 .arg_param(&["path"])
                 .completion_cb("path", Shell::complete_path)
-                .into(),
         )
         .insert(
             "deselect",
             CliCommand::new(&API_METHOD_DESELECT_COMMAND)
                 .arg_param(&["path"])
                 .completion_cb("path", Shell::complete_path)
-                .into(),
         )
         .insert(
             "restore-selected",
             CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
                 .arg_param(&["target"])
                 .completion_cb("target", tools::complete_file_name)
-                .into(),
         )
         .insert(
             "list-selected",
-            CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND).into(),
+            CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND),
         )
         .insert(
             "restore",
             CliCommand::new(&API_METHOD_RESTORE_COMMAND)
                 .arg_param(&["target"])
                 .completion_cb("target", tools::complete_file_name)
-                .into(),
         )
         .insert_help();
 

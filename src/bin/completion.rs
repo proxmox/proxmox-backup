@@ -61,10 +61,11 @@ fn quit_command() -> Result<(), Error> {
 
 fn cli_definition() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
-        .insert("quit", CliCommand::new(&API_METHOD_QUIT_COMMAND).into())
-        .insert("hello", CliCommand::new(&API_METHOD_HELLO_COMMAND).into())
+        .insert("quit", CliCommand::new(&API_METHOD_QUIT_COMMAND))
+        .insert("hello", CliCommand::new(&API_METHOD_HELLO_COMMAND))
         .insert("echo", CliCommand::new(&API_METHOD_ECHO_COMMAND)
-                .arg_param(&["text"]).into())
+                .arg_param(&["text"])
+        )
         .insert_help();
 
     CommandLineInterface::Nested(cmd_def)

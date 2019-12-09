@@ -1651,10 +1651,10 @@ fn key_mgmt_cli() -> CliCommandMap {
         .completion_cb("path", tools::complete_file_name);
 
     CliCommandMap::new()
-        .insert("create", key_create_cmd_def.into())
-        .insert("create-master-key", key_create_master_key_cmd_def.into())
-        .insert("import-master-pubkey", key_import_master_pubkey_cmd_def.into())
-        .insert("change-passphrase", key_change_passphrase_cmd_def.into())
+        .insert("create", key_create_cmd_def)
+        .insert("create-master-key", key_create_master_key_cmd_def)
+        .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
+        .insert("change-passphrase", key_change_passphrase_cmd_def)
 }
 
 fn mount(
@@ -1945,8 +1945,8 @@ fn catalog_mgmt_cli() -> CliCommandMap {
         .completion_cb("snapshot", complete_backup_snapshot);
 
     CliCommandMap::new()
-        .insert("dump", catalog_dump_cmd_def.into())
-        .insert("shell", catalog_shell_cmd_def.into())
+        .insert("dump", catalog_dump_cmd_def)
+        .insert("shell", catalog_shell_cmd_def)
 }
 
 
@@ -2285,23 +2285,23 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
 
     let cmd_def = CliCommandMap::new()
-        .insert("backup", backup_cmd_def.into())
-        .insert("upload-log", upload_log_cmd_def.into())
-        .insert("forget", forget_cmd_def.into())
-        .insert("garbage-collect", garbage_collect_cmd_def.into())
-        .insert("list", list_cmd_def.into())
-        .insert("login", login_cmd_def.into())
-        .insert("logout", logout_cmd_def.into())
-        .insert("prune", prune_cmd_def.into())
-        .insert("restore", restore_cmd_def.into())
-        .insert("snapshots", snapshots_cmd_def.into())
-        .insert("files", files_cmd_def.into())
-        .insert("status", status_cmd_def.into())
-        .insert("key", key_mgmt_cli().into())
-        .insert("mount", mount_cmd_def.into())
-        .insert("catalog", catalog_mgmt_cli().into());
+        .insert("backup", backup_cmd_def)
+        .insert("upload-log", upload_log_cmd_def)
+        .insert("forget", forget_cmd_def)
+        .insert("garbage-collect", garbage_collect_cmd_def)
+        .insert("list", list_cmd_def)
+        .insert("login", login_cmd_def)
+        .insert("logout", logout_cmd_def)
+        .insert("prune", prune_cmd_def)
+        .insert("restore", restore_cmd_def)
+        .insert("snapshots", snapshots_cmd_def)
+        .insert("files", files_cmd_def)
+        .insert("status", status_cmd_def)
+        .insert("key", key_mgmt_cli())
+        .insert("mount", mount_cmd_def)
+        .insert("catalog", catalog_mgmt_cli());
 
-    run_cli_command(cmd_def.into());
+    run_cli_command(cmd_def);
 }
 
 fn async_main<F: Future>(fut: F) -> <F as Future>::Output {
