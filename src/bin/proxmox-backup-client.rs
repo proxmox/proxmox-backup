@@ -146,6 +146,23 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
+async fn view_task_result(
+    client: HttpClient,
+    result: Value,
+    output_format: &str,
+) -> Result<(), Error> {
+    let data = &result["data"];
+    if output_format == "text" {
+        if let Some(upid) = data.as_str() {
+            display_task_log(client, upid, true).await?;
+        }
+    } else {
+        format_and_print_result(&data, &output_format);
+    }
+
+    Ok(())
+}
+
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
     dir_path: P,
@@ -547,18 +564,8 @@ fn start_garbage_collection(
 
         record_repository(&repo);
 
-        let data = &result["data"];
-        if output_format == "text" {
-            if let Some(upid) = data.as_str() {
-                display_task_log(client, upid, true).await?;
-            }
-        } else {
-            format_and_print_result(&data, &output_format);
-        }
-
-        Ok::<_, Error>(())
+        view_task_result(client, result, &output_format).await
     })?;
-
 
     Ok(Value::Null)
 }
@@ -1167,17 +1174,8 @@ fn prune(
 
         record_repository(&repo);
 
-        let data = &result["data"];
-        if output_format == "text" {
-            if let Some(upid) = data.as_str() {
-                display_task_log(client, upid, true).await?;
-            }
-        } else {
-            format_and_print_result(&data, &output_format);
-        }
-
-        Ok::<_, Error>(())
-    })?;
+        view_task_result(client, result, &output_format).await
+     })?;
 
     Ok(Value::Null)
 }
