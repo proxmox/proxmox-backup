@@ -1358,6 +1358,20 @@ fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<Stri
         .collect()
 }
 
+fn complete_pxar_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    complete_server_file_name(arg, param)
+        .iter()
+        .filter_map(|v| {
+            let name = strip_server_file_expenstion(&v);
+            if name.ends_with(".pxar") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
 
     let mut result = vec![];
@@ -1895,7 +1909,7 @@ fn catalog_mgmt_cli() -> CliCommandMap {
     let catalog_shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
         .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
-        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("snapshot", complete_group_or_snapshot);
 
     #[sortable]
@@ -2251,7 +2265,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .arg_param(&["snapshot", "archive-name", "target"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
-        .completion_cb("archive-name", complete_archive_name)
+        .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
 
