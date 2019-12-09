@@ -536,16 +536,31 @@ fn start_garbage_collection(
 ) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
     let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
-    let result = async_main(async move { client.post(&path, None).await })?;
+    async_main(async {
+        let result = client.post(&path, None).await?;
 
-    record_repository(&repo);
+        record_repository(&repo);
 
-    Ok(result)
+        let data = &result["data"];
+        if output_format == "text" {
+            if let Some(upid) = data.as_str() {
+                display_task_log(client, upid, true).await?;
+            }
+        } else {
+            format_and_print_result(&data, &output_format);
+        }
+
+        Ok::<_, Error>(())
+    })?;
+
+
+    Ok(Value::Null)
 }
 
 fn parse_backupspec(value: &str) -> Result<(&str, &str), Error> {
