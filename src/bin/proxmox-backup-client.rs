@@ -1651,10 +1651,10 @@ fn key_mgmt_cli() -> CliCommandMap {
         .completion_cb("path", tools::complete_file_name);
 
     CliCommandMap::new()
-        .insert("create".to_owned(), key_create_cmd_def.into())
-        .insert("create-master-key".to_owned(), key_create_master_key_cmd_def.into())
-        .insert("import-master-pubkey".to_owned(), key_import_master_pubkey_cmd_def.into())
-        .insert("change-passphrase".to_owned(), key_change_passphrase_cmd_def.into())
+        .insert("create", key_create_cmd_def.into())
+        .insert("create-master-key", key_create_master_key_cmd_def.into())
+        .insert("import-master-pubkey", key_import_master_pubkey_cmd_def.into())
+        .insert("change-passphrase", key_change_passphrase_cmd_def.into())
 }
 
 fn mount(
@@ -1945,8 +1945,8 @@ fn catalog_mgmt_cli() -> CliCommandMap {
         .completion_cb("snapshot", complete_backup_snapshot);
 
     CliCommandMap::new()
-        .insert("dump".to_owned(), catalog_dump_cmd_def.into())
-        .insert("shell".to_owned(), catalog_shell_cmd_def.into())
+        .insert("dump", catalog_dump_cmd_def.into())
+        .insert("shell", catalog_shell_cmd_def.into())
 }
 
 
@@ -2285,21 +2285,21 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
 
     let cmd_def = CliCommandMap::new()
-        .insert("backup".to_owned(), backup_cmd_def.into())
-        .insert("upload-log".to_owned(), upload_log_cmd_def.into())
-        .insert("forget".to_owned(), forget_cmd_def.into())
-        .insert("garbage-collect".to_owned(), garbage_collect_cmd_def.into())
-        .insert("list".to_owned(), list_cmd_def.into())
-        .insert("login".to_owned(), login_cmd_def.into())
-        .insert("logout".to_owned(), logout_cmd_def.into())
-        .insert("prune".to_owned(), prune_cmd_def.into())
-        .insert("restore".to_owned(), restore_cmd_def.into())
-        .insert("snapshots".to_owned(), snapshots_cmd_def.into())
-        .insert("files".to_owned(), files_cmd_def.into())
-        .insert("status".to_owned(), status_cmd_def.into())
-        .insert("key".to_owned(), key_mgmt_cli().into())
-        .insert("mount".to_owned(), mount_cmd_def.into())
-        .insert("catalog".to_owned(), catalog_mgmt_cli().into());
+        .insert("backup", backup_cmd_def.into())
+        .insert("upload-log", upload_log_cmd_def.into())
+        .insert("forget", forget_cmd_def.into())
+        .insert("garbage-collect", garbage_collect_cmd_def.into())
+        .insert("list", list_cmd_def.into())
+        .insert("login", login_cmd_def.into())
+        .insert("logout", logout_cmd_def.into())
+        .insert("prune", prune_cmd_def.into())
+        .insert("restore", restore_cmd_def.into())
+        .insert("snapshots", snapshots_cmd_def.into())
+        .insert("files", files_cmd_def.into())
+        .insert("status", status_cmd_def.into())
+        .insert("key", key_mgmt_cli().into())
+        .insert("mount", mount_cmd_def.into())
+        .insert("catalog", catalog_mgmt_cli().into());
 
     run_cli_command(cmd_def.into());
 }
