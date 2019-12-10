@@ -418,8 +418,11 @@ fn restore_selected_command(target: String) -> Result<(), Error> {
 /// List entries currently selected for restore.
 fn list_selected_command() -> Result<(), Error> {
     Context::with(|ctx| {
+        let mut list = ctx.selected.iter().collect::<Vec<&Vec<u8>>>();
+        list.sort();
+
         let mut out = std::io::stdout();
-        for entry in &ctx.selected {
+        for entry in list {
             out.write_all(entry)?;
             out.write_all(&[b'\n'])?;
         }
