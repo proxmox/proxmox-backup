@@ -819,7 +819,11 @@ impl<R: Read> SequentialDecoder<R> {
         // there are no match pattern.
         let mut matched = parent_matched;
         if !match_pattern.is_empty() {
-            match match_filename(filename, ifmt == libc::S_IFDIR, match_pattern)? {
+            match MatchPattern::match_filename_include(
+                &CString::new(filename.as_bytes())?,
+                ifmt == libc::S_IFDIR,
+                match_pattern,
+            )? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
                 (match_type, pattern) => {
@@ -1109,43 +1113,6 @@ impl<R: Read> SequentialDecoder<R> {
 
         Ok(())
     }
-}
-
-fn match_filename(
-    filename: &OsStr,
-    is_dir: bool,
-    match_pattern: &[MatchPattern],
-) -> Result<(MatchType, Vec<MatchPattern>), Error> {
-    let mut child_pattern = Vec::new();
-    let mut match_state = MatchType::None;
-    // read_filename() checks for nul bytes, so it is save to unwrap here
-    let name = CString::new(filename.as_bytes()).unwrap();
-
-    for pattern in match_pattern {
-        match pattern.matches_filename(&name, is_dir)? {
-            MatchType::None => {}
-            MatchType::Positive => {
-                match_state = MatchType::Positive;
-                let incl_pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
-                child_pattern.push(incl_pattern.get_rest_pattern());
-            }
-            MatchType::Negative => match_state = MatchType::Negative,
-            MatchType::PartialPositive => {
-                if match_state != MatchType::Negative && match_state != MatchType::Positive {
-                    match_state = MatchType::PartialPositive;
-                }
-                child_pattern.push(pattern.get_rest_pattern());
-            }
-            MatchType::PartialNegative => {
-                if match_state == MatchType::PartialPositive {
-                    match_state = MatchType::PartialNegative;
-                }
-                child_pattern.push(pattern.get_rest_pattern());
-            }
-        }
-    }
-
-    Ok((match_state, child_pattern))
 }
 
 fn file_openat(

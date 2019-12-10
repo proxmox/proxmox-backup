@@ -290,6 +290,142 @@ impl MatchPattern {
 
         Ok(res)
     }
+
+    /// Match the given filename against the set of match patterns.
+    ///
+    /// A positive match is intended to includes the full subtree (unless another
+    /// negative match excludes entries later).
+    /// The `MatchType` together with an updated `MatchPattern` list for passing
+    /// to the matched child is returned.
+    /// ```
+    /// # use std::ffi::CString;
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let patterns = vec![
+    ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
+    ///     MatchPattern::from_line(b"to_match/")?.unwrap()
+    /// ];
+    /// let filename = CString::new("some")?;
+    /// let is_dir = true;
+    /// let (match_type, child_pattern) = MatchPattern::match_filename_include(
+    ///     &filename,
+    ///     is_dir,
+    ///     &patterns
+    /// )?;
+    /// assert_eq!(match_type, MatchType::PartialPositive);
+    /// /// child pattern will be the same as ...
+    /// let pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    ///
+    /// let filename = CString::new("to_match")?;
+    /// let is_dir = true;
+    /// let (match_type, child_pattern) = MatchPattern::match_filename_include(
+    ///     &filename,
+    ///     is_dir,
+    ///     &patterns
+    /// )?;
+    /// assert_eq!(match_type, MatchType::Positive);
+    /// /// child pattern will be the same as ...
+    /// let pattern = MatchPattern::from_line(b"**/*")?.unwrap();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn match_filename_include(
+        filename: &CStr,
+        is_dir: bool,
+        match_pattern: &[MatchPattern],
+    ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
+        let mut child_pattern = Vec::new();
+        let mut match_state = MatchType::None;
+
+        for pattern in match_pattern {
+            match pattern.matches_filename(filename, is_dir)? {
+                MatchType::None => continue,
+                MatchType::Positive => {
+                    match_state = MatchType::Positive;
+                    // Full match so lets include everything below this node
+                    let incl_pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
+                    child_pattern.push(incl_pattern);
+                }
+                MatchType::Negative => match_state = MatchType::Negative,
+                MatchType::PartialPositive => {
+                    if match_state != MatchType::Negative && match_state != MatchType::Positive {
+                        match_state = MatchType::PartialPositive;
+                    }
+                    child_pattern.push(pattern.get_rest_pattern());
+                }
+                MatchType::PartialNegative => {
+                    if match_state == MatchType::PartialPositive {
+                        match_state = MatchType::PartialNegative;
+                    }
+                    child_pattern.push(pattern.get_rest_pattern());
+                }
+            }
+        }
+
+        Ok((match_state, child_pattern))
+    }
+
+    /// Match the given filename against the set of match patterns.
+    ///
+    /// A positive match is intended to exclude the full subtree, independent of
+    /// matches deeper down the tree.
+    /// The `MatchType` together with an updated `MatchPattern` list for passing
+    /// to the matched child is returned.
+    /// ```
+    /// # use std::ffi::CString;
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let patterns = vec![
+    ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
+    ///     MatchPattern::from_line(b"to_match/")?.unwrap()
+    /// ];
+    /// let filename = CString::new("some")?;
+    /// let is_dir = true;
+    /// let (match_type, child_pattern) = MatchPattern::match_filename_exclude(
+    ///     &filename,
+    ///     is_dir,
+    ///     &patterns
+    /// )?;
+    /// assert_eq!(match_type, MatchType::PartialPositive);
+    /// /// child pattern will be the same as ...
+    /// let pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    ///
+    /// let filename = CString::new("to_match")?;
+    /// let is_dir = true;
+    /// let (match_type, child_pattern) = MatchPattern::match_filename_exclude(
+    ///     &filename,
+    ///     is_dir,
+    ///     &patterns
+    /// )?;
+    /// assert_eq!(match_type, MatchType::Positive);
+    /// /// child pattern will be empty
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn match_filename_exclude(
+        filename: &CStr,
+        is_dir: bool,
+        match_pattern: &[MatchPattern],
+    ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
+        let mut child_pattern = Vec::new();
+        let mut match_state = MatchType::None;
+
+        for pattern in match_pattern {
+            match pattern.matches_filename(filename, is_dir)? {
+                MatchType::None => {}
+                MatchType::Positive => match_state = MatchType::Positive,
+                MatchType::Negative => match_state = MatchType::Negative,
+                match_type => {
+                    if match_state != MatchType::Positive && match_state != MatchType::Negative {
+                        match_state = match_type;
+                    }
+                    child_pattern.push(pattern.get_rest_pattern());
+                }
+            }
+        }
+
+        Ok((match_state, child_pattern))
+    }
 }
 
 // Splits the `CStr` slice at the first slash encountered and returns the

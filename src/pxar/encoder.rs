@@ -736,7 +736,11 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
-                match match_filename(&filename, &stat, &local_match_pattern)? {
+                match MatchPattern::match_filename_exclude(
+                    &filename,
+                    is_directory(&stat),
+                    &local_match_pattern,
+                )? {
                     (MatchType::Positive, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         eprintln!(
@@ -1225,32 +1229,6 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
         Ok(())
     }
-}
-
-// If there is a match, an updated MatchPattern list to pass to the matched child is returned.
-fn match_filename(
-    filename: &CStr,
-    stat: &FileStat,
-    match_pattern: &[MatchPattern],
-) -> Result<(MatchType, Vec<MatchPattern>), Error> {
-    let mut child_pattern = Vec::new();
-    let mut match_state = MatchType::None;
-
-    for pattern in match_pattern {
-        match pattern.matches_filename(filename, is_directory(&stat))? {
-            MatchType::None => {}
-            MatchType::Positive => match_state = MatchType::Positive,
-            MatchType::Negative => match_state = MatchType::Negative,
-            match_type => {
-                if match_state != MatchType::Positive && match_state != MatchType::Negative {
-                    match_state = match_type;
-                }
-                child_pattern.push(pattern.get_rest_pattern());
-            }
-        }
-    }
-
-    Ok((match_state, child_pattern))
 }
 
 fn errno_is_unsupported(errno: Errno) -> bool {
