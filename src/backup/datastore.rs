@@ -259,7 +259,7 @@ impl DataStore {
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.upid = Some(worker.to_string());
 
-            worker.log("Start GC phase1 (mark chunks)");
+            worker.log("Start GC phase1 (mark used chunks)");
 
             self.mark_used_chunks(&mut gc_status)?;
 
@@ -272,7 +272,7 @@ impl DataStore {
             let comp_per = (gc_status.disk_bytes*100)/gc_status.index_data_bytes;
             worker.log(&format!("Disk bytes: {} ({} %)", gc_status.disk_bytes, comp_per));
             worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
-            let avg_chunk = gc_status.index_data_bytes/(gc_status.disk_chunks as u64);
+            let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
             worker.log(&format!("Average chunk size: {}", avg_chunk));
 
             *self.last_gc_status.lock().unwrap() = gc_status;
