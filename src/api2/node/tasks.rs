@@ -48,12 +48,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
 
     let upid_str = tools::required_string_param(&param, "upid")?;
 
-    let upid = match upid_str.parse::<UPID>() {
-        Ok(v) => v,
-        Err(err) => bail!("unable to parse UPID '{}' - {}", upid_str, err),
-    };
-
-    Ok(upid)
+    upid_str.parse::<UPID>()
 }
 
 fn read_task_log(
