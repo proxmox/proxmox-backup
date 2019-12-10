@@ -178,10 +178,6 @@ fn list_tasks(
     Ok(json!(result))
 }
 
-const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
-    .max_length(256)
-    .schema();
-
 #[sortable]
 const UPID_API_SUBDIRS: SubdirMap = &[
     (

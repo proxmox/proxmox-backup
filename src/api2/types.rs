@@ -97,3 +97,7 @@ pub const BACKUP_TIME_SCHEMA: Schema =
     IntegerSchema::new("Backup time (Unix epoch.)")
     .minimum(1_547_797_308)
     .schema();
+
+pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
+    .max_length(256)
+    .schema();
