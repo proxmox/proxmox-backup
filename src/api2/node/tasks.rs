@@ -124,6 +124,7 @@ fn list_tasks(
     let start = param["start"].as_u64().unwrap_or(0);
     let limit = param["limit"].as_u64().unwrap_or(50);
     let errors = param["errors"].as_bool().unwrap_or(false);
+    let running = param["running"].as_bool().unwrap_or(false);
 
     let userfilter = param["userfilter"].as_str();
 
@@ -150,6 +151,7 @@ fn list_tasks(
         }
 
         if let Some(ref state) = info.state {
+            if running { continue; }
             if errors && state.1 == "OK" {
                 continue;
             }
@@ -259,6 +261,7 @@ pub const ROUTER: Router = Router::new()
                      .default(50)
                      .schema()
                     ),
+                    ("running", true, &BooleanSchema::new("Only list running tasks.").schema()),
                     ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
                     ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
                 ]),

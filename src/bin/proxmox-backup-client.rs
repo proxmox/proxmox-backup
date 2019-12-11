@@ -1980,7 +1980,7 @@ fn task_list(param: Value) -> Result<Value, Error> {
 
         let limit = param["limit"].as_u64().unwrap_or(50) as usize;
 
-        let args = json!({ "start": 0, "limit": limit, "userfilter": repo.user()});
+        let args = json!({ "running": true, "start": 0, "limit": limit, "userfilter": repo.user()});
         let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
         let data = &result["data"];
