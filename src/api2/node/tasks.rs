@@ -126,6 +126,8 @@ fn list_tasks(
     let errors = param["errors"].as_bool().unwrap_or(false);
     let running = param["running"].as_bool().unwrap_or(false);
 
+    let store = param["store"].as_str();
+
     let userfilter = param["userfilter"].as_str();
 
     let list = server::read_task_list()?;
@@ -148,6 +150,23 @@ fn list_tasks(
 
         if let Some(username) = userfilter {
             if !info.upid.username.contains(username) { continue; }
+        }
+
+        if let Some(store) = store {
+            // Note: useful to select all tasks spawned by proxmox-backup-client
+            let worker_id = match &info.upid.worker_id {
+                Some(w) => w,
+                None => continue, // skip
+            };
+
+            if info.upid.worker_type == "backup" ||  info.upid.worker_type == "restore" {
+                let prefix = format!("{}_", store);
+                if !worker_id.starts_with(&prefix) { continue; }
+            } else if info.upid.worker_type == "prune" || info.upid.worker_type == "garbage_collection" {
+                if worker_id != store { continue; }
+            } else {
+                continue; // skip
+            }
         }
 
         if let Some(ref state) = info.state {
@@ -261,6 +280,7 @@ pub const ROUTER: Router = Router::new()
                      .default(50)
                      .schema()
                     ),
+                    ("store", true, &StringSchema::new("Only lists tasks for datastore name.").schema()),
                     ("running", true, &BooleanSchema::new("Only list running tasks.").schema()),
                     ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
                     ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
