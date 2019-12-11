@@ -101,3 +101,7 @@ pub const BACKUP_TIME_SCHEMA: Schema =
 pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
     .max_length(256)
     .schema();
+
+pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
+    .max_length(32)
+    .schema();

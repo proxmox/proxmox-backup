@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
 
+use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::datastore;
 
@@ -30,7 +31,7 @@ pub const POST: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Create new datastore.",
         &[
-            ("name", false, &StringSchema::new("Datastore name.").schema()),
+            ("name", false, &DATASTORE_SCHEMA),
             ("path", false, &StringSchema::new("Directory path (must exist).").schema()),
         ],
     )       
@@ -71,7 +72,7 @@ pub const DELETE: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Remove a datastore configuration.",
         &[
-            ("name", false, &StringSchema::new("Datastore name.").schema()),
+            ("name", false, &DATASTORE_SCHEMA),
         ],
     )
 );

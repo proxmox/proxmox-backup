@@ -200,7 +200,7 @@ const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Get datastore status.",
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
         ]),
     )
 );
@@ -299,7 +299,7 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
              .schema()
             ),
         ],[
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
         ])
     )
 );
@@ -388,7 +388,7 @@ pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Start garbage collection.",
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
         ])
     )
 );
@@ -423,7 +423,7 @@ pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Garbage collection status.",
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
         ])
     )
 );
@@ -463,7 +463,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -526,7 +526,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Download single raw file from backup snapshot.",
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -585,8 +585,6 @@ fn upload_backup_log(
     }.boxed()
 }
 
-const STORE_SCHEMA: Schema = StringSchema::new("Datastore name.").schema();
-
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
@@ -603,7 +601,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ObjectSchema::new(
                         "List snapshot files.",
                         &sorted!([
-                            ("store", false, &STORE_SCHEMA),
+                            ("store", false, &DATASTORE_SCHEMA),
                             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", false, &BACKUP_ID_SCHEMA),
                             ("backup-time", false, &BACKUP_TIME_SCHEMA),
@@ -626,7 +624,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ApiHandler::Sync(&list_groups),
                     &ObjectSchema::new(
                         "List backup groups.",
-                        &sorted!([ ("store", false, &STORE_SCHEMA) ]),
+                        &sorted!([ ("store", false, &DATASTORE_SCHEMA) ]),
                     )
                 )
             )
@@ -645,7 +643,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ObjectSchema::new(
                         "List backup groups.",
                         &sorted!([
-                            ("store", false, &STORE_SCHEMA),
+                            ("store", false, &DATASTORE_SCHEMA),
                             ("backup-type", true, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", true, &BACKUP_ID_SCHEMA),
                         ]),
@@ -658,7 +656,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
                     &ObjectSchema::new(
                         "Delete backup snapshot.",
                         &sorted!([
-                            ("store", false, &STORE_SCHEMA),
+                            ("store", false, &DATASTORE_SCHEMA),
                             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
                             ("backup-id", false, &BACKUP_ID_SCHEMA),
                             ("backup-time", false, &BACKUP_TIME_SCHEMA),

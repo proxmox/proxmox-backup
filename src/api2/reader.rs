@@ -28,7 +28,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
-            ("store", false, &StringSchema::new("Datastore name.").schema()),
+            ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &StringSchema::new("Backup type.")
              .format(&ApiStringFormat::Enum(&["vm", "ct", "host"]))
              .schema()

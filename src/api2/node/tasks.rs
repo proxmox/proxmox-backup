@@ -280,7 +280,7 @@ pub const ROUTER: Router = Router::new()
                      .default(50)
                      .schema()
                     ),
-                    ("store", true, &StringSchema::new("Only lists tasks for datastore name.").schema()),
+                    ("store", true, &DATASTORE_SCHEMA),
                     ("running", true, &BooleanSchema::new("Only list running tasks.").schema()),
                     ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
                     ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
