@@ -507,8 +507,8 @@ fn download_file(
             .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
             .await?;
 
-        let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+        let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
+            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
         let body = Body::wrap_stream(payload);
 
         // fixme: set other headers ?

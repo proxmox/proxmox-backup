@@ -60,7 +60,7 @@ where
                 None => {
                     this.scan_pos = 0;
                     if this.buffer.len() > 0 {
-                        return Poll::Ready(Some(Ok(this.buffer.take())));
+                        return Poll::Ready(Some(Ok(this.buffer.split())));
                     } else {
                         return Poll::Ready(None);
                     }
@@ -99,7 +99,7 @@ where
         let this = self.get_mut();
         loop {
             if this.buffer.len() == this.chunk_size {
-                return Poll::Ready(Some(Ok(this.buffer.take())));
+                return Poll::Ready(Some(Ok(this.buffer.split())));
             } else if this.buffer.len() > this.chunk_size {
                 let result = this.buffer.split_to(this.chunk_size);
                 return Poll::Ready(Some(Ok(result)));
@@ -112,7 +112,7 @@ where
                 None => {
                     // last chunk can have any size
                     if this.buffer.len() > 0 {
-                        return Poll::Ready(Some(Ok(this.buffer.take())));
+                        return Poll::Ready(Some(Ok(this.buffer.split())));
                     } else {
                         return Poll::Ready(None);
                     }

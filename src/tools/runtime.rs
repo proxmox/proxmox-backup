@@ -7,7 +7,7 @@ where
     F: Future<Output = T> + Send + 'static,
     T: std::fmt::Debug + Send + 'static,
 {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let (tx, rx) = tokio::sync::oneshot::channel();
 

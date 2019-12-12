@@ -23,7 +23,7 @@ async fn run() -> Result<(), Error> {
 
     let file = tokio::fs::File::open("random-test.dat").await?;
 
-    let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+    let stream = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
         .map_ok(|bytes| bytes.to_vec())
         .map_err(Error::from);
 

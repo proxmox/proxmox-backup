@@ -52,8 +52,9 @@ async fn run() -> Result<(), Error> {
     let server = daemon::create_daemon(
         ([127,0,0,1], 82).into(),
         move |listener, ready| {
+            let incoming = proxmox_backup::tools::async_io::StaticIncoming::from(listener);
             Ok(ready
-                .and_then(|_| hyper::Server::builder(listener.incoming())
+                .and_then(|_| hyper::Server::builder(incoming)
                     .serve(rest_server)
                     .with_graceful_shutdown(server::shutdown_future())
                     .map_err(Error::from)

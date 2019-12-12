@@ -34,7 +34,7 @@ impl Future for Process {
             } else {
                 match futures::ready!(Pin::new(&mut this.body).poll_next(cx)) {
                     Some(Ok(chunk)) => {
-                        this.body.release_capacity().release_capacity(chunk.len())?;
+                        this.body.flow_control().release_capacity(chunk.len())?;
                         this.bytes += chunk.len();
                         // println!("GOT FRAME {}", chunk.len());
                     },

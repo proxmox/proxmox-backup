@@ -192,8 +192,8 @@ fn download_file(
 
         env.log(format!("download {:?}", path3));
 
-        let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+        let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
+            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
 
         let body = Body::wrap_stream(payload);
 
@@ -275,8 +275,8 @@ fn download_chunk_old(
         .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
         .and_then(move |file| {
             env2.debug(format!("download chunk {:?}", path3));
-            let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-                .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+            let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
+                .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
 
             let body = Body::wrap_stream(payload);
 

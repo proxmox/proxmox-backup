@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use futures::*;
 
-use tokio_net::signal::unix::{signal, SignalKind};
+use tokio::signal::unix::{signal, SignalKind};
 
 use crate::tools::{self, BroadcastData};
 
@@ -34,28 +34,30 @@ lazy_static! {
 
 pub fn server_state_init() -> Result<(), Error> {
 
-    let stream = signal(SignalKind::interrupt())?;
+    let mut stream = signal(SignalKind::interrupt())?;
 
-    let future = stream.for_each(|_| {
-        println!("got shutdown request (SIGINT)");
-        SERVER_STATE.lock().unwrap().reload_request = false;
-        tools::request_shutdown();
-        futures::future::ready(())
-    });
+    let future = async move {
+        while stream.recv().await.is_some() {
+            println!("got shutdown request (SIGINT)");
+            SERVER_STATE.lock().unwrap().reload_request = false;
+            tools::request_shutdown();
+        }
+    }.boxed();
 
     let abort_future = last_worker_future().map_err(|_| {});
     let task = futures::future::select(future, abort_future);
 
     tokio::spawn(task.map(|_| ()));
 
-    let stream = signal(SignalKind::hangup())?;
+    let mut stream = signal(SignalKind::hangup())?;
 
-    let future = stream.for_each(|_| {
-        println!("got reload request (SIGHUP)");
-        SERVER_STATE.lock().unwrap().reload_request = true;
-        tools::request_shutdown();
-        futures::future::ready(())
-    });
+    let future = async move {
+        while stream.recv().await.is_some() {
+            println!("got reload request (SIGHUP)");
+            SERVER_STATE.lock().unwrap().reload_request = true;
+            tools::request_shutdown();
+        }
+    }.boxed();
 
     let abort_future = last_worker_future().map_err(|_| {});
     let task = futures::future::select(future, abort_future);

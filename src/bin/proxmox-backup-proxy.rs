@@ -66,10 +66,9 @@ async fn run() -> Result<(), Error> {
     let server = daemon::create_daemon(
         ([0,0,0,0,0,0,0,0], 8007).into(),
         |listener, ready| {
-            let connections = listener
-                .incoming()
+            let connections = proxmox_backup::tools::async_io::StaticIncoming::from(listener)
                 .map_err(Error::from)
-                .try_filter_map(move |sock| {
+                .try_filter_map(move |(sock, _addr)| {
                     let acceptor = Arc::clone(&acceptor);
                     async move {
                         sock.set_nodelay(true).unwrap();
@@ -81,6 +80,7 @@ async fn run() -> Result<(), Error> {
                         )
                     }
                 });
+            let connections = proxmox_backup::tools::async_io::HyperAccept(connections);
 
             Ok(ready
                 .and_then(|_| hyper::Server::builder(connections)

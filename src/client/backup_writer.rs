@@ -267,7 +267,21 @@ impl BackupWriter {
         let (verify_queue_tx, verify_queue_rx) = mpsc::channel(100);
         let (verify_result_tx, verify_result_rx) = oneshot::channel();
 
-        hyper::rt::spawn(
+        // FIXME: check if this works as expected as replacement for the combinator below?
+        // tokio::spawn(async move {
+        //     let result: Result<(), Error> = (async move {
+        //         while let Some(response) = verify_queue_rx.recv().await {
+        //             match H2Client::h2api_response(response.await?).await {
+        //                 Ok(result) => println!("RESPONSE: {:?}", result),
+        //                 Err(err) => bail!("pipelined request failed: {}", err),
+        //             }
+        //         }
+        //         Ok(())
+        //     }).await;
+        //     let _ignore_closed_channel = verify_result_tx.send(result);
+        // });
+        // old code for reference?
+        tokio::spawn(
             verify_queue_rx
                 .map(Ok::<_, Error>)
                 .try_for_each(|response: h2::client::ResponseFuture| {
@@ -294,7 +308,8 @@ impl BackupWriter {
 
         let h2_2 = h2.clone();
 
-        hyper::rt::spawn(
+        // FIXME: async-block-ify this code!
+        tokio::spawn(
             verify_queue_rx
                 .map(Ok::<_, Error>)
                 .and_then(move |(merged_chunk_info, response): (MergedChunkInfo, Option<h2::client::ResponseFuture>)| {
@@ -329,7 +344,7 @@ impl BackupWriter {
                             println!("append chunks list len ({})", digest_list.len());
                             let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
                             let request = H2Client::request_builder("localhost", "PUT", &path, None, Some("application/json")).unwrap();
-                            let param_data = bytes::Bytes::from(param.to_string().as_bytes());
+                            let param_data = bytes::Bytes::from(param.to_string().into_bytes());
                             let upload_data = Some(param_data);
                             h2_2.send_request(request, upload_data)
                                 .and_then(move |response| {
@@ -373,12 +388,12 @@ impl BackupWriter {
         }
 
         let mut body = resp.into_body();
-        let mut release_capacity = body.release_capacity().clone();
+        let mut flow_control = body.flow_control().clone();
 
         let mut stream = DigestListDecoder::new(body.map_err(Error::from));
 
         while let Some(chunk) = stream.try_next().await? {
-            let _ = release_capacity.release_capacity(chunk.len());
+            let _ = flow_control.release_capacity(chunk.len());
             println!("GOT DOWNLOAD {}", digest_to_hex(&chunk));
             known_chunks.lock().unwrap().insert(chunk);
         }
@@ -466,7 +481,7 @@ impl BackupWriter {
                     println!("upload new chunk {} ({} bytes, offset {})", digest_str,
                              chunk_info.chunk_len, offset);
 
-                    let chunk_data = chunk_info.chunk.raw_data();
+                    let chunk_data = chunk_info.chunk.into_inner();
                     let param = json!({
                         "wid": wid,
                         "digest": digest_str,
@@ -487,7 +502,7 @@ impl BackupWriter {
                             upload_queue
                                 .send((new_info, Some(response)))
                                 .await
-                                .map_err(Error::from)
+                                .map_err(|err| format_err!("failed to send to upload queue: {}", err))
                         })
                     )
                 } else {
@@ -496,7 +511,7 @@ impl BackupWriter {
                         upload_queue
                             .send((merged_chunk_info, None))
                             .await
-                            .map_err(Error::from)
+                            .map_err(|err| format_err!("failed to send to upload queue: {}", err))
                     })
                 }
             })

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -10,10 +11,10 @@ use futures::future::{self, FutureExt, TryFutureExt};
 use futures::stream::TryStreamExt;
 use hyper::header;
 use hyper::http::request::Parts;
-use hyper::rt::Future;
 use hyper::{Body, Request, Response, StatusCode};
 use serde_json::{json, Value};
 use tokio::fs::File;
+use tokio::time::Instant;
 use url::form_urlencoded;
 
 use proxmox::api::http_err;
@@ -291,7 +292,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
         Err(err) => {
             if let Some(httperr) = err.downcast_ref::<HttpError>() {
                 if httperr.code == StatusCode::UNAUTHORIZED {
-                    tokio::timer::delay(delay_unauth_time).await;
+                    tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
                 }
             }
             (formatter.format_error)(err)
@@ -417,8 +418,8 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
         .await
         .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))?;
 
-    let payload = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
-        .map_ok(|bytes| hyper::Chunk::from(bytes.freeze()));
+    let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
+        .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
     let body = Body::wrap_stream(payload);
 
     // fixme: set other headers ?
@@ -531,7 +532,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, format!("permission check failed - {}", err));
-                        tokio::timer::delay(delay_unauth_time).await;
+                        tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
                 }
@@ -567,7 +568,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                         return Ok(get_index(Some(username), Some(new_token)));
                     }
                     _ => {
-                        tokio::timer::delay(delay_unauth_time).await;
+                        tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok(get_index(None, None));
                     }
                 }

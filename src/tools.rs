@@ -19,7 +19,6 @@ use proxmox::tools::vec;
 
 pub mod acl;
 pub mod async_io;
-pub mod async_mutex;
 pub mod borrow;
 pub mod daemon;
 pub mod fs;

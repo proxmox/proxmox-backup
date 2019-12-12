@@ -2,7 +2,7 @@ use failure::*;
 
 use futures::*;
 
-use tokio::net::unix::UnixListener;
+use tokio::net::UnixListener;
 
 use std::path::PathBuf;
 use serde_json::Value;
@@ -11,23 +11,25 @@ use std::os::unix::io::AsRawFd;
 use nix::sys::socket;
 
 /// Listens on a Unix Socket to handle simple command asynchronously
-pub fn create_control_socket<P, F>(path: P, f: F) -> Result<impl Future<Output = ()>, Error>
+pub fn create_control_socket<P, F>(path: P, func: F) -> Result<impl Future<Output = ()>, Error>
 where
     P: Into<PathBuf>,
     F: Fn(Value) -> Result<Value, Error> + Send + Sync + 'static,
 {
     let path: PathBuf = path.into();
 
-    let socket = UnixListener::bind(&path)?;
+    let mut socket = UnixListener::bind(&path)?;
 
-    let f = Arc::new(f);
-    let path2 = Arc::new(path);
-    let path3 = path2.clone();
+    let func = Arc::new(func);
 
-    let control_future = socket.incoming()
-        .map_err(Error::from)
-        .and_then(|conn| {
-            use futures::future::{err, ok};
+    let control_future = async move {
+        loop {
+            let (conn, _addr) = socket
+                .accept()
+                .await
+                .map_err(|err| {
+                    format_err!("failed to accept on control socket {:?}: {}", path, err)
+                })?;
 
             // check permissions (same gid, or root user)
             let opt = socket::sockopt::PeerCredentials {};
@@ -35,28 +37,19 @@ where
                 Ok(cred) => {
                     let mygid = unsafe { libc::getgid() };
                     if !(cred.uid() == 0 || cred.gid() == mygid) {
-                        return err(format_err!("no permissions for {:?}", cred));
+                        bail!("no permissions for {:?}", cred);
                     }
                 }
-                Err(e) => {
-                    return err(format_err!(
-                        "no permissions - unable to read peer credential - {}",
-                        e,
-                    ));
-                }
+                Err(e) => bail!("no permissions - unable to read peer credential - {}", e),
             }
-            ok(conn)
-        })
-        .map_err(move |err| { eprintln!("failed to accept on control socket {:?}: {}", path2, err); })
-        .try_for_each(move |conn| {
-            let f = Arc::clone(&f);
 
-            let (rx, mut tx) = conn.split();
-            let path = path3.clone();
+            let (rx, mut tx) = tokio::io::split(conn);
 
             let abort_future = super::last_worker_future().map(|_| ());
 
             use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+            let func = Arc::clone(&func);
+            let path = path.clone();
             tokio::spawn(futures::future::select(
                 async move {
                     let mut rx = tokio::io::BufReader::new(rx);
@@ -73,7 +66,7 @@ where
                         }
 
                         let response = match line.parse::<Value>() {
-                            Ok(param) => match f(param) {
+                            Ok(param) => match func(param) {
                                 Ok(res) => format!("OK: {}\n", res),
                                 Err(err) => format!("ERROR: {}\n", err),
                             }
@@ -88,14 +81,14 @@ where
                 }.boxed(),
                 abort_future,
             ).map(|_| ()));
-            futures::future::ok(())
-        });
+        }
+    }.boxed();
 
     let abort_future = super::last_worker_future().map_err(|_| {});
     let task = futures::future::select(
         control_future,
         abort_future,
-    ).map(|_| ());
+    ).map(|_: futures::future::Either<(Result<(), Error>, _), _>| ());
 
     Ok(task)
 }
@@ -112,9 +105,7 @@ pub fn send_command<P>(
 
     tokio::net::UnixStream::connect(path)
         .map_err(move |err| format_err!("control socket connect failed - {}", err))
-        .and_then(move |conn| {
-
-            let (rx, mut tx) = conn.split();
+        .and_then(move |mut conn| {
 
             let mut command_string = params.to_string();
             command_string.push('\n');
@@ -122,9 +113,9 @@ pub fn send_command<P>(
             async move {
                 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
-                tx.write_all(command_string.as_bytes()).await?;
-                tx.shutdown().await?;
-                let mut rx = tokio::io::BufReader::new(rx);
+                conn.write_all(command_string.as_bytes()).await?;
+                AsyncWriteExt::shutdown(&mut conn).await?;
+                let mut rx = tokio::io::BufReader::new(conn);
                 let mut data = String::new();
                 if rx.read_line(&mut data).await? == 0 {
                     bail!("no response");

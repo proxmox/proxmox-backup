@@ -2,7 +2,7 @@ use std::io::{self, Read};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use tokio_executor::threadpool::blocking;
+use tokio::task::block_in_place;
 use futures::stream::Stream;
 
 pub struct WrappedReaderStream<R: Read + Unpin> {
@@ -24,8 +24,8 @@ impl<R: Read + Unpin> Stream for WrappedReaderStream<R> {
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        match blocking(|| this.reader.read(&mut this.buffer)) {
-            Poll::Ready(Ok(Ok(n))) => {
+        match block_in_place(|| this.reader.read(&mut this.buffer)) {
+            Ok(n) => {
                 if n == 0 {
                     // EOF
                     Poll::Ready(None)
@@ -33,12 +33,7 @@ impl<R: Read + Unpin> Stream for WrappedReaderStream<R> {
                     Poll::Ready(Some(Ok(this.buffer[..n].to_vec())))
                 }
             }
-            Poll::Ready(Ok(Err(err))) => Poll::Ready(Some(Err(err))),
-            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(io::Error::new(
-                io::ErrorKind::Other,
-                err.to_string(),
-            )))),
-            Poll::Pending => Poll::Pending,
+            Err(err) => Poll::Ready(Some(Err(err))),
         }
     }
 }

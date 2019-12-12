@@ -193,7 +193,6 @@ impl Reloadable for tokio::net::TcpListener {
         fd_change_cloexec(fd, true)?;
         Ok(Self::from_std(
             unsafe { std::net::TcpListener::from_raw_fd(fd) },
-            &tokio_net::driver::Handle::default(),
         )?)
     }
 }

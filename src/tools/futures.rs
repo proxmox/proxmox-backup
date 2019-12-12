@@ -7,8 +7,7 @@ use std::task::{Context, Poll};
 
 use failure::Error;
 use futures::future::FutureExt;
-
-use crate::tools::async_mutex::{AsyncLockGuard, AsyncMutex, LockFuture};
+use tokio::sync::oneshot;
 
 /// Make a future cancellable.
 ///
@@ -42,11 +41,11 @@ use crate::tools::async_mutex::{AsyncLockGuard, AsyncMutex, LockFuture};
 pub struct Cancellable<T: Future + Unpin> {
     /// Our core: we're waiting on a future, on on a lock. The cancel method just unlocks the
     /// lock, so that our LockFuture finishes.
-    inner: futures::future::Select<T, LockFuture<()>>,
+    inner: futures::future::Select<T, oneshot::Receiver<()>>,
 
     /// When this future is created, this holds a guard. When a `Canceller` wants to cancel the
     /// future, it'll drop this guard, causing our inner future to resolve to `None`.
-    guard: Arc<Mutex<Option<AsyncLockGuard<()>>>>,
+    sender: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 /// Reference to a cancellable future. Multiple instances may exist simultaneously.
@@ -55,14 +54,14 @@ pub struct Cancellable<T: Future + Unpin> {
 ///
 /// This can be cloned to be used in multiple places.
 #[derive(Clone)]
-pub struct Canceller(Arc<Mutex<Option<AsyncLockGuard<()>>>>);
+pub struct Canceller(Arc<Mutex<Option<oneshot::Sender<()>>>>);
 
 impl Canceller {
     /// Cancel the associated future.
     ///
     /// This does nothing if the future already finished successfully.
     pub fn cancel(&self) {
-        *self.0.lock().unwrap() = None;
+        let _ = self.0.lock().unwrap().take().unwrap().send(());
     }
 }
 
@@ -71,19 +70,20 @@ impl<T: Future + Unpin> Cancellable<T> {
     ///
     /// Returns a future and a `Canceller` which can be cloned and used later to cancel the future.
     pub fn new(inner: T) -> Result<(Self, Canceller), Error> {
-        // we don't even need to sture the mutex...
-        let (mutex, guard) = AsyncMutex::new_locked(())?;
+        // we don't even need to store the mutex...
+        let (tx, rx) = oneshot::channel();
         let this = Self {
-            inner: futures::future::select(inner, mutex.lock()),
-            guard: Arc::new(Mutex::new(Some(guard))),
+            inner: futures::future::select(inner, rx),
+            sender: Arc::new(Mutex::new(Some(tx))),
         };
+
         let canceller = this.canceller();
         Ok((this, canceller))
     }
 
     /// Create another `Canceller` for this future.
     pub fn canceller(&self) -> Canceller {
-        Canceller(self.guard.clone())
+        Canceller(Arc::clone(&self.sender))
     }
 }
 

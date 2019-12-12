@@ -186,7 +186,9 @@ async fn backup_directory<P: AsRef<Path>>(
 
     // spawn chunker inside a separate task so that it can run parallel
     tokio::spawn(async move {
-        let _ = tx.send_all(&mut chunk_stream).await;
+        while let Some(v) = chunk_stream.next().await {
+            let _ = tx.send(v).await;
+        }
     });
 
     let stats = client
@@ -210,7 +212,7 @@ async fn backup_image<P: AsRef<Path>>(
 
     let file = tokio::fs::File::open(path).await?;
 
-    let stream = tokio::codec::FramedRead::new(file, tokio::codec::BytesCodec::new())
+    let stream = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
         .map_err(Error::from);
 
     let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
@@ -2443,8 +2445,9 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 }
 
 fn async_main<F: Future>(fut: F) -> <F as Future>::Output {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
     let ret = rt.block_on(fut);
-    rt.shutdown_now();
+    // This does not exist anymore. We need to actually stop our runaways instead...
+    // rt.shutdown_now();
     ret
 }

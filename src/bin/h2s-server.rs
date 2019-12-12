@@ -24,12 +24,12 @@ async fn main() -> Result<(), Error> {
 
     let acceptor = Arc::new(acceptor.build());
 
-    let listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
+    let mut listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());
 
-    let mut incoming = listener.incoming();
-    while let Some(socket) = incoming.try_next().await? {
+    loop {
+        let (socket, _addr) = listener.accept().await?;
         tokio::spawn(handle_connection(socket, Arc::clone(&acceptor))
             .map(|res| {
                 if let Err(err) = res {
@@ -37,8 +37,6 @@ async fn main() -> Result<(), Error> {
                 }
             }));
     }
-
-    Ok(())
 }
 
 async fn handle_connection(
