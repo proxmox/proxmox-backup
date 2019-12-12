@@ -23,6 +23,15 @@ const_regex!{
     pub IP_FORMAT_REGEX = IPRE!();
     pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
     pub SYSTEMD_DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$"; //  fixme: define in common_regex ?
+
+    /// Regex for safe identifiers.
+    ///
+    /// This
+    /// [article](https://dwheeler.com/essays/fixing-unix-linux-filenames.html)
+    /// contains further information why it is reasonable to restict
+    /// names this way. This is not only useful for filenames, but for
+    /// any identifier command line tools work with.
+    pub PROXMOX_SAFE_ID_REGEX = r"^[A-Za-z0-9_][A-Za-z0-9._\-]*";
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -33,6 +42,9 @@ pub const IP_FORMAT: ApiStringFormat =
 
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
+
+pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
 
 pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
 Prevent changes if current configuration file has different SHA256 digest.
@@ -103,5 +115,6 @@ pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
     .schema();
 
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
     .max_length(32)
     .schema();
