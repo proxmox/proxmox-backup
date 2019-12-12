@@ -92,7 +92,7 @@ pub const THIRD_DNS_SERVER_SCHEMA: Schema =
 
 pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
     StringSchema::new("Backup archive name.")
-    .format(&FILENAME_FORMAT)
+    .format(&PROXMOX_SAFE_ID_FORMAT)
     .schema();
 
 pub const BACKUP_TYPE_SCHEMA: Schema =
@@ -102,7 +102,7 @@ pub const BACKUP_TYPE_SCHEMA: Schema =
 
 pub const BACKUP_ID_SCHEMA: Schema =
     StringSchema::new("Backup ID.")
-    .format(&FILENAME_FORMAT)
+    .format(&PROXMOX_SAFE_ID_FORMAT)
     .schema();
 
 pub const BACKUP_TIME_SCHEMA: Schema =
