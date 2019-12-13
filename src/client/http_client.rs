@@ -11,7 +11,7 @@ use hyper::Body;
 use hyper::client::{Client, HttpConnector};
 use openssl::ssl::{SslConnector, SslMethod};
 use serde_json::{json, Value};
-use url::percent_encoding::{percent_encode,  DEFAULT_ENCODE_SET};
+use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
 use proxmox::tools::{
@@ -21,7 +21,7 @@ use proxmox::tools::{
 use super::pipe_to_stream::PipeToSendStream;
 use crate::tools::async_io::EitherStream;
 use crate::tools::futures::{cancellable, Canceller};
-use crate::tools::{self, tty, BroadcastFuture};
+use crate::tools::{self, tty, BroadcastFuture, DEFAULT_ENCODE_SET};
 
 #[derive(Clone)]
 pub struct AuthInfo {

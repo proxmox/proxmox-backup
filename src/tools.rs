@@ -14,6 +14,7 @@ use std::time::Duration;
 use failure::*;
 use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
+use percent_encoding::AsciiSet;
 
 use proxmox::tools::vec;
 
@@ -416,7 +417,7 @@ pub fn extract_auth_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
         };
 
         if name == cookie_name {
-            use url::percent_encoding::percent_decode;
+            use percent_encoding::percent_decode;
             if let Ok(value) = percent_decode(value.as_bytes()).decode_utf8() {
                 return Some(value.into());
             } else {
@@ -549,3 +550,19 @@ impl<T: Any> AsAny for T {
         self
     }
 }
+
+/// This used to be: `SIMPLE_ENCODE_SET` plus space, `"`, `#`, `<`, `>`, backtick, `?`, `{`, `}`
+pub const DEFAULT_ENCODE_SET: &AsciiSet = &percent_encoding::CONTROLS // 0..1f and 7e
+    // The SIMPLE_ENCODE_SET adds space and anything >= 0x7e (7e itself is already included above)
+    .add(0x20)
+    .add(0x7f)
+    // the DEFAULT_ENCODE_SET added:
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'`')
+    .add(b'?')
+    .add(b'{')
+    .add(b'}');
