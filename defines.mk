@@ -9,6 +9,7 @@ LIBDIR = $(PREFIX)/lib
 LIBEXECDIR = $(LIBDIR)
 DATAROOTDIR = $(PREFIX)/share
 MAN1DIR = $(PREFIX)/share/man/man1
+DOCDIR = $(PREFIX)/share/doc/${PACKAGE}
 JSDIR = $(DATAROOTDIR)/javascript/proxmox-backup
 SYSCONFDIR = /etc
 

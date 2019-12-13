@@ -34,6 +34,7 @@ COMPILED_BINS := \
 
 DEBS= ${PACKAGE}-server_${PKGVER}-${PKGREL}_${ARCH}.deb ${PACKAGE}-client_${PKGVER}-${PKGREL}_${ARCH}.deb
 
+DOC_DEB=${PACKAGE}-docs_${PKGVER}-${PKGREL}_all.deb
 
 DESTDIR=
 
@@ -63,10 +64,16 @@ build:
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
 
+.PHONY: proxmox-backup-docs
+proxmox-backup-docs: $(DOC_DEB)
+$(DOC_DEB): build
+	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
+	lintian $(DOC_DEB)
+
 .PHONY: deb
 deb: $(DEBS)
 $(DEBS): build
-	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
+	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean --build-profiles=nodoc
 	lintian $(DEBS)
 
 .PHONY: dsc

@@ -18,6 +18,7 @@ Standards-Version: 3.9.5
 Homepage: https://www.proxmox.com
 
 Package: proxmox-backup-server
+Build-Profiles: <nodoc>
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 	 libjs-extjs (>= 6.0.1),
@@ -29,8 +30,17 @@ Description: Proxmox Backup Server daemon with tools and GUI
  tools. This includes a web-based graphical user interface.
 
 Package: proxmox-backup-client
+Build-Profiles: <nodoc>
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 Description: Proxmox Backup Client tools
  This package contains the Proxmox Backup client, which provides a
  simple command line tool to create and restore backups.
+
+Package: proxmox-backup-docs
+Build-Profiles: <!nodoc>
+Section: doc
+Depends: libjs-extjs
+Architecture: all
+Description: Proxmox Backup Documentation
+ This package contains the Proxmox Backup Documentation files.

@@ -87,6 +87,25 @@ epub3: ${GENERATED_SYNOPSIS}
 clean:
 	rm -r -f *~ *.1 ${BUILDDIR} ${GENERATED_SYNOPSIS}
 
-install: ${MANUAL_PAGES}
+
+install_manual_pages: ${MANUAL_PAGES}
 	install -dm755 $(DESTDIR)$(MAN1DIR)
 	for i in ${MANUAL_PAGES}; do install -m755 $$i $(DESTDIR)$(MAN1DIR)/ ; done
+
+install_html: html
+	install -dm755 $(DESTDIR)$(DOCDIR)
+	rsync -a output/html $(DESTDIR)$(DOCDIR)
+
+install_pdf: latexpdf
+	install -dm755 $(DESTDIR)$(DOCDIR)
+	install -m 0644 output/latex/ProxmoxBackup.pdf $(DESTDIR)$(DOCDIR)/proxmox-backup.pdf
+
+ifneq ($(filter nodoc,$(DEB_BUILD_PROFILES)),)
+
+install: install_manual_pages
+
+else
+
+install: install_manual_pages install_html install_pdf
+
+endif
