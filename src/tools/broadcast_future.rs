@@ -159,16 +159,18 @@ fn test_broadcast_future() {
         .map_err(|err| { panic!("got errror {}", err); })
         .map(|_| ());
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let receiver_finish = sender.listen();
+
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
         tokio::spawn(receiver1);
         tokio::spawn(receiver2);
 
         trigger.send(Ok(1)).unwrap();
+        let _ = receiver_finish.await;
     });
-    rt.shutdown_on_idle();
 
     let result = CHECKSUM.load(Ordering::SeqCst);
 
-    assert!(result == 3);
+    assert_eq!(result, 3);
 }
