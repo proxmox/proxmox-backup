@@ -2039,6 +2039,37 @@ fn task_log(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+        }
+    }
+)]
+/// Try to stop a specific task.
+fn task_stop(param: Value) -> Result<Value, Error> {
+
+    async_main(async {
+        let repo = extract_repository_from_value(&param)?;
+        let upid_str =  tools::required_string_param(&param, "upid")?;
+
+        let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+
+        let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
+        let _ = client.delete(&path, None).await?;
+
+        Ok::<_, Error>(())
+    })?;
+
+    Ok(Value::Null)
+}
+
 fn task_mgmt_cli() -> CliCommandMap {
 
     let task_list_cmd_def = CliCommand::new(&API_METHOD_TASK_LIST)
@@ -2047,10 +2078,13 @@ fn task_mgmt_cli() -> CliCommandMap {
     let task_log_cmd_def = CliCommand::new(&API_METHOD_TASK_LOG)
         .arg_param(&["upid"]);
 
+    let task_stop_cmd_def = CliCommand::new(&API_METHOD_TASK_STOP)
+        .arg_param(&["upid"]);
+
     CliCommandMap::new()
         .insert("log", task_log_cmd_def)
         .insert("list", task_list_cmd_def)
-
+        .insert("stop", task_stop_cmd_def)
 }
 
 fn main() {
