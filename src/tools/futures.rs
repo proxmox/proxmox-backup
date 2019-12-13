@@ -61,7 +61,9 @@ impl Canceller {
     ///
     /// This does nothing if the future already finished successfully.
     pub fn cancel(&self) {
-        let _ = self.0.lock().unwrap().take().unwrap().send(());
+        if let Some(sender) = self.0.lock().unwrap().take() {
+            let _ = sender.send(());
+        }
     }
 }
 
