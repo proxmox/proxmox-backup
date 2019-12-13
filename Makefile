@@ -113,3 +113,9 @@ install: $(COMPILED_BINS)
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install
 	$(MAKE) -C docs install
+
+.PHONY: upload
+upload: ${DEBS}
+	# check if working directory is clean
+	git diff --exit-code --stat && git diff --exit-code --stat --staged
+	tar cf - ${DEBS} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
