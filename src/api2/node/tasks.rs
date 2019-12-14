@@ -159,10 +159,12 @@ fn list_tasks(
                 None => continue, // skip
             };
 
-            if info.upid.worker_type == "backup" ||  info.upid.worker_type == "restore" {
+            if info.upid.worker_type == "backup" || info.upid.worker_type == "restore" ||
+                info.upid.worker_type == "prune"
+            {
                 let prefix = format!("{}_", store);
                 if !worker_id.starts_with(&prefix) { continue; }
-            } else if info.upid.worker_type == "prune" || info.upid.worker_type == "garbage_collection" {
+            } else if info.upid.worker_type == "garbage_collection" {
                 if worker_id != store { continue; }
             } else {
                 continue; // skip

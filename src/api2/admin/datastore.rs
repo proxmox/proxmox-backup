@@ -330,17 +330,21 @@ fn prune(
         keep_yearly: param["keep-yearly"].as_u64(),
     };
 
+    let worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
+
     // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(store.to_owned()), "root@pam", true)?;
+    let worker = WorkerTask::new("prune", Some(worker_id), "root@pam", true)?;
     let result = try_block! {
         if !prune_options.keeps_something() {
             worker.log("No prune selection - keeping all files.");
             return Ok(());
         } else {
             if dry_run {
-                worker.log(format!("Testing prune on store {}", store));
+                worker.log(format!("Testing prune on store \"{}\" group \"{}/{}\"",
+                                   store, backup_type, backup_id));
             } else {
-                worker.log(format!("Starting prune on store {}", store));
+                worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
+                                   store, backup_type, backup_id));
             }
         }
 
