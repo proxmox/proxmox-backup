@@ -488,7 +488,41 @@ on that.
 Garbage Collection
 ~~~~~~~~~~~~~~~~~~
 
-.. todo:: write garbage-collection section
+The ``prune`` command removes only the backup index files, not the data
+from the data store. This task is left to the garbage collection
+command. It is therefore recommended to carry out garbage collection
+regularly.
+
+The garbage collection works in two phases. In the first phase, all
+data blocks that are still in use are marked. In the second phase,
+unused data blocks are removed.
+
+.. note:: This command needs to read all existing backup index files
+  and touches the complete chunk store. This can take a long time
+  depending on the number of chunk and the speed of the underlying
+  disks.
+
+
+.. code-block:: console
+
+  # proxmox-backup-client garbage-collect
+  starting garbage collection on store store2
+  Start GC phase1 (mark used chunks)
+  Start GC phase2 (sweep unused chunks)
+  percentage done: 1, chunk count: 219
+  percentage done: 2, chunk count: 453
+  ...
+  percentage done: 99, chunk count: 21188
+  Removed bytes: 411368505
+  Removed chunks: 203
+  Original data bytes: 327160886391
+  Disk bytes: 52767414743 (16 %)
+  Disk chunks: 21221
+  Average chunk size: 2486565
+  TASK OK
+
+
+.. todo:: howto run garbage-collection at regular intervalls (cron)
 
 
 .. _pve-integration:
