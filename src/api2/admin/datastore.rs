@@ -339,6 +339,7 @@ fn prune(
             worker.log("No prune selection - keeping all files.");
             return Ok(());
         } else {
+            worker.log(format!("retention options: {}", prune_options.cli_options_string()));
             if dry_run {
                 worker.log(format!("Testing prune on store \"{}\" group \"{}/{}\"",
                                    store, backup_type, backup_id));

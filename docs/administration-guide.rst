@@ -471,6 +471,8 @@ on that.
 .. code-block:: console
 
   # proxmox-backup-client prune host/elsa --dry-run --keep-daily 1 --keep-weekly 3
+  retention options: --keep-daily 1 --keep-weekly 3
+  Testing prune on store "store2" group "host/elsa"
   host/elsa/2019-12-04T13:20:37Z keep
   host/elsa/2019-12-03T09:35:01Z remove
   host/elsa/2019-11-22T11:54:47Z keep

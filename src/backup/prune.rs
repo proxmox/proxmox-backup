@@ -131,6 +131,43 @@ impl PruneOptions {
         if let Some(count) = self.keep_yearly { if count > 0 { keep_something = true; } }
         keep_something
     }
+
+    pub fn cli_options_string(&self) -> String {
+        let mut opts = Vec::new();
+
+        if let Some(count) = self.keep_last {
+            if count > 0 {
+                opts.push(format!("--keep-last {}", count));
+            }
+        }
+        if let Some(count) = self.keep_hourly {
+            if count > 0 {
+                opts.push(format!("--keep-hourly {}", count));
+            }
+        }
+        if let Some(count) = self.keep_daily {
+            if count > 0 {
+                opts.push(format!("--keep-daily {}", count));
+            }
+        }
+        if let Some(count) = self.keep_weekly {
+            if count > 0 {
+                opts.push(format!("--keep-weekly {}", count));
+            }
+        }
+        if let Some(count) = self.keep_monthly {
+            if count > 0 {
+                opts.push(format!("--keep-monthly {}", count));
+            }
+        }
+        if let Some(count) = self.keep_yearly {
+            if count > 0 {
+                opts.push(format!("--keep-yearly {}", count));
+            }
+        }
+
+        opts.join(" ")
+    }
 }
 
 pub fn compute_prune_info(
