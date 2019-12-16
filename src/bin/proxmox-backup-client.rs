@@ -10,7 +10,7 @@ use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
-use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::api::cli::*;
 use proxmox::api::api;
@@ -42,6 +42,22 @@ proxmox::api::const_regex! {
 const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
     .format(&BACKUP_REPO_URL)
     .max_length(256)
+    .schema();
+
+const BACKUP_SOURCE_SCHEMA: Schema = StringSchema::new(
+    "Backup source specification ([<label>:<path>]).")
+    .format(&ApiStringFormat::Pattern(&BACKUPSPEC_REGEX))
+    .schema();
+
+const KEYFILE_SCHEMA: Schema = StringSchema::new(
+    "Path to encryption key. All data will be encrypted using this key.")
+    .schema();
+
+const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new(
+    "Chunk size in KB. Must be a power of 2.")
+    .minimum(64)
+    .maximum(4096)
+    .default(4096)
     .schema();
 
 fn get_default_repository() -> Option<String> {
@@ -233,18 +249,22 @@ fn strip_server_file_expenstion(name: &str) -> String {
     }
 }
 
-fn list_backup_groups<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        list_backup_groups_async(param).await
-    }.boxed()
-}
-
-async fn list_backup_groups_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// List backup groups.
+async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -316,18 +336,27 @@ async fn list_backup_groups_async(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn list_snapshots<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        list_snapshots_async(param).await
-    }.boxed()
-}
-
-async fn list_snapshots_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            group: {
+                type: String,
+                description: "Backup group.",
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// List backup snapshots.
+async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -391,18 +420,22 @@ async fn list_snapshots_async(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn forget_snapshots<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        forget_snapshots_async(param).await
-    }.boxed()
-}
-
-async fn forget_snapshots_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+             },
+        }
+   }
+)]
+/// Forget (remove) backup snapshots.
+async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -424,18 +457,18 @@ async fn forget_snapshots_async(param: Value) -> Result<Value, Error> {
     Ok(result)
 }
 
-fn api_login<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        api_login_async(param).await
-    }.boxed()
-}
-
-async fn api_login_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+        }
+   }
+)]
+/// Try to login. If successful, store ticket.
+async fn api_login(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -447,11 +480,18 @@ async fn api_login_async(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn api_logout(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+        }
+   }
+)]
+/// Logout (delete stored ticket).
+fn api_logout(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -460,18 +500,22 @@ fn api_logout(
     Ok(Value::Null)
 }
 
-fn dump_catalog<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        dump_catalog_async(param).await
-    }.boxed()
-}
-
-async fn dump_catalog_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+             },
+        }
+   }
+)]
+/// Dump catalog.
+async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -530,18 +574,26 @@ async fn dump_catalog_async(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn list_snapshot_files<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        list_snapshot_files_async(param).await
-    }.boxed()
-}
-
-async fn list_snapshot_files_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// List snapshot files.
+async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -579,22 +631,18 @@ async fn list_snapshot_files_async(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn start_garbage_collection<'a>(
-    param: Value,
-    info: &'static ApiMethod,
-    rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        start_garbage_collection_async(param, info, rpcenv).await
-    }.boxed()
-}
-
-async fn start_garbage_collection_async(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+        }
+   }
+)]
+/// Start garbage collection for a specific repository.
+async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
@@ -654,18 +702,58 @@ fn spawn_catalog_upload(
     Ok((catalog, catalog_result_rx))
 }
 
-fn create_backup<'a>(
-    param: Value,
-    info: &'static ApiMethod,
-    rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        create_backup_async(param, info, rpcenv).await
-    }.boxed()
-}
-
-async fn create_backup_async(
+#[api(
+   input: {
+       properties: {
+           backupspec: {
+               type: Array,
+               description: "List of backup source specifications ([<label.ext>:<path>] ...)",
+               items: {
+                   schema: BACKUP_SOURCE_SCHEMA,
+               }
+           },
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           "include-dev": {
+               description: "Include mountpoints with same st_dev number (see ``man fstat``) as specified files.",
+               optional: true,
+               items: {
+                   type: String,
+                   description: "Path to file.",
+               }
+           },
+           keyfile: {
+               schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+           "skip-lost-and-found": {
+               type: Boolean,
+               description: "Skip lost+found directory.",
+               optional: true,
+           },
+           "backup-type": {
+               schema: BACKUP_TYPE_SCHEMA,
+               optional: true,
+           },
+           "backup-id": {
+               schema: BACKUP_ID_SCHEMA,
+               optional: true,
+           },
+           "backup-time": {
+               schema: BACKUP_TIME_SCHEMA,
+               optional: true,
+           },
+           "chunk-size": {
+               schema: CHUNK_SIZE_SCHEMA,
+               optional: true,
+           },
+       }
+   }
+)]
+/// Create (host) backup.
+async fn create_backup(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -984,18 +1072,43 @@ fn dump_image<W: Write>(
     Ok(())
 }
 
-fn restore<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
+#[api(
+   input: {
+       properties: {
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           snapshot: {
+               type: String,
+               description: "Group/Snapshot path.",
+           },
+           "archive-name": {
+               description: "Backup archive name.",
+               type: String,
+           },
+           target: {
+               type: String,
+               description: r###"Target directory path. Use '-' to write to stdandard output.
 
-    async move {
-        restore_do(param).await
-    }.boxed()
-}
+We do not extraxt '.pxar' archives when writing to stdandard output.
 
-async fn restore_do(param: Value) -> Result<Value, Error> {
+"###
+           },
+           "allow-existing-dirs": {
+               type: Boolean,
+               description: "Do not fail if directories already exists.",
+               optional: true,
+           },
+           keyfile: {
+               schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+       }
+   }
+)]
+/// Restore backup repository.
+async fn restore(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
@@ -1154,17 +1267,30 @@ async fn restore_do(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn upload_log<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-    async move {
-        upload_log_async(param).await
-    }.boxed()
-}
-
-async fn upload_log_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+       properties: {
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           snapshot: {
+               type: String,
+               description: "Group/Snapshot path.",
+           },
+           logfile: {
+               type: String,
+               description: "The path to the log file you want to upload.",
+           },
+           keyfile: {
+               schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+       }
+   }
+)]
+/// Upload backup log file.
+async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let logfile = tools::required_string_param(&param, "logfile")?;
     let repo = extract_repository_from_value(&param)?;
@@ -1204,17 +1330,31 @@ async fn upload_log_async(param: Value) -> Result<Value, Error> {
     client.upload("application/octet-stream", body, &path, Some(args)).await
 }
 
-fn prune<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-    async move {
-        prune_async(param).await
-    }.boxed()
-}
-
-async fn prune_async(mut param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+       properties: {
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           group: {
+               type: String,
+               description: "Backup group.",
+           },
+           "output-format": {
+               schema: OUTPUT_FORMAT,
+               optional: true,
+           },
+           "dry-run": {
+               type: Boolean,
+               description: "Just show what prune would do, but do not delete anything.",
+               optional: true,
+           },
+       }
+   }
+)]
+/// Prune a backup repository.
+async fn prune(mut param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -1242,17 +1382,22 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn status<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-    async move {
-        status_async(param).await
-    }.boxed()
-}
-
-async fn status_async(param: Value) -> Result<Value, Error> {
+#[api(
+   input: {
+       properties: {
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           "output-format": {
+               schema: OUTPUT_FORMAT,
+               optional: true,
+           },
+       }
+   }
+)]
+/// Get repository status.
+async fn status(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -1994,18 +2139,6 @@ fn catalog_mgmt_cli() -> CliCommandMap {
         .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("snapshot", complete_group_or_snapshot);
 
-    #[sortable]
-    const API_METHOD_DUMP_CATALOG: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&dump_catalog),
-        &ObjectSchema::new(
-            "Dump catalog.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-            ]),
-        )
-    );
-
     let catalog_dump_cmd_def = CliCommand::new(&API_METHOD_DUMP_CATALOG)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
@@ -2157,120 +2290,12 @@ fn task_mgmt_cli() -> CliCommandMap {
 
 fn main() {
 
-    const BACKUP_SOURCE_SCHEMA: Schema = StringSchema::new("Backup source specification ([<label>:<path>]).")
-        .format(&ApiStringFormat::Pattern(&BACKUPSPEC_REGEX))
-        .schema();
-
-    #[sortable]
-    const API_METHOD_CREATE_BACKUP: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&create_backup),
-        &ObjectSchema::new(
-            "Create (host) backup.",
-            &sorted!([
-                (
-                    "backupspec",
-                    false,
-                    &ArraySchema::new(
-                        "List of backup source specifications ([<label.ext>:<path>] ...)",
-                        &BACKUP_SOURCE_SCHEMA,
-                    ).min_length(1).schema()
-                ),
-                (
-                    "repository",
-                    true,
-                    &REPO_URL_SCHEMA
-                ),
-                (
-                    "include-dev",
-                    true,
-                    &ArraySchema::new(
-                        "Include mountpoints with same st_dev number (see ``man fstat``) as specified files.",
-                        &StringSchema::new("Path to file.").schema()
-                    ).schema()
-                ),
-                (
-                    "keyfile",
-                    true,
-                    &StringSchema::new("Path to encryption key. All data will be encrypted using this key.").schema()
-                ),
-                (
-                    "verbose",
-                    true,
-                    &BooleanSchema::new("Verbose output.")
-                        .default(false)
-                        .schema()
-                ),
-                (
-                    "skip-lost-and-found",
-                    true,
-                    &BooleanSchema::new("Skip lost+found directory")
-                        .default(false)
-                        .schema()
-                ),
-                (
-                    "backup-type",
-                    true,
-                    &BACKUP_TYPE_SCHEMA,
-                ),
-                (
-                    "backup-id",
-                    true,
-                    &BACKUP_ID_SCHEMA
-                ),
-                (
-                    "backup-time",
-                    true,
-                    &BACKUP_TIME_SCHEMA
-                ),
-                (
-                    "chunk-size",
-                    true,
-                    &IntegerSchema::new("Chunk size in KB. Must be a power of 2.")
-                        .minimum(64)
-                        .maximum(4096)
-                        .default(4096)
-                        .schema()
-                ),
-            ]),
-        )
-    );
-
     let backup_cmd_def = CliCommand::new(&API_METHOD_CREATE_BACKUP)
         .arg_param(&["backupspec"])
         .completion_cb("repository", complete_repository)
         .completion_cb("backupspec", complete_backup_source)
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
-
-    #[sortable]
-    const API_METHOD_UPLOAD_LOG: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&upload_log),
-        &ObjectSchema::new(
-            "Upload backup log file.",
-            &sorted!([
-                (
-                    "snapshot",
-                    false,
-                    &StringSchema::new("Snapshot path.").schema()
-                ),
-                (
-                    "logfile",
-                    false,
-                    &StringSchema::new("The path to the log file you want to upload.").schema()
-                ),
-                (
-                    "repository",
-                    true,
-                    &REPO_URL_SCHEMA
-                ),
-                (
-                    "keyfile",
-                    true,
-                    &StringSchema::new("Path to encryption key. All data will be encrypted using this key.").schema()
-                ),
-            ]),
-        )
-    );
 
     let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
         .arg_param(&["snapshot", "logfile"])
@@ -2279,106 +2304,21 @@ fn main() {
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("repository", complete_repository);
 
-    #[sortable]
-    const API_METHOD_LIST_BACKUP_GROUPS: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&list_backup_groups),
-        &ObjectSchema::new(
-            "List backup groups.",
-            &sorted!([
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("output-format", true, &OUTPUT_FORMAT),
-            ]),
-        )
-    );
-
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
-
-    #[sortable]
-    const API_METHOD_LIST_SNAPSHOTS: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&list_snapshots),
-        &ObjectSchema::new(
-            "List backup snapshots.",
-            &sorted!([
-                ("group", true, &StringSchema::new("Backup group.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("output-format", true, &OUTPUT_FORMAT),
-            ]),
-        )
-    );
 
     let snapshots_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
         .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
-    #[sortable]
-    const API_METHOD_FORGET_SNAPSHOTS: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&forget_snapshots),
-        &ObjectSchema::new(
-            "Forget (remove) backup snapshots.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-            ]),
-        )
-    );
-
     let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
 
-    #[sortable]
-    const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&start_garbage_collection),
-        &ObjectSchema::new(
-            "Start garbage collection for a specific repository.",
-            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
-        )
-    );
-
     let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
         .completion_cb("repository", complete_repository);
-
-    #[sortable]
-    const API_METHOD_RESTORE: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&restore),
-        &ObjectSchema::new(
-            "Restore backup repository.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
-                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
-                (
-                    "target",
-                    false,
-                    &StringSchema::new(
-                        r###"Target directory path. Use '-' to write to stdandard output.
-
-We do not extraxt '.pxar' archives when writing to stdandard output.
-
-"###
-                    ).schema()
-                ),
-                (
-                    "allow-existing-dirs",
-                    true,
-                    &BooleanSchema::new("Do not fail if directories already exists.")
-                        .default(false)
-                        .schema()
-                ),
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
-                (
-                    "verbose",
-                    true,
-                    &BooleanSchema::new("Verbose output.")
-                        .default(false)
-                        .schema()
-                ),
-            ]),
-        )
-    );
 
     let restore_cmd_def = CliCommand::new(&API_METHOD_RESTORE)
         .arg_param(&["snapshot", "archive-name", "target"])
@@ -2387,80 +2327,21 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
-    #[sortable]
-    const API_METHOD_LIST_SNAPSHOT_FILES: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&list_snapshot_files),
-        &ObjectSchema::new(
-            "List snapshot files.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Snapshot path.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("output-format", true, &OUTPUT_FORMAT),
-            ]),
-        )
-    );
-
     let files_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_backup_snapshot);
-
-    const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&prune),
-        &ObjectSchema::new(
-            "Prune backup repository.",
-            &proxmox_backup::add_common_prune_prameters!([
-                ("dry-run", true, &BooleanSchema::new(
-                    "Just show what prune would do, but do not delete anything.")
-                 .schema()),
-                ("group", false, &StringSchema::new("Backup group.").schema()),
-            ], [
-                ("output-format", true, &OUTPUT_FORMAT),
-                ("repository", true, &REPO_URL_SCHEMA),
-            ])
-        )
-    );
 
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
         .completion_cb("repository", complete_repository);
 
-    #[sortable]
-    const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&status),
-        &ObjectSchema::new(
-            "Get repository status.",
-            &sorted!([
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("output-format", true, &OUTPUT_FORMAT),
-            ]),
-        )
-    );
-
     let status_cmd_def = CliCommand::new(&API_METHOD_STATUS)
         .completion_cb("repository", complete_repository);
 
-    #[sortable]
-    const API_METHOD_API_LOGIN: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&api_login),
-        &ObjectSchema::new(
-            "Try to login. If successful, store ticket.",
-            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
-        )
-    );
-
     let login_cmd_def = CliCommand::new(&API_METHOD_API_LOGIN)
         .completion_cb("repository", complete_repository);
-
-    #[sortable]
-    const API_METHOD_API_LOGOUT: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&api_logout),
-        &ObjectSchema::new(
-            "Logout (delete stored ticket).",
-            &sorted!([ ("repository", true, &REPO_URL_SCHEMA) ]),
-        )
-    );
 
     let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
         .completion_cb("repository", complete_repository);
