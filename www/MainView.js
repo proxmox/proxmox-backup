@@ -134,6 +134,15 @@ Ext.define('PBS.MainView', {
 		    tpl: Ext.String.format(gettext("You are logged in as {0}"), "'{username}'")
 		},
 		{
+		    xtype: 'button',
+		    baseCls: 'x-btn',
+		    cls: 'x-btn-default-toolbar-small proxmox-inline-button',
+		    iconCls: 'fa fa-book x-btn-icon-el-default-toolbar-small ',
+		    text: gettext('Documentation'),
+		    href: '/docs/index.html',
+		    margin: '0 5 0 0',
+		},
+		{
 		    reference: 'logoutButton',
 		    xtype: 'button',
 		    iconCls: 'fa fa-sign-out',
