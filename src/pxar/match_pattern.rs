@@ -60,11 +60,26 @@ pub enum MatchType {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone)]
+#[derive(Eq, PartialOrd)]
 pub struct MatchPattern {
     pattern: Vec<u8>,
     match_positive: bool,
     match_dir_only: bool,
+}
+
+impl std::cmp::PartialEq for MatchPattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.pattern == other.pattern
+        && self.match_positive == other.match_positive
+        && self.match_dir_only == other.match_dir_only
+    }
+}
+
+impl std::cmp::Ord for MatchPattern {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (&self.pattern, &self.match_positive, &self.match_dir_only)
+            .cmp(&(&other.pattern, &other.match_positive, &other.match_dir_only))
+    }
 }
 
 impl MatchPattern {
