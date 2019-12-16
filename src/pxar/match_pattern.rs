@@ -202,6 +202,11 @@ impl MatchPattern {
 
         MatchPatternSlice::to_bytes(&slices)
     }
+
+    /// Invert the match type for this MatchPattern.
+    pub fn invert(&mut self) {
+        self.match_positive = !self.match_positive;
+    }
 }
 
 #[derive(Clone)]
