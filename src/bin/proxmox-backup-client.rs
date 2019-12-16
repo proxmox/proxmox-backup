@@ -1204,11 +1204,17 @@ async fn upload_log_async(param: Value) -> Result<Value, Error> {
     client.upload("application/octet-stream", body, &path, Some(args)).await
 }
 
-fn prune(
-    mut param: Value,
+fn prune<'a>(
+    param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    _rpcenv: &'a mut dyn RpcEnvironment,
+) -> ApiFuture<'a> {
+    async move {
+        prune_async(param).await
+    }.boxed()
+}
+
+async fn prune_async(mut param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -1227,22 +1233,26 @@ fn prune(
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    async_main(async {
-        let result = client.post(&path, Some(param)).await?;
+    let result = client.post(&path, Some(param)).await?;
 
-        record_repository(&repo);
+    record_repository(&repo);
 
-        view_task_result(client, result, &output_format).await
-     })?;
+    view_task_result(client, result, &output_format).await?;
 
     Ok(Value::Null)
 }
 
-fn status(
+fn status<'a>(
     param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    _rpcenv: &'a mut dyn RpcEnvironment,
+) -> ApiFuture<'a> {
+    async move {
+        status_async(param).await
+    }.boxed()
+}
+
+async fn status_async(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
@@ -1252,7 +1262,7 @@ fn status(
 
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
-    let result = async_main(async move { client.get(&path, None).await })?;
+    let result = client.get(&path, None).await?;
     let data = &result["data"];
 
     record_repository(&repo);
@@ -2398,7 +2408,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
         .completion_cb("snapshot", complete_backup_snapshot);
 
     const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&prune),
+        &ApiHandler::Async(&prune),
         &ObjectSchema::new(
             "Prune backup repository.",
             &proxmox_backup::add_common_prune_prameters!([
@@ -2420,7 +2430,7 @@ We do not extraxt '.pxar' archives when writing to stdandard output.
 
     #[sortable]
     const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&status),
+        &ApiHandler::Async(&status),
         &ObjectSchema::new(
             "Get repository status.",
             &sorted!([
