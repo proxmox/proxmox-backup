@@ -9,7 +9,7 @@ use hyper::http::request::Parts;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
-use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, RpcEnvironment};
+use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 
 use crate::api2::types::*;
@@ -115,7 +115,7 @@ fn upload_fixed_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -173,7 +173,7 @@ fn upload_dynamic_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let wid = tools::required_integer_param(&param, "wid")? as usize;
@@ -209,7 +209,7 @@ fn upload_speedtest(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
 
@@ -257,7 +257,7 @@ fn upload_blob(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let file_name = tools::required_string_param(&param, "file-name")?.to_owned();

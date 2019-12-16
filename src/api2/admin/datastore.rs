@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
 use proxmox::api::{http_err, list_subdirs_api_method};
-use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
@@ -486,7 +486,7 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let store = tools::required_string_param(&param, "store")?;
@@ -545,7 +545,7 @@ fn upload_backup_log(
     param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let store = tools::required_string_param(&param, "store")?;

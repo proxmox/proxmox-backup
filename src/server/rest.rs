@@ -285,6 +285,12 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
             (handler)(params, info, &mut rpcenv)
                 .map(|data| (formatter.format_data)(data, &rpcenv))
         }
+        ApiHandler::Async(handler) => {
+            let params = get_request_parameters(info.parameters, parts, req_body, uri_param).await?;
+            (handler)(params, info, &mut rpcenv)
+                .await
+                .map(|data| (formatter.format_data)(data, &rpcenv))
+        }
     };
 
     let resp = match result {

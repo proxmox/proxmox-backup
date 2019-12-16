@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use proxmox::{sortable, identity};
 use proxmox::api::http_err;
-use proxmox::api::{ApiFuture, ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
 
 use crate::api2::types::*;
@@ -49,7 +49,7 @@ fn upgrade_to_backup_reader_protocol(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let debug = param["debug"].as_bool().unwrap_or(false);
@@ -172,7 +172,7 @@ fn download_file(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let env: &ReaderEnvironment = rpcenv.as_ref();
@@ -223,7 +223,7 @@ fn download_chunk(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     async move {
         let env: &ReaderEnvironment = rpcenv.as_ref();
@@ -258,7 +258,7 @@ fn download_chunk_old(
     param: Value,
     _info: &ApiMethod,
     rpcenv: Box<dyn RpcEnvironment>,
-) -> Result<ApiFuture, Error> {
+) -> Result<ApiResponseFuture, Error> {
 
     let env: &ReaderEnvironment = rpcenv.as_ref();
     let env2 = env.clone();
@@ -303,7 +303,7 @@ fn speedtest(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiFuture {
+) -> ApiResponseFuture {
 
     let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A...]
 

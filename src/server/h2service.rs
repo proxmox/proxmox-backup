@@ -7,7 +7,7 @@ use std::task::{Context, Poll};
 use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
 
-use proxmox::api::{http_err, ApiFuture, HttpError, Router, RpcEnvironment};
+use proxmox::api::{http_err, ApiResponseFuture, HttpError, Router, RpcEnvironment};
 
 use crate::tools;
 use crate::server::formatter::*;
@@ -35,7 +35,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
         if self.debug { self.worker.log(msg); }
     }
 
-    fn handle_request(&self, req: Request<Body>) -> ApiFuture {
+    fn handle_request(&self, req: Request<Body>) -> ApiResponseFuture {
 
         let (parts, body) = req.into_parts();
 
