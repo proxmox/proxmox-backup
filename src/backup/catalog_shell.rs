@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::{CString, OsStr};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
@@ -75,6 +75,12 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 .arg_param(&["target"])
                 .completion_cb("target", tools::complete_file_name)
         )
+        .insert(
+            "find",
+            CliCommand::new(&API_METHOD_FIND_COMMAND)
+                .arg_param(&["path", "pattern"])
+                .completion_cb("path", Shell::complete_path)
+        )
         .insert_help();
 
     CommandLineInterface::Nested(map)
@@ -96,7 +102,7 @@ impl Shell {
             let mut ctx = handle.borrow_mut();
             *ctx = Some(Context {
                 catalog,
-                selected: HashSet::new(),
+                selected: Vec::new(),
                 decoder,
                 root: root.clone(),
                 current: root,
@@ -344,14 +350,12 @@ fn select_command(path: String) -> Result<(), Error> {
         // Calling canonical_path() makes sure the provided path is valid and
         // actually contained within the catalog and therefore also the archive.
         let path = ctx.canonical_path(&path)?;
-        if ctx
-            .selected
-            .insert(Context::generate_cstring(&path)?.into_bytes())
-        {
-            Ok(())
-        } else {
-            bail!("entry already selected for restore")
+        let pattern = MatchPattern::from_line(Context::generate_cstring(&path)?.as_bytes())?
+            .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
+        if ctx.selected.iter().find(|p| **p == pattern).is_none() {
+            ctx.selected.push(pattern);
         }
+        Ok(())
     })
 }
 
@@ -372,11 +376,17 @@ fn select_command(path: String) -> Result<(), Error> {
 fn deselect_command(path: String) -> Result<(), Error> {
     Context::with(|ctx| {
         let path = ctx.canonical_path(&path)?;
-        if ctx.selected.remove(&Context::generate_cstring(&path)?.into_bytes()) {
-            Ok(())
-        } else {
-            bail!("entry not selected for restore")
+        let mut pattern = MatchPattern::from_line(Context::generate_cstring(&path)?.as_bytes())?
+            .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
+        if let Some(last) = ctx.selected.last() {
+            if last == &pattern {
+                ctx.selected.pop();
+                return Ok(());
+            }
         }
+        pattern.invert();
+        ctx.selected.push(pattern);
+        Ok(())
     })
 }
 
@@ -395,13 +405,7 @@ fn deselect_command(path: String) -> Result<(), Error> {
 /// Target must not exist on the clients filesystem.
 fn restore_selected_command(target: String) -> Result<(), Error> {
     Context::with(|ctx| {
-        let mut list = Vec::new();
-        for path in &ctx.selected {
-            let pattern = MatchPattern::from_line(path)?
-                .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
-            list.push(pattern);
-        }
-        if list.is_empty() {
+        if ctx.selected.is_empty() {
             bail!("no entries selected for restore");
         }
 
@@ -409,7 +413,7 @@ fn restore_selected_command(target: String) -> Result<(), Error> {
         // patterns are relative to root as well.
         let start_dir = ctx.decoder.root()?;
         ctx.decoder
-            .restore(&start_dir, &Path::new(&target), &list)?;
+            .restore(&start_dir, &Path::new(&target), &ctx.selected)?;
         Ok(())
     })
 }
@@ -418,14 +422,8 @@ fn restore_selected_command(target: String) -> Result<(), Error> {
 /// List entries currently selected for restore.
 fn list_selected_command() -> Result<(), Error> {
     Context::with(|ctx| {
-        let mut list = ctx.selected.iter().collect::<Vec<&Vec<u8>>>();
-        list.sort();
-
         let mut out = std::io::stdout();
-        for entry in list {
-            out.write_all(entry)?;
-            out.write_all(&[b'\n'])?;
-        }
+        out.write_all(&MatchPattern::to_bytes(ctx.selected.as_slice()))?;
         out.flush()?;
         Ok(())
     })
@@ -475,6 +473,66 @@ fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error>
     })
 }
 
+#[api(
+    input: {
+        properties: {
+            path: {
+                type: String,
+                description: "Path to node from where to start the search."
+            },
+            pattern: {
+                type: String,
+                description: "Match pattern for matching files in the catalog."
+            },
+            select: {
+                type: bool,
+                optional: true,
+                description: "Add matching filenames to list for restore."
+            }
+        }
+    }
+)]
+/// Find entries in the catalog matching the given match pattern.
+fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(), Error> {
+    Context::with(|ctx| {
+        let mut path = ctx.canonical_path(&path)?;
+        if !path.last().unwrap().is_directory() {
+            bail!("path should be a directory, not a file!");
+        }
+        let select = select.unwrap_or(false);
+
+        let cpath = Context::generate_cstring(&path).unwrap();
+        let pattern = if pattern.starts_with("!") {
+            let mut buffer = vec![b'!'];
+            buffer.extend_from_slice(cpath.as_bytes());
+            buffer.extend_from_slice(pattern[1..pattern.len()].as_bytes());
+            buffer
+        } else {
+            let mut buffer = cpath.as_bytes().to_vec();
+            buffer.extend_from_slice(pattern.as_bytes());
+            buffer
+        };
+
+        let pattern = MatchPattern::from_line(&pattern)?
+            .ok_or_else(|| format_err!("invalid match pattern"))?;
+        let slice = vec![pattern.as_slice()];
+
+        ctx.catalog.find(
+            &mut path,
+            &slice,
+            &Box::new(|path: &[DirEntry]| println!("{:?}", Context::generate_cstring(path).unwrap()))
+        )?;
+
+        // Insert if matches should be selected.
+        // Avoid duplicate entries of the same match pattern.
+        if select && ctx.selected.iter().find(|p| **p == pattern).is_none() {
+            ctx.selected.push(pattern);
+        }
+
+        Ok(())
+    })
+}
+
 std::thread_local! {
     static CONTEXT: RefCell<Option<Context>> = RefCell::new(None);
 }
@@ -484,7 +542,7 @@ struct Context {
     /// Calalog reader instance to navigate
     catalog: CatalogReader<std::fs::File>,
     /// List of selected paths for restore
-    selected: HashSet<Vec<u8>>,
+    selected: Vec<MatchPattern>,
     /// Decoder instance for the current pxar archive
     decoder: Decoder,
     /// Root directory for the give archive as stored in the catalog
