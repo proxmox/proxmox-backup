@@ -1856,18 +1856,31 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn catalog_shell<'a>(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &'a mut dyn RpcEnvironment,
-) -> ApiFuture<'a> {
-
-    async move {
-        catalog_shell_async(param).await
-    }.boxed()
-}
-
-async fn catalog_shell_async(param: Value) -> Result<Value, Error> {
+#[api(
+    input: {
+        properties: {
+            "snapshot": {
+                type: String,
+                description: "Group/Snapshot path.",
+            },
+            "archive-name": {
+                type: String,
+                description: "Backup archive name.",
+            },
+            "repository": {
+                optional: true,
+                schema: REPO_URL_SCHEMA,
+            },
+            "keyfile": {
+                optional: true,
+                type: String,
+                description: "Path to encryption key.",
+            },
+        },
+    },
+)]
+/// Shell to interactively inspect and restore snapshots.
+async fn catalog_shell(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
     let client = HttpClient::new(repo.host(), repo.user(), None)?;
     let path = tools::required_string_param(&param, "snapshot")?;
@@ -1971,26 +1984,11 @@ async fn catalog_shell_async(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    Ok(Value::Null)
+    Ok(())
 }
 
 fn catalog_mgmt_cli() -> CliCommandMap {
-
-    #[sortable]
-    const API_METHOD_SHELL: ApiMethod = ApiMethod::new(
-        &ApiHandler::Async(&catalog_shell),
-        &ObjectSchema::new(
-            "Shell to interactively inspect and restore snapshots.",
-            &sorted!([
-                ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
-                ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
-                ("repository", true, &REPO_URL_SCHEMA),
-                ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
-            ]),
-        )
-    );
-
-    let catalog_shell_cmd_def = CliCommand::new(&API_METHOD_SHELL)
+    let catalog_shell_cmd_def = CliCommand::new(&API_METHOD_CATALOG_SHELL)
         .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
         .completion_cb("archive-name", complete_pxar_archive_name)
