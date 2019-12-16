@@ -23,7 +23,7 @@ use proxmox::tools::vec;
 use super::dir_stack::{PxarDir, PxarDirStack};
 use super::flags;
 use super::format_definition::*;
-use super::match_pattern::{MatchPattern, MatchType};
+use super::match_pattern::{MatchPattern, MatchPatternSlice, MatchType};
 
 use crate::tools::acl;
 use crate::tools::fs;
@@ -683,7 +683,7 @@ impl<R: Read> SequentialDecoder<R> {
         entry: PxarEntry,
         filename: &OsStr,
         matched: MatchType,
-        match_pattern: &[MatchPattern],
+        match_pattern: &[MatchPatternSlice],
     ) -> Result<(), Error> {
         let (mut head, attr) = self
             .read_attributes()
@@ -732,6 +732,10 @@ impl<R: Read> SequentialDecoder<R> {
     ///
     /// The directory is created if it does not exist.
     pub fn restore(&mut self, path: &Path, match_pattern: &[MatchPattern]) -> Result<(), Error> {
+        let mut slices = Vec::new();
+        for pattern in match_pattern {
+            slices.push(pattern.as_slice());
+        }
         std::fs::create_dir_all(path)
             .map_err(|err| format_err!("error while creating directory {:?} - {}", path, err))?;
 
@@ -744,7 +748,7 @@ impl<R: Read> SequentialDecoder<R> {
         let fd = dir.as_raw_fd();
         let mut dirs = PxarDirStack::new(fd);
         // An empty match pattern list indicates to restore the full archive.
-        let matched = if match_pattern.is_empty() {
+        let matched = if slices.is_empty() {
             MatchType::Positive
         } else {
             MatchType::None
@@ -760,7 +764,7 @@ impl<R: Read> SequentialDecoder<R> {
 
         while head.htype == PXAR_FILENAME {
             let name = self.read_filename(head.size)?;
-            self.restore_dir_entry(path, &mut dirs, &name, matched, match_pattern)?;
+            self.restore_dir_entry(path, &mut dirs, &name, matched, &slices)?;
             head = self.read_item()?;
         }
 
@@ -791,7 +795,7 @@ impl<R: Read> SequentialDecoder<R> {
         dirs: &mut PxarDirStack,
         filename: &OsStr,
         parent_matched: MatchType,
-        match_pattern: &[MatchPattern],
+        match_pattern: &[MatchPatternSlice],
     ) -> Result<(), Error> {
         let relative_path = dirs.as_path_buf();
         let full_path = base_path.join(&relative_path).join(filename);
@@ -819,13 +823,14 @@ impl<R: Read> SequentialDecoder<R> {
         // there are no match pattern.
         let mut matched = parent_matched;
         if !match_pattern.is_empty() {
-            match MatchPattern::match_filename_include(
+            match MatchPatternSlice::match_filename_include(
                 &CString::new(filename.as_bytes())?,
                 ifmt == libc::S_IFDIR,
                 match_pattern,
             )? {
                 (MatchType::None, _) => matched = MatchType::None,
                 (MatchType::Negative, _) => matched = MatchType::Negative,
+                (MatchType::Positive, _) => matched = MatchType::Positive,
                 (match_type, pattern) => {
                     matched = match_type;
                     child_pattern = pattern;

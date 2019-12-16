@@ -50,22 +50,21 @@ pub enum MatchType {
 ///
 /// /// Positive match of any file ending in `.conf` in any subdirectory
 /// let positive = MatchPattern::from_line(b"**/*.conf")?.unwrap();
-/// let m_positive = positive.matches_filename(&filename, is_dir)?;
+/// let m_positive = positive.as_slice().matches_filename(&filename, is_dir)?;
 /// assert!(m_positive == MatchType::Positive);
 ///
 /// /// Negative match of filenames starting with `s`
 /// let negative = MatchPattern::from_line(b"![s]*")?.unwrap();
-/// let m_negative = negative.matches_filename(&filename, is_dir)?;
+/// let m_negative = negative.as_slice().matches_filename(&filename, is_dir)?;
 /// assert!(m_negative == MatchType::Negative);
 /// # Ok(())
 /// # }
 /// ```
 #[derive(Clone)]
 pub struct MatchPattern {
-    pattern: CString,
+    pattern: Vec<u8>,
     match_positive: bool,
     match_dir_only: bool,
-    split_pattern: (CString, CString),
 }
 
 impl MatchPattern {
@@ -149,60 +148,21 @@ impl MatchPattern {
             bail!("invalid path component encountered");
         }
 
-        // This will fail if the line contains b"\0"
-        let pattern = CString::new(input)?;
-        let split_pattern = split_at_slash(&pattern);
-
         Ok(Some(MatchPattern {
-            pattern,
+            pattern: input.to_vec(),
             match_positive,
             match_dir_only,
-            split_pattern,
         }))
     }
 
-    /// Returns the pattern before the first `/` encountered as `MatchPattern`.
-    /// If no slash is encountered, the `MatchPattern` will be a copy of the
-    /// original pattern.
-    /// ```
-    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
-    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
-    /// let front = pattern.get_front_pattern();
-    /// /// ... will be the same as ...
-    /// let front_pattern = MatchPattern::from_line(b"some")?.unwrap();
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn get_front_pattern(&self) -> MatchPattern {
-        let pattern = split_at_slash(&self.split_pattern.0);
-        MatchPattern {
-            pattern: self.split_pattern.0.clone(),
-            match_positive: self.match_positive,
-            match_dir_only: self.match_dir_only,
-            split_pattern: pattern,
-        }
-    }
 
-    /// Returns the pattern after the first encountered `/` as `MatchPattern`.
-    /// If no slash is encountered, the `MatchPattern` will be empty.
-    /// ```
-    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
-    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
-    /// let rest = pattern.get_rest_pattern();
-    /// /// ... will be the same as ...
-    /// let rest_pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn get_rest_pattern(&self) -> MatchPattern {
-        let pattern = split_at_slash(&self.split_pattern.1);
-        MatchPattern {
-            pattern: self.split_pattern.1.clone(),
+    /// Create a `MatchPatternSlice` of the `MatchPattern` to give a view of the
+    /// `MatchPattern` without copying its content.
+    pub fn as_slice<'a>(&'a self) -> MatchPatternSlice<'a> {
+        MatchPatternSlice {
+            pattern: self.pattern.as_slice(),
             match_positive: self.match_positive,
             match_dir_only: self.match_dir_only,
-            split_pattern: pattern,
         }
     }
 
@@ -220,17 +180,114 @@ impl MatchPattern {
     /// Convert a list of MatchPattern to bytes in order to write them to e.g.
     /// a file.
     pub fn to_bytes(patterns: &[MatchPattern]) -> Vec<u8> {
+        let mut slices = Vec::new();
+        for pattern in patterns {
+            slices.push(pattern.as_slice());
+        }
+
+        MatchPatternSlice::to_bytes(&slices)
+    }
+}
+
+#[derive(Clone)]
+pub struct MatchPatternSlice<'a> {
+    pattern: &'a [u8],
+    match_positive: bool,
+    match_dir_only: bool,
+}
+
+impl<'a> MatchPatternSlice<'a> {
+    /// Returns the pattern before the first `/` encountered as `MatchPatternSlice`.
+    /// If no slash is encountered, the `MatchPatternSlice` will be a copy of the
+    /// original pattern.
+    /// ```
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
+    /// let slice = pattern.as_slice();
+    /// let front = slice.get_front_pattern();
+    /// /// ... will be the same as ...
+    /// let front_pattern = MatchPattern::from_line(b"some")?.unwrap();
+    /// let front_slice = front_pattern.as_slice();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_front_pattern(&'a self) -> MatchPatternSlice<'a> {
+        let (front, _) = self.split_at_slash();
+        MatchPatternSlice {
+            pattern: front,
+            match_positive: self.match_positive,
+            match_dir_only: self.match_dir_only,
+        }
+    }
+
+    /// Returns the pattern after the first encountered `/` as `MatchPatternSlice`.
+    /// If no slash is encountered, the `MatchPatternSlice` will be empty.
+    /// ```
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
+    /// # fn main() -> Result<(), failure::Error> {
+    /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
+    /// let slice = pattern.as_slice();
+    /// let rest = slice.get_rest_pattern();
+    /// /// ... will be the same as ...
+    /// let rest_pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    /// let rest_slice = rest_pattern.as_slice();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_rest_pattern(&'a self) -> MatchPatternSlice<'a> {
+        let (_, rest) = self.split_at_slash();
+        MatchPatternSlice {
+            pattern: rest,
+            match_positive: self.match_positive,
+            match_dir_only: self.match_dir_only,
+        }
+    }
+
+    /// Splits the `MatchPatternSlice` at the first slash encountered and returns the
+    /// content before (front pattern) and after the slash (rest pattern),
+    /// omitting the slash itself.
+    /// Slices starting with `**/` are an exception to this, as the corresponding
+    /// `MatchPattern` is intended to match multiple directories.
+    /// These pattern slices therefore return a `*` as front pattern and the original
+    /// pattern itself as rest pattern.
+    fn split_at_slash(&'a self) -> (&'a [u8], &'a [u8]) {
+        let pattern = if self.pattern.starts_with(b"./") {
+            &self.pattern[2..]
+        } else {
+            self.pattern
+        };
+
+        let (mut front, mut rest) = match pattern.iter().position(|&c| c == b'/') {
+            Some(ind) => {
+                let (front, rest) = pattern.split_at(ind);
+                (front, &rest[1..])
+            }
+            None => (pattern, &pattern[0..0]),
+        };
+        // '**' is treated such that it maches any directory
+        if front == b"**" {
+            front = b"*";
+            rest = pattern;
+        }
+
+        (front, rest)
+    }
+
+    /// Convert a list of `MatchPatternSlice`s to bytes in order to write them to e.g.
+    /// a file.
+    pub fn to_bytes(patterns: &[MatchPatternSlice]) -> Vec<u8> {
         let mut buffer = Vec::new();
         for pattern in patterns {
             if !pattern.match_positive { buffer.push(b'!'); }
-            buffer.extend_from_slice( pattern.pattern.as_bytes());
+            buffer.extend_from_slice(&pattern.pattern);
             if pattern.match_dir_only { buffer.push(b'/'); }
             buffer.push(b'\n');
         }
         buffer
     }
 
-    /// Match the given filename against this `MatchPattern`.
+    /// Match the given filename against this `MatchPatternSlice`.
     /// If the filename matches the pattern completely, `MatchType::Positive` or
     /// `MatchType::Negative` is returned, depending if the match pattern is was
     /// declared as positive (no `!` prefix) or negative (`!` prefix).
@@ -241,8 +298,9 @@ impl MatchPattern {
     /// No match results in `MatchType::None`.
     pub fn matches_filename(&self, filename: &CStr, is_dir: bool) -> Result<MatchType, Error> {
         let mut res = MatchType::None;
-        let (front, _) = &self.split_pattern;
+        let (front, _) = self.split_at_slash();
 
+        let front = CString::new(front).unwrap();
         let fnmatch_res = unsafe {
             let front_ptr = front.as_ptr() as *const libc::c_char;
             let filename_ptr = filename.as_ptr() as *const libc::c_char;
@@ -259,10 +317,10 @@ impl MatchPattern {
             };
         }
 
-        let full = if self.pattern.to_bytes().starts_with(b"**/") {
-            CString::new(&self.pattern.to_bytes()[3..]).unwrap()
+        let full = if self.pattern.starts_with(b"**/") {
+            CString::new(&self.pattern[3..]).unwrap()
         } else {
-            CString::new(&self.pattern.to_bytes()[..]).unwrap()
+            CString::new(&self.pattern[..]).unwrap()
         };
         let fnmatch_res = unsafe {
             let full_ptr = full.as_ptr() as *const libc::c_char;
@@ -291,61 +349,62 @@ impl MatchPattern {
         Ok(res)
     }
 
-    /// Match the given filename against the set of match patterns.
+    /// Match the given filename against the set of `MatchPatternSlice`s.
     ///
     /// A positive match is intended to includes the full subtree (unless another
     /// negative match excludes entries later).
-    /// The `MatchType` together with an updated `MatchPattern` list for passing
+    /// The `MatchType` together with an updated `MatchPatternSlice` list for passing
     /// to the matched child is returned.
     /// ```
     /// # use std::ffi::CString;
-    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
     /// # fn main() -> Result<(), failure::Error> {
     /// let patterns = vec![
     ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
     ///     MatchPattern::from_line(b"to_match/")?.unwrap()
     /// ];
+    /// let mut slices = Vec::new();
+    /// for pattern in &patterns {
+    ///     slices.push(pattern.as_slice());
+    /// }
     /// let filename = CString::new("some")?;
     /// let is_dir = true;
-    /// let (match_type, child_pattern) = MatchPattern::match_filename_include(
+    /// let (match_type, child_pattern) = MatchPatternSlice::match_filename_include(
     ///     &filename,
     ///     is_dir,
-    ///     &patterns
+    ///     &slices
     /// )?;
     /// assert_eq!(match_type, MatchType::PartialPositive);
     /// /// child pattern will be the same as ...
     /// let pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    /// let slice = pattern.as_slice();
     ///
     /// let filename = CString::new("to_match")?;
     /// let is_dir = true;
-    /// let (match_type, child_pattern) = MatchPattern::match_filename_include(
+    /// let (match_type, child_pattern) = MatchPatternSlice::match_filename_include(
     ///     &filename,
     ///     is_dir,
-    ///     &patterns
+    ///     &slices
     /// )?;
     /// assert_eq!(match_type, MatchType::Positive);
     /// /// child pattern will be the same as ...
     /// let pattern = MatchPattern::from_line(b"**/*")?.unwrap();
+    /// let slice = pattern.as_slice();
     /// # Ok(())
     /// # }
     /// ```
     pub fn match_filename_include(
         filename: &CStr,
         is_dir: bool,
-        match_pattern: &[MatchPattern],
-    ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
+        match_pattern: &'a [MatchPatternSlice<'a>],
+    ) -> Result<(MatchType, Vec<MatchPatternSlice<'a>>), Error> {
         let mut child_pattern = Vec::new();
         let mut match_state = MatchType::None;
 
         for pattern in match_pattern {
             match pattern.matches_filename(filename, is_dir)? {
                 MatchType::None => continue,
-                MatchType::Positive => {
-                    match_state = MatchType::Positive;
-                    // Full match so lets include everything below this node
-                    let incl_pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
-                    child_pattern.push(incl_pattern);
-                }
+                MatchType::Positive => match_state = MatchType::Positive,
                 MatchType::Negative => match_state = MatchType::Negative,
                 MatchType::PartialPositive => {
                     if match_state != MatchType::Negative && match_state != MatchType::Positive {
@@ -365,7 +424,7 @@ impl MatchPattern {
         Ok((match_state, child_pattern))
     }
 
-    /// Match the given filename against the set of match patterns.
+    /// Match the given filename against the set of `MatchPatternSlice`s.
     ///
     /// A positive match is intended to exclude the full subtree, independent of
     /// matches deeper down the tree.
@@ -373,29 +432,34 @@ impl MatchPattern {
     /// to the matched child is returned.
     /// ```
     /// # use std::ffi::CString;
-    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
+    /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
     /// # fn main() -> Result<(), failure::Error> {
     /// let patterns = vec![
     ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
     ///     MatchPattern::from_line(b"to_match/")?.unwrap()
     /// ];
+    /// let mut slices = Vec::new();
+    /// for pattern in &patterns {
+    ///     slices.push(pattern.as_slice());
+    /// }
     /// let filename = CString::new("some")?;
     /// let is_dir = true;
-    /// let (match_type, child_pattern) = MatchPattern::match_filename_exclude(
+    /// let (match_type, child_pattern) = MatchPatternSlice::match_filename_exclude(
     ///     &filename,
     ///     is_dir,
-    ///     &patterns
+    ///     &slices,
     /// )?;
     /// assert_eq!(match_type, MatchType::PartialPositive);
     /// /// child pattern will be the same as ...
     /// let pattern = MatchPattern::from_line(b"match/pattern/")?.unwrap();
+    /// let slice = pattern.as_slice();
     ///
     /// let filename = CString::new("to_match")?;
     /// let is_dir = true;
-    /// let (match_type, child_pattern) = MatchPattern::match_filename_exclude(
+    /// let (match_type, child_pattern) = MatchPatternSlice::match_filename_exclude(
     ///     &filename,
     ///     is_dir,
-    ///     &patterns
+    ///     &slices,
     /// )?;
     /// assert_eq!(match_type, MatchType::Positive);
     /// /// child pattern will be empty
@@ -405,8 +469,8 @@ impl MatchPattern {
     pub fn match_filename_exclude(
         filename: &CStr,
         is_dir: bool,
-        match_pattern: &[MatchPattern],
-    ) -> Result<(MatchType, Vec<MatchPattern>), Error> {
+        match_pattern: &'a [MatchPatternSlice<'a>],
+    ) -> Result<(MatchType, Vec<MatchPatternSlice<'a>>), Error> {
         let mut child_pattern = Vec::new();
         let mut match_state = MatchType::None;
 
@@ -426,39 +490,4 @@ impl MatchPattern {
 
         Ok((match_state, child_pattern))
     }
-}
-
-// Splits the `CStr` slice at the first slash encountered and returns the
-// content before (front pattern) and after the slash (rest pattern),
-// omitting the slash itself.
-// Slices starting with `**/` are an exception to this, as the corresponding
-// `MatchPattern` is intended to match multiple directories.
-// These pattern slices therefore return a `*` as front pattern and the original
-// pattern itself as rest pattern.
-fn split_at_slash(match_pattern: &CStr) -> (CString, CString) {
-    let match_pattern = match_pattern.to_bytes();
-
-    let pattern = if match_pattern.starts_with(b"./") {
-        &match_pattern[2..]
-    } else {
-        match_pattern
-    };
-
-    let (mut front, mut rest) = match pattern.iter().position(|&c| c == b'/') {
-        Some(ind) => {
-            let (front, rest) = pattern.split_at(ind);
-            (front, &rest[1..])
-        }
-        None => (pattern, &pattern[0..0]),
-    };
-    // '**' is treated such that it maches any directory
-    if front == b"**" {
-        front = b"*";
-        rest = pattern;
-    }
-
-    // Pattern where valid CStrings before, so it is safe to unwrap the Result
-    let front_pattern = CString::new(front).unwrap();
-    let rest_pattern = CString::new(rest).unwrap();
-    (front_pattern, rest_pattern)
 }

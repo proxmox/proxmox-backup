@@ -24,7 +24,7 @@ use super::catalog::BackupCatalogWriter;
 use super::flags;
 use super::format_definition::*;
 use super::helper::*;
-use super::match_pattern::{MatchPattern, MatchType};
+use super::match_pattern::{MatchPattern, MatchPatternSlice, MatchType};
 use crate::tools::acl;
 use crate::tools::fs;
 use crate::tools::xattr;
@@ -135,8 +135,12 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         if skip_lost_and_found {
             excludes.push(MatchPattern::from_line(b"**/lost+found").unwrap().unwrap());
         }
+        let mut exclude_slices = Vec::new();
+        for excl in &excludes {
+            exclude_slices.push(excl.as_slice());
+        }
 
-        me.encode_dir(dir, &stat, magic, excludes)?;
+        me.encode_dir(dir, &stat, magic, exclude_slices)?;
 
         Ok(())
     }
@@ -622,7 +626,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         dir: &mut nix::dir::Dir,
         dir_stat: &FileStat,
         magic: i64,
-        match_pattern: Vec<MatchPattern>,
+        match_pattern: Vec<MatchPatternSlice>,
     ) -> Result<(), Error> {
         //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
@@ -688,14 +692,16 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
         // Expand the exclude match pattern inherited from the parent by local entries, if present
         let mut local_match_pattern = match_pattern.clone();
-        let pxar_exclude = match MatchPattern::from_file(rawfd, ".pxarexclude") {
-            Ok(Some((mut excludes, buffer, stat))) => {
-                local_match_pattern.append(&mut excludes);
-                Some((buffer, stat))
+        let (pxar_exclude, excludes) = match MatchPattern::from_file(rawfd, ".pxarexclude") {
+            Ok(Some((excludes, buffer, stat))) => {
+                (Some((buffer, stat)), excludes)
             }
-            Ok(None) => None,
+            Ok(None) => (None, Vec::new()),
             Err(err) => bail!("error while reading exclude file - {}", err),
         };
+        for excl in &excludes {
+            local_match_pattern.push(excl.as_slice());
+        }
 
         if include_children {
             // Exclude patterns passed via the CLI are stored as '.pxarexclude-cli'
@@ -736,7 +742,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     Err(err) => bail!("fstat {:?} failed - {}", self.full_path(), err),
                 };
 
-                match MatchPattern::match_filename_exclude(
+                match MatchPatternSlice::match_filename_exclude(
                     &filename,
                     is_directory(&stat),
                     &local_match_pattern,
@@ -812,7 +818,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 // '.pxarexclude-cli' is used to store the exclude MatchPatterns
                 // passed via the cli in the root directory of the archive.
                 self.write_filename(&filename)?;
-                let content = MatchPattern::to_bytes(&exclude_list);
+                let content = MatchPatternSlice::to_bytes(&exclude_list);
                 if let Some(ref mut catalog) = self.catalog {
                     catalog.add_file(&filename, content.len() as u64, 0)?;
                 }
