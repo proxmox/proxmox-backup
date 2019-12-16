@@ -57,7 +57,7 @@ doc:
 .PHONY: build
 build:
 	rm -rf build
-	cargo build --release
+	cargo build --release --lib
 	rsync -a debian Makefile defines.mk Cargo.toml Cargo.lock \
 	    src zstd-sys $(SUBDIRS) \
 	    target tests build/
