@@ -35,7 +35,7 @@ pub struct SequentialDecoder<R: Read> {
     feature_flags: u64,
     allow_existing_dirs: bool,
     skip_buffer: Vec<u8>,
-    callback: Option<Box<dyn Fn(&Path) -> Result<(), Error>>>,
+    callback: Option<Box<dyn Fn(&Path) -> Result<(), Error> + Send>>,
 }
 
 const HEADER_SIZE: u64 = std::mem::size_of::<PxarHeader>() as u64;
@@ -57,7 +57,7 @@ impl<R: Read> SequentialDecoder<R> {
         }
     }
 
-    pub fn set_callback<F: Fn(&Path) -> Result<(), Error> + 'static>(&mut self, callback: F ) {
+    pub fn set_callback<F: Fn(&Path) -> Result<(), Error> + Send + 'static>(&mut self, callback: F ) {
         self.callback = Some(Box::new(callback));
     }
 
