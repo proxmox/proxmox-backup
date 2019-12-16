@@ -10,6 +10,7 @@ use chrono::offset::{TimeZone, Local};
 use proxmox::tools::io::ReadExt;
 
 use crate::pxar::catalog::BackupCatalogWriter;
+use crate::pxar::{MatchPattern, MatchPatternSlice, MatchType};
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 
 #[repr(u8)]
@@ -535,6 +536,55 @@ impl <R: Read + Seek> CatalogReader<R> {
 
             Ok(true)
         })
+    }
+
+    /// Finds all entries matching the given match patterns and calls the
+    /// provided callback on them.
+    pub fn find(
+        &mut self,
+        mut entry: &mut Vec<DirEntry>,
+        pattern: &[MatchPatternSlice],
+        callback: &Box<fn(&[DirEntry])>,
+    ) -> Result<(), Error> {
+        let node = entry.last().unwrap();
+        if !node.is_directory() {
+            match MatchPatternSlice::match_filename_include(
+                &CString::new(node.name.clone())?,
+                false,
+                pattern,
+            )? {
+                (MatchType::Positive, _) => callback(&entry),
+                _ => {}
+            }
+            return Ok(())
+        }
+
+        match MatchPatternSlice::match_filename_include(
+            &CString::new(node.name.clone())?,
+            node.is_directory(),
+            pattern,
+        )? {
+            (MatchType::Positive, _) => {
+                callback(&entry);
+                let pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
+                let child_pattern = vec![pattern.as_slice()];
+                for e in self.read_dir(node)?  {
+                    entry.push(e);
+                    self.find(&mut entry, &child_pattern, callback)?;
+                    entry.pop();
+                }
+            }
+            (MatchType::PartialPositive, child_pattern)
+            | (MatchType::PartialNegative, child_pattern) => {
+                for e in self.read_dir(node)?  {
+                    entry.push(e);
+                    self.find(&mut entry, &child_pattern, callback)?;
+                    entry.pop();
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 }
 
