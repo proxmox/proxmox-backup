@@ -24,3 +24,8 @@ override_dh_auto_install:
 override_dh_installinit:
 	dh_installinit
 	dh_installinit --name proxmox-backup-proxy
+
+# workaround https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=933541
+# TODO: remove once available (Debian 11 ?)
+override_dh_dwz:
+	dh_dwz --no-dwz-multifile
