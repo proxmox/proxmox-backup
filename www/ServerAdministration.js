@@ -28,8 +28,8 @@ Ext.define('PBS.ServerAdministration', {
 	    itemId: 'services',
 	    startOnlyServices: {
 		syslog: true,
-		pmgproxy: true,
-		pmgdaemon: true
+		'proxmox-backup': true,
+		'proxmox-backup-proxy': true,
 	    },
 	    nodename: 'localhost'
 	},
