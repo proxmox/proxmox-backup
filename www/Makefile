@@ -17,7 +17,7 @@ JSSRC=							\
 	Application.js					\
 	MainView.js
 
-all: js/proxmox-backup-gui.js
+all: js/proxmox-backup-gui.js css/ext6-pbs.css
 
 js:
 	mkdir js
@@ -31,10 +31,12 @@ clean:
 	find . -name '*~' -exec rm {} ';'	
 	rm -rf js
 
-install: js/proxmox-backup-gui.js
+install: js/proxmox-backup-gui.js css/ext6-pbs.css
 	install -dm755 $(DESTDIR)$(JSDIR)
 	install -dm755 $(DESTDIR)$(JSDIR)/js
 	install -m644 js/proxmox-backup-gui.js $(DESTDIR)$(JSDIR)/js/
+	install -dm755 $(DESTDIR)$(JSDIR)/css
+	install -m644 css/ext6-pbs.css $(DESTDIR)$(JSDIR)/css/
 	install -dm755 $(DESTDIR)$(JSDIR)/images
 	$(foreach i,$(IMAGES), \
 	    install -m644 $(i) $(DESTDIR)$(JSDIR)/images/ ;)

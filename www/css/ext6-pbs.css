@@ -1,0 +1,74 @@
+/* overwrite to use full black for enabled buttons */
+.x-btn-inner-default-toolbar-small {
+    font: 300 12px/16px helvetica, arial, verdana, sans-serif;
+    color: #000;
+    padding: 0 5px;
+    max-width: 100%;
+}
+
+/* add missing class for context menu header */
+.x-menu-header {
+    font: 400 13px/20px 'Open Sans', 'Helvetica Neue', helvetica, arial, verdana, sans-serif;
+    color: #fff;
+    padding: 4px;
+    background-color: #3892d4;
+}
+
+/* make the upper window end visible */
+.x-css-shadow {
+    box-shadow: rgb(136,136,136) 0px -1px 15px !important;
+}
+
+/* reduce tree space */
+.x-grid-cell-inner-treecolumn { /* vertical padding */
+    padding: 4px 0px 3px 0px;
+}
+
+/* horizontal distance between parent and child leaf */
+.x-tree-elbow-img {
+    width: 14px;
+}
+
+/* adjust horizontal position of menu icons */
+.x-menu-item-icon-default {
+    top: 5px;
+    left: 3px;
+    font-size: 14px;
+}
+
+/* this gives a better placement for the font-awesome icons */
+.x-btn-icon-el-default-toolbar-small {
+    height: 14px;
+}
+
+/* this icon looks weird in sizes not n*14px */
+.x-btn-icon-el-default-toolbar-small.fa-ellipsis-v {
+    font-size: 14px;
+}
+
+.x-btn-icon-el-default-small {
+    height: 14px;
+    font-size: 14px;
+}
+
+/* displayfield minheight is wrong */
+.x-form-display-field-default {
+    min-height: 20px;
+}
+
+.x-button-reset:before {
+    font-size: 16px;
+}
+
+/* for resetcolumnsbutton */
+.x-button-reset:after{
+    content: "\f0e7 ";
+    position: relative;
+    text-shadow: 0 0 2px #fff;
+    left: -3px;
+    top: 2px;
+}
+
+.proxmox-inline-button .x-btn-inner {
+    color: black;
+}

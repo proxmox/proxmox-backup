@@ -47,6 +47,7 @@ async fn run() -> Result<(), Error> {
     config.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
     config.add_alias("xtermjs", "/usr/share/pve-xtermjs");
     config.add_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
+    config.add_alias("css", "/usr/share/javascript/proxmox-backup/css");
 
     let rest_server = RestServer::new(config);
 

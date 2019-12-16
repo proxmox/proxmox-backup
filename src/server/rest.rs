@@ -337,6 +337,7 @@ fn get_index(username: Option<String>, token: Option<String>) ->  Response<Body>
     <link rel="stylesheet" type="text/css" href="/extjs/theme-crisp/resources/theme-crisp-all.css" />
     <link rel="stylesheet" type="text/css" href="/extjs/crisp/resources/charts-all.css" />
     <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="/css/ext6-pbs.css" />
     <script type='text/javascript'> function gettext(buf) {{ return buf; }} </script>
     <script type="text/javascript" src="/extjs/ext-all-debug.js"></script>
     <script type="text/javascript" src="/extjs/charts-debug.js"></script>
