@@ -4,6 +4,8 @@ use failure::*;
 
 fn rate_test(name: &str, bench: &dyn Fn() -> usize) {
 
+    print!("{:<20} ", name);
+
     let start = std::time::SystemTime::now();
     let duration = std::time::Duration::new(1, 0);
 
@@ -19,7 +21,7 @@ fn rate_test(name: &str, bench: &dyn Fn() -> usize) {
     let elapsed = (elapsed.as_secs() as f64) +
         (elapsed.subsec_millis() as f64)/1000.0;
 
-    println!("{} {} MB/s", name, (bytes as f64)/(elapsed*1024.0*1024.0));
+    println!("{:>8.1} MB/s", (bytes as f64)/(elapsed*1024.0*1024.0));
 }
 
 
