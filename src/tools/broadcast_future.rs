@@ -159,15 +159,14 @@ fn test_broadcast_future() {
         .map_err(|err| { panic!("got errror {}", err); })
         .map(|_| ());
 
-    let receiver_finish = sender.listen();
-
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
-        tokio::spawn(receiver1);
-        tokio::spawn(receiver2);
+        let r1 = tokio::spawn(receiver1);
+        let r2 = tokio::spawn(receiver2);
 
         trigger.send(Ok(1)).unwrap();
-        let _ = receiver_finish.await;
+        let _ = r1.await;
+        let _ = r2.await;
     });
 
     let result = CHECKSUM.load(Ordering::SeqCst);
