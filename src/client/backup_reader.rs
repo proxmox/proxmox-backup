@@ -5,11 +5,11 @@ use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 
 use chrono::{DateTime, Utc};
+use futures::future::AbortHandle;
 use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 
-use crate::tools::futures::Canceller;
 use crate::backup::*;
 
 use super::{HttpClient, H2Client};
@@ -17,21 +17,21 @@ use super::{HttpClient, H2Client};
 /// Backup Reader
 pub struct BackupReader {
     h2: H2Client,
-    canceller: Canceller,
+    abort: AbortHandle,
     crypt_config: Option<Arc<CryptConfig>>,
 }
 
 impl Drop for BackupReader {
 
     fn drop(&mut self) {
-        self.canceller.cancel();
+        self.abort.abort();
     }
 }
 
 impl BackupReader {
 
-    fn new(h2: H2Client, canceller: Canceller, crypt_config: Option<Arc<CryptConfig>>) -> Arc<Self> {
-        Arc::new(Self { h2, canceller, crypt_config})
+    fn new(h2: H2Client, abort: AbortHandle, crypt_config: Option<Arc<CryptConfig>>) -> Arc<Self> {
+        Arc::new(Self { h2, abort, crypt_config})
     }
 
     /// Create a new instance by upgrading the connection at '/api2/json/reader'
@@ -54,9 +54,9 @@ impl BackupReader {
         });
         let req = HttpClient::request_builder(client.server(), "GET", "/api2/json/reader", Some(param)).unwrap();
 
-        let (h2, canceller) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!())).await?;
+        let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!())).await?;
 
-        Ok(BackupReader::new(h2, canceller, crypt_config))
+        Ok(BackupReader::new(h2, abort, crypt_config))
     }
 
     /// Execute a GET request
@@ -119,7 +119,7 @@ impl BackupReader {
     }
 
     pub fn force_close(self) {
-        self.canceller.cancel();
+        self.abort.abort();
     }
 
     /// Download backup manifest (index.json)

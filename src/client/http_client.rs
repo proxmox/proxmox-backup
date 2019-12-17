@@ -20,7 +20,6 @@ use proxmox::tools::{
 
 use super::pipe_to_stream::PipeToSendStream;
 use crate::tools::async_io::EitherStream;
-use crate::tools::futures::{cancellable, Canceller};
 use crate::tools::{self, tty, BroadcastFuture, DEFAULT_ENCODE_SET};
 
 #[derive(Clone)]
@@ -287,7 +286,7 @@ impl HttpClient {
         &self,
         mut req: Request<Body>,
         protocol_name: String,
-    ) -> Result<(H2Client, Canceller), Error> {
+    ) -> Result<(H2Client, futures::future::AbortHandle), Error> {
 
         let auth = self.login().await?;
         let client = self.client.clone();
@@ -323,7 +322,7 @@ impl HttpClient {
         let connection = connection
             .map_err(|_| panic!("HTTP/2.0 connection failed"));
 
-        let (connection, canceller) = cancellable(connection)?;
+        let (connection, abort) = futures::future::abortable(connection);
         // A cancellable future returns an Option which is None when cancelled and
         // Some when it finished instead, since we don't care about the return type we
         // need to map it away:
@@ -334,7 +333,7 @@ impl HttpClient {
 
         // Wait until the `SendRequest` handle has available capacity.
         let c = h2.ready().await?;
-        Ok((H2Client::new(c), canceller))
+        Ok((H2Client::new(c), abort))
     }
 
     async fn credentials(

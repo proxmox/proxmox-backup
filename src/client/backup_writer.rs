@@ -6,6 +6,7 @@ use failure::*;
 use chrono::{DateTime, Utc};
 use futures::*;
 use futures::stream::Stream;
+use futures::future::AbortHandle;
 use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
@@ -14,19 +15,18 @@ use proxmox::tools::digest_to_hex;
 
 use super::merge_known_chunks::{MergedChunkInfo, MergeKnownChunks};
 use crate::backup::*;
-use crate::tools::futures::Canceller;
 
 use super::{HttpClient, H2Client};
 
 pub struct BackupWriter {
     h2: H2Client,
-    canceller: Canceller,
+    abort: AbortHandle,
 }
 
 impl Drop for BackupWriter {
 
     fn drop(&mut self) {
-        self.canceller.cancel();
+        self.abort.abort();
     }
 }
 
@@ -37,8 +37,8 @@ pub struct BackupStats {
 
 impl BackupWriter {
 
-    fn new(h2: H2Client, canceller: Canceller) -> Arc<Self> {
-        Arc::new(Self { h2, canceller })
+    fn new(h2: H2Client, abort: AbortHandle) -> Arc<Self> {
+        Arc::new(Self { h2, abort })
     }
 
     pub async fn start(
@@ -61,9 +61,9 @@ impl BackupWriter {
         let req = HttpClient::request_builder(
             client.server(), "GET", "/api2/json/backup", Some(param)).unwrap();
 
-        let (h2, canceller) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!())).await?;
+        let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!())).await?;
 
-        Ok(BackupWriter::new(h2, canceller))
+        Ok(BackupWriter::new(h2, abort))
     }
 
     pub async fn get(
@@ -129,13 +129,13 @@ impl BackupWriter {
 
         h2.post("finish", None)
             .map_ok(move |_| {
-                self.canceller.cancel();
+                self.abort.abort();
             })
             .await
     }
 
     pub fn cancel(&self) {
-        self.canceller.cancel();
+        self.abort.abort();
     }
 
     pub async fn upload_blob<R: std::io::Read>(
