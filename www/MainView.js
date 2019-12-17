@@ -100,6 +100,33 @@ Ext.define('PBS.MainView', {
 	    var me = this;
 
 	    me.lookupReference('usernameinfo').update({username:Proxmox.UserName});
+
+	    // get ticket periodically
+	    Ext.TaskManager.start({
+		run: function() {
+		    var ticket = Proxmox.Utils.authOK();
+		    if (!ticket || !Proxmox.UserName) {
+			return;
+		    }
+
+		    Ext.Ajax.request({
+			params: {
+			    username: Proxmox.UserName,
+			    password: ticket
+			},
+			url: '/api2/json/access/ticket',
+			method: 'POST',
+			failure: function() {
+			    me.logout();
+			},
+			success: function(response, opts) {
+			    var obj = Ext.decode(response.responseText);
+			    PMG.Utils.updateLoginData(obj.data);
+			}
+		    });
+		},
+		interval: 15*60*1000
+	    });
 	}
     },
 
