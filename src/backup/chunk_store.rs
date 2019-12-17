@@ -93,11 +93,11 @@ impl ChunkStore {
 
         let chunk_dir = Self::chunk_dir(&base);
 
-        if let Err(err) = std::fs::create_dir(&base) {
+        if let Err(err) = std::fs::create_dir_all(&base) {
             bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err);
         }
 
-        if let Err(err) = std::fs::create_dir(&chunk_dir) {
+        if let Err(err) = std::fs::create_dir_all(&chunk_dir) {
             bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
