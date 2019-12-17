@@ -4,7 +4,7 @@ use std::io::Read;
 use failure::*;
 use lazy_static::lazy_static;
 
-use proxmox::tools::{fs::file_set_contents, try_block};
+use proxmox::tools::{fs::file_set_contents_full, try_block};
 use proxmox::api::schema::{Schema, ObjectSchema, StringSchema};
 
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
@@ -58,7 +58,11 @@ pub fn config() -> Result<SectionConfigData, Error> {
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
 
-    file_set_contents(DATASTORE_CFG_FILENAME, raw.as_bytes(), None)?;
+    let (backup_uid, _) = crate::tools::getpwnam_ugid("backup")?;
+    let uid = nix::unistd::Uid::from_raw(backup_uid);
+
+    // manager runs as root, so we need to set the correct owner while saving file (backup:root)
+    file_set_contents_full(DATASTORE_CFG_FILENAME, raw.as_bytes(), None, Some(uid), None)?;
 
     Ok(())
 }
