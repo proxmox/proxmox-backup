@@ -49,11 +49,10 @@ Ext.define('PBS.ServerAdministration', {
 	    nodename: 'localhost'
 	},
 	{
-	    xtype: 'proxmoxLogView',
+	    xtype: 'proxmoxJournalView',
 	    itemId: 'logs',
 	    title: gettext('Syslog'),
-	    url: "/api2/extjs/nodes/localhost/syslog",
-	    log_select_timespan: 1
+	    url: "/api2/extjs/nodes/localhost/journal",
 	},
 	{
 	    xtype: 'proxmoxNodeTasks',

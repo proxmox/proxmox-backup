@@ -27,6 +27,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 	 libjs-extjs (>= 6.0.1),
 	 fonts-font-awesome,
+         proxmox-mini-journalreader,
 	 proxmox-widget-toolkit,
 	 libzstd1 (>= 1.3.8),
 Description: Proxmox Backup Server daemon with tools and GUI

@@ -6,10 +6,12 @@ mod time;
 mod network;
 mod dns;
 mod syslog;
+mod journal;
 mod services;
 
 pub const SUBDIRS: SubdirMap = &[
     ("dns", &dns::ROUTER),
+    ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
     ("services", &services::ROUTER),
     ("syslog", &syslog::ROUTER),
