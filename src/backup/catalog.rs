@@ -546,44 +546,35 @@ impl <R: Read + Seek> CatalogReader<R> {
         pattern: &[MatchPatternSlice],
         callback: &Box<fn(&[DirEntry])>,
     ) -> Result<(), Error> {
-        let node = entry.last().unwrap();
-        if !node.is_directory() {
-            match MatchPatternSlice::match_filename_include(
-                &CString::new(node.name.clone())?,
-                false,
-                pattern,
-            )? {
-                (MatchType::Positive, _) => callback(&entry),
-                _ => {}
-            }
+        let parent = entry.last().unwrap();
+        if !parent.is_directory() {
             return Ok(())
         }
 
-        match MatchPatternSlice::match_filename_include(
-            &CString::new(node.name.clone())?,
-            node.is_directory(),
-            pattern,
-        )? {
-            (MatchType::Positive, _) => {
-                callback(&entry);
-                let pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
-                let child_pattern = vec![pattern.as_slice()];
-                for e in self.read_dir(node)?  {
+        for e in self.read_dir(parent)?  {
+            match MatchPatternSlice::match_filename_include(
+                &CString::new(e.name.clone())?,
+                e.is_directory(),
+                pattern,
+            )? {
+                (MatchType::Positive, _) => {
+                    entry.push(e);
+                    callback(&entry);
+                    let pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
+                    let child_pattern = vec![pattern.as_slice()];
+                    self.find(&mut entry, &child_pattern, callback)?;
+                    entry.pop();
+                }
+                (MatchType::PartialPositive, child_pattern)
+                | (MatchType::PartialNegative, child_pattern) => {
                     entry.push(e);
                     self.find(&mut entry, &child_pattern, callback)?;
                     entry.pop();
                 }
+                _ => {}
             }
-            (MatchType::PartialPositive, child_pattern)
-            | (MatchType::PartialNegative, child_pattern) => {
-                for e in self.read_dir(node)?  {
-                    entry.push(e);
-                    self.find(&mut entry, &child_pattern, callback)?;
-                    entry.pop();
-                }
-            }
-            _ => {}
         }
+
         Ok(())
     }
 }

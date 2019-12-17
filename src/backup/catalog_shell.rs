@@ -495,7 +495,7 @@ fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error>
 /// Find entries in the catalog matching the given match pattern.
 fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(), Error> {
     Context::with(|ctx| {
-        let mut path = ctx.canonical_path(&path)?;
+        let path = ctx.canonical_path(&path)?;
         if !path.last().unwrap().is_directory() {
             bail!("path should be a directory, not a file!");
         }
@@ -517,8 +517,12 @@ fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(
             .ok_or_else(|| format_err!("invalid match pattern"))?;
         let slice = vec![pattern.as_slice()];
 
+        // The match pattern all contain the prefix of the entry path in order to
+        // store them if selected, so the entry point for find is always the root
+        // directory.
+        let mut dir_stack = ctx.root.clone();
         ctx.catalog.find(
-            &mut path,
+            &mut dir_stack,
             &slice,
             &Box::new(|path: &[DirEntry]| println!("{:?}", Context::generate_cstring(path).unwrap()))
         )?;
