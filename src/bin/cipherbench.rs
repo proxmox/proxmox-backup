@@ -69,7 +69,7 @@ fn main() -> Result<(), Error> {
         openssl::symm::encrypt_aead(
             cipher,
             &key,
-            Some(&iv),
+            Some(&iv[..12]),
             b"",
             &input,
             &mut tag).unwrap();
