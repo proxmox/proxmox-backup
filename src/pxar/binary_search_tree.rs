@@ -132,6 +132,18 @@ pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
 /// let skip_multiples = 1;
 /// let idx = search_binary_tree_by(0, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
 /// assert!(idx.is_none());
+///
+/// let find = 5;
+/// let skip_multiples = 0;
+/// // if start index is equal to the array length, `None` is returned.
+/// let idx = search_binary_tree_by(vals.len(), vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert!(idx.is_none());
+///
+/// let find = 5;
+/// let skip_multiples = 0;
+/// // if start index is larger than length, `None` is returned.
+/// let idx = search_binary_tree_by(vals.len() + 1, vals.len(), skip_multiples, |idx| find.cmp(&vals[idx]));
+/// assert!(idx.is_none());
 /// ```
 
 pub fn search_binary_tree_by<F: Copy + Fn(usize) -> Ordering>(
