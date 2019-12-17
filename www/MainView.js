@@ -101,6 +101,14 @@ Ext.define('PBS.MainView', {
 
 	    me.lookupReference('usernameinfo').update({username:Proxmox.UserName});
 
+	    // show login on requestexception
+	    // fixme: what about other errors
+	    Ext.Ajax.on('requestexception', function(conn, response, options) {
+		if (response.status == 401) { // auth failure
+		    me.logout();
+		}
+	    });
+
 	    // get ticket periodically
 	    Ext.TaskManager.start({
 		run: function() {
