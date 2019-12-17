@@ -439,16 +439,15 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
 
 async fn handle_static_file_download(filename: PathBuf) ->  Result<Response<Body>, Error> {
 
-    tokio::fs::metadata(filename.clone())
+    let metadata = tokio::fs::metadata(filename.clone())
         .map_err(|err| http_err!(BAD_REQUEST, format!("File access problems: {}", err)))
-        .and_then(|metadata| async move {
-            if metadata.len() < 1024*32 {
-                simple_static_file_download(filename).await
-            } else {
-                chuncked_static_file_download(filename).await
-            }
-        })
-        .await
+        .await?;
+
+    if metadata.len() < 1024*32 {
+        simple_static_file_download(filename).await
+    } else {
+        chuncked_static_file_download(filename).await
+    }
 }
 
 fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<String>) {
