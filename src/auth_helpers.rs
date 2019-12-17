@@ -128,7 +128,12 @@ pub fn generate_auth_key() -> Result<(), Error> {
 
     let public_pem = rsa.public_key_to_pem()?;
 
-    file_set_contents(&public_path, &public_pem, None)?;
+    let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+    let uid = Some(nix::unistd::ROOT);
+    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+
+    file_set_contents_full(
+        &public_path, &public_pem, Some(Mode::from_bits_truncate(0o0640)), uid, gid)?;
 
     Ok(())
 }
