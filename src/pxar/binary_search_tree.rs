@@ -140,7 +140,7 @@ pub fn search_binary_tree_by<F: Copy + Fn(usize) -> Ordering>(
     skip_multiples: usize,
     compare: F
 ) -> Option<usize> {
-    if start > size {
+    if start >= size {
         return None;
     }
 
