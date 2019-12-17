@@ -75,7 +75,10 @@ Ext.define('PBS.LoginView', {
 	    autoShow: true,
 	    modal: true,
 
-	    defaultFocus: 'usernameField',
+	    //defaultFocus: 'usernameField',
+	    // TODO: use usernameField again once we have a real user-,
+	    // permission system and root@pam isn't the default anymore
+	    defaultFocus: 'passwordField',
 
 	    layout: {
 		type: 'auto'
@@ -103,6 +106,7 @@ Ext.define('PBS.LoginView', {
 			    xtype: 'textfield',
 			    fieldLabel: gettext('User name'),
 			    name: 'username',
+			    value: 'root@pam',
 			    itemId: 'usernameField',
 			    reference: 'usernameField'
 			},
@@ -111,7 +115,8 @@ Ext.define('PBS.LoginView', {
 			    inputType: 'password',
 			    fieldLabel: gettext('Password'),
 			    name: 'password',
-			    reference: 'passwordField'
+			    itemId: 'passwordField',
+			    reference: 'passwordField',
 			}
 		    ],
 		    buttons: [
