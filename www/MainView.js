@@ -98,8 +98,8 @@ Ext.define('PBS.MainView', {
 
 	init: function(view) {
 	    var me = this;
-	    console.log("init");
 
+	    me.lookupReference('usernameinfo').update({username:Proxmox.UserName});
 	}
     },
 
