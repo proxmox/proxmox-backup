@@ -129,7 +129,7 @@ Ext.define('PBS.MainView', {
 			},
 			success: function(response, opts) {
 			    var obj = Ext.decode(response.responseText);
-			    PMG.Utils.updateLoginData(obj.data);
+			    PBS.Utils.updateLoginData(obj.data);
 			}
 		    });
 		},
