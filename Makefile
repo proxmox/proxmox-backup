@@ -59,7 +59,7 @@ build:
 	rm -rf build
 	cargo build --release --lib
 	rsync -a debian Makefile defines.mk Cargo.toml Cargo.lock \
-	    src zstd-sys $(SUBDIRS) \
+	    src $(SUBDIRS) \
 	    target tests build/
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
