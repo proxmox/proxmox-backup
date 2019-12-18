@@ -24,12 +24,13 @@ Homepage: https://www.proxmox.com
 Package: proxmox-backup-server
 Build-Profiles: <nodoc>
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends},
-	 libjs-extjs (>= 6.0.1),
-	 fonts-font-awesome,
+Depends: fonts-font-awesome,
+         libjs-extjs (>= 6.0.1),
+         libzstd1 (>= 1.3.8),
          proxmox-mini-journalreader,
-	 proxmox-widget-toolkit,
-	 libzstd1 (>= 1.3.8),
+         proxmox-widget-toolkit,
+         ${misc:Depends},
+         ${shlibs:Depends},
 Description: Proxmox Backup Server daemon with tools and GUI
  This package contains the Proxmox Backup Server daemons and related
  tools. This includes a web-based graphical user interface.
@@ -37,7 +38,7 @@ Description: Proxmox Backup Server daemon with tools and GUI
 Package: proxmox-backup-client
 Build-Profiles: <nodoc>
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Proxmox Backup Client tools
  This package contains the Proxmox Backup client, which provides a
  simple command line tool to create and restore backups.
