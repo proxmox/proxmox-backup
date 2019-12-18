@@ -35,7 +35,7 @@ pub const POST: ApiMethod = ApiMethod::new(
             ("path", false, &StringSchema::new("Directory path. The directory path is created if it does not already exist.").schema()),
         ],
     )       
-);
+).protected(true);
 
 fn create_datastore(
     param: Value,
@@ -75,7 +75,7 @@ pub const DELETE: ApiMethod = ApiMethod::new(
             ("name", false, &DATASTORE_SCHEMA),
         ],
     )
-);
+).protected(true);
 
 fn delete_datastore(
     param: Value,
