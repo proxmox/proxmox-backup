@@ -1,7 +1,7 @@
 /*global Blob,Proxmox*/
 Ext.define('PBS.SubscriptionKeyEdit', {
     extend: 'Proxmox.window.Edit',
-    
+
     title: gettext('Upload Subscription Key'),
     width: 300,
     autoLoad: true,
@@ -81,12 +81,12 @@ Ext.define('PBS.Subscription', {
 	Ext.apply(me, {
 	    url: '/api2/json' + baseurl,
 	    cwidth1: 170,
-	    tbar: [ 
+	    tbar: [
 		{
 		    text: gettext('Upload Subscription Key'),
 		    handler: function() {
 			var win = Ext.create('PBS.SubscriptionKeyEdit', {
-			    url: '/api2/extjs/' + baseurl 
+			    url: '/api2/extjs/' + baseurl
 			});
 			win.show();
 			win.on('destroy', reload);

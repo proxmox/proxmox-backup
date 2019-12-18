@@ -16,7 +16,7 @@ Ext.define('PBS.MainView', {
 		}
 	    }
 	},
-	
+
 	beforeChangePath: function(path, subpath, action) {
 	    var me = this;
 
@@ -46,7 +46,7 @@ Ext.define('PBS.MainView', {
 
 	    action.resume();
 	},
-	
+
 	changePath: function(path,subpath) {
 	    var me = this;
 	    var contentpanel = me.lookupReference('contentpanel');
@@ -225,4 +225,4 @@ Ext.define('PBS.MainView', {
     ]
 });
 
- 
+
