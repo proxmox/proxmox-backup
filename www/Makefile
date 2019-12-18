@@ -13,6 +13,7 @@ JSSRC=							\
 	Subscription.js					\
 	DataStoreConfig.js				\
 	ServerAdministration.js				\
+	Dashboard.js					\
 	NavigationTree.js				\
 	Application.js					\
 	MainView.js

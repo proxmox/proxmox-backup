@@ -7,6 +7,12 @@ Ext.define('PBS.store.NavigationStore', {
 	expanded: true,
 	children: [
 	    {
+		text: gettext('Dashboard'),
+		iconCls: 'fa fa-tachometer',
+		path: 'pbsDashboard',
+		leaf: true
+	    },
+	    {
 		text: gettext('Configuration'),
 		iconCls: 'fa fa-gears',
 		path: 'pbsSystemConfiguration',
