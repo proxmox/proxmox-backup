@@ -32,7 +32,7 @@ pub const POST: ApiMethod = ApiMethod::new(
         "Create new datastore.",
         &[
             ("name", false, &DATASTORE_SCHEMA),
-            ("path", false, &StringSchema::new("Directory path (must exist).").schema()),
+            ("path", false, &StringSchema::new("Directory path. The directory path is created if it does not already exist.").schema()),
         ],
     )       
 );
