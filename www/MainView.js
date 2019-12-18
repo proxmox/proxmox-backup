@@ -135,6 +135,11 @@ Ext.define('PBS.MainView', {
 		},
 		interval: 15*60*1000
 	    });
+
+
+	    // select treeitem and load page from url fragment, if set
+	    let token = Ext.util.History.getToken() || 'pbsDashboard';
+	    this.redirectTo(token, true);
 	}
     },
 
