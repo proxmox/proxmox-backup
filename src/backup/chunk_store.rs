@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
 use serde::Serialize;
 
+use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
+
 use crate::tools;
 use super::DataBlob;
 use crate::server::WorkerTask;
@@ -93,11 +95,21 @@ impl ChunkStore {
 
         let chunk_dir = Self::chunk_dir(&base);
 
-        if let Err(err) = std::fs::create_dir_all(&base) {
+        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+        let uid = nix::unistd::Uid::from_raw(backup_uid);
+        let gid = nix::unistd::Gid::from_raw(backup_gid);
+
+        let options = CreateOptions::new()
+            .owner(uid)
+            .group(gid);
+
+        let default_options = CreateOptions::new();
+
+        if let Err(err) = create_path(&base, Some(default_options.clone()), Some(options.clone())) {
             bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err);
         }
 
-        if let Err(err) = std::fs::create_dir_all(&chunk_dir) {
+        if let Err(err) = create_dir(&chunk_dir, options.clone()) {
             bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
@@ -107,7 +119,7 @@ impl ChunkStore {
         for i in 0..64*1024 {
             let mut l1path = chunk_dir.clone();
             l1path.push(format!("{:04x}", i));
-            if let Err(err) = std::fs::create_dir(&l1path) {
+            if let Err(err) = create_dir(&l1path, options.clone()) {
                 bail!("unable to create chunk store '{}' subdir {:?} - {}", name, l1path, err);
             }
             let percentage = (i*100)/(64*1024);
