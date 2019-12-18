@@ -5,7 +5,7 @@ use chrono::{Local, TimeZone, DateTime};
 
 use proxmox::tools::{
     try_block,
-    fs::{file_get_contents, file_set_contents},
+    fs::{file_get_contents, replace_file, CreateOptions},
 };
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -84,7 +84,7 @@ pub fn store_key_config(
     try_block!({
         if replace {
             let mode = nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR;
-            file_set_contents(&path, data.as_bytes(), Some(mode))?;
+            replace_file(&path, data.as_bytes(), CreateOptions::new().perm(mode))?;
         } else {
             use std::os::unix::fs::OpenOptionsExt;
 

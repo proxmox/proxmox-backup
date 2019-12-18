@@ -4,10 +4,8 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use proxmox::tools::{
-    digest_to_hex,
-    fs::file_set_contents,
-};
+use proxmox::tools::digest_to_hex;
+use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
 use crate::server::WorkerTask;
@@ -415,7 +413,7 @@ impl BackupEnvironment {
         blob.verify_crc()?;
 
         let raw_data = blob.raw_data();
-        file_set_contents(&path, raw_data, None)?;
+        replace_file(&path, raw_data, CreateOptions::new())?;
 
         self.log(format!("add blob {:?} ({} bytes, comp: {})", path, orig_len, blob_len));
 

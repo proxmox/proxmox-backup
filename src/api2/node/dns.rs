@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
-use proxmox::tools::fs::{file_get_contents, file_set_contents};
+use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::tools::*; // required to use IPRE!() macro ???
 
 use crate::api2::types::*;
@@ -91,7 +91,7 @@ fn update_dns(
         data.push('\n');
     }
 
-    file_set_contents(RESOLV_CONF_FN, data.as_bytes(), None)?;
+    replace_file(RESOLV_CONF_FN, data.as_bytes(), CreateOptions::new())?;
 
     Ok(Value::Null)
 }

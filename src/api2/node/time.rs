@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
-use proxmox::tools::fs::{file_read_firstline, file_set_contents};
+use proxmox::tools::fs::{file_read_firstline, replace_file, CreateOptions};
 
 use crate::api2::types::*;
 
@@ -71,7 +71,7 @@ fn set_timezone(
         bail!("No such timezone.");
     }
 
-    file_set_contents("/etc/timezone", timezone.as_bytes(), None)?;
+    replace_file("/etc/timezone", timezone.as_bytes(), CreateOptions::new())?;
 
     let _ = std::fs::remove_file("/etc/localtime");
 

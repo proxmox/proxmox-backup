@@ -12,7 +12,8 @@ use proxmox::api::{http_err, list_subdirs_api_method};
 use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
-use proxmox::tools::{try_block, fs::file_get_contents, fs::file_set_contents};
+use proxmox::tools::try_block;
+use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use crate::api2::types::*;
 use crate::backup::*;
@@ -583,7 +584,7 @@ fn upload_backup_log(
         // always verify CRC at server side
         blob.verify_crc()?;
         let raw_data = blob.raw_data();
-        file_set_contents(&path, raw_data, None)?;
+        replace_file(&path, raw_data, CreateOptions::new())?;
 
         // fixme: use correct formatter
         Ok(crate::server::formatter::json_response(Ok(Value::Null)))

@@ -15,7 +15,7 @@ use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
 use proxmox::tools::{
-    fs::{file_get_json, file_set_contents},
+    fs::{file_get_json, replace_file, CreateOptions},
 };
 
 use super::pipe_to_stream::PipeToSendStream;
@@ -52,7 +52,7 @@ pub fn delete_ticket_info(server: &str, username: &str) -> Result<(), Error> {
         map.remove(username);
     }
 
-    file_set_contents(path, data.to_string().as_bytes(), Some(mode))?;
+    replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
 
     Ok(())
 }
@@ -88,7 +88,7 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
         }
     }
 
-    file_set_contents(path, new_data.to_string().as_bytes(), Some(mode))?;
+    replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
 
     Ok(())
 }

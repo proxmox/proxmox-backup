@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use proxmox::tools::{
     try_block,
-    fs::{file_get_contents, file_set_contents, file_set_contents_full},
+    fs::{file_get_contents, replace_file, CreateOptions},
 };
 
 fn compute_csrf_secret_digest(
@@ -98,11 +98,15 @@ pub fn generate_csrf_key() -> Result<(), Error> {
     use nix::sys::stat::Mode;
 
     let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-    let uid = Some(nix::unistd::ROOT);
-    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-    file_set_contents_full(
-        &path, &pem, Some(Mode::from_bits_truncate(0o0640)), uid, gid)?;
+    replace_file(
+        &path,
+        &pem,
+        CreateOptions::new()
+            .perm(Mode::from_bits_truncate(0o0640))
+            .owner(nix::unistd::ROOT)
+            .group(nix::unistd::Gid::from_raw(backup_gid)),
+    )?;
 
     Ok(())
 }
@@ -122,18 +126,21 @@ pub fn generate_auth_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    file_set_contents(
-        &priv_path, &priv_pem, Some(Mode::from_bits_truncate(0o0600)))?;
-
+    replace_file(
+        &priv_path, &priv_pem, CreateOptions::new().perm(Mode::from_bits_truncate(0o0600)))?;
 
     let public_pem = rsa.public_key_to_pem()?;
 
     let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-    let uid = Some(nix::unistd::ROOT);
-    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
 
-    file_set_contents_full(
-        &public_path, &public_pem, Some(Mode::from_bits_truncate(0o0640)), uid, gid)?;
+    replace_file(
+        &public_path,
+        &public_pem,
+        CreateOptions::new()
+            .perm(Mode::from_bits_truncate(0o0640))
+            .owner(nix::unistd::ROOT)
+            .group(nix::unistd::Gid::from_raw(backup_gid)),
+    )?;
 
     Ok(())
 }

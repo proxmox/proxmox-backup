@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 
 use proxmox::tools::{
     try_block,
-    fs::{create_path, file_set_contents_full, CreateOptions},
+    fs::{create_path, replace_file, CreateOptions},
 };
 
 use super::UPID;
@@ -202,11 +202,11 @@ pub struct TaskListInfo {
 fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, Error> {
 
     let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-    let uid = Some(nix::unistd::Uid::from_raw(backup_uid));
-    let gid = Some(nix::unistd::Gid::from_raw(backup_gid));
+    let uid = nix::unistd::Uid::from_raw(backup_uid);
+    let gid = nix::unistd::Gid::from_raw(backup_gid);
 
     let lock = crate::tools::open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0))?;
-    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, uid, gid)?;
+    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(uid), Some(gid))?;
 
     let reader = match File::open(PROXMOX_BACKUP_ACTIVE_TASK_FN) {
         Ok(f) => Some(BufReader::new(f)),
@@ -301,7 +301,13 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
         }
     }
 
-    file_set_contents_full(PROXMOX_BACKUP_ACTIVE_TASK_FN, raw.as_bytes(), None, uid, gid)?;
+    replace_file(
+        PROXMOX_BACKUP_ACTIVE_TASK_FN,
+        raw.as_bytes(),
+        CreateOptions::new()
+            .owner(uid)
+            .group(gid),
+    )?;
 
     drop(lock);
 

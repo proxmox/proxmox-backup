@@ -9,7 +9,7 @@ use std::io::{Write, Seek, SeekFrom};
 use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::{sortable, identity};
-use proxmox::tools::fs::{file_get_contents, file_get_json, file_set_contents, image_size};
+use proxmox::tools::fs::{file_get_contents, file_get_json, replace_file, CreateOptions, image_size};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::api::cli::*;
@@ -134,7 +134,7 @@ fn record_repository(repo: &BackupRepository) {
 
     let new_data = json!(map);
 
-    let _ = file_set_contents(path, new_data.to_string().as_bytes(), None);
+    let _ = replace_file(path, new_data.to_string().as_bytes(), CreateOptions::new());
 }
 
 fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
@@ -1181,7 +1181,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     if server_archive_name == MANIFEST_BLOB_NAME {
         let backup_index_data = manifest.into_json().to_string();
         if let Some(target) = target {
-            file_set_contents(target, backup_index_data.as_bytes(), None)?;
+            replace_file(target, backup_index_data.as_bytes(), CreateOptions::new())?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
@@ -1701,7 +1701,7 @@ fn key_import_master_pubkey(
 
     let target_path = master_pubkey_path()?;
 
-    file_set_contents(&target_path, &pem_data, None)?;
+    replace_file(&target_path, &pem_data, CreateOptions::new())?;
 
     println!("Imported public master key to {:?}", target_path);
 
@@ -1736,14 +1736,14 @@ fn key_create_master_key(
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
     println!("Writing public master key to {}", filename_pub);
-    file_set_contents(filename_pub, pub_key.as_slice(), None)?;
+    replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new())?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, new_pw.as_bytes())?;
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
-    file_set_contents(filename_priv, priv_key.as_slice(), None)?;
+    replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new())?;
 
     Ok(Value::Null)
 }
