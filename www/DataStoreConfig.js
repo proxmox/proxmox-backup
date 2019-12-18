@@ -57,10 +57,9 @@ Ext.define('PBS.DataStoreConfig', {
             {
 		text: gettext('Create'),
 		handler: function() {
-		    alert("not implemented");
-		    //var win = Ext.create('PVE.dc.PoolEdit', {});
-		    //win.on('destroy', reload);
-		    //win.show();
+		    let win = Ext.create('PBS.DataStoreEdit', {});
+		    win.on('destroy', reload);
+		    win.show();
 		}
             },
 	    gc_btn
@@ -106,4 +105,55 @@ Ext.define('PBS.DataStoreConfig', {
 
 	store.load();
     }
+});
+
+Ext.define('PBS.DataStoreInputPanel', {
+    extend: 'Proxmox.panel.InputPanel',
+    alias: 'widget.pbsDataStoreInputPanel',
+
+    onGetValues: function(values) {
+	var me = this;
+
+	delete values.comment;
+
+	return values;
+    },
+
+    column1: [
+	{
+	    xtype: 'textfield',
+	    name: 'name',
+	    fieldLabel: gettext('Name'),
+	},
+    ],
+
+    column2: [
+	{
+	    xtype: 'textfield',
+	    name: 'path',
+	    fieldLabel: gettext('Backing Path')
+	},
+    ],
+
+    columnB: [
+	{
+	    xtype: 'textfield',
+	    name: 'comment',
+	    emptyText: 'Not yet submitted...',
+	    fieldLabel: gettext('Comment')
+	},
+    ],
+});
+
+Ext.define('PBS.DataStoreEdit', {
+    extend: 'Proxmox.window.Edit',
+
+    url: '/api2/extjs/config/datastore',
+    method: 'POST',
+
+    subject: gettext('Datastore'),
+    isAdd: true,
+    items: [{
+	xtype: 'pbsDataStoreInputPanel',
+    }],
 });
