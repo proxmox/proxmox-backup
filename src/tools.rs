@@ -204,7 +204,7 @@ pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t, libc::gid_t), Error
     let c_username = std::ffi::CString::new(username).unwrap();
     let info = unsafe { libc::getpwnam(c_username.as_ptr()) };
     if info.is_null() {
-        bail!("getwpnam '{}' failed", username);
+        bail!("getpwnam '{}' failed", username);
     }
 
     let info = unsafe { *info };
