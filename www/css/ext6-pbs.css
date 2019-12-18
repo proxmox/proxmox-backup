@@ -72,3 +72,101 @@
 .proxmox-inline-button .x-btn-inner {
     color: black;
 }
+
+/* loading in task list */
+.x-grid-row-loading {
+    background: no-repeat center center;
+    background-image:url(../ext6/theme-crisp/resources/images/loadmask/loading.gif);
+}
+
+/* displayfield minheight is wrong */
+.x-form-display-field-default {
+    min-height: 20px;
+}
+
+.x-button-reset:before {
+    font-size: 16px;
+}
+
+/* for resetcolumnsbutton */
+.x-button-reset:after{
+    content: "\f0e7 ";
+    position: relative;
+    text-shadow: 0 0 2px #fff;
+    left: -3px;
+    top: 2px;
+}
+
+.proxmox-inline-button .x-btn-inner {
+    color: black;
+}
+
+/* for auto layout */
+div.inline-block {
+    display: inline-block;
+    vertical-align: top;
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+.x-grid-filters-filtered-column{
+    font-style: italic;
+    font-weight: bold;
+}
+
+/* mark disabled grid entries */
+table:not(.x-grid-item-selected) tr.x-grid-row.disabled {
+    color: #cfcfcf;
+}
+
+/* fix action column icons */
+.x-action-col-icon {
+    font-size: 14px;
+}
+
+.x-action-col-icon:before {
+    color: #555;
+}
+
+.x-treelist-item-icon {
+    color: #000;
+}
+
+.x-treelist-nav {
+    background-color: #f5f5f5;
+    border-right: 1px solid #cfcfcf;
+}
+
+.x-treelist-row-over > * > .x-treelist-item-icon,
+.x-treelist-row-over > * > .x-treelist-item-text {
+    color: #000;
+}
+
+.x-treelist-row {
+    padding: 4px 10px 4px 6px;
+}
+
+/* chrome 56 fix */
+.x-webkit .x-form-text {
+    height: 100% !important;
+}
+
+.x-webkit :not(.x-form-textarea-body) > .x-form-trigger-wrap {
+    height: initial;
+}
+
+tr.x-grid-row-summary  td.x-grid-cell {
+    border-top: 1px solid black;
+    font-weight: bold;
+}
+
+p.logs {
+    white-space: nowrap;
+    font-family: monospace;
+    overflow: auto;
+    border: 1px solid #cfcfcf;
+    margin: 5px;
+    padding: 5px;
+}
