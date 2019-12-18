@@ -24,6 +24,8 @@ fn pxar_create_and_extract() {
             panic!("Failed to invoke '{}': {}", exec_path, err)
         });
 
+    println!("run '{} extract archive.pxar {}'", exec_path, dest_dir);
+
     Command::new(exec_path)
         .arg("extract")
         .arg("./tests/archive.pxar")
@@ -34,6 +36,7 @@ fn pxar_create_and_extract() {
             panic!("Failed to invoke '{}': {}", exec_path, err)
         });
 
+    println!("run 'rsync --dry-run --itemize-changes --archive {} {}' to verify'", src_dir, dest_dir);
     /* Use rsync with --dry-run and --itemize-changes to compare
        src_dir and dest_dir */
     let stdout = Command::new("rsync")
@@ -49,7 +52,12 @@ fn pxar_create_and_extract() {
         .unwrap();
 
     let reader = BufReader::new(stdout);
-    let linecount = reader.lines().fold(0, |count, _| count + 1 );
+    let mut line_iter = reader.lines().map(|l| l.unwrap());
+    let mut linecount = 0;
+    while let Some(curr) = line_iter.next() {
+        println!("{}", curr);
+        linecount += 1;
+    }
     println!("Rsync listed {} differences to address", linecount);
 
     // Cleanup archive
