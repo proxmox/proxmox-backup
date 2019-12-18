@@ -338,7 +338,7 @@ You can also inspect the catalog to find specific files.
 
 .. code-block:: console
 
-  # proxmox-backup-client catalog host/elsa/2019-12-03T09:35:01Z
+  # proxmox-backup-client catalog dump host/elsa/2019-12-03T09:35:01Z
   ...
   d "./root.pxar.didx/etc/cifs-utils"
   l "./root.pxar.didx/etc/cifs-utils/idmap-plugin"
@@ -369,7 +369,7 @@ to use the interactive recovery shell.
 
 .. code-block:: console
 
-  # proxmox-backup-client shell host/elsa/2019-12-03T09:35:01Z root.pxar
+  # proxmox-backup-client catalog shell host/elsa/2019-12-03T09:35:01Z root.pxar
   Starting interactive shell
   pxar:/ > ls
   bin        boot       dev        etc        home       lib        lib32
