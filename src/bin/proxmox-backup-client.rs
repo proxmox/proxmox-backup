@@ -2176,40 +2176,36 @@ fn catalog_mgmt_cli() -> CliCommandMap {
     }
 )]
 /// List running server tasks for this repo user
-fn task_list(param: Value) -> Result<Value, Error> {
+async fn task_list(param: Value) -> Result<Value, Error> {
 
-    async_main(async {
-        let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
-        let repo = extract_repository_from_value(&param)?;
-        let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let repo = extract_repository_from_value(&param)?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
-        let limit = param["limit"].as_u64().unwrap_or(50) as usize;
+    let limit = param["limit"].as_u64().unwrap_or(50) as usize;
 
-        let args = json!({
-            "running": true,
-            "start": 0,
-            "limit": limit,
-            "userfilter": repo.user(),
-            "store": repo.store(),
-        });
-        let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
+    let args = json!({
+        "running": true,
+        "start": 0,
+        "limit": limit,
+        "userfilter": repo.user(),
+        "store": repo.store(),
+    });
+    let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
-        let data = &result["data"];
+    let data = &result["data"];
 
-        if output_format == "text" {
-            for item in data.as_array().unwrap() {
-                println!(
-                    "{} {}",
-                    item["upid"].as_str().unwrap(),
-                    item["status"].as_str().unwrap_or("running"),
-                );
-            }
-        } else {
-            format_and_print_result(data, &output_format);
+    if output_format == "text" {
+        for item in data.as_array().unwrap() {
+            println!(
+                "{} {}",
+                item["upid"].as_str().unwrap(),
+                item["status"].as_str().unwrap_or("running"),
+            );
         }
-
-        Ok::<_, Error>(())
-    })?;
+    } else {
+        format_and_print_result(data, &output_format);
+    }
 
     Ok(Value::Null)
 }
@@ -2228,18 +2224,14 @@ fn task_list(param: Value) -> Result<Value, Error> {
     }
 )]
 /// Display the task log.
-fn task_log(param: Value) -> Result<Value, Error> {
+async fn task_log(param: Value) -> Result<Value, Error> {
 
-    async_main(async {
-        let repo = extract_repository_from_value(&param)?;
-        let upid =  tools::required_string_param(&param, "upid")?;
+    let repo = extract_repository_from_value(&param)?;
+    let upid =  tools::required_string_param(&param, "upid")?;
 
-        let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
-        display_task_log(client, upid, true).await?;
-
-        Ok::<_, Error>(())
-    })?;
+    display_task_log(client, upid, true).await?;
 
     Ok(Value::Null)
 }
@@ -2258,19 +2250,15 @@ fn task_log(param: Value) -> Result<Value, Error> {
     }
 )]
 /// Try to stop a specific task.
-fn task_stop(param: Value) -> Result<Value, Error> {
+async fn task_stop(param: Value) -> Result<Value, Error> {
 
-    async_main(async {
-        let repo = extract_repository_from_value(&param)?;
-        let upid_str =  tools::required_string_param(&param, "upid")?;
+    let repo = extract_repository_from_value(&param)?;
+    let upid_str =  tools::required_string_param(&param, "upid")?;
 
-        let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
 
-        let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
-        let _ = client.delete(&path, None).await?;
-
-        Ok::<_, Error>(())
-    })?;
+    let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
+    let _ = client.delete(&path, None).await?;
 
     Ok(Value::Null)
 }
