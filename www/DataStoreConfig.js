@@ -47,7 +47,6 @@ Ext.define('PBS.DataStoreConfig', {
 			    upid: upid
 			});
 			win.show();
-			me.close();
 		    }
 		});
 	    }
