@@ -28,6 +28,10 @@ pub struct BackupRepository {
 
 impl BackupRepository {
 
+    pub fn new(user: Option<String>, host: Option<String>, store: String) -> Self {
+        Self { user, host, store }
+    }
+
     pub fn user(&self) -> &str {
         if let Some(ref user) = self.user {
             return user;
@@ -79,4 +83,3 @@ impl std::str::FromStr for BackupRepository {
         })
     }
 }
-
