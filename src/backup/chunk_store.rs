@@ -113,6 +113,10 @@ impl ChunkStore {
             bail!("unable to create chunk store '{}' subdir {:?} - {}", name, chunk_dir, err);
         }
 
+        // create lock file with correct owner/group
+        let lockfile_path = Self::lockfile_path(&base);
+        proxmox::tools::fs::replace_file(lockfile_path, b"", options.clone())?;
+
         // create 64*1024 subdirs
         let mut last_percentage = 0;
 
@@ -129,12 +133,22 @@ impl ChunkStore {
             }
         }
 
+
         Self::open(name, base)
     }
 
-    pub fn open<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
+    fn lockfile_path<P: Into<PathBuf>>(base: P) -> PathBuf {
+        let base: PathBuf = base.into();
 
-        let base: PathBuf = path.into();
+        let mut lockfile_path = base.clone();
+        lockfile_path.push(".lock");
+
+        lockfile_path
+    }
+
+    pub fn open<P: Into<PathBuf>>(name: &str, base: P) -> Result<Self, Error> {
+
+        let base: PathBuf = base.into();
 
         if !base.is_absolute() {
             bail!("expected absolute path - got {:?}", base);
@@ -146,8 +160,7 @@ impl ChunkStore {
             bail!("unable to open chunk store '{}' at {:?} - {}", name, chunk_dir, err);
         }
 
-        let mut lockfile_path = base.clone();
-        lockfile_path.push(".lock");
+        let lockfile_path = Self::lockfile_path(&base);
 
         let locker = tools::ProcessLocker::new(&lockfile_path)?;
 
