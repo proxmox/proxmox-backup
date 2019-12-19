@@ -14,13 +14,15 @@ lazy_static! {
 }
 
 const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
+const COMMENT_SCHEMA: Schema = StringSchema::new("Datastore comment").schema();
 const DATASTORE_ID_SCHEMA: Schema = StringSchema::new("DataStore ID schema.")
     .min_length(3)
     .schema();
 const DATASTORE_PROPERTIES: ObjectSchema = ObjectSchema::new(
     "DataStore properties",
     &[
-        ("path", false, &DIR_NAME_SCHEMA)
+        ("comment", true, &COMMENT_SCHEMA),
+        ("path", false, &DIR_NAME_SCHEMA),
     ]
 );
 

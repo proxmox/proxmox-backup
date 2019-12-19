@@ -32,6 +32,7 @@ pub const POST: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Create new datastore.",
         &[
+            ("comment", true, &StringSchema::new("Comment for this Datastore").schema()),
             ("name", false, &DATASTORE_SCHEMA),
             ("path", false, &StringSchema::new("Directory path. The directory path is created if it does not already exist.").schema()),
         ],
@@ -54,6 +55,10 @@ fn create_datastore(
         bail!("datastore '{}' already exists.", name);
     }
 
+    if param["comment"].as_str().unwrap().find(|c: char| c.is_control()) != None {
+        bail!("comment must not contain control characters!");
+    }
+
     let path: PathBuf = param["path"].as_str().unwrap().into();
     let backup_user = crate::backup::backup_user()?;
     let _store = ChunkStore::create(
@@ -65,7 +70,8 @@ fn create_datastore(
     )?;
 
     let datastore = json!({
-        "path": param["path"]
+        "path": param["path"],
+        "comment": param["comment"],
     });
 
     config.set_data(name, "datastore", datastore);

@@ -111,8 +111,6 @@ Ext.define('PBS.DataStoreInputPanel', {
     onGetValues: function(values) {
 	var me = this;
 
-	delete values.comment;
-
 	return values;
     },
 
@@ -139,8 +137,7 @@ Ext.define('PBS.DataStoreInputPanel', {
 	{
 	    xtype: 'textfield',
 	    name: 'comment',
-	    emptyText: 'Not yet submitted...',
-	    fieldLabel: gettext('Comment')
+	    fieldLabel: gettext('Comment'),
 	},
     ],
 });
