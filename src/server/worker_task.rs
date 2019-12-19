@@ -439,7 +439,7 @@ impl WorkerTask {
         let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
         let upid_str = worker.upid.to_string();
 
-        let _child = std::thread::spawn(move || {
+        let _child = std::thread::Builder::new().name(upid_str.clone()).spawn(move || {
             let worker1 = worker.clone();
             let result = match std::panic::catch_unwind(move || f(worker1)) {
                 Ok(r) => r,
