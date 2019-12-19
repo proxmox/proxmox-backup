@@ -165,6 +165,7 @@ impl Reloader {
     fn do_exec(self, exe: CString, args: Vec<CString>) -> Result<(), Error> {
         self.pre_exec()?;
         nix::unistd::setsid()?;
+        let args: Vec<&std::ffi::CStr> = args.iter().map(|s| s.as_ref()).collect();
         nix::unistd::execvp(&exe, &args)?;
         Ok(())
     }
