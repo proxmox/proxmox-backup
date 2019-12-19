@@ -61,31 +61,29 @@ Ext.define('PBS.DataStoreConfig', {
 		    win.show();
 		}
             },
+	    '-',
 	    gc_btn
 	    //edit_btn, remove_btn
         ];
 
 	Proxmox.Utils.monStoreErrors(me, store);
 
-        Ext.apply(me, {
-            store: store,
-            selModel: sm,
+	Ext.apply(me, {
+	    store: store,
+	    selModel: sm,
 	    tbar: tbar,
-            viewConfig: {
-		trackOver: false
-            },
-            columns: [
-                {
-                    header: gettext('Name'),
+	    columns: [
+		{
+		    header: gettext('Name'),
 		    sortable: true,
 		    dataIndex: 'name',
 		    flex: 1
 		},
 		{
-                   header: gettext('Path'),
+		   header: gettext('Path'),
 		   sortable: true,
 		   dataIndex: 'path',
-		    flex: 1
+		   flex: 1
 		},
 		{
 		    header: gettext('Comment'),
@@ -122,6 +120,7 @@ Ext.define('PBS.DataStoreInputPanel', {
 	{
 	    xtype: 'textfield',
 	    name: 'name',
+	    allowBlank: false,
 	    fieldLabel: gettext('Name'),
 	},
     ],
@@ -130,7 +129,9 @@ Ext.define('PBS.DataStoreInputPanel', {
 	{
 	    xtype: 'textfield',
 	    name: 'path',
-	    fieldLabel: gettext('Backing Path')
+	    allowBlank: false,
+	    fieldLabel: gettext('Backing Path'),
+	    emptyText: gettext('An absolute path'),
 	},
     ],
 
