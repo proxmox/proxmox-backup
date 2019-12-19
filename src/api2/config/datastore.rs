@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
+use proxmox::tools::fs::CreateOptions;
 
 use crate::api2::types::*;
 use crate::backup::*;
@@ -34,7 +35,7 @@ pub const POST: ApiMethod = ApiMethod::new(
             ("name", false, &DATASTORE_SCHEMA),
             ("path", false, &StringSchema::new("Directory path. The directory path is created if it does not already exist.").schema()),
         ],
-    )       
+    )
 ).protected(true);
 
 fn create_datastore(
@@ -54,7 +55,14 @@ fn create_datastore(
     }
 
     let path: PathBuf = param["path"].as_str().unwrap().into();
-    let _store = ChunkStore::create(name, path)?;
+    let backup_user = crate::backup::backup_user()?;
+    let _store = ChunkStore::create(
+        name,
+        path,
+        CreateOptions::new()
+            .owner(backup_user.uid)
+            .group(backup_user.gid),
+    )?;
 
     let datastore = json!({
         "path": param["path"]

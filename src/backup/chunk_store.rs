@@ -85,7 +85,10 @@ impl ChunkStore {
         chunk_dir
     }
 
-    pub fn create<P: Into<PathBuf>>(name: &str, path: P) -> Result<Self, Error> {
+    pub fn create<P>(name: &str, path: P, options: CreateOptions) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+    {
 
         let base: PathBuf = path.into();
 
@@ -94,12 +97,6 @@ impl ChunkStore {
         }
 
         let chunk_dir = Self::chunk_dir(&base);
-
-        let backup_user = crate::backup::backup_user()?;
-
-        let options = CreateOptions::new()
-            .owner(backup_user.uid)
-            .group(backup_user.gid);
 
         let default_options = CreateOptions::new();
 
@@ -464,7 +461,7 @@ fn test_chunk_store1() {
     let chunk_store = ChunkStore::open("test", &path);
     assert!(chunk_store.is_err());
 
-    let chunk_store = ChunkStore::create("test", &path).unwrap();
+    let chunk_store = ChunkStore::create("test", &path, CreateOptions::new()).unwrap();
 
     let (chunk, digest) = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
 
@@ -475,7 +472,7 @@ fn test_chunk_store1() {
     assert!(exists);
 
 
-    let chunk_store = ChunkStore::create("test", &path);
+    let chunk_store = ChunkStore::create("test", &path, CreateOptions::new());
     assert!(chunk_store.is_err());
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }
