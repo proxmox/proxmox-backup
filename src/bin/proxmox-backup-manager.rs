@@ -1,5 +1,5 @@
 use failure::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*};
 
@@ -26,6 +26,20 @@ async fn view_task_result(
     }
 
     Ok(())
+}
+
+fn connect() -> Result<HttpClient, Error> {
+
+    let uid = nix::unistd::Uid::current();
+
+    let client = if uid.is_root()  {
+        let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some("root@pam"), None)?;
+        HttpClient::new("localhost", "root@pam", Some(ticket))?
+    } else {
+        HttpClient::new("localhost", "root@pam", None)?
+    };
+
+    Ok(client)
 }
 
 fn datastore_commands() -> CommandLineInterface {
@@ -68,14 +82,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
-    let uid = nix::unistd::Uid::current();
-
-    let mut client = if uid.is_root()  {
-        let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some("root@pam"), None)?;
-        HttpClient::new("localhost", "root@pam", Some(ticket))?
-    } else {
-        HttpClient::new("localhost", "root@pam", None)?
-    };
+    let mut client = connect()?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
@@ -106,14 +113,7 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
-    let uid = nix::unistd::Uid::current();
-
-    let client = if uid.is_root()  {
-        let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some("root@pam"), None)?;
-        HttpClient::new("localhost", "root@pam", Some(ticket))?
-    } else {
-        HttpClient::new("localhost", "root@pam", None)?
-    };
+    let client = connect()?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
@@ -145,11 +145,127 @@ fn garbage_collection_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+#[api(
+    input: {
+        properties: {
+            limit: {
+                description: "The maximal number of tasks to list.",
+                type: Integer,
+                optional: true,
+                minimum: 1,
+                maximum: 1000,
+                default: 50,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            all: {
+                type: Boolean,
+                description: "Also list stopped tasks.",
+                optional: true,
+            }
+        }
+    }
+)]
+/// List running server tasks.
+async fn task_list(param: Value) -> Result<Value, Error> {
+
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let client = connect()?;
+
+    let limit = param["limit"].as_u64().unwrap_or(50) as usize;
+    let running = !param["all"].as_bool().unwrap_or(false);
+    let args = json!({
+        "running": running,
+        "start": 0,
+        "limit": limit,
+    });
+    let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
+
+    let data = &result["data"];
+
+    if output_format == "text" {
+        for item in data.as_array().unwrap() {
+            println!(
+                "{} {}",
+                item["upid"].as_str().unwrap(),
+                item["status"].as_str().unwrap_or("running"),
+            );
+        }
+    } else {
+        format_and_print_result(data, &output_format);
+    }
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+        }
+    }
+)]
+/// Display the task log.
+async fn task_log(param: Value) -> Result<Value, Error> {
+
+    let upid = tools::required_string_param(&param, "upid")?;
+
+    let client = connect()?;
+
+    display_task_log(client, upid, true).await?;
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+        }
+    }
+)]
+/// Try to stop a specific task.
+async fn task_stop(param: Value) -> Result<Value, Error> {
+
+    let upid_str = tools::required_string_param(&param, "upid")?;
+
+    let mut client = connect()?;
+
+    let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
+    let _ = client.delete(&path, None).await?;
+
+    Ok(Value::Null)
+}
+
+fn task_mgmt_cli() -> CommandLineInterface {
+
+    let task_log_cmd_def = CliCommand::new(&API_METHOD_TASK_LOG)
+        .arg_param(&["upid"]);
+
+    let task_stop_cmd_def = CliCommand::new(&API_METHOD_TASK_STOP)
+        .arg_param(&["upid"]);
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&API_METHOD_TASK_LIST))
+        .insert("log", task_log_cmd_def)
+        .insert("stop", task_stop_cmd_def);
+
+    cmd_def.into()
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("datastore", datastore_commands())
-        .insert("garbage-collection", garbage_collection_commands());
+        .insert("garbage-collection", garbage_collection_commands())
+        .insert("task", task_mgmt_cli());
 
     run_cli_command(cmd_def);
 }
