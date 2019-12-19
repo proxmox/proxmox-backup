@@ -632,14 +632,18 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
-   input: {
+    input: {
         properties: {
             repository: {
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
-        }
-   }
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
 )]
 /// Start garbage collection for a specific repository.
 async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
