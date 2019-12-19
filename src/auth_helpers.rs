@@ -97,7 +97,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
 
     use nix::sys::stat::Mode;
 
-    let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+    let backup_user = crate::backup::backup_user()?;
 
     replace_file(
         &path,
@@ -105,7 +105,7 @@ pub fn generate_csrf_key() -> Result<(), Error> {
         CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)
-            .group(nix::unistd::Gid::from_raw(backup_gid)),
+            .group(backup_user.gid),
     )?;
 
     Ok(())
@@ -131,7 +131,7 @@ pub fn generate_auth_key() -> Result<(), Error> {
 
     let public_pem = rsa.public_key_to_pem()?;
 
-    let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+    let backup_user = crate::backup::backup_user()?;
 
     replace_file(
         &public_path,
@@ -139,7 +139,7 @@ pub fn generate_auth_key() -> Result<(), Error> {
         CreateOptions::new()
             .perm(Mode::from_bits_truncate(0o0640))
             .owner(nix::unistd::ROOT)
-            .group(nix::unistd::Gid::from_raw(backup_gid)),
+            .group(backup_user.gid),
     )?;
 
     Ok(())

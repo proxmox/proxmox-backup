@@ -103,6 +103,8 @@
 //!
 //! Not sure if this is better. TODO
 
+use failure::*;
+
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";
 
@@ -114,6 +116,17 @@ macro_rules! PROXMOX_BACKUP_PROTOCOL_ID_V1 {
 #[macro_export]
 macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
     () =>  { "proxmox-backup-reader-protocol-v1" }
+}
+
+/// Unix system user used by proxmox-backup-proxy
+pub const BACKUP_USER_NAME: &str = "backup";
+
+/// Return User info for the 'backup' user (``getpwnam_r(3)``)
+pub fn backup_user() -> Result<nix::unistd::User, Error> {
+    match nix::unistd::User::from_name(BACKUP_USER_NAME)? {
+        Some(user) => Ok(user),
+        None => bail!("Unable to lookup backup user."),
+    }
 }
 
 mod file_formats;

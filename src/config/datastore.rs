@@ -58,15 +58,14 @@ pub fn config() -> Result<SectionConfigData, Error> {
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(DATASTORE_CFG_FILENAME, &config)?;
 
-    let (_, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-    let gid = nix::unistd::Gid::from_raw(backup_gid);
+    let backup_user = crate::backup::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
     // set the correct owner/group/permissions while saving file
     // owner(rw) = root, group(r)= backup
     let options = CreateOptions::new()
         .perm(mode)
         .owner(nix::unistd::ROOT)
-        .group(gid);
+        .group(backup_user.gid);
 
     replace_file(DATASTORE_CFG_FILENAME, raw.as_bytes(), options)?;
 

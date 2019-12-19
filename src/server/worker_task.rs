@@ -132,10 +132,10 @@ fn parse_worker_status_line(line: &str) -> Result<(String, UPID, Option<(i64, St
 pub fn create_task_log_dirs() -> Result<(), Error> {
 
     try_block!({
-        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+        let backup_user = crate::backup::backup_user()?;
         let opts = CreateOptions::new()
-            .owner(nix::unistd::Uid::from_raw(backup_uid))
-            .group(nix::unistd::Gid::from_raw(backup_gid));
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
 
         create_path(PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
         create_path(PROXMOX_BACKUP_TASK_DIR, None, Some(opts.clone()))?;
@@ -201,12 +201,10 @@ pub struct TaskListInfo {
 // Returns a sorted list of known tasks,
 fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, Error> {
 
-    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-    let uid = nix::unistd::Uid::from_raw(backup_uid);
-    let gid = nix::unistd::Gid::from_raw(backup_gid);
+    let backup_user = crate::backup::backup_user()?;
 
     let lock = crate::tools::open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0))?;
-    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(uid), Some(gid))?;
+    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
 
     let reader = match File::open(PROXMOX_BACKUP_ACTIVE_TASK_FN) {
         Ok(f) => Some(BufReader::new(f)),
@@ -305,8 +303,8 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
         PROXMOX_BACKUP_ACTIVE_TASK_FN,
         raw.as_bytes(),
         CreateOptions::new()
-            .owner(uid)
-            .group(gid),
+            .owner(backup_user.uid)
+            .group(backup_user.gid),
     )?;
 
     drop(lock);
@@ -367,18 +365,16 @@ impl WorkerTask {
 
         path.push(format!("{:02X}", upid.pstart % 256));
 
-        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-        let uid = nix::unistd::Uid::from_raw(backup_uid);
-        let gid = nix::unistd::Gid::from_raw(backup_gid);
+        let backup_user = crate::backup::backup_user()?;
 
-        create_path(&path, None, Some(CreateOptions::new().owner(uid).group(gid)))?;
+        create_path(&path, None, Some(CreateOptions::new().owner(backup_user.uid).group(backup_user.gid)))?;
 
         path.push(upid.to_string());
 
         println!("FILE: {:?}", path);
 
         let logger = FileLogger::new(&path, to_stdout)?;
-        nix::unistd::chown(&path, Some(uid), Some(gid))?;
+        nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
 
         update_active_workers(Some(&upid))?;
 

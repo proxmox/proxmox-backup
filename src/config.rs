@@ -18,7 +18,10 @@ pub mod datastore;
 /// * nobody else can read (mode 0700)
 pub fn check_configdir_permissions() -> Result<(), Error> {
     let cfgdir = buildcfg::CONFIGDIR;
-    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
+
+    let backup_user = crate::backup::backup_user()?;
+    let backup_uid = backup_user.uid.as_raw();
+    let backup_gid = backup_user.gid.as_raw();
 
     try_block!({
         let stat = nix::sys::stat::stat(cfgdir)?;
@@ -49,7 +52,6 @@ pub fn create_configdir() -> Result<(), Error> {
     use nix::sys::stat::Mode;
 
     let cfgdir = buildcfg::CONFIGDIR;
-    let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
 
     match nix::unistd::mkdir(cfgdir, Mode::from_bits_truncate(0o700)) {
         Ok(()) => {}
@@ -64,19 +66,14 @@ pub fn create_configdir() -> Result<(), Error> {
         ),
     }
 
-    try_block!({
-        let uid = nix::unistd::Uid::from_raw(backup_uid);
-        let gid = nix::unistd::Gid::from_raw(backup_gid);
+    let backup_user = crate::backup::backup_user()?;
 
-        nix::unistd::chown(cfgdir, Some(uid), Some(gid))?;
-
-        Ok(())
-    })
-    .map_err(|err: Error| {
-        format_err!(
-            "unable to set configuration directory '{}' permissions - {}",
-            cfgdir,
-            err
-        )
-    })
+    nix::unistd::chown(cfgdir, Some(backup_user.uid), Some(backup_user.gid))
+        .map_err(|err| {
+            format_err!(
+                "unable to set configuration directory '{}' permissions - {}",
+                cfgdir,
+                err
+            )
+        })
 }

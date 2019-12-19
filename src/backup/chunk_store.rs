@@ -95,13 +95,11 @@ impl ChunkStore {
 
         let chunk_dir = Self::chunk_dir(&base);
 
-        let (backup_uid, backup_gid) = crate::tools::getpwnam_ugid("backup")?;
-        let uid = nix::unistd::Uid::from_raw(backup_uid);
-        let gid = nix::unistd::Gid::from_raw(backup_gid);
+        let backup_user = crate::backup::backup_user()?;
 
         let options = CreateOptions::new()
-            .owner(uid)
-            .group(gid);
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
 
         let default_options = CreateOptions::new();
 

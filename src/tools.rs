@@ -199,19 +199,6 @@ where
     Ok(())
 }
 
-/// Returns the Unix uid/gid for the sepcified system user.
-pub fn getpwnam_ugid(username: &str) -> Result<(libc::uid_t, libc::gid_t), Error> {
-    let c_username = std::ffi::CString::new(username).unwrap();
-    let info = unsafe { libc::getpwnam(c_username.as_ptr()) };
-    if info.is_null() {
-        bail!("getpwnam '{}' failed", username);
-    }
-
-    let info = unsafe { *info };
-
-    Ok((info.pw_uid, info.pw_gid))
-}
-
 pub fn json_object_to_query(data: Value) -> Result<String, Error> {
     let mut query = url::form_urlencoded::Serializer::new(String::new());
 
