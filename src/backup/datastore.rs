@@ -269,11 +269,18 @@ impl DataStore {
             worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
             worker.log(&format!("Original data bytes: {}", gc_status.index_data_bytes));
-            let comp_per = (gc_status.disk_bytes*100)/gc_status.index_data_bytes;
-            worker.log(&format!("Disk bytes: {} ({} %)", gc_status.disk_bytes, comp_per));
+
+            if gc_status.index_data_bytes > 0 {
+                let comp_per = (gc_status.disk_bytes*100)/gc_status.index_data_bytes;
+                worker.log(&format!("Disk bytes: {} ({} %)", gc_status.disk_bytes, comp_per));
+            }
+
             worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
-            let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
-            worker.log(&format!("Average chunk size: {}", avg_chunk));
+
+            if gc_status.disk_chunks > 0 {
+                let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
+                worker.log(&format!("Average chunk size: {}", avg_chunk));
+            }
 
             *self.last_gc_status.lock().unwrap() = gc_status;
 
