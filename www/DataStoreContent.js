@@ -13,6 +13,32 @@ Ext.define('PBS.DataStoreContent', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsDataStoreContent',
 
+    controller: {
+	xclass: 'Ext.app.ViewController',
+
+	init: function(view) {
+	    if (!view.datastore) {
+		throw "no datastore specified";
+	    }
+
+	    view.title = gettext('Data Store Content: ') + view.datastore;
+
+	    Proxmox.Utils.monStoreErrors(view, view.store, true);
+	    this.reload(); // initial load
+	},
+
+	reload: function() {
+	    var view = this.getView();
+
+	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
+	    view.store.setProxy({
+		type: 'proxmox',
+		url:  url
+	    });
+	    view.store.load();
+	},
+    },
+
     columns: [
 	{
 	    header: gettext('Type'),
@@ -42,32 +68,16 @@ Ext.define('PBS.DataStoreContent', {
 	},
     ],
 
+    tbar: [
+	{
+	    text: gettext('Reload'),
+	    iconCls: 'fa fa-refresh',
+	    handler: 'reload',
+	},
+    ],
+
     store: {
 	model: 'pbs-data-store-content',
 	sorters: 'name',
     },
-
-    reload: function() {
-	let url = `/api2/json/admin/datastore/${this.datastore}/snapshots`;
-	this.store.setProxy({
-	    type: 'proxmox',
-	    url: url
-	});
-	this.store.load();
-    },
-
-    initComponent : function() {
-        var me = this;
-
-	if (!me.datastore) {
-	    throw "no datastore specified";
-	}
-
-	me.title = gettext('Data Store Content: ') + me.datastore;
-
-	me.callParent();
-
-	Proxmox.Utils.monStoreErrors(me, me.store, true);
-	me.reload(); // initial load
-    }
 });
