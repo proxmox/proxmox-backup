@@ -7,6 +7,42 @@ Ext.define('PBS.DataStoreContent', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsDataStoreContent',
 
+    columns: [
+	{
+	    header: gettext('Type'),
+	    sortable: true,
+	    dataIndex: 'backup-type',
+	    flex: 1
+	},
+	{
+	    header: gettext('ID'),
+	    sortable: true,
+	    dataIndex: 'backup-id',
+	    flex: 1
+	},
+	{
+	    header: gettext('Time'),
+	    sortable: true,
+	    dataIndex: 'backup-time',
+	    renderer: Proxmox.Utils.render_timestamp,
+	    flex: 1
+	},
+    ],
+
+    store: {
+	model: 'pbs-data-store-content',
+	sorters: 'name',
+    },
+
+    reload: function() {
+	let url = `/api2/json/admin/datastore/${this.datastore}/snapshots`;
+	this.store.setProxy({
+	    type: 'proxmox',
+	    url: url
+	});
+	this.store.load();
+    },
+
     initComponent : function() {
         var me = this;
 
@@ -14,50 +50,11 @@ Ext.define('PBS.DataStoreContent', {
 	    throw "no datastore specified";
 	}
 
-	me.title =  gettext('Data Store Content: ') + me.datastore;
-
-	var store = new Ext.data.Store({
-	    model: 'pbs-data-store-content',
-	    sorters: 'name',
-	});
-
-	var reload = function() {
-	    var url = '/api2/json/admin/datastore/' + me.datastore + '/snapshots';
-	    me.store.setProxy({
-		type: 'proxmox',
-		url: url
-	    });
-            me.store.load();
-        };
-
-
-	Ext.apply(me, {
-	    store: store,
-	    columns: [
-		{
-		    header: gettext('Type'),
-		    sortable: true,
-		    dataIndex: 'backup-type',
-		    flex: 1
-		},
-		{
-		    header: gettext('ID'),
-		    sortable: true,
-		    dataIndex: 'backup-id',
-		    flex: 1
-		},
-		{
-		    header: gettext('Time'),
-		    sortable: true,
-		    dataIndex: 'backup-time',
-		    renderer: Proxmox.Utils.render_timestamp,
-		    flex: 1
-		}
-	    ],
-	});
+	me.title = gettext('Data Store Content: ') + me.datastore;
 
 	me.callParent();
 
-	reload();
+	Proxmox.Utils.monStoreErrors(me, me.store, true);
+	me.reload(); // initial load
     }
 });
