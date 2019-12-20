@@ -85,7 +85,7 @@ impl ChunkStore {
         chunk_dir
     }
 
-    pub fn create<P>(name: &str, path: P, user: nix::unistd::User) -> Result<Self, Error>
+    pub fn create<P>(name: &str, path: P, uid: nix::unistd::Uid, gid: nix::unistd::Gid) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
     {
@@ -99,8 +99,8 @@ impl ChunkStore {
         let chunk_dir = Self::chunk_dir(&base);
 
         let options = CreateOptions::new()
-            .owner(user.uid)
-            .group(user.gid);
+            .owner(uid)
+            .group(gid);
 
         let default_options = CreateOptions::new();
 
@@ -465,7 +465,8 @@ fn test_chunk_store1() {
     let chunk_store = ChunkStore::open("test", &path);
     assert!(chunk_store.is_err());
 
-    let chunk_store = ChunkStore::create("test", &path, CreateOptions::new()).unwrap();
+    let user = nix::unistd::User::from_uid(nix::unistd::Uid::current()).unwrap().unwrap();
+    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid).unwrap();
 
     let (chunk, digest) = super::DataChunkBuilder::new(&[0u8, 1u8]).build().unwrap();
 
@@ -476,7 +477,7 @@ fn test_chunk_store1() {
     assert!(exists);
 
 
-    let chunk_store = ChunkStore::create("test", &path, CreateOptions::new());
+    let chunk_store = ChunkStore::create("test", &path, user.uid, user.gid);
     assert!(chunk_store.is_err());
 
     if let Err(_e) = std::fs::remove_dir_all(".testdir") { /* ignore */ }

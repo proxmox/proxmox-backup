@@ -60,7 +60,7 @@ fn create_datastore(
 
     let path: PathBuf = param["path"].as_str().unwrap().into();
     let backup_user = crate::backup::backup_user()?;
-    let _store = ChunkStore::create(name, path, backup_user)?;
+    let _store = ChunkStore::create(name, path, backup_user.uid, backup_user.gid)?;
 
     let datastore = json!({
         "path": param["path"],
