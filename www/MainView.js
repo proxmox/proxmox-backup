@@ -28,35 +28,53 @@ Ext.define('PBS.MainView', {
 
 	    var lastpanel = me.lookupReference('contentpanel').getLayout().getActiveItem();
 	    if (lastpanel && lastpanel.xtype === path) {
-		// we have the right component already,
-		// we just need to select the correct tab
-		// default to the first
-		subpath = subpath || 0;
-		if (lastpanel.getActiveTab) {
-		    // we assume lastpanel is a tabpanel
-		    if (lastpanel.getActiveTab().getItemId() !== subpath) {
-			// set the active tab
-			lastpanel.setActiveTab(subpath);
+		if (path === 'pbsDataStoreContent') {
+		    subpath = subpath || '';
+		    if (subpath === lastpanel.datastore) {
+			action.stop();
+			return;
 		    }
-		    // else we are already there
+		} else {
+		    // we have the right component already,
+		    // we just need to select the correct tab
+		    // default to the first
+		    subpath = subpath || 0;
+		    if (lastpanel.getActiveTab) {
+			// we assume lastpanel is a tabpanel
+			if (lastpanel.getActiveTab().getItemId() !== subpath) {
+			    // set the active tab
+			    lastpanel.setActiveTab(subpath);
+			}
+			// else we are already there
+		    }
+		    action.stop();
+		    return;
 		}
-		action.stop();
-		return;
 	    }
 
 	    action.resume();
 	},
 
-	changePath: function(path,subpath) {
+	changePath: function(path, subpath) {
 	    var me = this;
 	    var contentpanel = me.lookupReference('contentpanel');
 	    var lastpanel = contentpanel.getLayout().getActiveItem();
 
-	    var obj = contentpanel.add({ xtype: path });
+	    var obj;
+	    if (path === 'pbsDataStoreContent') {
+		obj = contentpanel.add({ xtype: path, datastore: subpath, border: false });
+	    } else {
+		obj = contentpanel.add({ xtype: path, border: false });
+	    }
+
 	    var treelist = me.lookupReference('navtree');
 
 	    treelist.suspendEvents();
-	    treelist.select(path);
+	    if (subpath === undefined) {
+		treelist.select(path);
+	    } else {
+		treelist.select(path + ':' + subpath);
+	    }
 	    treelist.resumeEvents();
 
 	    if (Ext.isFunction(obj.setActiveTab)) {
@@ -224,5 +242,3 @@ Ext.define('PBS.MainView', {
 	}
     ]
 });
-
-

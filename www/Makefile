@@ -12,6 +12,7 @@ JSSRC=							\
 	SystemConfiguration.js				\
 	Subscription.js					\
 	DataStoreConfig.js				\
+	DataStoreContent.js				\
 	ServerAdministration.js				\
 	Dashboard.js					\
 	NavigationTree.js				\
