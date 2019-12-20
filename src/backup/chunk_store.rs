@@ -85,7 +85,7 @@ impl ChunkStore {
         chunk_dir
     }
 
-    pub fn create<P>(name: &str, path: P, options: CreateOptions) -> Result<Self, Error>
+    pub fn create<P>(name: &str, path: P, user: nix::unistd::User) -> Result<Self, Error>
     where
         P: Into<PathBuf>,
     {
@@ -97,6 +97,10 @@ impl ChunkStore {
         }
 
         let chunk_dir = Self::chunk_dir(&base);
+
+        let options = CreateOptions::new()
+            .owner(user.uid)
+            .group(user.gid);
 
         let default_options = CreateOptions::new();
 
