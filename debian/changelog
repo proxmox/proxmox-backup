@@ -1,3 +1,11 @@
+proxmox-backup (0.1.0) unstable; urgency=medium
+
+  * proper packaging of build-dependencies
+
+  * cleanup packaging
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 20 Dec 2019 09:30:06 +0100
+
 proxmox-backup (0.1-1) unstable; urgency=medium
 
   [ Proxmox Support Team ]

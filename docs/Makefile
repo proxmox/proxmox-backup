@@ -94,7 +94,7 @@ install_manual_pages: ${MANUAL_PAGES}
 
 install_html: html
 	install -dm755 $(DESTDIR)$(DOCDIR)
-	rsync -a output/html $(DESTDIR)$(DOCDIR)
+	rsync -a ${BUILDDIR}/html $(DESTDIR)$(DOCDIR)
 
 install_pdf: latexpdf
 	install -dm755 $(DESTDIR)$(DOCDIR)

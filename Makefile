@@ -1,7 +1,8 @@
+include /usr/share/dpkg/default.mk
 include defines.mk
 
-ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
-GITVERSION:=$(shell git rev-parse HEAD)
+PACKAGE := $(DEB_SOURCE)
+ARCH := $(DEB_BUILD_ARCH)
 
 SUBDIRS := etc www docs
 
@@ -29,12 +30,16 @@ ifeq ($(valgrind), yes)
 CARGO_BUILD_ARGS += --features valgrind
 endif
 
+CARGO ?= cargo
+
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 
-DEBS= ${PACKAGE}-server_${PKGVER}-${PKGREL}_${ARCH}.deb ${PACKAGE}-client_${PKGVER}-${PKGREL}_${ARCH}.deb
+DEBS= ${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb ${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
 
-DOC_DEB=${PACKAGE}-docs_${PKGVER}-${PKGREL}_all.deb
+DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
+
+DSC = ${PACKAGE}_${DEB_VERSION}.dsc
 
 DESTDIR=
 
@@ -47,20 +52,18 @@ $(SUBDIRS):
 test:
 	#cargo test test_broadcast_future
 	#cargo test $(CARGO_BUILD_ARGS)
-	cargo test $(tests) $(CARGO_BUILD_ARGS)
+	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
 
 doc:
-	cargo doc --no-deps $(CARGO_BUILD_ARGS)
+	$(CARGO) doc --no-deps $(CARGO_BUILD_ARGS)
 
 # always re-create this dir
-# but also copy the local target/ dir as a build-cache
 .PHONY: build
 build:
 	rm -rf build
-	cargo build --release --lib
-	rsync -a debian Makefile defines.mk Cargo.toml Cargo.lock \
+	rsync -a debian Makefile defines.mk Cargo.toml \
 	    src $(SUBDIRS) \
-	    target tests build/
+	    tests build/
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
 
@@ -70,6 +73,7 @@ $(DOC_DEB): build
 	cd build; dpkg-buildpackage -b -us -uc --no-pre-clean
 	lintian $(DOC_DEB)
 
+# copy the local target/ dir as a build-cache
 .PHONY: deb
 deb: $(DEBS)
 $(DEBS): build
@@ -87,7 +91,7 @@ distclean: clean
 clean:
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C $(i) clean ;)
-	cargo clean
+	$(CARGO) clean
 	rm -rf *.deb *.dsc *.tar.gz *.buildinfo *.changes build
 	find . -name '*~' -exec rm {} ';'
 
@@ -100,7 +104,7 @@ docs: cargo-build
 
 .PHONY: cargo-build
 cargo-build:
-	cargo build $(CARGO_BUILD_ARGS)
+	$(CARGO) build $(CARGO_BUILD_ARGS)
 
 $(COMPILED_BINS): cargo-build
 
