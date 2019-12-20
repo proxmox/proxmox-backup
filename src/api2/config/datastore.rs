@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use failure::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
@@ -54,20 +54,21 @@ fn create_datastore(
         bail!("datastore '{}' already exists.", name);
     }
 
-    if param["comment"].as_str().unwrap().find(|c: char| c.is_control()) != None {
-        bail!("comment must not contain control characters!");
-    }
-
     let path: PathBuf = param["path"].as_str().unwrap().into();
     let backup_user = crate::backup::backup_user()?;
     let _store = ChunkStore::create(name, path, backup_user.uid, backup_user.gid)?;
 
-    let datastore = json!({
-        "path": param["path"],
-        "comment": param["comment"],
-    });
+    let mut datastore = serde_json::Map::new();
+    datastore.insert("path".to_string(), param["path"].clone());
+    if let Some(comment) = param.get("comment") {
+        if comment.as_str().unwrap().find(|c: char| c.is_control()).is_some() {
+            bail!("comment must not contain control characters!");
+        }
 
-    config.set_data(name, "datastore", datastore);
+        datastore.insert("comment".to_string(), comment.clone());
+    }
+
+    config.set_data(name, "datastore", Value::Object(datastore));
 
     datastore::save_config(&config)?;
 
