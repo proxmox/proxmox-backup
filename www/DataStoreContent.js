@@ -50,6 +50,7 @@ Ext.define('PBS.DataStoreContent', {
 		    header: gettext('Time'),
 		    sortable: true,
 		    dataIndex: 'backup-time',
+		    renderer: Proxmox.Utils.render_timestamp,
 		    flex: 1
 		}
 	    ],
