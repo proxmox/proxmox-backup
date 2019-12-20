@@ -1,6 +1,12 @@
 Ext.define('pbs-data-store-content', {
     extend: 'Ext.data.Model',
-    fields: [ 'snapshot' ],
+    fields: [
+	'backup-id',
+	'backup-time',
+	'backup-type',
+	'files',
+	{ name: 'size', type: 'int', defaultValue: 0 },
+    ],
 });
 
 Ext.define('PBS.DataStoreContent', {
@@ -25,6 +31,13 @@ Ext.define('PBS.DataStoreContent', {
 	    sortable: true,
 	    dataIndex: 'backup-time',
 	    renderer: Proxmox.Utils.render_timestamp,
+	    flex: 1
+	},
+	{
+	    header: gettext('Size'),
+	    sortable: true,
+	    dataIndex: 'size',
+	    renderer: Proxmox.Utils.format_size,
 	    flex: 1
 	},
     ],
