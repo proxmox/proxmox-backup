@@ -87,7 +87,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		    list.appendChild({
 			text: name,
 			path: 'pbsDataStoreContent:' + name,
-			iconCls: 'fa fa-hdd-o',
+			iconCls: 'fa fa-database',
 			leaf: true
 		    });
 		}
