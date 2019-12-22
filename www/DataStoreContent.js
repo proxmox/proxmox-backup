@@ -100,6 +100,15 @@ Ext.define('PBS.DataStoreContent', {
 		},
 	    ],
 
+	    plugins: [{
+		ptype: 'rowexpander',
+		rowBodyTpl: new Ext.XTemplate(
+		    '<tpl for="files">',
+		    '<p>{.}</p>',
+		    '</tpl>'
+		),
+	    }],
+
 	    tbar: [
 		{
 		    text: gettext('Reload'),
