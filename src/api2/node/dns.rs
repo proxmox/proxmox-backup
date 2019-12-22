@@ -16,7 +16,7 @@ use crate::api2::types::*;
 
 static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 
-fn read_etc_resolv_conf() -> Result<Value, Error> {
+pub fn read_etc_resolv_conf() -> Result<Value, Error> {
 
     let mut result = json!({});
 

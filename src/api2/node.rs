@@ -4,7 +4,7 @@ use proxmox::api::list_subdirs_api_method;
 mod tasks;
 mod time;
 mod network;
-mod dns;
+pub mod dns;
 mod syslog;
 mod journal;
 mod services;
