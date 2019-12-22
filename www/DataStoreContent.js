@@ -67,7 +67,7 @@ Ext.define('PBS.DataStoreContent', {
 	    } else if (btype === 'host') {
 		cls = 'fa-building';
 	    } else {
-		return value;
+		return btype + '/' + value;
 	    }
 	    var fa = '<i class="fa fa-fw x-grid-icon-custom ' + cls  + '"></i> ';
 	    return fa + value;
