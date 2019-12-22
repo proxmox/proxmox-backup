@@ -1,17 +1,32 @@
 Ext.define('pbs-data-store-content', {
     extend: 'Ext.data.Model',
     fields: [
-	'backup-id',
-	'backup-time',
 	'backup-type',
+	'backup-id',
+	{
+	    name: 'last-backup',
+	    type: 'date',
+	    dateFormat: 'timestamp'
+	},
 	'files',
-	{ name: 'size', type: 'int', defaultValue: 0 },
+	{ name: 'backup-count', type: 'int' },
+	{
+	    name: 'backup-group',
+	    calculate: function (data) {
+		return data["backup-type"] + '/' + data["backup-id"];
+	    }
+	},
     ],
 });
 
 Ext.define('PBS.DataStoreContent', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsDataStoreContent',
+
+    store: {
+	model: 'pbs-data-store-content',
+	sorters: 'backup-group',
+    },
 
     controller: {
 	xclass: 'Ext.app.ViewController',
@@ -30,7 +45,7 @@ Ext.define('PBS.DataStoreContent', {
 	reload: function() {
 	    var view = this.getView();
 
-	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
+	    let url = `/api2/json/admin/datastore/${view.datastore}/groups`;
 	    view.store.setProxy({
 		type: 'proxmox',
 		url:  url
@@ -39,45 +54,61 @@ Ext.define('PBS.DataStoreContent', {
 	},
     },
 
-    columns: [
-	{
-	    header: gettext('Type'),
-	    sortable: true,
-	    dataIndex: 'backup-type',
-	    flex: 1
-	},
-	{
-	    header: gettext('ID'),
-	    sortable: true,
-	    dataIndex: 'backup-id',
-	    flex: 1
-	},
-	{
-	    header: gettext('Time'),
-	    sortable: true,
-	    dataIndex: 'backup-time',
-	    renderer: Proxmox.Utils.render_timestamp,
-	    flex: 1
-	},
-	{
-	    header: gettext('Size'),
-	    sortable: true,
-	    dataIndex: 'size',
-	    renderer: Proxmox.Utils.format_size,
-	    flex: 1
-	},
-    ],
+    initComponent: function() {
+	var me = this;
 
-    tbar: [
-	{
-	    text: gettext('Reload'),
-	    iconCls: 'fa fa-refresh',
-	    handler: 'reload',
-	},
-    ],
+	var render_backup_type = function(value, metaData, record) {
+	    var btype = record.data["backup-type"];
+	    var cls = '';
+	    if (btype === 'vm') {
+		cls = 'fa-desktop';
+	    } else if (btype === 'ct') {
+		cls = 'fa-cube';
+	    } else if (btype === 'host') {
+		cls = 'fa-building';
+	    } else {
+		return value;
+	    }
+	    var fa = '<i class="fa fa-fw x-grid-icon-custom ' + cls  + '"></i> ';
+	    return fa + value;
+	};
 
-    store: {
-	model: 'pbs-data-store-content',
-	sorters: 'name',
+	Ext.apply(me, {
+	    columns: [
+		{
+		    header: gettext('Backup'),
+		    sortable: true,
+		    renderer: render_backup_type,
+		    dataIndex: 'backup-id',
+		    flex: 1
+		},
+		{
+		    xtype: 'datecolumn',
+		    header: gettext('Last Backup'),
+		    sortable: true,
+		    dataIndex: 'last-backup',
+		    format: 'Y-m-d H:i:s',
+		    flex: 1
+		},
+		{
+		    xtype: 'numbercolumn',
+		    format: '0',
+		    header: gettext('Nuber of backups'),
+		    sortable: true,
+		    dataIndex: 'backup-count',
+		    flex: 1
+		},
+	    ],
+
+	    tbar: [
+		{
+		    text: gettext('Reload'),
+		    iconCls: 'fa fa-refresh',
+		    handler: 'reload',
+		},
+	    ],
+	});
+
+	me.callParent();
     },
 });
