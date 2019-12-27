@@ -299,10 +299,8 @@ impl HttpClient {
         let status = resp.status();
 
         if status != http::StatusCode::SWITCHING_PROTOCOLS {
-            Self::api_response(resp)
-                .map(|_| Err(format_err!("unknown error")))
-                .await?;
-            unreachable!();
+            Self::api_response(resp).await?;
+            bail!("unknown error");
         }
 
         let upgraded = resp
