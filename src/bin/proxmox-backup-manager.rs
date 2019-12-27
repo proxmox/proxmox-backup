@@ -1,15 +1,12 @@
 use failure::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use nix::sys::stat::Mode;
 
-use proxmox::tools::fs::{CreateOptions, replace_file};
 use proxmox::api::{api, cli::*};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
 use proxmox_backup::config;
-use proxmox_backup::backup::*;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
@@ -332,8 +329,6 @@ fn cert_info() -> Result<(), Error> {
 /// Update node certificates and generate all needed files/directories.
 fn update_certs(force: Option<bool>) -> Result<(), Error> {
 
-    let backup_user = backup_user()?;
-
     config::create_configdir()?;
 
     if let Err(err) = generate_auth_key() {
@@ -344,115 +339,7 @@ fn update_certs(force: Option<bool>) -> Result<(), Error> {
         bail!("unable to generate csrf key - {}", err);
     }
 
-    //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes
-    let key_path = PathBuf::from(configdir!("/proxy.key"));
-    let cert_path = PathBuf::from(configdir!("/proxy.pem"));
-
-    if key_path.exists() && cert_path.exists() && !force.unwrap_or(false) { return Ok(()); }
-
-    use openssl::rsa::{Rsa};
-    use openssl::x509::{X509Builder};
-    use openssl::pkey::PKey;
-
-    let rsa = Rsa::generate(4096).unwrap();
-
-    let priv_pem = rsa.private_key_to_pem()?;
-
-    replace_file(
-        &key_path,
-        &priv_pem,
-        CreateOptions::new()
-            .perm(Mode::from_bits_truncate(0o0640))
-            .owner(nix::unistd::ROOT)
-            .group(backup_user.gid),
-    )?;
-
-    let mut x509 = X509Builder::new()?;
-
-    x509.set_version(2)?;
-
-    let today = openssl::asn1::Asn1Time::days_from_now(0)?;
-    x509.set_not_before(&today)?;
-    let expire = openssl::asn1::Asn1Time::days_from_now(365*1000)?;
-    x509.set_not_after(&expire)?;
-
-    let nodename = proxmox::tools::nodename();
-    let mut fqdn = nodename.to_owned();
-
-    let resolv_conf = proxmox_backup::api2::node::dns::read_etc_resolv_conf()?;
-    if let Some(search) = resolv_conf["search"].as_str() {
-        fqdn.push('.');
-        fqdn.push_str(search);
-    }
-
-    // we try to generate an unique 'subject' to avoid browser problems
-    //(reused serial numbers, ..)
-    let uuid = proxmox::tools::uuid::Uuid::generate();
-
-    let mut subject_name = openssl::x509::X509NameBuilder::new()?;
-    subject_name.append_entry_by_text("O", "Proxmox Backup Server")?;
-    subject_name.append_entry_by_text("OU", &format!("{:X}", uuid))?;
-    subject_name.append_entry_by_text("CN", &fqdn)?;
-    let subject_name = subject_name.build();
-
-    x509.set_subject_name(&subject_name)?;
-    x509.set_issuer_name(&subject_name)?;
-
-    let bc = openssl::x509::extension::BasicConstraints::new(); // CA = false
-    let bc = bc.build()?;
-    x509.append_extension(bc)?;
-
-    let usage = openssl::x509::extension::ExtendedKeyUsage::new()
-        .server_auth()
-        .build()?;
-    x509.append_extension(usage)?;
-
-    let context = x509.x509v3_context(None, None);
-
-    let mut alt_names = openssl::x509::extension::SubjectAlternativeName::new();
-
-    alt_names.ip("127.0.0.1");
-    alt_names.ip("::1");
-
-    alt_names.dns("localhost");
-
-    if nodename != "localhost" { alt_names.dns(nodename); }
-    if nodename != fqdn { alt_names.dns(&fqdn); }
-
-    let alt_names = alt_names.build(&context)?;
-
-    x509.append_extension(alt_names)?;
-
-    let pub_pem = rsa.public_key_to_pem()?;
-    let pubkey = PKey::public_key_from_pem(&pub_pem)?;
-
-    x509.set_pubkey(&pubkey)?;
-
-    let context = x509.x509v3_context(None, None);
-    let ext = openssl::x509::extension::SubjectKeyIdentifier::new().build(&context)?;
-    x509.append_extension(ext)?;
-
-    let context = x509.x509v3_context(None, None);
-    let ext = openssl::x509::extension::AuthorityKeyIdentifier::new()
-        .keyid(true)
-        .build(&context)?;
-    x509.append_extension(ext)?;
-
-    let privkey = PKey::from_rsa(rsa)?;
-
-    x509.sign(&privkey, openssl::hash::MessageDigest::sha256())?;
-
-    let x509 = x509.build();
-    let cert_pem = x509.to_pem()?;
-
-    replace_file(
-        &cert_path,
-        &cert_pem,
-        CreateOptions::new()
-            .perm(Mode::from_bits_truncate(0o0640))
-            .owner(nix::unistd::ROOT)
-            .group(backup_user.gid),
-    )?;
+    config::update_self_signed_cert(force.unwrap_or(false))?;
 
     Ok(())
 }

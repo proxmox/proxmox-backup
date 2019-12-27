@@ -11,6 +11,7 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
+use proxmox_backup::config;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
@@ -30,6 +31,8 @@ async fn run() -> Result<(), Error> {
         Some("proxmox-backup-proxy")) {
         bail!("unable to inititialize syslog - {}", err);
     }
+
+    config::update_self_signed_cert(false)?;
 
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
