@@ -81,6 +81,8 @@ async fn run() -> Result<(), Error> {
     }
 
     server.await?;
+    log::info!("server shutting down, waiting for active workers to complete");
+    proxmox_backup::server::last_worker_future().await?;
 
     log::info!("done - exit server");
     
