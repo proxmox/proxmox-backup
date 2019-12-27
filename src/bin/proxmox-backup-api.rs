@@ -33,6 +33,8 @@ async fn run() -> Result<(), Error> {
 
     config::create_configdir()?;
 
+    config::update_self_signed_cert(false)?;
+
     if let Err(err) = generate_auth_key() {
         bail!("unable to generate auth key - {}", err);
     }
