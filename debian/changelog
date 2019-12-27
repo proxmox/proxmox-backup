@@ -1,3 +1,13 @@
+proxmox-backup (0.1.1) unstable; urgency=medium
+
+  * proxmox-backup-proxy: create self signed cert at startup
+
+  * proxmox-backup-manager.rs: impl. cert update/info
+
+  * minor GUI updates
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 27 Dec 2019 11:28:25 +0100
+
 proxmox-backup (0.1.0) unstable; urgency=medium
 
   * proper packaging of build-dependencies
