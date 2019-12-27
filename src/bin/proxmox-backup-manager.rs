@@ -414,8 +414,6 @@ fn update_certs(force: Option<bool>) -> Result<(), Error> {
     alt_names.ip("127.0.0.1");
     alt_names.ip("::1");
 
-    // fixme: add local node IPs
-
     alt_names.dns("localhost");
 
     if nodename != "localhost" { alt_names.dns(nodename); }
