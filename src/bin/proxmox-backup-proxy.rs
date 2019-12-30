@@ -11,7 +11,6 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
-use proxmox_backup::config;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
