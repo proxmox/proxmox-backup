@@ -1,3 +1,13 @@
+proxmox-backup (0.1.2) unstable; urgency=medium
+
+  * proxmox-backup-api: create cert here
+
+  * start_h2_connection: correctly return error during upgrade
+
+  * proxy/api: await running workers before shutdown
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 30 Dec 2019 11:00:52 +0100
+
 proxmox-backup (0.1.1) unstable; urgency=medium
 
   * proxmox-backup-proxy: create self signed cert at startup
