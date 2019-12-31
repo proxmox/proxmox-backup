@@ -11,7 +11,7 @@ use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::index::*;
-use super::DataBlob;
+use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
@@ -126,9 +126,9 @@ impl DataStore {
     {
         let filename = filename.as_ref();
         let out: Box<dyn IndexFile + Send> =
-            match filename.extension().and_then(|ext| ext.to_str()) {
-                Some("didx") => Box::new(self.open_dynamic_reader(filename)?),
-                Some("fidx") => Box::new(self.open_fixed_reader(filename)?),
+            match archive_type(filename)? {
+                ArchiveType::DynamicIndex => Box::new(self.open_dynamic_reader(filename)?),
+                ArchiveType::FixedIndex => Box::new(self.open_fixed_reader(filename)?),
                 _ => bail!("cannot open index file of unknown type: {:?}", filename),
             };
         Ok(out)
@@ -190,8 +190,8 @@ impl DataStore {
 
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             let path = entry?.into_path();
-            if let Some(ext) = path.extension() {
-                if ext == "fidx" || ext == "didx"{
+            if let Ok(archive_type) = archive_type(&path) {
+                if archive_type == ArchiveType::FixedIndex || archive_type == ArchiveType::DynamicIndex {
                     list.push(path);
                 }
             }
@@ -230,11 +230,11 @@ impl DataStore {
 
             tools::fail_on_shutdown()?;
 
-            if let Some(ext) = path.extension() {
-                if ext == "fidx" {
+            if let Ok(archive_type) = archive_type(&path) {
+                if archive_type == ArchiveType::FixedIndex {
                     let index = self.open_fixed_reader(&path)?;
                     self.index_mark_used_chunks(index, &path, status)?;
-                } else if ext == "didx" {
+                } else if archive_type == ArchiveType::DynamicIndex {
                     let index = self.open_dynamic_reader(&path)?;
                     self.index_mark_used_chunks(index, &path, status)?;
                 }

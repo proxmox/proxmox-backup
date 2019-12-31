@@ -915,14 +915,14 @@ async fn create_backup(
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum);
+                manifest.add_file(target, stats.size, stats.csum)?;
             }
             BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum);
+                manifest.add_file(target, stats.size, stats.csum)?;
             }
             BackupType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
@@ -938,7 +938,7 @@ async fn create_backup(
                     crypt_config.clone(),
                     catalog.clone(),
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum);
+                manifest.add_file(target, stats.size, stats.csum)?;
                 catalog.lock().unwrap().end_directory()?;
             }
             BackupType::IMAGE => {
@@ -952,7 +952,7 @@ async fn create_backup(
                     verbose,
                     crypt_config.clone(),
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum);
+                manifest.add_file(target, stats.size, stats.csum)?;
             }
         }
     }
@@ -969,7 +969,7 @@ async fn create_backup(
 
         let stats = catalog_result_rx.await??;
 
-        manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum);
+        manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum)?;
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
@@ -978,7 +978,7 @@ async fn create_backup(
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, None, false, false)
             .await?;
-        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum);
+        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum)?;
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*

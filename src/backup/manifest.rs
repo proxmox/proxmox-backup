@@ -1,5 +1,6 @@
 use failure::*;
 use std::convert::TryFrom;
+use std::path::Path;
 
 use serde_json::{json, Value};
 
@@ -7,10 +8,10 @@ use crate::backup::BackupDir;
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 
-struct FileInfo {
-    filename: String,
-    size: u64,
-    csum: [u8; 32],
+pub struct FileInfo {
+    pub filename: String,
+    pub size: u64,
+    pub csum: [u8; 32],
 }
 
 pub struct BackupManifest {
@@ -18,14 +19,42 @@ pub struct BackupManifest {
     files: Vec<FileInfo>,
 }
 
+#[derive(PartialEq)]
+pub enum ArchiveType {
+    FixedIndex,
+    DynamicIndex,
+    Blob,
+}
+
+pub fn archive_type<P: AsRef<Path>>(
+    archive_name: P,
+) -> Result<ArchiveType, Error> {
+
+    let archive_name = archive_name.as_ref();
+    let archive_type = match archive_name.extension().and_then(|ext| ext.to_str()) {
+        Some("didx") => ArchiveType::DynamicIndex,
+        Some("fidx") => ArchiveType::FixedIndex,
+        Some("blob") => ArchiveType::Blob,
+        _ => bail!("unknown archive type: {:?}", archive_name),
+    };
+    Ok(archive_type)
+}
+
+
 impl BackupManifest {
 
     pub fn new(snapshot: BackupDir) -> Self {
         Self { files: Vec::new(), snapshot }
     }
 
-    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32]) {
+    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32]) -> Result<(), Error> {
+        let _archive_type = archive_type(&filename)?; // check type
         self.files.push(FileInfo { filename, size, csum });
+        Ok(())
+    }
+
+    pub fn files(&self) -> &[FileInfo] {
+        &self.files[..]
     }
 
     fn lookup_file_info(&self, name: &str) -> Result<&FileInfo, Error> {
@@ -86,15 +115,16 @@ impl TryFrom<Value> for BackupManifest {
 
             let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
-            let mut files = Vec::new();
+            let mut manifest = BackupManifest::new(snapshot);
+
             for item in required_array_property(&data, "files")?.iter() {
                 let filename = required_string_property(item, "filename")?.to_owned();
                 let csum = required_string_property(item, "csum")?;
                 let csum = proxmox::tools::hex_to_digest(csum)?;
                 let size = required_integer_property(item, "size")? as u64;
-                files.push(FileInfo { filename, size, csum });
+                manifest.add_file(filename, size, csum)?;
             }
-            Ok(Self { files, snapshot })
+            Ok(manifest)
         }).map_err(|err: Error| format_err!("unable to parse backup manifest - {}", err))
 
     }
