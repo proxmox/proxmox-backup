@@ -173,6 +173,11 @@ impl ChunkStore {
     }
 
     pub fn touch_chunk(&self, digest: &[u8; 32]) -> Result<(), Error> {
+        self.cond_touch_chunk(digest, true)?;
+        Ok(())
+    }
+
+    pub fn cond_touch_chunk(&self, digest: &[u8; 32], fail_if_not_exist: bool) -> Result<bool, Error> {
 
         let (chunk_path, _digest_str) = self.chunk_path(digest);
 
@@ -187,14 +192,19 @@ impl ChunkStore {
         use nix::NixPath;
 
         let res = chunk_path.with_nix_path(|cstr| unsafe {
-            libc::utimensat(-1, cstr.as_ptr(), &times[0], libc::AT_SYMLINK_NOFOLLOW)
+            let tmp = libc::utimensat(-1, cstr.as_ptr(), &times[0], libc::AT_SYMLINK_NOFOLLOW);
+            nix::errno::Errno::result(tmp)
         })?;
 
-        if let Err(err) = nix::errno::Errno::result(res) {
+        if let Err(err) = res {
+            if !fail_if_not_exist && err.as_errno() == Some(nix::errno::Errno::ENOENT) {
+                return Ok(false);
+            }
+
             bail!("updata atime failed for chunk {:?} - {}", chunk_path, err);
         }
 
-        Ok(())
+        Ok(true)
     }
 
     pub fn read_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {

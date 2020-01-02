@@ -299,6 +299,10 @@ impl DataStore {
         self.chunk_store.chunk_path(digest)
     }
 
+    pub fn cond_touch_chunk(&self, digest: &[u8; 32], fail_if_not_exist: bool) -> Result<bool, Error> {
+        self.chunk_store.cond_touch_chunk(digest, fail_if_not_exist)
+    }
+
     pub fn insert_chunk(
         &self,
         chunk: &DataBlob,
