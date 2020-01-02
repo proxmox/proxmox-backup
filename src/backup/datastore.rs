@@ -291,6 +291,10 @@ impl DataStore {
         Ok(())
     }
 
+    pub fn try_shared_chunk_store_lock(&self) -> Result<tools::ProcessLockSharedGuard, Error> {
+        self.chunk_store.try_shared_lock()
+    }
+
     pub fn chunk_path(&self, digest:&[u8; 32]) -> (PathBuf, String) {
         self.chunk_store.chunk_path(digest)
     }
