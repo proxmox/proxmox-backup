@@ -5,22 +5,23 @@ To use current git master code of the proxmox* helper crates, add::
 
    git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox"
 
+or::
+
+   path = "../proxmox/proxmox"
+
 to the proxmox dependency, and update the version to reflect the current,
 pre-release version number (e.g., "0.1.1-dev.1" instead of "0.1.0").
 
-Local (packaged) crates
-=======================
+Local cargo config
+==================
 
-To use locally installed, packaged crates instead of crates.io put the
-following into ./.cargo/config (or point CARGO_HOME to a directory containing
-such a config file)::
+This repository ships with a ``.cargo/config`` that replaces the crates.io
+registry with packaged crates located in ``/usr/share/cargo/registry``.
 
-   [source]
-   [source.debian-packages]
-   directory = "/usr/share/cargo/registry"
-   [source.crates-io]
-   replace-with = "debian-packages"
-
-This is akin to what happens when building with dh_cargo. Cargo.lock needs to
-be deleted when switching between packaged crates and crates.io, since the
+A similar config is also applied building with dh_cargo. Cargo.lock needs to be
+deleted when switching between packaged crates and crates.io, since the
 checksums are not compatible.
+
+To reference new dependencies (or updated versions) that are not yet packaged,
+the dependency needs to point directly to a path or git source (e.g., see
+example for proxmox crate above).
