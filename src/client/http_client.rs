@@ -24,9 +24,9 @@ use crate::tools::{self, tty, BroadcastFuture, DEFAULT_ENCODE_SET};
 
 #[derive(Clone)]
 pub struct AuthInfo {
-    username: String,
-    ticket: String,
-    token: String,
+    pub username: String,
+    pub ticket: String,
+    pub token: String,
 }
 
 /// HTTP(S) API client
