@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -10,6 +10,7 @@ use super::backup_info::BackupDir;
 use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
+use super::manifest::{MANIFEST_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
@@ -138,13 +139,44 @@ impl DataStore {
         self.chunk_store.base_path()
     }
 
+    /// Clenaup a backup directory
+    ///
+    /// Removes all files not mentioned in the manifest.
+    pub fn cleanup_backup_dir(&self, backup_dir: &BackupDir, manifest: &BackupManifest
+    ) ->  Result<(), Error> {
+
+        let mut full_path = self.base_path();
+        full_path.push(backup_dir.relative_path());
+
+        let mut wanted_files = HashSet::new();
+        wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
+        manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
+
+        for item in tools::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
+            if let Ok(item) = item {
+                if let Some(file_type) = item.file_type() {
+                    if file_type != nix::dir::Type::File { continue; }
+                }
+                let file_name = item.file_name().to_bytes();
+                if file_name == b"." || file_name == b".." { continue; };
+
+                if let Ok(name) = std::str::from_utf8(file_name) {
+                    if wanted_files.contains(name) { continue; }
+                }
+                println!("remove unused file {:?}", item.file_name());
+                let dirfd = item.parent_fd();
+                let _res = unsafe { libc::unlinkat(dirfd, item.file_name().as_ptr(), 0) };
+            }
+        }
+
+        Ok(())
+    }
     /// Remove a backup directory including all content
     pub fn remove_backup_dir(&self, backup_dir: &BackupDir,
     ) ->  Result<(), io::Error> {
 
-        let relative_path = backup_dir.relative_path();
         let mut full_path = self.base_path();
-        full_path.push(&relative_path);
+        full_path.push( backup_dir.relative_path());
 
         log::info!("removing backup {:?}", full_path);
         std::fs::remove_dir_all(full_path)?;
