@@ -219,7 +219,7 @@ impl BackupReader {
     }
 }
 
-fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
+pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
 
     file.seek(SeekFrom::Start(0))?;
 
