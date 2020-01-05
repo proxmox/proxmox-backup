@@ -100,6 +100,17 @@ impl BackupManifest {
     }
 
 }
+impl TryFrom<super::DataBlob> for BackupManifest {
+    type Error = Error;
+
+    fn try_from(blob: super::DataBlob) -> Result<Self, Error> {
+        let data = blob.decode(None)
+            .map_err(|err| format_err!("decode backup manifest blob failed - {}", err))?;
+        let json: Value = serde_json::from_slice(&data[..])
+            .map_err(|err| format_err!("unable to parse backup manifest json - {}", err))?;
+        BackupManifest::try_from(json)
+    }
+}
 
 impl TryFrom<Value> for BackupManifest {
     type Error = Error;
