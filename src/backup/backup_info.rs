@@ -9,6 +9,8 @@ use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
 
+use super::manifest::MANIFEST_BLOB_NAME;
+
 macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
 macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z") }
@@ -98,6 +100,41 @@ impl BackupGroup {
             Ok(())
         })?;
         Ok(list)
+    }
+
+    pub fn last_successful_backup(&self,  base_path: &Path) -> Result<Option<DateTime<Utc>>, Error> {
+
+        let mut last = None;
+
+        let mut path = base_path.to_owned();
+        path.push(self.group_path());
+
+        tools::scandir(libc::AT_FDCWD, &path, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
+            if file_type != nix::dir::Type::Directory { return Ok(()); }
+
+            let mut manifest_path = PathBuf::from(backup_time);
+            manifest_path.push(MANIFEST_BLOB_NAME);
+
+            use nix::fcntl::{openat, OFlag};
+            match openat(l2_fd, &manifest_path, OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
+                Ok(_) => { /* manifest exists --> assume backup was successful */ },
+                Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => { return Ok(()); }
+                Err(err) => {
+                    bail!("last_successful_backup: unexpected error - {}", err);
+                }
+            }
+
+            let dt = backup_time.parse::<DateTime<Utc>>()?;
+            if let Some(last_dt) = last {
+                if dt > last_dt { last = Some(dt); }
+            } else {
+                last = Some(dt);
+            }
+
+            Ok(())
+        })?;
+
+        Ok(last)
     }
 
 }
