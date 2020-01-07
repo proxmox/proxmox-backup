@@ -373,49 +373,35 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         args["backup-id"] = group.backup_id().into();
     }
 
-    let result = client.get(&path, Some(args)).await?;
+    let mut result = client.get(&path, Some(args)).await?;
 
     record_repository(&repo);
 
-    let list = result["data"].as_array().unwrap();
+    if output_format != "text" {
+        format_and_print_result(&result["data"], &output_format);
+        return Ok(Value::Null);
+    }
 
-    let mut result = vec![];
+    let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
+    list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
 
     for item in list {
 
-        let id = item["backup-id"].as_str().unwrap();
-        let btype = item["backup-type"].as_str().unwrap();
-        let epoch = item["backup-time"].as_i64().unwrap();
-
-        let snapshot = BackupDir::new(btype, id, epoch);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
 
         let path = snapshot.relative_path().to_str().unwrap().to_owned();
 
-        let files = item["files"].as_array().unwrap().iter()
-            .map(|v|  strip_server_file_expenstion(v.as_str().unwrap())).collect();
+        let files = item.files.iter()
+            .map(|v| strip_server_file_expenstion(&v))
+            .collect();
 
-        if output_format == "text" {
-            let size_str = if let Some(size) = item["size"].as_u64() {
-                size.to_string()
-            } else {
-                String::from("-")
-            };
-            println!("{} | {} | {}", path, size_str, tools::join(&files, ' '));
+        let size_str = if let Some(size) = item.size {
+            size.to_string()
         } else {
-            let mut data = json!({
-                "backup-type": btype,
-                "backup-id": id,
-                "backup-time": epoch,
-                "files": files,
-            });
-            if let Some(size) = item["size"].as_u64() {
-                data["size"] = size.into();
-            }
-            result.push(data);
-        }
+            String::from("-")
+        };
+        println!("{} | {} | {}", path, size_str, tools::join(&files, ' '));
     }
-
-    if output_format != "text" { format_and_print_result(&result.into(), &output_format); }
 
     Ok(Value::Null)
 }
@@ -1131,18 +1117,19 @@ async fn restore(param: Value) -> Result<Value, Error> {
         let group = BackupGroup::parse(path)?;
 
         let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let result = client.get(&path, Some(json!({
+        let mut result = client.get(&path, Some(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
         }))).await?;
 
-        let list = result["data"].as_array().unwrap();
+        let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
         if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
+        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
 
-        let epoch = list[0]["backup-time"].as_i64().unwrap();
-        let backup_time = Utc.timestamp(epoch, 0);
+        let backup_time = Utc.timestamp(list[0].backup_time, 0);
+
         (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
     } else {
         let snapshot = BackupDir::parse(path)?;
@@ -2039,18 +2026,20 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         let group = BackupGroup::parse(path)?;
 
         let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let result = client.get(&path, Some(json!({
+        let mut result = client.get(&path, Some(json!({
             "backup-type": group.backup_type(),
             "backup-id": group.backup_id(),
         }))).await?;
 
-        let list = result["data"].as_array().unwrap();
+        let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
         if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
-        let epoch = list[0]["backup-time"].as_i64().unwrap();
-        let backup_time = Utc.timestamp(epoch, 0);
+        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
+
+        let backup_time = Utc.timestamp(list[0].backup_time, 0);
+
         (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
     } else {
         let snapshot = BackupDir::parse(path)?;
