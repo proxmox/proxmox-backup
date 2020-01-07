@@ -1,7 +1,7 @@
 use failure::*;
 use nix::unistd::{fork, ForkResult, pipe};
 use std::os::unix::io::RawFd;
-use chrono::{Local, Utc, TimeZone};
+use chrono::{Local, DateTime, Utc, TimeZone};
 use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
 use std::ffi::OsStr;
@@ -200,6 +200,26 @@ async fn api_datastore_list_snapshots(
 
     Ok(list)
 }
+
+async fn api_datastore_latest_snapshot(
+    client: &HttpClient,
+    store: &str,
+    group: BackupGroup,
+) -> Result<(String, String, DateTime<Utc>), Error> {
+
+    let mut list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
+
+    if list.is_empty() {
+        bail!("backup group {:?} does not contain any snapshots.", group.group_path());
+    }
+
+    list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
+
+    let backup_time = Utc.timestamp(list[0].backup_time, 0);
+
+    Ok((group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time))
+}
+
 
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
@@ -1132,17 +1152,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
-
-        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
-
-        if list.is_empty() {
-            bail!("backup group '{}' does not contain any snapshots:", path);
-        }
-        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
-
-        let backup_time = Utc.timestamp(list[0].backup_time, 0);
-
-        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
+        api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot = BackupDir::parse(path)?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
@@ -1913,18 +1923,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
-
-        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
-
-        if list.is_empty() {
-            bail!("backup group '{}' does not contain any snapshots:", path);
-        }
-
-        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
-
-        let backup_time = Utc.timestamp(list[0].backup_time, 0);
-
-        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
+        api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot = BackupDir::parse(path)?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
@@ -2033,18 +2032,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
-
-        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
-
-        if list.is_empty() {
-            bail!("backup group '{}' does not contain any snapshots:", path);
-        }
-
-        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
-
-        let backup_time = Utc.timestamp(list[0].backup_time, 0);
-
-        (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
+        api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot = BackupDir::parse(path)?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
