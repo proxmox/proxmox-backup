@@ -8,6 +8,7 @@ use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity};
+use proxmox::api::api;
 use proxmox::api::{http_err, list_subdirs_api_method};
 use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::router::SubdirMap;
@@ -145,11 +146,36 @@ fn delete_snapshots (
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                optional: true,
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                optional: true,
+                schema: BACKUP_ID_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Returns the list of snapshots.",
+        items: {
+            type: SnapshotListItem,
+        }
+    },
+)]
+/// List backup snapshots.
 fn list_snapshots (
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<Vec<SnapshotListItem>, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
     let backup_type = param["backup-type"].as_str();
@@ -172,12 +198,13 @@ fn list_snapshots (
             if backup_id != group.backup_id() { continue; }
         }
 
-        let mut result_item = json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-            "backup-time": info.backup_dir.backup_time().timestamp(),
-            "files": info.files,
-        });
+        let mut result_item = SnapshotListItem {
+            backup_type: group.backup_type().to_string(),
+            backup_id: group.backup_id().to_string(),
+            backup_time: info.backup_dir.backup_time().timestamp(),
+            files: info.files,
+            size: None,
+        };
 
         if let Ok(index) = read_backup_index(&datastore, &info.backup_dir) {
             let mut backup_size = 0;
@@ -186,13 +213,13 @@ fn list_snapshots (
                     backup_size += item_size;
                 }
             }
-            result_item["size"] = backup_size.into();
+            result_item.size = Some(backup_size);
         }
 
         snapshots.push(result_item);
     }
 
-    Ok(json!(snapshots))
+    Ok(snapshots)
 }
 
 #[sortable]
@@ -643,19 +670,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "snapshots",
         &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&list_snapshots),
-                    &ObjectSchema::new(
-                        "List backup groups.",
-                        &sorted!([
-                            ("store", false, &DATASTORE_SCHEMA),
-                            ("backup-type", true, &BACKUP_TYPE_SCHEMA),
-                            ("backup-id", true, &BACKUP_ID_SCHEMA),
-                        ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_LIST_SNAPSHOTS)
             .delete(
                 &ApiMethod::new(
                     &ApiHandler::Sync(&delete_snapshots),

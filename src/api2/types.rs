@@ -1,10 +1,7 @@
-//use std::sync::Arc;
-
 use failure::*;
-//use lazy_static::lazy_static;
+use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::const_regex;
-use proxmox::api::schema::*;
+use proxmox::api::{api, const_regex, schema::*};
 use proxmox::tools::*; // required to use IPRE!() macro ???
 
 // File names: may not contain slashes, may not start with "."
@@ -118,3 +115,32 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .max_length(32)
     .schema();
+
+
+
+// Complex type definitions
+
+#[api(
+    description: "Basic information about backup snapshot.",
+    properties: {
+        "backup-type": {
+            schema: BACKUP_TYPE_SCHEMA,
+        },
+        "backup-id": {
+            schema: BACKUP_ID_SCHEMA,
+        },
+        "backup-time": {
+            schema: BACKUP_TIME_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+pub struct SnapshotListItem {
+    pub backup_type: String, // enum
+    pub backup_id: String,
+    pub backup_time: i64,
+    pub files: Vec<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub size: Option<u64>,
+}
