@@ -180,6 +180,27 @@ async fn view_task_result(
     Ok(())
 }
 
+async fn api_datastore_list_snapshots(
+    client: &HttpClient,
+    store: &str,
+    group: Option<BackupGroup>,
+) -> Result<Vec<SnapshotListItem>, Error> {
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots", store);
+
+    let mut args = json!({});
+    if let Some(group) = group {
+        args["backup-type"] = group.backup_type().into();
+        args["backup-id"] = group.backup_id().into();
+    }
+
+    let mut result = client.get(&path, Some(args)).await?;
+
+    let list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
+
+    Ok(list)
+}
+
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
     dir_path: P,
@@ -364,26 +385,22 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let client = HttpClient::new(repo.host(), repo.user(), None)?;
 
-    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+    let group = if let Some(path) = param["group"].as_str() {
+        Some(BackupGroup::parse(path)?)
+    } else {
+        None
+    };
 
-    let mut args = json!({});
-    if let Some(path) = param["group"].as_str() {
-        let group = BackupGroup::parse(path)?;
-        args["backup-type"] = group.backup_type().into();
-        args["backup-id"] = group.backup_id().into();
-    }
+    let mut list = api_datastore_list_snapshots(&client, repo.store(), group).await?;
 
-    let mut result = client.get(&path, Some(args)).await?;
+    list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
 
     record_repository(&repo);
 
     if output_format != "text" {
-        format_and_print_result(&result["data"], &output_format);
+        format_and_print_result(&serde_json::to_value(list)?, &output_format);
         return Ok(Value::Null);
     }
-
-    let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
-    list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
 
     for item in list {
 
@@ -1116,13 +1133,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
 
-        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let mut result = client.get(&path, Some(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-        }))).await?;
+        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
 
-        let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
         if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
@@ -1902,19 +1914,16 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
 
-        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let result = client.get(&path, Some(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-        }))).await?;
+        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
 
-        let list = result["data"].as_array().unwrap();
         if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
 
-        let epoch = list[0]["backup-time"].as_i64().unwrap();
-        let backup_time = Utc.timestamp(epoch, 0);
+        list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
+
+        let backup_time = Utc.timestamp(list[0].backup_time, 0);
+
         (group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time)
     } else {
         let snapshot = BackupDir::parse(path)?;
@@ -2025,13 +2034,8 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
         let group = BackupGroup::parse(path)?;
 
-        let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-        let mut result = client.get(&path, Some(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-        }))).await?;
+        let mut list = api_datastore_list_snapshots(&client, repo.store(), Some(group.clone())).await?;
 
-        let mut list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
         if list.is_empty() {
             bail!("backup group '{}' does not contain any snapshots:", path);
         }
