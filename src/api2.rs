@@ -7,6 +7,7 @@ pub mod reader;
 mod subscription;
 pub mod types;
 pub mod version;
+pub mod sync;
 
 use proxmox::api::list_subdirs_api_method;
 use proxmox::api::router::SubdirMap;
@@ -22,6 +23,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("nodes", &NODES_ROUTER),
     ("reader", &reader::ROUTER),
     ("subscription", &subscription::ROUTER),
+    ("sync", &sync::ROUTER),
     ("version", &version::ROUTER),
 ];
 
