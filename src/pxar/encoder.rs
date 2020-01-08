@@ -630,7 +630,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
     ) -> Result<(), Error> {
         //println!("encode_dir: {:?} start {}", self.full_path(), self.writer_pos);
 
-        let mut name_list = vec![];
+        let mut name_list = Vec::new();
 
         let rawfd = dir.as_raw_fd();
 
@@ -771,7 +771,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
 
         name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-        let mut goodbye_items = vec![];
+        let mut goodbye_items = Vec::with_capacity(name_list.len());
 
         for (filename, stat, exclude_list) in name_list {
             let start_pos = self.writer_pos;
