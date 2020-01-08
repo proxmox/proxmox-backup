@@ -29,7 +29,7 @@ pam = "0.7"
 pam-sys = "0.5"
 percent-encoding = "2.1"
 pin-utils = "0.1.0-alpha"
-proxmox = { version = "0.1.1", features = [ "sortable-macro", "api-macro" ] }
+proxmox = { version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 regex = "1.2"
 rustyline = "5.0.5"
 serde = { version = "1.0", features = ["derive"] }
