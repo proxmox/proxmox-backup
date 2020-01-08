@@ -843,7 +843,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     Ok(dir) => dir,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         self.report_vanished_file(&self.full_path())?;
-                        continue; // fixme!!
+                        self.relative_path.pop();
+                        continue;
                     }
                     Err(err) => bail!("open dir {:?} failed - {}", self.full_path(), err),
                 };
@@ -897,6 +898,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         Ok(filefd) => filefd,
                         Err(nix::Error::Sys(Errno::ENOENT)) => {
                             self.report_vanished_file(&self.full_path())?;
+                            self.relative_path.pop();
                             continue;
                         }
                         Err(err) => bail!("open file {:?} failed - {}", self.full_path(), err),
@@ -939,6 +941,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     }
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         self.report_vanished_file(&self.full_path())?;
+                        self.relative_path.pop();
                         continue;
                     }
                     Err(err) => bail!("readlink {:?} failed - {}", self.full_path(), err),
@@ -956,6 +959,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     self.encode_device(&stat)?;
                 } else {
                     eprintln!("skip device node: {:?}", self.full_path());
+                    self.relative_path.pop();
+                    continue;
                 }
             } else if is_fifo(&stat) {
                 if self.has_features(flags::WITH_FIFOS) {
@@ -966,6 +971,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     self.encode_special(&stat)?;
                 } else {
                     eprintln!("skip fifo: {:?}", self.full_path());
+                    self.relative_path.pop();
+                    continue;
                 }
             } else if is_socket(&stat) {
                 if self.has_features(flags::WITH_SOCKETS) {
@@ -976,6 +983,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     self.encode_special(&stat)?;
                 } else {
                     eprintln!("skip socket: {:?}", self.full_path());
+                    self.relative_path.pop();
+                    continue;
                 }
             } else {
                 bail!(
