@@ -697,6 +697,14 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 (Some((buffer, stat)), excludes)
             }
             Ok(None) => (None, Vec::new()),
+            Err(nix::Error::Sys(Errno::EACCES)) => {
+                // No permission to read .pxarexclude, ignore its contents.
+                eprintln!(
+                    "ignoring match patterns in {:?}: open file failed - EACCES",
+                    self.full_path().join(".pxarexclude"),
+                );
+                (None, Vec::new())
+            }
             Err(err) => bail!("error while reading exclude file - {}", err),
         };
         for excl in &excludes {
@@ -777,6 +785,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             let start_pos = self.writer_pos;
 
             if filename.as_bytes() == b".pxarexclude" {
+                // pxar_exclude is none in case of error EACCES.
                 if let Some((ref content, ref stat)) = pxar_exclude {
                     let filefd = match nix::fcntl::openat(
                         rawfd,
@@ -787,6 +796,14 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         Ok(filefd) => filefd,
                         Err(nix::Error::Sys(Errno::ENOENT)) => {
                             self.report_vanished_file(&self.full_path())?;
+                            continue;
+                        }
+                        Err(nix::Error::Sys(Errno::EACCES)) => {
+                            let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
+                            eprintln!(
+                                "skipping {:?}: open file failed - EACCES",
+                                self.full_path().join(filename_osstr),
+                            );
                             continue;
                         }
                         Err(err) => {
@@ -810,8 +827,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         catalog.add_file(&filename, stat.st_size as u64, stat.st_mtime as u64)?;
                     }
                     self.encode_pxar_exclude(filefd, stat, child_magic, content)?;
-                    continue;
                 }
+                continue;
             }
 
             if is_root && filename.as_bytes() == b".pxarexclude-cli" {
@@ -843,6 +860,14 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     Ok(dir) => dir,
                     Err(nix::Error::Sys(Errno::ENOENT)) => {
                         self.report_vanished_file(&self.full_path())?;
+                        self.relative_path.pop();
+                        continue;
+                    }
+                    Err(nix::Error::Sys(Errno::EACCES)) => {
+                        eprintln!(
+                            "skipping {:?}: open dir failed - EACCES",
+                            self.full_path(),
+                        );
                         self.relative_path.pop();
                         continue;
                     }
@@ -898,6 +923,14 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                         Ok(filefd) => filefd,
                         Err(nix::Error::Sys(Errno::ENOENT)) => {
                             self.report_vanished_file(&self.full_path())?;
+                            self.relative_path.pop();
+                            continue;
+                        }
+                        Err(nix::Error::Sys(Errno::EACCES)) => {
+                            eprintln!(
+                                "skipping {:?}: open file failed - EACCES",
+                                self.full_path(),
+                            );
                             self.relative_path.pop();
                             continue;
                         }

@@ -97,18 +97,19 @@ impl MatchPattern {
     pub fn from_file<P: ?Sized + NixPath>(
         parent_fd: RawFd,
         filename: &P,
-    ) -> Result<Option<(Vec<MatchPattern>, Vec<u8>, FileStat)>, Error> {
+    ) -> Result<Option<(Vec<MatchPattern>, Vec<u8>, FileStat)>, nix::Error> {
         let stat = match stat::fstatat(parent_fd, filename, AtFlags::AT_SYMLINK_NOFOLLOW) {
             Ok(stat) => stat,
             Err(nix::Error::Sys(Errno::ENOENT)) => return Ok(None),
-            Err(err) => bail!("stat failed - {}", err),
+            Err(err) => return Err(err),
         };
 
         let filefd = fcntl::openat(parent_fd, filename, OFlag::O_NOFOLLOW, Mode::empty())?;
         let mut file = unsafe { File::from_raw_fd(filefd) };
 
         let mut content_buffer = Vec::new();
-        let _bytes = file.read_to_end(&mut content_buffer)?;
+        let _bytes = file.read_to_end(&mut content_buffer)
+            .map_err(|_| Errno::EIO)?;
 
         let mut match_pattern = Vec::new();
         for line in content_buffer.split(|&c| c == b'\n') {
@@ -129,8 +130,8 @@ impl MatchPattern {
     /// Pattern starting with '!' are interpreted as negative match pattern.
     /// Pattern with trailing `/` match only against directories.
     /// `.` as well as `..` and any pattern containing `\0` are invalid and will
-    /// result in an error.
-    pub fn from_line(line: &[u8]) -> Result<Option<MatchPattern>, Error> {
+    /// result in an error with Errno::EINVAL.
+    pub fn from_line(line: &[u8]) -> Result<Option<MatchPattern>, nix::Error> {
         let mut input = line;
 
         if input.starts_with(b"#") {
@@ -160,7 +161,7 @@ impl MatchPattern {
         }
 
         if input.is_empty() || input == b"." || input == b".." || input.contains(&b'\0') {
-            bail!("invalid path component encountered");
+            return Err(nix::Error::Sys(Errno::EINVAL));
         }
 
         Ok(Some(MatchPattern {
