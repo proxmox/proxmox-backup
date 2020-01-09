@@ -121,7 +121,6 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
 // Complex type definitions
 
 #[api(
-    description: "Basic information about backup snapshot.",
     properties: {
         "backup-type": {
             schema: BACKUP_TYPE_SCHEMA,
@@ -132,15 +131,23 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
         "backup-time": {
             schema: BACKUP_TIME_SCHEMA,
         },
+        files: {
+            items: {
+                schema: BACKUP_ARCHIVE_NAME_SCHEMA
+            },
+        },
     },
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
+/// Basic information about backup snapshot.
 pub struct SnapshotListItem {
     pub backup_type: String, // enum
     pub backup_id: String,
     pub backup_time: i64,
+    /// List of contained archive files.
     pub files: Vec<String>,
+    /// Overall snapshot size (sum of all archive sizes).
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,
 }
