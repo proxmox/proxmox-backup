@@ -12,7 +12,6 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use failure::{bail, format_err, Error};
-use lazy_static::lazy_static;
 use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
@@ -32,15 +31,6 @@ use super::format_definition::{PxarAttributes, PxarEntry, PxarGoodbyeItem};
 const FUSE_ROOT_ID: u64 = 1;
 
 const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
-lazy_static! {
-    /// HashMap holding the mapping from the child offsets to their parent
-    /// offsets.
-    ///
-    /// In order to include the parent directory entry '..' in the response for
-    /// readdir callback, this mapping is needed.
-    /// Calling the lookup callback will insert the offsets into the HashMap.
-    static ref CHILD_PARENT: Mutex<HashMap<u64, u64>> = Mutex::new(HashMap::new());
-}
 
 type Inode = u64;
 type Offset = u64;
@@ -90,6 +80,13 @@ struct Context {
     goodbye_cache: HashMap<Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>>,
     attr_cache: Option<(Inode, PxarAttributes)>,
     ino_offset: Offset,
+    /// HashMap holding the mapping from the child offsets to their parent
+    /// offsets.
+    ///
+    /// In order to include the parent directory entry '..' in the response for
+    /// readdir callback, this mapping is needed.
+    /// Calling the lookup callback will insert the offsets into the HashMap.
+    child_parent: HashMap<u64, u64>,
 }
 
 impl Context {
@@ -249,6 +246,7 @@ impl Session  {
             goodbye_cache,
             attr_cache: None,
             ino_offset: 0,
+            child_parent: HashMap::new(),
         };
 
         let session_ctx = Box::new(Mutex::new(ctx));
@@ -433,10 +431,7 @@ impl Session  {
 
             // Update the parent for this child entry. Used to get parent offset if
             // only child offset is known.
-            CHILD_PARENT
-                .lock()
-                .map_err(|_| libc::EIO)?
-            .insert(child_offset, ctx.ino_offset);
+            ctx.child_parent.insert(child_offset, ctx.ino_offset);
             let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
 
             Ok(())
@@ -571,8 +566,7 @@ impl Session  {
                 let parent_off = if inode == FUSE_ROOT_ID {
                     ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
                 } else {
-                    let guard = CHILD_PARENT.lock().map_err(|_| libc::EIO)?;
-                    *guard.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
+                    *ctx.child_parent.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
                 };
                 let (_, entry, _, payload_size) =
                     ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
