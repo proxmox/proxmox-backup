@@ -309,12 +309,12 @@ fn stat_command(path: String) -> Result<(), Error> {
         // This is done by calling canonical_path(), which returns the full path
         // if it exists, error otherwise.
         let path = ctx.canonical_path(&path)?;
-        let (item, _attr, size) = ctx.lookup(&path)?;
+        let item = ctx.lookup(&path)?;
         let mut out = std::io::stdout();
         out.write_all(b"File: ")?;
         out.write_all(item.filename.as_bytes())?;
         out.write_all(&[b'\n'])?;
-        out.write_all(format!("Size: {}\n", size).as_bytes())?;
+        out.write_all(format!("Size: {}\n", item.size).as_bytes())?;
         out.write_all(b"Type: ")?;
         match item.entry.mode as u32 & libc::S_IFMT {
             libc::S_IFDIR => out.write_all(b"directory\n")?,
@@ -463,8 +463,7 @@ fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error>
             // Get the directory corresponding to the working directory from the
             // archive.
             let cwd = ctx.current.clone();
-            let (dir, _, _) = ctx.lookup(&cwd)?;
-            dir
+            ctx.lookup(&cwd)?
         };
 
         ctx.decoder
@@ -681,27 +680,19 @@ impl Context {
     ///
     /// This will actively navigate the archive by calling the corresponding
     /// decoder functionalities and is therefore very expensive.
-    fn lookup(
-        &mut self,
-        absolute_path: &[DirEntry],
-    ) -> Result<(DirectoryEntry, PxarAttributes, u64), Error> {
+    fn lookup(&mut self, absolute_path: &[DirEntry]) -> Result<DirectoryEntry, Error> {
         let mut current = self.decoder.root()?;
-        let (_, _, mut attr, mut size) = self.decoder.attributes(0)?;
         // Ignore the archive root, don't need it.
         for item in absolute_path.iter().skip(1) {
             match self
                 .decoder
                 .lookup(&current, &OsStr::from_bytes(&item.name))?
             {
-                Some((item, item_attr, item_size)) => {
-                    current = item;
-                    attr = item_attr;
-                    size = item_size;
-                }
+                Some(item) => current = item,
                 // This should not happen if catalog an archive are consistent.
                 None => bail!("no such file or directory in archive - inconsistent catalog"),
             }
         }
-        Ok((current, attr, size))
+        Ok(current)
     }
 }

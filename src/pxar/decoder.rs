@@ -23,8 +23,14 @@ pub struct DirectoryEntry {
     start: u64,
     /// Points past the goodbye table tail
     end: u64,
+    /// Filename of entry
     pub filename: OsString,
+    /// Entry (mode, permissions)
     pub entry: PxarEntry,
+    /// Extended attributes
+    pub xattr: PxarAttributes,
+    /// Payload size
+    pub size: u64,
 }
 
 /// Trait to create ReadSeek Decoder trait objects.
@@ -59,11 +65,19 @@ impl Decoder {
         let header: PxarHeader = self.inner.read_item()?;
         check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
+        let (header, xattr) = self.inner.read_attributes()?;
+        let size = match header.htype {
+            PXAR_PAYLOAD => header.size - HEADER_SIZE,
+            _ => 0,
+        };
+
         Ok(DirectoryEntry {
             start: self.root_start,
             end: self.root_end,
             filename: OsString::new(), // Empty
             entry,
+            xattr,
+            size,
         })
     }
 
@@ -116,12 +130,19 @@ impl Decoder {
         }
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
+        let (header, xattr) = self.inner.read_attributes()?;
+        let size = match header.htype {
+            PXAR_PAYLOAD => header.size - HEADER_SIZE,
+            _ => 0,
+        };
 
         Ok(DirectoryEntry {
             start: entry_start,
             end,
             filename,
             entry,
+            xattr,
+            size,
         })
     }
 
@@ -273,7 +294,7 @@ impl Decoder {
         &mut self,
         dir: &DirectoryEntry,
         filename: &OsStr,
-    ) -> Result<Option<(DirectoryEntry, PxarAttributes, u64)>, Error> {
+    ) -> Result<Option<DirectoryEntry>, Error> {
         let gbt = self.goodbye_table(Some(dir.start), dir.end)?;
         let hash = compute_goodbye_hash(filename.as_bytes());
 
@@ -298,7 +319,7 @@ impl Decoder {
             // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in
             // case of directories, so the use of start offset is fine for both
             // cases.
-            let (entry_name, entry, attr, payload_size) = self.attributes(*start)?;
+            let (entry_name, entry, xattr, size) = self.attributes(*start)?;
 
             // Possible hash collision, need to check if the found entry is indeed
             // the filename to lookup.
@@ -308,8 +329,10 @@ impl Decoder {
                     end: *end,
                     filename: entry_name,
                     entry,
+                    xattr,
+                    size,
                 };
-                return Ok(Some((dir_entry, attr, payload_size)));
+                return Ok(Some(dir_entry));
             }
             // Hash collision, check the next entry in the goodbye table by starting
             // from given index but skipping one more match (so hash at index itself).
