@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 
 use serde_json::{json, Value};
+use serde::de::DeserializeOwned;
 
 use proxmox::api::schema::*;
 use proxmox::tools::try_block;
@@ -51,6 +52,25 @@ impl SectionConfigData {
     pub fn set_data(&mut self, section_id: &str, type_name: &str, config: Value) {
         // fixme: verify section_id schema here??
         self.sections.insert(section_id.to_string(), (type_name.to_string(), config));
+    }
+
+    pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, remote: &str) -> Result<T, Error> {
+
+        let config = match self.sections.get(remote) {
+            Some((section_type_name, config)) => {
+                if type_name != section_type_name {
+                    bail!("got unexpected type '{}' for {} '{}'", section_type_name, type_name, remote);
+                }
+                config
+            }
+            None => {
+                bail!("no such {} '{}'", type_name, remote);
+            }
+        };
+
+        let data = T::deserialize(config.clone())?;
+
+        Ok(data)
     }
 
     fn record_order(&mut self, section_id: &str) {

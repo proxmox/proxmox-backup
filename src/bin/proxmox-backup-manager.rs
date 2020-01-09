@@ -385,7 +385,9 @@ async fn start_datastore_sync(
 
     let mut client = connect()?;
 
-    let remote = proxmox_backup::config::remotes::lookup(&remote)?;
+    use proxmox_backup::config::remotes::{self, Remote};
+    let remote_config = remotes::config()?;
+    let remote: Remote = remote_config.lookup("remote", &remote)?;
 
     let args = json!({
         "store": store,

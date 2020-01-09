@@ -80,27 +80,6 @@ pub fn config() -> Result<SectionConfigData, Error> {
     CONFIG.parse(REMOTES_CFG_FILENAME, &content)
 }
 
-pub fn lookup(remote: &str) -> Result<Remote, Error> {
-
-    let remotes = config()?;
-
-    let config = match remotes.sections.get(remote) {
-        Some((type_name, config)) => {
-            if type_name != "remote" {
-                bail!("got unexpected type '{}' for remote '{}'", type_name, remote);
-            }
-            config
-        }
-        None => {
-            bail!("no such remote '{}'", remote);
-        }
-    };
-
-    let remote: Remote = serde_json::from_value(config.clone())?;
-
-    Ok(remote)
-}
-
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(REMOTES_CFG_FILENAME, &config)?;
 
