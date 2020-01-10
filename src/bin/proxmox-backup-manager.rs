@@ -1,17 +1,17 @@
 use failure::*;
 use serde_json::{json, Value};
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 use proxmox::api::{api, cli::*};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
-use proxmox_backup::config;
+use proxmox_backup::config::{self, remotes::{self, Remote}};
 use proxmox_backup::api2::types::*;
 use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
 use proxmox_backup::auth_helpers::*;
-
 
 async fn view_task_result(
     client: HttpClient,
@@ -385,7 +385,6 @@ async fn pull_datastore(
 
     let mut client = connect()?;
 
-    use proxmox_backup::config::remotes::{self, Remote};
     let remote_config = remotes::config()?;
     let remote: Remote = remote_config.lookup("remote", &remote)?;
 
@@ -417,7 +416,42 @@ fn main() {
                 .arg_param(&["remote", "remote-store", "local-store"])
                 .completion_cb("local-store", config::datastore::complete_datastore_name)
                 .completion_cb("remote", config::remotes::complete_remote_name)
+                .completion_cb("remote-store", complete_remote_datastore_name)
         );
 
     run_cli_command(cmd_def);
+}
+
+// shell completion helper
+pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut list = Vec::new();
+
+    let _ = proxmox::tools::try_block!({
+        let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
+        let remote_config = remotes::config()?;
+
+        let remote: Remote = remote_config.lookup("remote", &remote)?;
+
+        let client = HttpClient::new(
+            &remote.host,
+            &remote.userid,
+            Some(remote.password)
+        )?;
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(client.get("api2/json/admin/datastore", None))?;
+
+        if let Some(data) = result["data"].as_array() {
+            for item in data {
+                if let Some(store) = item["store"].as_str() {
+                    list.push(store.to_owned());
+                }
+            }
+        }
+
+        Ok(())
+    }).map_err(|_err: Error| { /* ignore */ });
+
+    list
 }
