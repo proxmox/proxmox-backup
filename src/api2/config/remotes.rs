@@ -1,15 +1,9 @@
-use std::path::PathBuf;
-
 use failure::*;
 use serde_json::Value;
 
-use proxmox::api::{api, ApiHandler, ApiMethod, Router, RpcEnvironment};
-use proxmox::api::schema::*;
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 
-use crate::api2::types::*;
-use crate::backup::*;
 use crate::config::remotes;
-use crate::tools;
 
 #[api(
     input: {
