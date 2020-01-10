@@ -61,6 +61,7 @@ extern "C" {
     fn fuse_reply_readlink(req: Request, link: StrPtr) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
     fn fuse_add_direntry(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&libc::stat>, off: c_int) -> c_int;
+    fn fuse_add_direntry_plus(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&EntryParam>, off: c_int) -> c_int;
 }
 
 /// Command line arguments passed to fuse.
@@ -296,6 +297,7 @@ impl Session  {
         oprs.releasedir = Some(Self::releasedir);
         oprs.getxattr = Some(Self::getxattr);
         oprs.listxattr = Some(Self::listxattr);
+        oprs.readdirplus = Some(Self::readdirplus);
         oprs
     }
 
@@ -514,9 +516,10 @@ impl Session  {
                         ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
                     let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
                     let item_offset = find_offset(&entry, e.1, e.2);
+                    ctx.child_parent.insert(item_offset, ctx.ino_offset);
                     let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
                     let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-                    match buf.add_entry(&name, &attr) {
+                    match buf.fuse_add_direntry(&name, &attr) {
                         Ok(ReplyBufState::Okay) => {}
                         Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                         Err(_) => return Err(libc::EIO),
@@ -533,7 +536,7 @@ impl Session  {
                 // No need to calculate i-node for current dir, since it is given as parameter
                 let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
                 let name = CString::new(".").unwrap();
-                match buf.add_entry(&name, &attr) {
+                match buf.fuse_add_direntry(&name, &attr) {
                     Ok(ReplyBufState::Okay) => {}
                     Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                     Err(_) => return Err(libc::EIO),
@@ -552,7 +555,97 @@ impl Session  {
                 let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
                 let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
                 let name = CString::new("..").unwrap();
-                match buf.add_entry(&name, &attr) {
+                match buf.fuse_add_direntry(&name, &attr) {
+                    Ok(ReplyBufState::Okay) => {}
+                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                    Err(_) => return Err(libc::EIO),
+                }
+            }
+
+            buf.reply_filled()
+        });
+    }
+
+    /// Read and return the entries of the directory referenced by i-node.
+    ///
+    /// Replies to the request with the entries fitting into a buffer of length
+    /// `size`, as requested by the caller.
+    /// `offset` identifies the start index of entries to return. This is used on
+    /// repeated calls, occurring if not all entries fitted into the buffer.
+    extern "C" fn readdirplus(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
+        let offset = offset as usize;
+
+        Self::run_in_context(req, inode, |ctx| {
+            let gbt = ctx.decoder
+                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
+                .map_err(|_| libc::EIO)?;
+            let n_entries = gbt.len();
+            let mut buf = ReplyBuf::new(req, size, offset);
+
+            if offset < n_entries {
+                for e in gbt[offset..gbt.len()].iter() {
+                    let (filename, entry, _, payload_size) =
+                        ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
+                    let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
+                    let item_offset = find_offset(&entry, e.1, e.2);
+                    ctx.child_parent.insert(item_offset, ctx.ino_offset);
+                    let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
+                    let attr = EntryParam {
+                        inode: item_inode,
+                        generation: 1,
+                        attr: stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                        attr_timeout: std::f64::MAX,
+                        entry_timeout: std::f64::MAX,
+                    };
+                    match buf.fuse_add_direntry_plus(&name, &attr) {
+                        Ok(ReplyBufState::Okay) => {}
+                        Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                        Err(_) => return Err(libc::EIO),
+                    }
+                }
+            }
+
+            // Add current directory entry "."
+            if offset <= n_entries {
+                let (_, entry, _, payload_size) = ctx
+                    .decoder
+                    .attributes(ctx.ino_offset)
+                    .map_err(|_| libc::EIO)?;
+                // No need to calculate i-node for current dir, since it is given as parameter
+                let name = CString::new(".").unwrap();
+                let attr = EntryParam {
+                    inode: inode,
+                    generation: 1,
+                    attr: stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                    attr_timeout: std::f64::MAX,
+                    entry_timeout: std::f64::MAX,
+                };
+                match buf.fuse_add_direntry_plus(&name, &attr) {
+                    Ok(ReplyBufState::Okay) => {}
+                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
+                    Err(_) => return Err(libc::EIO),
+                }
+            }
+
+            // Add parent directory entry ".."
+            if offset <= n_entries + 1 {
+                let parent_off = if inode == FUSE_ROOT_ID {
+                    ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
+                } else {
+                    *ctx.child_parent.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
+                };
+                let (_, entry, _, payload_size) =
+                    ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
+                let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
+                let name = CString::new("..").unwrap();
+                let attr = EntryParam {
+                    inode: item_inode,
+                    generation: 1,
+                    attr: stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                    attr_timeout: std::f64::MAX,
+                    entry_timeout: std::f64::MAX,
+                };
+                match buf.fuse_add_direntry_plus(&name, &attr) {
                     Ok(ReplyBufState::Okay) => {}
                     Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                     Err(_) => return Err(libc::EIO),
@@ -733,6 +826,37 @@ struct ReplyBuf {
     next: usize,
 }
 
+macro_rules! generate_fn {
+    ($func_name:ident, $type:ty) => {
+        fn $func_name(&mut self, name: &CString, attr: &$type) -> Result<ReplyBufState, Error> {
+            self.next += 1;
+            let size = self.buffer.len();
+            let bytes = unsafe {
+                let bptr = self.buffer.as_mut_ptr() as *mut c_char;
+                let nptr = name.as_ptr();
+                $func_name(
+                    self.req,
+                    bptr.offset(self.filled as isize),
+                    size - self.filled,
+                    nptr,
+                    Some(&attr),
+                    i32::try_from(self.next)?,
+                ) as usize
+            };
+            self.filled += bytes;
+            // Never exceed the max size requested in the callback (=buffer.len())
+            if self.filled > size {
+                // Entry did not fit, so go back to previous state
+                self.filled -= bytes;
+                self.next -= 1;
+                return Ok(ReplyBufState::Overfull);
+            }
+
+            Ok(ReplyBufState::Okay)
+        }
+    }
+}
+
 impl ReplyBuf {
     /// Create a new empty `ReplyBuf` of `size` with element counting index at `next`.
     fn new(req: Request, size: usize, next: usize) -> Self {
@@ -755,30 +879,6 @@ impl ReplyBuf {
     }
 
     /// Fill the buffer for the fuse reply with the next entry
-    fn add_entry(&mut self, name: &CString, attr: &libc::stat) -> Result<ReplyBufState, Error> {
-        self.next += 1;
-        let size = self.buffer.len();
-        let bytes = unsafe {
-            let bptr = self.buffer.as_mut_ptr() as *mut c_char;
-            let nptr = name.as_ptr();
-            fuse_add_direntry(
-                self.req,
-                bptr.offset(self.filled as isize),
-                size - self.filled,
-                nptr,
-                Some(&attr),
-                i32::try_from(self.next)?,
-            ) as usize
-        };
-        self.filled += bytes;
-        // Never exceed the max size requested in the callback (=buffer.len())
-        if self.filled > size {
-            // Entry did not fit, so go back to previous state
-            self.filled -= bytes;
-            self.next -= 1;
-            return Ok(ReplyBufState::Overfull);
-        }
-
-        Ok(ReplyBufState::Okay)
-    }
+    generate_fn!(fuse_add_direntry, libc::stat);
+    generate_fn!(fuse_add_direntry_plus, EntryParam);
 }
