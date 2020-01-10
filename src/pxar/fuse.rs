@@ -32,7 +32,6 @@ const FUSE_ROOT_ID: u64 = 1;
 
 const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
-type Inode = u64;
 type Offset = u64;
 /// FFI types for easier readability
 type Request = *mut c_void;
@@ -77,8 +76,6 @@ struct FuseArgs {
 /// offset within the archive for the i-node given by the caller.
 struct Context {
     decoder: Decoder,
-    goodbye_cache: HashMap<Inode, Vec<(PxarGoodbyeItem, Offset, Offset)>>,
-    attr_cache: Option<(Inode, PxarAttributes)>,
     ino_offset: Offset,
     /// HashMap holding the mapping from the child offsets to their parent
     /// offsets.
@@ -109,8 +106,9 @@ impl Context {
         filename: &CStr,
         hash: u64,
     ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
-        let gbt = self.goodbye_cache.get(&self.ino_offset)
-            .ok_or_else(|| libc::EIO)?;
+        let gbt = self.decoder
+            .goodbye_table(None, self.ino_offset + GOODBYE_ITEM_SIZE)
+            .map_err(|_| libc::EIO)?;
         let mut start_idx = 0;
         let mut skip_multiple = 0;
         loop {
@@ -228,23 +226,12 @@ impl Session  {
     /// default signal handlers.
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
-    pub fn new(
-        mut decoder: Decoder,
-        options: &OsStr,
-        verbose: bool,
-    ) -> Result<Self, Error> {
+    pub fn new(decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
 
-        let root_ino_offset = decoder.root_end_offset() - GOODBYE_ITEM_SIZE;
-        let root_goodbye_table = decoder.goodbye_table(None, root_ino_offset + GOODBYE_ITEM_SIZE)?;
-        let mut goodbye_cache = HashMap::new();
-        goodbye_cache.insert(root_ino_offset, root_goodbye_table);
-
         let ctx = Context {
             decoder,
-            goodbye_cache,
-            attr_cache: None,
             ino_offset: 0,
             child_parent: HashMap::new(),
         };
@@ -414,11 +401,10 @@ impl Session  {
         let filename = unsafe { CStr::from_ptr(name) };
         let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
 
-        Self::run_in_context(req, parent, |mut ctx| {
+        Self::run_in_context(req, parent, |ctx| {
             // find_ goodbye_entry() will also update the goodbye cache
-            let (child_offset, entry, attr, payload_size) =
+            let (child_offset, entry, _attr, payload_size) =
                 ctx.find_goodbye_entry(&filename, hash)?;
-            ctx.attr_cache = Some((child_offset, attr));
             let child_inode = calculate_inode(child_offset, ctx.decoder.root_end_offset());
 
             let e = EntryParam {
@@ -440,11 +426,10 @@ impl Session  {
 
     extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
-            let (_, entry, attr, payload_size) = ctx
+            let (_, entry, _, payload_size) = ctx
                 .decoder
                 .attributes(ctx.ino_offset)
                 .map_err(|_| libc::EIO)?;
-            ctx.attr_cache = Some((ctx.ino_offset, attr));
             let attr = stat(inode, &entry, payload_size)?;
             let _res = unsafe {
                 // Since fs is read-only, the timeout can be max.
@@ -500,12 +485,7 @@ impl Session  {
     /// This simply checks if the inode references a valid directory, no internal
     /// state identifies the directory as opened.
     extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |ctx| {
-            let gbt = ctx.decoder
-                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
-                .map_err(|_| libc::EIO)?;
-            ctx.goodbye_cache.insert(ctx.ino_offset, gbt);
-
+        Self::run_in_context(req, inode, |_ctx| {
             let _ret = unsafe { fuse_reply_open(req, fileinfo as MutPtr) };
 
             Ok(())
@@ -518,19 +498,18 @@ impl Session  {
     /// `size`, as requested by the caller.
     /// `offset` identifies the start index of entries to return. This is used on
     /// repeated calls, occurring if not all entries fitted into the buffer.
-    /// The goodbye table of the directory is cached in order to speedup repeated
-    /// calls occurring when not all entries fitted in the reply buffer.
     extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         let offset = offset as usize;
 
         Self::run_in_context(req, inode, |ctx| {
-            let gb_table = ctx.goodbye_cache.get(&ctx.ino_offset)
-                .ok_or_else(|| libc::EIO)?;
-            let n_entries = gb_table.len();
+            let gbt = ctx.decoder
+                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
+                .map_err(|_| libc::EIO)?;
+            let n_entries = gbt.len();
             let mut buf = ReplyBuf::new(req, size, offset);
 
             if offset < n_entries {
-                for e in gb_table[offset..gb_table.len()].iter() {
+                for e in gbt[offset..gbt.len()].iter() {
                     let (filename, entry, _, payload_size) =
                         ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
                     let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
@@ -585,8 +564,7 @@ impl Session  {
     }
 
     extern "C" fn releasedir(req: Request, inode: u64, _fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |ctx| {
-            let _gbt = ctx.goodbye_cache.remove(&ctx.ino_offset);
+        Self::run_in_context(req, inode, |_ctx| {
             Ok(())
         });
     }
