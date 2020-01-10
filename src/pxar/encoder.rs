@@ -29,11 +29,6 @@ use crate::tools::acl;
 use crate::tools::fs;
 use crate::tools::xattr;
 
-/// The format requires to build sorted directory lookup tables in
-/// memory, so we restrict the number of allowed entries to limit
-/// maximum memory usage.
-pub const MAX_DIRECTORY_ENTRIES: usize = 256 * 1024;
-
 #[derive(Eq, PartialEq, Hash)]
 struct HardLinkInfo {
     st_dev: u64,
@@ -55,6 +50,8 @@ pub struct Encoder<'a, W: Write, C: BackupCatalogWriter> {
     // Flags signaling features supported by the filesystem
     fs_feature_flags: u64,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, u64)>,
+    entry_counter: usize,
+    entry_max: usize,
 }
 
 impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
@@ -82,6 +79,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         skip_lost_and_found: bool, // fixme: should be a feature flag ??
         feature_flags: u64,
         mut excludes: Vec<MatchPattern>,
+        entry_max: usize,
     ) -> Result<(), Error> {
         const FILE_COPY_BUFFER_SIZE: usize = 1024 * 1024;
 
@@ -126,6 +124,8 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             feature_flags,
             fs_feature_flags,
             hardlinks: HashMap::new(),
+            entry_counter: 0,
+            entry_max,
         };
 
         if verbose {
@@ -762,14 +762,16 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                             self.full_path().join(filename_osstr)
                         );
                     }
-                    (_, child_pattern) => name_list.push((filename, stat, child_pattern)),
+                    (_, child_pattern) => {
+                        self.entry_counter += 1;
+                        name_list.push((filename, stat, child_pattern));
+                    }
                 }
 
-                if name_list.len() > MAX_DIRECTORY_ENTRIES {
+                if self.entry_counter > self.entry_max {
                     bail!(
-                        "too many directory items in {:?} (> {})",
-                        self.full_path(),
-                        MAX_DIRECTORY_ENTRIES
+                        "exceeded max number of entries (> {})",
+                        self.entry_max
                     );
                 }
             }
@@ -778,8 +780,9 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         }
 
         name_list.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        let num_entries = name_list.len();
 
-        let mut goodbye_items = Vec::with_capacity(name_list.len());
+        let mut goodbye_items = Vec::with_capacity(num_entries);
 
         for (filename, stat, exclude_list) in name_list {
             let start_pos = self.writer_pos;
@@ -1049,6 +1052,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
         let goodbye_offset = self.writer_pos - dir_start_pos;
 
         self.write_goodbye_table(goodbye_offset, &mut goodbye_items)?;
+        self.entry_counter -= num_entries;
 
         //println!("encode_dir: {:?} end1 {}", self.full_path(), self.writer_pos);
         Ok(())

@@ -178,6 +178,7 @@ fn create_archive(
     let no_sockets = param["no-sockets"].as_bool().unwrap_or(false);
     let empty = Vec::new();
     let exclude_pattern = param["exclude"].as_array().unwrap_or(&empty);
+    let entries_max = param["entries-max"].as_u64().unwrap_or(pxar::ENCODER_MAX_ENTRIES as u64);
 
     let devices = if all_file_systems { None } else { Some(HashSet::new()) };
 
@@ -232,6 +233,7 @@ fn create_archive(
         false,
         feature_flags,
         pattern_list,
+        entries_max as usize,
     )?;
 
     writer.flush()?;
@@ -341,6 +343,15 @@ const API_METHOD_CREATE_ARCHIVE: ApiMethod = ApiMethod::new(
                     "List of paths or pattern matching files to exclude.",
                     &StringSchema::new("Path or pattern matching files to restore.").schema()
                 ).schema()
+            ),
+            (
+                "entries-max",
+                true,
+                &IntegerSchema::new("Max number of entries loaded at once into memory")
+                    .default(pxar::ENCODER_MAX_ENTRIES as isize)
+                    .minimum(0)
+                    .maximum(std::isize::MAX)
+                    .schema()
             ),
         ]),
     )

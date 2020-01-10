@@ -231,9 +231,17 @@ async fn backup_directory<P: AsRef<Path>>(
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
     catalog: Arc<Mutex<CatalogWriter<SenderWriter>>>,
+    entries_max: usize,
 ) -> Result<BackupStats, Error> {
 
-    let pxar_stream = PxarBackupStream::open(dir_path.as_ref(), device_set, verbose, skip_lost_and_found, catalog)?;
+    let pxar_stream = PxarBackupStream::open(
+        dir_path.as_ref(),
+        device_set,
+        verbose,
+        skip_lost_and_found,
+        catalog,
+        entries_max,
+    )?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
     let (mut tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
@@ -776,6 +784,12 @@ fn spawn_catalog_upload(
                schema: CHUNK_SIZE_SCHEMA,
                optional: true,
            },
+           "entries-max": {
+               type: Integer,
+               description: "Max number of entries to hold in memory.",
+               optional: true,
+               default: pxar::ENCODER_MAX_ENTRIES as isize,
+           },
        }
    }
 )]
@@ -811,6 +825,8 @@ async fn create_backup(
     let backup_type = param["backup-type"].as_str().unwrap_or("host");
 
     let include_dev = param["include-dev"].as_array();
+
+    let entries_max = param["entries-max"].as_u64().unwrap_or(pxar::ENCODER_MAX_ENTRIES as u64);
 
     let mut devices = if all_file_systems { None } else { Some(HashSet::new()) };
 
@@ -960,6 +976,7 @@ async fn create_backup(
                     skip_lost_and_found,
                     crypt_config.clone(),
                     catalog.clone(),
+                    entries_max as usize,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum)?;
                 catalog.lock().unwrap().end_directory()?;

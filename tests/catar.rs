@@ -37,6 +37,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         false,
         flags::DEFAULT,
         Vec::new(),
+        ENCODER_MAX_ENTRIES,
     )?;
 
     Command::new("cmp")

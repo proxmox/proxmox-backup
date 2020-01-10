@@ -256,3 +256,8 @@ pub fn check_ca_header<T>(head: &PxarHeader, htype: u64) -> Result<(), Error> {
 
     Ok(())
 }
+
+/// The format requires to build sorted directory lookup tables in
+/// memory, so we restrict the number of allowed entries to limit
+/// maximum memory usage.
+pub const ENCODER_MAX_ENTRIES: usize = 1024 * 1024;

@@ -48,6 +48,7 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
+        entries_max: usize,
     ) -> Result<Self, Error> {
 
         let (rx, tx) = nix::unistd::pipe()?;
@@ -73,6 +74,7 @@ impl PxarBackupStream {
                 skip_lost_and_found,
                 pxar::flags::DEFAULT,
                 exclude_pattern,
+                entries_max,
             ) {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
@@ -95,12 +97,13 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
+        entries_max: usize,
     ) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog)
+        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog, entries_max)
     }
 }
 
