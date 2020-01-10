@@ -1,7 +1,7 @@
 use failure::*;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
 use proxmox::api::{api, schema::*};
 
@@ -15,14 +15,14 @@ lazy_static! {
 
 // fixme: define better schemas
 
-const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
+pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .min_length(3)
     .schema();
 
-const COMMENT_SCHEMA: Schema = StringSchema::new("Comment").schema();
-const REMOTE_HOST_SCHEMA: Schema = StringSchema::new("Host IP address or DNS name.").schema();
-const REMOTE_USERID_SCHEMA: Schema = StringSchema::new("User ID").schema();
-const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token.").schema();
+pub const COMMENT_SCHEMA: Schema = StringSchema::new("Comment").schema();
+pub const REMOTE_HOST_SCHEMA: Schema = StringSchema::new("Host IP address or DNS name.").schema();
+pub const REMOTE_USERID_SCHEMA: Schema = StringSchema::new("User ID").schema();
+pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token.").schema();
 
 #[api(
     properties: {
@@ -41,7 +41,7 @@ const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token
         },
     }
 )]
-#[derive(Deserialize)]
+#[derive(Serialize,Deserialize)]
 /// Remote properties.
 pub struct Remote {
     pub comment: Option<String>,
