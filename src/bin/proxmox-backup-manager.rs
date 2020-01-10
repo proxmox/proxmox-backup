@@ -356,7 +356,7 @@ fn cert_mgmt_cli() -> CommandLineInterface {
 #[api(
    input: {
         properties: {
-            store: {
+            "local-store": {
                 schema: DATASTORE_SCHEMA,
             },
             remote: {
@@ -373,11 +373,11 @@ fn cert_mgmt_cli() -> CommandLineInterface {
         }
    }
 )]
-/// Start datastore sync
-async fn start_datastore_sync(
-    store: String,
+/// Sync datastore from another repository
+async fn pull_datastore(
     remote: String,
     remote_store: String,
+    local_store: String,
     output_format: Option<String>,
 ) -> Result<Value, Error> {
 
@@ -390,14 +390,14 @@ async fn start_datastore_sync(
     let remote: Remote = remote_config.lookup("remote", &remote)?;
 
     let args = json!({
-        "store": store,
+        "store": local_store,
         "remote-host": remote.host,
         "remote-user": remote.userid,
         "remote-store": remote_store,
         "remote-password": remote.password,
     });
 
-    let result = client.post("api2/json/sync", Some(args)).await?;
+    let result = client.post("api2/json/pull", Some(args)).await?;
 
     view_task_result(client, result, &output_format).await?;
 
@@ -412,10 +412,10 @@ fn main() {
         .insert("cert", cert_mgmt_cli())
         .insert("task", task_mgmt_cli())
         .insert(
-            "sync",
-            CliCommand::new(&API_METHOD_START_DATASTORE_SYNC)
-                .arg_param(&["store", "remote", "remote-store"])
-                .completion_cb("store", config::datastore::complete_datastore_name)
+            "pull",
+            CliCommand::new(&API_METHOD_PULL_DATASTORE)
+                .arg_param(&["remote", "remote-store", "local-store"])
+                .completion_cb("local-store", config::datastore::complete_datastore_name)
                 .completion_cb("remote", config::remotes::complete_remote_name)
         );
 

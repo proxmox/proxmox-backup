@@ -1,3 +1,5 @@
+//! Sync datastore from remote server
+
 use failure::*;
 use serde_json::json;
 use std::convert::TryFrom;
@@ -15,9 +17,10 @@ use crate::client::*;
 use crate::api2::types::*;
 
 // fixme: implement filters
+// fixme: delete vanished groups
 // Todo: correctly lock backup groups
 
-async fn sync_index_chunks<I: IndexFile>(
+async fn pull_index_chunks<I: IndexFile>(
     _worker: &WorkerTask,
     chunk_reader: &mut RemoteChunkReader,
     target: Arc<DataStore>,
@@ -59,7 +62,7 @@ async fn download_manifest(
     Ok(tmp_manifest_file)
 }
 
-async fn sync_single_archive(
+async fn pull_single_archive(
     worker: &WorkerTask,
     reader: &BackupReader,
     chunk_reader: &mut RemoteChunkReader,
@@ -89,13 +92,13 @@ async fn sync_single_archive(
             let index = DynamicIndexReader::new(tmpfile)
                 .map_err(|err| format_err!("unable to read dynamic index {:?} - {}", tmp_path, err))?;
 
-            sync_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
+            pull_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
         }
         ArchiveType::FixedIndex => {
             let index = FixedIndexReader::new(tmpfile)
                 .map_err(|err| format_err!("unable to read fixed index '{:?}' - {}", tmp_path, err))?;
 
-            sync_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
+            pull_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
         }
         ArchiveType::Blob => { /* nothing to do */ }
     }
@@ -105,7 +108,7 @@ async fn sync_single_archive(
     Ok(())
 }
 
-async fn sync_snapshot(
+async fn pull_snapshot(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
     tgt_store: Arc<DataStore>,
@@ -184,7 +187,7 @@ async fn sync_snapshot(
             }
         }
 
-        sync_single_archive(
+        pull_single_archive(
             worker,
             &reader,
             &mut chunk_reader,
@@ -204,7 +207,7 @@ async fn sync_snapshot(
     Ok(())
 }
 
-pub async fn sync_snapshot_from(
+pub async fn pull_snapshot_from(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
     tgt_store: Arc<DataStore>,
@@ -216,7 +219,7 @@ pub async fn sync_snapshot_from(
     if is_new {
         worker.log(format!("sync snapshot {:?}", snapshot.relative_path()));
 
-        if let Err(err) = sync_snapshot(worker, reader, tgt_store.clone(), &snapshot).await {
+        if let Err(err) = pull_snapshot(worker, reader, tgt_store.clone(), &snapshot).await {
             if let Err(cleanup_err) = tgt_store.remove_backup_dir(&snapshot) {
                 worker.log(format!("cleanup error - {}", cleanup_err));
             }
@@ -224,13 +227,13 @@ pub async fn sync_snapshot_from(
         }
     } else {
         worker.log(format!("re-sync snapshot {:?}", snapshot.relative_path()));
-        sync_snapshot(worker, reader, tgt_store.clone(), &snapshot).await?
+        pull_snapshot(worker, reader, tgt_store.clone(), &snapshot).await?
     }
 
     Ok(())
 }
 
-pub async fn sync_group(
+pub async fn pull_group(
     worker: &WorkerTask,
     client: &HttpClient,
     src_repo: &BackupRepository,
@@ -278,13 +281,13 @@ pub async fn sync_group(
 
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
 
-        sync_snapshot_from(worker, reader, tgt_store.clone(), &snapshot).await?;
+        pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot).await?;
     }
 
     Ok(())
 }
 
-pub async fn sync_store(
+pub async fn pull_store(
     worker: &WorkerTask,
     client: &HttpClient,
     src_repo: &BackupRepository,
@@ -319,7 +322,7 @@ pub async fn sync_store(
         let btype = item["backup-type"].as_str().unwrap();
 
         let group = BackupGroup::new(btype, id);
-        if let Err(err) = sync_group(worker, client, src_repo, tgt_store.clone(), &group).await {
+        if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group).await {
             worker.log(format!("sync group {}/{} failed - {}", btype, id, err));
             errors = true;
             // continue
@@ -357,8 +360,8 @@ pub async fn sync_store(
         },
     },
 )]
-/// Sync store from otherrepository
-async fn sync_from (
+/// Sync store from other repository
+async fn pull (
     store: String,
     remote_host: String,
     remote_store: String,
@@ -387,7 +390,7 @@ async fn sync_from (
         // explicit create shared lock to prevent GC on newly created chunks
         let _shared_store_lock = tgt_store.try_shared_chunk_store_lock()?;
 
-        sync_store(&worker, &client, &src_repo, tgt_store.clone()).await?;
+        pull_store(&worker, &client, &src_repo, tgt_store.clone()).await?;
 
         worker.log(format!("sync datastore '{}' end", store));
 
@@ -398,4 +401,4 @@ async fn sync_from (
 }
 
 pub const ROUTER: Router = Router::new()
-    .post(&API_METHOD_SYNC_FROM);
+    .post(&API_METHOD_PULL);
