@@ -3,19 +3,26 @@ use std::path::PathBuf;
 use failure::*;
 use serde_json::Value;
 
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
-use proxmox::api::schema::*;
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::datastore;
 
-pub const GET: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&get_datastore_list),
-    &ObjectSchema::new("Directory index.", &[])
-);
-
-fn get_datastore_list(
+#[api(
+    input: {
+        properties: {},
+    },
+    returns: {
+        description: "List the configured datastores.",
+        type: Array,
+        items: {
+            type: datastore::DataStoreConfig,
+        },
+    },
+)]
+/// List all datastores
+pub fn list_datastores(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -26,90 +33,83 @@ fn get_datastore_list(
     Ok(config.convert_to_array("name"))
 }
 
-pub const POST: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&create_datastore),
-    &ObjectSchema::new(
-        "Create new datastore.",
-        &[
-            ("comment", true, &StringSchema::new("Comment for this Datastore").schema()),
-            ("name", false, &DATASTORE_SCHEMA),
-            ("path", false, &StringSchema::new("Directory path. The directory path is created if it does not already exist.").schema()),
-        ],
-    )
-).protected(true);
-
-fn create_datastore(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            comment: {
+                optional: true,
+                schema: datastore::COMMENT_SCHEMA,
+            },
+            path: {
+                schema: datastore::DIR_NAME_SCHEMA,
+            },
+        },
+    },
+)]
+/// Create new datastore config.
+pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 
     // fixme: locking ?
 
+    let datastore: datastore::DataStoreConfig = serde_json::from_value(param.clone())?;
+
     let mut config = datastore::config()?;
 
-    let name = param["name"].as_str().unwrap();
-
-    if let Some(_) = config.sections.get(name) {
+    if let Some(_) = config.sections.get(&name) {
         bail!("datastore '{}' already exists.", name);
     }
 
-    let path: PathBuf = param["path"].as_str().unwrap().into();
-    let backup_user = crate::backup::backup_user()?;
-    let _store = ChunkStore::create(name, path, backup_user.uid, backup_user.gid)?;
-
-    let mut datastore = serde_json::Map::new();
-    datastore.insert("path".to_string(), param["path"].clone());
-    if let Some(comment) = param.get("comment") {
-        if comment.as_str().unwrap().find(|c: char| c.is_control()).is_some() {
+    if let Some(ref comment) = datastore.comment {
+        if comment.find(|c: char| c.is_control()).is_some() {
             bail!("comment must not contain control characters!");
         }
-
-        datastore.insert("comment".to_string(), comment.clone());
     }
 
-    config.set_data(name, "datastore", Value::Object(datastore));
+    let path: PathBuf = datastore.path.clone().into();
+
+    let backup_user = crate::backup::backup_user()?;
+    let _store = ChunkStore::create(&name, path, backup_user.uid, backup_user.gid)?;
+
+    config.set_data(&name, "datastore", serde_json::to_value(datastore)?);
 
     datastore::save_config(&config)?;
 
-    Ok(Value::Null)
+    Ok(())
 }
 
-pub const DELETE: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&delete_datastore),
-    &ObjectSchema::new(
-        "Remove a datastore configuration.",
-        &[
-            ("name", false, &DATASTORE_SCHEMA),
-        ],
-    )
-).protected(true);
-
-fn delete_datastore(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-    println!("This is a test {}", param);
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+)]
+/// Remove a datastore configuration.
+pub fn delete_datastore(name: String) -> Result<(), Error> {
 
     // fixme: locking ?
     // fixme: check digest ?
 
     let mut config = datastore::config()?;
 
-    let name = param["name"].as_str().unwrap();
-
-    match config.sections.get(name) {
-        Some(_) => { config.sections.remove(name); },
+    match config.sections.get(&name) {
+        Some(_) => { config.sections.remove(&name); },
         None => bail!("datastore '{}' does not exist.", name),
     }
 
     datastore::save_config(&config)?;
 
-    Ok(Value::Null)
+    Ok(())
 }
 
 pub const ROUTER: Router = Router::new()
-    .get(&GET)
-    .post(&POST)
-    .delete(&DELETE);
+    .get(&API_METHOD_LIST_DATASTORES)
+    .post(&API_METHOD_CREATE_DATASTORE)
+    .delete(&API_METHOD_DELETE_DATASTORE);

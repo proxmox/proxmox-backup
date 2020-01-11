@@ -30,6 +30,7 @@ pub fn list_remotes(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -72,6 +73,7 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {

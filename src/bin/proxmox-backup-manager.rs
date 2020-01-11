@@ -44,18 +44,40 @@ fn connect() -> Result<HttpClient, Error> {
     Ok(client)
 }
 
+fn remotes_commands() -> CommandLineInterface {
+
+    use proxmox_backup::api2;
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&api2::config::remotes::API_METHOD_LIST_REMOTES))
+        .insert(
+            "create",
+            // fixme: howto handle password parameter?
+            CliCommand::new(&api2::config::remotes::API_METHOD_CREATE_REMOTE)
+                .arg_param(&["name"])
+        )
+        .insert(
+            "remove",
+            CliCommand::new(&api2::config::remotes::API_METHOD_DELETE_REMOTE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::remotes::complete_remote_name)
+        );
+
+    cmd_def.into()
+}
+
 fn datastore_commands() -> CommandLineInterface {
 
     use proxmox_backup::api2;
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::datastore::GET))
+        .insert("list", CliCommand::new(&api2::config::datastore::API_METHOD_LIST_DATASTORES))
         .insert("create",
-                CliCommand::new(&api2::config::datastore::POST)
+                CliCommand::new(&api2::config::datastore::API_METHOD_CREATE_DATASTORE)
                 .arg_param(&["name", "path"])
         )
         .insert("remove",
-                CliCommand::new(&api2::config::datastore::DELETE)
+                CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
         );
@@ -360,8 +382,7 @@ fn cert_mgmt_cli() -> CommandLineInterface {
                 schema: DATASTORE_SCHEMA,
             },
             remote: {
-                description: "Remote name.", // fixme: remote ID schema
-                type: String,
+                schema: crate::config::remotes::REMOTE_ID_SCHEMA,
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
@@ -407,6 +428,7 @@ fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("datastore", datastore_commands())
+        .insert("remotes", remotes_commands())
         .insert("garbage-collection", garbage_collection_commands())
         .insert("cert", cert_mgmt_cli())
         .insert("task", task_mgmt_cli())

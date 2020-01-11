@@ -113,6 +113,7 @@ pub const UPID_SCHEMA: Schema = StringSchema::new("Unique Process/Task ID.")
 
 pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(3)
     .max_length(32)
     .schema();
 
