@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 
 use proxmox::api::schema::*;
 use proxmox::tools::try_block;
@@ -49,9 +50,15 @@ impl SectionConfigData {
         Self { sections: HashMap::new(), order: VecDeque::new() }
     }
 
-    pub fn set_data(&mut self, section_id: &str, type_name: &str, config: Value) {
-        // fixme: verify section_id schema here??
-        self.sections.insert(section_id.to_string(), (type_name.to_string(), config));
+    pub fn set_data<T: Serialize>(
+        &mut self,
+        section_id: &str,
+        type_name: &str,
+        config: T,
+    ) -> Result<(), Error> {
+        let json = serde_json::to_value(config)?;
+        self.sections.insert(section_id.to_string(), (type_name.to_string(), json));
+        Ok(())
     }
 
     pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, remote: &str) -> Result<T, Error> {
@@ -182,11 +189,6 @@ impl SectionConfig {
 
             let mut result = SectionConfigData::new();
 
-            let mut create_section = |section_id: &str, type_name: &str, config| {
-                result.set_data(section_id, type_name, config);
-                result.record_order(section_id);
-            };
-
             try_block!({
                 for line in raw.lines() {
                     line_no += 1;
@@ -216,7 +218,9 @@ impl SectionConfig {
                             if line.trim().is_empty() {
                                 // finish section
                                 test_required_properties(config, &plugin.properties)?;
-                                create_section(section_id, &plugin.type_name, config.take());
+                                result.set_data(section_id, &plugin.type_name, config.take())?;
+                                result.record_order(section_id);
+
                                 state = ParseState::BeforeHeader;
                                 continue;
                             }
@@ -249,7 +253,8 @@ impl SectionConfig {
                 if let ParseState::InsideSection(plugin, section_id, config) = state {
                     // finish section
                     test_required_properties(&config, &plugin.properties)?;
-                    create_section(&section_id, &plugin.type_name, config);
+                    result.set_data(&section_id, &plugin.type_name, config)?;
+                    result.record_order(&section_id);
                 }
 
                 Ok(())

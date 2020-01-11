@@ -74,7 +74,7 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
     let backup_user = crate::backup::backup_user()?;
     let _store = ChunkStore::create(&name, path, backup_user.uid, backup_user.gid)?;
 
-    config.set_data(&name, "datastore", serde_json::to_value(datastore)?);
+    config.set_data(&name, "datastore", &datastore)?;
 
     datastore::save_config(&config)?;
 

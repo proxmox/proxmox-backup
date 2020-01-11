@@ -65,7 +65,7 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
         bail!("remote '{}' already exists.", name);
     }
 
-    config.set_data(&name, "remote", serde_json::to_value(&remote)?);
+    config.set_data(&name, "remote", &remote)?;
 
     remotes::save_config(&config)?;
 
