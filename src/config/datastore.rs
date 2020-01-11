@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-use std::io::Read;
-
 use failure::*;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
-use proxmox::tools::{fs::replace_file, fs::CreateOptions, try_block};
-use proxmox::api::schema::{Schema, ObjectSchema, StringSchema};
+use proxmox::api::{api, schema::*};
+use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
@@ -13,21 +12,39 @@ lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
 
-const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
-const COMMENT_SCHEMA: Schema = StringSchema::new("Datastore comment").schema();
-const DATASTORE_ID_SCHEMA: Schema = StringSchema::new("DataStore ID schema.")
+// fixme: define better schemas
+
+pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
+pub const COMMENT_SCHEMA: Schema = StringSchema::new("Datastore comment").schema();
+pub const DATASTORE_ID_SCHEMA: Schema = StringSchema::new("DataStore ID schema.")
     .min_length(3)
     .schema();
-const DATASTORE_PROPERTIES: ObjectSchema = ObjectSchema::new(
-    "DataStore properties",
-    &[
-        ("comment", true, &COMMENT_SCHEMA),
-        ("path", false, &DIR_NAME_SCHEMA),
-    ]
-);
+
+#[api(
+    properties: {
+        comment: {
+            optional: true,
+            schema: COMMENT_SCHEMA,
+        },
+        path: {
+            schema: DIR_NAME_SCHEMA,
+        },
+    }
+)]
+#[derive(Serialize,Deserialize)]
+/// Datastore configuration properties.
+pub struct DataStoreConfig {
+    pub comment: Option<String>,
+    pub path: String,
+ }
 
 fn init() -> SectionConfig {
-    let plugin = SectionConfigPlugin::new("datastore".to_string(), &DATASTORE_PROPERTIES);
+    let obj_schema = match DataStoreConfig::API_SCHEMA {
+        Schema::Object(ref obj_schema) => obj_schema,
+        _ => unreachable!(),
+    };
+
+    let plugin = SectionConfigPlugin::new("datastore".to_string(), obj_schema);
     let mut config = SectionConfig::new(&DATASTORE_ID_SCHEMA);
     config.register_plugin(plugin);
 
@@ -37,24 +54,18 @@ fn init() -> SectionConfig {
 const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 
 pub fn config() -> Result<SectionConfigData, Error> {
-    let mut contents = String::new();
-
-    try_block!({
-        match std::fs::File::open(DATASTORE_CFG_FILENAME) {
-            Ok(mut file) => file.read_to_string(&mut contents),
-            Err(err) => {
-                if err.kind() == std::io::ErrorKind::NotFound {
-                    contents = String::from("");
-                    Ok(0)
-                } else {
-                    Err(err)
-                }
+    let content = match std::fs::read_to_string(DATASTORE_CFG_FILENAME) {
+        Ok(c) => c,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                String::from("")
+            } else {
+                bail!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, err);
             }
         }
-    })
-    .map_err(|e| format_err!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, e))?;
+    };
 
-    CONFIG.parse(DATASTORE_CFG_FILENAME, &contents)
+    CONFIG.parse(DATASTORE_CFG_FILENAME, &content)
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
