@@ -18,6 +18,15 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
 macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
 macro_rules! DNS_NAME { () => (concat!(r"(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!())) }
 
+// we only allow a limited set of characters
+// colon is not allowed, because we store usernames in
+// colon separated lists)!
+// slash is not allowed because it is used as pve API delimiter
+// also see "man useradd"
+macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[[:cntrl:]]]+)") }
+
+macro_rules! PROXMOX_SAFE_ID_REGEX_STR {  () => (r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)") }
+
 const_regex!{
     pub IP_FORMAT_REGEX = IPRE!();
     pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
@@ -30,7 +39,7 @@ const_regex!{
     /// contains further information why it is reasonable to restict
     /// names this way. This is not only useful for filenames, but for
     /// any identifier command line tools work with.
-    pub PROXMOX_SAFE_ID_REGEX = r"^[A-Za-z0-9_][A-Za-z0-9._\-]*";
+    pub PROXMOX_SAFE_ID_REGEX = concat!(r"^", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 
     pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 
@@ -39,6 +48,8 @@ const_regex!{
     pub DNS_NAME_REGEX =  concat!(r"^", DNS_NAME!(), r")$");
 
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r")$");
+
+    pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -64,6 +75,9 @@ pub const DNS_NAME_FORMAT: ApiStringFormat =
 
 pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
+
+pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PROXMOX_USER_ID_REGEX);
 
 
 pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
@@ -156,6 +170,18 @@ pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in R
 
 pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
     .format(&DNS_NAME_OR_IP_FORMAT)
+    .schema();
+
+pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = StringSchema::new("Authentication domain ID")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(3)
+    .max_length(32)
+    .schema();
+
+pub const PROXMOX_USER_ID_SCHEMA: Schema = StringSchema::new("User ID")
+    .format(&PROXMOX_USER_ID_FORMAT)
+    .min_length(3)
+    .max_length(64)
     .schema();
 
 

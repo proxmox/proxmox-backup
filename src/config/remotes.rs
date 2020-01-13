@@ -16,9 +16,9 @@ lazy_static! {
 
 // fixme: define better schemas
 
-pub const REMOTE_HOST_SCHEMA: Schema = StringSchema::new("Host IP address or DNS name.").schema();
-pub const REMOTE_USERID_SCHEMA: Schema = StringSchema::new("User ID").schema();
-pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token.").schema();
+pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token for remote host.")
+    .max_length(1024)
+    .schema();
 
 #[api(
     properties: {
@@ -27,10 +27,10 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         host: {
-            schema: REMOTE_HOST_SCHEMA,
+            schema: DNS_NAME_OR_IP_SCHEMA,
         },
         userid: {
-            schema: REMOTE_USERID_SCHEMA,
+            schema: PROXMOX_USER_ID_SCHEMA,
         },
         password: {
             schema: REMOTE_PASSWORD_SCHEMA,

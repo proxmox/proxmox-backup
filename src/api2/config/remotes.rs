@@ -42,10 +42,10 @@ pub fn list_remotes(
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
             },
             host: {
-                schema: remotes::REMOTE_HOST_SCHEMA,
+                schema: DNS_NAME_OR_IP_SCHEMA,
             },
             userid: {
-                schema: remotes::REMOTE_USERID_SCHEMA,
+                schema: PROXMOX_USER_ID_SCHEMA,
             },
             password: {
                 schema: remotes::REMOTE_PASSWORD_SCHEMA,
