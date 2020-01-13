@@ -15,6 +15,8 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     Ok(())
 });
 
+macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
+macro_rules! DNS_NAME { () => (concat!(r"(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!())) }
 
 const_regex!{
     pub IP_FORMAT_REGEX = IPRE!();
@@ -31,6 +33,12 @@ const_regex!{
     pub PROXMOX_SAFE_ID_REGEX = r"^[A-Za-z0-9_][A-Za-z0-9._\-]*";
 
     pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
+
+    pub HOSTNAME_REGEX = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)$";
+
+    pub DNS_NAME_REGEX =  concat!(r"^", DNS_NAME!(), r")$");
+
+    pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r")$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -47,6 +55,15 @@ pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
 
 pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
+
+pub const HOSTNAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&HOSTNAME_REGEX);
+
+pub const DNS_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&DNS_NAME_REGEX);
+
+pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
 
 
 pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
@@ -131,6 +148,14 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
 
 pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
+    .schema();
+
+pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in RFC1123).")
+    .format(&HOSTNAME_FORMAT)
+    .schema();
+
+pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
+    .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
 
 
