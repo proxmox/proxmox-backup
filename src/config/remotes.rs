@@ -7,6 +7,7 @@ use proxmox::api::{api, schema::*};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
+use crate::api2::types::*;
 use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 lazy_static! {
@@ -14,10 +15,6 @@ lazy_static! {
 }
 
 // fixme: define better schemas
-
-pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
-    .min_length(3)
-    .schema();
 
 pub const COMMENT_SCHEMA: Schema = StringSchema::new("Comment").schema();
 pub const REMOTE_HOST_SCHEMA: Schema = StringSchema::new("Host IP address or DNS name.").schema();

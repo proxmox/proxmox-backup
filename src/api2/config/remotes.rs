@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 
+use crate::api2::types::*;
 use crate::config::remotes;
 
 #[api(
@@ -34,7 +35,7 @@ pub fn list_remotes(
     input: {
         properties: {
             name: {
-                schema: remotes::REMOTE_ID_SCHEMA,
+                schema: REMOTE_ID_SCHEMA,
             },
             comment: {
                 optional: true,
@@ -77,7 +78,7 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
     input: {
         properties: {
             name: {
-                schema: remotes::REMOTE_ID_SCHEMA,
+                schema: REMOTE_ID_SCHEMA,
             },
         },
     },

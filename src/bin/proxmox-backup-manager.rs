@@ -382,7 +382,7 @@ fn cert_mgmt_cli() -> CommandLineInterface {
                 schema: DATASTORE_SCHEMA,
             },
             remote: {
-                schema: crate::config::remotes::REMOTE_ID_SCHEMA,
+                schema: REMOTE_ID_SCHEMA,
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
