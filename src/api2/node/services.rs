@@ -143,7 +143,7 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
     }
 
     if service == "proxmox-backup" && cmd != "restart" {
-	bail!("invalid service cmd '{} {}'", service, cmd);
+        bail!("invalid service cmd '{} {}'", service, cmd);
     }
 
     let real_service_name = real_service_name(service);
