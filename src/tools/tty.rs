@@ -86,3 +86,19 @@ pub fn read_password(query: &str) -> Result<Vec<u8>, Error> {
         Err(e) => Err(e),
     }
 }
+
+pub fn read_and_verify_password(prompt: &str) -> Result<Vec<u8>, Error> {
+
+    let password = String::from_utf8(crate::tools::tty::read_password(prompt)?)?;
+    let verify_password = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+
+    if password != verify_password {
+        bail!("Passwords do not match!");
+    }
+
+    if password.len() < 5 {
+        bail!("Password too short!");
+    }
+
+    Ok(password.into_bytes())
+}

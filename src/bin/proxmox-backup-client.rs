@@ -1682,7 +1682,7 @@ fn key_create(
             bail!("unable to read passphrase - no tty");
         }
 
-        let password = crate::tools::tty::read_password("Encryption Key Password: ")?;
+        let password = crate::tools::tty::read_and_verify_password("Encryption Key Password: ")?;
 
         let key_config = encrypt_key_with_passphrase(&key, &password)?;
 
@@ -1752,16 +1752,8 @@ fn key_create_master_key(
     let rsa = openssl::rsa::Rsa::generate(4096)?;
     let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
 
-    let new_pw = String::from_utf8(crate::tools::tty::read_password("Master Key Password: ")?)?;
-    let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
 
-    if new_pw != verify_pw {
-        bail!("Password verification fail!");
-    }
-
-    if new_pw.len() < 5 {
-        bail!("Password is too short!");
-    }
+    let password = String::from_utf8(crate::tools::tty::read_and_verify_password("Master Key Password: ")?)?;
 
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
@@ -1769,7 +1761,7 @@ fn key_create_master_key(
     replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new())?;
 
     let cipher = openssl::symm::Cipher::aes_256_cbc();
-    let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, new_pw.as_bytes())?;
+    let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, password.as_bytes())?;
 
     let filename_priv = "master-private.pem";
     println!("Writing private master key to {}", filename_priv);
@@ -1798,18 +1790,9 @@ fn key_change_passphrase(
 
     if kdf == "scrypt" {
 
-        let new_pw = String::from_utf8(crate::tools::tty::read_password("New Password: ")?)?;
-        let verify_pw = String::from_utf8(crate::tools::tty::read_password("Verify Password: ")?)?;
+        let password = crate::tools::tty::read_and_verify_password("New Password: ")?;
 
-        if new_pw != verify_pw {
-            bail!("Password verification fail!");
-        }
-
-        if new_pw.len() < 5 {
-            bail!("Password is too short!");
-        }
-
-        let mut new_key_config = encrypt_key_with_passphrase(&key, new_pw.as_bytes())?;
+        let mut new_key_config = encrypt_key_with_passphrase(&key, &password)?;
         new_key_config.created = created; // keep original value
 
         store_key_config(&path, true, new_key_config)?;
