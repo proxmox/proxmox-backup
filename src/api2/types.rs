@@ -218,3 +218,53 @@ pub struct SnapshotListItem {
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,
 }
+
+
+// Regression tests
+
+#[test]
+fn test_proxmox_user_id_schema() -> Result<(), Error> {
+
+    let schema = PROXMOX_USER_ID_SCHEMA;
+
+    let invalid_user_ids = [
+        "x", // too short
+        "xx", // too short
+        "xxx", // no realm
+        "xxx@", // no realm
+        "xx x@test", // contains space
+        "xx\nx@test", // contains control character
+        "x:xx@test", // contains collon
+        "xx/x@test", // contains slash
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@test", // too long
+    ];
+
+    for name in invalid_user_ids.iter() {
+        if let Ok(_) = parse_simple_value(name, &schema) {
+            bail!("test userid '{}' failed -  got Ok() while expection an error.", name);
+        }
+    }
+
+    let valid_user_ids = [
+        "xxx@y",
+        "name@y",
+        "xxx@test-it.com",
+        "xxx@_T_E_S_T-it.com",
+        "x_x-x.x@test-it.com",
+    ];
+
+    for name in valid_user_ids.iter() {
+        let v = match parse_simple_value(name, &schema) {
+            Ok(v) => v,
+            Err(err) => {
+                bail!("unable to parse userid '{}' - {}", name, err);
+            }
+        };
+
+        if v != serde_json::json!(name) {
+            bail!("unable to parse userid '{}' - got wrong value {:?}", name, v);
+        }
+    }
+
+    Ok(())
+}
