@@ -40,6 +40,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
 #[derive(Serialize,Deserialize)]
 /// Remote properties.
 pub struct Remote {
+    #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub host: String,
     pub userid: String,

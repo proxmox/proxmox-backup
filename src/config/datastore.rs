@@ -31,6 +31,7 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
 #[derive(Serialize,Deserialize)]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
+    #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub path: String,
  }
