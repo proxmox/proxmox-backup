@@ -42,7 +42,7 @@ pub fn list_datastores(
             },
             comment: {
                 optional: true,
-                schema: datastore::COMMENT_SCHEMA,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
             },
             path: {
                 schema: datastore::DIR_NAME_SCHEMA,
@@ -61,12 +61,6 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 
     if let Some(_) = config.sections.get(&name) {
         bail!("datastore '{}' already exists.", name);
-    }
-
-    if let Some(ref comment) = datastore.comment {
-        if comment.find(|c: char| c.is_control()).is_some() {
-            bail!("comment must not contain control characters!");
-        }
     }
 
     let path: PathBuf = datastore.path.clone().into();

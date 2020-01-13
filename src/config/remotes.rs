@@ -16,7 +16,6 @@ lazy_static! {
 
 // fixme: define better schemas
 
-pub const COMMENT_SCHEMA: Schema = StringSchema::new("Comment").schema();
 pub const REMOTE_HOST_SCHEMA: Schema = StringSchema::new("Host IP address or DNS name.").schema();
 pub const REMOTE_USERID_SCHEMA: Schema = StringSchema::new("User ID").schema();
 pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token.").schema();
@@ -25,7 +24,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
     properties: {
         comment: {
             optional: true,
-            schema: COMMENT_SCHEMA,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         host: {
             schema: REMOTE_HOST_SCHEMA,

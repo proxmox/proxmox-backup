@@ -16,13 +16,12 @@ lazy_static! {
 // fixme: define better schemas
 
 pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
-pub const COMMENT_SCHEMA: Schema = StringSchema::new("Datastore comment").schema();
 
 #[api(
     properties: {
         comment: {
             optional: true,
-            schema: COMMENT_SCHEMA,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         path: {
             schema: DIR_NAME_SCHEMA,

@@ -29,6 +29,8 @@ const_regex!{
     /// names this way. This is not only useful for filenames, but for
     /// any identifier command line tools work with.
     pub PROXMOX_SAFE_ID_REGEX = r"^[A-Za-z0-9_][A-Za-z0-9._\-]*";
+
+    pub SINGLE_LINE_COMMENT_REGEX = r"^[[:^cntrl:]]*$";
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -42,6 +44,10 @@ pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+
+pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
+
 
 pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
 Prevent changes if current configuration file has different SHA256 digest.
@@ -123,6 +129,9 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .max_length(32)
     .schema();
 
+pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
+    .format(&SINGLE_LINE_COMMENT_FORMAT)
+    .schema();
 
 
 // Complex type definitions

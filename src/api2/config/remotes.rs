@@ -39,7 +39,7 @@ pub fn list_remotes(
             },
             comment: {
                 optional: true,
-                schema: remotes::COMMENT_SCHEMA,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
             },
             host: {
                 schema: remotes::REMOTE_HOST_SCHEMA,
