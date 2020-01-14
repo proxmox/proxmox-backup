@@ -25,9 +25,9 @@ pub fn list_remotes(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let config = remotes::config()?;
+    let (config, digest) = remotes::config()?;
 
-    Ok(config.convert_to_array("name"))
+    Ok(config.convert_to_array("name", Some(&digest)))
 }
 
 #[api(
@@ -60,7 +60,7 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 
     let remote: remotes::Remote = serde_json::from_value(param.clone())?;
 
-    let mut config = remotes::config()?;
+    let (mut config, _digest) = remotes::config()?;
 
     if let Some(_) = config.sections.get(&name) {
         bail!("remote '{}' already exists.", name);
@@ -89,7 +89,7 @@ pub fn delete_remote(name: String) -> Result<(), Error> {
     // fixme: locking ?
     // fixme: check digest ?
 
-    let mut config = remotes::config()?;
+    let (mut config, _digest) = remotes::config()?;
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },

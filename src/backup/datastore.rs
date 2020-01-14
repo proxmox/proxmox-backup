@@ -35,17 +35,14 @@ impl DataStore {
 
     pub fn lookup_datastore(name: &str) -> Result<Arc<DataStore>, Error> {
 
-        let config = datastore::config()?;
-        let (_, store_config) = config.sections.get(name)
-            .ok_or(format_err!("no such datastore '{}'", name))?;
-
-        let path = store_config["path"].as_str().unwrap();
+        let (config, _digest) = datastore::config()?;
+        let config: datastore::DataStoreConfig = config.lookup("datastore", name)?;
 
         let mut map = DATASTORE_MAP.lock().unwrap();
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
-            if datastore.chunk_store.base == PathBuf::from(path) {
+            if datastore.chunk_store.base == PathBuf::from(&config.path) {
                 return Ok(datastore.clone());
             }
         }
@@ -60,7 +57,7 @@ impl DataStore {
 
     pub fn open(store_name: &str) -> Result<Self, Error> {
 
-        let config = datastore::config()?;
+        let (config, _digest) = datastore::config()?;
         let (_, store_config) = config.sections.get(store_name)
             .ok_or(format_err!("no such datastore '{}'", store_name))?;
 

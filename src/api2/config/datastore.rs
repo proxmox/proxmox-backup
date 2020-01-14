@@ -28,9 +28,9 @@ pub fn list_datastores(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let config = datastore::config()?;
+    let (config, digest) = datastore::config()?;
 
-    Ok(config.convert_to_array("name"))
+    Ok(config.convert_to_array("name", Some(&digest)))
 }
 
 #[api(
@@ -57,7 +57,7 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 
     let datastore: datastore::DataStoreConfig = serde_json::from_value(param.clone())?;
 
-    let mut config = datastore::config()?;
+    let (mut config, _digest) = datastore::config()?;
 
     if let Some(_) = config.sections.get(&name) {
         bail!("datastore '{}' already exists.", name);
@@ -91,7 +91,7 @@ pub fn delete_datastore(name: String) -> Result<(), Error> {
     // fixme: locking ?
     // fixme: check digest ?
 
-    let mut config = datastore::config()?;
+    let (mut config, _digest) = datastore::config()?;
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },

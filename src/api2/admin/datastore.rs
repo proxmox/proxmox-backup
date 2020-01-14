@@ -485,9 +485,9 @@ fn get_datastore_list(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let config = datastore::config()?;
+    let (config, _digest) = datastore::config()?;
 
-    Ok(config.convert_to_array("store"))
+    Ok(config.convert_to_array("store", None))
 }
 
 #[sortable]

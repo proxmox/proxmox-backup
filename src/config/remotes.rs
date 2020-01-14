@@ -62,7 +62,7 @@ fn init() -> SectionConfig {
 
 const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-backup/remotes.cfg";
 
-pub fn config() -> Result<SectionConfigData, Error> {
+pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     let content = match std::fs::read_to_string(REMOTES_CFG_FILENAME) {
         Ok(c) => c,
         Err(err) => {
@@ -74,7 +74,9 @@ pub fn config() -> Result<SectionConfigData, Error> {
         }
     };
 
-    CONFIG.parse(REMOTES_CFG_FILENAME, &content)
+    let digest = openssl::sha::sha256(content.as_bytes());
+    let data = CONFIG.parse(REMOTES_CFG_FILENAME, &content)?;
+    Ok((data, digest))
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
@@ -97,7 +99,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
 // shell completion helper
 pub fn complete_remote_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
-        Ok(data) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
+        Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
         Err(_) => return vec![],
     }
 }
