@@ -15,7 +15,7 @@ lazy_static! {
 }
 
 pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token for remote host.")
-    .format(&PASSWORD_REGEX)
+    .format(&PASSWORD_FORMAT)
     .min_length(1)
     .max_length(1024)
     .schema();

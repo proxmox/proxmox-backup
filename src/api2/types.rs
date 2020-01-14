@@ -81,6 +81,9 @@ pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
 pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_USER_ID_REGEX);
 
+pub const PASSWORD_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PASSWORD_REGEX);
+
 
 pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
 Prevent changes if current configuration file has different SHA256 digest.
