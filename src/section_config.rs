@@ -113,66 +113,68 @@ impl SectionConfig {
         self.plugins.insert(plugin.type_name.clone(), plugin);
     }
 
-    pub fn write(&self, _filename: &str, config: &SectionConfigData) -> Result<String, Error> {
+    pub fn write(&self, filename: &str, config: &SectionConfigData) -> Result<String, Error> {
 
-        let mut list = VecDeque::new();
+        try_block!({
+            let mut list = VecDeque::new();
 
-        let mut done = HashSet::new();
+            let mut done = HashSet::new();
 
-        for section_id in &config.order {
-            if config.sections.get(section_id) == None { continue };
-            list.push_back(section_id);
-            done.insert(section_id);
-        }
-
-        for (section_id, _) in &config.sections {
-            if done.contains(section_id) { continue };
-            list.push_back(section_id);
-        }
-
-        let mut raw = String::new();
-
-        for section_id in list {
-            let (type_name, section_config) = config.sections.get(section_id).unwrap();
-            let plugin = self.plugins.get(type_name).unwrap();
-
-            if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
-                bail!("syntax error in section identifier: {}", err.to_string());
-            }
-            if section_id.chars().any(|c| c.is_control()) {
-                bail!("detected unexpected control character in section ID.");
+            for section_id in &config.order {
+                if config.sections.get(section_id) == None { continue };
+                list.push_back(section_id);
+                done.insert(section_id);
             }
 
-            verify_json_object(section_config, &plugin.properties)?;
+            for (section_id, _) in &config.sections {
+                if done.contains(section_id) { continue };
+                list.push_back(section_id);
+            }
 
-            let head = (self.format_section_header)(type_name, section_id, section_config);
+            let mut raw = String::new();
 
-            if !raw.is_empty() { raw += "\n" }
+            for section_id in list {
+                let (type_name, section_config) = config.sections.get(section_id).unwrap();
+                let plugin = self.plugins.get(type_name).unwrap();
 
-            raw += &head;
-
-            for (key, value) in section_config.as_object().unwrap() {
-                let text = match value {
-                    Value::Null => { continue; }, // do nothing (delete)
-                    Value::Bool(v) => v.to_string(),
-                    Value::String(v) => v.to_string(),
-                    Value::Number(v) => v.to_string(),
-                    _ => {
-                        bail!("got unsupported type in section '{}' key '{}'", section_id, key);
-                    },
-                };
-                if text.chars().any(|c| c.is_control()) {
-                    bail!("detected unexpected control character in section '{}' key '{}'", section_id, key);
+                if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
+                    bail!("syntax error in section identifier: {}", err.to_string());
                 }
-                raw += "\t";
-                raw += &key;
-                raw += " ";
-                raw += &text;
-                raw += "\n";
-            }
-        }
+                if section_id.chars().any(|c| c.is_control()) {
+                    bail!("detected unexpected control character in section ID.");
+                }
 
-        Ok(raw)
+                verify_json_object(section_config, &plugin.properties)?;
+
+                let head = (self.format_section_header)(type_name, section_id, section_config);
+
+                if !raw.is_empty() { raw += "\n" }
+
+                raw += &head;
+
+                for (key, value) in section_config.as_object().unwrap() {
+                    let text = match value {
+                        Value::Null => { continue; }, // do nothing (delete)
+                        Value::Bool(v) => v.to_string(),
+                        Value::String(v) => v.to_string(),
+                        Value::Number(v) => v.to_string(),
+                        _ => {
+                            bail!("got unsupported type in section '{}' key '{}'", section_id, key);
+                        },
+                    };
+                    if text.chars().any(|c| c.is_control()) {
+                        bail!("detected unexpected control character in section '{}' key '{}'", section_id, key);
+                    }
+                    raw += "\t";
+                    raw += &key;
+                    raw += " ";
+                    raw += &text;
+                    raw += "\n";
+                }
+            }
+
+            Ok(raw)
+        }).map_err(|e: Error| format_err!("writing '{}' failed: {}", filename, e))
     }
 
     pub fn parse(&self, filename: &str, raw: &str) -> Result<SectionConfigData, Error> {
