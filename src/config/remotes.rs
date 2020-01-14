@@ -14,9 +14,9 @@ lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
 
-// fixme: define better schemas
-
 pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth token for remote host.")
+    .format(&PASSWORD_REGEX)
+    .min_length(1)
     .max_length(1024)
     .schema();
 

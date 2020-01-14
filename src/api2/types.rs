@@ -32,6 +32,8 @@ const_regex!{
     pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
     pub SYSTEMD_DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$"; //  fixme: define in common_regex ?
 
+    pub PASSWORD_REGEX = r"^[[:^cntrl:]]*$"; // everything but control characters
+
     /// Regex for safe identifiers.
     ///
     /// This
