@@ -57,6 +57,11 @@ fn remotes_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
         )
         .insert(
+            "update",
+            CliCommand::new(&api2::config::remotes::API_METHOD_UPDATE_REMOTE)
+                .arg_param(&["name"])
+        )
+        .insert(
             "remove",
             CliCommand::new(&api2::config::remotes::API_METHOD_DELETE_REMOTE)
                 .arg_param(&["name"])
