@@ -76,6 +76,72 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 }
 
 #[api(
+   input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+)]
+/// Read a datastore configuration.
+pub fn read_datastore(name: String) -> Result<Value, Error> {
+    let (config, digest) = datastore::config()?;
+    let mut data = config.lookup_json("datastore", &name)?;
+    data.as_object_mut().unwrap()
+        .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
+    Ok(data)
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            comment: {
+                optional: true,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            path: {
+                optional: true,
+                schema: datastore::DIR_NAME_SCHEMA,
+            },
+        },
+    },
+)]
+/// Create new datastore config.
+pub fn update_datastore(
+    name: String,
+    comment: Option<String>,
+    path: Option<String>,
+) -> Result<(), Error> {
+
+    // fixme: locking ?
+    // pass/compare digest
+    let (mut config, _digest) = datastore::config()?;
+
+    let mut data: datastore::DataStoreConfig = config.lookup("datastore", &name)?;
+
+    if let Some(comment) = comment {
+        let comment = comment.trim().to_string();
+        if comment.is_empty() {
+            data.comment = None;
+        } else {
+            data.comment = Some(comment);
+        }
+    }
+    if let Some(path) = path { data.path = path; }
+
+    config.set_data(&name, "datastore", &data)?;
+
+    datastore::save_config(&config)?;
+
+    Ok(())
+}
+
+#[api(
     protected: true,
     input: {
         properties: {
@@ -103,7 +169,12 @@ pub fn delete_datastore(name: String) -> Result<(), Error> {
     Ok(())
 }
 
+const ITEM_ROUTER: Router = Router::new()
+    .get(&API_METHOD_READ_DATASTORE)
+    .put(&API_METHOD_UPDATE_DATASTORE)
+    .delete(&API_METHOD_DELETE_DATASTORE);
+
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DATASTORES)
     .post(&API_METHOD_CREATE_DATASTORE)
-    .delete(&API_METHOD_DELETE_DATASTORE);
+    .match_all("name", &ITEM_ROUTER);
