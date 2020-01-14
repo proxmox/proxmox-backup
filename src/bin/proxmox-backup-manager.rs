@@ -81,6 +81,10 @@ fn datastore_commands() -> CommandLineInterface {
                 CliCommand::new(&api2::config::datastore::API_METHOD_CREATE_DATASTORE)
                 .arg_param(&["name", "path"])
         )
+        .insert("update",
+                CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
+                .arg_param(&["name"])
+        )
         .insert("remove",
                 CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])
