@@ -61,17 +61,17 @@ impl SectionConfigData {
         Ok(())
     }
 
-    pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, remote: &str) -> Result<T, Error> {
+    pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, id: &str) -> Result<T, Error> {
 
-        let config = match self.sections.get(remote) {
+        let config = match self.sections.get(id) {
             Some((section_type_name, config)) => {
                 if type_name != section_type_name {
-                    bail!("got unexpected type '{}' for {} '{}'", section_type_name, type_name, remote);
+                    bail!("got unexpected type '{}' for {} '{}'", section_type_name, type_name, id);
                 }
                 config
             }
             None => {
-                bail!("no such {} '{}'", type_name, remote);
+                bail!("no such {} '{}'", type_name, id);
             }
         };
 
