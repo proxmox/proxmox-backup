@@ -61,22 +61,23 @@ impl SectionConfigData {
         Ok(())
     }
 
-    pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, id: &str) -> Result<T, Error> {
-
-        let config = match self.sections.get(id) {
+    pub fn lookup_json(&self, type_name: &str, id: &str) -> Result<Value, Error> {
+        match self.sections.get(id) {
             Some((section_type_name, config)) => {
                 if type_name != section_type_name {
                     bail!("got unexpected type '{}' for {} '{}'", section_type_name, type_name, id);
                 }
-                config
+                Ok(config.clone())
             }
             None => {
                 bail!("no such {} '{}'", type_name, id);
             }
-        };
+        }
+    }
 
-        let data = T::deserialize(config.clone())?;
-
+    pub fn lookup<T: DeserializeOwned>(&self, type_name: &str, id: &str) -> Result<T, Error> {
+        let config = self.lookup_json(type_name, id)?;
+        let data = T::deserialize(config)?;
         Ok(data)
     }
 
