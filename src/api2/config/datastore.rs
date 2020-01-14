@@ -14,7 +14,7 @@ use crate::config::datastore;
         properties: {},
     },
     returns: {
-        description: "List the configured datastores.",
+        description: "List the configured datastores (with config digest).",
         type: Array,
         items: {
             type: datastore::DataStoreConfig,
@@ -82,6 +82,10 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
                 schema: DATASTORE_SCHEMA,
             },
         },
+    },
+    returns: {
+        description: "The datastore configuration (with config digest).",
+        type: datastore::DataStoreConfig,
     },
 )]
 /// Read a datastore configuration.

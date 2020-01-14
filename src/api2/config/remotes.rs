@@ -11,7 +11,7 @@ use crate::config::remotes;
         properties: {},
     },
     returns: {
-        description: "The list of configured remotes.",
+        description: "The list of configured remotes (with config digest).",
         type: Array,
         items: {
             type: remotes::Remote,
@@ -80,6 +80,10 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
                 schema: REMOTE_ID_SCHEMA,
             },
         },
+    },
+    returns: {
+        description: "The remote configuration (with config digest).",
+        type: remotes::Remote,
     },
 )]
 /// Read remote configuration data.
