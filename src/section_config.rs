@@ -139,9 +139,11 @@ impl SectionConfig {
             if let Err(err) = parse_simple_value(&section_id, &self.id_schema) {
                 bail!("syntax error in section identifier: {}", err.to_string());
             }
+            if section_id.chars().any(|c| c.is_control()) {
+                bail!("detected unexpected control character in section ID.");
+            }
 
             verify_json_object(section_config, &plugin.properties)?;
-            println!("REAL WRITE {} {} {:?}\n", section_id, type_name, section_config);
 
             let head = (self.format_section_header)(type_name, section_id, section_config);
 
@@ -159,6 +161,9 @@ impl SectionConfig {
                         bail!("got unsupported type in section '{}' key '{}'", section_id, key);
                     },
                 };
+                if text.chars().any(|c| c.is_control()) {
+                    bail!("detected unexpected control character in section '{}' key '{}'", section_id, key);
+                }
                 raw += "\t";
                 raw += &key;
                 raw += " ";
