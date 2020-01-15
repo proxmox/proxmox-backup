@@ -112,6 +112,10 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
                 optional: true,
                 schema: datastore::DIR_NAME_SCHEMA,
             },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
         },
     },
 )]
@@ -120,12 +124,18 @@ pub fn update_datastore(
     name: String,
     comment: Option<String>,
     path: Option<String>,
+    digest: Option<String>,
 ) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     // pass/compare digest
-    let (mut config, _digest) = datastore::config()?;
+    let (mut config, expected_digest) = datastore::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
 
     let mut data: datastore::DataStoreConfig = config.lookup("datastore", &name)?;
 

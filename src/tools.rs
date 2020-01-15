@@ -428,6 +428,16 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
     list
 }
 
+/// Detect modified configuration files
+///
+/// This function fails with a resonable error message if checksums do not match.
+pub fn detect_modified_configuration_file(digest1: &[u8;32], digest2: &[u8;32]) -> Result<(), Error> {
+    if digest1 != digest2 {
+	bail!("detected modified configuration - file changed by other user? Try again.");
+    }
+    Ok(())
+}
+
 /// normalize uri path
 ///
 /// Do not allow ".", "..", or hidden files ".XXXX"

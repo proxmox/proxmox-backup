@@ -118,7 +118,7 @@ pub const ROUTER: Router = Router::new()
             &ObjectSchema::new(
                 "Returns DNS server IPs and sreach domain.",
                 &sorted!([
-                    ("digest", false, &PVE_CONFIG_DIGEST_SCHEMA),
+                    ("digest", false, &PROXMOX_CONFIG_DIGEST_SCHEMA),
                     ("search", true, &SEARCH_DOMAIN_SCHEMA),
                     ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
                     ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
@@ -138,7 +138,7 @@ pub const ROUTER: Router = Router::new()
                     ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
                     ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
                     ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
-                    ("digest", true, &PVE_CONFIG_DIGEST_SCHEMA),
+                    ("digest", true, &PROXMOX_CONFIG_DIGEST_SCHEMA),
                 ]),
             )
         ).protected(true)

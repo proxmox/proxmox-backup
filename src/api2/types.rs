@@ -85,7 +85,7 @@ pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
 
 
-pub const PVE_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
+pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
 Prevent changes if current configuration file has different SHA256 digest.
 This can be used to prevent concurrent modifications.
 "#

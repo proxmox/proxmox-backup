@@ -336,7 +336,6 @@ impl SectionConfig {
     }
 }
 
-
 // cargo test test_section_config1 -- --nocapture
 #[test]
 fn test_section_config1() {

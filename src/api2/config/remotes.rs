@@ -118,6 +118,10 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
                 optional: true,
                 schema: remotes::REMOTE_PASSWORD_SCHEMA,
             },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
         },
     },
 )]
@@ -128,12 +132,17 @@ pub fn update_remote(
     host: Option<String>,
     userid: Option<String>,
     password: Option<String>,
+    digest: Option<String>,
 ) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(remotes::REMOTES_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    // pass/compare digest
-    let (mut config, _digest) = remotes::config()?;
+    let (mut config, expected_digest) = remotes::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
 
     let mut data: remotes::Remote = config.lookup("remote", &name)?;
 
