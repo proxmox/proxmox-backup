@@ -60,7 +60,6 @@ extern "C" {
     fn fuse_reply_xattr(req: Request, size: size_t) -> c_int;
     fn fuse_reply_readlink(req: Request, link: StrPtr) -> c_int;
     fn fuse_req_userdata(req: Request) -> MutPtr;
-    fn fuse_add_direntry(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&libc::stat>, off: c_int) -> c_int;
     fn fuse_add_direntry_plus(req: Request, buf: MutStrPtr, bufsize: size_t, name: StrPtr, stbuf: Option<&EntryParam>, off: c_int) -> c_int;
 }
 
@@ -82,7 +81,7 @@ struct Context {
     /// offsets.
     ///
     /// In order to include the parent directory entry '..' in the response for
-    /// readdir callback, this mapping is needed.
+    /// readdirplus callback, this mapping is needed.
     /// Calling the lookup callback will insert the offsets into the HashMap.
     child_parent: HashMap<u64, u64>,
 }
@@ -293,7 +292,6 @@ impl Session  {
         oprs.open = Some(Self::open);
         oprs.read = Some(Self::read);
         oprs.opendir = Some(Self::opendir);
-        oprs.readdir = Some(Self::readdir);
         oprs.releasedir = Some(Self::releasedir);
         oprs.getxattr = Some(Self::getxattr);
         oprs.listxattr = Some(Self::listxattr);
@@ -500,84 +498,6 @@ impl Session  {
     /// `size`, as requested by the caller.
     /// `offset` identifies the start index of entries to return. This is used on
     /// repeated calls, occurring if not all entries fitted into the buffer.
-    extern "C" fn readdir(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
-        let offset = offset as usize;
-
-        Self::run_in_context(req, inode, |ctx| {
-            let gbt = ctx.decoder
-                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
-                .map_err(|_| libc::EIO)?;
-            let n_entries = gbt.len();
-            let mut buf = ReplyBuf::new(req, size, offset);
-
-            if offset < n_entries {
-                for e in gbt[offset..gbt.len()].iter() {
-                    let (filename, entry, _, payload_size) =
-                        ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
-                    let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
-                    let item_offset = find_offset(&entry, e.1, e.2);
-                    ctx.child_parent.insert(item_offset, ctx.ino_offset);
-                    let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
-                    let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-                    match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                        unsafe { fuse_add_direntry(req, buf, bufsize, name, stbuf, off) }
-                    }) {
-                        Ok(ReplyBufState::Okay) => {}
-                        Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                        Err(_) => return Err(libc::EIO),
-                    }
-                }
-            }
-
-            // Add current directory entry "."
-            if offset <= n_entries {
-                let (_, entry, _, payload_size) = ctx
-                    .decoder
-                    .attributes(ctx.ino_offset)
-                    .map_err(|_| libc::EIO)?;
-                // No need to calculate i-node for current dir, since it is given as parameter
-                let attr = stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-                let name = CString::new(".").unwrap();
-                match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                    unsafe { fuse_add_direntry(req, buf, bufsize, name, stbuf, off) }
-                }) {
-                    Ok(ReplyBufState::Okay) => {}
-                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                    Err(_) => return Err(libc::EIO),
-                }
-            }
-
-            // Add parent directory entry ".."
-            if offset <= n_entries + 1 {
-                let parent_off = if inode == FUSE_ROOT_ID {
-                    ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
-                } else {
-                    *ctx.child_parent.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
-                };
-                let (_, entry, _, payload_size) =
-                    ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
-                let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
-                let attr = stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?;
-                let name = CString::new("..").unwrap();
-                match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                    unsafe { fuse_add_direntry(req, buf, bufsize, name, stbuf, off) }
-                }) {
-                    Ok(ReplyBufState::Okay) => {}
-                    Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
-                    Err(_) => return Err(libc::EIO),
-                }
-            }
-
-            buf.reply_filled()
-        });
-    }
-
-    /// Read and return the entries of the directory referenced by i-node.
-    ///
-    /// Replies to the request with the entries fitting into a buffer of length
-    /// `size`, as requested by the caller.
-    /// `offset` identifies the start index of entries to return. This is used on
-    /// repeated calls, occurring if not all entries fitted into the buffer.
     extern "C" fn readdirplus(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         let offset = offset as usize;
 
@@ -603,9 +523,7 @@ impl Session  {
                         attr_timeout: std::f64::MAX,
                         entry_timeout: std::f64::MAX,
                     };
-                    match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                        unsafe { fuse_add_direntry_plus(req, buf, bufsize, name, stbuf, off) }
-                    }) {
+                    match buf.fill(&name, &attr) {
                         Ok(ReplyBufState::Okay) => {}
                         Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                         Err(_) => return Err(libc::EIO),
@@ -628,9 +546,7 @@ impl Session  {
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
-                match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                    unsafe { fuse_add_direntry_plus(req, buf, bufsize, name, stbuf, off) }
-                }) {
+                match buf.fill(&name, &attr) {
                     Ok(ReplyBufState::Okay) => {}
                     Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                     Err(_) => return Err(libc::EIO),
@@ -655,9 +571,7 @@ impl Session  {
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
-                match buf.fill(&name, &attr, |req, buf, bufsize, name, stbuf, off| {
-                    unsafe { fuse_add_direntry_plus(req, buf, bufsize, name, stbuf, off) }
-                }) {
+                match buf.fill(&name, &attr) {
                     Ok(ReplyBufState::Okay) => {}
                     Ok(ReplyBufState::Overfull) => return buf.reply_filled(),
                     Err(_) => return Err(libc::EIO),
@@ -825,7 +739,7 @@ enum ReplyBufState {
     Overfull,
 }
 
-/// Used to correctly fill and reply the buffer for the readdir callback
+/// Used to correctly fill and reply the buffer for the readdirplus callback
 struct ReplyBuf {
     /// internal buffer holding the binary data
     buffer: Vec<u8>,
@@ -833,8 +747,8 @@ struct ReplyBuf {
     filled: usize,
     /// fuse request the buffer is used to reply to
     req: Request,
-    /// index of the next item, telling from were to start on the next readdir callback in
-    /// case not everything fitted in the buffer on the first reply.
+    /// index of the next item, telling from were to start on the next readdirplus
+    /// callback in case not everything fitted in the buffer on the first reply.
     next: usize,
 }
 
@@ -860,18 +774,15 @@ impl ReplyBuf {
     }
 
     /// Fill the buffer for the fuse reply with the next dir entry by invoking the
-    /// provided filler function, which is fuse_add_direntry for the readdir callback
-    /// or fuse_add_direntry_plus in case of the readdirplus callback.
+    /// fuse_add_direntry_plus helper function for the readdirplus callback.
     /// The attr type T is has to be `libc::stat` or `EntryParam` accordingly.
-    fn fill<T, F>(&mut self, name: &CString, attr: &T, filler_fn: F) -> Result<ReplyBufState, Error>
-        where F: FnOnce(Request, MutStrPtr, size_t, StrPtr, Option<&T>, c_int) -> c_int
-    {
+    fn fill(&mut self, name: &CString, attr: &EntryParam) -> Result<ReplyBufState, Error> {
         self.next += 1;
         let size = self.buffer.len();
         let bytes = unsafe {
             let bptr = self.buffer.as_mut_ptr() as *mut c_char;
             let nptr = name.as_ptr();
-            filler_fn(
+            fuse_add_direntry_plus(
                 self.req,
                 bptr.offset(self.filled as isize),
                 size - self.filled,
