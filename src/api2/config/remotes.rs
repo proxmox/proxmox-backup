@@ -56,7 +56,7 @@ pub fn list_remotes(
 /// Create new remote.
 pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 
-    // fixme: locking ?
+    let _lock = crate::tools::open_file_locked(remotes::REMOTES_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let remote: remotes::Remote = serde_json::from_value(param.clone())?;
 
@@ -130,7 +130,8 @@ pub fn update_remote(
     password: Option<String>,
 ) -> Result<(), Error> {
 
-    // fixme: locking ?
+    let _lock = crate::tools::open_file_locked(remotes::REMOTES_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+
     // pass/compare digest
     let (mut config, _digest) = remotes::config()?;
 

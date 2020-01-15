@@ -60,7 +60,8 @@ fn init() -> SectionConfig {
     config
 }
 
-const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-backup/remotes.cfg";
+pub const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-backup/remotes.cfg";
+pub const REMOTES_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.remotes.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     let content = match std::fs::read_to_string(REMOTES_CFG_FILENAME) {

@@ -49,7 +49,8 @@ fn init() -> SectionConfig {
     config
 }
 
-const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
+pub const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
+pub const DATASTORE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.datastore.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     let content = match std::fs::read_to_string(DATASTORE_CFG_FILENAME) {

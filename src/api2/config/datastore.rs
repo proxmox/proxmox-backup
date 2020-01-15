@@ -53,7 +53,7 @@ pub fn list_datastores(
 /// Create new datastore config.
 pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 
-    // fixme: locking ?
+    let _lock = crate::tools::open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let datastore: datastore::DataStoreConfig = serde_json::from_value(param.clone())?;
 
@@ -122,7 +122,8 @@ pub fn update_datastore(
     path: Option<String>,
 ) -> Result<(), Error> {
 
-    // fixme: locking ?
+    let _lock = crate::tools::open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+
     // pass/compare digest
     let (mut config, _digest) = datastore::config()?;
 
