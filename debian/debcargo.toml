@@ -1,0 +1,18 @@
+overlay = "."
+crate_src_path = ".."
+whitelist = ["tests/*.c"]
+
+# needed for pinutils alpha
+allow_prerelease_deps = true
+
+[source]
+# TODO: update once public
+vcs_git = ""
+vcs_browser = ""
+maintainer = "Proxmox Support Team <support@proxmox.com>"
+section = "admin"
+build_depends = [ "debhelper (>= 12~)", "bash-completion" ]
+build_depends_excludes = [ "debhelper (>=11)" ]
+
+[packages.lib]
+depends = [ "libacl1-dev", "libsystemd-dev", "libfuse3-dev", "uuid-dev" ]

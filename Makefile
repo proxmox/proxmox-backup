@@ -1,7 +1,7 @@
 include /usr/share/dpkg/default.mk
 include defines.mk
 
-PACKAGE := $(DEB_SOURCE)
+PACKAGE := proxmox-backup
 ARCH := $(DEB_BUILD_ARCH)
 
 SUBDIRS := etc www docs
@@ -39,7 +39,7 @@ DEBS= ${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb ${PACKAGE}-client_${DEB_VERSI
 
 DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
 
-DSC = ${PACKAGE}_${DEB_VERSION}.dsc
+DSC = rust-${PACKAGE}_${DEB_VERSION}.dsc
 
 DESTDIR=
 
@@ -61,11 +61,15 @@ doc:
 .PHONY: build
 build:
 	rm -rf build
-	rsync -a debian Makefile defines.mk Cargo.toml \
-	    src $(SUBDIRS) \
-	    tests build/
+	debcargo package --config debian/debcargo.toml --changelog-ready --no-overlay-write-back --directory build proxmox-backup $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
+	sed -e '1,/^$$/ ! d' build/debian/control > build/debian/control.src
+	cat build/debian/control.src build/debian/control.in > build/debian/control
+	rm build/debian/control.in build/debian/control.src
+	rm build/Cargo.lock
+	find build/debian -name "*.hint" -delete
 	$(foreach i,$(SUBDIRS), \
 	    $(MAKE) -C build/$(i) clean ;)
+
 
 .PHONY: proxmox-backup-docs
 proxmox-backup-docs: $(DOC_DEB)

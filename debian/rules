@@ -21,8 +21,6 @@ export DEB_CARGO_PACKAGE=proxmox-backup
 	dh $@ --with=bash-completion
 
 override_dh_auto_configure:
-	sed -ie 's!proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox",!proxmox = {!' Cargo.toml
-	sed -ie 's!valgrind.*!!' Cargo.toml
 	$(CARGO) prepare-debian $(CURDIR)/debian/cargo_registry --link-from-system
 	dh_auto_configure
 

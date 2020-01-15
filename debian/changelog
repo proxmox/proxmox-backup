@@ -1,3 +1,9 @@
+rust-proxmox-backup (0.1.2-1) unstable; urgency=medium
+
+  * switch to debcargo to generate build-dependencies
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 13 Jan 2020 13:04:46 +0100
+
 proxmox-backup (0.1.2) unstable; urgency=medium
 
   * proxmox-backup-api: create cert here

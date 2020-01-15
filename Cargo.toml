@@ -3,6 +3,11 @@ name = "proxmox-backup"
 version = "0.1.2"
 authors = ["Dietmar Maurer <dietmar@proxmox.com>"]
 edition = "2018"
+license = "AGPL-3"
+description = "Proxmox Backup"
+homepage = "https://www.proxmox.com"
+
+exclude = [ "build", "debian", "tests/catar_data/test_symlink/symlink1"]
 
 [lib]
 name = "proxmox_backup"
@@ -43,11 +48,11 @@ tokio-openssl = "0.4.0"
 tokio-util = { version = "0.2.0", features = [ "codec" ] }
 tower-service = "0.3.0"
 url = "2.1"
-valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
+#valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
 walkdir = "2"
 xdg = "2.2"
 zstd = { version = "0.4", features = [ "bindgen" ] }
 
 [features]
 default = []
-valgrind = ["valgrind_request"]
+#valgrind = ["valgrind_request"]
