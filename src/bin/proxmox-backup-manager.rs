@@ -60,6 +60,7 @@ fn remotes_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::config::remotes::API_METHOD_UPDATE_REMOTE)
                 .arg_param(&["name"])
+                .completion_cb("name", config::remotes::complete_remote_name)
         )
         .insert(
             "remove",
@@ -84,6 +85,7 @@ fn datastore_commands() -> CommandLineInterface {
         .insert("update",
                 CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
                 .arg_param(&["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
         )
         .insert("remove",
                 CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
