@@ -108,10 +108,6 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
             },
-            path: {
-                optional: true,
-                schema: datastore::DIR_NAME_SCHEMA,
-            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -147,7 +143,6 @@ pub fn update_datastore(
             data.comment = Some(comment);
         }
     }
-    if let Some(path) = path { data.path = path; }
 
     config.set_data(&name, "datastore", &data)?;
 
