@@ -17,7 +17,7 @@ use libc::{c_char, c_int, c_void, size_t};
 
 use super::binary_search_tree::search_binary_tree_by;
 use super::decoder::{Decoder, DirectoryEntry};
-use super::format_definition::{PxarEntry, PxarGoodbyeItem};
+use super::format_definition::PxarEntry;
 
 /// Node ID of the root i-node
 ///
@@ -29,8 +29,6 @@ use super::format_definition::{PxarEntry, PxarGoodbyeItem};
 /// will therefore not occur again, but remapping to the correct offset of 0 is
 /// required.
 const FUSE_ROOT_ID: u64 = 1;
-
-const GOODBYE_ITEM_SIZE: u64 = std::mem::size_of::<PxarGoodbyeItem>() as u64;
 
 type Offset = u64;
 /// FFI types for easier readability
@@ -84,6 +82,8 @@ struct Context {
     /// DirectoryEntry via the Decoder as well as the parent, in order
     /// to be able to include the parent directory on readdirplus calls.
     start_end_parent: HashMap<u64, (u64, u64)>,
+    /// Hold the DirectoryEntry for the current inode
+    entry: DirectoryEntry,
 }
 
 impl Context {
@@ -225,9 +225,10 @@ impl Session  {
     /// default signal handlers.
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
-    pub fn new(decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
+    pub fn new(mut decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
+        let entry = decoder.root()?;
         let mut map = HashMap::new();
         // Insert entry for the root directory, with itself as parent.
         map.insert(0, (decoder.root_end_offset(), 0));
@@ -236,6 +237,7 @@ impl Session  {
             decoder,
             ino_offset: 0,
             start_end_parent: map,
+            entry,
         };
 
         let session_ctx = Box::new(Mutex::new(ctx));
@@ -365,10 +367,18 @@ impl Session  {
         let result = boxed_ctx
             .lock()
             .map(|mut ctx| {
-                ctx.ino_offset = match inode {
-                    FUSE_ROOT_ID => 0,
-                    _ => inode,
+                let (ino_offset, entry) = match inode {
+                    FUSE_ROOT_ID => (0, ctx.decoder.root().map_err(|_| libc::EIO)?),
+                    _ => {
+                        let (end, _) = *ctx.start_end_parent.get(&inode).unwrap();
+                        let entry = ctx.decoder
+                            .read_directory_entry(inode, end)
+                            .map_err(|_| libc::EIO)?;
+                        (inode, entry)
+                    }
                 };
+                ctx.entry = entry;
+                ctx.ino_offset = ino_offset;
                 code(&mut ctx)
             })
             .unwrap_or(Err(libc::EIO));
@@ -422,11 +432,7 @@ impl Session  {
 
     extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
-            let (_, entry, _, payload_size) = ctx
-                .decoder
-                .attributes(ctx.ino_offset)
-                .map_err(|_| libc::EIO)?;
-            let attr = stat(inode, &entry, payload_size)?;
+            let attr = stat(inode, &ctx.entry.entry, ctx.entry.size)?;
             let _res = unsafe {
                 // Since fs is read-only, the timeout can be max.
                 let timeout = std::f64::MAX;
@@ -451,8 +457,7 @@ impl Session  {
     }
 
     extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |ctx| {
-            ctx.decoder.open(ctx.ino_offset).map_err(|_| libc::ENOENT)?;
+        Self::run_in_context(req, inode, |_ctx| {
             let _ret = unsafe { fuse_reply_open(req, fileinfo) };
 
             Ok(())
@@ -532,21 +537,11 @@ impl Session  {
 
             // Add current directory entry "."
             if offset <= n_entries {
-                let entry = if ctx.ino_offset == 0 {
-                    ctx.decoder
-                        .root()
-                        .map_err(|_| libc::EIO)?
-                } else {
-                    ctx.decoder
-                        .read_directory_entry(ctx.ino_offset, end)
-                        .map_err(|_| libc::EIO)?
-                };
-                // No need to calculate i-node for current dir, since it is given as parameter
                 let name = CString::new(".").unwrap();
                 let attr = EntryParam {
                     inode: inode,
                     generation: 1,
-                    attr: stat(inode, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &ctx.entry.entry, ctx.entry.size).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
@@ -605,19 +600,15 @@ impl Session  {
         let name = unsafe { CStr::from_ptr(name) };
 
         Self::run_in_context(req, inode, |ctx| {
-            let (_, _, xattrs, _) = ctx
-                .decoder
-                .attributes(ctx.ino_offset)
-                .map_err(|_| libc::EIO)?;
             // security.capability is stored separately, check it first
             if name.to_bytes() == b"security.capability" {
-                match xattrs.fcaps {
+                match &mut ctx.entry.xattr.fcaps {
                     None => return Err(libc::ENODATA),
-                    Some(mut fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
+                    Some(fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
                 }
             }
 
-            for mut xattr in xattrs.xattrs {
+            for xattr in &mut ctx.entry.xattr.xattrs {
                 if name.to_bytes() == xattr.name.as_slice() {
                     return Self::xattr_reply_value(req, &mut xattr.value, size);
                 }
@@ -630,15 +621,11 @@ impl Session  {
     /// Get a list of the extended attribute of `inode`.
     extern "C" fn listxattr(req: Request, inode: u64, size: size_t) {
         Self::run_in_context(req, inode, |ctx| {
-            let (_, _, xattrs, _) = ctx
-                .decoder
-                .attributes(ctx.ino_offset)
-                .map_err(|_| libc::EIO)?;
             let mut buffer = Vec::new();
-            if xattrs.fcaps.is_some() {
+            if ctx.entry.xattr.fcaps.is_some() {
                 buffer.extend_from_slice(b"security.capability\0");
             }
-            for mut xattr in xattrs.xattrs {
+            for xattr in &mut ctx.entry.xattr.xattrs {
                 buffer.append(&mut xattr.name);
                 buffer.push(b'\0');
             }
@@ -676,33 +663,6 @@ impl Drop for Session {
             fuse_remove_signal_handlers(self.ptr);
             fuse_session_destroy(self.ptr);
         }
-    }
-}
-
-/// Return the correct offset for the item based on its `PxarEntry` mode
-///
-/// For directories, the offset for the corresponding `GOODBYE_TAIL_MARKER`
-/// is returned.
-/// If it is not a directory, the start offset is returned.
-fn find_offset(entry: &PxarEntry, start: u64, end: u64) -> u64 {
-    if (entry.mode as u32 & libc::S_IFMT) == libc::S_IFDIR {
-        end - GOODBYE_ITEM_SIZE
-    } else {
-        start
-    }
-}
-
-/// Calculate the i-node based on the given `offset`
-///
-/// This maps the `offset` to the correct i-node, which is simply the offset.
-/// The root directory is an exception, as it has per definition `FUSE_ROOT_ID`.
-/// `root_end` is the end offset of the root directory (archive end).
-fn calculate_inode(offset: u64, root_end: u64) -> u64 {
-    // check for root offset which has to be mapped to `FUSE_ROOT_ID`
-    if offset == root_end - GOODBYE_ITEM_SIZE {
-        FUSE_ROOT_ID
-    } else {
-        offset
     }
 }
 

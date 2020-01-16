@@ -327,65 +327,6 @@ impl Decoder {
         }
     }
 
-    /// Get attributes for the archive item located at `offset`.
-    ///
-    /// Returns the entry, attributes and the payload size for the item.
-    /// For regular archive itmes a `PXAR_FILENAME` or a `PXAR_ENTRY` header is
-    /// expected at `offset`.
-    /// For directories, `offset` might also (but not necessarily) point at the
-    /// directories `PXAR_GOODBYE_TAIL_MARKER`. This is not mandatory and it can
-    /// also directly point to its `PXAR_FILENAME` or `PXAR_ENTRY`, thereby
-    /// avoiding an additional seek.
-    pub fn attributes(&mut self, offset: u64) -> Result<(OsString, PxarEntry, PxarAttributes, u64), Error> {
-        self.seek(SeekFrom::Start(offset))?;
-
-        let mut marker: u64 = self.inner.read_item()?;
-        if marker == PXAR_GOODBYE_TAIL_MARKER {
-            let dir_offset: u64 = self.inner.read_item()?;
-            let gb_size: u64 = self.inner.read_item()?;
-            let distance = i64::try_from(dir_offset + gb_size)?;
-            self.seek(SeekFrom::Current(0 - distance))?;
-            marker = self.inner.read_item()?;
-        }
-
-        let filename = if marker == PXAR_FILENAME {
-            let size: u64 = self.inner.read_item()?;
-            let filename = self.inner.read_filename(size)?;
-            marker = self.inner.read_item()?;
-            filename
-        } else {
-            OsString::new()
-        };
-
-        if marker == PXAR_FORMAT_HARDLINK {
-            let size: u64 = self.inner.read_item()?;
-            let (_, diff) = self.inner.read_hardlink(size)?;
-            // Make sure to return the original filename,
-            // not the one read from the hardlink.
-            let (_, entry, xattr, file_size) = self.attributes(offset - diff)?;
-            return Ok((filename, entry, xattr, file_size));
-        }
-
-        if marker != PXAR_ENTRY {
-            bail!("Expected PXAR_ENTRY, found 0x{:x?}", marker);
-        }
-        let _size: u64 = self.inner.read_item()?;
-        let entry: PxarEntry = self.inner.read_item()?;
-        let (header, xattr) = self.inner.read_attributes()?;
-        let file_size = match header.htype {
-            PXAR_PAYLOAD => header.size - HEADER_SIZE,
-            _ => 0,
-        };
-
-        Ok((filename, entry, xattr, file_size))
-    }
-
-    /// Opens the file by validating the given `offset` and returning its attrs,
-    /// xattrs and size.
-    pub fn open(&mut self, offset: u64) -> Result<(OsString, PxarEntry, PxarAttributes, u64), Error> {
-        self.attributes(offset)
-    }
-
     /// Read the payload of the file given by `offset`.
     ///
     /// This will read the file by first seeking to `offset` within the archive,
