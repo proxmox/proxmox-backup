@@ -417,15 +417,10 @@ async fn pull_datastore(
 
     let mut client = connect()?;
 
-    let (remote_config, _digest) = remotes::config()?;
-    let remote: Remote = remote_config.lookup("remote", &remote)?;
-
     let args = json!({
         "store": local_store,
-        "remote-host": remote.host,
-        "remote-user": remote.userid,
+        "remote": remote,
         "remote-store": remote_store,
-        "remote-password": remote.password,
     });
 
     let result = client.post("api2/json/pull", Some(args)).await?;

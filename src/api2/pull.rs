@@ -14,6 +14,7 @@ use proxmox::api::{ApiMethod, Router, RpcEnvironment};
 use crate::server::{WorkerTask};
 use crate::backup::*;
 use crate::client::*;
+use crate::config::remotes;
 use crate::api2::types::*;
 
 // fixme: implement filters
@@ -342,20 +343,11 @@ pub async fn pull_store(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
-            "remote-host": {
-                description: "Remote host", // TODO: use predefined type: host or IP
-                type: String,
+            remote: {
+                schema: REMOTE_ID_SCHEMA,
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
-            },
-            "remote-user": {
-                description: "Remote user name.", // TODO: use predefined typed
-                type: String,
-            },
-            "remote-password": {
-                description: "Remote passsword.",
-                type: String,
             },
         },
     },
@@ -363,10 +355,8 @@ pub async fn pull_store(
 /// Sync store from other repository
 async fn pull (
     store: String,
-    remote_host: String,
+    remote: String,
     remote_store: String,
-    remote_user: String,
-    remote_password: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -375,12 +365,15 @@ async fn pull (
 
     let tgt_store = DataStore::lookup_datastore(&store)?;
 
-    let client = HttpClient::new(&remote_host, &remote_user, Some(remote_password))?;
+    let (remote_config, _digest) = remotes::config()?;
+    let remote: remotes::Remote = remote_config.lookup("remote", &remote)?;
+
+    let client = HttpClient::new(&remote.host, &remote.userid, Some(remote.password.clone()))?;
     let _auth_info = client.login() // make sure we can auth
         .await
-        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote_host, err))?;
+        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
 
-    let src_repo = BackupRepository::new(Some(remote_user), Some(remote_host), remote_store);
+    let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote_store);
 
     // fixme: set to_stdout to false?
     let upid_str = WorkerTask::spawn("sync", Some(store.clone()), &username.clone(), true, move |worker| async move {
