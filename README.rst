@@ -1,3 +1,18 @@
+``rustup`` Toolchain
+====================
+
+If you use ``rustup``, you need to configure what toolchain you want
+to use. We set the default in the file ``./rust-toolchain`` to ``system``:
+
+    # cat rust-toolchain
+    system
+
+This works if you have installed the ``rustc`` Debian packages, and told
+``rustup`` the location of that link:
+
+    # rustup toolchain link system /usr
+
+
 Versioning of proxmox helper crates
 ===================================
 
