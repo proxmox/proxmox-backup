@@ -62,7 +62,7 @@ impl UPID {
 
         Ok(UPID {
             pid,
-            pstart: procfs::PidStat::read_for_pid(nix::unistd::Pid::from_raw(pid))?.starttime,
+            pstart: procfs::PidStat::read_from_pid(nix::unistd::Pid::from_raw(pid))?.starttime,
             starttime: Local::now().timestamp(),
             task_id,
             worker_type: worker_type.to_owned(),

@@ -37,7 +37,7 @@ lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
 
     static ref MY_PID: i32 = unsafe { libc::getpid() };
-    static ref MY_PID_PSTART: u64 = procfs::PidStat::read_for_pid(Pid::from_raw(*MY_PID))
+    static ref MY_PID_PSTART: u64 = procfs::PidStat::read_from_pid(Pid::from_raw(*MY_PID))
         .unwrap()
         .starttime;
 }
