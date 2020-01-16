@@ -313,26 +313,12 @@ impl Decoder {
                 None => return Ok(None),
             };
 
-            // At this point it is not clear if the item is a directory or not,
-            // this has to be decided based on the entry mode.
-            // `Decoder`s attributes function accepts both, offsets pointing to
-            // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in
-            // case of directories, so the use of start offset is fine for both
-            // cases.
-            let (entry_name, entry, xattr, size) = self.attributes(*start)?;
+            let entry = self.read_directory_entry(*start, *end)?;
 
             // Possible hash collision, need to check if the found entry is indeed
             // the filename to lookup.
-            if entry_name == filename {
-                let dir_entry = DirectoryEntry {
-                    start: *start + HEADER_SIZE + entry_name.len() as u64 + 1,
-                    end: *end,
-                    filename: entry_name,
-                    entry,
-                    xattr,
-                    size,
-                };
-                return Ok(Some(dir_entry));
+            if entry.filename == filename {
+                return Ok(Some(entry));
             }
             // Hash collision, check the next entry in the goodbye table by starting
             // from given index but skipping one more match (so hash at index itself).
