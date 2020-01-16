@@ -9,9 +9,11 @@ use chrono::Local;
 use failure::*;
 use futures::*;
 use lazy_static::lazy_static;
+use nix::unistd::Pid;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
+use proxmox::sys::linux::procfs;
 use proxmox::tools::{
     try_block,
     fs::{create_path, replace_file, CreateOptions},
@@ -35,7 +37,9 @@ lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
 
     static ref MY_PID: i32 = unsafe { libc::getpid() };
-    static ref MY_PID_PSTART: u64 = proxmox::sys::linux::procfs::read_proc_pid_stat(*MY_PID).unwrap().starttime;
+    static ref MY_PID_PSTART: u64 = procfs::PidStat::read_for_pid(Pid::from_raw(*MY_PID))
+        .unwrap()
+        .starttime;
 }
 
 /// Test if the task is still running
@@ -44,7 +48,6 @@ pub fn worker_is_active(upid: &UPID) -> bool {
     if (upid.pid == *MY_PID) && (upid.pstart == *MY_PID_PSTART) {
         WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id)
     } else {
-        use proxmox::sys::linux::procfs;
         procfs::check_process_running_pstart(upid.pid, upid.pstart).is_some()
     }
 }

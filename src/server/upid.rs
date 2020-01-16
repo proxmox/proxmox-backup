@@ -5,6 +5,8 @@ use chrono::Local;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use proxmox::sys::linux::procfs;
+
 /// Unique Process/Task Identifier
 ///
 /// We use this to uniquely identify worker task. UPIDs have a short
@@ -60,7 +62,7 @@ impl UPID {
 
         Ok(UPID {
             pid,
-            pstart: proxmox::sys::linux::procfs::read_proc_starttime(pid)?,
+            pstart: procfs::PidStat::read_for_pid(nix::unistd::Pid::from_raw(pid))?.starttime,
             starttime: Local::now().timestamp(),
             task_id,
             worker_type: worker_type.to_owned(),
