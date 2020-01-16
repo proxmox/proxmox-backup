@@ -16,7 +16,7 @@ use proxmox::tools::try_block;
 use crate::buildcfg;
 
 pub mod datastore;
-pub mod remotes;
+pub mod remote;
 
 /// Check configuration directory permissions
 ///

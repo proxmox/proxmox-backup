@@ -7,7 +7,7 @@ use proxmox::api::{api, cli::*};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
-use proxmox_backup::config::{self, remotes::{self, Remote}};
+use proxmox_backup::config::{self, remote::{self, Remote}};
 use proxmox_backup::api2::types::*;
 use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
@@ -44,29 +44,29 @@ fn connect() -> Result<HttpClient, Error> {
     Ok(client)
 }
 
-fn remotes_commands() -> CommandLineInterface {
+fn remote_commands() -> CommandLineInterface {
 
     use proxmox_backup::api2;
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::remotes::API_METHOD_LIST_REMOTES))
+        .insert("list", CliCommand::new(&api2::config::remote::API_METHOD_LIST_REMOTES))
         .insert(
             "create",
             // fixme: howto handle password parameter?
-            CliCommand::new(&api2::config::remotes::API_METHOD_CREATE_REMOTE)
+            CliCommand::new(&api2::config::remote::API_METHOD_CREATE_REMOTE)
                 .arg_param(&["name"])
         )
         .insert(
             "update",
-            CliCommand::new(&api2::config::remotes::API_METHOD_UPDATE_REMOTE)
+            CliCommand::new(&api2::config::remote::API_METHOD_UPDATE_REMOTE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::remotes::complete_remote_name)
+                .completion_cb("name", config::remote::complete_remote_name)
         )
         .insert(
             "remove",
-            CliCommand::new(&api2::config::remotes::API_METHOD_DELETE_REMOTE)
+            CliCommand::new(&api2::config::remote::API_METHOD_DELETE_REMOTE)
                 .arg_param(&["name"])
-                .completion_cb("name", config::remotes::complete_remote_name)
+                .completion_cb("name", config::remote::complete_remote_name)
         );
 
     cmd_def.into()
@@ -434,7 +434,7 @@ fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("datastore", datastore_commands())
-        .insert("remotes", remotes_commands())
+        .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())
         .insert("cert", cert_mgmt_cli())
         .insert("task", task_mgmt_cli())
@@ -443,7 +443,7 @@ fn main() {
             CliCommand::new(&API_METHOD_PULL_DATASTORE)
                 .arg_param(&["remote", "remote-store", "local-store"])
                 .completion_cb("local-store", config::datastore::complete_datastore_name)
-                .completion_cb("remote", config::remotes::complete_remote_name)
+                .completion_cb("remote", config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
         );
 
@@ -457,7 +457,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
     let _ = proxmox::tools::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
-        let (remote_config, _digest) = remotes::config()?;
+        let (remote_config, _digest) = remote::config()?;
 
         let remote: Remote = remote_config.lookup("remote", &remote)?;
 

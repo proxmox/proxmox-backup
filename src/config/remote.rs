@@ -60,28 +60,28 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const REMOTES_CFG_FILENAME: &str = "/etc/proxmox-backup/remotes.cfg";
-pub const REMOTES_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.remotes.lck";
+pub const REMOTE_CFG_FILENAME: &str = "/etc/proxmox-backup/remote.cfg";
+pub const REMOTE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.remote.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-    let content = match std::fs::read_to_string(REMOTES_CFG_FILENAME) {
+    let content = match std::fs::read_to_string(REMOTE_CFG_FILENAME) {
         Ok(c) => c,
         Err(err) => {
             if err.kind() == std::io::ErrorKind::NotFound {
                 String::from("")
             } else {
-                bail!("unable to read '{}' - {}", REMOTES_CFG_FILENAME, err);
+                bail!("unable to read '{}' - {}", REMOTE_CFG_FILENAME, err);
             }
         }
     };
 
     let digest = openssl::sha::sha256(content.as_bytes());
-    let data = CONFIG.parse(REMOTES_CFG_FILENAME, &content)?;
+    let data = CONFIG.parse(REMOTE_CFG_FILENAME, &content)?;
     Ok((data, digest))
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(REMOTES_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(REMOTE_CFG_FILENAME, &config)?;
 
     let backup_user = crate::backup::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
@@ -92,7 +92,7 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
         .owner(nix::unistd::ROOT)
         .group(backup_user.gid);
 
-    replace_file(REMOTES_CFG_FILENAME, raw.as_bytes(), options)?;
+    replace_file(REMOTE_CFG_FILENAME, raw.as_bytes(), options)?;
 
     Ok(())
 }

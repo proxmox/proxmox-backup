@@ -2,11 +2,11 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::api::list_subdirs_api_method;
 
 pub mod datastore;
-pub mod remotes;
+pub mod remote;
 
 const SUBDIRS: SubdirMap = &[
     ("datastore", &datastore::ROUTER),
-    ("remotes", &remotes::ROUTER),
+    ("remote", &remote::ROUTER),
 ];
 
 pub const ROUTER: Router = Router::new()

@@ -4,7 +4,7 @@ use serde_json::Value;
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 
 use crate::api2::types::*;
-use crate::config::remotes;
+use crate::config::remote;
 
 #[api(
     input: {
@@ -14,7 +14,7 @@ use crate::config::remotes;
         description: "The list of configured remotes (with config digest).",
         type: Array,
         items: {
-            type: remotes::Remote,
+            type: remote::Remote,
         },
     },
 )]
@@ -25,7 +25,7 @@ pub fn list_remotes(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let (config, digest) = remotes::config()?;
+    let (config, digest) = remote::config()?;
 
     Ok(config.convert_to_array("name", Some(&digest)))
 }
@@ -48,7 +48,7 @@ pub fn list_remotes(
                 schema: PROXMOX_USER_ID_SCHEMA,
             },
             password: {
-                schema: remotes::REMOTE_PASSWORD_SCHEMA,
+                schema: remote::REMOTE_PASSWORD_SCHEMA,
             },
         },
     },
@@ -56,11 +56,11 @@ pub fn list_remotes(
 /// Create new remote.
 pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(remotes::REMOTES_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = crate::tools::open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let remote: remotes::Remote = serde_json::from_value(param.clone())?;
+    let remote: remote::Remote = serde_json::from_value(param.clone())?;
 
-    let (mut config, _digest) = remotes::config()?;
+    let (mut config, _digest) = remote::config()?;
 
     if let Some(_) = config.sections.get(&name) {
         bail!("remote '{}' already exists.", name);
@@ -68,7 +68,7 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 
     config.set_data(&name, "remote", &remote)?;
 
-    remotes::save_config(&config)?;
+    remote::save_config(&config)?;
 
     Ok(())
 }
@@ -83,12 +83,12 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
     },
     returns: {
         description: "The remote configuration (with config digest).",
-        type: remotes::Remote,
+        type: remote::Remote,
     },
 )]
 /// Read remote configuration data.
 pub fn read_remote(name: String) -> Result<Value, Error> {
-    let (config, digest) = remotes::config()?;
+    let (config, digest) = remote::config()?;
     let mut data = config.lookup_json("remote", &name)?;
     data.as_object_mut().unwrap()
         .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
@@ -116,7 +116,7 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
             },
             password: {
                 optional: true,
-                schema: remotes::REMOTE_PASSWORD_SCHEMA,
+                schema: remote::REMOTE_PASSWORD_SCHEMA,
             },
             digest: {
                 optional: true,
@@ -135,16 +135,16 @@ pub fn update_remote(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(remotes::REMOTES_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = crate::tools::open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let (mut config, expected_digest) = remotes::config()?;
+    let (mut config, expected_digest) = remote::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: remotes::Remote = config.lookup("remote", &name)?;
+    let mut data: remote::Remote = config.lookup("remote", &name)?;
 
     if let Some(comment) = comment {
         let comment = comment.trim().to_string();
@@ -160,7 +160,7 @@ pub fn update_remote(
 
     config.set_data(&name, "remote", &data)?;
 
-    remotes::save_config(&config)?;
+    remote::save_config(&config)?;
 
     Ok(())
 }
@@ -181,7 +181,7 @@ pub fn delete_remote(name: String) -> Result<(), Error> {
     // fixme: locking ?
     // fixme: check digest ?
 
-    let (mut config, _digest) = remotes::config()?;
+    let (mut config, _digest) = remote::config()?;
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },

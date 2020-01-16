@@ -14,7 +14,7 @@ use proxmox::api::{ApiMethod, Router, RpcEnvironment};
 use crate::server::{WorkerTask};
 use crate::backup::*;
 use crate::client::*;
-use crate::config::remotes;
+use crate::config::remote;
 use crate::api2::types::*;
 
 // fixme: implement filters
@@ -365,8 +365,8 @@ async fn pull (
 
     let tgt_store = DataStore::lookup_datastore(&store)?;
 
-    let (remote_config, _digest) = remotes::config()?;
-    let remote: remotes::Remote = remote_config.lookup("remote", &remote)?;
+    let (remote_config, _digest) = remote::config()?;
+    let remote: remote::Remote = remote_config.lookup("remote", &remote)?;
 
     let client = HttpClient::new(&remote.host, &remote.userid, Some(remote.password.clone()))?;
     let _auth_info = client.login() // make sure we can auth
