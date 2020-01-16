@@ -1,17 +1,16 @@
-use failure::*;
-use lazy_static::lazy_static;
-use chrono::Local;
-
-use tokio::sync::oneshot;
-use futures::*;
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::{BufRead, BufReader};
 use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::panic::UnwindSafe;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
+use chrono::Local;
+use failure::*;
+use futures::*;
+use lazy_static::lazy_static;
 use serde_json::{json, Value};
+use tokio::sync::oneshot;
 
 use proxmox::tools::{
     try_block,
