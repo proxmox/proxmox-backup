@@ -35,7 +35,7 @@ impl ReadChunk for RemoteChunkReader {
 
         let mut chunk_data = Vec::with_capacity(4*1024*1024);
 
-        futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data))?;
+        tokio::task::block_in_place(|| futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data)))?;
 
         let chunk = DataBlob::from_raw(chunk_data)?;
         chunk.verify_crc()?;
