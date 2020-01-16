@@ -384,10 +384,12 @@ impl SenderWriter {
 
 impl Write for SenderWriter {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        futures::executor::block_on(async move {
-            self.0.send(Ok(buf.to_vec())).await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
-            Ok(buf.len())
+        tokio::task::block_in_place(|| {
+            futures::executor::block_on(async move {
+                self.0.send(Ok(buf.to_vec())).await
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
+                Ok(buf.len())
+            })
         })
     }
 
