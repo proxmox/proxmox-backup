@@ -16,8 +16,8 @@ use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
 use super::binary_search_tree::search_binary_tree_by;
-use super::decoder::Decoder;
-use super::format_definition::{PxarAttributes, PxarEntry, PxarGoodbyeItem};
+use super::decoder::{Decoder, DirectoryEntry};
+use super::format_definition::{PxarEntry, PxarGoodbyeItem};
 
 /// Node ID of the root i-node
 ///
@@ -77,13 +77,13 @@ struct FuseArgs {
 struct Context {
     decoder: Decoder,
     ino_offset: Offset,
-    /// HashMap holding the mapping from the child offsets to their parent
-    /// offsets.
+    /// The start of each DirectoryEntry is used as inode, used as key for this
+    /// hashmap.
     ///
-    /// In order to include the parent directory entry '..' in the response for
-    /// readdirplus callback, this mapping is needed.
-    /// Calling the lookup callback will insert the offsets into the HashMap.
-    child_parent: HashMap<u64, u64>,
+    /// This map stores the corresponding end offset, needed to read the
+    /// DirectoryEntry via the Decoder as well as the parent, in order
+    /// to be able to include the parent directory on readdirplus calls.
+    start_end_parent: HashMap<u64, (u64, u64)>,
 }
 
 impl Context {
@@ -105,9 +105,12 @@ impl Context {
         &mut self,
         filename: &CStr,
         hash: u64,
-    ) -> Result<(u64, PxarEntry, PxarAttributes, u64), i32> {
+    ) -> Result<(u64, DirectoryEntry), i32> {
+        let (end, _) = *self.start_end_parent
+            .get(&self.ino_offset)
+            .unwrap();
         let gbt = self.decoder
-            .goodbye_table(None, self.ino_offset + GOODBYE_ITEM_SIZE)
+            .goodbye_table(None, end)
             .map_err(|_| libc::EIO)?;
         let mut start_idx = 0;
         let mut skip_multiple = 0;
@@ -121,20 +124,16 @@ impl Context {
             ).ok_or(libc::ENOENT)?;
 
             let (_item, start, end) = &gbt[idx];
+            self.start_end_parent.insert(*start, (*end, self.ino_offset));
 
-            // At this point it is not clear if the item is a directory or not, this
-            // has to be decided based on the entry mode.
-            // `Decoder`s attributes function accepts both, offsets pointing to
-            // the start of an item (PXAR_FILENAME) or the GOODBYE_TAIL_MARKER in case
-            // of directories, so the use of start offset is fine for both cases.
-            let (entry_name, entry, attr, payload_size) =
-                self.decoder.attributes(*start).map_err(|_| libc::EIO)?;
+            let entry = self.decoder
+                .read_directory_entry(*start, *end)
+                .map_err(|_| libc::EIO)?;
 
             // Possible hash collision, need to check if the found entry is indeed
             // the filename to lookup.
-            if entry_name.as_bytes() == filename.to_bytes() {
-                let child_offset = find_offset(&entry, *start, *end);
-                return Ok((child_offset, entry, attr, payload_size));
+            if entry.filename.as_bytes() == filename.to_bytes() {
+                return Ok((*start, entry));
             }
             // Hash collision, check the next entry in the goodbye table by starting
             // from given index but skipping one more match (so hash at index itself).
@@ -229,11 +228,14 @@ impl Session  {
     pub fn new(decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
+        let mut map = HashMap::new();
+        // Insert entry for the root directory, with itself as parent.
+        map.insert(0, (decoder.root_end_offset(), 0));
 
         let ctx = Context {
             decoder,
             ino_offset: 0,
-            child_parent: HashMap::new(),
+            start_end_parent: map,
         };
 
         let session_ctx = Box::new(Mutex::new(ctx));
@@ -364,7 +366,7 @@ impl Session  {
             .lock()
             .map(|mut ctx| {
                 ctx.ino_offset = match inode {
-                    FUSE_ROOT_ID => ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE,
+                    FUSE_ROOT_ID => 0,
                     _ => inode,
                 };
                 code(&mut ctx)
@@ -402,22 +404,16 @@ impl Session  {
         let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
 
         Self::run_in_context(req, parent, |ctx| {
-            // find_ goodbye_entry() will also update the goodbye cache
-            let (child_offset, entry, _attr, payload_size) =
-                ctx.find_goodbye_entry(&filename, hash)?;
-            let child_inode = calculate_inode(child_offset, ctx.decoder.root_end_offset());
+            let (offset, entry) = ctx.find_goodbye_entry(&filename, hash)?;
 
             let e = EntryParam {
-                inode: child_inode,
+                inode: offset,
                 generation: 1,
-                attr: stat(child_inode, &entry, payload_size)?,
+                attr: stat(offset, &entry.entry, entry.size)?,
                 attr_timeout: std::f64::MAX,
                 entry_timeout: std::f64::MAX,
             };
 
-            // Update the parent for this child entry. Used to get parent offset if
-            // only child offset is known.
-            ctx.child_parent.insert(child_offset, ctx.ino_offset);
             let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
 
             Ok(())
@@ -502,24 +498,27 @@ impl Session  {
         let offset = offset as usize;
 
         Self::run_in_context(req, inode, |ctx| {
+            let (end, _) = *ctx.start_end_parent
+                .get(&ctx.ino_offset)
+                .unwrap();
             let gbt = ctx.decoder
-                .goodbye_table(None, ctx.ino_offset + GOODBYE_ITEM_SIZE)
+                .goodbye_table(None, end)
                 .map_err(|_| libc::EIO)?;
             let n_entries = gbt.len();
             let mut buf = ReplyBuf::new(req, size, offset);
 
             if offset < n_entries {
                 for e in gbt[offset..gbt.len()].iter() {
-                    let (filename, entry, _, payload_size) =
-                        ctx.decoder.attributes(e.1).map_err(|_| libc::EIO)?;
-                    let name = CString::new(filename.as_bytes()).map_err(|_| libc::EIO)?;
-                    let item_offset = find_offset(&entry, e.1, e.2);
-                    ctx.child_parent.insert(item_offset, ctx.ino_offset);
-                    let item_inode = calculate_inode(item_offset, ctx.decoder.root_end_offset());
+                    ctx.start_end_parent.insert(e.1, (e.2, ctx.ino_offset));
+                    let entry = ctx.decoder
+                        .read_directory_entry(e.1, e.2)
+                        .map_err(|_| libc::EIO)?;
+                    let name = CString::new(entry.filename.as_bytes())
+                        .map_err(|_| libc::EIO)?;
                     let attr = EntryParam {
-                        inode: item_inode,
+                        inode: e.1,
                         generation: 1,
-                        attr: stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                        attr: stat(e.1, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
                         attr_timeout: std::f64::MAX,
                         entry_timeout: std::f64::MAX,
                     };
@@ -533,16 +532,21 @@ impl Session  {
 
             // Add current directory entry "."
             if offset <= n_entries {
-                let (_, entry, _, payload_size) = ctx
-                    .decoder
-                    .attributes(ctx.ino_offset)
-                    .map_err(|_| libc::EIO)?;
+                let entry = if ctx.ino_offset == 0 {
+                    ctx.decoder
+                        .root()
+                        .map_err(|_| libc::EIO)?
+                } else {
+                    ctx.decoder
+                        .read_directory_entry(ctx.ino_offset, end)
+                        .map_err(|_| libc::EIO)?
+                };
                 // No need to calculate i-node for current dir, since it is given as parameter
                 let name = CString::new(".").unwrap();
                 let attr = EntryParam {
                     inode: inode,
                     generation: 1,
-                    attr: stat(inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
@@ -555,19 +559,27 @@ impl Session  {
 
             // Add parent directory entry ".."
             if offset <= n_entries + 1 {
-                let parent_off = if inode == FUSE_ROOT_ID {
-                    ctx.decoder.root_end_offset() - GOODBYE_ITEM_SIZE
+                let (_, parent) = *ctx.start_end_parent
+                    .get(&ctx.ino_offset)
+                    .unwrap();
+                let entry = if parent == 0 {
+                    ctx.decoder
+                        .root()
+                        .map_err(|_| libc::EIO)?
                 } else {
-                    *ctx.child_parent.get(&ctx.ino_offset).ok_or_else(|| libc::EIO)?
+                    let (end, _) = *ctx.start_end_parent
+                        .get(&parent)
+                        .unwrap();
+                    ctx.decoder
+                        .read_directory_entry(parent, end)
+                        .map_err(|_| libc::EIO)?
                 };
-                let (_, entry, _, payload_size) =
-                    ctx.decoder.attributes(parent_off).map_err(|_| libc::EIO)?;
-                let item_inode = calculate_inode(parent_off, ctx.decoder.root_end_offset());
+                let inode = if parent == 0 { FUSE_ROOT_ID } else { parent };
                 let name = CString::new("..").unwrap();
                 let attr = EntryParam {
-                    inode: item_inode,
+                    inode: inode,
                     generation: 1,
-                    attr: stat(item_inode, &entry, payload_size).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
