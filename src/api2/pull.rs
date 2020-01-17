@@ -299,17 +299,12 @@ pub async fn pull_store(
 
     let mut result = client.get(&path, None).await?;
 
-    let list = result["data"].as_array_mut().unwrap();
+    let mut list: Vec<GroupListItem> = serde_json::from_value(result["data"].take())?;
 
     list.sort_unstable_by(|a, b| {
-        let a_id = a["backup-id"].as_str().unwrap();
-        let a_backup_type = a["backup-type"].as_str().unwrap();
-        let b_id = b["backup-id"].as_str().unwrap();
-        let b_backup_type = b["backup-type"].as_str().unwrap();
-
-        let type_order = a_backup_type.cmp(b_backup_type);
+        let type_order = a.backup_type.cmp(&b.backup_type);
         if type_order == std::cmp::Ordering::Equal {
-            a_id.cmp(b_id)
+            a.backup_id.cmp(&b.backup_id)
         } else {
             type_order
         }
@@ -318,13 +313,9 @@ pub async fn pull_store(
     let mut errors = false;
 
     for item in list {
-
-        let id = item["backup-id"].as_str().unwrap();
-        let btype = item["backup-type"].as_str().unwrap();
-
-        let group = BackupGroup::new(btype, id);
+        let group = BackupGroup::new(&item.backup_type, &item.backup_id);
         if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group).await {
-            worker.log(format!("sync group {}/{} failed - {}", btype, id, err));
+            worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
             errors = true;
             // continue
         }

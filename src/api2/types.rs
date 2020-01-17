@@ -200,6 +200,40 @@ pub const PROXMOX_USER_ID_SCHEMA: Schema = StringSchema::new("User ID")
         "backup-id": {
             schema: BACKUP_ID_SCHEMA,
         },
+        "last-backup": {
+            schema: BACKUP_TIME_SCHEMA,
+        },
+        "backup-count": {
+            type: Integer,
+        },
+        files: {
+            items: {
+                schema: BACKUP_ARCHIVE_NAME_SCHEMA
+            },
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Basic information about a backup group.
+pub struct GroupListItem {
+    pub backup_type: String, // enum
+    pub backup_id: String,
+    pub last_backup: i64,
+    /// Number of contained snapshots
+    pub backup_count: u64,
+    /// List of contained archive files.
+    pub files: Vec<String>,
+}
+
+#[api(
+    properties: {
+        "backup-type": {
+            schema: BACKUP_TYPE_SCHEMA,
+        },
+        "backup-id": {
+            schema: BACKUP_ID_SCHEMA,
+        },
         "backup-time": {
             schema: BACKUP_TIME_SCHEMA,
         },

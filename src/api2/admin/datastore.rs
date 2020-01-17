@@ -60,21 +60,34 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
     group_hash
 }
 
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Returns the list of backup groups.",
+        items: {
+            type: GroupListItem,
+        }
+    },
+)]
+/// List backup groups.
 fn list_groups(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    store: String,
+) -> Result<Vec<GroupListItem>, Error> {
 
-    let store = param["store"].as_str().unwrap();
-
-    let datastore = DataStore::lookup_datastore(store)?;
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     let backup_list = BackupInfo::list_backups(&datastore.base_path())?;
 
     let group_hash = group_backups(backup_list);
 
-    let mut groups = vec![];
+    let mut groups = Vec::new();
 
     for (_group_id, mut list) in group_hash {
 
@@ -83,16 +96,17 @@ fn list_groups(
         let info = &list[0];
         let group = info.backup_dir.group();
 
-        groups.push(json!({
-            "backup-type": group.backup_type(),
-            "backup-id": group.backup_id(),
-            "last-backup": info.backup_dir.backup_time().timestamp(),
-            "backup-count": list.len() as u64,
-            "files": info.files,
-        }));
+        let result_item = GroupListItem {
+            backup_type: group.backup_type().to_string(),
+            backup_id: group.backup_id().to_string(),
+            last_backup: info.backup_dir.backup_time().timestamp(),
+            backup_count: list.len() as u64,
+            files: info.files.clone(),
+        };
+        groups.push(result_item);
     }
 
-    Ok(json!(groups))
+    Ok(groups)
 }
 
 fn list_snapshot_files (
@@ -652,15 +666,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "groups",
         &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&list_groups),
-                    &ObjectSchema::new(
-                        "List backup groups.",
-                        &sorted!([ ("store", false, &DATASTORE_SCHEMA) ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_LIST_GROUPS)
     ),
     (
         "prune",
