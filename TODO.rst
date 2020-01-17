@@ -5,5 +5,3 @@ TODO list for Proxmox Backup
 
 Suggestions
 ===========
-
-* when creating keyfile for backup encryption, ask for the password twice
