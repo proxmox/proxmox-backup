@@ -31,6 +31,8 @@ pub struct DirectoryEntry {
     pub xattr: PxarAttributes,
     /// Payload size
     pub size: u64,
+    /// Target path for symbolic links
+    pub target: Option<PathBuf>,
 }
 
 /// Trait to create ReadSeek Decoder trait objects.
@@ -78,6 +80,7 @@ impl Decoder {
             entry,
             xattr,
             size,
+            target: None,
         })
     }
 
@@ -135,6 +138,10 @@ impl Decoder {
             PXAR_PAYLOAD => header.size - HEADER_SIZE,
             _ => 0,
         };
+        let target = match header.htype {
+            PXAR_SYMLINK => Some(self.inner.read_link(header.size)?),
+            _ => None,
+        };
 
         Ok(DirectoryEntry {
             start: entry_start,
@@ -143,6 +150,7 @@ impl Decoder {
             entry,
             xattr,
             size,
+            target,
         })
     }
 
@@ -369,27 +377,5 @@ impl Decoder {
         let data = self.inner.get_reader_mut().read_exact_allocated(len)?;
 
         Ok(data)
-    }
-
-    /// Read the target of a hardlink in the archive.
-    pub fn read_link(&mut self, offset: u64) -> Result<(PathBuf, PxarEntry), Error> {
-        self.seek(SeekFrom::Start(offset))?;
-        let mut header: PxarHeader = self.inner.read_item()?;
-        if header.htype != PXAR_FILENAME {
-            bail!("Expected PXAR_FILENAME, encountered 0x{:x?}", header.htype);
-        }
-        let _filename = self.inner.read_filename(header.size)?;
-
-        header = self.inner.read_item()?;
-        check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
-        let entry: PxarEntry = self.inner.read_item()?;
-
-        header = self.inner.read_item()?;
-        if header.htype != PXAR_SYMLINK {
-            bail!("Expected PXAR_SYMLINK, encountered 0x{:x?}", header.htype);
-        }
-        let target = self.inner.read_link(header.size)?;
-
-        Ok((target, entry))
     }
 }

@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fs::File;
 use std::io::BufReader;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -445,11 +445,8 @@ impl Session  {
 
     extern "C" fn readlink(req: Request, inode: u64) {
         Self::run_in_context(req, inode, |ctx| {
-            let (target, _) = ctx
-                .decoder
-                .read_link(ctx.ino_offset)
-                .map_err(|_| libc::EIO)?;
-            let link = CString::new(target.into_os_string().into_vec()).map_err(|_| libc::EIO)?;
+            let target = ctx.entry.target.as_ref().ok_or_else(|| libc::EIO)?;
+            let link = CString::new(target.as_os_str().as_bytes()).map_err(|_| libc::EIO)?;
             let _ret = unsafe { fuse_reply_readlink(req, link.as_ptr()) };
 
             Ok(())
