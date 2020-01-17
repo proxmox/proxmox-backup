@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use failure::*;
 use lazy_static::lazy_static;
 
-use super::backup_info::BackupDir;
+use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -168,6 +168,20 @@ impl DataStore {
 
         Ok(())
     }
+
+    /// Remove a complete backup group including all snapshots
+    pub fn remove_backup_group(&self, backup_group: &BackupGroup,
+    ) ->  Result<(), io::Error> {
+
+        let mut full_path = self.base_path();
+        full_path.push(backup_group.group_path());
+
+        log::info!("removing backup group {:?}", full_path);
+        std::fs::remove_dir_all(full_path)?;
+
+        Ok(())
+    }
+
     /// Remove a backup directory including all content
     pub fn remove_backup_dir(&self, backup_dir: &BackupDir,
     ) ->  Result<(), io::Error> {

@@ -386,6 +386,7 @@ fn cert_mgmt_cli() -> CommandLineInterface {
     cmd_def.into()
 }
 
+// fixme: avoid API redefinition
 #[api(
    input: {
         properties: {
@@ -397,6 +398,12 @@ fn cert_mgmt_cli() -> CommandLineInterface {
             },
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
+            },
+            delete: {
+                description: "Delete vanished backups. This remove the local copy if the remote backup was deleted.",
+                type: Boolean,
+                optional: true,
+                default: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -410,6 +417,7 @@ async fn pull_datastore(
     remote: String,
     remote_store: String,
     local_store: String,
+    delete: Option<bool>,
     output_format: Option<String>,
 ) -> Result<Value, Error> {
 
@@ -417,11 +425,15 @@ async fn pull_datastore(
 
     let mut client = connect()?;
 
-    let args = json!({
+    let mut args = json!({
         "store": local_store,
         "remote": remote,
         "remote-store": remote_store,
     });
+
+    if let Some(delete) = delete {
+        args["delete"] = delete.into();
+    }
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 

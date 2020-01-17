@@ -240,6 +240,7 @@ pub async fn pull_group(
     src_repo: &BackupRepository,
     tgt_store: Arc<DataStore>,
     group: &BackupGroup,
+    delete: bool,
 ) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", src_repo.store());
@@ -285,6 +286,10 @@ pub async fn pull_group(
         pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot).await?;
     }
 
+    if delete {
+        // fixme: implement me
+    }
+
     Ok(())
 }
 
@@ -293,6 +298,7 @@ pub async fn pull_store(
     client: &HttpClient,
     src_repo: &BackupRepository,
     tgt_store: Arc<DataStore>,
+    delete: bool,
 ) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/groups", src_repo.store());
@@ -312,13 +318,35 @@ pub async fn pull_store(
 
     let mut errors = false;
 
+    let mut new_groups = std::collections::HashSet::new();
+
     for item in list {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
-        if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group).await {
+        if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group, delete).await {
             worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
             errors = true;
-            // continue
+            // do not stop here, instead continue
         }
+        new_groups.insert(group);
+    }
+
+    if delete {
+        let result: Result<(), Error> = proxmox::tools::try_block!({
+            let local_groups = BackupGroup::list_groups(&tgt_store.base_path())?;
+            for local_group in local_groups {
+                if new_groups.contains(&local_group) { continue; }
+                worker.log(format!("delete vanished group '{}/{}'", local_group.backup_type(), local_group.backup_id()));
+                if let Err(err) = tgt_store.remove_backup_group(&local_group) {
+                    worker.log(format!("delete failed: {}", err));
+                    errors = true;
+                }
+            }
+            Ok(())
+        });
+        if let Err(err) = result {
+            worker.log(format!("error during cleanup: {}", err));
+            errors = true;
+        };
     }
 
     if errors {
@@ -340,6 +368,12 @@ pub async fn pull_store(
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
             },
+            delete: {
+                description: "Delete vanished backups. This remove the local copy if the remote backup was deleted.",
+                type: Boolean,
+                optional: true,
+                default: true,
+            },
         },
     },
 )]
@@ -348,11 +382,14 @@ async fn pull (
     store: String,
     remote: String,
     remote_store: String,
+    delete: Option<bool>,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
     let username = rpcenv.get_user().unwrap();
+
+    let delete = delete.unwrap_or(true);
 
     let tgt_store = DataStore::lookup_datastore(&store)?;
 
@@ -374,7 +411,7 @@ async fn pull (
         // explicit create shared lock to prevent GC on newly created chunks
         let _shared_store_lock = tgt_store.try_shared_chunk_store_lock()?;
 
-        pull_store(&worker, &client, &src_repo, tgt_store.clone()).await?;
+        pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete).await?;
 
         worker.log(format!("sync datastore '{}' end", store));
 
