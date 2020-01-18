@@ -61,7 +61,7 @@ impl PxarBackupStream {
 
         let catalog = catalog.clone();
         let exclude_pattern = Vec::new();
-        let child = thread::spawn(move || {
+        let child = std::thread::Builder::new().name("PxarBackupStream".to_string()).spawn(move || {
             let mut guard = catalog.lock().unwrap();
             let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
             if let Err(err) = pxar::Encoder::encode(
@@ -79,7 +79,7 @@ impl PxarBackupStream {
                 let mut error = error2.lock().unwrap();
                 *error = Some(err.to_string());
             }
-        });
+        })?;
 
         let pipe = unsafe { std::fs::File::from_raw_fd(rx) };
         let stream = crate::tools::wrapped_reader_stream::WrappedReaderStream::new(pipe);
