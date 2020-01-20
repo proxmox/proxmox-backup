@@ -76,12 +76,7 @@ pub fn block_in_place<R>(fut: impl FnOnce() -> R) -> R {
 }
 
 /// Block on a future in this thread.
-pub fn block_on<R, F>(fut: F) -> R
-where
-    R: Send + 'static,
-    F: Future<Output = R> + Send,
-{
-
+pub fn block_on<F: Future>(fut: F) -> F::Output {
     if is_in_tokio() {
         // inside a tokio worker we need to tell tokio that we're about to really block:
         tokio::task::block_in_place(move || futures::executor::block_on(fut))
@@ -122,10 +117,6 @@ where
 
 /// This used to be our tokio main entry point. Now this just calls out to `block_on` for
 /// compatibility, which will perform all the necessary tasks on-demand anyway.
-pub fn main<F>(fut: F) -> F::Output
-where
-    F: Future + Send,
-    F::Output: Send + 'static,
-{
+pub fn main<F: Future>(fut: F) -> F::Output {
     block_on(fut)
 }
