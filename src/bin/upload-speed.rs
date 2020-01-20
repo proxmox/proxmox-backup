@@ -21,9 +21,8 @@ async fn upload_speed() -> Result<usize, Error> {
     Ok(res)
 }
 
-#[tokio::main]
-async fn main()  {
-    match upload_speed().await {
+fn main()  {
+    match proxmox_backup::tools::runtime::main(upload_speed()) {
         Ok(mbs) => {
             println!("average upload speed: {} MB/s", mbs);
         }

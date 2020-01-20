@@ -12,9 +12,8 @@ use proxmox_backup::backup::*;
 //
 // Note: I can currently get about 830MB/s
 
-#[tokio::main]
-async fn main() {
-    if let Err(err) = run().await {
+fn main() {
+    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
         panic!("ERROR: {}", err);
     }
 }

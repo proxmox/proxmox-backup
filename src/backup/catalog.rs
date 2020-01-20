@@ -8,10 +8,12 @@ use std::convert::TryFrom;
 use chrono::offset::{TimeZone, Local};
 
 use proxmox::tools::io::ReadExt;
+use proxmox::sys::error::io_err_other;
 
 use crate::pxar::catalog::BackupCatalogWriter;
 use crate::pxar::{MatchPattern, MatchPatternSlice, MatchType};
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
+use crate::tools::runtime::block_on;
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
@@ -384,12 +386,12 @@ impl SenderWriter {
 
 impl Write for SenderWriter {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        tokio::task::block_in_place(|| {
-            futures::executor::block_on(async move {
-                self.0.send(Ok(buf.to_vec())).await
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))?;
-                Ok(buf.len())
-            })
+        block_on(async move {
+            self.0
+                .send(Ok(buf.to_vec()))
+                .await
+                .map_err(io_err_other)
+                .and(Ok(buf.len()))
         })
     }
 

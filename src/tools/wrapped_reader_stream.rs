@@ -2,8 +2,9 @@ use std::io::{self, Read};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use tokio::task::block_in_place;
 use futures::stream::Stream;
+
+use crate::tools::runtime::block_in_place;
 
 pub struct WrappedReaderStream<R: Read + Unpin> {
     reader: R,

@@ -57,7 +57,7 @@ async fn run() -> Result<(), Error> {
 
 #[tokio::main]
 async fn main() {
-    if let Err(err) = run().await {
+    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
         eprintln!("ERROR: {}", err);
     }
     println!("DONE");

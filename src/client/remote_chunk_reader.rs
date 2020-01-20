@@ -5,6 +5,7 @@ use failure::*;
 
 use super::BackupReader;
 use crate::backup::{ReadChunk, DataBlob, CryptConfig};
+use crate::tools::runtime::block_on;
 
 /// Read chunks from remote host using ``BackupReader``
 pub struct RemoteChunkReader {
@@ -35,7 +36,14 @@ impl ReadChunk for RemoteChunkReader {
 
         let mut chunk_data = Vec::with_capacity(4*1024*1024);
 
-        tokio::task::block_in_place(|| futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data)))?;
+        //tokio::task::block_in_place(|| futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data)))?;
+        block_on(async {
+            // download_chunk returns the writer back to us, but we need to return a 'static value
+            self.client
+                .download_chunk(&digest, &mut chunk_data)
+                .await
+                .map(drop)
+        })?;
 
         let chunk = DataBlob::from_raw(chunk_data)?;
         chunk.verify_crc()?;

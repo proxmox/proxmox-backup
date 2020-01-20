@@ -10,8 +10,11 @@ use proxmox_backup::configdir;
 
 // Simple H2 server to test H2 speed with h2s-client.rs
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
+    proxmox_backup::tools::runtime::main(run())
+}
+
+async fn run() -> Result<(), Error> {
     let key_path = configdir!("/proxy.key");
     let cert_path = configdir!("/proxy.pem");
 

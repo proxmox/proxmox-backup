@@ -13,9 +13,8 @@ use proxmox_backup::auth_helpers::*;
 use proxmox_backup::config;
 use proxmox_backup::buildcfg;
 
-#[tokio::main]
-async fn main() {
-    if let Err(err) = run().await {
+fn main() {
+    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
         eprintln!("Error: {}", err);
         std::process::exit(-1);
     }

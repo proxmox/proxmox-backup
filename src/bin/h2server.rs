@@ -8,8 +8,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use proxmox_backup::client::pipe_to_stream::PipeToSendStream;
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
+    proxmox_backup::tools::runtime::main(run())
+}
+
+async fn run() -> Result<(), Error> {
     let mut listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());

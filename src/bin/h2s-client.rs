@@ -67,8 +67,11 @@ fn send_request(
         })
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
+    proxmox_backup::tools::runtime::main(run())
+}
+
+async fn run() -> Result<(), Error> {
     let start = std::time::SystemTime::now();
 
     let conn =
