@@ -52,7 +52,6 @@ extern "C" {
     fn fuse_session_destroy(session: ConstPtr);
     fn fuse_reply_attr(req: Request, attr: Option<&libc::stat>, timeout: f64) -> c_int;
     fn fuse_reply_err(req: Request, errno: c_int) -> c_int;
-    fn fuse_reply_open(req: Request, fileinfo: ConstPtr) -> c_int;
     fn fuse_reply_buf(req: Request, buf: MutStrPtr, size: size_t) -> c_int;
     fn fuse_reply_entry(req: Request, entry: Option<&EntryParam>) -> c_int;
     fn fuse_reply_xattr(req: Request, size: size_t) -> c_int;
@@ -293,10 +292,7 @@ impl Session  {
         oprs.lookup = Some(Self::lookup);
         oprs.getattr = Some(Self::getattr);
         oprs.readlink = Some(Self::readlink);
-        oprs.open = Some(Self::open);
         oprs.read = Some(Self::read);
-        oprs.opendir = Some(Self::opendir);
-        oprs.releasedir = Some(Self::releasedir);
         oprs.getxattr = Some(Self::getxattr);
         oprs.listxattr = Some(Self::listxattr);
         oprs.readdirplus = Some(Self::readdirplus);
@@ -453,14 +449,6 @@ impl Session  {
         });
     }
 
-    extern "C" fn open(req: Request, inode: u64, fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |_ctx| {
-            let _ret = unsafe { fuse_reply_open(req, fileinfo) };
-
-            Ok(())
-        });
-    }
-
     extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
             let mut data = ctx
@@ -473,18 +461,6 @@ impl Session  {
                 let dptr = data.as_mut_ptr() as *mut c_char;
                 fuse_reply_buf(req, dptr, len)
             };
-
-            Ok(())
-        });
-    }
-
-    /// Open the directory referenced by the given inode for reading.
-    ///
-    /// This simply checks if the inode references a valid directory, no internal
-    /// state identifies the directory as opened.
-    extern "C" fn opendir(req: Request, inode: u64, fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |_ctx| {
-            let _ret = unsafe { fuse_reply_open(req, fileinfo as MutPtr) };
 
             Ok(())
         });
@@ -583,12 +559,6 @@ impl Session  {
             }
 
             buf.reply_filled()
-        });
-    }
-
-    extern "C" fn releasedir(req: Request, inode: u64, _fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |_ctx| {
-            Ok(())
         });
     }
 
