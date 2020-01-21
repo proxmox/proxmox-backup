@@ -135,7 +135,7 @@ fn block_on_local_future<F: Future>(mut fut: F) -> F::Output {
     loop {
         match fut.as_mut().poll(&mut context) {
             Poll::Ready(out) => return out,
-            Poll::Pending => continue,
+            Poll::Pending => thread::park(),
         }
     }
 }
