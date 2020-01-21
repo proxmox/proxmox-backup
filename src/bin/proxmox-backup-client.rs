@@ -1484,7 +1484,7 @@ async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 }
 
 fn complete_backup_group(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    async_main(async { complete_backup_group_do(param).await })
+    proxmox_backup::tools::runtime::main(async { complete_backup_group_do(param).await })
 }
 
 async fn complete_backup_group_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -1514,7 +1514,7 @@ async fn complete_backup_group_do(param: &HashMap<String, String>) -> Vec<String
 }
 
 fn complete_group_or_snapshot(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    async_main(async { complete_group_or_snapshot_do(arg, param).await })
+    proxmox_backup::tools::runtime::main(async { complete_group_or_snapshot_do(arg, param).await })
 }
 
 async fn complete_group_or_snapshot_do(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
@@ -1533,7 +1533,7 @@ async fn complete_group_or_snapshot_do(arg: &str, param: &HashMap<String, String
 }
 
 fn complete_backup_snapshot(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    async_main(async { complete_backup_snapshot_do(param).await })
+    proxmox_backup::tools::runtime::main(async { complete_backup_snapshot_do(param).await })
 }
 
 async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -1564,7 +1564,7 @@ async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec<Str
 }
 
 fn complete_server_file_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
-    async_main(async { complete_server_file_name_do(param).await })
+    proxmox_backup::tools::runtime::main(async { complete_server_file_name_do(param).await })
 }
 
 async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<String> {
@@ -1890,7 +1890,7 @@ fn mount(
     if verbose {
         // This will stay in foreground with debug output enabled as None is
         // passed for the RawFd.
-        return async_main(mount_do(param, None));
+        return proxmox_backup::tools::runtime::main(mount_do(param, None));
     }
 
     // Process should be deamonized.
@@ -1906,7 +1906,7 @@ fn mount(
         Ok(ForkResult::Child) => {
             nix::unistd::close(pipe.0).unwrap();
             nix::unistd::setsid().unwrap();
-            async_main(mount_do(param, Some(pipe.1)))
+            proxmox_backup::tools::runtime::main(mount_do(param, Some(pipe.1)))
         }
         Err(_) => bail!("failed to daemonize process"),
     }
@@ -2361,13 +2361,5 @@ fn main() {
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli());
 
-    run_cli_command(cmd_def);
-}
-
-fn async_main<F: Future>(fut: F) -> <F as Future>::Output {
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
-    let ret = rt.block_on(fut);
-    // This does not exist anymore. We need to actually stop our runaways instead...
-    // rt.shutdown_now();
-    ret
+    proxmox_backup::tools::runtime::main(run_cli_command(cmd_def));
 }
