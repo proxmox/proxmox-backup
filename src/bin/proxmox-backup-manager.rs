@@ -467,7 +467,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
     let mut list = Vec::new();
 
-    let _ = proxmox::tools::try_block!({
+    let _ = proxmox::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
         let (remote_config, _digest) = remote::config()?;
 

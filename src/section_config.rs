@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 
 use proxmox::api::schema::*;
-use proxmox::tools::try_block;
+use proxmox::try_block;
 
 pub struct SectionConfigPlugin {
     type_name: String,

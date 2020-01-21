@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use proxmox::sys::linux::procfs;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, SubdirMap};
-use proxmox::api::list_subdirs_api_method;
+use proxmox::list_subdirs_api_method;
 
 use crate::api2::types::*;
 

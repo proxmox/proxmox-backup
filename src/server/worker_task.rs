@@ -14,10 +14,8 @@ use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
 use proxmox::sys::linux::procfs;
-use proxmox::tools::{
-    try_block,
-    fs::{create_path, replace_file, CreateOptions},
-};
+use proxmox::try_block;
+use proxmox::tools::fs::{create_path, replace_file, CreateOptions};
 
 use super::UPID;
 

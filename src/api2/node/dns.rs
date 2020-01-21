@@ -10,7 +10,7 @@ use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
-use proxmox::tools::*; // required to use IPRE!() macro ???
+use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use crate::api2::types::*;
 

@@ -1,5 +1,5 @@
 use proxmox::api::router::{Router, SubdirMap};
-use proxmox::api::list_subdirs_api_method;
+use proxmox::list_subdirs_api_method;
 
 mod tasks;
 mod time;

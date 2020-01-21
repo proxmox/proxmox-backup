@@ -3,10 +3,8 @@ use failure::*;
 use serde::{Deserialize, Serialize};
 use chrono::{Local, TimeZone, DateTime};
 
-use proxmox::tools::{
-    try_block,
-    fs::{file_get_contents, replace_file, CreateOptions},
-};
+use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox::try_block;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum KeyDerivationConfig {

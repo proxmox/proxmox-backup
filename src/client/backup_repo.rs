@@ -2,8 +2,8 @@ use std::fmt;
 
 use failure::*;
 
-use proxmox::api::const_regex;
 use proxmox::api::schema::*;
+use proxmox::const_regex;
 
 const_regex! {
     /// Regular expression to parse repository URLs

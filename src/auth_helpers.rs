@@ -7,10 +7,8 @@ use openssl::sha;
 
 use std::path::PathBuf;
 
-use proxmox::tools::{
-    try_block,
-    fs::{file_get_contents, replace_file, CreateOptions},
-};
+use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox::try_block;
 
 fn compute_csrf_secret_digest(
     timestamp: i64,

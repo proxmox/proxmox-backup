@@ -29,7 +29,7 @@ pub struct DynamicIndexHeader {
     pub index_csum: [u8; 32],
     reserved: [u8; 4032], // overall size is one page (4096 bytes)
 }
-proxmox::tools::static_assert_size!(DynamicIndexHeader, 4096);
+proxmox::static_assert_size!(DynamicIndexHeader, 4096);
 // TODO: Once non-Copy unions are stabilized, use:
 // union DynamicIndexHeader {
 //     reserved: [u8; 4096],
@@ -493,7 +493,7 @@ impl DynamicIndexWriter {
 
         self.writer.flush()?;
 
-        let csum_offset = proxmox::tools::offsetof!(DynamicIndexHeader, index_csum);
+        let csum_offset = proxmox::offsetof!(DynamicIndexHeader, index_csum);
         self.writer.seek(SeekFrom::Start(csum_offset as u64))?;
 
         let csum = self.csum.take().unwrap();

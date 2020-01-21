@@ -4,11 +4,10 @@ use std::io::{BufRead, BufReader};
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity};
-use proxmox::api::list_subdirs_api_method;
 use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
+use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use crate::tools;
 use crate::api2::types::*;

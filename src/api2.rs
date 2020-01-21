@@ -9,9 +9,9 @@ pub mod types;
 pub mod version;
 pub mod pull;
 
-use proxmox::api::list_subdirs_api_method;
 use proxmox::api::router::SubdirMap;
 use proxmox::api::Router;
+use proxmox::list_subdirs_api_method;
 
 const NODES_ROUTER: Router = Router::new().match_all("node", &node::ROUTER);
 

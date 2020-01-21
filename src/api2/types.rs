@@ -1,8 +1,9 @@
 use failure::*;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, const_regex, schema::*};
-use proxmox::tools::*; // required to use IPRE!() macro ???
+use proxmox::api::{api, schema::*};
+use proxmox::const_regex;
+use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {

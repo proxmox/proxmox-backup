@@ -32,7 +32,7 @@ pub struct FixedIndexHeader {
     pub chunk_size: u64,
     reserved: [u8; 4016], // overall size is one page (4096 bytes)
 }
-proxmox::tools::static_assert_size!(FixedIndexHeader, 4096);
+proxmox::static_assert_size!(FixedIndexHeader, 4096);
 
 // split image into fixed size chunks
 
@@ -372,7 +372,7 @@ impl FixedIndexWriter {
 
         self.unmap()?;
 
-        let csum_offset = proxmox::tools::offsetof!(FixedIndexHeader, index_csum);
+        let csum_offset = proxmox::offsetof!(FixedIndexHeader, index_csum);
         self.file.seek(SeekFrom::Start(csum_offset as u64))?;
         self.file.write_all(&index_csum)?;
         self.file.flush()?;

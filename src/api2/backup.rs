@@ -5,8 +5,7 @@ use hyper::http::request::Parts;
 use hyper::{Body, Response, StatusCode};
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity};
-use proxmox::api::list_subdirs_api_method;
+use proxmox::{sortable, identity, list_subdirs_api_method};
 use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;

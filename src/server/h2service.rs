@@ -7,7 +7,8 @@ use std::task::{Context, Poll};
 use futures::*;
 use hyper::{Body, Request, Response, StatusCode};
 
-use proxmox::api::{http_err, ApiResponseFuture, HttpError, Router, RpcEnvironment};
+use proxmox::api::{ApiResponseFuture, HttpError, Router, RpcEnvironment};
+use proxmox::http_err;
 
 use crate::tools;
 use crate::server::formatter::*;

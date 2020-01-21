@@ -17,7 +17,7 @@ use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
 
-use proxmox::api::http_err;
+use proxmox::http_err;
 use proxmox::api::{ApiHandler, ApiMethod, HttpError};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::schema::{ObjectSchema, parse_simple_value, verify_json_object, parse_parameter_strings};

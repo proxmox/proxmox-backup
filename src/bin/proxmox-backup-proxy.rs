@@ -5,7 +5,7 @@ use futures::*;
 use hyper;
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 
-use proxmox::tools::try_block;
+use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 
 use proxmox_backup::configdir;

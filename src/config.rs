@@ -11,7 +11,7 @@ use openssl::x509::{X509Builder};
 use openssl::pkey::PKey;
 
 use proxmox::tools::fs::{CreateOptions, replace_file};
-use proxmox::tools::try_block;
+use proxmox::try_block;
 
 use crate::buildcfg;
 

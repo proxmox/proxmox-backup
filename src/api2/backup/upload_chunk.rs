@@ -58,7 +58,7 @@ impl Future for UploadChunk {
                             break format_err!("uploaded chunk has unexpected size.");
                         }
 
-                        let (is_duplicate, compressed_size) = match proxmox::tools::try_block! {
+                        let (is_duplicate, compressed_size) = match proxmox::try_block! {
                             let mut chunk = DataBlob::from_raw(raw_data)?;
 
                             chunk.verify_unencrypted(this.size as usize, &this.digest)?;

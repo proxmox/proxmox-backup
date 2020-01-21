@@ -35,7 +35,7 @@ use xdg::BaseDirectories;
 use futures::*;
 use tokio::sync::mpsc;
 
-proxmox::api::const_regex! {
+proxmox::const_regex! {
     BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$";
 }
 

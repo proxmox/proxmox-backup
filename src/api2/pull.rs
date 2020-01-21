@@ -128,7 +128,7 @@ async fn pull_snapshot(
     tmp_manifest_blob.verify_crc()?;
 
     if manifest_name.exists() {
-        let manifest_blob = proxmox::tools::try_block!({
+        let manifest_blob = proxmox::try_block!({
             let mut manifest_file = std::fs::File::open(&manifest_name)
                 .map_err(|err| format_err!("unable to open local manifest {:?} - {}", manifest_name, err))?;
 
@@ -331,7 +331,7 @@ pub async fn pull_store(
     }
 
     if delete {
-        let result: Result<(), Error> = proxmox::tools::try_block!({
+        let result: Result<(), Error> = proxmox::try_block!({
             let local_groups = BackupGroup::list_groups(&tgt_store.base_path())?;
             for local_group in local_groups {
                 if new_groups.contains(&local_group) { continue; }
