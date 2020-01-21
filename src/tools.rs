@@ -23,6 +23,7 @@ pub mod async_io;
 pub mod borrow;
 pub mod daemon;
 pub mod fs;
+pub mod lru_cache;
 pub mod runtime;
 pub mod ticket;
 pub mod timer;
