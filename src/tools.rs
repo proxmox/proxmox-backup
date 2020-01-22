@@ -28,6 +28,10 @@ pub mod ticket;
 pub mod timer;
 pub mod tty;
 pub mod wrapped_reader_stream;
+
+mod std_channel_writer;
+pub use std_channel_writer::*;
+
 pub mod xattr;
 
 mod process_locker;
