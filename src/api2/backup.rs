@@ -10,8 +10,7 @@ use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironm
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
-use crate::tools;
-use crate::tools::wrapped_reader_stream::*;
+use crate::tools::{self, WrappedReaderStream};
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;

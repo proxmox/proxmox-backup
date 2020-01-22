@@ -27,7 +27,9 @@ pub mod runtime;
 pub mod ticket;
 pub mod timer;
 pub mod tty;
-pub mod wrapped_reader_stream;
+
+mod wrapped_reader_stream;
+pub use wrapped_reader_stream::*;
 
 mod std_channel_writer;
 pub use std_channel_writer::*;

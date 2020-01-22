@@ -230,7 +230,7 @@ async fn backup_directory<P: AsRef<Path>>(
     verbose: bool,
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
-    catalog: Arc<Mutex<CatalogWriter<SenderWriter>>>,
+    catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
     entries_max: usize,
 ) -> Result<BackupStats, Error> {
 
@@ -708,16 +708,16 @@ fn spawn_catalog_upload(
     crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<
         (
-            Arc<Mutex<CatalogWriter<SenderWriter>>>,
+            Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
             tokio::sync::oneshot::Receiver<Result<BackupStats, Error>>
         ), Error>
 {
-    let (catalog_tx, catalog_rx) = mpsc::channel(10); // allow to buffer 10 writes
-    let catalog_stream = catalog_rx.map_err(Error::from);
+    let (catalog_tx, catalog_rx) = std::sync::mpsc::sync_channel(10); // allow to buffer 10 writes
+    let catalog_stream = crate::tools::StdChannelStream(catalog_rx);
     let catalog_chunk_size = 512*1024;
     let catalog_chunk_stream = ChunkStream::new(catalog_stream, Some(catalog_chunk_size));
 
-    let catalog = Arc::new(Mutex::new(CatalogWriter::new(SenderWriter::new(catalog_tx))?));
+    let catalog = Arc::new(Mutex::new(CatalogWriter::new(crate::tools::StdChannelWriter::new(catalog_tx))?));
 
     let (catalog_result_tx, catalog_result_rx) = tokio::sync::oneshot::channel();
 
