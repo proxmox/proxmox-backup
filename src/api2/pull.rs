@@ -257,7 +257,7 @@ pub async fn pull_group(
 
     let auth_info = client.login().await?;
 
-    let last_sync = group.last_successful_backup(&tgt_store.base_path())?;
+    let last_sync = tgt_store.last_successful_backup(group)?;
 
     for item in list {
         let backup_time = Utc.timestamp(item.backup_time, 0);
