@@ -6,7 +6,7 @@ extern crate proxmox_backup;
 extern crate tokio;
 extern crate nix;
 
-use proxmox::tools::try_block;
+use proxmox::try_block;
 
 use proxmox_backup::server;
 use proxmox_backup::tools;
