@@ -119,7 +119,6 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
 pub fn update_datastore(
     name: String,
     comment: Option<String>,
-    path: Option<String>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
