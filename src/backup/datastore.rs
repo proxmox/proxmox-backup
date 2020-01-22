@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use failure::*;
 use lazy_static::lazy_static;
+use chrono::{DateTime, Utc};
 
 use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
@@ -169,12 +170,24 @@ impl DataStore {
         Ok(())
     }
 
-    /// Remove a complete backup group including all snapshots
-    pub fn remove_backup_group(&self, backup_group: &BackupGroup,
-    ) ->  Result<(), io::Error> {
-
+    /// Returns the absolute path for a backup_group
+    pub fn group_path(&self, backup_group: &BackupGroup) -> PathBuf {
         let mut full_path = self.base_path();
         full_path.push(backup_group.group_path());
+        full_path
+    }
+
+    /// Returns the absolute path for backup_dir
+    pub fn snapshot_path(&self, backup_dir: &BackupDir) -> PathBuf {
+        let mut full_path = self.base_path();
+        full_path.push(backup_dir.relative_path());
+        full_path
+    }
+
+    /// Remove a complete backup group including all snapshots
+    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<(), io::Error> {
+
+        let full_path = self.group_path(backup_group);
 
         log::info!("removing backup group {:?}", full_path);
         std::fs::remove_dir_all(full_path)?;
@@ -183,16 +196,29 @@ impl DataStore {
     }
 
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(&self, backup_dir: &BackupDir,
-    ) ->  Result<(), io::Error> {
+    pub fn remove_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(), io::Error> {
 
-        let mut full_path = self.base_path();
-        full_path.push( backup_dir.relative_path());
+        let full_path = self.snapshot_path(backup_dir);
 
         log::info!("removing backup {:?}", full_path);
         std::fs::remove_dir_all(full_path)?;
 
         Ok(())
+    }
+
+    /// Returns the time of the last successful backup
+    ///
+    /// Or None if there is no backup in the group (or the group dir does not exist).
+    pub fn last_successful_backup(&self, backup_group: &BackupGroup) -> Result<Option<DateTime<Utc>>, Error> {
+        let base_path = self.base_path();
+        let mut group_path = base_path.clone();
+        group_path.push(backup_group.group_path());
+
+        if group_path.exists() {
+            backup_group.last_successful_backup(&base_path)
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn create_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(PathBuf, bool), io::Error> {
