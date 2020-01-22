@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::io::Write;
-use std::os::unix::io::FromRawFd;
+//use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -17,15 +17,13 @@ use nix::dir::Dir;
 use crate::pxar;
 use crate::backup::CatalogWriter;
 
-use crate::tools::wrapped_reader_stream::WrappedReaderStream;
-
 /// Stream implementation to encode and upload .pxar archives.
 ///
 /// The hyper client needs an async Stream for file upload, so we
 /// spawn an extra thread to encode the .pxar data and pipe it to the
 /// consumer.
 pub struct PxarBackupStream {
-    stream: Option<WrappedReaderStream<std::fs::File>>,
+    rx: Option<std::sync::mpsc::Receiver<Result<Vec<u8>, Error>>>,
     child: Option<thread::JoinHandle<()>>,
     error: Arc<Mutex<Option<String>>>,
 }
@@ -33,13 +31,12 @@ pub struct PxarBackupStream {
 impl Drop for PxarBackupStream {
 
     fn drop(&mut self) {
-        self.stream = None;
+        self.rx = None;
         self.child.take().unwrap().join().unwrap();
     }
 }
 
 impl PxarBackupStream {
-    pin_utils::unsafe_pinned!(stream: Option<WrappedReaderStream<std::fs::File>>);
 
     pub fn new<W: Write + Send + 'static>(
         mut dir: Dir,
@@ -51,10 +48,9 @@ impl PxarBackupStream {
         entries_max: usize,
     ) -> Result<Self, Error> {
 
-        let (rx, tx) = nix::unistd::pipe()?;
+        let (tx, rx) = std::sync::mpsc::sync_channel(10);
 
-        let buffer_size = 1024*1024;
-        nix::fcntl::fcntl(rx, nix::fcntl::FcntlArg::F_SETPIPE_SZ(buffer_size as i32))?;
+        let buffer_size = 256*1024;
 
         let error = Arc::new(Mutex::new(None));
         let error2 = error.clone();
@@ -63,7 +59,8 @@ impl PxarBackupStream {
         let exclude_pattern = Vec::new();
         let child = std::thread::Builder::new().name("PxarBackupStream".to_string()).spawn(move || {
             let mut guard = catalog.lock().unwrap();
-            let mut writer = unsafe { std::fs::File::from_raw_fd(tx) };
+            let mut writer = std::io::BufWriter::with_capacity(buffer_size, crate::tools::StdChannelWriter::new(tx));
+
             if let Err(err) = pxar::Encoder::encode(
                 path,
                 &mut dir,
@@ -81,11 +78,8 @@ impl PxarBackupStream {
             }
         })?;
 
-        let pipe = unsafe { std::fs::File::from_raw_fd(rx) };
-        let stream = crate::tools::wrapped_reader_stream::WrappedReaderStream::new(pipe);
-
         Ok(Self {
-            stream: Some(stream),
+            rx: Some(rx),
             child: Some(child),
             error,
         })
@@ -111,20 +105,23 @@ impl Stream for PxarBackupStream {
 
     type Item = Result<Vec<u8>, Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
         { // limit lock scope
             let error = self.error.lock().unwrap();
             if let Some(ref msg) = *error {
                 return Poll::Ready(Some(Err(format_err!("{}", msg))));
             }
         }
-        let res = self.as_mut()
-            .stream()
-            .as_pin_mut()
-            .unwrap()
-            .poll_next(cx);
-        Poll::Ready(futures::ready!(res)
-            .map(|v| v.map_err(Error::from))
-        )
+
+        match crate::tools::runtime::block_in_place(|| self.rx.as_ref().unwrap().recv()) {
+            Ok(data) => Poll::Ready(Some(data)),
+            Err(_) => {
+                let error = self.error.lock().unwrap();
+                if let Some(ref msg) = *error {
+                    return Poll::Ready(Some(Err(format_err!("{}", msg))));
+                }
+                Poll::Ready(None) // channel closed, no error
+            }
+        }
     }
 }
