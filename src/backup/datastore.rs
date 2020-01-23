@@ -191,6 +191,13 @@ impl DataStore {
 
         log::info!("removing backup group {:?}", full_path);
         std::fs::remove_dir_all(full_path)?;
+            .map_err(|err| {
+                format_err!(
+                    "removing backup group {:?} failed - {}",
+                    full_path,
+                    err,
+                )
+            })?;
 
         Ok(())
     }
@@ -200,8 +207,15 @@ impl DataStore {
 
         let full_path = self.snapshot_path(backup_dir);
 
-        log::info!("removing backup {:?}", full_path);
-        std::fs::remove_dir_all(full_path)?;
+        log::info!("removing backup snapshot {:?}", full_path);
+        std::fs::remove_dir_all(full_path)
+            .map_err(|err| {
+                format_err!(
+                    "removing backup snapshot {:?} failed - {}",
+                    full_path,
+                    err,
+                )
+            })?;
 
         Ok(())
     }
