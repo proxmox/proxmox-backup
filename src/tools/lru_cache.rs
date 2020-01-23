@@ -6,6 +6,16 @@
 
 use std::collections::HashMap;
 
+/// Interface for getting values on cache misses.
+pub trait Cacher<V> {
+    /// Fetch a value for key on cache miss.
+    ///
+    /// Whenever a cache miss occurs, the fetch method provides a corresponding value.
+    /// If no value can be obtained for the given key, None is returned, the cache is
+    /// not updated in that case.
+    fn fetch(&mut self, key: u64) -> Result<Option<V>, failure::Error>;
+}
+
 /// Node of the doubly linked list storing key and value
 struct CacheNode<V> {
     // We need to additionally store the key to be able to remove it
@@ -31,8 +41,16 @@ impl<V> CacheNode<V> {
 ///
 /// # Examples:
 /// ```
-/// # use self::proxmox_backup::tools::lru_cache::LruCache;
+/// # use self::proxmox_backup::tools::lru_cache::{Cacher, LruCache};
 /// # fn main() -> Result<(), failure::Error> {
+/// struct LruCacher {};
+///
+/// impl Cacher<u64> for LruCacher {
+///     fn fetch(&mut self, key: u64) -> Result<Option<u64>, failure::Error> {
+///         Ok(Some(key))
+///     }
+/// }
+///
 /// let mut cache = LruCache::new(3);
 ///
 /// assert_eq!(cache.get_mut(1), None);
@@ -54,6 +72,8 @@ impl<V> CacheNode<V> {
 /// cache.remove(2);
 /// assert_eq!(cache.len(), 0);
 /// assert_eq!(cache.get_mut(2), None);
+/// // access will fill in missing cache entry by fetching from LruCacher
+/// assert_eq!(cache.access(2, &mut LruCacher {}).unwrap(), Some(&mut 2));
 ///
 /// cache.insert(1, 1);
 /// assert_eq!(cache.get_mut(1), Some(&mut 1));
@@ -181,6 +201,7 @@ impl<V> LruCache<V> {
 
     /// Get a mutable reference to the value identified by `key`.
     /// This will update the cache entry to be the most recently used entry.
+    /// On cache misses, None is returned.
     pub fn get_mut<'a>(&'a mut self, key: u64) -> Option<&'a mut V> {
         let node_ptr = self.map.get(&key)?;
         if *node_ptr == self.head {
@@ -215,5 +236,32 @@ impl<V> LruCache<V> {
     /// Number of entries in the cache.
     pub fn len(&self) -> usize {
         self.map.len()
+    }
+
+    /// Get a mutable reference to the value identified by `key`.
+    /// This will update the cache entry to be the most recently used entry.
+    /// On cache misses, the cachers fetch method is called to get a corresponding
+    /// value.
+    /// If fetch returns a value, it is inserted as the most recently used entry
+    /// in the cache.
+    pub fn access<'a>(&'a mut self, key: u64, cacher: &mut dyn Cacher<V>) -> Result<Option<&'a mut V>, failure::Error> {
+        if self.get_mut(key).is_some() {
+            // get_mut brings the node to the front if present, so just return
+            return Ok(Some(unsafe { &mut (*self.head).value }));
+        }
+
+        // Cache miss, try to fetch from cacher
+        match cacher.fetch(key)? {
+            None => Ok(None),
+            Some(value) => {
+                // If we have more elements than capacity, delete the tail entry
+                // (= oldest entry).
+                if self.map.len() >= self.capacity {
+                    self.remove_tail();
+                }
+                self.insert_front(key, value);
+                Ok(Some(unsafe { &mut (*self.head).value }))
+            }
+        }
     }
 }
