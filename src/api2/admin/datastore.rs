@@ -280,26 +280,26 @@ fn list_snapshots (
     Ok(snapshots)
 }
 
-#[sortable]
-const API_METHOD_STATUS: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&status),
-    &ObjectSchema::new(
-        "Get datastore status.",
-        &sorted!([
-            ("store", false, &DATASTORE_SCHEMA),
-        ]),
-    )
-);
-
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: StorageStatus,
+    },
+)]
+/// Get datastore status.
 fn status(
-    param: Value,
+    store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<StorageStatus, Error> {
 
-    let store = param["store"].as_str().unwrap();
-
-    let datastore = DataStore::lookup_datastore(store)?;
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     let base_path = datastore.base_path();
 
@@ -311,11 +311,12 @@ fn status(
     nix::errno::Errno::result(res)?;
 
     let bsize = stat.f_bsize as u64;
-    Ok(json!({
-        "total": stat.f_blocks*bsize,
-        "used": (stat.f_blocks-stat.f_bfree)*bsize,
-        "avail": stat.f_bavail*bsize,
-    }))
+
+    Ok(StorageStatus {
+        total: stat.f_blocks*bsize,
+        used: (stat.f_blocks-stat.f_bfree)*bsize,
+        avail: stat.f_bavail*bsize,
+    })
 }
 
 #[macro_export]

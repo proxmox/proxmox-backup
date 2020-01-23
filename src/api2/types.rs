@@ -276,7 +276,17 @@ pub struct BackupContent {
     pub size: Option<u64>,
 }
 
-
+#[api()]
+#[derive(Serialize, Deserialize)]
+/// Storage space usage information.
+pub struct StorageStatus {
+    /// Total space (bytes).
+    pub total: u64,
+    /// Used space (bytes).
+    pub used: u64,
+    /// Available space (bytes).
+    pub avail: u64,
+}
 
 // Regression tests
 

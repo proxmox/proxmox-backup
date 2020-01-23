@@ -1437,26 +1437,24 @@ async fn status(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
-    let result = client.get(&path, None).await?;
-    let data = &result["data"];
+    let mut result = client.get(&path, None).await?;
 
     record_repository(&repo);
 
     if output_format == "text" {
-        let total = data["total"].as_u64().unwrap();
-        let used = data["used"].as_u64().unwrap();
-        let avail = data["avail"].as_u64().unwrap();
-        let roundup = total/200;
+        let result: StorageStatus = serde_json::from_value(result["data"].take())?;
+
+        let roundup = result.total/200;
 
         println!(
             "total: {} used: {} ({} %) available: {}",
-            total,
-            used,
-            ((used+roundup)*100)/total,
-            avail,
+            result.total,
+            result.used,
+            ((result.used+roundup)*100)/result.total,
+            result.avail,
         );
     } else {
-        format_and_print_result(data, &output_format);
+        format_and_print_result(&result["data"], &output_format);
     }
 
     Ok(Value::Null)
