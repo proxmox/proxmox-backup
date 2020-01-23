@@ -259,6 +259,24 @@ pub struct SnapshotListItem {
     pub size: Option<u64>,
 }
 
+#[api(
+    properties: {
+        "filename": {
+            schema: BACKUP_ARCHIVE_NAME_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Basic information about archive files inside a backup snapshot.
+pub struct BackupContent {
+    pub filename: String,
+    /// Archive size (from backup manifest).
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub size: Option<u64>,
+}
+
+
 
 // Regression tests
 

@@ -1,4 +1,5 @@
 use std::collections::{HashSet, HashMap};
+use std::convert::TryFrom;
 
 use chrono::{TimeZone, Local};
 use failure::*;
@@ -21,27 +22,30 @@ use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
 
-fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Value, Error> {
+fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
 
     let mut path = store.base_path();
     path.push(backup_dir.relative_path());
     path.push("index.json.blob");
 
     let raw_data = file_get_contents(&path)?;
-    let data = DataBlob::from_raw(raw_data)?.decode(None)?;
-    let index_size = data.len();
-    let mut result: Value = serde_json::from_reader(&mut &data[..])?;
+    let index_size = raw_data.len() as u64;
+    let blob = DataBlob::from_raw(raw_data)?;
 
-    let mut result = result["files"].take();
+    let manifest = BackupManifest::try_from(blob)?;
 
-    if result == Value::Null {
-        bail!("missing 'files' property in backup index {:?}", path);
+    let mut result = Vec::new();
+    for item in manifest.files() {
+        result.push(BackupContent {
+            filename: item.filename.clone(),
+            size: Some(item.size),
+        });
     }
 
-    result.as_array_mut().unwrap().push(json!({
-        "filename": "index.json.blob",
-        "size": index_size,
-    }));
+    result.push(BackupContent {
+        filename: "index.json.blob".to_string(),
+        size: Some(index_size),
+    });
 
     Ok(result)
 }
@@ -108,32 +112,56 @@ fn list_groups(
     Ok(groups)
 }
 
-fn list_snapshot_files (
-    param: Value,
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: Array,
+        description: "Returns the list of archive files inside a backup snapshots.",
+        items: {
+            type: BackupContent,
+        }
+    },
+)]
+/// List snapshot files.
+fn list_snapshot_files(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<Vec<BackupContent>, Error> {
 
-    let store = tools::required_string_param(&param, "store")?;
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
-
-    let datastore = DataStore::lookup_datastore(store)?;
+    let datastore = DataStore::lookup_datastore(&store)?;
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
     let mut files = read_backup_index(&datastore, &snapshot)?;
 
     let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
 
-    let file_set = files.as_array().unwrap().iter().fold(HashSet::new(), |mut acc, item| {
-        acc.insert(item["filename"].as_str().unwrap().to_owned());
+    let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
+        acc.insert(item.filename.clone());
         acc
     });
 
     for file in info.files {
         if file_set.contains(&file) { continue; }
-        files.as_array_mut().unwrap().push(json!({ "filename": file }));
+        files.push(BackupContent { filename: file, size: None });
     }
 
     Ok(files)
@@ -238,8 +266,8 @@ fn list_snapshots (
 
         if let Ok(index) = read_backup_index(&datastore, &info.backup_dir) {
             let mut backup_size = 0;
-            for item in index.as_array().unwrap().iter() {
-                if let Some(item_size) = item["size"].as_u64() {
+            for item in index.iter() {
+                if let Some(item_size) = item.size {
                     backup_size += item_size;
                 }
             }
@@ -658,20 +686,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "files",
         &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&list_snapshot_files),
-                    &ObjectSchema::new(
-                        "List snapshot files.",
-                        &sorted!([
-                            ("store", false, &DATASTORE_SCHEMA),
-                            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-                            ("backup-id", false, &BACKUP_ID_SCHEMA),
-                            ("backup-time", false, &BACKUP_TIME_SCHEMA),
-                        ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_LIST_SNAPSHOT_FILES)
     ),
     (
         "gc",
