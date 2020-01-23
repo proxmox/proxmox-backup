@@ -185,12 +185,12 @@ impl DataStore {
     }
 
     /// Remove a complete backup group including all snapshots
-    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<(), io::Error> {
+    pub fn remove_backup_group(&self, backup_group: &BackupGroup) ->  Result<(), Error> {
 
         let full_path = self.group_path(backup_group);
 
         log::info!("removing backup group {:?}", full_path);
-        std::fs::remove_dir_all(full_path)?;
+        std::fs::remove_dir_all(&full_path)
             .map_err(|err| {
                 format_err!(
                     "removing backup group {:?} failed - {}",
@@ -203,12 +203,12 @@ impl DataStore {
     }
 
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(), io::Error> {
+    pub fn remove_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(), Error> {
 
         let full_path = self.snapshot_path(backup_dir);
 
         log::info!("removing backup snapshot {:?}", full_path);
-        std::fs::remove_dir_all(full_path)
+        std::fs::remove_dir_all(&full_path)
             .map_err(|err| {
                 format_err!(
                     "removing backup snapshot {:?} failed - {}",
