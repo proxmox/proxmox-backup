@@ -474,24 +474,24 @@ fn prune(
     Ok(json!(worker.to_string())) // return the UPID
 }
 
-#[sortable]
-pub const API_METHOD_START_GARBAGE_COLLECTION: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&start_garbage_collection),
-    &ObjectSchema::new(
-        "Start garbage collection.",
-        &sorted!([
-            ("store", false, &DATASTORE_SCHEMA),
-        ])
-    )
-);
-
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+)]
+/// Start garbage collection.
 fn start_garbage_collection(
-    param: Value,
+    store: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let store = param["store"].as_str().unwrap().to_string();
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
