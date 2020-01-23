@@ -139,20 +139,37 @@ fn list_snapshot_files (
     Ok(files)
 }
 
-fn delete_snapshots (
-    param: Value,
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+        },
+    },
+)]
+/// Delete backup snapshot.
+fn delete_snapshot(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let store = tools::required_string_param(&param, "store")?;
-    let backup_type = tools::required_string_param(&param, "backup-type")?;
-    let backup_id = tools::required_string_param(&param, "backup-id")?;
-    let backup_time = tools::required_integer_param(&param, "backup-time")?;
-
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
-    let datastore = DataStore::lookup_datastore(store)?;
+    let datastore = DataStore::lookup_datastore(&store)?;
 
     datastore.remove_backup_dir(&snapshot)?;
 
@@ -676,20 +693,7 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "snapshots",
         &Router::new()
             .get(&API_METHOD_LIST_SNAPSHOTS)
-            .delete(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&delete_snapshots),
-                    &ObjectSchema::new(
-                        "Delete backup snapshot.",
-                        &sorted!([
-                            ("store", false, &DATASTORE_SCHEMA),
-                            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
-                            ("backup-id", false, &BACKUP_ID_SCHEMA),
-                            ("backup-time", false, &BACKUP_TIME_SCHEMA),
-                        ]),
-                    )
-                )
-            )
+            .delete(&API_METHOD_DELETE_SNAPSHOT)
     ),
     (
         "status",
