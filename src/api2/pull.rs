@@ -259,8 +259,12 @@ pub async fn pull_group(
 
     let last_sync = tgt_store.last_successful_backup(group)?;
 
+    let mut remote_snapshots = std::collections::HashSet::new();
+
     for item in list {
         let backup_time = Utc.timestamp(item.backup_time, 0);
+        remote_snapshots.insert(backup_time);
+
         if let Some(last_sync_time) = last_sync {
             if last_sync_time > backup_time { continue; }
         }
@@ -287,7 +291,13 @@ pub async fn pull_group(
     }
 
     if delete {
-        // fixme: implement me
+        let local_list = group.list_backups(&tgt_store.base_path())?;
+        for info in local_list {
+            let backup_time = info.backup_dir.backup_time();
+            if remote_snapshots.contains(&backup_time) { continue; }
+            worker.log(format!("delete vanished snapshot {:?}", info.backup_dir.relative_path()));
+            tgt_store.remove_backup_dir(&info.backup_dir)?;
+        }
     }
 
     Ok(())
@@ -337,7 +347,7 @@ pub async fn pull_store(
                 if new_groups.contains(&local_group) { continue; }
                 worker.log(format!("delete vanished group '{}/{}'", local_group.backup_type(), local_group.backup_id()));
                 if let Err(err) = tgt_store.remove_backup_group(&local_group) {
-                    worker.log(format!("delete failed: {}", err));
+                    worker.log(err.to_string());
                     errors = true;
                 }
             }
