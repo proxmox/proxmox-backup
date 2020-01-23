@@ -135,6 +135,11 @@ impl TryFrom<Value> for BackupManifest {
                 let size = required_integer_property(item, "size")? as u64;
                 manifest.add_file(filename, size, csum)?;
             }
+
+            if manifest.files().is_empty() {
+                bail!("manifest does not list any files.");
+            }
+
             Ok(manifest)
         }).map_err(|err: Error| format_err!("unable to parse backup manifest - {}", err))
 
