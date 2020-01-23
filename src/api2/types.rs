@@ -276,6 +276,48 @@ pub struct BackupContent {
     pub size: Option<u64>,
 }
 
+#[api(
+    properties: {
+        "upid": {
+            optional: true,
+            schema: UPID_SCHEMA,
+        },
+    },
+)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Garbage collection status.
+pub struct GarbageCollectionStatus {
+    pub upid: Option<String>,
+    /// Number of processed index files.
+    pub index_file_count: usize,
+    /// Sum of bytes referred by index files.
+    pub index_data_bytes: u64,
+    /// Bytes used on disk.
+    pub disk_bytes: u64,
+    /// Chunks used on disk.
+    pub disk_chunks: usize,
+    /// Sum of removed bytes.
+    pub removed_bytes: u64,
+    /// Number of removed chunks.
+    pub removed_chunks: usize,
+}
+
+impl Default for GarbageCollectionStatus {
+    fn default() -> Self {
+        GarbageCollectionStatus {
+            upid: None,
+            index_file_count: 0,
+            index_data_bytes: 0,
+            disk_bytes: 0,
+            disk_chunks: 0,
+            removed_bytes: 0,
+            removed_chunks: 0,
+        }
+    }
+}
+
+
 #[api()]
 #[derive(Serialize, Deserialize)]
 /// Storage space usage information.

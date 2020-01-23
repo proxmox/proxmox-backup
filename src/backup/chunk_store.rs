@@ -4,38 +4,14 @@ use std::path::{Path, PathBuf};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;
-use serde::Serialize;
 
 use proxmox::tools::fs::{CreateOptions, create_path, create_dir};
 
 use crate::tools;
+use crate::api2::types::GarbageCollectionStatus;
+
 use super::DataBlob;
 use crate::server::WorkerTask;
-
-#[derive(Clone, Serialize)]
-pub struct GarbageCollectionStatus {
-    pub upid: Option<String>,
-    pub index_file_count: usize,
-    pub index_data_bytes: u64,
-    pub disk_bytes: u64,
-    pub disk_chunks: usize,
-    pub removed_bytes: u64,
-    pub removed_chunks: usize,
-}
-
-impl Default for GarbageCollectionStatus {
-    fn default() -> Self {
-        GarbageCollectionStatus {
-            upid: None,
-            index_file_count: 0,
-            index_data_bytes: 0,
-            disk_bytes: 0,
-            disk_chunks: 0,
-            removed_bytes: 0,
-            removed_chunks: 0,
-        }
-    }
-}
 
 /// File system based chunk store
 pub struct ChunkStore {

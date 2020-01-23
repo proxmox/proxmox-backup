@@ -509,32 +509,30 @@ fn start_garbage_collection(
     Ok(json!(upid_str))
 }
 
-#[sortable]
-pub const API_METHOD_GARBAGE_COLLECTION_STATUS: ApiMethod = ApiMethod::new(
-    &ApiHandler::Sync(&garbage_collection_status),
-    &ObjectSchema::new(
-        "Garbage collection status.",
-        &sorted!([
-            ("store", false, &DATASTORE_SCHEMA),
-        ])
-    )
-);
-
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: GarbageCollectionStatus,
+    }
+)]
+/// Garbage collection status.
 fn garbage_collection_status(
-    param: Value,
+    store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let store = param["store"].as_str().unwrap();
+) -> Result<GarbageCollectionStatus, Error> {
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    println!("Garbage collection status on store {}", store);
-
     let status = datastore.last_gc_status();
 
-    Ok(serde_json::to_value(&status)?)
+    Ok(status)
 }
 
 

@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use chrono::{DateTime, Utc};
 
 use super::backup_info::{BackupGroup, BackupDir};
-use super::chunk_store::{ChunkStore, GarbageCollectionStatus};
+use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::manifest::{MANIFEST_BLOB_NAME, BackupManifest};
@@ -17,6 +17,7 @@ use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
+use crate::api2::types::GarbageCollectionStatus;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
