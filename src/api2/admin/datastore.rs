@@ -557,10 +557,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),
             ("backup-id", false,  &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
-            ("file-name", false, &StringSchema::new("Raw file name.")
-             .format(&FILENAME_FORMAT)
-             .schema()
-            ),
+            ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
     )
 );
