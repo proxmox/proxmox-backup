@@ -1133,7 +1133,7 @@ fn dump_image<W: Write>(
            },
            target: {
                type: String,
-               description: r###"Target directory path. Use '-' to write to stdandard output.
+               description: r###"Target directory path. Use '-' to write to standard output.
 
 We do not extraxt '.pxar' archives when writing to standard output.
 
