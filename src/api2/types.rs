@@ -53,6 +53,8 @@ const_regex!{
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r"$");
 
     pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
+
+    pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -63,6 +65,9 @@ pub const IP_FORMAT: ApiStringFormat =
 
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
+
+pub const CERT_FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&CERT_FINGERPRINT_SHA256_REGEX);
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
@@ -85,6 +90,13 @@ pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
 pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
 
+
+
+pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema = StringSchema::new(
+    "X509 certificate fingerprint (sha256)."
+)
+    .format(&CERT_FINGERPRINT_SHA256_FORMAT)
+    .schema();
 
 pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
 Prevent changes if current configuration file has different SHA256 digest.
@@ -331,6 +343,47 @@ pub struct StorageStatus {
 }
 
 // Regression tests
+
+#[test]
+fn test_cert_fingerprint_schema() -> Result<(), Error> {
+
+    let schema = CERT_FINGERPRINT_SHA256_SCHEMA;
+
+    let invalid_fingerprints = [
+        "86:88:7c:be:26:77:a5:62:67:d9:06:f5:e4::61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+        "88:7C:BE:26:77:a5:62:67:D9:06:f5:e4:14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+        "86:88:7c:be:26:77:a5:62:67:d9:06:f5:e4::14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8:ff",
+        "XX:88:7c:be:26:77:a5:62:67:d9:06:f5:e4::14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+        "86:88:Y4:be:26:77:a5:62:67:d9:06:f5:e4:14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+        "86:88:0:be:26:77:a5:62:67:d9:06:f5:e4:14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+    ];
+
+    for fingerprint in invalid_fingerprints.iter() {
+        if let Ok(_) = parse_simple_value(fingerprint, &schema) {
+            bail!("test fingerprint '{}' failed -  got Ok() while expection an error.", fingerprint);
+        }
+    }
+
+    let valid_fingerprints = [
+        "86:88:7c:be:26:77:a5:62:67:d9:06:f5:e4:14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+        "86:88:7C:BE:26:77:a5:62:67:D9:06:f5:e4:14:61:3e:20:dc:cd:43:92:07:7f:fb:65:54:6c:ff:d2:96:36:f8",
+    ];
+
+    for fingerprint in valid_fingerprints.iter() {
+        let v = match parse_simple_value(fingerprint, &schema) {
+            Ok(v) => v,
+            Err(err) => {
+                bail!("unable to parse fingerprint '{}' - {}", fingerprint, err);
+            }
+        };
+
+        if v != serde_json::json!(fingerprint) {
+            bail!("unable to parse fingerprint '{}' - got wrong value {:?}", fingerprint, v);
+        }
+    }
+
+    Ok(())
+}
 
 #[test]
 fn test_proxmox_user_id_schema() -> Result<(), Error> {
