@@ -15,8 +15,10 @@ use failure::{bail, format_err, Error};
 use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
+use crate::tools::lru_cache::{Cacher, LruCache};
 use super::binary_search_tree::search_binary_tree_by;
 use super::decoder::{Decoder, DirectoryEntry};
+use super::format_definition::PxarGoodbyeItem;
 
 /// Node ID of the root i-node
 ///
@@ -80,11 +82,59 @@ struct Context {
     /// DirectoryEntry via the Decoder as well as the parent, in order
     /// to be able to include the parent directory on readdirplus calls.
     start_end_parent: HashMap<u64, (u64, u64)>,
-    /// Hold the DirectoryEntry for the current inode
-    entry: DirectoryEntry,
+    gbt_cache: LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
+    entry_cache: LruCache<DirectoryEntry>,
+}
+
+/// Cacher for the goodbye table.
+///
+/// Provides the feching of the goodbye table via the decoder on cache misses.
+struct GbtCacher<'a> {
+    decoder: &'a mut Decoder,
+    map: &'a HashMap<u64, (u64, u64)>,
+}
+
+impl<'a> Cacher<Vec<(PxarGoodbyeItem, u64, u64)>> for GbtCacher<'a> {
+    fn fetch(&mut self, key: u64) -> Result<Option<Vec<(PxarGoodbyeItem, u64, u64)>>, Error> {
+        let (end, _) = *self.map.get(&key).unwrap();
+        let gbt = self.decoder.goodbye_table(None, end)?;
+        Ok(Some(gbt))
+    }
+}
+
+/// Cacher for the directory entries.
+///
+/// Provides the feching of directory entries via the decoder on cache misses.
+struct EntryCacher<'a> {
+    decoder: &'a mut Decoder,
+    map: &'a HashMap<u64, (u64, u64)>,
+}
+
+impl<'a> Cacher<DirectoryEntry> for EntryCacher<'a> {
+    fn fetch(&mut self, key: u64) -> Result<Option<DirectoryEntry>, Error> {
+        let entry = match key {
+            0 => self.decoder.root()?,
+            _ => {
+                let (end, _) = *self.map.get(&key).unwrap();
+                self.decoder.read_directory_entry(key, end)?
+            }
+        };
+        Ok(Some(entry))
+    }
 }
 
 impl Context {
+    /// Provides mutable references to the `Context` members.
+    /// This is needed to avoid borrow conflicts.
+    fn as_mut_refs(&mut self) -> (
+        &mut Decoder,
+        &mut HashMap<u64, (u64, u64)>,
+        &mut LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
+        &mut LruCache<DirectoryEntry>
+    ) {
+        ( &mut self.decoder, &mut self.start_end_parent, &mut self.gbt_cache, &mut self.entry_cache )
+    }
+
     /// Lookup the goodbye item identified by `filename` and its corresponding `hash`
     ///
     /// Updates the goodbye table cache to contain the table for the directory given
@@ -104,12 +154,11 @@ impl Context {
         filename: &CStr,
         hash: u64,
     ) -> Result<(u64, DirectoryEntry), i32> {
-        let (end, _) = *self.start_end_parent
-            .get(&self.ino_offset)
-            .unwrap();
-        let gbt = self.decoder
-            .goodbye_table(None, end)
-            .map_err(|_| libc::EIO)?;
+        let ino_offset = self.ino_offset;
+        let (decoder, map, gbt_cache, _) = self.as_mut_refs();
+        let gbt = gbt_cache.access(ino_offset, &mut GbtCacher { decoder, map })
+            .map_err(|_| libc::EIO)?
+            .ok_or_else(|| libc::ENOENT)?;
         let mut start_idx = 0;
         let mut skip_multiple = 0;
         loop {
@@ -122,10 +171,9 @@ impl Context {
             ).ok_or(libc::ENOENT)?;
 
             let (_item, start, end) = &gbt[idx];
-            self.start_end_parent.insert(*start, (*end, self.ino_offset));
+            map.insert(*start, (*end, ino_offset));
 
-            let entry = self.decoder
-                .read_directory_entry(*start, *end)
+            let entry = decoder.read_directory_entry(*start, *end)
                 .map_err(|_| libc::EIO)?;
 
             // Possible hash collision, need to check if the found entry is indeed
@@ -223,10 +271,9 @@ impl Session  {
     /// default signal handlers.
     /// Options have to be provided as comma separated OsStr, e.g.
     /// ("ro,default_permissions").
-    pub fn new(mut decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
+    pub fn new(decoder: Decoder, options: &OsStr, verbose: bool) -> Result<Self, Error> {
         let args = Self::setup_args(options, verbose)?;
         let oprs = Self::setup_callbacks();
-        let entry = decoder.root()?;
         let mut map = HashMap::new();
         // Insert entry for the root directory, with itself as parent.
         map.insert(0, (decoder.root_end_offset(), 0));
@@ -235,7 +282,8 @@ impl Session  {
             decoder,
             ino_offset: 0,
             start_end_parent: map,
-            entry,
+            entry_cache: LruCache::new(1024),
+            gbt_cache: LruCache::new(1024),
         };
 
         let session_ctx = Box::new(Mutex::new(ctx));
@@ -352,7 +400,7 @@ impl Session  {
     /// error code.
     /// The error code will be used to reply to libfuse.
     fn run_in_context<F>(req: Request, inode: u64, code: F)
-        where
+    where
         F: FnOnce(&mut Context) -> Result<(), i32>,
     {
         let boxed_ctx = unsafe {
@@ -362,19 +410,52 @@ impl Session  {
         let result = boxed_ctx
             .lock()
             .map(|mut ctx| {
-                let (ino_offset, entry) = match inode {
-                    FUSE_ROOT_ID => (0, ctx.decoder.root().map_err(|_| libc::EIO)?),
-                    _ => {
-                        let (end, _) = *ctx.start_end_parent.get(&inode).unwrap();
-                        let entry = ctx.decoder
-                            .read_directory_entry(inode, end)
-                            .map_err(|_| libc::EIO)?;
-                        (inode, entry)
-                    }
+                ctx.ino_offset = match inode {
+                    FUSE_ROOT_ID => 0,
+                    _ => inode,
                 };
-                ctx.entry = entry;
-                ctx.ino_offset = ino_offset;
                 code(&mut ctx)
+            })
+            .unwrap_or(Err(libc::EIO));
+
+        if let Err(err) = result {
+            unsafe {
+                let _res = fuse_reply_err(req, err);
+            }
+        }
+
+        // Release ownership of boxed context, do not drop it.
+        let _ = Box::into_raw(boxed_ctx);
+    }
+
+    /// Creates a context providing exclusive mutable references to the members of
+    /// `Context`.
+    ///
+    /// Same as run_in_context except it provides ref mut to the individual members
+    /// of `Context` in order to avoid borrow conflicts.
+    fn run_with_context_refs<F>(req: Request, inode: u64, code: F)
+    where
+        F: FnOnce(
+            &mut Decoder,
+            &mut HashMap<u64, (u64, u64)>,
+            &mut LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
+            &mut LruCache<DirectoryEntry>,
+            u64,
+        ) -> Result<(), i32>,
+    {
+        let boxed_ctx = unsafe {
+            let ptr = fuse_req_userdata(req) as *mut Mutex<Context>;
+            Box::from_raw(ptr)
+        };
+        let result = boxed_ctx
+            .lock()
+            .map(|mut ctx| {
+                let ino_offset = match inode {
+                    FUSE_ROOT_ID => 0,
+                    _ => inode,
+                };
+                let (decoder, map, gbt_cache, entry_cache) = ctx.as_mut_refs();
+                code(decoder, map, gbt_cache, entry_cache, ino_offset)
             })
             .unwrap_or(Err(libc::EIO));
 
@@ -426,8 +507,11 @@ impl Session  {
     }
 
     extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |ctx| {
-            let attr = stat(inode, &ctx.entry)?;
+        Self::run_with_context_refs(req, inode, |decoder, map, _, entry_cache, ino_offset| {
+            let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
+            let attr = stat(inode, &entry)?;
             let _res = unsafe {
                 // Since fs is read-only, the timeout can be max.
                 let timeout = std::f64::MAX;
@@ -439,8 +523,12 @@ impl Session  {
     }
 
     extern "C" fn readlink(req: Request, inode: u64) {
-        Self::run_in_context(req, inode, |ctx| {
-            let target = ctx.entry.target.as_ref().ok_or_else(|| libc::EIO)?;
+        Self::run_with_context_refs(req, inode, |decoder, map, _, entry_cache, ino_offset| {
+            let entry = entry_cache
+                .access(ino_offset, &mut EntryCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
+            let target = entry.target.as_ref().ok_or_else(|| libc::EIO)?;
             let link = CString::new(target.as_os_str().as_bytes()).map_err(|_| libc::EIO)?;
             let _ret = unsafe { fuse_reply_readlink(req, link.as_ptr()) };
 
@@ -450,10 +538,7 @@ impl Session  {
 
     extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
-            let mut data = ctx
-                .decoder
-                .read(ctx.ino_offset, size, offset as u64)
-                .map_err(|_| libc::EIO)?;
+            let mut data = ctx.decoder.read(ctx.ino_offset, size, offset as u64).map_err(|_| libc::EIO)?;
 
             let _res = unsafe {
                 let len = data.len();
@@ -474,22 +559,19 @@ impl Session  {
     extern "C" fn readdirplus(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
         let offset = offset as usize;
 
-        Self::run_in_context(req, inode, |ctx| {
-            let (end, _) = *ctx.start_end_parent
-                .get(&ctx.ino_offset)
-                .unwrap();
-            let gbt = ctx.decoder
-                .goodbye_table(None, end)
-                .map_err(|_| libc::EIO)?;
+        Self::run_with_context_refs(req, inode, |decoder, map, gbt_cache, entry_cache, ino_offset| {
+            let gbt = gbt_cache.access(ino_offset, &mut GbtCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::ENOENT)?;
             let n_entries = gbt.len();
             let mut buf = ReplyBuf::new(req, size, offset);
 
             if offset < n_entries {
                 for e in gbt[offset..gbt.len()].iter() {
-                    ctx.start_end_parent.insert(e.1, (e.2, ctx.ino_offset));
-                    let entry = ctx.decoder
-                        .read_directory_entry(e.1, e.2)
-                        .map_err(|_| libc::EIO)?;
+                    map.insert(e.1, (e.2, ino_offset));
+                    let entry = entry_cache.access(e.1, &mut EntryCacher { decoder, map })
+                        .map_err(|_| libc::EIO)?
+                        .ok_or_else(|| libc::EIO)?;
                     let name = CString::new(entry.filename.as_bytes())
                         .map_err(|_| libc::EIO)?;
                     let attr = EntryParam {
@@ -509,11 +591,14 @@ impl Session  {
 
             // Add current directory entry "."
             if offset <= n_entries {
+                let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
+                    .map_err(|_| libc::EIO)?
+                    .ok_or_else(|| libc::EIO)?;
                 let name = CString::new(".").unwrap();
                 let attr = EntryParam {
                     inode: inode,
                     generation: 1,
-                    attr: stat(inode, &ctx.entry).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &entry).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
@@ -526,21 +611,10 @@ impl Session  {
 
             // Add parent directory entry ".."
             if offset <= n_entries + 1 {
-                let (_, parent) = *ctx.start_end_parent
-                    .get(&ctx.ino_offset)
-                    .unwrap();
-                let entry = if parent == 0 {
-                    ctx.decoder
-                        .root()
-                        .map_err(|_| libc::EIO)?
-                } else {
-                    let (end, _) = *ctx.start_end_parent
-                        .get(&parent)
-                        .unwrap();
-                    ctx.decoder
-                        .read_directory_entry(parent, end)
-                        .map_err(|_| libc::EIO)?
-                };
+                let (_, parent) = *map.get(&ino_offset).unwrap();
+                let entry = entry_cache.access(parent, &mut EntryCacher { decoder, map })
+                    .map_err(|_| libc::EIO)?
+                    .ok_or_else(|| libc::EIO)?;
                 let inode = if parent == 0 { FUSE_ROOT_ID } else { parent };
                 let name = CString::new("..").unwrap();
                 let attr = EntryParam {
@@ -565,16 +639,19 @@ impl Session  {
     extern "C" fn getxattr(req: Request, inode: u64, name: StrPtr, size: size_t) {
         let name = unsafe { CStr::from_ptr(name) };
 
-        Self::run_in_context(req, inode, |ctx| {
+        Self::run_with_context_refs(req, inode, |decoder, map, _, entry_cache, ino_offset| {
+            let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
             // security.capability is stored separately, check it first
             if name.to_bytes() == b"security.capability" {
-                match &mut ctx.entry.xattr.fcaps {
+                match &mut entry.xattr.fcaps {
                     None => return Err(libc::ENODATA),
                     Some(fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
                 }
             }
 
-            for xattr in &mut ctx.entry.xattr.xattrs {
+            for xattr in &mut entry.xattr.xattrs {
                 if name.to_bytes() == xattr.name.as_slice() {
                     return Self::xattr_reply_value(req, &mut xattr.value, size);
                 }
@@ -586,12 +663,17 @@ impl Session  {
 
     /// Get a list of the extended attribute of `inode`.
     extern "C" fn listxattr(req: Request, inode: u64, size: size_t) {
-        Self::run_in_context(req, inode, |ctx| {
+        Self::run_with_context_refs(req, inode, |decoder, map, _, entry_cache, ino_offset| {
+            let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
             let mut buffer = Vec::new();
-            if ctx.entry.xattr.fcaps.is_some() {
+            if let Some(ref fcaps) = entry.xattr.fcaps {
                 buffer.extend_from_slice(b"security.capability\0");
+                buffer.extend_from_slice(&fcaps.data);
+                buffer.push(b'\0');
             }
-            for xattr in &mut ctx.entry.xattr.xattrs {
+            for xattr in &mut entry.xattr.xattrs {
                 buffer.append(&mut xattr.name);
                 buffer.push(b'\0');
             }
