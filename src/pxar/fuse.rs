@@ -17,7 +17,6 @@ use libc::{c_char, c_int, c_void, size_t};
 
 use super::binary_search_tree::search_binary_tree_by;
 use super::decoder::{Decoder, DirectoryEntry};
-use super::format_definition::PxarEntry;
 
 /// Node ID of the root i-node
 ///
@@ -415,7 +414,7 @@ impl Session  {
             let e = EntryParam {
                 inode: offset,
                 generation: 1,
-                attr: stat(offset, &entry.entry, entry.size)?,
+                attr: stat(offset, &entry)?,
                 attr_timeout: std::f64::MAX,
                 entry_timeout: std::f64::MAX,
             };
@@ -428,7 +427,7 @@ impl Session  {
 
     extern "C" fn getattr(req: Request, inode: u64, _fileinfo: MutPtr) {
         Self::run_in_context(req, inode, |ctx| {
-            let attr = stat(inode, &ctx.entry.entry, ctx.entry.size)?;
+            let attr = stat(inode, &ctx.entry)?;
             let _res = unsafe {
                 // Since fs is read-only, the timeout can be max.
                 let timeout = std::f64::MAX;
@@ -496,7 +495,7 @@ impl Session  {
                     let attr = EntryParam {
                         inode: e.1,
                         generation: 1,
-                        attr: stat(e.1, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
+                        attr: stat(e.1, &entry).map_err(|_| libc::EIO)?,
                         attr_timeout: std::f64::MAX,
                         entry_timeout: std::f64::MAX,
                     };
@@ -514,7 +513,7 @@ impl Session  {
                 let attr = EntryParam {
                     inode: inode,
                     generation: 1,
-                    attr: stat(inode, &ctx.entry.entry, ctx.entry.size).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &ctx.entry).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
@@ -547,7 +546,7 @@ impl Session  {
                 let attr = EntryParam {
                     inode: inode,
                     generation: 1,
-                    attr: stat(inode, &entry.entry, entry.size).map_err(|_| libc::EIO)?,
+                    attr: stat(inode, &entry).map_err(|_| libc::EIO)?,
                     attr_timeout: std::f64::MAX,
                     entry_timeout: std::f64::MAX,
                 };
@@ -643,23 +642,23 @@ struct EntryParam {
     entry_timeout: f64,
 }
 
-/// Create a `libc::stat` with the provided i-node, entry and payload size
-fn stat(inode: u64, entry: &PxarEntry, payload_size: u64) -> Result<libc::stat, i32> {
-    let nlink = match (entry.mode as u32) & libc::S_IFMT {
+/// Create a `libc::stat` with the provided i-node and entry
+fn stat(inode: u64, entry: &DirectoryEntry) -> Result<libc::stat, i32> {
+    let nlink = match (entry.entry.mode as u32) & libc::S_IFMT {
         libc::S_IFDIR => 2,
         _ => 1,
     };
-    let time = i64::try_from(entry.mtime).map_err(|_| libc::EIO)?;
+    let time = i64::try_from(entry.entry.mtime).map_err(|_| libc::EIO)?;
     let sec = time / 1_000_000_000;
     let nsec = time % 1_000_000_000;
 
     let mut attr: libc::stat = unsafe { std::mem::zeroed() };
     attr.st_ino = inode;
     attr.st_nlink = nlink;
-    attr.st_mode = u32::try_from(entry.mode).map_err(|_| libc::EIO)?;
-    attr.st_size = i64::try_from(payload_size).map_err(|_| libc::EIO)?;
-    attr.st_uid = entry.uid;
-    attr.st_gid = entry.gid;
+    attr.st_mode = u32::try_from(entry.entry.mode).map_err(|_| libc::EIO)?;
+    attr.st_size = i64::try_from(entry.size).map_err(|_| libc::EIO)?;
+    attr.st_uid = entry.entry.uid;
+    attr.st_gid = entry.entry.gid;
     attr.st_atime = sec;
     attr.st_atime_nsec = nsec;
     attr.st_mtime = sec;
