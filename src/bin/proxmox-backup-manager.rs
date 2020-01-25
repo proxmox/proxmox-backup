@@ -476,7 +476,9 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
         let client = HttpClient::new(
             &remote.host,
             &remote.userid,
-            Some(remote.password)
+            Some(remote.password),
+            remote.fingerprint,
+            false,
         )?;
 
         let mut rt = tokio::runtime::Runtime::new().unwrap();

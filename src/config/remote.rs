@@ -35,6 +35,10 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
         password: {
             schema: REMOTE_PASSWORD_SCHEMA,
         },
+        fingerprint: {
+            optional: true,
+            schema: CERT_FINGERPRINT_SHA256_SCHEMA,
+        },
     }
 )]
 #[derive(Serialize,Deserialize)]
@@ -45,6 +49,7 @@ pub struct Remote {
     pub host: String,
     pub userid: String,
     pub password: String,
+    pub fingerprint: Option<String>,
 }
 
 fn init() -> SectionConfig {

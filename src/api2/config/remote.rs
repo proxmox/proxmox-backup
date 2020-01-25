@@ -50,6 +50,10 @@ pub fn list_remotes(
             password: {
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
             },
+            fingerprint: {
+                optional: true,
+                schema: CERT_FINGERPRINT_SHA256_SCHEMA,
+            },
         },
     },
 )]
@@ -118,6 +122,10 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
                 optional: true,
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
             },
+            fingerprint: {
+                optional: true,
+                schema: CERT_FINGERPRINT_SHA256_SCHEMA,
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -132,6 +140,7 @@ pub fn update_remote(
     host: Option<String>,
     userid: Option<String>,
     password: Option<String>,
+    fingerprint: Option<String>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -157,6 +166,9 @@ pub fn update_remote(
     if let Some(host) = host { data.host = host; }
     if let Some(userid) = userid { data.userid = userid; }
     if let Some(password) = password { data.password = password; }
+
+    // fixme: howto delete a fingeprint?
+    if let Some(fingerprint) = fingerprint { data.fingerprint = Some(fingerprint); }
 
     config.set_data(&name, "remote", &data)?;
 
