@@ -167,6 +167,7 @@ fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
     let options = HttpClientOptions::new()
         .interactive(true)
+        .fingerprint_cache(true)
         .ticket_cache(true);
 
     HttpClient::new(server, userid, options)
@@ -1472,10 +1473,9 @@ async fn status(param: Value) -> Result<Value, Error> {
 // like get, but simply ignore errors and return Null instead
 async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-
     let options = HttpClientOptions::new()
-        .verify_cert(false) // fixme: set verify to true, but howto handle fingerprint ??
         .interactive(false)
+        .fingerprint_cache(true)
         .ticket_cache(true);
 
     let client = match HttpClient::new(repo.host(), repo.user(), options) {

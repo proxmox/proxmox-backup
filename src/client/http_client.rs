@@ -35,6 +35,7 @@ pub struct HttpClientOptions {
     fingerprint: Option<String>,
     interactive: bool,
     ticket_cache: bool,
+    fingerprint_cache: bool,
     verify_cert: bool,
 }
 
@@ -46,6 +47,7 @@ impl HttpClientOptions {
             fingerprint: None,
             interactive: false,
             ticket_cache: false,
+            fingerprint_cache: false,
             verify_cert: true,
         }
     }
@@ -67,6 +69,11 @@ impl HttpClientOptions {
 
     pub fn ticket_cache(mut self, ticket_cache: bool) -> Self {
         self.ticket_cache = ticket_cache;
+        self
+    }
+
+    pub fn fingerprint_cache(mut self, fingerprint_cache: bool) -> Self {
+        self.fingerprint_cache = fingerprint_cache;
         self
     }
 
@@ -104,6 +111,69 @@ pub fn delete_ticket_info(server: &str, username: &str) -> Result<(), Error> {
     replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
 
     Ok(())
+}
+
+fn store_fingerprint(server: &str, fingerprint: &str) -> Result<(), Error> {
+
+    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+
+    // usually ~/.config/proxmox-backup/fingerprints
+    let path = base.place_config_file("fingerprints")?;
+
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(v) => v,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                String::new()
+            } else {
+                bail!("unable to read fingerprints from {:?} - {}", path, err);
+            }
+        }
+    };
+
+    let mut result = String::new();
+
+    raw.split('\n').for_each(|line| {
+        let items: Vec<String> = line.split_whitespace().map(String::from).collect();
+        if items.len() == 2 {
+            if &items[0] == server {
+                // found, add later with new fingerprint
+            } else {
+                result.push_str(line);
+                result.push('\n');
+            }
+        }
+    });
+
+    result.push_str(server);
+    result.push(' ');
+    result.push_str(fingerprint);
+    result.push('\n');
+
+    replace_file(path, result.as_bytes(), CreateOptions::new())?;
+
+    Ok(())
+}
+
+fn load_fingerprint(server: &str) -> Option<String> {
+
+    let base = BaseDirectories::with_prefix("proxmox-backup").ok()?;
+
+    // usually ~/.config/proxmox-backup/fingerprints
+    let path = base.place_config_file("fingerprints").ok()?;
+
+    let raw = std::fs::read_to_string(&path).ok()?;
+
+    for line in raw.split('\n') {
+        let items: Vec<String> = line.split_whitespace().map(String::from).collect();
+        if items.len() == 2 {
+            if &items[0] == server {
+                return Some(items[1].clone());
+            }
+        }
+    }
+
+    None
 }
 
 fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
@@ -169,11 +239,18 @@ impl HttpClient {
 
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
+        let mut fingerprint = options.fingerprint.take();
+        if options.fingerprint_cache && fingerprint.is_none() {
+            fingerprint = load_fingerprint(server);
+        }
+
         let client = Self::build_client(
-            options.fingerprint.clone(),
+            server.to_string(),
+            fingerprint,
             options.interactive,
             verified_fingerprint.clone(),
             options.verify_cert,
+            options.fingerprint_cache,
         );
 
         let password = options.password.take();
@@ -243,9 +320,11 @@ impl HttpClient {
     fn verify_callback(
         valid: bool, ctx:
         &mut X509StoreContextRef,
+        server: String,
         expected_fingerprint: Option<String>,
         interactive: bool,
         verified_fingerprint: Arc<Mutex<Option<String>>>,
+        fingerprint_cache: bool,
     ) -> bool {
         if valid { return true; }
 
@@ -285,7 +364,11 @@ impl HttpClient {
                 match std::io::stdin().read_exact(&mut buf) {
                     Ok(()) => {
                         if buf[0] == b'y' || buf[0] == b'Y' {
-                            println!("TRUST {}", fp_string);
+                            if fingerprint_cache {
+                                if let Err(err) = store_fingerprint(&server, &fp_string) {
+                                    eprintln!("{}", err);
+                                }
+                            }
                             *verified_fingerprint.lock().unwrap() = Some(fp_string);
                            return true;
                         } else if buf[0] == b'n' || buf[0] == b'N' {
@@ -302,17 +385,21 @@ impl HttpClient {
     }
 
     fn build_client(
+        server: String,
         fingerprint: Option<String>,
         interactive: bool,
         verified_fingerprint: Arc<Mutex<Option<String>>>,
         verify_cert: bool,
+        fingerprint_cache: bool,
     ) -> Client<HttpsConnector> {
 
         let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
         if verify_cert {
             ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
-                Self::verify_callback(valid, ctx, fingerprint.clone(), interactive, verified_fingerprint.clone())
+                Self::verify_callback(
+                    valid, ctx, server.clone(), fingerprint.clone(), interactive,
+                    verified_fingerprint.clone(), fingerprint_cache)
             });
         } else {
             ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
