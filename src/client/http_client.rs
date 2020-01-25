@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::task::{Context, Poll};
+use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use failure::*;
@@ -9,7 +10,7 @@ use http::header::HeaderValue;
 use http::{Request, Response};
 use hyper::Body;
 use hyper::client::{Client, HttpConnector};
-use openssl::ssl::{SslConnector, SslMethod};
+use openssl::{ssl::{SslConnector, SslMethod}, x509::X509StoreContextRef};
 use serde_json::{json, Value};
 use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
@@ -29,11 +30,59 @@ pub struct AuthInfo {
     pub token: String,
 }
 
+pub struct HttpClientOptions {
+    password: Option<String>,
+    fingerprint: Option<String>,
+    interactive: bool,
+    ticket_cache: bool,
+    verify_cert: bool,
+}
+
+impl HttpClientOptions {
+
+    pub fn new() -> Self {
+        Self {
+            password: None,
+            fingerprint: None,
+            interactive: false,
+            ticket_cache: false,
+            verify_cert: true,
+        }
+    }
+
+    pub fn password(mut self, password: Option<String>) -> Self {
+        self.password = password;
+        self
+    }
+
+    pub fn fingerprint(mut self, fingerprint: Option<String>) -> Self {
+        self.fingerprint = fingerprint;
+        self
+    }
+
+    pub fn interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
+        self
+    }
+
+    pub fn ticket_cache(mut self, ticket_cache: bool) -> Self {
+        self.ticket_cache = ticket_cache;
+        self
+    }
+
+    pub fn verify_cert(mut self, verify_cert: bool) -> Self {
+        self.verify_cert = verify_cert;
+        self
+    }
+}
+
 /// HTTP(S) API client
 pub struct HttpClient {
     client: Client<HttpsConnector>,
     server: String,
+    fingerprint: Arc<Mutex<Option<String>>>,
     auth: BroadcastFuture<AuthInfo>,
+    _options: HttpClientOptions,
 }
 
 /// Delete stored ticket data (logout)
@@ -116,23 +165,47 @@ fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
 
 impl HttpClient {
 
-    pub fn new(server: &str, username: &str, password: Option<String>) -> Result<Self, Error> {
-        let client = Self::build_client();
+    pub fn new(server: &str, username: &str, mut options: HttpClientOptions) -> Result<Self, Error> {
+
+        let verified_fingerprint = Arc::new(Mutex::new(None));
+
+        let client = Self::build_client(
+            options.fingerprint.clone(),
+            options.interactive,
+            verified_fingerprint.clone(),
+            options.verify_cert,
+        );
+
+        let password = options.password.take();
 
         let password = if let Some(password) = password {
             password
-        } else if let Some((ticket, _token)) = load_ticket_info(server, username) {
-            ticket
         } else {
-            Self::get_password(&username)?
+            let mut ticket_info = None;
+            if options.ticket_cache {
+                ticket_info = load_ticket_info(server, username);
+            }
+            if let Some((ticket, _token)) = ticket_info {
+                ticket
+            } else {
+                Self::get_password(&username, options.interactive)?
+            }
         };
 
-        let login_future = Self::credentials(client.clone(), server.to_owned(), username.to_owned(), password);
+        let login_future = Self::credentials(
+            client.clone(),
+            server.to_owned(),
+            username.to_owned(),
+            password,
+            options.ticket_cache,
+        );
 
         Ok(Self {
             client,
             server: String::from(server),
+            fingerprint: verified_fingerprint,
             auth: BroadcastFuture::new(Box::new(login_future)),
+            _options: options,
         })
     }
 
@@ -144,7 +217,12 @@ impl HttpClient {
         self.auth.listen().await
     }
 
-    fn get_password(_username: &str) -> Result<String, Error> {
+    /// Returns the optional fingerprint passed to the new() constructor.
+    pub fn fingerprint(&self) -> Option<String> {
+        (*self.fingerprint.lock().unwrap()).clone()
+    }
+
+    fn get_password(_username: &str, interactive: bool) -> Result<String, Error> {
         use std::env::VarError::*;
         match std::env::var("PBS_PASSWORD") {
             Ok(p) => return Ok(p),
@@ -155,18 +233,90 @@ impl HttpClient {
         }
 
         // If we're on a TTY, query the user for a password
-        if tty::stdin_isatty() {
+        if interactive && tty::stdin_isatty() {
             return Ok(String::from_utf8(tty::read_password("Password: ")?)?);
         }
 
         bail!("no password input mechanism available");
     }
 
-    fn build_client() -> Client<HttpsConnector> {
+    fn verify_callback(
+        valid: bool, ctx:
+        &mut X509StoreContextRef,
+        expected_fingerprint: Option<String>,
+        interactive: bool,
+        verified_fingerprint: Arc<Mutex<Option<String>>>,
+    ) -> bool {
+        if valid { return true; }
+
+        let cert = match ctx.current_cert() {
+            Some(cert) => cert,
+            None => return false,
+        };
+
+        let depth = ctx.error_depth();
+        if depth != 0 { return false; }
+
+        let fp = match cert.digest(openssl::hash::MessageDigest::sha256()) {
+            Ok(fp) => fp,
+            Err(_) => return false, // should not happen
+        };
+        let fp_string = proxmox::tools::digest_to_hex(&fp);
+        let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
+            .collect::<Vec<&str>>().join(":");
+
+        if let Some(expected_fingerprint) = expected_fingerprint {
+            if expected_fingerprint == fp_string {
+                *verified_fingerprint.lock().unwrap() = Some(fp_string);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        // If we're on a TTY, query the user
+        if interactive && tty::stdin_isatty() {
+            println!("fingerprint: {}", fp_string);
+            loop {
+                print!("Want to trust? (y/n): ");
+                let _ = std::io::stdout().flush();
+                let mut buf = [0u8; 1];
+                use std::io::Read;
+                match std::io::stdin().read_exact(&mut buf) {
+                    Ok(()) => {
+                        if buf[0] == b'y' || buf[0] == b'Y' {
+                            println!("TRUST {}", fp_string);
+                            *verified_fingerprint.lock().unwrap() = Some(fp_string);
+                           return true;
+                        } else if buf[0] == b'n' || buf[0] == b'N' {
+                            return false;
+                        }
+                    }
+                    Err(_) => {
+                        return false;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn build_client(
+        fingerprint: Option<String>,
+        interactive: bool,
+        verified_fingerprint: Arc<Mutex<Option<String>>>,
+        verify_cert: bool,
+    ) -> Client<HttpsConnector> {
 
         let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
-        ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE); // fixme!
+        if verify_cert {
+            ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
+                Self::verify_callback(valid, ctx, fingerprint.clone(), interactive, verified_fingerprint.clone())
+            });
+        } else {
+            ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
+        }
 
         let mut httpc = hyper::client::HttpConnector::new();
         httpc.set_nodelay(true); // important for h2 download performance!
@@ -339,6 +489,7 @@ impl HttpClient {
         server: String,
         username: String,
         password: String,
+        use_ticket_cache: bool,
     ) -> Result<AuthInfo, Error> {
         let data = json!({ "username": username, "password": password });
         let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
@@ -349,7 +500,9 @@ impl HttpClient {
             token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
         };
 
-        let _ = store_ticket_info(&server, &auth.username, &auth.ticket, &auth.token);
+        if use_ticket_cache {
+            let _ = store_ticket_info(&server, &auth.username, &auth.ticket, &auth.token);
+        }
 
         Ok(auth)
     }

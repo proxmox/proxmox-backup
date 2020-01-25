@@ -163,6 +163,15 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
+fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
+
+    let options = HttpClientOptions::new()
+        .interactive(true)
+        .ticket_cache(true);
+
+    HttpClient::new(server, userid, options)
+}
+
 async fn view_task_result(
     client: HttpClient,
     result: Value,
@@ -317,7 +326,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
@@ -411,7 +420,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let group = if let Some(path) = param["group"].as_str() {
         Some(BackupGroup::parse(path)?)
@@ -473,7 +482,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
@@ -503,7 +512,7 @@ async fn api_login(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
     client.login().await?;
 
     record_repository(&repo);
@@ -563,7 +572,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         }
     };
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let client = BackupReader::start(
         client,
@@ -633,7 +642,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
@@ -682,7 +691,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
@@ -903,7 +912,7 @@ async fn create_backup(
 
     let backup_time = Utc.timestamp(backup_time_opt.unwrap_or_else(|| Utc::now().timestamp()), 0);
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time));
@@ -1161,7 +1170,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     record_repository(&repo);
 
@@ -1328,7 +1337,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let snapshot = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(snapshot)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = connect(repo.host(), repo.user())?;
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
@@ -1388,7 +1397,7 @@ async fn prune(mut param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
@@ -1433,7 +1442,7 @@ async fn status(param: Value) -> Result<Value, Error> {
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
@@ -1463,7 +1472,13 @@ async fn status(param: Value) -> Result<Value, Error> {
 // like get, but simply ignore errors and return Null instead
 async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
-    let client = match HttpClient::new(repo.host(), repo.user(), None) {
+
+    let options = HttpClientOptions::new()
+        .verify_cert(false) // fixme: set verify to true, but howto handle fingerprint ??
+        .interactive(false)
+        .ticket_cache(true);
+
+    let client = match HttpClient::new(repo.host(), repo.user(), options) {
         Ok(v) => v,
         _ => return Value::Null,
     };
@@ -1914,7 +1929,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
     let target = tools::required_string_param(&param, "target")?;
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     record_repository(&repo);
 
@@ -2024,7 +2039,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 /// Shell to interactively inspect and restore snapshots.
 async fn catalog_shell(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
     let path = tools::required_string_param(&param, "snapshot")?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
@@ -2159,7 +2174,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
     let repo = extract_repository_from_value(&param)?;
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     let limit = param["limit"].as_u64().unwrap_or(50) as usize;
 
@@ -2208,7 +2223,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid =  tools::required_string_param(&param, "upid")?;
 
-    let client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let client = connect(repo.host(), repo.user())?;
 
     display_task_log(client, upid, true).await?;
 
@@ -2234,7 +2249,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid_str =  tools::required_string_param(&param, "upid")?;
 
-    let mut client = HttpClient::new(repo.host(), repo.user(), None)?;
+    let mut client = connect(repo.host(), repo.user())?;
 
     let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
     let _ = client.delete(&path, None).await?;

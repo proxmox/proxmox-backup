@@ -256,6 +256,7 @@ pub async fn pull_group(
     list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
 
     let auth_info = client.login().await?;
+    let fingerprint = client.fingerprint();
 
     let last_sync = tgt_store.last_successful_backup(group)?;
 
@@ -269,11 +270,11 @@ pub async fn pull_group(
             if last_sync_time > backup_time { continue; }
         }
 
-        let new_client = HttpClient::new(
-            src_repo.host(),
-            src_repo.user(),
-            Some(auth_info.ticket.clone())
-        )?;
+        let options = HttpClientOptions::new()
+            .password(Some(auth_info.ticket.clone()))
+            .fingerprint(fingerprint.clone());
+
+        let new_client = HttpClient::new(src_repo.host(), src_repo.user(), options)?;
 
         let reader = BackupReader::start(
             new_client,
@@ -406,7 +407,11 @@ async fn pull (
     let (remote_config, _digest) = remote::config()?;
     let remote: remote::Remote = remote_config.lookup("remote", &remote)?;
 
-    let client = HttpClient::new(&remote.host, &remote.userid, Some(remote.password.clone()))?;
+    let options = HttpClientOptions::new()
+        .password(Some(remote.password.clone()))
+        .fingerprint(remote.fingerprint.clone());
+
+    let client = HttpClient::new(&remote.host, &remote.userid, options)?;
     let _auth_info = client.login() // make sure we can auth
         .await
         .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;

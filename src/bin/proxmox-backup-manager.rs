@@ -34,11 +34,16 @@ fn connect() -> Result<HttpClient, Error> {
 
     let uid = nix::unistd::Uid::current();
 
+    let mut options = HttpClientOptions::new()
+        .verify_cert(false); // not required for connection to localhost
+
     let client = if uid.is_root()  {
         let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some("root@pam"), None)?;
-        HttpClient::new("localhost", "root@pam", Some(ticket))?
+        options = options.password(Some(ticket));
+        HttpClient::new("localhost", "root@pam", options)?
     } else {
-        HttpClient::new("localhost", "root@pam", None)?
+        options = options.ticket_cache(true).interactive(true);
+        HttpClient::new("localhost", "root@pam", options)?
     };
 
     Ok(client)
@@ -473,12 +478,14 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
         let remote: Remote = remote_config.lookup("remote", &remote)?;
 
+        let options = HttpClientOptions::new()
+            .password(Some(remote.password.clone()))
+            .fingerprint(remote.fingerprint.clone());
+
         let client = HttpClient::new(
             &remote.host,
             &remote.userid,
-            Some(remote.password),
-            remote.fingerprint,
-            false,
+            options,
         )?;
 
         let mut rt = tokio::runtime::Runtime::new().unwrap();

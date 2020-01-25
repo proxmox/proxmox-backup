@@ -4,7 +4,7 @@ use failure::*;
 
 use chrono::{DateTime, Utc};
 
-use proxmox_backup::client::{HttpClient, BackupReader};
+use proxmox_backup::client::{HttpClient, HttpClientOptions, BackupReader};
 
 pub struct DummyWriter {
     bytes: usize,
@@ -29,7 +29,11 @@ async fn run() -> Result<(), Error> {
 
     let username = "root@pam";
 
-    let client = HttpClient::new(host, username, None)?;
+    let options = HttpClientOptions::new()
+        .interactive(true)
+        .ticket_cache(true);
+
+    let client = HttpClient::new(host, username, options)?;
 
     let backup_time = "2019-06-28T10:49:48Z".parse::<DateTime<Utc>>()?;
 
