@@ -35,6 +35,7 @@ fn connect() -> Result<HttpClient, Error> {
     let uid = nix::unistd::Uid::current();
 
     let mut options = HttpClientOptions::new()
+        .prefix(Some("proxmox-backup".to_string()))
         .verify_cert(false); // not required for connection to localhost
 
     let client = if uid.is_root()  {

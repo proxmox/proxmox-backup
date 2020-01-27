@@ -166,6 +166,7 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
 fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
     let options = HttpClientOptions::new()
+        .prefix(Some("proxmox-backup".to_string()))
         .interactive(true)
         .fingerprint_cache(true)
         .ticket_cache(true);
@@ -536,7 +537,7 @@ fn api_logout(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    delete_ticket_info(repo.host(), repo.user())?;
+    delete_ticket_info("proxmox-backup", repo.host(), repo.user())?;
 
     Ok(Value::Null)
 }
@@ -1474,6 +1475,7 @@ async fn status(param: Value) -> Result<Value, Error> {
 async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
     let options = HttpClientOptions::new()
+        .prefix(Some("proxmox-backup".to_string()))
         .interactive(false)
         .fingerprint_cache(true)
         .ticket_cache(true);

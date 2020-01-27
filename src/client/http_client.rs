@@ -31,6 +31,7 @@ pub struct AuthInfo {
 }
 
 pub struct HttpClientOptions {
+    prefix: Option<String>,
     password: Option<String>,
     fingerprint: Option<String>,
     interactive: bool,
@@ -43,6 +44,7 @@ impl HttpClientOptions {
 
     pub fn new() -> Self {
         Self {
+            prefix: None,
             password: None,
             fingerprint: None,
             interactive: false,
@@ -50,6 +52,11 @@ impl HttpClientOptions {
             fingerprint_cache: false,
             verify_cert: true,
         }
+    }
+
+    pub fn prefix(mut self, prefix: Option<String>) -> Self {
+        self.prefix = prefix;
+        self
     }
 
     pub fn password(mut self, password: Option<String>) -> Self {
@@ -93,9 +100,9 @@ pub struct HttpClient {
 }
 
 /// Delete stored ticket data (logout)
-pub fn delete_ticket_info(server: &str, username: &str) -> Result<(), Error> {
+pub fn delete_ticket_info(prefix: &str, server: &str, username: &str) -> Result<(), Error> {
 
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+    let base = BaseDirectories::with_prefix(prefix)?;
 
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets")?;
@@ -113,11 +120,11 @@ pub fn delete_ticket_info(server: &str, username: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn store_fingerprint(server: &str, fingerprint: &str) -> Result<(), Error> {
+fn store_fingerprint(prefix: &str, server: &str, fingerprint: &str) -> Result<(), Error> {
 
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+    let base = BaseDirectories::with_prefix(prefix)?;
 
-    // usually ~/.config/proxmox-backup/fingerprints
+    // usually ~/.config/<prefix>/fingerprints
     let path = base.place_config_file("fingerprints")?;
 
     let raw = match std::fs::read_to_string(&path) {
@@ -155,11 +162,11 @@ fn store_fingerprint(server: &str, fingerprint: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_fingerprint(server: &str) -> Option<String> {
+fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
 
-    let base = BaseDirectories::with_prefix("proxmox-backup").ok()?;
+    let base = BaseDirectories::with_prefix(prefix).ok()?;
 
-    // usually ~/.config/proxmox-backup/fingerprints
+    // usually ~/.config/<prefix>/fingerprints
     let path = base.place_config_file("fingerprints").ok()?;
 
     let raw = std::fs::read_to_string(&path).ok()?;
@@ -176,9 +183,9 @@ fn load_fingerprint(server: &str) -> Option<String> {
     None
 }
 
-fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
+fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, token: &str) -> Result<(), Error> {
 
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+    let base = BaseDirectories::with_prefix(prefix)?;
 
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets")?;
@@ -212,8 +219,8 @@ fn store_ticket_info(server: &str, username: &str, ticket: &str, token: &str) ->
     Ok(())
 }
 
-fn load_ticket_info(server: &str, username: &str) -> Option<(String, String)> {
-    let base = BaseDirectories::with_prefix("proxmox-backup").ok()?;
+fn load_ticket_info(prefix: &str, server: &str, username: &str) -> Option<(String, String)> {
+    let base = BaseDirectories::with_prefix(prefix).ok()?;
 
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets").ok()?;
@@ -240,27 +247,58 @@ impl HttpClient {
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
         let mut fingerprint = options.fingerprint.take();
-        if options.fingerprint_cache && fingerprint.is_none() {
-            fingerprint = load_fingerprint(server);
+        if options.fingerprint_cache && fingerprint.is_none() && options.prefix.is_some() {
+            fingerprint = load_fingerprint(options.prefix.as_ref().unwrap(), server);
         }
 
-        let client = Self::build_client(
-            server.to_string(),
-            fingerprint,
-            options.interactive,
-            verified_fingerprint.clone(),
-            options.verify_cert,
-            options.fingerprint_cache,
-        );
+        let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
+
+        if options.verify_cert {
+            let server = server.to_string();
+            let verified_fingerprint = verified_fingerprint.clone();
+            let interactive = options.interactive;
+            let fingerprint_cache = options.fingerprint_cache;
+            let prefix = options.prefix.clone();
+            ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
+                let (valid, fingerprint) = Self::verify_callback(valid, ctx, fingerprint.clone(), interactive);
+                if valid {
+                    if let Some(fingerprint) = fingerprint {
+                        if fingerprint_cache && prefix.is_some() {
+                            if let Err(err) = store_fingerprint(
+                                prefix.as_ref().unwrap(), &server, &fingerprint) {
+                                eprintln!("{}", err);
+                            }
+                        }
+                        *verified_fingerprint.lock().unwrap() = Some(fingerprint);
+                    }
+                }
+                valid
+            });
+        } else {
+            ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
+        }
+
+        let mut httpc = hyper::client::HttpConnector::new();
+        httpc.set_nodelay(true); // important for h2 download performance!
+        httpc.set_recv_buffer_size(Some(1024*1024)); //important for h2 download performance!
+        httpc.enforce_http(false); // we want https...
+
+        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
+
+        let client = Client::builder()
+        //.http2_initial_stream_window_size( (1 << 31) - 2)
+        //.http2_initial_connection_window_size( (1 << 31) - 2)
+            .build::<_, Body>(https);
 
         let password = options.password.take();
+        let use_ticket_cache = options.ticket_cache && options.prefix.is_some();
 
         let password = if let Some(password) = password {
             password
         } else {
             let mut ticket_info = None;
-            if options.ticket_cache {
-                ticket_info = load_ticket_info(server, username);
+            if use_ticket_cache {
+                ticket_info = load_ticket_info(options.prefix.as_ref().unwrap(), server, username);
             }
             if let Some((ticket, _token)) = ticket_info {
                 ticket
@@ -274,8 +312,18 @@ impl HttpClient {
             server.to_owned(),
             username.to_owned(),
             password,
-            options.ticket_cache,
-        );
+        ).map_ok({
+            let server = server.to_string();
+            let prefix = options.prefix.clone();
+
+            move |auth| {
+                if use_ticket_cache & &prefix.is_some() {
+                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.username, &auth.ticket, &auth.token);
+                }
+
+                auth
+            }
+        });
 
         Ok(Self {
             client,
@@ -320,25 +368,22 @@ impl HttpClient {
     fn verify_callback(
         valid: bool, ctx:
         &mut X509StoreContextRef,
-        server: String,
         expected_fingerprint: Option<String>,
         interactive: bool,
-        verified_fingerprint: Arc<Mutex<Option<String>>>,
-        fingerprint_cache: bool,
-    ) -> bool {
-        if valid { return true; }
+    ) -> (bool, Option<String>) {
+        if valid { return (true, None); }
 
         let cert = match ctx.current_cert() {
             Some(cert) => cert,
-            None => return false,
+            None => return (false, None),
         };
 
         let depth = ctx.error_depth();
-        if depth != 0 { return false; }
+        if depth != 0 { return (false, None); }
 
         let fp = match cert.digest(openssl::hash::MessageDigest::sha256()) {
             Ok(fp) => fp,
-            Err(_) => return false, // should not happen
+            Err(_) => return (false, None), // should not happen
         };
         let fp_string = proxmox::tools::digest_to_hex(&fp);
         let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
@@ -346,10 +391,9 @@ impl HttpClient {
 
         if let Some(expected_fingerprint) = expected_fingerprint {
             if expected_fingerprint == fp_string {
-                *verified_fingerprint.lock().unwrap() = Some(fp_string);
-                return true;
+                return (true, Some(fp_string));
             } else {
-                return false;
+                return (false, None);
             }
         }
 
@@ -364,58 +408,18 @@ impl HttpClient {
                 match std::io::stdin().read_exact(&mut buf) {
                     Ok(()) => {
                         if buf[0] == b'y' || buf[0] == b'Y' {
-                            if fingerprint_cache {
-                                if let Err(err) = store_fingerprint(&server, &fp_string) {
-                                    eprintln!("{}", err);
-                                }
-                            }
-                            *verified_fingerprint.lock().unwrap() = Some(fp_string);
-                           return true;
+                            return (true, Some(fp_string));
                         } else if buf[0] == b'n' || buf[0] == b'N' {
-                            return false;
+                            return (false, None);
                         }
                     }
                     Err(_) => {
-                        return false;
+                        return (false, None);
                     }
                 }
             }
         }
-        false
-    }
-
-    fn build_client(
-        server: String,
-        fingerprint: Option<String>,
-        interactive: bool,
-        verified_fingerprint: Arc<Mutex<Option<String>>>,
-        verify_cert: bool,
-        fingerprint_cache: bool,
-    ) -> Client<HttpsConnector> {
-
-        let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
-
-        if verify_cert {
-            ssl_connector_builder.set_verify_callback(openssl::ssl::SslVerifyMode::PEER, move |valid, ctx| {
-                Self::verify_callback(
-                    valid, ctx, server.clone(), fingerprint.clone(), interactive,
-                    verified_fingerprint.clone(), fingerprint_cache)
-            });
-        } else {
-            ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
-        }
-
-        let mut httpc = hyper::client::HttpConnector::new();
-        httpc.set_nodelay(true); // important for h2 download performance!
-        httpc.set_recv_buffer_size(Some(1024*1024)); //important for h2 download performance!
-        httpc.enforce_http(false); // we want https...
-
-        let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
-
-        Client::builder()
-        //.http2_initial_stream_window_size( (1 << 31) - 2)
-        //.http2_initial_connection_window_size( (1 << 31) - 2)
-            .build::<_, Body>(https)
+        (false, None)
     }
 
     pub async fn request(&self, mut req: Request<Body>) -> Result<Value, Error> {
@@ -576,7 +580,6 @@ impl HttpClient {
         server: String,
         username: String,
         password: String,
-        use_ticket_cache: bool,
     ) -> Result<AuthInfo, Error> {
         let data = json!({ "username": username, "password": password });
         let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
@@ -586,10 +589,6 @@ impl HttpClient {
             ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
             token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
         };
-
-        if use_ticket_cache {
-            let _ = store_ticket_info(&server, &auth.username, &auth.ticket, &auth.token);
-        }
 
         Ok(auth)
     }
