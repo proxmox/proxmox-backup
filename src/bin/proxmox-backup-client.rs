@@ -167,6 +167,7 @@ fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
     let options = HttpClientOptions::new()
         .prefix(Some("proxmox-backup".to_string()))
+        .password_env(Some("PBS_PASSWORD".to_string()))
         .interactive(true)
         .fingerprint_cache(true)
         .ticket_cache(true);
@@ -1476,6 +1477,7 @@ async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
     let options = HttpClientOptions::new()
         .prefix(Some("proxmox-backup".to_string()))
+        .password_env(Some("PBS_PASSWORD".to_string()))
         .interactive(false)
         .fingerprint_cache(true)
         .ticket_cache(true);
