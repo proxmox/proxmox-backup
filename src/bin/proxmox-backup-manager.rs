@@ -465,7 +465,7 @@ fn main() {
                 .completion_cb("remote-store", complete_remote_datastore_name)
         );
 
-    proxmox_backup::tools::runtime::main(run_cli_command(cmd_def));
+    proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def));
 }
 
 // shell completion helper

@@ -83,7 +83,7 @@ fn main() -> Result<(), Error> {
 
         let args = shellword_split(&line)?;
 
-        let _ = handle_command(helper.cmd_def(), "", args);
+        let _ = handle_command(helper.cmd_def(), "", args, None);
 
         rl.add_history_entry(line);
     }

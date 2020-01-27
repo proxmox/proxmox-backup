@@ -2378,5 +2378,7 @@ fn main() {
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli());
 
-    proxmox_backup::tools::runtime::main(run_cli_command(cmd_def));
+    run_cli_command(cmd_def, Some(|future| {
+        proxmox_backup::tools::runtime::main(future)
+    }));
 }

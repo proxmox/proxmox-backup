@@ -132,7 +132,7 @@ impl Shell {
                     continue;
                 }
             };
-            let _ = handle_command(helper.cmd_def(), "", args);
+            let _ = handle_command(helper.cmd_def(), "", args, None);
             self.rl.add_history_entry(line);
             self.update_prompt()?;
         }

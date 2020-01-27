@@ -519,5 +519,5 @@ fn main() {
             .completion_cb("archive", tools::complete_file_name)
         );
 
-    proxmox_backup::tools::runtime::main(run_cli_command(cmd_def));
+    run_cli_command(cmd_def, None);
 }
