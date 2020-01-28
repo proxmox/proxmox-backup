@@ -272,19 +272,19 @@ impl<R: Read> SequentialDecoder<R> {
         acl.add_entry_full(
             acl::ACL_USER_OBJ,
             None,
-            mode_user_to_acl_permissions(entry.mode),
+            acl::mode_user_to_acl_permissions(entry.mode),
         )?;
         acl.add_entry_full(
             acl::ACL_OTHER,
             None,
-            mode_other_to_acl_permissions(entry.mode),
+            acl::mode_other_to_acl_permissions(entry.mode),
         )?;
         match &attr.acl_group_obj {
             Some(group_obj) => {
                 acl.add_entry_full(
                     acl::ACL_MASK,
                     None,
-                    mode_group_to_acl_permissions(entry.mode),
+                    acl::mode_group_to_acl_permissions(entry.mode),
                 )?;
                 acl.add_entry_full(acl::ACL_GROUP_OBJ, None, group_obj.permissions)?;
             }
@@ -292,7 +292,7 @@ impl<R: Read> SequentialDecoder<R> {
                 acl.add_entry_full(
                     acl::ACL_GROUP_OBJ,
                     None,
-                    mode_group_to_acl_permissions(entry.mode),
+                    acl::mode_group_to_acl_permissions(entry.mode),
                 )?;
             }
         }
@@ -1174,16 +1174,4 @@ fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
     ];
 
     times
-}
-
-fn mode_user_to_acl_permissions(mode: u64) -> u64 {
-    (mode >> 6) & 7
-}
-
-fn mode_group_to_acl_permissions(mode: u64) -> u64 {
-    (mode >> 3) & 7
-}
-
-fn mode_other_to_acl_permissions(mode: u64) -> u64 {
-    mode & 7
 }

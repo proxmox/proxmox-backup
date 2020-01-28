@@ -270,3 +270,18 @@ impl<'a> Iterator for &'a mut ACLEntriesIterator {
         None
     }
 }
+
+/// Helper to transform `PxarEntry`s user mode to acl permissions.
+pub fn mode_user_to_acl_permissions(mode: u64) -> u64 {
+    (mode >> 6) & 7
+}
+
+/// Helper to transform `PxarEntry`s group mode to acl permissions.
+pub fn mode_group_to_acl_permissions(mode: u64) -> u64 {
+    (mode >> 3) & 7
+}
+
+/// Helper to transform `PxarEntry`s other mode to acl permissions.
+pub fn mode_other_to_acl_permissions(mode: u64) -> u64 {
+    mode & 7
+}
