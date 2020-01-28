@@ -13,6 +13,8 @@ use std::ptr;
 use libc::{c_char, c_int, c_uint, c_void};
 use nix::errno::Errno;
 
+// from: acl/include/acl.h
+pub const ACL_UNDEFINED_ID: u32 = 0xffffffff;
 // acl_perm_t values
 pub type ACLPerm = c_uint;
 pub const ACL_READ: ACLPerm     = 0x04;
@@ -37,6 +39,12 @@ pub const ACL_TYPE_DEFAULT: ACLType = 0x4000;
 // acl entry constants
 pub const ACL_FIRST_ENTRY: c_int = 0;
 pub const ACL_NEXT_ENTRY: c_int  = 1;
+
+// acl to extended attribute names constants
+// from: acl/include/acl_ea.h
+pub const ACL_EA_ACCESS: &'static str = "system.posix_acl_access";
+pub const ACL_EA_DEFAULT: &'static str = "system.posix_acl_default";
+pub const ACL_EA_VERSION: u32 = 0x0002;
 
 #[link(name = "acl")]
 extern "C" {
@@ -284,4 +292,40 @@ pub fn mode_group_to_acl_permissions(mode: u64) -> u64 {
 /// Helper to transform `PxarEntry`s other mode to acl permissions.
 pub fn mode_other_to_acl_permissions(mode: u64) -> u64 {
     mode & 7
+}
+
+/// Buffer to compose ACLs as extended attribute.
+pub struct ACLXAttrBuffer {
+    buffer: Vec<u8>,
+}
+
+impl ACLXAttrBuffer {
+    /// Create a new buffer to write ACLs as extended attribute.
+    ///
+    /// `version` defines the ACL_EA_VERSION found in acl/include/acl_ea.h
+    pub fn new(version: u32) -> Self {
+        let mut buffer = Vec::new();
+        buffer.extend_from_slice(&version.to_le_bytes());
+        Self { buffer }
+    }
+
+    /// Add ACL entry to buffer.
+    pub fn add_entry(&mut self, tag: ACLTag, qualifier: Option<u64>, permissions: u64) {
+        self.buffer.extend_from_slice(&(tag as u16).to_le_bytes());
+        self.buffer.extend_from_slice(&(permissions as u16).to_le_bytes());
+        match qualifier {
+            Some(qualifier) => self.buffer.extend_from_slice(&(qualifier as u32).to_le_bytes()),
+            None => self.buffer.extend_from_slice(&ACL_UNDEFINED_ID.to_le_bytes()),
+        }
+    }
+
+    /// Length of the buffer in bytes.
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Borrow raw buffer as mut slice.
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.buffer.as_mut_slice()
+    }
 }
