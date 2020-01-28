@@ -732,6 +732,14 @@ impl Session  {
                 buffer.extend_from_slice(&fcaps.data);
                 buffer.push(b'\0');
             }
+            if entry.xattr.acl_default.is_some() {
+                buffer.extend_from_slice(b"system.posix_acl_default\0");
+            }
+            if entry.xattr.acl_group_obj.is_some()
+                || !entry.xattr.acl_user.is_empty()
+                || !entry.xattr.acl_group.is_empty() {
+                buffer.extend_from_slice(b"system.posix_acl_user\0");
+            }
             for xattr in &mut entry.xattr.xattrs {
                 buffer.append(&mut xattr.name);
                 buffer.push(b'\0');
