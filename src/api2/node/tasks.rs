@@ -156,14 +156,7 @@ fn stop_task(
     returns: {
         description: "A list of tasks.",
         type: Array,
-        items: {
-            description: "Task properties.",
-            type: Object,
-            properties: {
-                upid: { schema: UPID_SCHEMA },
-                // fixme: add other properties
-            },
-        },
+        items: { type: TaskListItem },
     },
 )]
 /// List tasks.
@@ -171,7 +164,7 @@ fn list_tasks(
     param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<Vec<TaskListItem>, Error> {
 
     let start = param["start"].as_u64().unwrap_or(0);
     let limit = param["limit"].as_u64().unwrap_or(50);
@@ -189,16 +182,18 @@ fn list_tasks(
     let mut count = 0;
 
     for info in list.iter() {
-        let mut entry = json!({
-            "upid": info.upid_str,
-            "node": "localhost",
-            "pid": info.upid.pid,
-            "pstart": info.upid.pstart,
-            "starttime": info.upid.starttime,
-            "type": info.upid.worker_type,
-            "id": info.upid.worker_id,
-            "user": info.upid.username,
-        });
+        let mut entry = TaskListItem {
+            upid: info.upid_str.clone(),
+            node: "localhost".to_string(),
+            pid: info.upid.pid as i64,
+            pstart: info.upid.pstart,
+            starttime: info.upid.starttime,
+            worker_type: info.upid.worker_type.clone(),
+            worker_id: info.upid.worker_id.clone(),
+            user: info.upid.username.clone(),
+            endtime: None,
+            status: None,
+        };
 
         if let Some(username) = userfilter {
             if !info.upid.username.contains(username) { continue; }
@@ -229,8 +224,8 @@ fn list_tasks(
                 continue;
             }
 
-            entry["endtime"] = Value::from(state.0);
-            entry["status"] = Value::from(state.1.clone());
+            entry.endtime = Some(state.0);
+            entry.status = Some(state.1.clone());
         }
 
         if (count as u64) < start {
@@ -245,7 +240,7 @@ fn list_tasks(
 
     rpcenv.set_result_attrib("total", Value::from(count));
 
-    Ok(json!(result))
+    Ok(result)
 }
 
 #[sortable]
