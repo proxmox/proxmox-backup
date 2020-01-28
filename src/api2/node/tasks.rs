@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader};
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiHandler, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::{identity, list_subdirs_api_method, sortable};
@@ -114,6 +114,59 @@ fn stop_task(
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA
+            },
+            start: {
+                type: u64,
+                description: "List tasks beginning from this offset.",
+                default: 0,
+                optional: true,
+            },
+            limit: {
+                type: u64,
+                description: "Only list this amount of tasks.",
+                default: 50,
+                optional: true,
+            },
+            store: {
+                schema: DATASTORE_SCHEMA,
+                optional: true,
+            },
+            running: {
+                type: bool,
+                description: "Only list running tasks.",
+                optional: true,
+            },
+            errors: {
+                type: bool,
+                description: "Only list erroneous tasks.",
+                optional:true,
+            },
+            userfilter: {
+                optional:true,
+                type: String,
+                description: "Only list tasks from this user.",
+            },
+        },
+    },
+    returns: {
+        description: "A list of tasks.",
+        type: Array,
+        items: {
+            description: "Task properties.",
+            type: Object,
+            properties: {
+                upid: { schema: UPID_SCHEMA },
+                // fixme: add other properties
+            },
+        },
+    },
+)]
+/// List tasks.
 fn list_tasks(
     param: Value,
     _info: &ApiMethod,
@@ -264,29 +317,5 @@ pub const UPID_API_ROUTER: Router = Router::new()
 
 #[sortable]
 pub const ROUTER: Router = Router::new()
-    .get(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&list_tasks),
-            &ObjectSchema::new(
-                "List tasks.",
-                &sorted!([
-                    ("node", false, &NODE_SCHEMA),
-                    ("start", true, &IntegerSchema::new("List tasks beginning from this offset.")
-                     .minimum(0)
-                     .default(0)
-                     .schema()
-                    ),
-                    ("limit", true, &IntegerSchema::new("Only list this amount of tasks.")
-                     .minimum(0)
-                     .default(50)
-                     .schema()
-                    ),
-                    ("store", true, &DATASTORE_SCHEMA),
-                    ("running", true, &BooleanSchema::new("Only list running tasks.").schema()),
-                    ("errors", true, &BooleanSchema::new("Only list erroneous tasks.").schema()),
-                    ("userfilter", true, &StringSchema::new("Only list tasks from this user.").schema()),
-                ]),
-            )
-        )
-    )
+    .get(&API_METHOD_LIST_TASKS)
     .match_all("upid", &UPID_API_ROUTER);
