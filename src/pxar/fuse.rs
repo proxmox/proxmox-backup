@@ -727,10 +727,8 @@ impl Session  {
                 .map_err(|_| libc::EIO)?
                 .ok_or_else(|| libc::EIO)?;
             let mut buffer = Vec::new();
-            if let Some(ref fcaps) = entry.xattr.fcaps {
+            if entry.xattr.fcaps.is_some() {
                 buffer.extend_from_slice(b"security.capability\0");
-                buffer.extend_from_slice(&fcaps.data);
-                buffer.push(b'\0');
             }
             if entry.xattr.acl_default.is_some() {
                 buffer.extend_from_slice(b"system.posix_acl_default\0");
