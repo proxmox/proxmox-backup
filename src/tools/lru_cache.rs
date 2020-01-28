@@ -5,6 +5,7 @@
 //! is used to keep track of the cache access order.
 
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 /// Interface for getting values on cache misses.
 pub trait Cacher<V> {
@@ -24,6 +25,8 @@ struct CacheNode<V> {
     value: V,
     prev: *mut CacheNode<V>,
     next: *mut CacheNode<V>,
+    // Dropcheck marker. See the phantom-data section in the rustonomicon.
+    _marker: PhantomData<Box<CacheNode<V>>>,
 }
 
 impl<V> CacheNode<V> {
@@ -33,6 +36,7 @@ impl<V> CacheNode<V> {
             value,
             prev: std::ptr::null_mut(),
             next: std::ptr::null_mut(),
+            _marker: PhantomData,
         }
     }
 }
@@ -89,6 +93,8 @@ pub struct LruCache<V> {
     head: *mut CacheNode<V>,
     tail: *mut CacheNode<V>,
     capacity: usize,
+    // Dropcheck marker. See the phantom-data section in the rustonomicon.
+    _marker: PhantomData<Box<CacheNode<V>>>,
 }
 
 impl<V> LruCache<V> {
@@ -99,6 +105,7 @@ impl<V> LruCache<V> {
             head: std::ptr::null_mut(),
             tail: std::ptr::null_mut(),
             capacity,
+            _marker: PhantomData,
         }
     }
 
