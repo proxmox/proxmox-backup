@@ -16,6 +16,7 @@ use libc;
 use libc::{c_char, c_int, c_void, size_t};
 
 use crate::tools::lru_cache::{Cacher, LruCache};
+use crate::tools::acl;
 use super::binary_search_tree::search_binary_tree_by;
 use super::decoder::{Decoder, DirectoryEntry};
 use super::format_definition::PxarGoodbyeItem;
@@ -643,19 +644,77 @@ impl Session  {
             let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
                 .map_err(|_| libc::EIO)?
                 .ok_or_else(|| libc::EIO)?;
-            // security.capability is stored separately, check it first
-            if name.to_bytes() == b"security.capability" {
-                match &mut entry.xattr.fcaps {
-                    None => return Err(libc::ENODATA),
-                    Some(fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
+
+            // Some of the extended attributes are stored separately in the archive,
+            // so check if requested name matches one of those.
+            match name.to_bytes() {
+                b"security.capability" => {
+                    match &mut entry.xattr.fcaps {
+                        None => return Err(libc::ENODATA),
+                        Some(fcaps) => return Self::xattr_reply_value(req, &mut fcaps.data, size),
+                    }
+                }
+                b"system.posix_acl_access" => {
+                    // Make sure to return if there are no matching extended attributes in the archive
+                    if entry.xattr.acl_group_obj.is_none()
+                        && entry.xattr.acl_user.is_empty()
+                        && entry.xattr.acl_group.is_empty() {
+                            return Err(libc::ENODATA);
+                    }
+                    let mut buffer = acl::ACLXAttrBuffer::new(acl::ACL_EA_VERSION);
+
+                    buffer.add_entry(acl::ACL_USER_OBJ, None, acl::mode_user_to_acl_permissions(entry.entry.mode));
+                    match &entry.xattr.acl_group_obj {
+                        Some(group_obj) => {
+                            buffer.add_entry(acl::ACL_MASK, None, acl::mode_group_to_acl_permissions(entry.entry.mode));
+                            buffer.add_entry(acl::ACL_GROUP_OBJ, None, group_obj.permissions);
+                        }
+                        None => {
+                            buffer.add_entry(acl::ACL_GROUP_OBJ, None, acl::mode_group_to_acl_permissions(entry.entry.mode));
+                        }
+                    }
+                    buffer.add_entry(acl::ACL_OTHER, None, acl::mode_other_to_acl_permissions(entry.entry.mode));
+
+                    for user in &mut entry.xattr.acl_user {
+                        buffer.add_entry(acl::ACL_USER, Some(user.uid), user.permissions);
+                    }
+                    for group in &mut entry.xattr.acl_group {
+                        buffer.add_entry(acl::ACL_GROUP, Some(group.gid), group.permissions);
+                    }
+                    return Self::xattr_reply_value(req, buffer.as_mut_slice(), size);
+                }
+                b"system.posix_acl_default" => {
+                    if let Some(default) = &entry.xattr.acl_default {
+                        let mut buffer = acl::ACLXAttrBuffer::new(acl::ACL_EA_VERSION);
+
+                        buffer.add_entry(acl::ACL_USER_OBJ, None, default.user_obj_permissions);
+                        buffer.add_entry(acl::ACL_GROUP_OBJ, None, default.group_obj_permissions);
+                        buffer.add_entry(acl::ACL_OTHER, None, default.other_permissions);
+
+                        if default.mask_permissions != std::u64::MAX {
+                            buffer.add_entry(acl::ACL_MASK, None, default.mask_permissions);
+                        }
+
+                        for user in &mut entry.xattr.acl_default_user {
+                            buffer.add_entry(acl::ACL_USER, Some(user.uid), user.permissions);
+                        }
+                        for group in &mut entry.xattr.acl_default_group {
+                            buffer.add_entry(acl::ACL_GROUP, Some(group.gid), group.permissions);
+                        }
+                        if buffer.len() > 0 {
+                            return Self::xattr_reply_value(req, buffer.as_mut_slice(), size);
+                        }
+                    }
+                }
+                name => {
+                    for xattr in &mut entry.xattr.xattrs {
+                        if name == xattr.name.as_slice() {
+                            return Self::xattr_reply_value(req, &mut xattr.value, size);
+                        }
+                    }
                 }
             }
 
-            for xattr in &mut entry.xattr.xattrs {
-                if name.to_bytes() == xattr.name.as_slice() {
-                    return Self::xattr_reply_value(req, &mut xattr.value, size);
-                }
-            }
 
             Err(libc::ENODATA)
         });
@@ -677,13 +736,14 @@ impl Session  {
                 buffer.append(&mut xattr.name);
                 buffer.push(b'\0');
             }
+
             Self::xattr_reply_value(req, &mut buffer, size)
         });
     }
 
     /// Helper function used to respond to get- and listxattr calls in order to
     /// de-duplicate code.
-    fn xattr_reply_value(req: Request, value: &mut Vec<u8>, size: size_t) -> Result<(), i32> {
+    fn xattr_reply_value(req: Request, value: &mut [u8], size: size_t) -> Result<(), i32> {
         let len = value.len();
 
         if size == 0 {
