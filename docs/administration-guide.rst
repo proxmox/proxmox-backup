@@ -375,7 +375,59 @@ to use the interactive recovery shell.
   bin        boot       dev        etc        home       lib        lib32
   ...
 
-.. todo:: Explain interactive restore
+The interactive recovery shell is a minimalistic command line interface that
+utilizes the metadata stored in the catalog for you to quickly list, navigate and
+search files contained within a file archive.
+You can select individual files as well as select files matched by a glob pattern
+for restore.
+
+The use of the catalog for navigation reduces the overhead otherwise caused by
+network traffic and decryption, as instead of downloading and decrypting
+individual encrypted chunks from the chunk store to access the metadata, we only
+need to download and decrypt the catalog.
+The actual chunks are only accessed if the metadata in the catalog is not enough
+or for the actual restore.
+
+Similar to common UNIX shells ``cd`` and ``ls`` are the commands used to change
+working directory and list directory contents of the archive.
+``pwd`` shows the full path of the current working directory with respect to the
+archive root.
+
+Being able to quickly search the contents of the archive is a often needed feature.
+That's where the catalog is most valuable.
+For example:
+
+.. code-block:: console
+
+  pxar:/ > find etc/ **/*.txt --select
+  "/etc/X11/rgb.txt"
+  pxar:/ > list-selected
+  etc/**/*.txt
+  pxar:/ > restore-selected /target/path
+  ...
+
+This will find and print all files ending in ``.txt`` located in ``etc/`` or a
+subdirectory and add the corresponding pattern to the list for subsequent restores.
+``list-selected`` shows these patterns and ``restore-selected`` finally restores
+all files in the archive matching the patterns to ``/target/path`` on the local
+host. This will scan the whole archive.
+
+With ``restore /target/path`` you can restore the sub-archive given by the current
+working directory to the local target path ``/target/path`` on your host.
+By additionally passing a glob pattern with ``--pattern <glob>``, the restore is
+further limited to files matching the pattern.
+For example:
+
+.. code-block:: console
+
+  pxar:/ > cd /etc/
+  pxar:/etc/ > restore /target/ --pattern **/*.conf
+  ...
+
+The above will scan trough all the directories below ``/etc`` and restore all
+files ending in ``.conf``.
+
+.. todo:: Explain interactive restore in more detail
 
 
 Login and Logout
