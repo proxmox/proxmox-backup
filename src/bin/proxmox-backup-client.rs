@@ -1373,25 +1373,61 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           group: {
-               type: String,
-               description: "Backup group.",
-           },
-           "output-format": {
-               schema: OUTPUT_FORMAT,
-               optional: true,
-           },
-           "dry-run": {
-               type: Boolean,
-               description: "Just show what prune would do, but do not delete anything.",
-               optional: true,
-           },
+    input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            group: {
+                type: String,
+                description: "Backup group.",
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            "dry-run": {
+                type: Boolean,
+                description: "Just show what prune would do, but do not delete anything.",
+                optional: true,
+            },
+            "keep-last": {
+                type: Integer,
+                description: "Number of backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
+            "keep-hourly": {
+                type: Integer,
+                description: "Number of hourly backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
+            "keep-daily": {
+                type: Integer,
+                description: "Number of daily backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
+            "keep-monthly": {
+                type: Integer,
+                description: "Number of monthly backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
+            "keep-weekly": {
+                type: Integer,
+                description: "Number of weekly backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
+            "keep-yearly": {
+                type: Integer,
+                description: "Number of yearly backups to keep.",
+                optional: true,
+                minimum: 1,
+            },
        }
    }
 )]
