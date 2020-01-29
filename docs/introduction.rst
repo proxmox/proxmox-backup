@@ -13,7 +13,7 @@ specially optimized for `Proxmox Virtual Environment`_ to backup
 possible to backup physical hosts.
 
 It supports deduplication, compression and authenticated encryption
-(AE_). Using RUST_ as implementation language guarantees high
+(AE_). Using :term:`Rust` as implementation language guarantees high
 performance, low resource usage, and a safe, high quality code base.
 
 Encryption is done at the client side. This makes backups to not fully
@@ -101,7 +101,7 @@ and run restore tests.
 Software Stack
 --------------
 
-.. todo:: Eplain why we use RUST (and Flutter)
+.. todo:: Eplain why we use Rust (and Flutter)
 	  
 
 License
