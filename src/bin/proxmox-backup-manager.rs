@@ -5,7 +5,7 @@ use failure::*;
 use serde_json::{json, Value};
 use chrono::{Local, TimeZone};
 
-use proxmox::api::{api, cli::*};
+use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
@@ -84,16 +84,15 @@ fn connect() -> Result<HttpClient, Error> {
     }
 )]
 /// List configured remotes.
-async fn list_remotes(param: Value) -> Result<Value, Error> {
+fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
 
     let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
 
-    let client = connect()?;
-
-    let mut result = client.get("api2/json/config/remote", None).await?;
-
-    let mut data = result["data"].take();
-    let schema = api2::config::remote::API_RETURN_SCHEMA_LIST_REMOTES;
+    let info = &api2::config::remote::API_METHOD_LIST_REMOTES;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
 
     let mut column_config = Vec::new();
     column_config.push(ColumnConfig::new("name"));
@@ -108,7 +107,7 @@ async fn list_remotes(param: Value) -> Result<Value, Error> {
         .column_config(column_config);
 
 
-    format_and_print_result_full(&mut data, schema, &output_format, &options);
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
