@@ -160,7 +160,7 @@ fn stop_task(
     },
 )]
 /// List tasks.
-fn list_tasks(
+pub fn list_tasks(
     param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
