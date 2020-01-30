@@ -429,6 +429,31 @@ files ending in ``.conf``.
 
 .. todo:: Explain interactive restore in more detail
 
+Mounting of Archives via FUSE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :term:`FUSE` implementation for the pxar archive allows you to mount a
+file archive as a read-only filesystem to a mountpoint on your host.
+
+.. code-block:: console
+
+  # proxmox-backup-client mount host/backup-client/2020-01-29T11:29:22Z root.pxar /mnt
+  # ls /mnt
+  bin   dev  home  lib32  libx32      media  opt   root  sbin  sys  usr
+  boot  etc  lib   lib64  lost+found  mnt    proc  run   srv   tmp  var
+
+This allows you to access the full content of the archive in a seamless manner.
+
+.. note:: As the FUSE connection needs to fetch and decrypt chunks from the
+    backup servers datastore, this can cause some additional network and CPU
+    load on your host, depending on the operations you perform on the mounted
+    filesystem.
+
+To unmount the filesystem simply use the ``umount`` command on the mountpoint:
+
+.. code-block:: console
+
+  # umount /mnt
 
 Login and Logout
 ~~~~~~~~~~~~~~~~
