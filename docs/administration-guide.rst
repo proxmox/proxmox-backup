@@ -383,7 +383,7 @@ for restore.
 
 The use of the catalog for navigation reduces the overhead otherwise caused by
 network traffic and decryption, as instead of downloading and decrypting
-individual encrypted chunks from the chunk store to access the metadata, we only
+individual encrypted chunks from the chunk-store to access the metadata, we only
 need to download and decrypt the catalog.
 The actual chunks are only accessed if the metadata in the catalog is not enough
 or for the actual restore.
@@ -577,8 +577,8 @@ data blocks that are still in use are marked. In the second phase,
 unused data blocks are removed.
 
 .. note:: This command needs to read all existing backup index files
-  and touches the complete chunk store. This can take a long time
-  depending on the number of chunk and the speed of the underlying
+  and touches the complete chunk-store. This can take a long time
+  depending on the number of chunks and the speed of the underlying
   disks.
 
 
