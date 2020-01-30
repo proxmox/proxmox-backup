@@ -522,7 +522,7 @@ fn start_garbage_collection(
     }
 )]
 /// Garbage collection status.
-fn garbage_collection_status(
+pub fn garbage_collection_status(
     store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -544,7 +544,7 @@ fn get_datastore_list(
 
     let (config, _digest) = datastore::config()?;
 
-    Ok(config.convert_to_array("store", None))
+    Ok(config.convert_to_array("store", None, &[]))
 }
 
 #[sortable]

@@ -85,7 +85,7 @@ impl SectionConfigData {
         self.order.push_back(section_id.to_string());
     }
 
-    pub fn convert_to_array(&self, id_prop: &str, digest: Option<&[u8;32]>) -> Value {
+    pub fn convert_to_array(&self, id_prop: &str, digest: Option<&[u8;32]>, skip: &[&'static str]) -> Value {
         let mut list: Vec<Value> = vec![];
 
         let digest: Value = match digest {
@@ -95,6 +95,9 @@ impl SectionConfigData {
 
         for (section_id, (_, data)) in &self.sections {
             let mut item = data.clone();
+            for prop in skip {
+                item.as_object_mut().unwrap().remove(*prop);
+            }
             item.as_object_mut().unwrap().insert(id_prop.into(), section_id.clone().into());
             if !digest.is_null() {
                 item.as_object_mut().unwrap().insert("digest".into(), digest.clone());

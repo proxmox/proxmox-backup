@@ -30,7 +30,7 @@ pub fn list_datastores(
 
     let (config, digest) = datastore::config()?;
 
-    Ok(config.convert_to_array("name", Some(&digest)))
+    Ok(config.convert_to_array("name", Some(&digest), &[]))
 }
 
 #[api(

@@ -14,7 +14,27 @@ use crate::config::remote;
         description: "The list of configured remotes (with config digest).",
         type: Array,
         items: {
-            type: remote::Remote,
+            type: Object,
+            description: "Remote configuration (without password).",
+            properties: {
+                name: {
+                    schema: REMOTE_ID_SCHEMA,
+                },
+                comment: {
+                    optional: true,
+                    schema: SINGLE_LINE_COMMENT_SCHEMA,
+                },
+                host: {
+                    schema: DNS_NAME_OR_IP_SCHEMA,
+                },
+                userid: {
+                    schema: PROXMOX_USER_ID_SCHEMA,
+                },
+                fingerprint: {
+                    optional: true,
+                    schema: CERT_FINGERPRINT_SHA256_SCHEMA,
+                },
+            },
         },
     },
 )]
@@ -27,7 +47,11 @@ pub fn list_remotes(
 
     let (config, digest) = remote::config()?;
 
-    Ok(config.convert_to_array("name", Some(&digest)))
+    let value = config.convert_to_array("name", Some(&digest), &["password"]);
+  
+    println!("TEST {:?}", value);
+    
+    Ok(value.into())
 }
 
 #[api(
