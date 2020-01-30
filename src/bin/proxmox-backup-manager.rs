@@ -1,17 +1,40 @@
-use failure::*;
-use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::collections::HashMap;
+
+use failure::*;
+use serde_json::{json, Value};
+use chrono::{Local, TimeZone};
 
 use proxmox::api::{api, cli::*};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
 use proxmox_backup::config::{self, remote::{self, Remote}};
-use proxmox_backup::api2::types::*;
+use proxmox_backup::api2::{self, types::* };
 use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
 use proxmox_backup::auth_helpers::*;
+
+fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
+    if value.is_null() { return Ok(String::new()); }
+    let text = match value.as_i64() {
+        Some(epoch) => {
+            Local.timestamp(epoch, 0).format("%c").to_string()
+        }
+        None => {
+            value.to_string()
+        }
+    };
+    Ok(text)
+}
+
+fn render_status(value: &Value, record: &Value) -> Result<String, Error> {
+    if record["endtime"].is_null() {
+        Ok(value.as_str().unwrap_or("running").to_string())
+    } else {
+        Ok(value.as_str().unwrap_or("unknown").to_string())
+    }
+}
 
 async fn view_task_result(
     client: HttpClient,
@@ -50,12 +73,51 @@ fn connect() -> Result<HttpClient, Error> {
     Ok(client)
 }
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List configured remotes.
+async fn list_remotes(param: Value) -> Result<Value, Error> {
+
+    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let client = connect()?;
+
+    let mut result = client.get("api2/json/config/remote", None).await?;
+
+    let mut data = result["data"].take();
+    let schema = api2::config::remote::API_RETURN_SCHEMA_LIST_REMOTES;
+
+    let mut column_config = Vec::new();
+    column_config.push(ColumnConfig::new("name"));
+    column_config.push(ColumnConfig::new("host"));
+    column_config.push(ColumnConfig::new("userid"));
+    column_config.push(ColumnConfig::new("fingerprint"));
+    column_config.push(ColumnConfig::new("comment"));
+
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false)
+        .column_config(column_config);
+
+
+    format_and_print_result_full(&mut data, schema, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn remote_commands() -> CommandLineInterface {
 
-    use proxmox_backup::api2;
-
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::remote::API_METHOD_LIST_REMOTES))
+        //.insert("list", CliCommand::new(&api2::config::remote::API_METHOD_LIST_REMOTES))
+        .insert("list", CliCommand::new(&&API_METHOD_LIST_REMOTES))
         .insert(
             "create",
             // fixme: howto handle password parameter?
@@ -79,8 +141,6 @@ fn remote_commands() -> CommandLineInterface {
 }
 
 fn datastore_commands() -> CommandLineInterface {
-
-    use proxmox_backup::api2;
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&api2::config::datastore::API_METHOD_LIST_DATASTORES))
@@ -158,13 +218,15 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
-    let result = client.get(&path, None).await?;
-    let data = &result["data"];
-    if output_format == "text" {
-        format_and_print_result(&data, "json-pretty");
-     } else {
-        format_and_print_result(&data, &output_format);
-    }
+    let mut result = client.get(&path, None).await?;
+    let mut data = result["data"].take();
+    let schema = api2::admin::datastore::API_RETURN_SCHEMA_GARBAGE_COLLECTION_STATUS;
+
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false);
+
+    format_and_print_result_full(&mut data, schema, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -223,21 +285,23 @@ async fn task_list(param: Value) -> Result<Value, Error> {
         "start": 0,
         "limit": limit,
     });
-    let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
+    let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
-    let data = &result["data"];
+    let mut data = result["data"].take();
+    let schema = api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
 
-    if output_format == "text" {
-        for item in data.as_array().unwrap() {
-            println!(
-                "{} {}",
-                item["upid"].as_str().unwrap(),
-                item["status"].as_str().unwrap_or("running"),
-            );
-        }
-    } else {
-        format_and_print_result(data, &output_format);
-    }
+    let mut column_config = Vec::new();
+    column_config.push(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch));
+    column_config.push(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch));
+    column_config.push(ColumnConfig::new("upid"));
+    column_config.push(ColumnConfig::new("status").renderer(render_status));
+
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false)
+        .column_config(column_config);
+
+    format_and_print_result_full(&mut data, schema, &output_format, &options);
 
     Ok(Value::Null)
 }
