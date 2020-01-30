@@ -49,8 +49,6 @@ pub fn list_remotes(
 
     let value = config.convert_to_array("name", Some(&digest), &["password"]);
   
-    println!("TEST {:?}", value);
-    
     Ok(value.into())
 }
 
