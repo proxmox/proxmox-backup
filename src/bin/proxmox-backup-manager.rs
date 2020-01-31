@@ -94,18 +94,14 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, 
         _ => unreachable!(),
     };
 
-    let mut column_config = Vec::new();
-    column_config.push(ColumnConfig::new("name"));
-    column_config.push(ColumnConfig::new("host"));
-    column_config.push(ColumnConfig::new("userid"));
-    column_config.push(ColumnConfig::new("fingerprint"));
-    column_config.push(ColumnConfig::new("comment"));
-
     let options = TableFormatOptions::new()
         .noborder(false)
         .noheader(false)
-        .column_config(column_config);
-
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("host"))
+        .column(ColumnConfig::new("userid"))
+        .column(ColumnConfig::new("fingerprint"))
+        .column(ColumnConfig::new("comment"));
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
@@ -288,16 +284,13 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut data = result["data"].take();
     let schema = api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
 
-    let mut column_config = Vec::new();
-    column_config.push(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch));
-    column_config.push(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch));
-    column_config.push(ColumnConfig::new("upid"));
-    column_config.push(ColumnConfig::new("status").renderer(render_status));
-
     let options = TableFormatOptions::new()
         .noborder(false)
         .noheader(false)
-        .column_config(column_config);
+        .column(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch))
+        .column(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch))
+        .column(ColumnConfig::new("upid"))
+        .column(ColumnConfig::new("status").renderer(render_status));
 
     format_and_print_result_full(&mut data, schema, &output_format, &options);
 
