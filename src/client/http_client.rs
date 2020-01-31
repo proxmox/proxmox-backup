@@ -15,13 +15,16 @@ use serde_json::{json, Value};
 use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
-use proxmox::tools::{
-    fs::{file_get_json, replace_file, CreateOptions},
+use proxmox::{
+    sys::linux::tty,
+    tools::{
+        fs::{file_get_json, replace_file, CreateOptions},
+    }
 };
 
 use super::pipe_to_stream::PipeToSendStream;
 use crate::tools::async_io::EitherStream;
-use crate::tools::{self, tty, BroadcastFuture, DEFAULT_ENCODE_SET};
+use crate::tools::{self, BroadcastFuture, DEFAULT_ENCODE_SET};
 
 #[derive(Clone)]
 pub struct AuthInfo {

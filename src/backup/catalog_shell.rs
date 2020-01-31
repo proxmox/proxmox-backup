@@ -7,11 +7,13 @@ use std::path::Path;
 
 use failure::*;
 
+use proxmox::api::{cli::*, *};
+use proxmox::sys::linux::tty;
+
 use super::catalog::{CatalogReader, DirEntry};
 use crate::pxar::*;
 use crate::tools;
 
-use proxmox::api::{cli::*, *};
 
 const PROMPT_PREFIX: &str = "pxar:";
 const PROMPT: &str = ">";
@@ -266,7 +268,7 @@ fn ls_command(path: Option<String>) -> Result<(), Error> {
             None => 0,
         };
 
-        let (_rows, mut cols) = Context::get_terminal_size();
+        let (_rows, mut cols) = tty::stdout_terminal_size();
         cols /= max;
 
         let mut out = std::io::stdout();
@@ -649,31 +651,6 @@ impl Context {
             PROMPT,
         );
         Ok(prompt)
-    }
-
-    /// Get the current size of the terminal
-    /// # Safety
-    ///
-    /// uses unsafe call to tty_ioctl, see man tty_ioctl(2)
-    fn get_terminal_size() -> (usize, usize) {
-        const TIOCGWINSZ: libc::c_ulong = 0x5413;
-
-        #[repr(C)]
-        struct WinSize {
-            ws_row: libc::c_ushort,
-            ws_col: libc::c_ushort,
-            _ws_xpixel: libc::c_ushort, // unused
-            _ws_ypixel: libc::c_ushort, // unused
-        }
-
-        let mut winsize = WinSize {
-            ws_row: 0,
-            ws_col: 0,
-            _ws_xpixel: 0,
-            _ws_ypixel: 0,
-        };
-        unsafe { libc::ioctl(libc::STDOUT_FILENO, TIOCGWINSZ, &mut winsize) };
-        (winsize.ws_row as usize, winsize.ws_col as usize)
     }
 
     /// Look up the entry given by a canonical absolute `path` in the archive.

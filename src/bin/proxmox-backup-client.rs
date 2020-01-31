@@ -10,6 +10,7 @@ use std::os::unix::fs::OpenOptionsExt;
 
 use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, replace_file, CreateOptions, image_size};
+use proxmox::sys::linux::tty;
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::api::cli::*;
@@ -1709,8 +1710,8 @@ fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     }
 
     // If we're on a TTY, query the user for a password
-    if crate::tools::tty::stdin_isatty() {
-        return Ok(crate::tools::tty::read_password("Encryption Key Password: ")?);
+    if tty::stdin_isatty() {
+        return Ok(tty::read_password("Encryption Key Password: ")?);
     }
 
     bail!("no password input mechanism available");
@@ -1731,11 +1732,11 @@ fn key_create(
 
     if kdf == "scrypt" {
         // always read passphrase from tty
-        if !crate::tools::tty::stdin_isatty() {
+        if !tty::stdin_isatty() {
             bail!("unable to read passphrase - no tty");
         }
 
-        let password = crate::tools::tty::read_and_verify_password("Encryption Key Password: ")?;
+        let password = tty::read_and_verify_password("Encryption Key Password: ")?;
 
         let key_config = encrypt_key_with_passphrase(&key, &password)?;
 
@@ -1798,7 +1799,7 @@ fn key_create_master_key(
 ) -> Result<Value, Error> {
 
     // we need a TTY to query the new password
-    if !crate::tools::tty::stdin_isatty() {
+    if !tty::stdin_isatty() {
         bail!("unable to create master key - no tty");
     }
 
@@ -1806,7 +1807,7 @@ fn key_create_master_key(
     let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
 
 
-    let password = String::from_utf8(crate::tools::tty::read_and_verify_password("Master Key Password: ")?)?;
+    let password = String::from_utf8(tty::read_and_verify_password("Master Key Password: ")?)?;
 
     let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
     let filename_pub = "master-public.pem";
@@ -1835,7 +1836,7 @@ fn key_change_passphrase(
     let kdf = param["kdf"].as_str().unwrap_or("scrypt");
 
     // we need a TTY to query the new password
-    if !crate::tools::tty::stdin_isatty() {
+    if !tty::stdin_isatty() {
         bail!("unable to change passphrase - no tty");
     }
 
@@ -1843,7 +1844,7 @@ fn key_change_passphrase(
 
     if kdf == "scrypt" {
 
-        let password = crate::tools::tty::read_and_verify_password("New Password: ")?;
+        let password = tty::read_and_verify_password("New Password: ")?;
 
         let mut new_key_config = encrypt_key_with_passphrase(&key, &password)?;
         new_key_config.created = created; // keep original value
