@@ -1373,68 +1373,33 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     client.upload("application/octet-stream", body, &path, Some(args)).await
 }
 
-#[api(
-    input: {
-        properties: {
-            repository: {
-                schema: REPO_URL_SCHEMA,
-                optional: true,
-            },
-            group: {
-                type: String,
-                description: "Backup group.",
-            },
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-            "dry-run": {
-                type: Boolean,
-                description: "Just show what prune would do, but do not delete anything.",
-                optional: true,
-            },
-            "keep-last": {
-                type: Integer,
-                description: "Number of backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-            "keep-hourly": {
-                type: Integer,
-                description: "Number of hourly backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-            "keep-daily": {
-                type: Integer,
-                description: "Number of daily backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-            "keep-monthly": {
-                type: Integer,
-                description: "Number of monthly backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-            "keep-weekly": {
-                type: Integer,
-                description: "Number of weekly backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-            "keep-yearly": {
-                type: Integer,
-                description: "Number of yearly backups to keep.",
-                optional: true,
-                minimum: 1,
-            },
-       }
-   }
-)]
-/// Prune a backup repository.
-async fn prune(mut param: Value) -> Result<Value, Error> {
+const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
+    &ApiHandler::Async(&prune),
+    &ObjectSchema::new(
+        "Prune a backup repository.",
+        &proxmox_backup::add_common_prune_prameters!([
+            ("dry-run", true, &BooleanSchema::new(
+                "Just show what prune would do, but do not delete anything.")
+             .schema()),
+            ("group", false, &StringSchema::new("Backup group.").schema()),
+        ], [
+            ("output-format", true, &OUTPUT_FORMAT),
+            ("repository", true, &REPO_URL_SCHEMA),
+        ])
+    )
+);
 
+fn prune<'a>(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &'a mut dyn RpcEnvironment,
+) -> proxmox::api::ApiFuture<'a> {
+    async move {
+        prune_async(param).await
+    }.boxed()
+}
+
+async fn prune_async(mut param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let mut client = connect(repo.host(), repo.user())?;
