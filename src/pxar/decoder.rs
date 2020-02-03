@@ -33,6 +33,8 @@ pub struct DirectoryEntry {
     pub size: u64,
     /// Target path for symbolic links
     pub target: Option<PathBuf>,
+    /// Start offset of the payload if present.
+    pub payload_offset: Option<u64>,
 }
 
 /// Trait to create ReadSeek Decoder trait objects.
@@ -68,9 +70,9 @@ impl Decoder {
         check_ca_header::<PxarEntry>(&header, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
         let (header, xattr) = self.inner.read_attributes()?;
-        let size = match header.htype {
-            PXAR_PAYLOAD => header.size - HEADER_SIZE,
-            _ => 0,
+        let (size, payload_offset) = match header.htype {
+            PXAR_PAYLOAD => (header.size - HEADER_SIZE, Some(self.seek(SeekFrom::Current(0))?)),
+            _ => (0, None),
         };
 
         Ok(DirectoryEntry {
@@ -81,6 +83,7 @@ impl Decoder {
             xattr,
             size,
             target: None,
+            payload_offset,
         })
     }
 
@@ -134,9 +137,9 @@ impl Decoder {
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
         let (header, xattr) = self.inner.read_attributes()?;
-        let size = match header.htype {
-            PXAR_PAYLOAD => header.size - HEADER_SIZE,
-            _ => 0,
+        let (size, payload_offset) = match header.htype {
+            PXAR_PAYLOAD => (header.size - HEADER_SIZE, Some(self.seek(SeekFrom::Current(0))?)),
+            _ => (0, None),
         };
         let target = match header.htype {
             PXAR_SYMLINK => Some(self.inner.read_link(header.size)?),
@@ -151,6 +154,7 @@ impl Decoder {
             xattr,
             size,
             target,
+            payload_offset,
         })
     }
 
@@ -335,45 +339,26 @@ impl Decoder {
         }
     }
 
-    /// Read the payload of the file given by `offset`.
+    /// Read the payload of the file given by `entry`.
     ///
-    /// This will read the file by first seeking to `offset` within the archive,
-    /// check if there is indeed a valid item with payload and then read `size`
-    /// bytes of content starting from `data_offset`.
-    /// If EOF is reached before reading `size` bytes, the reduced buffer is
-    /// returned.
-    pub fn read(&mut self, offset: u64, size: usize, data_offset: u64) -> Result<Vec<u8>, Error> {
-        self.seek(SeekFrom::Start(offset))?;
-        let head: PxarHeader = self.inner.read_item()?;
-        if head.htype != PXAR_FILENAME {
-            bail!("Expected PXAR_FILENAME, encountered 0x{:x?}", head.htype);
-        }
-        let _filename = self.inner.read_filename(head.size)?;
-
-        let head: PxarHeader = self.inner.read_item()?;
-        if head.htype == PXAR_FORMAT_HARDLINK {
-            let (_, diff) = self.inner.read_hardlink(head.size)?;
-            return self.read(offset - diff, size, data_offset);
-        }
-        check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
-        let _: PxarEntry = self.inner.read_item()?;
-
-        let (header, _) = self.inner.read_attributes()?;
-        if header.htype != PXAR_PAYLOAD {
-            bail!("Expected PXAR_PAYLOAD, found 0x{:x?}", header.htype);
-        }
-
-        let payload_size = header.size - HEADER_SIZE;
-        if data_offset >= payload_size {
+    /// This will read a files payload as raw bytes starting from `offset` after
+    /// the payload marker, reading `size` bytes.
+    /// If the payload from `offset` to EOF is smaller than `size` bytes, the
+    /// buffer with reduced size is returned.
+    /// If `offset` is larger than the payload size of the `DirectoryEntry`, an
+    /// empty buffer is returned.
+    pub fn read(&mut self, entry: &DirectoryEntry, size: usize, offset: u64) -> Result<Vec<u8>, Error> {
+        let start_offset = entry.payload_offset
+            .ok_or_else(|| format_err!("entry has no payload offset"))?;
+        if offset >= entry.size {
             return Ok(Vec::new());
         }
-
-        let len = if data_offset + u64::try_from(size)? > payload_size {
-            usize::try_from(payload_size - data_offset)?
+        let len = if u64::try_from(size)? > entry.size {
+            usize::try_from(entry.size)?
         } else {
             size
         };
-        self.inner.skip_bytes(usize::try_from(data_offset)?)?;
+        self.seek(SeekFrom::Start(start_offset + offset))?;
         let data = self.inner.get_reader_mut().read_exact_allocated(len)?;
 
         Ok(data)

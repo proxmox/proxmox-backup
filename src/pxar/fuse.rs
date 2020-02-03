@@ -538,8 +538,11 @@ impl Session  {
     }
 
     extern "C" fn read(req: Request, inode: u64, size: size_t, offset: c_int, _fileinfo: MutPtr) {
-        Self::run_in_context(req, inode, |ctx| {
-            let mut data = ctx.decoder.read(ctx.ino_offset, size, offset as u64).map_err(|_| libc::EIO)?;
+        Self::run_with_context_refs(req, inode, |decoder, map, _gbt_cache, entry_cache, ino_offset| {
+            let entry = entry_cache.access(ino_offset, &mut EntryCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
+            let mut data = decoder.read(&entry, size, offset as u64).map_err(|_| libc::EIO)?;
 
             let _res = unsafe {
                 let len = data.len();
