@@ -135,59 +135,6 @@ impl Context {
     ) {
         ( &mut self.decoder, &mut self.start_end_parent, &mut self.gbt_cache, &mut self.entry_cache )
     }
-
-    /// Lookup the goodbye item identified by `filename` and its corresponding `hash`
-    ///
-    /// Updates the goodbye table cache to contain the table for the directory given
-    /// by the i-node in the provided `Context`.
-    /// Search the first matching `hash` in the goodbye table, allowing for a fast
-    /// comparison with the items.
-    /// As there could be a hash collision, the found items filename is then compared
-    /// by seek to the corresponding item in the archive and reading its attributes
-    /// (which the lookup callback needs to do anyway).
-    /// If the filename does not match, the function is called recursively with the
-    /// rest of the goodbye table to lookup the next match.
-    /// The matching items archive offset, entry and payload size are returned.
-    /// If there is no entry with matching `filename` and `hash` a `libc::ENOENT` is
-    /// returned.
-    fn find_goodbye_entry(
-        &mut self,
-        filename: &CStr,
-        hash: u64,
-    ) -> Result<(u64, DirectoryEntry), i32> {
-        let ino_offset = self.ino_offset;
-        let (decoder, map, gbt_cache, _) = self.as_mut_refs();
-        let gbt = gbt_cache.access(ino_offset, &mut GbtCacher { decoder, map })
-            .map_err(|_| libc::EIO)?
-            .ok_or_else(|| libc::ENOENT)?;
-        let mut start_idx = 0;
-        let mut skip_multiple = 0;
-        loop {
-            // Search for the next goodbye entry with matching hash.
-            let idx = search_binary_tree_by(
-                start_idx,
-                gbt.len(),
-                skip_multiple,
-                |idx| hash.cmp(&gbt[idx].0.hash),
-            ).ok_or(libc::ENOENT)?;
-
-            let (_item, start, end) = &gbt[idx];
-            map.insert(*start, (*end, ino_offset));
-
-            let entry = decoder.read_directory_entry(*start, *end)
-                .map_err(|_| libc::EIO)?;
-
-            // Possible hash collision, need to check if the found entry is indeed
-            // the filename to lookup.
-            if entry.filename.as_bytes() == filename.to_bytes() {
-                return Ok((*start, entry));
-            }
-            // Hash collision, check the next entry in the goodbye table by starting
-            // from given index but skipping one more match (so hash at index itself).
-            start_idx = idx;
-            skip_multiple = 1;
-        }
-    }
 }
 
 /// `Session` stores a pointer to the session context and is used to mount the
@@ -490,20 +437,47 @@ impl Session  {
         let filename = unsafe { CStr::from_ptr(name) };
         let hash = super::format_definition::compute_goodbye_hash(filename.to_bytes());
 
-        Self::run_in_context(req, parent, |ctx| {
-            let (offset, entry) = ctx.find_goodbye_entry(&filename, hash)?;
+        Self::run_with_context_refs(req, parent, |decoder, map, gbt_cache, entry_cache, ino_offset| {
+            let gbt = gbt_cache.access(ino_offset, &mut GbtCacher { decoder, map })
+                .map_err(|_| libc::EIO)?
+                .ok_or_else(|| libc::EIO)?;
+            let mut start_idx = 0;
+            let mut skip_multiple = 0;
+            loop {
+                // Search for the next goodbye entry with matching hash.
+                let idx = search_binary_tree_by(
+                    start_idx,
+                    gbt.len(),
+                    skip_multiple,
+                    |idx| hash.cmp(&gbt[idx].0.hash),
+                ).ok_or_else(|| libc::ENOENT)?;
 
-            let e = EntryParam {
-                inode: offset,
-                generation: 1,
-                attr: stat(offset, &entry)?,
-                attr_timeout: std::f64::MAX,
-                entry_timeout: std::f64::MAX,
-            };
+                let (_item, start, end) = &gbt[idx];
+                map.insert(*start, (*end, ino_offset));
 
-            let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
+                let entry = entry_cache.access(*start, &mut EntryCacher { decoder, map })
+                    .map_err(|_| libc::EIO)?
+                    .ok_or_else(|| libc::ENOENT)?;
 
-            Ok(())
+                // Possible hash collision, need to check if the found entry is indeed
+                // the filename to lookup.
+                if entry.filename.as_bytes() == filename.to_bytes() {
+                    let e = EntryParam {
+                        inode: *start,
+                        generation: 1,
+                        attr: stat(*start, &entry)?,
+                        attr_timeout: std::f64::MAX,
+                        entry_timeout: std::f64::MAX,
+                    };
+
+                    let _res = unsafe { fuse_reply_entry(req, Some(&e)) };
+                    return Ok(())
+                }
+                // Hash collision, check the next entry in the goodbye table by starting
+                // from given index but skipping one more match (so hash at index itself).
+                start_idx = idx;
+                skip_multiple = 1;
+            }
         });
     }
 
