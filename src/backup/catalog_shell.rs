@@ -616,6 +616,7 @@ impl Context {
         };
         for name in path_slice.split('/') {
             match name {
+                "" => continue, // Multiple successive slashes are valid and treated as one.
                 "." => continue,
                 ".." => {
                     // Never pop archive root from stack
