@@ -1,0 +1,15 @@
+[Unit]
+Description=Proxmox Backup Server Login Banner
+ConditionPathExists=/usr/sbin/pbsbanner
+ConditionPathExists=!/usr/bin/pvebanner
+DefaultDependencies=no
+After=local-fs.target
+Before=console-getty.service
+
+[Service]
+ExecStart=/usr/sbin/pbsbanner
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=getty.target

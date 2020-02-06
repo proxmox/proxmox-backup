@@ -1,8 +1,10 @@
 etc/proxmox-backup-proxy.service /lib/systemd/system/
 etc/proxmox-backup.service /lib/systemd/system/
+etc/pbsbanner.service /lib/systemd/system/
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-api
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-proxy
 usr/sbin/proxmox-backup-manager
+usr/sbin/pbsbanner
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
 usr/share/javascript/proxmox-backup/images/logo-128.png
 usr/share/javascript/proxmox-backup/images/proxmox_logo.png

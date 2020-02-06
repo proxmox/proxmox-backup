@@ -1,13 +1,16 @@
 include ../defines.mk
 
 UNITS := \
+	pbsbanner.service \
+
+DYNAMIC_UNITS := \
 	proxmox-backup.service \
 	proxmox-backup-proxy.service
 
-all: $(UNITS)
+all: $(UNITS) $(DYNAMIC_UNITS)
 
 clean:
-	rm -f $(UNITS)
+	rm -f $(DYNAMIC_UNITS)
 
 .SUFFIXES: .service.in .service
 .service.in.service:

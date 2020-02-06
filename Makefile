@@ -12,7 +12,8 @@ USR_BIN := \
 	pxar
 
 # Binaries usable by admins
-USR_SBIN := proxmox-backup-manager
+USR_SBIN := proxmox-backup-manager \
+	pbsbanner
 
 # Binaries for services:
 SERVICE_BIN := \
