@@ -1,9 +1,9 @@
 include ../defines.mk
 
-UNITS := \
-	pbsbanner.service \
+UNITS :=
 
 DYNAMIC_UNITS := \
+	proxmox-backup-banner.service \
 	proxmox-backup.service \
 	proxmox-backup-proxy.service
 

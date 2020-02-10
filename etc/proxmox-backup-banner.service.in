@@ -1,13 +1,13 @@
 [Unit]
 Description=Proxmox Backup Server Login Banner
-ConditionPathExists=/usr/sbin/pbsbanner
+ConditionPathExists=%LIBEXECDIR%/proxmox-backup/proxmox-backup-banner
 ConditionPathExists=!/usr/bin/pvebanner
 DefaultDependencies=no
 After=local-fs.target
 Before=console-getty.service
 
 [Service]
-ExecStart=/usr/sbin/pbsbanner
+ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-banner
 Type=oneshot
 RemainAfterExit=yes
 

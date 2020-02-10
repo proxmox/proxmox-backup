@@ -8,7 +8,8 @@ fn main() {
     let nodename = tools::nodename();
     let addr = format!("{}:8007", nodename);
 
-    let mut banner = format!("
+    let mut banner = format!(
+        "
 {:-<78}
 
 Welcome to the Proxmox Backup Server. Please use your web browser to
@@ -21,18 +22,21 @@ configure this server - connect to:
     let msg = match addr.to_socket_addrs() {
         Ok(saddrs) => {
             let saddrs: Vec<_> = saddrs
-            .filter_map(|s| match !s.ip().is_loopback() {
-                true => Some(format!(" https://{}/", s)),
-                false => None,
-            })
-            .collect();
+                .filter_map(|s| match !s.ip().is_loopback() {
+                    true => Some(format!(" https://{}/", s)),
+                    false => None,
+                })
+                .collect();
 
             if !saddrs.is_empty() {
                 saddrs.join("\n")
             } else {
-                format!("hostname '{}' does not resolves to any non-loopback address", nodename)
+                format!(
+                    "hostname '{}' does not resolves to any non-loopback address",
+                    nodename
+                )
             }
-        },
+        }
         Err(e) => format!("could not resolve hostname '{}': {}", nodename, e),
     };
     banner += &msg;

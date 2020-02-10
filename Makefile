@@ -12,12 +12,13 @@ USR_BIN := \
 	pxar
 
 # Binaries usable by admins
-USR_SBIN := proxmox-backup-manager \
-	pbsbanner
+USR_SBIN := \
+	proxmox-backup-manager
 
 # Binaries for services:
 SERVICE_BIN := \
 	proxmox-backup-api \
+	proxmox-backup-banner \
 	proxmox-backup-proxy
 
 ifeq ($(BUILD_MODE), release)
