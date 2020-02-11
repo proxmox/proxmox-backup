@@ -36,6 +36,8 @@ use xdg::BaseDirectories;
 use futures::*;
 use tokio::sync::mpsc;
 
+const ENV_VAR_PBS_FINGERPRINT: &str = "PBS_FINGERPRINT";
+
 proxmox::const_regex! {
     BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$";
 }
@@ -166,10 +168,13 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
 
 fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
+    let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
+
     let options = HttpClientOptions::new()
         .prefix(Some("proxmox-backup".to_string()))
         .password_env(Some("PBS_PASSWORD".to_string()))
         .interactive(true)
+        .fingerprint(fingerprint)
         .fingerprint_cache(true)
         .ticket_cache(true);
 
@@ -1477,10 +1482,13 @@ async fn status(param: Value) -> Result<Value, Error> {
 // like get, but simply ignore errors and return Null instead
 async fn try_get(repo: &BackupRepository, url: &str) -> Value {
 
+    let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
+
     let options = HttpClientOptions::new()
         .prefix(Some("proxmox-backup".to_string()))
         .password_env(Some("PBS_PASSWORD".to_string()))
         .interactive(false)
+        .fingerprint(fingerprint)
         .fingerprint_cache(true)
         .ticket_cache(true);
 
