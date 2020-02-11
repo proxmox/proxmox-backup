@@ -36,7 +36,6 @@ pub struct AuthInfo {
 pub struct HttpClientOptions {
     prefix: Option<String>,
     password: Option<String>,
-    password_env: Option<String>,
     fingerprint: Option<String>,
     interactive: bool,
     ticket_cache: bool,
@@ -50,7 +49,6 @@ impl HttpClientOptions {
         Self {
             prefix: None,
             password: None,
-            password_env: None,
             fingerprint: None,
             interactive: false,
             ticket_cache: false,
@@ -66,11 +64,6 @@ impl HttpClientOptions {
 
     pub fn password(mut self, password: Option<String>) -> Self {
         self.password = password;
-        self
-    }
-
-    pub fn password_env(mut self, password_env: Option<String>) -> Self {
-        self.password_env = password_env;
         self
     }
 
@@ -313,7 +306,7 @@ impl HttpClient {
             if let Some((ticket, _token)) = ticket_info {
                 ticket
             } else {
-                Self::get_password(&username, options.interactive, options.password_env.clone())?
+                Self::get_password(&username, options.interactive)?
             }
         };
 
@@ -357,18 +350,7 @@ impl HttpClient {
         (*self.fingerprint.lock().unwrap()).clone()
     }
 
-    fn get_password(username: &str, interactive: bool, password_env: Option<String>) -> Result<String, Error> {
-        if let Some(password_env) = password_env {
-            use std::env::VarError::*;
-            match std::env::var(&password_env) {
-                Ok(p) => return Ok(p),
-                Err(NotUnicode(_)) => bail!(format!("{} contains bad characters", password_env)),
-                Err(NotPresent) => {
-                    // Try another method
-                }
-            }
-        }
-
+    fn get_password(username: &str, interactive: bool) -> Result<String, Error> {
         // If we're on a TTY, query the user for a password
         if interactive && tty::stdin_isatty() {
             let msg = format!("Password for \"{}\": ", username);
