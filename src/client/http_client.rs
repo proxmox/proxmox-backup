@@ -385,7 +385,7 @@ impl HttpClient {
             .collect::<Vec<&str>>().join(":");
 
         if let Some(expected_fingerprint) = expected_fingerprint {
-            if expected_fingerprint == fp_string {
+            if expected_fingerprint.to_lowercase() == fp_string {
                 return (true, Some(fp_string));
             } else {
                 return (false, None);
