@@ -250,7 +250,11 @@ impl HttpClient {
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
         let mut fingerprint = options.fingerprint.take();
-        if options.fingerprint_cache && fingerprint.is_none() && options.prefix.is_some() {
+
+        if fingerprint.is_some() {
+            // do not store fingerprints passed via options in cache
+            options.fingerprint_cache = false;
+        } else if options.fingerprint_cache && options.prefix.is_some() {
             fingerprint = load_fingerprint(options.prefix.as_ref().unwrap(), server);
         }
 
