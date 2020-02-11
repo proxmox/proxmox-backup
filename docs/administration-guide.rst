@@ -211,6 +211,10 @@ Environment Variables
   When set, this value is used to access the secret encryption key (if
   protected by password).
 
+``PBS_FINGERPRINT`` When set, this value is used to verify the server
+  certificate (only used if the system CA certificates cannot
+  validate the certificate).
+
 
 Creating Backups
 ~~~~~~~~~~~~~~~~
