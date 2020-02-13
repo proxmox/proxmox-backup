@@ -11,11 +11,11 @@ use tokio::runtime::{self, Runtime};
 
 thread_local! {
     static HAS_RUNTIME: RefCell<bool> = RefCell::new(false);
-    static IN_TOKIO: RefCell<bool> = RefCell::new(false);
 }
 
 fn is_in_tokio() -> bool {
-    IN_TOKIO.with(|v| *v.borrow())
+    tokio::runtime::Handle::try_current()
+        .is_ok()
 }
 
 fn has_runtime() -> bool {
@@ -47,7 +47,6 @@ lazy_static! {
         runtime::Builder::new()
             .threaded_scheduler()
             .enable_all()
-            .on_thread_start(|| IN_TOKIO.with(|v| *v.borrow_mut() = true))
             .build()
             .expect("failed to spawn tokio runtime")
     };
