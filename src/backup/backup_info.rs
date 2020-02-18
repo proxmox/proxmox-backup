@@ -29,10 +29,10 @@ lazy_static!{
         concat!(r"^", BACKUP_TIME_RE!() ,r"$")).unwrap();
 
     static ref GROUP_PATH_REGEX: Regex = Regex::new(
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
+        concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
 
     static ref SNAPSHOT_PATH_REGEX: Regex = Regex::new(
-        concat!(r"(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
+        concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
 
 }
 
