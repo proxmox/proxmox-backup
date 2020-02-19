@@ -263,7 +263,7 @@ environment variable ``PBS_REPOSITORY``.
 You can then execute all commands without specifying the ``--repository``
 option.
 
-One signle backup is allowed to contain more than one archive. For example, assume you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
+One single backup is allowed to contain more than one archive. For example, assume you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
 
 .. code-block:: console
 
