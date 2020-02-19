@@ -285,6 +285,89 @@ device:
 
   # proxmox-backup-client backup mydata.img:/dev/mylvm/mydata
 
+Excluding files/folders from a backup
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Sometimes it is desired to exclude certain files or folders from a backup archive.
+Using the proxmox backup client this is possible via simple text based
+``.pxarexclude`` files placed in the filesystem hierarchy.
+
+Whenever such a file is encountered in a directory, the backup client reads its
+content and lines are interpreted as glob match patterns for files/directories
+to exclude from the archive.
+The file must contain a single glob pattern on each line. Empty lines are ignored.
+The same is true for lines starting with ``#``, indicating a line containing comments.
+Lines starting with ``!`` correspond to glob match patterns for explicit inclusion
+of files previously excluded by a match. This allows for example to exclude
+all entries in a directory except for a few single files.
+Lines ending in ``/`` match directory entries only.
+The folder containing the ``.pxarexclude`` file is considered to be the root of
+the given patterns. It is only possible to match files in this or below this folder.
+
+``\`` is used to escape glob characters. ``?`` matches any single character,
+``*`` matches any character including the empty string.
+``**`` is used to match also subdirectories and can be used to exclude for example
+all files ending in ``.tmp`` within the directory or a subdirectory by the
+following pattern ``**/*.tmp``.
+``[...]`` matches a single character from any of the provided characters within
+the brackets. ``[!...]`` does the complementary and matches any singe character
+not contained within the brackets. It is also possible to specify ranges by two
+characters separated by ``-``. For example ``[a-z]`` matches any lowercase
+alphabetic character, ``[0-9]`` matches any one single digit.
+
+The order of the glob match patterns defines if the file is finally included or
+excluded, later entries win over previous ones.
+This is also true for match patterns encountered deeper down the directory tree,
+which may then override a previous exclusion.
+Note however that folders marked for exclusion are not read by the client,
+so ``.pxarexclude`` files contained within have no effect.
+``.pxarexclude`` files are treated as regular files and are also included in the
+backup archive.
+
+For example, consider the following folder structure:
+
+.. code-block:: console
+
+    # ls -aR folder
+    folder/:
+    .  ..  .pxarexclude  subfolder0  subfolder1
+
+    folder/subfolder0:
+    .  ..  file0  file1  file2  file3  .pxarexclude
+
+    folder/subfolder1:
+    .  ..  file0  file1  file2  file3
+
+The ``.pxarexclude`` files containing the following:
+
+.. code-block:: console
+
+    # cat folder/.pxarexclude
+    /subfolder0/file1
+    /subfolder1/*
+    !/subfolder1/file2
+
+.. code-block:: console
+
+    # cat folder/subfolder0/.pxarexclude
+    file3
+
+This would exclude ``file1`` and ``file3`` in ``subfolder0`` and all of
+``subfolder1`` except ``file2``.
+
+Restoring this archive form backup results in:
+
+.. code-block:: console
+
+    ls -aR restored
+    restored/:
+    .  ..  .pxarexclude  subfolder0  subfolder1
+
+    restored/subfolder0:
+    .  ..  file0  file2  .pxarexclude
+
+    restored/subfolder1:
+    .  ..  file2
 
 Encryption
 ^^^^^^^^^^
