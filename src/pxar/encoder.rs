@@ -758,7 +758,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                     (MatchType::Positive, _) => {
                         let filename_osstr = std::ffi::OsStr::from_bytes(filename.to_bytes());
                         eprintln!(
-                            "matched by .pxarexclude entry - skipping: {:?}",
+                            "matched by exclude pattern - skipping: {:?}",
                             self.full_path().join(filename_osstr)
                         );
                     }
