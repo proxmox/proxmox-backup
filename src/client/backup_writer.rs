@@ -394,9 +394,10 @@ impl BackupWriter {
 
         while let Some(chunk) = stream.try_next().await? {
             let _ = flow_control.release_capacity(chunk.len());
-            println!("GOT DOWNLOAD {}", digest_to_hex(&chunk));
             known_chunks.lock().unwrap().insert(chunk);
         }
+
+        println!("known chunks list length: {}", known_chunks.lock().unwrap().len());
 
         Ok(())
     }
