@@ -237,7 +237,7 @@ impl BackupWriter {
 
         let wid = self.h2.post(&index_path, Some(param)).await?.as_u64().unwrap();
 
-        let (chunk_count, size, _speed, csum) =
+        let (chunk_count, size, duration, speed, csum) =
             Self::upload_chunk_info_stream(
                 self.h2.clone(),
                 wid,
@@ -248,6 +248,12 @@ impl BackupWriter {
                 self.verbose,
             )
             .await?;
+
+        println!("{}: Uploaded {} chunks in {} seconds ({} MB/s).", archive_name, chunk_count, duration.as_secs(), speed);
+        if chunk_count > 0 {
+            println!("{}: Average chunk size was {} bytes.", archive_name, size/chunk_count);
+            println!("{}: Time per request: {} microseconds.", archive_name, (duration.as_micros())/(chunk_count as u128));
+        }
 
         let param = json!({
             "wid": wid ,
@@ -399,7 +405,7 @@ impl BackupWriter {
         }
 
         if self.verbose {
-            println!("known chunks list length: {}", known_chunks.lock().unwrap().len());
+            println!("{}: known chunks list length is {}", archive_name, known_chunks.lock().unwrap().len());
         }
 
         Ok(())
@@ -413,7 +419,7 @@ impl BackupWriter {
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
         crypt_config: Option<Arc<CryptConfig>>,
         verbose: bool,
-    ) -> impl Future<Output = Result<(usize, usize, usize, [u8; 32]), Error>> {
+    ) -> impl Future<Output = Result<(usize, usize, std::time::Duration, usize, [u8; 32]), Error>> {
 
         let repeat = Arc::new(AtomicUsize::new(0));
         let repeat2 = repeat.clone();
@@ -529,16 +535,11 @@ impl BackupWriter {
                 let repeat = repeat2.load(Ordering::SeqCst);
                 let stream_len = stream_len2.load(Ordering::SeqCst);
                 let speed = ((stream_len*1_000_000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
-                println!("Uploaded {} chunks in {} seconds ({} MB/s).", repeat, start_time.elapsed().as_secs(), speed);
-                if repeat > 0 {
-                    println!("Average chunk size was {} bytes.", stream_len/repeat);
-                    println!("Time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
-                }
 
                 let mut guard = index_csum_2.lock().unwrap();
                 let csum = guard.take().unwrap().finish();
 
-                futures::future::ok((repeat, stream_len, speed, csum))
+                futures::future::ok((repeat, stream_len, start_time.elapsed(), speed, csum))
             })
     }
 
