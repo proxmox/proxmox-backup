@@ -21,6 +21,7 @@ use super::{HttpClient, H2Client};
 pub struct BackupWriter {
     h2: H2Client,
     abort: AbortHandle,
+    verbose: bool,
 }
 
 impl Drop for BackupWriter {
@@ -37,8 +38,8 @@ pub struct BackupStats {
 
 impl BackupWriter {
 
-    fn new(h2: H2Client, abort: AbortHandle) -> Arc<Self> {
-        Arc::new(Self { h2, abort })
+    fn new(h2: H2Client, abort: AbortHandle, verbose: bool) -> Arc<Self> {
+        Arc::new(Self { h2, abort, verbose })
     }
 
     pub async fn start(
@@ -63,7 +64,7 @@ impl BackupWriter {
 
         let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!())).await?;
 
-        Ok(BackupWriter::new(h2, abort))
+        Ok(BackupWriter::new(h2, abort, debug))
     }
 
     pub async fn get(
@@ -244,6 +245,7 @@ impl BackupWriter {
                 &prefix,
                 known_chunks.clone(),
                 crypt_config,
+                self.verbose,
             )
             .await?;
 
@@ -299,9 +301,9 @@ impl BackupWriter {
         (verify_queue_tx, verify_result_rx)
     }
 
-    fn append_chunk_queue(h2: H2Client, wid: u64, path: String) -> (
+    fn append_chunk_queue(h2: H2Client, wid: u64, path: String, verbose: bool) -> (
         mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>,
-        oneshot::Receiver<Result<(), Error>>
+        oneshot::Receiver<Result<(), Error>>,
     ) {
         let (verify_queue_tx, verify_queue_rx) = mpsc::channel(64);
         let (verify_result_tx, verify_result_rx) = oneshot::channel();
@@ -337,11 +339,10 @@ impl BackupWriter {
                             let mut digest_list = vec![];
                             let mut offset_list = vec![];
                             for (offset, digest) in chunk_list {
-                                //println!("append chunk {} (offset {})", proxmox::tools::digest_to_hex(&digest), offset);
                                 digest_list.push(digest_to_hex(&digest));
                                 offset_list.push(offset);
                             }
-                            println!("append chunks list len ({})", digest_list.len());
+                            if verbose { println!("append chunks list len ({})", digest_list.len()); }
                             let param = json!({ "wid": wid, "digest-list": digest_list, "offset-list": offset_list });
                             let request = H2Client::request_builder("localhost", "PUT", &path, None, Some("application/json")).unwrap();
                             let param_data = bytes::Bytes::from(param.to_string().into_bytes());
@@ -397,7 +398,9 @@ impl BackupWriter {
             known_chunks.lock().unwrap().insert(chunk);
         }
 
-        println!("known chunks list length: {}", known_chunks.lock().unwrap().len());
+        if self.verbose {
+            println!("known chunks list length: {}", known_chunks.lock().unwrap().len());
+        }
 
         Ok(())
     }
@@ -409,6 +412,7 @@ impl BackupWriter {
         prefix: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
         crypt_config: Option<Arc<CryptConfig>>,
+        verbose: bool,
     ) -> impl Future<Output = Result<(usize, usize, usize, [u8; 32]), Error>> {
 
         let repeat = Arc::new(AtomicUsize::new(0));
@@ -422,7 +426,7 @@ impl BackupWriter {
         let is_fixed_chunk_size = prefix == "fixed";
 
         let (upload_queue, upload_result) =
-            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path.to_owned());
+            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path.to_owned(), verbose);
 
         let start_time = std::time::Instant::now();
 
@@ -479,8 +483,10 @@ impl BackupWriter {
                     let digest = chunk_info.digest;
                     let digest_str = digest_to_hex(&digest);
 
-                    println!("upload new chunk {} ({} bytes, offset {})", digest_str,
-                             chunk_info.chunk_len, offset);
+                    if verbose {
+                        println!("upload new chunk {} ({} bytes, offset {})", digest_str,
+                                 chunk_info.chunk_len, offset);
+                    }
 
                     let chunk_data = chunk_info.chunk.into_inner();
                     let param = json!({

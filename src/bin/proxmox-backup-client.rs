@@ -816,6 +816,11 @@ fn spawn_catalog_upload(
                optional: true,
                default: pxar::ENCODER_MAX_ENTRIES as isize,
            },
+           "verbose": {
+               type: Boolean,
+               description: "Verbose output.",
+               optional: true,
+           },
        }
    }
 )]
