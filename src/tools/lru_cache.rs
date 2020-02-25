@@ -4,7 +4,7 @@
 //! A HashMap is used for fast access by a given key and a doubly linked list
 //! is used to keep track of the cache access order.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 use std::marker::PhantomData;
 
 /// Interface for getting values on cache misses.
@@ -89,9 +89,12 @@ impl<K, V> CacheNode<K, V> {
 /// # }
 /// ```
 pub struct LruCache<K, V> {
+    /// Quick access to individual nodes via the node pointer.
     map: HashMap<K, *mut CacheNode<K, V>>,
-    head: *mut CacheNode<K, V>,
-    tail: *mut CacheNode<K, V>,
+    /// Actual nodes stored in a linked list.
+    list: LinkedList<K, V>,
+    /// Max nodes the cache can hold, temporarily exceeded by 1 due to
+    /// implementation details.
     capacity: usize,
     // Dropcheck marker. See the phantom-data section in the rustonomicon.
     _marker: PhantomData<Box<CacheNode<K, V>>>,
@@ -102,8 +105,7 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     pub fn new(capacity: usize) -> Self {
         Self {
             map: HashMap::with_capacity(capacity),
-            head: std::ptr::null_mut(),
-            tail: std::ptr::null_mut(),
+            list: LinkedList::new(),
             capacity,
             _marker: PhantomData,
         }
@@ -111,99 +113,58 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
 
     /// Clear all the entries from the cache.
     pub fn clear(&mut self) {
-        // Dump all heap allocations, then dump all the pointers in the HashMap
-        for node_ptr in self.map.values() {
-            unsafe { Box::from_raw(*node_ptr) };
-        }
+        // This frees only the HashMap with the node pointers.
         self.map.clear();
-        // Reset head and tail pointers
-        self.head = std::ptr::null_mut();
-        self.tail = std::ptr::null_mut();
+        // This frees the actual nodes and resets the list head and tail.
+        self.list.clear();
     }
 
     /// Insert or update an entry identified by `key` with the given `value`.
     /// This entry is placed as the most recently used node at the head.
     pub fn insert(&mut self, key: K, value: V) {
-        match self.get_mut(key) {
-            // Key already exists and get_mut brings node to the front, so only update its value.
-            Some(old_val) => *old_val = value,
-            None => {
-                // If we have more elements than capacity, delete the tail entry
-                // (= oldest entry).
-                if self.map.len() >= self.capacity {
-                    self.remove_tail();
+        match self.map.entry(key) {
+            Entry::Occupied(mut o) => {
+                // Node present, update value
+                let node_ptr = *o.get_mut();
+                self.list.bring_to_front(node_ptr);
+                let mut node = unsafe { Box::from_raw(node_ptr) };
+                node.value = value;
+                let _node_ptr = Box::into_raw(node);
+            }
+            Entry::Vacant(v) => {
+                // Node not present, insert a new one
+                // Unfortunately we need a copy of the key here, therefore it has
+                // to impl the copy trait
+                let node = Box::new(CacheNode::new(key, value));
+                let node_ptr = Box::into_raw(node);
+                self.list.push_front(node_ptr);
+                v.insert(node_ptr);
+                // If we have more elements than capacity,
+                // delete the lists tail node (= oldest node).
+                // This needs to be executed after the insert in order to
+                // avoid borrow conflict. This means there are temporarily
+                // self.capacity + 1 cache nodes.
+                if self.map.len() > self.capacity {
+                    self.pop_tail();
                 }
-                self.insert_front(key, value);
             }
         }
-    }
-
-    /// Insert a key, value pair at the front of the linked list and it's pointer
-    /// into the HashMap.
-    fn insert_front(&mut self, key: K, value: V) {
-        // First create heap allocated `CacheNode` containing value.
-        let mut node = Box::new(CacheNode::new(key, value));
-        // Old head gets new heads next
-        node.next = self.head;
-        // Release ownership of node, rest can be handled with just the pointer.
-        let node_ptr = Box::into_raw(node);
-
-        // Update the prev for the old head
-        if !self.head.is_null() {
-            unsafe { (*self.head).prev = node_ptr };
-        }
-
-        // Update the head to the new node pointer
-        self.head = node_ptr;
-
-        // If there was no old tail, this node will be the new tail too
-        if self.tail.is_null() {
-            self.tail = node_ptr;
-        }
-        // finally insert the node pointer into the HashMap
-        self.map.insert(key, node_ptr);
     }
 
     /// Remove the given `key` and its `value` from the cache.
     pub fn remove(&mut self, key: K) -> Option<V> {
         // Remove node pointer from the HashMap and get ownership of the node
         let node_ptr = self.map.remove(&key)?;
-        let node = unsafe { Box::from_raw(node_ptr) };
-
-        // Update the previous node or otherwise the head
-        if !node.prev.is_null() {
-            unsafe { (*node.prev).next = node.next };
-        } else {
-            // No previous node means this was the head
-            self.head = node.next;
-        }
-
-        // Update the next node or otherwise the tail
-        if !node.next.is_null() {
-            unsafe { (*node.next).prev = node.prev };
-        } else {
-            // No next node means this was the tail
-            self.tail = node.prev;
-        }
-
+        let node = self.list.remove(node_ptr);
         Some(node.value)
     }
 
     /// Remove the least recently used node from the cache.
-    fn remove_tail(&mut self) {
-        if self.tail.is_null() {
-            panic!("Called remove_tail on empty tail pointer!");
+    fn pop_tail(&mut self) {
+        if let Some(old_tail) = self.list.pop_tail() {
+            // Remove HashMap entry for old tail
+            self.map.remove(&old_tail.key);
         }
-
-        let old_tail = unsafe { Box::from_raw(self.tail) };
-        self.tail = old_tail.prev;
-        // Update next node for new tail
-        if !self.tail.is_null() {
-            unsafe { (*self.tail).next = std::ptr::null_mut() };
-        }
-
-        // Remove HashMap entry for old tail
-        self.map.remove(&old_tail.key);
     }
 
     /// Get a mutable reference to the value identified by `key`.
@@ -211,33 +172,8 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// On cache misses, None is returned.
     pub fn get_mut<'a>(&'a mut self, key: K) -> Option<&'a mut V> {
         let node_ptr = self.map.get(&key)?;
-        if *node_ptr == self.head {
-            // node is already head, just return
-            return Some(unsafe { &mut (*self.head).value });
-        }
-
-        // Update the prev node to point to next (or null if current node is tail)
-        let mut node = unsafe { Box::from_raw(*node_ptr) };
-        unsafe { (*node.prev).next = node.next };
-
-        // Update the next node or otherwise the tail
-        if !node.next.is_null() {
-            unsafe { (*node.next).prev = node.prev };
-        } else {
-            // No next node means this was the tail
-            self.tail = node.prev;
-        }
-
-        node.prev = std::ptr::null_mut();
-        node.next = self.head;
-        // update the head and release ownership of the node again
-        let node_ptr = Box::into_raw(node);
-        // Update current head
-        unsafe { (*self.head).prev = node_ptr };
-        // Update to new head
-        self.head = node_ptr;
-
-        Some(unsafe { &mut (*self.head).value })
+        self.list.bring_to_front(*node_ptr);
+        Some(unsafe { &mut (*self.list.head).value })
     }
 
     /// Number of entries in the cache.
@@ -252,26 +188,40 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// If fetch returns a value, it is inserted as the most recently used entry
     /// in the cache.
     pub fn access<'a>(&'a mut self, key: K, cacher: &mut dyn Cacher<K, V>) -> Result<Option<&'a mut V>, failure::Error> {
-        if self.get_mut(key).is_some() {
-            // get_mut brings the node to the front if present, so just return
-            return Ok(Some(unsafe { &mut (*self.head).value }));
-        }
-
-        // Cache miss, try to fetch from cacher
-        match cacher.fetch(key)? {
-            None => Ok(None),
-            Some(value) => {
-                // If we have more elements than capacity, delete the tail entry
-                // (= oldest entry).
-                if self.map.len() >= self.capacity {
-                    self.remove_tail();
+        match self.map.entry(key) {
+            Entry::Occupied(mut o) => {
+                // Cache hit, birng node to front of list
+                let node_ptr = *o.get_mut();
+                self.list.bring_to_front(node_ptr);
+            }
+            Entry::Vacant(v) => {
+                // Cache miss, try to fetch from cacher and insert at the front
+                match cacher.fetch(key)? {
+                    None => return Ok(None),
+                    Some(value) => {
+                        // Unfortunately we need a copy of the key here, therefore it has
+                        // to impl the copy trait
+                        let node = Box::new(CacheNode::new(key, value));
+                        let node_ptr = Box::into_raw(node);
+                        self.list.push_front(node_ptr);
+                        v.insert(node_ptr);
+                        // If we have more elements than capacity,
+                        // delete the lists tail node (= oldest node).
+                        // This needs to be executed after the insert in order to
+                        // avoid borrow conflict. This means there are temporarily
+                        // self.capacity + 1 cache nodes.
+                        if self.map.len() > self.capacity {
+                            self.pop_tail();
+                        }
+                    }
                 }
-                self.insert_front(key, value);
-                Ok(Some(unsafe { &mut (*self.head).value }))
             }
         }
+
+        Ok(Some(unsafe { &mut (*self.list.head).value }))
     }
 }
+
 /// Linked list holding the nodes of the LruCache.
 ///
 /// This struct actually holds the CacheNodes via the raw linked list pointers
