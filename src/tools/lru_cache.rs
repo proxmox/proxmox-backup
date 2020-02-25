@@ -8,29 +8,29 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 /// Interface for getting values on cache misses.
-pub trait Cacher<V> {
+pub trait Cacher<K, V> {
     /// Fetch a value for key on cache miss.
     ///
     /// Whenever a cache miss occurs, the fetch method provides a corresponding value.
     /// If no value can be obtained for the given key, None is returned, the cache is
     /// not updated in that case.
-    fn fetch(&mut self, key: u64) -> Result<Option<V>, failure::Error>;
+    fn fetch(&mut self, key: K) -> Result<Option<V>, failure::Error>;
 }
 
 /// Node of the doubly linked list storing key and value
-struct CacheNode<V> {
+struct CacheNode<K, V> {
     // We need to additionally store the key to be able to remove it
     // from the HashMap when removing the tail.
-    key: u64,
+    key: K,
     value: V,
-    prev: *mut CacheNode<V>,
-    next: *mut CacheNode<V>,
+    prev: *mut CacheNode<K, V>,
+    next: *mut CacheNode<K, V>,
     // Dropcheck marker. See the phantom-data section in the rustonomicon.
-    _marker: PhantomData<Box<CacheNode<V>>>,
+    _marker: PhantomData<Box<CacheNode<K, V>>>,
 }
 
-impl<V> CacheNode<V> {
-    fn new(key: u64, value: V) -> Self {
+impl<K, V> CacheNode<K, V> {
+    fn new(key: K, value: V) -> Self {
         Self {
             key,
             value,
@@ -49,7 +49,7 @@ impl<V> CacheNode<V> {
 /// # fn main() -> Result<(), failure::Error> {
 /// struct LruCacher {};
 ///
-/// impl Cacher<u64> for LruCacher {
+/// impl Cacher<u64, u64> for LruCacher {
 ///     fn fetch(&mut self, key: u64) -> Result<Option<u64>, failure::Error> {
 ///         Ok(Some(key))
 ///     }
@@ -88,16 +88,16 @@ impl<V> CacheNode<V> {
 /// # Ok(())
 /// # }
 /// ```
-pub struct LruCache<V> {
-    map: HashMap<u64, *mut CacheNode<V>>,
-    head: *mut CacheNode<V>,
-    tail: *mut CacheNode<V>,
+pub struct LruCache<K, V> {
+    map: HashMap<K, *mut CacheNode<K, V>>,
+    head: *mut CacheNode<K, V>,
+    tail: *mut CacheNode<K, V>,
     capacity: usize,
     // Dropcheck marker. See the phantom-data section in the rustonomicon.
-    _marker: PhantomData<Box<CacheNode<V>>>,
+    _marker: PhantomData<Box<CacheNode<K, V>>>,
 }
 
-impl<V> LruCache<V> {
+impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// Create LRU cache instance which holds up to `capacity` nodes at once.
     pub fn new(capacity: usize) -> Self {
         Self {
@@ -123,7 +123,7 @@ impl<V> LruCache<V> {
 
     /// Insert or update an entry identified by `key` with the given `value`.
     /// This entry is placed as the most recently used node at the head.
-    pub fn insert(&mut self, key: u64, value: V) {
+    pub fn insert(&mut self, key: K, value: V) {
         match self.get_mut(key) {
             // Key already exists and get_mut brings node to the front, so only update its value.
             Some(old_val) => *old_val = value,
@@ -140,7 +140,7 @@ impl<V> LruCache<V> {
 
     /// Insert a key, value pair at the front of the linked list and it's pointer
     /// into the HashMap.
-    fn insert_front(&mut self, key: u64, value: V) {
+    fn insert_front(&mut self, key: K, value: V) {
         // First create heap allocated `CacheNode` containing value.
         let mut node = Box::new(CacheNode::new(key, value));
         // Old head gets new heads next
@@ -165,7 +165,7 @@ impl<V> LruCache<V> {
     }
 
     /// Remove the given `key` and its `value` from the cache.
-    pub fn remove(&mut self, key: u64) -> Option<V> {
+    pub fn remove(&mut self, key: K) -> Option<V> {
         // Remove node pointer from the HashMap and get ownership of the node
         let node_ptr = self.map.remove(&key)?;
         let node = unsafe { Box::from_raw(node_ptr) };
@@ -209,7 +209,7 @@ impl<V> LruCache<V> {
     /// Get a mutable reference to the value identified by `key`.
     /// This will update the cache entry to be the most recently used entry.
     /// On cache misses, None is returned.
-    pub fn get_mut<'a>(&'a mut self, key: u64) -> Option<&'a mut V> {
+    pub fn get_mut<'a>(&'a mut self, key: K) -> Option<&'a mut V> {
         let node_ptr = self.map.get(&key)?;
         if *node_ptr == self.head {
             // node is already head, just return
@@ -251,7 +251,7 @@ impl<V> LruCache<V> {
     /// value.
     /// If fetch returns a value, it is inserted as the most recently used entry
     /// in the cache.
-    pub fn access<'a>(&'a mut self, key: u64, cacher: &mut dyn Cacher<V>) -> Result<Option<&'a mut V>, failure::Error> {
+    pub fn access<'a>(&'a mut self, key: K, cacher: &mut dyn Cacher<K, V>) -> Result<Option<&'a mut V>, failure::Error> {
         if self.get_mut(key).is_some() {
             // get_mut brings the node to the front if present, so just return
             return Ok(Some(unsafe { &mut (*self.head).value }));

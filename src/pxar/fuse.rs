@@ -81,8 +81,8 @@ struct Context {
     /// DirectoryEntry via the Decoder as well as the parent, in order
     /// to be able to include the parent directory on readdirplus calls.
     start_end_parent: HashMap<u64, (u64, u64)>,
-    gbt_cache: LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
-    entry_cache: LruCache<DirectoryEntry>,
+    gbt_cache: LruCache<u64, Vec<(PxarGoodbyeItem, u64, u64)>>,
+    entry_cache: LruCache<u64, DirectoryEntry>,
 }
 
 /// Cacher for the goodbye table.
@@ -93,7 +93,7 @@ struct GbtCacher<'a> {
     map: &'a HashMap<u64, (u64, u64)>,
 }
 
-impl<'a> Cacher<Vec<(PxarGoodbyeItem, u64, u64)>> for GbtCacher<'a> {
+impl<'a> Cacher<u64, Vec<(PxarGoodbyeItem, u64, u64)>> for GbtCacher<'a> {
     fn fetch(&mut self, key: u64) -> Result<Option<Vec<(PxarGoodbyeItem, u64, u64)>>, Error> {
         let (end, _) = *self.map.get(&key).unwrap();
         let gbt = self.decoder.goodbye_table(None, end)?;
@@ -109,7 +109,7 @@ struct EntryCacher<'a> {
     map: &'a HashMap<u64, (u64, u64)>,
 }
 
-impl<'a> Cacher<DirectoryEntry> for EntryCacher<'a> {
+impl<'a> Cacher<u64, DirectoryEntry> for EntryCacher<'a> {
     fn fetch(&mut self, key: u64) -> Result<Option<DirectoryEntry>, Error> {
         let entry = match key {
             0 => self.decoder.root()?,
@@ -128,8 +128,8 @@ impl Context {
     fn as_mut_refs(&mut self) -> (
         &mut Decoder,
         &mut HashMap<u64, (u64, u64)>,
-        &mut LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
-        &mut LruCache<DirectoryEntry>
+        &mut LruCache<u64, Vec<(PxarGoodbyeItem, u64, u64)>>,
+        &mut LruCache<u64, DirectoryEntry>
     ) {
         ( &mut self.decoder, &mut self.start_end_parent, &mut self.gbt_cache, &mut self.entry_cache )
     }
@@ -347,8 +347,8 @@ impl Session  {
         F: FnOnce(
             &mut Decoder,
             &mut HashMap<u64, (u64, u64)>,
-            &mut LruCache<Vec<(PxarGoodbyeItem, u64, u64)>>,
-            &mut LruCache<DirectoryEntry>,
+            &mut LruCache<u64, Vec<(PxarGoodbyeItem, u64, u64)>>,
+            &mut LruCache<u64, DirectoryEntry>,
             u64,
         ) -> Result<(), i32>,
     {
