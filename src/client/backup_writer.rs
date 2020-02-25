@@ -249,7 +249,7 @@ impl BackupWriter {
             )
             .await?;
 
-        println!("{}: Uploaded {} chunks in {} seconds ({} MB/s).", archive_name, chunk_count, duration.as_secs(), speed);
+        println!("{}: Uploaded {} bytes as {} chunks in {} seconds ({} MB/s).", archive_name, size, chunk_count, duration.as_secs(), speed);
         if chunk_count > 0 {
             println!("{}: Average chunk size was {} bytes.", archive_name, size/chunk_count);
             println!("{}: Time per request: {} microseconds.", archive_name, (duration.as_micros())/(chunk_count as u128));
