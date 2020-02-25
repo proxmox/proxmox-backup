@@ -272,3 +272,164 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
         }
     }
 }
+/// Linked list holding the nodes of the LruCache.
+///
+/// This struct actually holds the CacheNodes via the raw linked list pointers
+/// and allows to define the access sequence of these via the list sequence.
+/// The LinkedList of the standard library unfortunately does not implement
+/// an efficient way to bring list entries to the front, therefore we need our own.
+struct LinkedList<K, V> {
+    head: *mut CacheNode<K, V>,
+    tail: *mut CacheNode<K, V>,
+}
+
+impl<K, V> LinkedList<K, V> {
+    /// Create a new empty linked list.
+    fn new() -> Self {
+        Self {
+            head: std::ptr::null_mut(),
+            tail: std::ptr::null_mut(),
+        }
+    }
+
+    /// Bring the CacheNode referenced by `node_ptr` to the front of the linked list.
+    fn bring_to_front(&mut self, node_ptr: *mut CacheNode<K, V>) {
+        if node_ptr == self.head {
+            // node is already head, just return
+            return;
+        }
+
+        let mut node = unsafe { Box::from_raw(node_ptr) };
+        // Update the prev node to point to next (or null if current node is tail)
+        unsafe { (*node.prev).next = node.next };
+
+        // Update the next node or otherwise the tail
+        if !node.next.is_null() {
+            unsafe { (*node.next).prev = node.prev };
+        } else {
+            // No next node means this was the tail
+            self.tail = node.prev;
+        }
+
+        node.prev = std::ptr::null_mut();
+        node.next = self.head;
+        // update the head and release ownership of the node again
+        let node_ptr = Box::into_raw(node);
+        // Update current head
+        unsafe { (*self.head).prev = node_ptr };
+        // Update to new head
+        self.head = node_ptr;
+    }
+
+    /// Insert a new node at the front of the linked list.
+    fn push_front(&mut self, node_ptr: *mut CacheNode<K, V>) {
+        let mut node = unsafe { Box::from_raw(node_ptr) };
+
+        // Old head gets new heads next
+        node.next = self.head;
+        // Release ownership of node, rest can be handled with just the pointer.
+        let node_ptr = Box::into_raw(node);
+
+        // Update the prev for the old head
+        if !self.head.is_null() {
+            unsafe { (*self.head).prev = node_ptr };
+        }
+
+        // Update the head to the new node pointer
+        self.head = node_ptr;
+
+        // If there was no old tail, this node will be the new tail too
+        if self.tail.is_null() {
+            self.tail = node_ptr;
+        }
+    }
+
+    /// Remove the node referenced by `node_ptr` from the linke list and return it.
+    fn remove(&mut self, node_ptr: *mut CacheNode<K, V>) -> Box<CacheNode<K, V>> {
+        let node = unsafe { Box::from_raw(node_ptr) };
+
+        // Update the previous node or otherwise the head
+        if !node.prev.is_null() {
+            unsafe { (*node.prev).next = node.next };
+        } else {
+            // No previous node means this was the head
+            self.head = node.next;
+        }
+
+        // Update the next node or otherwise the tail
+        if !node.next.is_null() {
+            unsafe { (*node.next).prev = node.prev };
+        } else {
+            // No next node means this was the tail
+            self.tail = node.prev;
+        }
+        node
+    }
+
+    /// Remove the tail node from the linked list and return it.
+    fn pop_tail(&mut self) -> Option<Box<CacheNode<K, V>>> {
+        if self.tail.is_null() {
+            return None;
+        }
+
+        let old_tail = unsafe { Box::from_raw(self.tail) };
+        self.tail = old_tail.prev;
+        // Update next node for new tail
+        if !self.tail.is_null() {
+            unsafe { (*self.tail).next = std::ptr::null_mut() };
+        }
+        Some(old_tail)
+    }
+
+    /// Clear the linked list and free all the nodes.
+    fn clear(&mut self) {
+        let mut next = self.head;
+        while !next.is_null() {
+            // Taking ownership of node and drop it at the end of the block.
+            let current = unsafe { Box::from_raw(next) };
+            next = current.next;
+        }
+        // Reset head and tail pointers
+        self.head = std::ptr::null_mut();
+        self.tail = std::ptr::null_mut();
+    }
+}
+
+#[test]
+fn test_linked_list() {
+    let mut list = LinkedList::new();
+    for idx in 0..3 {
+        let node = Box::new(CacheNode::new(idx, idx + 1));
+        // Get pointer, release ownership.
+        let node_ptr = Box::into_raw(node);
+        list.push_front(node_ptr);
+    }
+    assert_eq!(unsafe { (*list.head).key }, 2);
+    assert_eq!(unsafe { (*list.head).value }, 3);
+    assert_eq!(unsafe { (*list.tail).key }, 0);
+    assert_eq!(unsafe { (*list.tail).value }, 1);
+
+    list.bring_to_front(list.tail);
+    assert_eq!(unsafe { (*list.head).key }, 0);
+    assert_eq!(unsafe { (*list.head).value }, 1);
+    assert_eq!(unsafe { (*list.tail).key }, 1);
+    assert_eq!(unsafe { (*list.tail).value }, 2);
+
+    list.bring_to_front(list.tail);
+    assert_eq!(unsafe { (*list.head).key }, 1);
+    assert_eq!(unsafe { (*list.head).value }, 2);
+    assert_eq!(unsafe { (*list.tail).key }, 2);
+    assert_eq!(unsafe { (*list.tail).value }, 3);
+
+    let tail = list.pop_tail().unwrap();
+    assert_eq!(tail.key, 2);
+    assert_eq!(tail.value, 3);
+    assert_eq!(unsafe { (*list.head).key }, 1);
+    assert_eq!(unsafe { (*list.head).value }, 2);
+    assert_eq!(unsafe { (*list.tail).key }, 0);
+    assert_eq!(unsafe { (*list.tail).value }, 1);
+
+    list.clear();
+    assert!(list.head.is_null());
+    assert!(list.tail.is_null());
+}
