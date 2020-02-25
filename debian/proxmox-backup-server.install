@@ -11,3 +11,4 @@ usr/share/javascript/proxmox-backup/images/proxmox_logo.png
 usr/share/javascript/proxmox-backup/js/proxmox-backup-gui.js
 usr/share/man/man1/proxmox-backup-manager.1
 usr/share/man/man1/proxmox-backup-proxy.1
+usr/share/zsh/vendor-completions/_proxmox-backup-manager

@@ -120,11 +120,14 @@ lint:
 
 install: $(COMPILED_BINS)
 	install -dm755 $(DESTDIR)$(BINDIR)
+	install -dm755 $(DESTDIR)$(ZSH_COMPL_DEST)
 	$(foreach i,$(USR_BIN), \
-	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(BINDIR)/ ;)
+	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(BINDIR)/ ; \
+	    install -m644 zsh-completions/_$(i) $(DESTDIR)$(ZSH_COMPL_DEST)/ ;)
 	install -dm755 $(DESTDIR)$(SBINDIR)
 	$(foreach i,$(USR_SBIN), \
-	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ;)
+	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(SBINDIR)/ ; \
+	    install -m644 zsh-completions/_$(i) $(DESTDIR)$(ZSH_COMPL_DEST)/ ;)
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup
 	$(foreach i,$(SERVICE_BIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
