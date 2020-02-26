@@ -1,11 +1,14 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::ffi::{CString, OsStr};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
+use chrono::{Utc, offset::TimeZone};
 use failure::*;
+use nix::sys::stat::{Mode, SFlag};
 
 use proxmox::api::{cli::*, *};
 use proxmox::sys::linux::tty;
@@ -313,21 +316,92 @@ fn stat_command(path: String) -> Result<(), Error> {
         let path = ctx.canonical_path(&path)?;
         let item = ctx.lookup(&path)?;
         let mut out = std::io::stdout();
-        out.write_all(b"File: ")?;
+        out.write_all(b"  File:\t")?;
         out.write_all(item.filename.as_bytes())?;
-        out.write_all(&[b'\n'])?;
-        out.write_all(format!("Size: {}\n", item.size).as_bytes())?;
-        out.write_all(b"Type: ")?;
-        match item.entry.mode as u32 & libc::S_IFMT {
-            libc::S_IFDIR => out.write_all(b"directory\n")?,
-            libc::S_IFREG => out.write_all(b"regular file\n")?,
-            libc::S_IFLNK => out.write_all(b"symbolic link\n")?,
-            libc::S_IFBLK => out.write_all(b"block special file\n")?,
-            libc::S_IFCHR => out.write_all(b"character special file\n")?,
+        out.write_all(b"\n")?;
+        out.write_all(format!("  Size:\t{}\t\t", item.size).as_bytes())?;
+        out.write_all(b"Type:\t")?;
+
+        let mut mode_out = vec![b'-'; 10];
+        match SFlag::from_bits_truncate(item.entry.mode as u32) {
+            SFlag::S_IFDIR => {
+                mode_out[0] = b'd';
+                out.write_all(b"directory\n")?;
+            }
+            SFlag::S_IFREG => {
+                mode_out[0] = b'-';
+                out.write_all(b"regular file\n")?;
+            }
+            SFlag::S_IFLNK => {
+                mode_out[0] = b'l';
+                out.write_all(b"symbolic link\n")?;
+            }
+            SFlag::S_IFBLK => {
+                mode_out[0] = b'b';
+                out.write_all(b"block special file\n")?;
+            }
+            SFlag::S_IFCHR => {
+                mode_out[0] = b'c';
+                out.write_all(b"character special file\n")?;
+            }
             _ => out.write_all(b"unknown\n")?,
         };
-        out.write_all(format!("Uid: {}\n", item.entry.uid).as_bytes())?;
-        out.write_all(format!("Gid: {}\n", item.entry.gid).as_bytes())?;
+
+        let mode = Mode::from_bits_truncate(item.entry.mode as u32);
+        if mode.contains(Mode::S_IRUSR) {
+            mode_out[1] = b'r';
+        }
+        if mode.contains(Mode::S_IWUSR) {
+            mode_out[2] = b'w';
+        }
+        match (mode.contains(Mode::S_IXUSR), mode.contains(Mode::S_ISUID)) {
+            (false, false) => mode_out[3] = b'-',
+            (true, false) => mode_out[3] = b'x',
+            (false, true) => mode_out[3] = b'S',
+            (true, true) => mode_out[3] = b's',
+        }
+
+        if mode.contains(Mode::S_IRGRP) {
+            mode_out[4] = b'r';
+        }
+        if mode.contains(Mode::S_IWGRP) {
+            mode_out[5] = b'w';
+        }
+        match (mode.contains(Mode::S_IXGRP), mode.contains(Mode::S_ISGID)) {
+            (false, false) => mode_out[6] = b'-',
+            (true, false) => mode_out[6] = b'x',
+            (false, true) => mode_out[6] = b'S',
+            (true, true) => mode_out[6] = b's',
+        }
+
+        if mode.contains(Mode::S_IROTH) {
+            mode_out[7] = b'r';
+        }
+        if mode.contains(Mode::S_IWOTH) {
+            mode_out[8] = b'w';
+        }
+        match (mode.contains(Mode::S_IXOTH), mode.contains(Mode::S_ISVTX)) {
+            (false, false) => mode_out[9] = b'-',
+            (true, false) => mode_out[9] = b'x',
+            (false, true) => mode_out[9] = b'T',
+            (true, true) => mode_out[9] = b't',
+        }
+
+        if !item.xattr.xattrs.is_empty() {
+            mode_out.push(b'+');
+        }
+
+        out.write_all(b"Access:\t")?;
+        out.write_all(&mode_out)?;
+        out.write_all(b"\t")?;
+        out.write_all(format!(" Uid:\t{}\t", item.entry.uid).as_bytes())?;
+        out.write_all(format!("Gid:\t{}\n", item.entry.gid).as_bytes())?;
+
+        let time = i64::try_from(item.entry.mtime)?;
+        let sec = time / 1_000_000_000;
+        let nsec = u32::try_from(time % 1_000_000_000)?;
+        let dt = Utc.timestamp(sec, nsec);
+        out.write_all(format!("Modify:\t{}\n", dt.to_rfc2822()).as_bytes())?;
         out.flush()?;
         Ok(())
     })
