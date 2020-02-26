@@ -1470,24 +1470,28 @@ async fn status(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
     let mut result = client.get(&path, None).await?;
+    let mut data = result["data"].take();
 
     record_repository(&repo);
 
-    if output_format == "text" {
-        let result: StorageStatus = serde_json::from_value(result["data"].take())?;
+    let render_total_percentage = |v: &Value, record: &Value| -> Result<String, Error> {
+        let v = v.as_u64().unwrap();
+        let total = record["total"].as_u64().unwrap();
+        let roundup = total/200;
+        let per = ((v+roundup)*100)/total;
+        Ok(format!("{} ({} %)", v, per))
+    };
 
-        let roundup = result.total/200;
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false)
+        .column(ColumnConfig::new("total"))
+        .column(ColumnConfig::new("used").renderer(render_total_percentage))
+        .column(ColumnConfig::new("avail").renderer(render_total_percentage));
 
-        println!(
-            "total: {} used: {} ({} %) available: {}",
-            result.total,
-            result.used,
-            ((result.used+roundup)*100)/result.total,
-            result.avail,
-        );
-    } else {
-        format_and_print_result(&result["data"], &output_format);
-    }
+    let schema = &proxmox_backup::api2::types::StorageStatus::API_SCHEMA;
+
+    format_and_print_result_full(&mut data, schema, &output_format, &options);
 
     Ok(Value::Null)
 }
