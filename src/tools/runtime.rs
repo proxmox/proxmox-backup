@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Weak, Mutex};
 use std::task::{Context, Poll, RawWaker, Waker};
 use std::thread::{self, Thread};
 
@@ -43,21 +43,41 @@ impl Drop for BlockingGuard {
 }
 
 lazy_static! {
-    static ref RUNTIME: Runtime = {
-        runtime::Builder::new()
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .expect("failed to spawn tokio runtime")
-    };
+    // avoid openssl bug: https://github.com/openssl/openssl/issues/6214
+    // by dropping the runtime as early as possible
+    static ref RUNTIME: Mutex<Weak<Runtime>> = Mutex::new(Weak::new());
+}
+
+extern {
+    fn OPENSSL_thread_stop();
 }
 
 /// Get or create the current main tokio runtime.
 ///
 /// This makes sure that tokio's worker threads are marked for us so that we know whether we
 /// can/need to use `block_in_place` in our `block_on` helper.
-pub fn get_runtime() -> &'static Runtime {
-    &RUNTIME
+pub fn get_runtime() -> Arc<Runtime> {
+
+    let mut guard = RUNTIME.lock().unwrap();
+
+    if let Some(rt) = guard.upgrade() { return rt; }
+
+    let rt = Arc::new(
+        runtime::Builder::new()
+            .on_thread_stop(|| {
+                // avoid openssl bug: https://github.com/openssl/openssl/issues/6214
+                // call OPENSSL_thread_stop to avoid race with openssl cleanup handlers
+                unsafe { OPENSSL_thread_stop(); }
+            })
+            .threaded_scheduler()
+            .enable_all()
+            .build()
+            .expect("failed to spawn tokio runtime")
+    );
+
+    *guard = Arc::downgrade(&rt.clone());
+
+    rt
 }
 
 /// Block on a synchronous piece of code.
