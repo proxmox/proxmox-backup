@@ -544,8 +544,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
             options,
         )?;
 
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let result = rt.block_on(client.get("api2/json/admin/datastore", None))?;
+        let result = crate::tools::runtime::block_on(client.get("api2/json/admin/datastore", None))?;
 
         if let Some(data) = result["data"].as_array() {
             for item in data {
