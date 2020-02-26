@@ -671,19 +671,15 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    let list: Value = result["data"].take();
+    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_SNAPSHOT_FILES;
 
-    if output_format == "text" {
-        for item in list.as_array().unwrap().iter() {
-            println!(
-                "{} {}",
-                strip_server_file_expenstion(item["filename"].as_str().unwrap()),
-                item["size"].as_u64().unwrap_or(0),
-            );
-        }
-    } else {
-        format_and_print_result(&list, &output_format);
-    }
+    let mut data: Value = result["data"].take();
+
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false);
+
+    format_and_print_result_full(&mut data, info, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -1489,7 +1485,7 @@ async fn status(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
         .column(ColumnConfig::new("avail").renderer(render_total_percentage));
 
-    let schema = &proxmox_backup::api2::types::StorageStatus::API_SCHEMA;
+    let schema = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_STATUS;
 
     format_and_print_result_full(&mut data, schema, &output_format, &options);
 

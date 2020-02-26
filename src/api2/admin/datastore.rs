@@ -138,7 +138,7 @@ fn list_groups(
     },
 )]
 /// List snapshot files.
-fn list_snapshot_files(
+pub fn list_snapshot_files(
     store: String,
     backup_type: String,
     backup_id: String,
@@ -293,7 +293,7 @@ fn list_snapshots (
     },
 )]
 /// Get datastore status.
-fn status(
+pub fn status(
     store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
