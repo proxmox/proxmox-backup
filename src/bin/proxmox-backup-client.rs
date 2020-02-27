@@ -167,6 +167,16 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
+fn render_backup_file_list(files: &[String]) -> String {
+    let mut files: Vec<String> = files.iter()
+        .map(|v| strip_server_file_expenstion(&v))
+        .collect();
+
+    files.sort();
+
+    tools::join(&files, ' ')
+}
+
 fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
@@ -340,6 +350,8 @@ fn strip_server_file_expenstion(name: &str) -> String {
 /// List backup groups.
 async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
+    let output_format = get_output_format(&param);
+
     let repo = extract_repository_from_value(&param)?;
 
     let client = connect(repo.host(), repo.user())?;
@@ -350,62 +362,36 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     record_repository(&repo);
 
-    // fixme: implement and use output formatter instead ..
-    let list = result["data"].as_array_mut().unwrap();
+    let render_group_path = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
+        let group = BackupGroup::new(item.backup_type, item.backup_id);
+        Ok(group.group_path().to_str().unwrap().to_owned())
+    };
 
-    list.sort_unstable_by(|a, b| {
-        let a_id = a["backup-id"].as_str().unwrap();
-        let a_backup_type = a["backup-type"].as_str().unwrap();
-        let b_id = b["backup-id"].as_str().unwrap();
-        let b_backup_type = b["backup-type"].as_str().unwrap();
-
-        let type_order = a_backup_type.cmp(b_backup_type);
-        if type_order == std::cmp::Ordering::Equal {
-            a_id.cmp(b_id)
-        } else {
-            type_order
-        }
-    });
-
-    let output_format = get_output_format(&param);
-
-    let mut result = vec![];
-
-    for item in list {
-
-        let id = item["backup-id"].as_str().unwrap();
-        let btype = item["backup-type"].as_str().unwrap();
-        let epoch = item["last-backup"].as_i64().unwrap();
+    let render_backup_timestamp = |v: &Value, _record: &Value| -> Result<String, Error> {
+        let epoch = v.as_i64().unwrap();
         let last_backup = Utc.timestamp(epoch, 0);
-        let backup_count = item["backup-count"].as_u64().unwrap();
+        Ok(BackupDir::backup_time_to_string(last_backup))
+    };
 
-        let group = BackupGroup::new(btype, id);
+    let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
+        Ok(render_backup_file_list(&item.files))
+    };
 
-        let path = group.group_path().to_str().unwrap().to_owned();
+    let options = default_table_format_options()
+        .sortby("backup-type", false)
+        .sortby("backup-id", false)
+        .column(ColumnConfig::new("backup-id").renderer(render_group_path).header("group"))
+        .column(ColumnConfig::new("last-backup").renderer(render_backup_timestamp))
+        .column(ColumnConfig::new("backup-count"))
+        .column(ColumnConfig::new("files").renderer(render_files));
 
-        let files = item["files"].as_array().unwrap().iter()
-            .map(|v| strip_server_file_expenstion(v.as_str().unwrap())).collect();
+    let mut data: Value = result["data"].take();
 
-        if output_format == "text" {
-            println!(
-                "{:20} | {} | {:5} | {}",
-                path,
-                BackupDir::backup_time_to_string(last_backup),
-                backup_count,
-                tools::join(&files, ' '),
-            );
-        } else {
-            result.push(json!({
-                "backup-type": btype,
-                "backup-id": id,
-                "last-backup": epoch,
-                "backup-count": backup_count,
-                "files": files,
-            }));
-        }
-    }
+    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_GROUPS;
 
-    if output_format != "text" { format_and_print_result(&result.into(), &output_format); }
+    format_and_print_result_full(&mut data, info, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -456,13 +442,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let mut files: Vec<String> = item.files.iter()
-            .map(|v| strip_server_file_expenstion(&v))
-            .collect();
-
-        files.sort();
-
-        Ok(tools::join(&files, ' '))
+        Ok(render_backup_file_list(&item.files))
     };
 
     let options = default_table_format_options()
