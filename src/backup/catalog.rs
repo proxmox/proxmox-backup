@@ -106,6 +106,7 @@ impl DirEntry {
         }
     }
 
+    /// Check if DirEntry is a directory
     pub fn is_directory(&self) -> bool {
         match self.attr {
             DirEntryAttribute::Directory { .. } => true,
