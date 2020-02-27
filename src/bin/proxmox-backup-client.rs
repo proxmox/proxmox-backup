@@ -1486,7 +1486,7 @@ async fn status(param: Value) -> Result<Value, Error> {
 
     let options = TableFormatOptions::new()
         .noborder(false)
-        .noheader(false)
+        .noheader(true)
         .column(ColumnConfig::new("total"))
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
         .column(ColumnConfig::new("avail").renderer(render_total_percentage));
