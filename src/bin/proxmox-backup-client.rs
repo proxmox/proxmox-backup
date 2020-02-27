@@ -210,7 +210,7 @@ async fn api_datastore_list_snapshots(
     client: &HttpClient,
     store: &str,
     group: Option<BackupGroup>,
-) -> Result<Vec<SnapshotListItem>, Error> {
+) -> Result<Value, Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", store);
 
@@ -222,9 +222,7 @@ async fn api_datastore_list_snapshots(
 
     let mut result = client.get(&path, Some(args)).await?;
 
-    let list: Vec<SnapshotListItem> = serde_json::from_value(result["data"].take())?;
-
-    Ok(list)
+    Ok(result["data"].take())
 }
 
 async fn api_datastore_latest_snapshot(
@@ -233,7 +231,8 @@ async fn api_datastore_latest_snapshot(
     group: BackupGroup,
 ) -> Result<(String, String, DateTime<Utc>), Error> {
 
-    let mut list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
+    let list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
+    let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
 
     if list.is_empty() {
         bail!("backup group {:?} does not contain any snapshots.", group.group_path());
@@ -445,34 +444,41 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         None
     };
 
-    let mut list = api_datastore_list_snapshots(&client, repo.store(), group).await?;
-
-    list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
+    let mut data = api_datastore_list_snapshots(&client, repo.store(), group).await?;
 
     record_repository(&repo);
 
-    if output_format != "text" {
-        format_and_print_result(&serde_json::to_value(list)?, &output_format);
-        return Ok(Value::Null);
-    }
-
-    for item in list {
-
+    let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
+    };
 
-        let path = snapshot.relative_path().to_str().unwrap().to_owned();
-
-        let files = item.files.iter()
+    let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
+        let mut files: Vec<String> = item.files.iter()
             .map(|v| strip_server_file_expenstion(&v))
             .collect();
 
-        let size_str = if let Some(size) = item.size {
-            size.to_string()
-        } else {
-            String::from("-")
-        };
-        println!("{} | {} | {}", path, size_str, tools::join(&files, ' '));
-    }
+        files.sort();
+
+        Ok(tools::join(&files, ' '))
+    };
+
+    let options = TableFormatOptions::new()
+        .noborder(false)
+        .noheader(false)
+        .sortby("backup-type", false)
+        .sortby("backup-id", false)
+        .sortby("backup-time", false)
+        .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
+        .column(ColumnConfig::new("size"))
+        .column(ColumnConfig::new("files").renderer(render_files))
+        ;
+
+    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_SNAPSHOTS;
+
+    format_and_print_result_full(&mut data, info, &output_format, &options);
 
     Ok(Value::Null)
 }

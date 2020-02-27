@@ -229,7 +229,7 @@ fn delete_snapshot(
     },
 )]
 /// List backup snapshots.
-fn list_snapshots (
+pub fn list_snapshots (
     param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
