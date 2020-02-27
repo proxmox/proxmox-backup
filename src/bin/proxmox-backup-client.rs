@@ -256,6 +256,7 @@ async fn backup_directory<P: AsRef<Path>>(
     skip_lost_and_found: bool,
     crypt_config: Option<Arc<CryptConfig>>,
     catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
+    exclude_pattern: Vec<pxar::MatchPattern>,
     entries_max: usize,
 ) -> Result<BackupStats, Error> {
 
@@ -265,6 +266,7 @@ async fn backup_directory<P: AsRef<Path>>(
         verbose,
         skip_lost_and_found,
         catalog,
+        exclude_pattern,
         entries_max,
     )?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
@@ -770,6 +772,15 @@ fn spawn_catalog_upload(
                schema: CHUNK_SIZE_SCHEMA,
                optional: true,
            },
+           "exclude": {
+               type: Array,
+               description: "List of paths or patterns for matching files to exclude.",
+               optional: true,
+               items: {
+                   type: String,
+                   description: "Path or match pattern.",
+                }
+           },
            "entries-max": {
                type: Integer,
                description: "Max number of entries to hold in memory.",
@@ -818,6 +829,17 @@ async fn create_backup(
     let include_dev = param["include-dev"].as_array();
 
     let entries_max = param["entries-max"].as_u64().unwrap_or(pxar::ENCODER_MAX_ENTRIES as u64);
+
+    let empty = Vec::new();
+    let arg_pattern = param["exclude"].as_array().unwrap_or(&empty);
+
+    let mut pattern_list = Vec::with_capacity(arg_pattern.len());
+    for s in arg_pattern {
+        let l = s.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
+        let p = pxar::MatchPattern::from_line(l.as_bytes())?
+            .ok_or_else(|| format_err!("Invalid match pattern in arguments"))?;
+        pattern_list.push(p);
+    }
 
     let mut devices = if all_file_systems { None } else { Some(HashSet::new()) };
 
@@ -967,6 +989,7 @@ async fn create_backup(
                     skip_lost_and_found,
                     crypt_config.clone(),
                     catalog.clone(),
+                    pattern_list.clone(),
                     entries_max as usize,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum)?;

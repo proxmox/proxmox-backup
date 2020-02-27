@@ -45,6 +45,7 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
+        exclude_pattern: Vec<pxar::MatchPattern>,
         entries_max: usize,
     ) -> Result<Self, Error> {
 
@@ -56,7 +57,6 @@ impl PxarBackupStream {
         let error2 = error.clone();
 
         let catalog = catalog.clone();
-        let exclude_pattern = Vec::new();
         let child = std::thread::Builder::new().name("PxarBackupStream".to_string()).spawn(move || {
             let mut guard = catalog.lock().unwrap();
             let mut writer = std::io::BufWriter::with_capacity(buffer_size, crate::tools::StdChannelWriter::new(tx));
@@ -91,13 +91,14 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
+        exclude_pattern: Vec<pxar::MatchPattern>,
         entries_max: usize,
     ) -> Result<Self, Error> {
 
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog, entries_max)
+        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog, exclude_pattern, entries_max)
     }
 }
 

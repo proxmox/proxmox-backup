@@ -60,7 +60,7 @@ pub enum MatchType {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Eq, PartialOrd)]
+#[derive(Clone, Eq, PartialOrd)]
 pub struct MatchPattern {
     pattern: Vec<u8>,
     match_positive: bool,
