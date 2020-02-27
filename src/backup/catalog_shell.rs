@@ -494,12 +494,35 @@ fn restore_selected_command(target: String) -> Result<(), Error> {
     })
 }
 
-#[api( input: { properties: {} })]
+#[api(
+    input: {
+        properties: {
+            pattern: {
+                type: Boolean,
+                description: "List match patterns instead of the matching files.",
+                optional: true,
+            }
+        }
+    }
+)]
 /// List entries currently selected for restore.
-fn list_selected_command() -> Result<(), Error> {
+fn list_selected_command(pattern: Option<bool>) -> Result<(), Error> {
     Context::with(|ctx| {
         let mut out = std::io::stdout();
-        out.write_all(&MatchPattern::to_bytes(ctx.selected.as_slice()))?;
+        if let Some(true) = pattern {
+            out.write_all(&MatchPattern::to_bytes(ctx.selected.as_slice()))?;
+        } else {
+            let mut slices = Vec::with_capacity(ctx.selected.len());
+            for pattern in &ctx.selected {
+                slices.push(pattern.as_slice());
+            }
+            let mut dir_stack = ctx.root.clone();
+            ctx.catalog.find(
+                &mut dir_stack,
+                &slices,
+                &Box::new(|path: &[DirEntry]| println!("{:?}", Context::generate_cstring(path).unwrap()))
+            )?;
+        }
         out.flush()?;
         Ok(())
     })
