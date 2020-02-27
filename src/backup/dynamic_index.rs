@@ -266,6 +266,19 @@ pub struct BufferedDynamicReader<S> {
     buffered_chunk_idx: usize,
     buffered_chunk_start: u64,
     read_offset: u64,
+    lru_cache: crate::tools::lru_cache::LruCache<usize, (u64, u64, Vec<u8>)>,
+}
+
+struct ChunkCacher<'a, S> {
+    store: &'a mut S,
+    index: &'a DynamicIndexReader,
+}
+
+impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, (u64, u64, Vec<u8>)> for ChunkCacher<'a, S> {
+    fn fetch(&mut self, index: usize) -> Result<Option<(u64, u64, Vec<u8>)>, failure::Error> {
+        let (start, end, digest) = self.index.chunk_info(index)?;
+        self.store.read_chunk(&digest).and_then(|data| Ok(Some((start, end, data))))
+    }
 }
 
 impl<S: ReadChunk> BufferedDynamicReader<S> {
@@ -279,6 +292,7 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
             buffered_chunk_idx: 0,
             buffered_chunk_start: 0,
             read_offset: 0,
+            lru_cache: crate::tools::lru_cache::LruCache::new(32),
         }
     }
 
@@ -287,27 +301,29 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
     }
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
-        let index = &self.index;
-        let (start, end, digest) = index.chunk_info(idx)?;
+        let (start, end, data) = self.lru_cache.access(
+            idx,
+            &mut ChunkCacher {
+                store: &mut self.store,
+                index: &self.index,
+            },
+        )?.ok_or_else(|| format_err!("chunk not found by cacher"))?;
 
-        // fixme: avoid copy
-
-        let data = self.store.read_chunk(&digest)?;
-
-        if (end - start) != data.len() as u64 {
+        if (*end - *start) != data.len() as u64 {
             bail!(
                 "read chunk with wrong size ({} != {}",
-                (end - start),
+                (*end - *start),
                 data.len()
             );
         }
 
+        // fixme: avoid copy
         self.read_buffer.clear();
         self.read_buffer.extend_from_slice(&data);
 
         self.buffered_chunk_idx = idx;
 
-        self.buffered_chunk_start = start as u64;
+        self.buffered_chunk_start = *start;
         //println!("BUFFER {} {}",  self.buffered_chunk_start, end);
         Ok(())
     }

@@ -100,6 +100,8 @@ pub struct LruCache<K, V> {
     _marker: PhantomData<Box<CacheNode<K, V>>>,
 }
 
+unsafe impl<K, V> Send for LruCache<K, V> {}
+
 impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// Create LRU cache instance which holds up to `capacity` nodes at once.
     pub fn new(capacity: usize) -> Self {
