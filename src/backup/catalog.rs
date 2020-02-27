@@ -56,14 +56,14 @@ impl fmt::Display for CatalogEntryType {
 ///
 /// The ``attr`` property contain the exact type with type specific
 /// attributes.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct DirEntry {
     pub name: Vec<u8>,
     pub attr: DirEntryAttribute,
 }
 
 /// Used to specific additional attributes inside DirEntry
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum DirEntryAttribute {
     Directory { start: u64 },
     File { size: u64, mtime: u64 },
