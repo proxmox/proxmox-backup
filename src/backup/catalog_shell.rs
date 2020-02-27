@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use std::ffi::{CString, OsStr};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use chrono::{Utc, offset::TimeZone};
 use failure::*;
@@ -105,7 +105,7 @@ impl Shell {
         let catalog_root = catalog.root()?;
         // The root for the given archive as stored in the catalog
         let archive_root = catalog.lookup(&catalog_root, archive_name.as_bytes())?;
-        let root = vec![archive_root];
+        let path = CatalogPathStack::new(archive_root);
 
         CONTEXT.with(|handle| {
             let mut ctx = handle.borrow_mut();
@@ -113,8 +113,7 @@ impl Shell {
                 catalog,
                 selected: Vec::new(),
                 decoder,
-                root: root.clone(),
-                current: root,
+                path,
             });
         });
 
@@ -167,12 +166,14 @@ impl Shell {
             };
 
             let current = if base.is_empty() {
-                ctx.current.clone()
+                ctx.path.last().clone()
             } else {
-                ctx.canonical_path(base)?
+                let mut local = ctx.path.clone();
+                local.traverse(&PathBuf::from(base), &mut ctx.decoder, &mut ctx.catalog, false)?;
+                local.last().clone()
             };
 
-            let entries = match ctx.catalog.read_dir(&current.last().unwrap()) {
+            let entries = match ctx.catalog.read_dir(&current) {
                 Ok(entries) => entries,
                 Err(_) => return Ok(Vec::new()),
             };
@@ -198,7 +199,7 @@ impl Shell {
 /// List the current working directory.
 fn pwd_command() -> Result<(), Error> {
     Context::with(|ctx| {
-        let path = Context::generate_cstring(&ctx.current)?;
+        let path = ctx.path.generate_cstring()?;
         let mut out = std::io::stdout();
         out.write_all(&path.as_bytes())?;
         out.write_all(&[b'\n'])?;
@@ -222,17 +223,17 @@ fn pwd_command() -> Result<(), Error> {
 fn cd_command(path: Option<String>) -> Result<(), Error> {
     Context::with(|ctx| {
         let path = path.unwrap_or_default();
-        let mut path = ctx.canonical_path(&path)?;
-        if !path
-            .last()
-            .ok_or_else(|| format_err!("invalid path component"))?
-            .is_directory()
-        {
-            // Change to the parent dir of the file instead
-            path.pop();
+        if path.is_empty() {
+            ctx.path.clear();
+            return Ok(());
+        }
+        let mut local = ctx.path.clone();
+        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, true)?;
+        if !local.last().is_directory() {
+            local.pop();
             eprintln!("not a directory, fallback to parent directory");
         }
-        ctx.current = path;
+        ctx.path = local;
         Ok(())
     })
 }
@@ -251,19 +252,18 @@ fn cd_command(path: Option<String>) -> Result<(), Error> {
 /// List the content of working directory or given path.
 fn ls_command(path: Option<String>) -> Result<(), Error> {
     Context::with(|ctx| {
-        let parent = if let Some(path) = path {
-            ctx.canonical_path(&path)?
-                .last()
-                .ok_or_else(|| format_err!("invalid path component"))?
-                .clone()
+        let parent = if let Some(ref path) = path {
+            let mut local = ctx.path.clone();
+            local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
+            local.last().clone()
         } else {
-            ctx.current.last().unwrap().clone()
+            ctx.path.last().clone()
         };
 
         let list = if parent.is_directory() {
             ctx.catalog.read_dir(&parent)?
         } else {
-            vec![parent]
+            vec![parent.clone()]
         };
 
         if list.is_empty() {
@@ -312,13 +312,10 @@ fn ls_command(path: Option<String>) -> Result<(), Error> {
 /// which means reading over the network.
 fn stat_command(path: String) -> Result<(), Error> {
     Context::with(|ctx| {
-        // First check if the file exists in the catalog, therefore avoiding
-        // expensive calls to the decoder just to find out that there maybe is
-        // no such entry.
-        // This is done by calling canonical_path(), which returns the full path
-        // if it exists, error otherwise.
-        let path = ctx.canonical_path(&path)?;
-        let item = ctx.lookup(&path)?;
+        let mut local = ctx.path.clone();
+        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
+        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
+        let item = canonical.lookup(&mut ctx.decoder)?;
         let mut out = std::io::stdout();
         out.write_all(b"  File:\t")?;
         out.write_all(item.filename.as_bytes())?;
@@ -427,10 +424,10 @@ fn stat_command(path: String) -> Result<(), Error> {
 /// if an invalid path was provided.
 fn select_command(path: String) -> Result<(), Error> {
     Context::with(|ctx| {
-        // Calling canonical_path() makes sure the provided path is valid and
-        // actually contained within the catalog and therefore also the archive.
-        let path = ctx.canonical_path(&path)?;
-        let pattern = MatchPattern::from_line(Context::generate_cstring(&path)?.as_bytes())?
+        let mut local = ctx.path.clone();
+        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
+        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
+        let pattern = MatchPattern::from_line(canonical.generate_cstring()?.as_bytes())?
             .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
         if ctx.selected.iter().find(|p| **p == pattern).is_none() {
             ctx.selected.push(pattern);
@@ -455,8 +452,11 @@ fn select_command(path: String) -> Result<(), Error> {
 /// selected for restore.
 fn deselect_command(path: String) -> Result<(), Error> {
     Context::with(|ctx| {
-        let path = ctx.canonical_path(&path)?;
-        let mut pattern = MatchPattern::from_line(Context::generate_cstring(&path)?.as_bytes())?
+        let mut local = ctx.path.clone();
+        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
+        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
+        println!("{:?}", canonical.generate_cstring()?);
+        let mut pattern = MatchPattern::from_line(canonical.generate_cstring()?.as_bytes())?
             .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
         if let Some(last) = ctx.selected.last() {
             if last == &pattern {
@@ -529,7 +529,7 @@ fn list_selected_command(pattern: Option<bool>) -> Result<(), Error> {
             for pattern in &ctx.selected {
                 slices.push(pattern.as_slice());
             }
-            let mut dir_stack = ctx.root.clone();
+            let mut dir_stack = vec![ctx.path.root()];
             ctx.catalog.find(
                 &mut dir_stack,
                 &slices,
@@ -574,8 +574,8 @@ fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error>
         } else {
             // Get the directory corresponding to the working directory from the
             // archive.
-            let cwd = ctx.current.clone();
-            ctx.lookup(&cwd)?
+            let cwd = ctx.path.clone();
+            cwd.lookup(&mut ctx.decoder)?
         };
 
         ctx.decoder
@@ -606,13 +606,15 @@ fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error>
 /// Find entries in the catalog matching the given match pattern.
 fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(), Error> {
     Context::with(|ctx| {
-        let path = ctx.canonical_path(&path)?;
-        if !path.last().unwrap().is_directory() {
+        let mut local = ctx.path.clone();
+        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
+        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
+        if !local.last().is_directory() {
             bail!("path should be a directory, not a file!");
         }
         let select = select.unwrap_or(false);
 
-        let cpath = Context::generate_cstring(&path).unwrap();
+        let cpath = canonical.generate_cstring().unwrap();
         let pattern = if pattern.starts_with("!") {
             let mut buffer = vec![b'!'];
             buffer.extend_from_slice(cpath.as_bytes());
@@ -631,7 +633,7 @@ fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(
         // The match pattern all contain the prefix of the entry path in order to
         // store them if selected, so the entry point for find is always the root
         // directory.
-        let mut dir_stack = ctx.root.clone();
+        let mut dir_stack = vec![ctx.path.root()];
         ctx.catalog.find(
             &mut dir_stack,
             &slice,
@@ -660,11 +662,8 @@ struct Context {
     selected: Vec<MatchPattern>,
     /// Decoder instance for the current pxar archive
     decoder: Decoder,
-    /// Root directory for the give archive as stored in the catalog
-    root: Vec<DirEntry>,
-    /// Stack of directories up to the current working directory
-    /// used for navigation and path completion.
-    current: Vec<DirEntry>,
+    /// Handle catalog stuff
+    path: CatalogPathStack,
 }
 
 impl Context {
@@ -692,96 +691,16 @@ impl Context {
         Ok(unsafe { CString::from_vec_unchecked(path) })
     }
 
-    /// Resolve the indirect path components and return an absolute path.
-    ///
-    /// This will actually navigate the filesystem tree to check that the
-    /// path is vaild and exists.
-    /// This does not include following symbolic links.
-    /// If None is given as path, only the root directory is returned.
-    fn canonical_path(&mut self, path: &str) -> Result<Vec<DirEntry>, Error> {
-        if path == "/" {
-            return Ok(self.root.clone());
-        }
-
-        let mut path_slice = if path.is_empty() {
-            // Fallback to root if no path was provided
-            return Ok(self.root.clone());
-        } else {
-            path
-        };
-
-        let mut dir_stack = if path_slice.starts_with("/") {
-            // Absolute path, reduce view of slice and start from root
-            path_slice = &path_slice[1..];
-            self.root.clone()
-        } else {
-            // Relative path, start from current working directory
-            self.current.clone()
-        };
-        let should_end_dir = if path_slice.ends_with("/") {
-            path_slice = &path_slice[0..path_slice.len() - 1];
-            true
-        } else {
-            false
-        };
-        for name in path_slice.split('/') {
-            match name {
-                "" => continue, // Multiple successive slashes are valid and treated as one.
-                "." => continue,
-                ".." => {
-                    // Never pop archive root from stack
-                    if dir_stack.len() > 1 {
-                        dir_stack.pop();
-                    }
-                }
-                _ => {
-                    let entry = self.catalog.lookup(dir_stack.last().unwrap(), name.as_bytes())?;
-                    dir_stack.push(entry);
-                }
-            }
-        }
-        if should_end_dir
-            && !dir_stack
-                .last()
-                .ok_or_else(|| format_err!("invalid path component"))?
-                .is_directory()
-        {
-            bail!("entry is not a directory");
-        }
-
-        Ok(dir_stack)
-    }
-
     /// Generate the CString to display by readline based on
     /// PROMPT_PREFIX, PROMPT and the current working directory.
     fn generate_prompt(&self) -> Result<String, Error> {
         let prompt = format!(
             "{}{} {} ",
             PROMPT_PREFIX,
-            Self::generate_cstring(&self.current)?.to_string_lossy(),
+            self.path.generate_cstring()?.to_string_lossy(),
             PROMPT,
         );
         Ok(prompt)
-    }
-
-    /// Look up the entry given by a canonical absolute `path` in the archive.
-    ///
-    /// This will actively navigate the archive by calling the corresponding
-    /// decoder functionalities and is therefore very expensive.
-    fn lookup(&mut self, absolute_path: &[DirEntry]) -> Result<DirectoryEntry, Error> {
-        let mut current = self.decoder.root()?;
-        // Ignore the archive root, don't need it.
-        for item in absolute_path.iter().skip(1) {
-            match self
-                .decoder
-                .lookup(&current, &OsStr::from_bytes(&item.name))?
-            {
-                Some(item) => current = item,
-                // This should not happen if catalog an archive are consistent.
-                None => bail!("no such file or directory in archive - inconsistent catalog"),
-            }
-        }
-        Ok(current)
     }
 }
 
