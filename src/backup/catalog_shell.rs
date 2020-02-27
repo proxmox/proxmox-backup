@@ -784,3 +784,180 @@ impl Context {
         Ok(current)
     }
 }
+
+/// A valid path in the catalog starting from root.
+///
+/// Symlinks are stored by pushing the symlink entry and the target entry onto
+/// the stack. Allows to resolve all symlink in order to generate a canonical
+/// path needed for reading from the archive.
+#[derive(Clone)]
+struct CatalogPathStack {
+    stack: Vec<DirEntry>,
+    root: DirEntry,
+}
+
+impl CatalogPathStack {
+    /// Create a new stack with given root entry.
+    fn new(root: DirEntry) -> Self {
+        Self {
+            stack: Vec::new(),
+            root,
+        }
+    }
+
+    /// Get a clone of the root directories entry.
+    fn root(&self) -> DirEntry {
+        self.root.clone()
+    }
+
+    /// Remove all entries from the stack.
+    ///
+    /// This equals to being at the root directory.
+    fn clear(&mut self) {
+        self.stack.clear();
+    }
+
+    /// Get a reference to the last entry on the stack.
+    fn last(&self) -> &DirEntry {
+        self.stack.last().unwrap_or(&self.root)
+    }
+
+    /// Check if the last entry is a symlink.
+    fn last_is_symlink(&self) -> bool {
+        self.last().is_symlink()
+    }
+
+    /// Check if the last entry is a directory.
+    fn last_is_directory(&self) -> bool {
+        self.last().is_directory()
+    }
+
+    /// Remove a component, if it was a symlink target,
+    /// this removes also the symlink entry.
+    fn pop(&mut self) -> Option<DirEntry> {
+        let entry = self.stack.pop()?;
+        if self.last_is_symlink() {
+            self.stack.pop()
+        } else {
+            Some(entry)
+        }
+    }
+
+    /// Add a component to the stack.
+    fn push(&mut self, entry: DirEntry) {
+        self.stack.push(entry)
+    }
+
+    /// Check if pushing the given entry onto the CatalogPathStack would create a
+    /// loop by checking if the same entry is already present.
+    fn creates_loop(&self, entry: &DirEntry) -> bool {
+        self.stack.iter().any(|comp| comp.eq(entry))
+    }
+
+    /// Starting from this path, traverse the catalog by the provided `path`.
+    fn traverse(
+        &mut self,
+        path: &PathBuf,
+        mut decoder: &mut Decoder,
+        mut catalog: &mut CatalogReader<std::fs::File>,
+        follow_final: bool,
+    ) -> Result<(), Error> {
+        for component in path.components() {
+            match component {
+                Component::RootDir => self.clear(),
+                Component::CurDir => continue,
+                Component::ParentDir => { self.pop(); }
+                Component::Normal(comp) => {
+                    let entry = catalog.lookup(self.last(), comp.as_bytes())?;
+                    if self.creates_loop(&entry) {
+                        bail!("loop detected, will not follow");
+                    }
+                    self.push(entry);
+                    if self.last_is_symlink() && follow_final {
+                        let mut canonical = self.canonical(&mut decoder, &mut catalog, follow_final)?;
+                        let target = canonical.pop().unwrap();
+                        self.push(target);
+                    }
+                }
+                Component::Prefix(_) => bail!("encountered prefix component. Non unix systems not supported."),
+            }
+        }
+        if path.as_os_str().as_bytes().ends_with(b"/") && !self.last_is_directory() {
+            bail!("entry is not a directory");
+        }
+        Ok(())
+    }
+
+    /// Create a canonical version of this path with symlinks resolved.
+    ///
+    /// If resolve final is true, follow also an eventual symlink of the last
+    /// path component.
+    fn canonical(
+        &self,
+        mut decoder: &mut Decoder,
+        mut catalog: &mut CatalogReader<std::fs::File>,
+        resolve_final: bool,
+    ) -> Result<Self, Error> {
+        let mut canonical = CatalogPathStack::new(self.root.clone());
+        let mut iter = self.stack.iter().enumerate();
+        while let Some((index, component)) = iter.next() {
+            if component.is_directory() {
+                canonical.push(component.clone());
+            } else if component.is_symlink() {
+                canonical.push(component.clone());
+                 if index != self.stack.len() - 1 || resolve_final {
+                    // Get the symlink target by traversing the canonical path
+                    // in the archive up to the symlink.
+                    let archive_entry = canonical.lookup(&mut decoder)?;
+                    canonical.pop();
+                    // Resolving target means also ignoring the target in the iterator, so get it.
+                    iter.next();
+                    let target = archive_entry.target
+                        .ok_or_else(|| format_err!("expected entry with symlink target."))?;
+                    canonical.traverse(&target, &mut decoder, &mut catalog, resolve_final)?;
+                }
+            } else if index != self.stack.len() - 1 {
+                bail!("intermitten node is not symlink nor directory");
+            } else {
+                canonical.push(component.clone());
+            }
+        }
+        Ok(canonical)
+    }
+
+    /// Lookup this path in the archive using the provided decoder.
+    fn lookup(&self, decoder: &mut Decoder) -> Result<DirectoryEntry, Error> {
+        let mut current = decoder.root()?;
+        for component in self.stack.iter() {
+            match decoder.lookup(&current, &OsStr::from_bytes(&component.name))? {
+                Some(item) => current = item,
+                // This should not happen if catalog an archive are consistent.
+                None => bail!("no such file or directory in archive - inconsistent catalog"),
+            }
+        }
+        Ok(current)
+    }
+
+    /// Generate a CString from this.
+    fn generate_cstring(&self) -> Result<CString, Error> {
+        let mut path = vec![b'/'];
+        let mut iter = self.stack.iter().enumerate();
+        while let Some((index, component)) = iter.next() {
+            if component.is_symlink() && index != self.stack.len() - 1 {
+                let (_, next) = iter.next()
+                    .ok_or_else(|| format_err!("unresolved symlink encountered"))?;
+                // Display the name of the link, not the target
+                path.extend_from_slice(&component.name);
+                if next.is_directory() {
+                    path.push(b'/');
+                }
+            } else {
+                path.extend_from_slice(&component.name);
+                if component.is_directory() {
+                    path.push(b'/');
+                }
+            }
+        }
+        Ok(unsafe { CString::from_vec_unchecked(path) })
+    }
+}
