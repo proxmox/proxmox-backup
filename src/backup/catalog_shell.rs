@@ -65,6 +65,10 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 .completion_cb("path", Shell::complete_path)
         )
         .insert(
+            "clear-selected",
+            CliCommand::new(&API_METHOD_CLEAR_SELECTED_COMMAND)
+        )
+        .insert(
             "restore-selected",
             CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
                 .arg_param(&["target"])
@@ -462,6 +466,15 @@ fn deselect_command(path: String) -> Result<(), Error> {
         }
         pattern.invert();
         ctx.selected.push(pattern);
+        Ok(())
+    })
+}
+
+#[api( input: { properties: { } })]
+/// Clear the list of files selected for restore.
+fn clear_selected_command() -> Result<(), Error> {
+    Context::with(|ctx| {
+        ctx.selected.clear();
         Ok(())
     })
 }
