@@ -137,13 +137,12 @@ impl Decoder {
         check_ca_header::<PxarEntry>(&head, PXAR_ENTRY)?;
         let entry: PxarEntry = self.inner.read_item()?;
         let (header, xattr) = self.inner.read_attributes()?;
-        let (size, payload_offset) = match header.htype {
-            PXAR_PAYLOAD => (header.size - HEADER_SIZE, Some(self.seek(SeekFrom::Current(0))?)),
-            _ => (0, None),
-        };
-        let target = match header.htype {
-            PXAR_SYMLINK => Some(self.inner.read_link(header.size)?),
-            _ => None,
+        let (size, payload_offset, target) = match header.htype {
+            PXAR_PAYLOAD =>
+                (header.size - HEADER_SIZE, Some(self.seek(SeekFrom::Current(0))?), None),
+            PXAR_SYMLINK =>
+                (header.size - HEADER_SIZE, None, Some(self.inner.read_link(header.size)?)),
+            _ => (0, None, None),
         };
 
         Ok(DirectoryEntry {
