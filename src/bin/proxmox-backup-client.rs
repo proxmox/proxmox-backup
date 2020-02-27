@@ -1481,13 +1481,14 @@ async fn status(param: Value) -> Result<Value, Error> {
         let total = record["total"].as_u64().unwrap();
         let roundup = total/200;
         let per = ((v+roundup)*100)/total;
-        Ok(format!("{} ({} %)", v, per))
+        let info = format!(" ({} %)", per);
+        Ok(format!("{} {:>8}", v, info))
     };
 
     let options = TableFormatOptions::new()
         .noborder(false)
         .noheader(true)
-        .column(ColumnConfig::new("total"))
+        .column(ColumnConfig::new("total").renderer(render_total_percentage))
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
         .column(ColumnConfig::new("avail").renderer(render_total_percentage));
 
