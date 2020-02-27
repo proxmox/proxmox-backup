@@ -367,7 +367,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
         }
     });
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let mut result = vec![];
 
@@ -434,7 +434,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let client = connect(repo.host(), repo.user())?;
 
@@ -465,9 +465,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         Ok(tools::join(&files, ' '))
     };
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
-        .noheader(false)
+    let options = default_table_format_options()
         .sortby("backup-type", false)
         .sortby("backup-id", false)
         .sortby("backup-time", false)
@@ -663,7 +661,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot = BackupDir::parse(path)?;
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let client = connect(repo.host(), repo.user())?;
 
@@ -681,9 +679,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let mut data: Value = result["data"].take();
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
-        .noheader(false);
+    let options = default_table_format_options();
 
     format_and_print_result_full(&mut data, info, &output_format, &options);
 
@@ -708,7 +704,8 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let output_format = get_output_format(&param);
 
     let mut client = connect(repo.host(), repo.user())?;
 
@@ -1428,7 +1425,8 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
 
     let group = tools::required_string_param(&param, "group")?;
     let group = BackupGroup::parse(group)?;
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+
+    let output_format = get_output_format(&param);
 
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
@@ -1465,7 +1463,7 @@ async fn status(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let client = connect(repo.host(), repo.user())?;
 
@@ -1485,8 +1483,7 @@ async fn status(param: Value) -> Result<Value, Error> {
         Ok(format!("{} {:>8}", v, info))
     };
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
+    let options = default_table_format_options()
         .noheader(true)
         .column(ColumnConfig::new("total").renderer(render_total_percentage))
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
@@ -2207,7 +2204,8 @@ fn catalog_mgmt_cli() -> CliCommandMap {
 /// List running server tasks for this repo user
 async fn task_list(param: Value) -> Result<Value, Error> {
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
+
     let repo = extract_repository_from_value(&param)?;
     let client = connect(repo.host(), repo.user())?;
 
