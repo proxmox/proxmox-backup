@@ -112,6 +112,14 @@ impl DirEntry {
             _ => false,
         }
     }
+
+    /// Check if DirEntry is a symlink
+    pub fn is_symlink(&self) -> bool {
+        match self.attr {
+            DirEntryAttribute::Symlink { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 struct DirInfo {
