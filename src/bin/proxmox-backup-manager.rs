@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use failure::*;
 use serde_json::{json, Value};
-use chrono::{Local, TimeZone};
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
