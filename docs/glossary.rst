@@ -41,10 +41,11 @@ Glossary
       Is an easy-to-read, what-you-see-is-what-you-get plaintext
       markup syntax and parser system.
 
-   `FUSE`_
+   `FUSE`
 
-      Filesystem in Userspace (FUSE) defines an interface which allows to
-      implement a filesystem in userspace as opposed to implementing it
-      in the kernel. The fuse kernel driver handles filesystem requests and
-      sends them to an userspace application for reply.
+      Filesystem in Userspace (`FUSE <https://en.wikipedia.org/wiki/Filesystem_in_Userspace>`_)
+      defines an interface which allows to implement a filesystem in
+      userspace as opposed to implementing it in the kernel. The fuse
+      kernel driver handles filesystem requests and sends them to an
+      userspace application for reply.
 

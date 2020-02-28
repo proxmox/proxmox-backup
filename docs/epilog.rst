@@ -20,7 +20,6 @@
 .. _Virtual machine: https://en.wikipedia.org/wiki/Virtual_machine
 .. _APT: http://en.wikipedia.org/wiki/Advanced_Packaging_Tool
 .. _QEMU: https://www.qemu.org/
-.. _FUSE: https://en.wikipedia.org/wiki/Filesystem_in_Userspace
 
 .. _Client-server model: https://en.wikipedia.org/wiki/Client-server_model
 .. _AE: https://en.wikipedia.org/wiki/Authenticated_encryption
