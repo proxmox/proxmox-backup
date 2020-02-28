@@ -198,7 +198,7 @@ variable.
 
 
 Environment Variables
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 ``PBS_REPOSITORY``
   The default backup repository.
@@ -214,6 +214,36 @@ Environment Variables
 ``PBS_FINGERPRINT`` When set, this value is used to verify the server
   certificate (only used if the system CA certificates cannot
   validate the certificate).
+
+
+Output Format
+~~~~~~~~~~~~~
+
+Most commands support the ``--output-format`` parameter, which can be
+set to the following values:
+
+:``text``: Text format (default). Structured data is rendered as a table.
+
+:``json``: JSON (single line).
+
+:``json-pretty``: JSON (multiple lines, nicely formatted).
+
+
+Please use the following environment variables to modify output behavior:
+
+``PROXMOX_OUTPUT_FORMAT``
+  Defines the default output format.
+
+``PROXMOX_OUTPUT_NO_BORDER``
+  If set (to any value), do not render table borders.
+
+``PROXMOX_OUTPUT_NO_HEADER``
+  If set (to any value), do not render table headers.
+
+.. note:: The ``text`` format is designed to be human readable, but
+   not meant to be parsed by automation tools. Please use the ``json``
+   format for such purpose because it is machine readable.
+
 
 .. _creating-backups:
 
