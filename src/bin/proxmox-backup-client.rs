@@ -167,16 +167,6 @@ fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
-fn render_backup_file_list(files: &[String]) -> String {
-    let mut files: Vec<String> = files.iter()
-        .map(|v| strip_server_file_expenstion(&v))
-        .collect();
-
-    files.sort();
-
-    tools::join(&files, ' ')
-}
-
 fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
 
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
@@ -324,15 +314,6 @@ async fn backup_image<P: AsRef<Path>>(
     Ok(stats)
 }
 
-fn strip_server_file_expenstion(name: &str) -> String {
-
-    if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
-        name[..name.len()-5].to_owned()
-    } else {
-        name.to_owned() // should not happen
-    }
-}
-
 #[api(
    input: {
         properties: {
@@ -376,7 +357,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
-        Ok(render_backup_file_list(&item.files))
+        Ok(tools::format::render_backup_file_list(&item.files))
     };
 
     let options = default_table_format_options()
@@ -442,7 +423,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        Ok(render_backup_file_list(&item.files))
+        Ok(tools::format::render_backup_file_list(&item.files))
     };
 
     let options = default_table_format_options()
@@ -1635,7 +1616,7 @@ async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<St
 fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     complete_server_file_name(arg, param)
         .iter()
-        .map(|v| strip_server_file_expenstion(&v))
+        .map(|v| tools::format::strip_server_file_expenstion(&v))
         .collect()
 }
 
@@ -1643,7 +1624,7 @@ fn complete_pxar_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec
     complete_server_file_name(arg, param)
         .iter()
         .filter_map(|v| {
-            let name = strip_server_file_expenstion(&v);
+            let name = tools::format::strip_server_file_expenstion(&v);
             if name.ends_with(".pxar") {
                 Some(name)
             } else {
@@ -2178,6 +2159,11 @@ fn catalog_mgmt_cli() -> CliCommandMap {
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
+            all: {
+                type: Boolean,
+                description: "Also list stopped tasks.",
+                optional: true,
+            },
         }
     }
 )]
@@ -2190,29 +2176,28 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let client = connect(repo.host(), repo.user())?;
 
     let limit = param["limit"].as_u64().unwrap_or(50) as usize;
+    let running = !param["all"].as_bool().unwrap_or(false);
 
     let args = json!({
-        "running": true,
+        "running": running,
         "start": 0,
         "limit": limit,
         "userfilter": repo.user(),
         "store": repo.store(),
     });
-    let result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
-    let data = &result["data"];
+    let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
+    let mut data = result["data"].take();
 
-    if output_format == "text" {
-        for item in data.as_array().unwrap() {
-            println!(
-                "{} {}",
-                item["upid"].as_str().unwrap(),
-                item["status"].as_str().unwrap_or("running"),
-            );
-        }
-    } else {
-        format_and_print_result(data, &output_format);
-    }
+    let schema = &proxmox_backup::api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("endtime").right_align(false).renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("upid"))
+        .column(ColumnConfig::new("status").renderer(tools::format::render_task_status));
+
+    format_and_print_result_full(&mut data, schema, &output_format, &options);
 
     Ok(Value::Null)
 }

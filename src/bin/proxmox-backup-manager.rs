@@ -15,27 +15,6 @@ use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
 use proxmox_backup::auth_helpers::*;
 
-fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
-    if value.is_null() { return Ok(String::new()); }
-    let text = match value.as_i64() {
-        Some(epoch) => {
-            Local.timestamp(epoch, 0).format("%c").to_string()
-        }
-        None => {
-            value.to_string()
-        }
-    };
-    Ok(text)
-}
-
-fn render_status(value: &Value, record: &Value) -> Result<String, Error> {
-    if record["endtime"].is_null() {
-        Ok(value.as_str().unwrap_or("running").to_string())
-    } else {
-        Ok(value.as_str().unwrap_or("unknown").to_string())
-    }
-}
-
 async fn view_task_result(
     client: HttpClient,
     result: Value,
@@ -287,10 +266,10 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let options = TableFormatOptions::new()
         .noborder(false)
         .noheader(false)
-        .column(ColumnConfig::new("starttime").right_align(false).renderer(render_epoch))
-        .column(ColumnConfig::new("endtime").right_align(false).renderer(render_epoch))
+        .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("endtime").right_align(false).renderer(tools::format::render_epoch))
         .column(ColumnConfig::new("upid"))
-        .column(ColumnConfig::new("status").renderer(render_status));
+        .column(ColumnConfig::new("status").renderer(tools::format::render_task_status));
 
     format_and_print_result_full(&mut data, schema, &output_format, &options);
 
