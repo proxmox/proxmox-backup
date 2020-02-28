@@ -65,7 +65,7 @@ fn connect() -> Result<HttpClient, Error> {
 /// List configured remotes.
 fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let info = &api2::config::remote::API_METHOD_LIST_REMOTES;
     let mut data = match info.handler {
@@ -73,9 +73,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, 
         _ => unreachable!(),
     };
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
-        .noheader(false)
+    let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("host"))
         .column(ColumnConfig::new("userid"))
@@ -152,7 +150,7 @@ fn datastore_commands() -> CommandLineInterface {
 /// Start garbage collection for a specific datastore.
 async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let store = tools::required_string_param(&param, "store")?;
 
@@ -183,7 +181,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 /// Show garbage collection status for a specific datastore.
 async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let store = tools::required_string_param(&param, "store")?;
 
@@ -195,9 +193,7 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
     let mut data = result["data"].take();
     let schema = api2::admin::datastore::API_RETURN_SCHEMA_GARBAGE_COLLECTION_STATUS;
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
-        .noheader(false);
+    let options = default_table_format_options();
 
     format_and_print_result_full(&mut data, schema, &output_format, &options);
 
@@ -247,7 +243,7 @@ fn garbage_collection_commands() -> CommandLineInterface {
 /// List running server tasks.
 async fn task_list(param: Value) -> Result<Value, Error> {
 
-    let output_format = param["output-format"].as_str().unwrap_or("text").to_owned();
+    let output_format = get_output_format(&param);
 
     let client = connect()?;
 
@@ -263,9 +259,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut data = result["data"].take();
     let schema = api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
 
-    let options = TableFormatOptions::new()
-        .noborder(false)
-        .noheader(false)
+    let options = default_table_format_options()
         .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
         .column(ColumnConfig::new("endtime").right_align(false).renderer(tools::format::render_epoch))
         .column(ColumnConfig::new("upid"))
@@ -458,10 +452,10 @@ async fn pull_datastore(
     remote_store: String,
     local_store: String,
     delete: Option<bool>,
-    output_format: Option<String>,
+    param: Value,
 ) -> Result<Value, Error> {
 
-    let output_format = output_format.unwrap_or("text".to_string());
+    let output_format = get_output_format(&param);
 
     let mut client = connect()?;
 
