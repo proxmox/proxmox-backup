@@ -351,10 +351,10 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
         Ok(group.group_path().to_str().unwrap().to_owned())
     };
 
-    let render_backup_timestamp = |v: &Value, _record: &Value| -> Result<String, Error> {
-        let epoch = v.as_i64().unwrap();
-        let last_backup = Utc.timestamp(epoch, 0);
-        Ok(BackupDir::backup_time_to_string(last_backup))
+    let render_last_backup = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: GroupListItem = serde_json::from_value(record.to_owned())?;
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.last_backup);
+        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
@@ -366,7 +366,12 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
         .sortby("backup-type", false)
         .sortby("backup-id", false)
         .column(ColumnConfig::new("backup-id").renderer(render_group_path).header("group"))
-        .column(ColumnConfig::new("last-backup").renderer(render_backup_timestamp))
+        .column(
+            ColumnConfig::new("last-backup")
+                .renderer(render_last_backup)
+                .header("last snapshot")
+                .right_align(false)
+        )
         .column(ColumnConfig::new("backup-count"))
         .column(ColumnConfig::new("files").renderer(render_files));
 
