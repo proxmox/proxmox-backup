@@ -1,7 +1,16 @@
 TODO list for Proxmox Backup
 ============================
 
-* proxmox-backup-client: verify server cert (save/compare last saved cert fingerprint)
+* user management api
+
+* disk management api
+
+* start writing server GUI
+
+* improve catalog shell commands
+
+* improve user documentation
+
 
 Suggestions
 ===========
