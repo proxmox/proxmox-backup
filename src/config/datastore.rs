@@ -3,11 +3,19 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-use proxmox::api::{api, schema::*};
+use proxmox::api::{
+    api,
+    schema::*,
+    section_config::{
+        SectionConfig,
+        SectionConfigData,
+        SectionConfigPlugin,
+    }
+};
+
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::api2::types::*;
-use crate::section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 
 lazy_static! {
     static ref CONFIG: SectionConfig = init();

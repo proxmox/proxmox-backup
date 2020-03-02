@@ -9,8 +9,6 @@ pub mod server;
 
 pub mod pxar;
 
-pub mod section_config;
-
 #[macro_use]
 pub mod backup;
 

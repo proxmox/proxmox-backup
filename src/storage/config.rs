@@ -1,9 +1,14 @@
 use failure::*;
 use lazy_static::lazy_static;
 
-use proxmox::api::schema::*;
-
-use crate::section_config::*;
+use proxmox::api::{
+    schema::*,
+    section_config::{
+        SectionConfig,
+        SectionConfigData,
+        SectionConfigPlugin,
+    }
+};
 
 lazy_static!{
     static ref STORAGE_SECTION_CONFIG: SectionConfig = register_storage_plugins();
