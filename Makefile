@@ -37,9 +37,11 @@ CARGO ?= cargo
 COMPILED_BINS := \
 	$(addprefix $(COMPILEDIR)/,$(USR_BIN) $(USR_SBIN) $(SERVICE_BIN))
 
-DEBS= ${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb ${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
-
+SERVER_DEB=${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb
+CLIENT_DEB=${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
 DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
+
+DEBS=${SERVER_DEB} ${CLIENT_DEB}
 
 DSC = rust-${PACKAGE}_${DEB_VERSION}.dsc
 
@@ -135,7 +137,8 @@ install: $(COMPILED_BINS)
 	$(MAKE) -C docs install
 
 .PHONY: upload
-upload: ${DEBS}
+upload: ${SERVER_DEB} ${CLIENT_DEB} ${DOC_DEB}
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - ${DEBS} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
+	tar cf - ${SERVER_DEB} ${DOC_DEB} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
+	tar cf - ${CLIENT_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pbs,pve" --dist buster
