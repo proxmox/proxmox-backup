@@ -1,3 +1,21 @@
+rust-proxmox-backup (0.1.3-1) unstable; urgency=medium
+
+  * use SectionConfig from proxmox 0.1.18-1
+
+  * docs/administration-guide.rst: add small section to explain output-format
+
+  * depend on proxmox 0.1.18
+
+  * improve cli output format
+
+  * catalog shell improvements
+
+  * Add zsh completion scripts
+
+  * call OPENSSL_thread_stop to avoid race with openssl cleanup handlers
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 03 Mar 2020 07:25:23 +0100
+
 rust-proxmox-backup (0.1.2-1) unstable; urgency=medium
 
   * switch to debcargo to generate build-dependencies
