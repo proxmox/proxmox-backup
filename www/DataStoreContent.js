@@ -93,7 +93,7 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    xtype: 'numbercolumn',
 		    format: '0',
-		    header: gettext('Nuber of backups'),
+		    header: gettext('Number of Backups'),
 		    sortable: true,
 		    dataIndex: 'backup-count',
 		    flex: 1
