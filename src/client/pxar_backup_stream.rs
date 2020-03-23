@@ -9,12 +9,12 @@ use std::thread;
 
 use anyhow::{format_err, Error};
 use futures::stream::Stream;
-
+use nix::dir::Dir;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;
-use nix::dir::Dir;
 
-use crate::pxar;
+use pathpatterns::MatchEntry;
+
 use crate::backup::CatalogWriter;
 
 /// Stream implementation to encode and upload .pxar archives.
@@ -29,7 +29,6 @@ pub struct PxarBackupStream {
 }
 
 impl Drop for PxarBackupStream {
-
     fn drop(&mut self) {
         self.rx = None;
         self.child.take().unwrap().join().unwrap();
@@ -37,46 +36,49 @@ impl Drop for PxarBackupStream {
 }
 
 impl PxarBackupStream {
-
     pub fn new<W: Write + Send + 'static>(
-        mut dir: Dir,
-        path: PathBuf,
+        dir: Dir,
+        _path: PathBuf,
         device_set: Option<HashSet<u64>>,
-        verbose: bool,
+        _verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        exclude_pattern: Vec<pxar::MatchPattern>,
+        exclude_pattern: Vec<MatchEntry>,
         entries_max: usize,
     ) -> Result<Self, Error> {
-
         let (tx, rx) = std::sync::mpsc::sync_channel(10);
 
-        let buffer_size = 256*1024;
+        let buffer_size = 256 * 1024;
 
         let error = Arc::new(Mutex::new(None));
-        let error2 = error.clone();
+        let child = std::thread::Builder::new()
+            .name("PxarBackupStream".to_string())
+            .spawn({
+                let error = Arc::clone(&error);
+                move || {
+                    let mut catalog_guard = catalog.lock().unwrap();
+                    let writer = std::io::BufWriter::with_capacity(
+                        buffer_size,
+                        crate::tools::StdChannelWriter::new(tx),
+                    );
 
-        let catalog = catalog.clone();
-        let child = std::thread::Builder::new().name("PxarBackupStream".to_string()).spawn(move || {
-            let mut guard = catalog.lock().unwrap();
-            let mut writer = std::io::BufWriter::with_capacity(buffer_size, crate::tools::StdChannelWriter::new(tx));
-
-            if let Err(err) = pxar::Encoder::encode(
-                path,
-                &mut dir,
-                &mut writer,
-                Some(&mut *guard),
-                device_set,
-                verbose,
-                skip_lost_and_found,
-                pxar::flags::DEFAULT,
-                exclude_pattern,
-                entries_max,
-            ) {
-                let mut error = error2.lock().unwrap();
-                *error = Some(err.to_string());
-            }
-        })?;
+                    let writer = pxar::encoder::sync::StandardWriter::new(writer);
+                    if let Err(err) = crate::pxar::create_archive(
+                        dir,
+                        writer,
+                        exclude_pattern,
+                        crate::pxar::flags::DEFAULT,
+                        device_set,
+                        skip_lost_and_found,
+                        |_| Ok(()),
+                        entries_max,
+                        Some(&mut *catalog_guard),
+                    ) {
+                        let mut error = error.lock().unwrap();
+                        *error = Some(err.to_string());
+                    }
+                }
+            })?;
 
         Ok(Self {
             rx: Some(rx),
@@ -91,23 +93,31 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        exclude_pattern: Vec<pxar::MatchPattern>,
+        exclude_pattern: Vec<MatchEntry>,
         entries_max: usize,
     ) -> Result<Self, Error> {
-
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
         let path = std::path::PathBuf::from(dirname);
 
-        Self::new(dir, path, device_set, verbose, skip_lost_and_found, catalog, exclude_pattern, entries_max)
+        Self::new(
+            dir,
+            path,
+            device_set,
+            verbose,
+            skip_lost_and_found,
+            catalog,
+            exclude_pattern,
+            entries_max,
+        )
     }
 }
 
 impl Stream for PxarBackupStream {
-
     type Item = Result<Vec<u8>, Error>;
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
-        { // limit lock scope
+        {
+            // limit lock scope
             let error = self.error.lock().unwrap();
             if let Some(ref msg) = *error {
                 return Poll::Ready(Some(Err(format_err!("{}", msg))));

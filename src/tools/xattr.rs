@@ -16,6 +16,22 @@ pub fn xattr_name_fcaps() -> &'static CStr {
     c_str!("security.capability")
 }
 
+/// `"system.posix_acl_access"` as a CStr to avoid typos.
+///
+/// This cannot be `const` until `const_cstr_unchecked` is stable.
+#[inline]
+pub fn xattr_acl_access() -> &'static CStr {
+    c_str!("system.posix_acl_access")
+}
+
+/// `"system.posix_acl_default"` as a CStr to avoid typos.
+///
+/// This cannot be `const` until `const_cstr_unchecked` is stable.
+#[inline]
+pub fn xattr_acl_default() -> &'static CStr {
+    c_str!("system.posix_acl_default")
+}
+
 /// Result of `flistxattr`, allows iterating over the attributes as a list of `&CStr`s.
 ///
 /// Listing xattrs produces a list separated by zeroes, inherently making them available as `&CStr`
@@ -137,6 +153,11 @@ pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &[u8]) -> Result<(), nix::errno::Errno>
 
 pub fn is_security_capability(name: &CStr) -> bool {
     name.to_bytes() == xattr_name_fcaps().to_bytes()
+}
+
+pub fn is_acl(name: &CStr) -> bool {
+    name.to_bytes() == xattr_acl_access().to_bytes()
+    || name.to_bytes() == xattr_acl_default().to_bytes()
 }
 
 /// Check if the passed name buffer starts with a valid xattr namespace prefix

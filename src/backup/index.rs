@@ -1,10 +1,23 @@
 use std::collections::HashMap;
+use std::ops::Range;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::{Bytes, BytesMut};
 use anyhow::{format_err, Error};
 use futures::*;
+
+pub struct ChunkReadInfo {
+    pub range: Range<u64>,
+    pub digest: [u8; 32],
+}
+
+impl ChunkReadInfo {
+    #[inline]
+    pub fn size(&self) -> u64 {
+        self.range.end - self.range.start
+    }
+}
 
 /// Trait to get digest list from index files
 ///

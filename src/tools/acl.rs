@@ -49,7 +49,8 @@ pub const ACL_EA_VERSION: u32 = 0x0002;
 #[link(name = "acl")]
 extern "C" {
     fn acl_get_file(path: *const c_char, acl_type: ACLType) -> *mut c_void;
-    fn acl_set_file(path: *const c_char, acl_type: ACLType, acl: *mut c_void) -> c_int;
+    // FIXME: remove 'pub' after the cleanup
+    pub(crate) fn acl_set_file(path: *const c_char, acl_type: ACLType, acl: *mut c_void) -> c_int;
     fn acl_get_fd(fd: RawFd) -> *mut c_void;
     fn acl_get_entry(acl: *const c_void, entry_id: c_int, entry: *mut *mut c_void) -> c_int;
     fn acl_create_entry(acl: *mut *mut c_void, entry: *mut *mut c_void) -> c_int;
@@ -68,7 +69,8 @@ extern "C" {
 
 #[derive(Debug)]
 pub struct ACL {
-    ptr: *mut c_void,
+    // FIXME: remove 'pub' after the cleanup
+    pub(crate) ptr: *mut c_void,
 }
 
 impl Drop for ACL {

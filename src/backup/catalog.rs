@@ -1,18 +1,18 @@
-use anyhow::{bail, format_err, Error};
-use std::fmt;
-use std::ffi::{CStr, CString, OsStr};
-use std::os::unix::ffi::OsStrExt;
-use std::io::{Read, Write, Seek, SeekFrom};
 use std::convert::TryFrom;
+use std::ffi::{CStr, CString, OsStr};
+use std::fmt;
+use std::io::{Read, Write, Seek, SeekFrom};
+use std::os::unix::ffi::OsStrExt;
 
+use anyhow::{bail, format_err, Error};
 use chrono::offset::{TimeZone, Local};
 
-use proxmox::tools::io::ReadExt;
+use pathpatterns::{MatchList, MatchType};
 use proxmox::sys::error::io_err_other;
+use proxmox::tools::io::ReadExt;
 
-use crate::pxar::catalog::BackupCatalogWriter;
-use crate::pxar::{MatchPattern, MatchPatternSlice, MatchType};
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
+use crate::pxar::catalog::BackupCatalogWriter;
 use crate::tools::runtime::block_on;
 
 #[repr(u8)]
@@ -63,7 +63,7 @@ pub struct DirEntry {
 }
 
 /// Used to specific additional attributes inside DirEntry
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DirEntryAttribute {
     Directory { start: u64 },
     File { size: u64, mtime: u64 },
@@ -104,6 +104,23 @@ impl DirEntry {
                 DirEntry { name, attr: DirEntryAttribute::Socket }
             }
         }
+    }
+
+    /// Get file mode bits for this entry to be used with the `MatchList` api.
+    pub fn get_file_mode(&self) -> Option<u32> {
+        Some(
+            match self.attr {
+                DirEntryAttribute::Directory { .. } => pxar::mode::IFDIR,
+                DirEntryAttribute::File { .. } => pxar::mode::IFREG,
+                DirEntryAttribute::Symlink => pxar::mode::IFLNK,
+                DirEntryAttribute::Hardlink => return None,
+                DirEntryAttribute::BlockDevice => pxar::mode::IFBLK,
+                DirEntryAttribute::CharDevice => pxar::mode::IFCHR,
+                DirEntryAttribute::Fifo => pxar::mode::IFIFO,
+                DirEntryAttribute::Socket => pxar::mode::IFSOCK,
+            }
+            as u32
+        )
     }
 
     /// Check if DirEntry is a directory
@@ -476,7 +493,7 @@ impl <R: Read + Seek> CatalogReader<R> {
         &mut self,
         parent: &DirEntry,
         filename: &[u8],
-    ) -> Result<DirEntry, Error>  {
+    ) -> Result<Option<DirEntry>, Error>  {
 
         let start = match parent.attr {
             DirEntryAttribute::Directory { start } => start,
@@ -496,10 +513,7 @@ impl <R: Read + Seek> CatalogReader<R> {
             Ok(false) // stop parsing
         })?;
 
-        match item {
-            None => bail!("no such file"),
-            Some(entry) => Ok(entry),
-        }
+        Ok(item)
     }
 
     /// Read the raw directory info block from current reader position.
@@ -555,38 +569,30 @@ impl <R: Read + Seek> CatalogReader<R> {
     /// provided callback on them.
     pub fn find(
         &mut self,
-        mut entry: &mut Vec<DirEntry>,
-        pattern: &[MatchPatternSlice],
-        callback: &Box<fn(&[DirEntry])>,
+        parent: &DirEntry,
+        file_path: &mut Vec<u8>,
+        match_list: &impl MatchList, //&[MatchEntry],
+        callback: &mut dyn FnMut(&[u8]) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        let parent = entry.last().unwrap();
-        if !parent.is_directory() {
-            return Ok(())
-        }
-
+        let file_len = file_path.len();
         for e in self.read_dir(parent)?  {
-            match MatchPatternSlice::match_filename_include(
-                &CString::new(e.name.clone())?,
-                e.is_directory(),
-                pattern,
-            )? {
-                (MatchType::Positive, _) => {
-                    entry.push(e);
-                    callback(&entry);
-                    let pattern = MatchPattern::from_line(b"**/*").unwrap().unwrap();
-                    let child_pattern = vec![pattern.as_slice()];
-                    self.find(&mut entry, &child_pattern, callback)?;
-                    entry.pop();
-                }
-                (MatchType::PartialPositive, child_pattern)
-                | (MatchType::PartialNegative, child_pattern) => {
-                    entry.push(e);
-                    self.find(&mut entry, &child_pattern, callback)?;
-                    entry.pop();
-                }
-                _ => {}
+            let is_dir = e.is_directory();
+            file_path.truncate(file_len);
+            if !e.name.starts_with(b"/") {
+                file_path.reserve(e.name.len() + 1);
+                file_path.push(b'/');
+            }
+            file_path.extend(&e.name);
+            match match_list.matches(&file_path, e.get_file_mode()) {
+                Some(MatchType::Exclude) => continue,
+                Some(MatchType::Include) => callback(&file_path)?,
+                None => (),
+            }
+            if is_dir {
+                self.find(&e, file_path, match_list, callback)?;
             }
         }
+        file_path.truncate(file_len);
 
         Ok(())
     }

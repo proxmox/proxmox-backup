@@ -3,11 +3,11 @@
 //! This library implements the client side to access the backups
 //! server using https.
 
-pub mod pipe_to_stream;
 mod merge_known_chunks;
+pub mod pipe_to_stream;
 
 mod http_client;
-pub use  http_client::*;
+pub use http_client::*;
 
 mod task_log;
 pub use task_log::*;
@@ -23,9 +23,6 @@ pub use remote_chunk_reader::*;
 
 mod pxar_backup_stream;
 pub use pxar_backup_stream::*;
-
-mod pxar_decode_writer;
-pub use pxar_decode_writer::*;
 
 mod backup_repo;
 pub use backup_repo::*;

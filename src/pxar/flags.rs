@@ -3,6 +3,8 @@
 //! Flags for known supported features for a given filesystem can be derived
 //! from the superblocks magic number.
 
+// FIXME: use bitflags!() here!
+
 /// FAT-style 2s time granularity
 pub const WITH_2SEC_TIME: u64                   = 0x40;
 /// Preserve read only flag of files

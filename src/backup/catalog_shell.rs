@@ -1,213 +1,119 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::ffi::{CString, OsStr};
+use std::ffi::{CStr, CString, OsStr, OsString};
+use std::future::Future;
 use std::io::Write;
+use std::mem;
 use std::os::unix::ffi::OsStrExt;
-use std::path::{Component, Path, PathBuf};
+use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
-use chrono::{Utc, offset::TimeZone};
 use anyhow::{bail, format_err, Error};
-use nix::sys::stat::{Mode, SFlag};
+use nix::dir::Dir;
+use nix::fcntl::OFlag;
+use nix::sys::stat::Mode;
 
-use proxmox::api::{cli::*, *};
-use proxmox::sys::linux::tty;
+use pathpatterns::{MatchEntry, MatchList, MatchPattern, MatchType, PatternFlag};
+use proxmox::api::api;
+use proxmox::api::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
+use proxmox::c_result;
+use proxmox::tools::fs::{create_path, CreateOptions};
+use pxar::{EntryKind, Metadata};
 
-use super::catalog::{CatalogReader, DirEntry};
-use crate::pxar::*;
-use crate::tools;
+use crate::backup::catalog::{self, DirEntryAttribute};
 
+// FIXME: Remove looku_self() calls by putting Directory into the dir stack
+use crate::pxar::dir_stack::PxarDirStack;
+use crate::pxar::flags;
+use crate::pxar::fuse::{Accessor, FileEntry};
+use crate::pxar::metadata;
 
-const PROMPT_PREFIX: &str = "pxar:";
-const PROMPT: &str = ">";
+type CatalogReader = crate::backup::CatalogReader<std::fs::File>;
 
-/// Interactive shell for interacton with the catalog.
-pub struct Shell {
-    /// Readline instance handling input and callbacks
-    rl: rustyline::Editor<CliHelper>,
-    prompt: String,
-}
+const MAX_SYMLINK_COUNT: usize = 40;
+
+static mut SHELL: Option<usize> = None;
 
 /// This list defines all the shell commands and their properties
 /// using the api schema
 pub fn catalog_shell_cli() -> CommandLineInterface {
-
-    let map = CliCommandMap::new()
-        .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND))
-        .insert(
-            "cd",
-            CliCommand::new(&API_METHOD_CD_COMMAND)
-                .arg_param(&["path"])
-                .completion_cb("path", Shell::complete_path)
-        )
-        .insert(
-            "ls",
-            CliCommand::new(&API_METHOD_LS_COMMAND)
-                .arg_param(&["path"])
-                .completion_cb("path", Shell::complete_path)
-         )
-        .insert(
-            "stat",
-            CliCommand::new(&API_METHOD_STAT_COMMAND)
-                .arg_param(&["path"])
-                .completion_cb("path", Shell::complete_path)
-         )
-        .insert(
-            "select",
-            CliCommand::new(&API_METHOD_SELECT_COMMAND)
-                .arg_param(&["path"])
-                .completion_cb("path", Shell::complete_path)
-        )
-        .insert(
-            "deselect",
-            CliCommand::new(&API_METHOD_DESELECT_COMMAND)
-                .arg_param(&["path"])
-                .completion_cb("path", Shell::complete_path)
-        )
-        .insert(
-            "clear-selected",
-            CliCommand::new(&API_METHOD_CLEAR_SELECTED_COMMAND)
-        )
-        .insert(
-            "restore-selected",
-            CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
-                .arg_param(&["target"])
-                .completion_cb("target", tools::complete_file_name)
-        )
-        .insert(
-            "list-selected",
-            CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND),
-        )
-        .insert(
-            "restore",
-            CliCommand::new(&API_METHOD_RESTORE_COMMAND)
-                .arg_param(&["target"])
-                .completion_cb("target", tools::complete_file_name)
-        )
-        .insert(
-            "find",
-            CliCommand::new(&API_METHOD_FIND_COMMAND)
-                .arg_param(&["path", "pattern"])
-                .completion_cb("path", Shell::complete_path)
-        )
-        .insert_help();
-
-    CommandLineInterface::Nested(map)
+    CommandLineInterface::Nested(
+        CliCommandMap::new()
+            .insert("pwd", CliCommand::new(&API_METHOD_PWD_COMMAND))
+            .insert(
+                "cd",
+                CliCommand::new(&API_METHOD_CD_COMMAND)
+                    .arg_param(&["path"])
+                    .completion_cb("path", complete_path),
+            )
+            .insert(
+                "ls",
+                CliCommand::new(&API_METHOD_LS_COMMAND)
+                    .arg_param(&["path"])
+                    .completion_cb("path", complete_path),
+            )
+            .insert(
+                "stat",
+                CliCommand::new(&API_METHOD_STAT_COMMAND)
+                    .arg_param(&["path"])
+                    .completion_cb("path", complete_path),
+            )
+            .insert(
+                "select",
+                CliCommand::new(&API_METHOD_SELECT_COMMAND)
+                    .arg_param(&["path"])
+                    .completion_cb("path", complete_path),
+            )
+            .insert(
+                "deselect",
+                CliCommand::new(&API_METHOD_DESELECT_COMMAND)
+                    .arg_param(&["path"])
+                    .completion_cb("path", complete_path),
+            )
+            .insert(
+                "clear-selected",
+                CliCommand::new(&API_METHOD_CLEAR_SELECTED_COMMAND),
+            )
+            .insert(
+                "list-selected",
+                CliCommand::new(&API_METHOD_LIST_SELECTED_COMMAND),
+            )
+            .insert(
+                "restore-selected",
+                CliCommand::new(&API_METHOD_RESTORE_SELECTED_COMMAND)
+                    .arg_param(&["target"])
+                    .completion_cb("target", crate::tools::complete_file_name),
+            )
+            .insert(
+                "restore",
+                CliCommand::new(&API_METHOD_RESTORE_COMMAND)
+                    .arg_param(&["target"])
+                    .completion_cb("target", crate::tools::complete_file_name),
+            )
+            .insert(
+                "find",
+                CliCommand::new(&API_METHOD_FIND_COMMAND).arg_param(&["pattern"]),
+            )
+            .insert_help(),
+    )
 }
 
-impl Shell {
-    /// Create a new shell for the given catalog and pxar archive.
-    pub fn new(
-        mut catalog: CatalogReader<std::fs::File>,
-        archive_name: &str,
-        decoder: Decoder,
-    ) -> Result<Self, Error> {
-        let catalog_root = catalog.root()?;
-        // The root for the given archive as stored in the catalog
-        let archive_root = catalog.lookup(&catalog_root, archive_name.as_bytes())?;
-        let path = CatalogPathStack::new(archive_root);
-
-        CONTEXT.with(|handle| {
-            let mut ctx = handle.borrow_mut();
-            *ctx = Some(Context {
-                catalog,
-                selected: Vec::new(),
-                decoder,
-                path,
-            });
-        });
-
-        let cli_helper = CliHelper::new(catalog_shell_cli());
-        let mut rl = rustyline::Editor::<CliHelper>::new();
-        rl.set_helper(Some(cli_helper));
-
-        Context::with(|ctx| {
-            Ok(Self {
-                rl,
-                prompt: ctx.generate_prompt()?,
-            })
-        })
-    }
-
-    /// Start the interactive shell loop
-    pub fn shell(mut self) -> Result<(), Error> {
-        while let Ok(line) = self.rl.readline(&self.prompt) {
-            let helper = self.rl.helper().unwrap();
-            let args = match shellword_split(&line) {
-                Ok(args) => args,
-                Err(err) => {
-                    println!("Error: {}", err);
-                    continue;
-                }
-            };
-
-            let rpcenv = CliEnvironment::new();
-            let _ = handle_command(helper.cmd_def(), "", args, rpcenv, None);
-            self.rl.add_history_entry(line);
-            self.update_prompt()?;
+fn complete_path(complete_me: &str, _map: &HashMap<String, String>) -> Vec<String> {
+    let shell: &mut Shell = unsafe { std::mem::transmute(SHELL.unwrap()) };
+    match shell.complete_path(complete_me) {
+        Ok(list) => list,
+        Err(err) => {
+            eprintln!("error during completion: {}", err);
+            Vec::new()
         }
-        Ok(())
-    }
-
-    /// Update the prompt to the new working directory
-    fn update_prompt(&mut self) -> Result<(), Error> {
-        Context::with(|ctx| {
-            self.prompt = ctx.generate_prompt()?;
-            Ok(())
-        })
-    }
-
-    /// Completions for paths by lookup in the catalog
-    fn complete_path(complete_me: &str, _map: &HashMap<String, String>) -> Vec<String> {
-        Context::with(|ctx| {
-            let (base, to_complete) = match complete_me.rfind('/') {
-                // Split at ind + 1 so the slash remains on base, ok also if
-                // ends in slash as split_at accepts up to length as index.
-                Some(ind) => complete_me.split_at(ind + 1),
-                None => ("", complete_me),
-            };
-
-            let current = if base.is_empty() {
-                ctx.path.last().clone()
-            } else {
-                let mut local = ctx.path.clone();
-                local.traverse(&PathBuf::from(base), &mut ctx.decoder, &mut ctx.catalog, false)?;
-                local.last().clone()
-            };
-
-            let entries = match ctx.catalog.read_dir(&current) {
-                Ok(entries) => entries,
-                Err(_) => return Ok(Vec::new()),
-            };
-
-            let mut list = Vec::new();
-            for entry in &entries {
-                let mut name = String::from(base);
-                if entry.name.starts_with(to_complete.as_bytes()) {
-                    name.push_str(std::str::from_utf8(&entry.name)?);
-                    if entry.is_directory() {
-                        name.push('/');
-                    }
-                    list.push(name);
-                }
-            }
-            Ok(list)
-        })
-        .unwrap_or_default()
     }
 }
 
 #[api(input: { properties: {} })]
 /// List the current working directory.
-fn pwd_command() -> Result<(), Error> {
-    Context::with(|ctx| {
-        let path = ctx.path.generate_cstring()?;
-        let mut out = std::io::stdout();
-        out.write_all(&path.as_bytes())?;
-        out.write_all(&[b'\n'])?;
-        out.flush()?;
-        Ok(())
-    })
+async fn pwd_command() -> Result<(), Error> {
+    Shell::with(move |shell| shell.pwd()).await
 }
 
 #[api(
@@ -222,22 +128,9 @@ fn pwd_command() -> Result<(), Error> {
     }
 )]
 /// Change the current working directory to the new directory
-fn cd_command(path: Option<String>) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let path = path.unwrap_or_default();
-        if path.is_empty() {
-            ctx.path.clear();
-            return Ok(());
-        }
-        let mut local = ctx.path.clone();
-        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, true)?;
-        if !local.last().is_directory() {
-            local.pop();
-            eprintln!("not a directory, fallback to parent directory");
-        }
-        ctx.path = local;
-        Ok(())
-    })
+async fn cd_command(path: Option<String>) -> Result<(), Error> {
+    let path = path.as_ref().map(Path::new);
+    Shell::with(move |shell| shell.cd(path)).await
 }
 
 #[api(
@@ -252,50 +145,9 @@ fn cd_command(path: Option<String>) -> Result<(), Error> {
     }
 )]
 /// List the content of working directory or given path.
-fn ls_command(path: Option<String>) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let parent = if let Some(ref path) = path {
-            let mut local = ctx.path.clone();
-            local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
-            local.last().clone()
-        } else {
-            ctx.path.last().clone()
-        };
-
-        let list = if parent.is_directory() {
-            ctx.catalog.read_dir(&parent)?
-        } else {
-            vec![parent.clone()]
-        };
-
-        if list.is_empty() {
-            return Ok(());
-        }
-        let max = list.iter().max_by(|x, y| x.name.len().cmp(&y.name.len()));
-        let max = match max {
-            Some(dir_entry) => dir_entry.name.len() + 1,
-            None => 0,
-        };
-
-        let (_rows, mut cols) = tty::stdout_terminal_size();
-        cols /= max;
-
-        let mut out = std::io::stdout();
-        for (index, item) in list.iter().enumerate() {
-            out.write_all(&item.name)?;
-            // Fill with whitespaces
-            out.write_all(&vec![b' '; max - item.name.len()])?;
-            if index % cols == (cols - 1) {
-                out.write_all(&[b'\n'])?;
-            }
-        }
-        // If the last line is not complete, add the newline
-        if list.len() % cols != cols - 1 {
-            out.write_all(&[b'\n'])?;
-        }
-        out.flush()?;
-        Ok(())
-    })
+async fn ls_command(path: Option<String>) -> Result<(), Error> {
+    let path = path.as_ref().map(Path::new);
+    Shell::with(move |shell| shell.ls(path)).await
 }
 
 #[api(
@@ -310,104 +162,10 @@ fn ls_command(path: Option<String>) -> Result<(), Error> {
 )]
 /// Read the metadata for a given directory entry.
 ///
-/// This is expensive because the data has to be read from the pxar `Decoder`,
-/// which means reading over the network.
-fn stat_command(path: String) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let mut local = ctx.path.clone();
-        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
-        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
-        let item = canonical.lookup(&mut ctx.decoder)?;
-        let mut out = std::io::stdout();
-        out.write_all(b"  File:\t")?;
-        out.write_all(item.filename.as_bytes())?;
-        out.write_all(b"\n")?;
-        out.write_all(format!("  Size:\t{}\t\t", item.size).as_bytes())?;
-        out.write_all(b"Type:\t")?;
-
-        let mut mode_out = vec![b'-'; 10];
-        match SFlag::from_bits_truncate(item.entry.mode as u32) {
-            SFlag::S_IFDIR => {
-                mode_out[0] = b'd';
-                out.write_all(b"directory\n")?;
-            }
-            SFlag::S_IFREG => {
-                mode_out[0] = b'-';
-                out.write_all(b"regular file\n")?;
-            }
-            SFlag::S_IFLNK => {
-                mode_out[0] = b'l';
-                out.write_all(b"symbolic link\n")?;
-            }
-            SFlag::S_IFBLK => {
-                mode_out[0] = b'b';
-                out.write_all(b"block special file\n")?;
-            }
-            SFlag::S_IFCHR => {
-                mode_out[0] = b'c';
-                out.write_all(b"character special file\n")?;
-            }
-            _ => out.write_all(b"unknown\n")?,
-        };
-
-        let mode = Mode::from_bits_truncate(item.entry.mode as u32);
-        if mode.contains(Mode::S_IRUSR) {
-            mode_out[1] = b'r';
-        }
-        if mode.contains(Mode::S_IWUSR) {
-            mode_out[2] = b'w';
-        }
-        match (mode.contains(Mode::S_IXUSR), mode.contains(Mode::S_ISUID)) {
-            (false, false) => mode_out[3] = b'-',
-            (true, false) => mode_out[3] = b'x',
-            (false, true) => mode_out[3] = b'S',
-            (true, true) => mode_out[3] = b's',
-        }
-
-        if mode.contains(Mode::S_IRGRP) {
-            mode_out[4] = b'r';
-        }
-        if mode.contains(Mode::S_IWGRP) {
-            mode_out[5] = b'w';
-        }
-        match (mode.contains(Mode::S_IXGRP), mode.contains(Mode::S_ISGID)) {
-            (false, false) => mode_out[6] = b'-',
-            (true, false) => mode_out[6] = b'x',
-            (false, true) => mode_out[6] = b'S',
-            (true, true) => mode_out[6] = b's',
-        }
-
-        if mode.contains(Mode::S_IROTH) {
-            mode_out[7] = b'r';
-        }
-        if mode.contains(Mode::S_IWOTH) {
-            mode_out[8] = b'w';
-        }
-        match (mode.contains(Mode::S_IXOTH), mode.contains(Mode::S_ISVTX)) {
-            (false, false) => mode_out[9] = b'-',
-            (true, false) => mode_out[9] = b'x',
-            (false, true) => mode_out[9] = b'T',
-            (true, true) => mode_out[9] = b't',
-        }
-
-        if !item.xattr.xattrs.is_empty() {
-            mode_out.push(b'+');
-        }
-
-        out.write_all(b"Access:\t")?;
-        out.write_all(&mode_out)?;
-        out.write_all(b"\t")?;
-        out.write_all(format!(" Uid:\t{}\t", item.entry.uid).as_bytes())?;
-        out.write_all(format!("Gid:\t{}\n", item.entry.gid).as_bytes())?;
-
-        let time = i64::try_from(item.entry.mtime)?;
-        let sec = time / 1_000_000_000;
-        let nsec = u32::try_from(time % 1_000_000_000)?;
-        let dt = Utc.timestamp(sec, nsec);
-        out.write_all(format!("Modify:\t{}\n", dt.to_rfc2822()).as_bytes())?;
-        out.flush()?;
-        Ok(())
-    })
+/// This is expensive because the data has to be read from the pxar archive, which means reading
+/// over the network.
+async fn stat_command(path: String) -> Result<(), Error> {
+    Shell::with(move |shell| shell.stat(PathBuf::from(path))).await
 }
 
 #[api(
@@ -424,18 +182,8 @@ fn stat_command(path: String) -> Result<(), Error> {
 ///
 /// This will return an error if the entry is already present in the list or
 /// if an invalid path was provided.
-fn select_command(path: String) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let mut local = ctx.path.clone();
-        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
-        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
-        let pattern = MatchPattern::from_line(canonical.generate_cstring()?.as_bytes())?
-            .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
-        if ctx.selected.iter().find(|p| **p == pattern).is_none() {
-            ctx.selected.push(pattern);
-        }
-        Ok(())
-    })
+async fn select_command(path: String) -> Result<(), Error> {
+    Shell::with(move |shell| shell.select(PathBuf::from(path))).await
 }
 
 #[api(
@@ -452,33 +200,52 @@ fn select_command(path: String) -> Result<(), Error> {
 ///
 /// This will return an error if the entry was not found in the list of entries
 /// selected for restore.
-fn deselect_command(path: String) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let mut local = ctx.path.clone();
-        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
-        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
-        println!("{:?}", canonical.generate_cstring()?);
-        let mut pattern = MatchPattern::from_line(canonical.generate_cstring()?.as_bytes())?
-            .ok_or_else(|| format_err!("encountered invalid match pattern"))?;
-        if let Some(last) = ctx.selected.last() {
-            if last == &pattern {
-                ctx.selected.pop();
-                return Ok(());
-            }
-        }
-        pattern.invert();
-        ctx.selected.push(pattern);
-        Ok(())
-    })
+async fn deselect_command(path: String) -> Result<(), Error> {
+    Shell::with(move |shell| shell.deselect(PathBuf::from(path))).await
 }
 
 #[api( input: { properties: { } })]
 /// Clear the list of files selected for restore.
-fn clear_selected_command() -> Result<(), Error> {
-    Context::with(|ctx| {
-        ctx.selected.clear();
-        Ok(())
-    })
+async fn clear_selected_command() -> Result<(), Error> {
+    Shell::with(move |shell| shell.deselect_all()).await
+}
+
+#[api(
+    input: {
+        properties: {
+            patterns: {
+                type: Boolean,
+                description: "List match patterns instead of the matching files.",
+                optional: true,
+                default: false,
+            }
+        }
+    }
+)]
+/// List entries currently selected for restore.
+async fn list_selected_command(patterns: bool) -> Result<(), Error> {
+    Shell::with(move |shell| shell.list_selected(patterns)).await
+}
+
+#[api(
+    input: {
+        properties: {
+            pattern: {
+                type: String,
+                description: "Match pattern for matching files in the catalog."
+            },
+            select: {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "Add matching filenames to list for restore."
+            }
+        }
+    }
+)]
+/// Find entries in the catalog matching the given match pattern.
+async fn find_command(pattern: String, select: bool) -> Result<(), Error> {
+    Shell::with(move |shell| shell.find(pattern, select)).await
 }
 
 #[api(
@@ -494,53 +261,8 @@ fn clear_selected_command() -> Result<(), Error> {
 /// Restore the selected entries to the given target path.
 ///
 /// Target must not exist on the clients filesystem.
-fn restore_selected_command(target: String) -> Result<(), Error> {
-    Context::with(|ctx| {
-        if ctx.selected.is_empty() {
-            bail!("no entries selected for restore");
-        }
-
-        // Entry point for the restore is always root here as the provided match
-        // patterns are relative to root as well.
-        let start_dir = ctx.decoder.root()?;
-        ctx.decoder
-            .restore(&start_dir, &Path::new(&target), &ctx.selected)?;
-        Ok(())
-    })
-}
-
-#[api(
-    input: {
-        properties: {
-            pattern: {
-                type: Boolean,
-                description: "List match patterns instead of the matching files.",
-                optional: true,
-            }
-        }
-    }
-)]
-/// List entries currently selected for restore.
-fn list_selected_command(pattern: Option<bool>) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let mut out = std::io::stdout();
-        if let Some(true) = pattern {
-            out.write_all(&MatchPattern::to_bytes(ctx.selected.as_slice()))?;
-        } else {
-            let mut slices = Vec::with_capacity(ctx.selected.len());
-            for pattern in &ctx.selected {
-                slices.push(pattern.as_slice());
-            }
-            let mut dir_stack = vec![ctx.path.root()];
-            ctx.catalog.find(
-                &mut dir_stack,
-                &slices,
-                &Box::new(|path: &[DirEntry]| println!("{:?}", Context::generate_cstring(path).unwrap()))
-            )?;
-        }
-        out.flush()?;
-        Ok(())
-    })
+async fn restore_selected_command(target: String) -> Result<(), Error> {
+    Shell::with(move |shell| shell.restore_selected(PathBuf::from(target))).await
 }
 
 #[api(
@@ -563,322 +285,1082 @@ fn list_selected_command(pattern: Option<bool>) -> Result<(), Error> {
 /// By further providing a pattern, the restore can be limited to a narrower
 /// subset of this sub-archive.
 /// If pattern is not present or empty, the full archive is restored to target.
-fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let pattern = pattern.unwrap_or_default();
-        let match_pattern = match pattern.as_str() {
-            "" | "/" | "." => Vec::new(),
-            _ => vec![MatchPattern::from_line(pattern.as_bytes())?.unwrap()],
-        };
-        // Decoder entry point for the restore.
-        let start_dir = if pattern.starts_with("/") {
-            ctx.decoder.root()?
-        } else {
-            // Get the directory corresponding to the working directory from the
-            // archive.
-            let cwd = ctx.path.clone();
-            cwd.lookup(&mut ctx.decoder)?
-        };
-
-        ctx.decoder
-            .restore(&start_dir, &Path::new(&target), &match_pattern)?;
-        Ok(())
-    })
+async fn restore_command(target: String, pattern: Option<String>) -> Result<(), Error> {
+    Shell::with(move |shell| shell.restore(PathBuf::from(target), pattern)).await
 }
 
-#[api(
-    input: {
-        properties: {
-            path: {
-                type: String,
-                description: "Path to node from where to start the search."
-            },
-            pattern: {
-                type: String,
-                description: "Match pattern for matching files in the catalog."
-            },
-            select: {
-                type: bool,
-                optional: true,
-                description: "Add matching filenames to list for restore."
+/// FIXME: Should we use this to fix `step()`?
+///
+/// The `Path` type's component iterator does not tell us anything about trailing slashes or
+/// trailing `Component::CurDir` entries. Since we only support regular paths we'll roll our own
+/// here:
+enum PathComponent<'a> {
+    Root,
+    CurDir,
+    ParentDir,
+    Normal(&'a OsStr),
+    TrailingSlash,
+}
+
+struct PathComponentIter<'a> {
+    path: &'a [u8],
+    state: u8, // 0=beginning, 1=ongoing, 2=trailing, 3=finished (fused)
+}
+
+impl std::iter::FusedIterator for PathComponentIter<'_> {}
+
+impl<'a> Iterator for PathComponentIter<'a> {
+    type Item = PathComponent<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.path.is_empty() {
+            return None;
+        }
+
+        if self.state == 0 {
+            self.state = 1;
+            if self.path[0] == b'/' {
+                // absolute path
+                self.path = &self.path[1..];
+                return Some(PathComponent::Root);
             }
         }
-    }
-)]
-/// Find entries in the catalog matching the given match pattern.
-fn find_command(path: String, pattern: String, select: Option<bool>) -> Result<(), Error> {
-    Context::with(|ctx| {
-        let mut local = ctx.path.clone();
-        local.traverse(&PathBuf::from(path), &mut ctx.decoder, &mut ctx.catalog, false)?;
-        let canonical = local.canonical(&mut ctx.decoder, &mut ctx.catalog, false)?;
-        if !local.last().is_directory() {
-            bail!("path should be a directory, not a file!");
+
+        // skip slashes
+        let had_slashes = self.path[0] == b'/';
+        while self.path.get(0).copied() == Some(b'/') {
+            self.path = &self.path[1..];
         }
-        let select = select.unwrap_or(false);
 
-        let cpath = canonical.generate_cstring().unwrap();
-        let pattern = if pattern.starts_with("!") {
-            let mut buffer = vec![b'!'];
-            buffer.extend_from_slice(cpath.as_bytes());
-            buffer.extend_from_slice(pattern[1..pattern.len()].as_bytes());
-            buffer
-        } else {
-            let mut buffer = cpath.as_bytes().to_vec();
-            buffer.extend_from_slice(pattern.as_bytes());
-            buffer
+        Some(match self.path {
+            [] if had_slashes => PathComponent::TrailingSlash,
+            [] => return None,
+            [b'.'] | [b'.', b'/', ..] => {
+                self.path = &self.path[1..];
+                PathComponent::CurDir
+            }
+            [b'.', b'.'] | [b'.', b'.', b'/', ..] => {
+                self.path = &self.path[2..];
+                PathComponent::ParentDir
+            }
+            _ => {
+                let end = self
+                    .path
+                    .iter()
+                    .position(|&b| b == b'/')
+                    .unwrap_or(self.path.len());
+                let (out, rest) = self.path.split_at(end);
+                self.path = rest;
+                PathComponent::Normal(OsStr::from_bytes(out))
+            }
+        })
+    }
+}
+
+pub struct Shell {
+    /// Readline instance handling input and callbacks
+    rl: rustyline::Editor<CliHelper>,
+
+    /// Interactive prompt.
+    prompt: String,
+
+    /// Calalog reader instance to navigate
+    catalog: CatalogReader,
+
+    /// List of selected paths for restore
+    selected: HashMap<OsString, MatchEntry>,
+
+    /// pxar accessor instance for the current pxar archive
+    accessor: Accessor,
+
+    /// The current position in the archive.
+    position: Vec<PathStackEntry>,
+}
+
+#[derive(Clone)]
+struct PathStackEntry {
+    /// This is always available. We mainly navigate through the catalog.
+    catalog: catalog::DirEntry,
+
+    /// Whenever we need something from the actual archive we fill this out. This is cached along
+    /// the entire path.
+    pxar: Option<FileEntry>,
+}
+
+impl PathStackEntry {
+    fn new(dir_entry: catalog::DirEntry) -> Self {
+        Self {
+            pxar: None,
+            catalog: dir_entry,
+        }
+    }
+}
+
+impl Shell {
+    /// Create a new shell for the given catalog and pxar archive.
+    pub async fn new(
+        mut catalog: CatalogReader,
+        archive_name: &str,
+        archive: Accessor,
+    ) -> Result<Self, Error> {
+        let cli_helper = CliHelper::new(catalog_shell_cli());
+        let mut rl = rustyline::Editor::<CliHelper>::new();
+        rl.set_helper(Some(cli_helper));
+
+        let catalog_root = catalog.root()?;
+        let archive_root = catalog
+            .lookup(&catalog_root, archive_name.as_bytes())?
+            .ok_or_else(|| format_err!("archive not found in catalog"))?;
+        let position = vec![PathStackEntry::new(archive_root)];
+
+        let mut this = Self {
+            rl,
+            prompt: String::new(),
+            catalog,
+            selected: HashMap::new(),
+            accessor: archive,
+            position,
         };
+        this.update_prompt();
+        Ok(this)
+    }
 
-        let pattern = MatchPattern::from_line(&pattern)?
-            .ok_or_else(|| format_err!("invalid match pattern"))?;
-        let slice = vec![pattern.as_slice()];
+    async fn with<'a, Fut, R, F>(call: F) -> Result<R, Error>
+    where
+        F: FnOnce(&'a mut Shell) -> Fut,
+        Fut: Future<Output = Result<R, Error>>,
+        F: 'a,
+        Fut: 'a,
+        R: 'static,
+    {
+        let shell: &mut Shell = unsafe { std::mem::transmute(SHELL.unwrap()) };
+        let result = call(&mut *shell).await;
+        result
+    }
 
-        // The match pattern all contain the prefix of the entry path in order to
-        // store them if selected, so the entry point for find is always the root
-        // directory.
-        let mut dir_stack = vec![ctx.path.root()];
-        ctx.catalog.find(
-            &mut dir_stack,
-            &slice,
-            &Box::new(|path: &[DirEntry]| println!("{:?}", Context::generate_cstring(path).unwrap()))
-        )?;
+    pub async fn shell(mut self) -> Result<(), Error> {
+        let this = &mut self;
+        unsafe {
+            SHELL = Some(this as *mut Shell as usize);
+        }
+        while let Ok(line) = this.rl.readline(&this.prompt) {
+            let helper = this.rl.helper().unwrap();
+            let args = match cli::shellword_split(&line) {
+                Ok(args) => args,
+                Err(err) => {
+                    println!("Error: {}", err);
+                    continue;
+                }
+            };
 
-        // Insert if matches should be selected.
-        // Avoid duplicate entries of the same match pattern.
-        if select && ctx.selected.iter().find(|p| **p == pattern).is_none() {
-            ctx.selected.push(pattern);
+            let _ =
+                cli::handle_command_future(helper.cmd_def(), "", args, cli::CliEnvironment::new())
+                    .await;
+            this.rl.add_history_entry(line);
+            this.update_prompt();
+        }
+        Ok(())
+    }
+
+    fn update_prompt(&mut self) {
+        self.prompt = "pxar:".to_string();
+        if self.position.len() <= 1 {
+            self.prompt.push('/');
+        } else {
+            for p in self.position.iter().skip(1) {
+                if !p.catalog.name.starts_with(b"/") {
+                    self.prompt.push('/');
+                }
+                match std::str::from_utf8(&p.catalog.name) {
+                    Ok(entry) => self.prompt.push_str(entry),
+                    Err(_) => self.prompt.push_str("<non-utf8-dir>"),
+                }
+            }
+        }
+        self.prompt.push_str(" > ");
+    }
+
+    async fn pwd(&mut self) -> Result<(), Error> {
+        let stack = Self::lookup(
+            &self.position,
+            &mut self.catalog,
+            &self.accessor,
+            None,
+            &mut Some(0),
+        )
+        .await?;
+        let path = Self::format_path_stack(&stack);
+        println!("{:?}", path);
+        Ok(())
+    }
+
+    fn new_path_stack(&self) -> Vec<PathStackEntry> {
+        self.position[..1].to_vec()
+    }
+
+    async fn resolve_symlink(
+        stack: &mut Vec<PathStackEntry>,
+        catalog: &mut CatalogReader,
+        accessor: &Accessor,
+        follow_symlinks: &mut Option<usize>,
+    ) -> Result<(), Error> {
+        if let Some(ref mut symlink_count) = follow_symlinks {
+            *symlink_count += 1;
+            if *symlink_count > MAX_SYMLINK_COUNT {
+                bail!("too many levels of symbolic links");
+            }
+
+            let file = Self::walk_pxar_archive(accessor, &mut stack[..]).await?;
+
+            let path = match file.entry().kind() {
+                EntryKind::Symlink(symlink) => Path::new(symlink.as_os_str()),
+                _ => bail!("symlink in the catalog was not a symlink in the archive"),
+            };
+
+            let new_stack =
+                Self::lookup(&stack, &mut *catalog, accessor, Some(path), follow_symlinks).await?;
+
+            *stack = new_stack;
+
+            Ok(())
+        } else {
+            bail!("target is a symlink");
+        }
+    }
+
+    /// Walk a path and add it to the path stack.
+    ///
+    /// If the symlink count is used, symlinks will be followed, until we hit the cap and error
+    /// out.
+    async fn step(
+        stack: &mut Vec<PathStackEntry>,
+        catalog: &mut CatalogReader,
+        accessor: &Accessor,
+        component: std::path::Component<'_>,
+        follow_symlinks: &mut Option<usize>,
+    ) -> Result<(), Error> {
+        use std::path::Component;
+        match component {
+            Component::Prefix(_) => bail!("invalid path component (prefix)"),
+            Component::RootDir => stack.truncate(1),
+            Component::CurDir => {
+                if stack.last().unwrap().catalog.is_symlink() {
+                    Self::resolve_symlink(stack, catalog, accessor, follow_symlinks).await?;
+                }
+            }
+            Component::ParentDir => drop(stack.pop()),
+            Component::Normal(entry) => {
+                if stack.last().unwrap().catalog.is_symlink() {
+                    Self::resolve_symlink(stack, catalog, accessor, follow_symlinks).await?;
+                }
+                match catalog.lookup(&stack.last().unwrap().catalog, entry.as_bytes())? {
+                    Some(dir) => stack.push(PathStackEntry::new(dir)),
+                    None => bail!("no such file or directory: {:?}", entry),
+                }
+            }
         }
 
         Ok(())
-    })
-}
+    }
 
-std::thread_local! {
-    static CONTEXT: RefCell<Option<Context>> = RefCell::new(None);
-}
+    fn step_nofollow(
+        stack: &mut Vec<PathStackEntry>,
+        catalog: &mut CatalogReader,
+        component: std::path::Component<'_>,
+    ) -> Result<(), Error> {
+        use std::path::Component;
+        match component {
+            Component::Prefix(_) => bail!("invalid path component (prefix)"),
+            Component::RootDir => stack.truncate(1),
+            Component::CurDir => {
+                if stack.last().unwrap().catalog.is_symlink() {
+                    bail!("target is a symlink");
+                }
+            }
+            Component::ParentDir => drop(stack.pop()),
+            Component::Normal(entry) => {
+                if stack.last().unwrap().catalog.is_symlink() {
+                    bail!("target is a symlink");
+                } else {
+                    match catalog.lookup(&stack.last().unwrap().catalog, entry.as_bytes())? {
+                        Some(dir) => stack.push(PathStackEntry::new(dir)),
+                        None => bail!("no such file or directory: {:?}", entry),
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 
-/// Holds the context needed for access to catalog and decoder
-struct Context {
-    /// Calalog reader instance to navigate
-    catalog: CatalogReader<std::fs::File>,
-    /// List of selected paths for restore
-    selected: Vec<MatchPattern>,
-    /// Decoder instance for the current pxar archive
-    decoder: Decoder,
-    /// Handle catalog stuff
-    path: CatalogPathStack,
-}
+    /// The pxar accessor is required to resolve symbolic links
+    async fn walk_catalog(
+        stack: &mut Vec<PathStackEntry>,
+        catalog: &mut CatalogReader,
+        accessor: &Accessor,
+        path: &Path,
+        follow_symlinks: &mut Option<usize>,
+    ) -> Result<(), Error> {
+        for c in path.components() {
+            Self::step(stack, catalog, accessor, c, follow_symlinks).await?;
+        }
+        Ok(())
+    }
 
-impl Context {
-    /// Execute `call` within a context providing a mut ref to `Context` instance.
-    fn with<T, F>(call: F) -> Result<T, Error>
+    /// Non-async version cannot follow symlinks.
+    fn walk_catalog_nofollow(
+        stack: &mut Vec<PathStackEntry>,
+        catalog: &mut CatalogReader,
+        path: &Path,
+    ) -> Result<(), Error> {
+        for c in path.components() {
+            Self::step_nofollow(stack, catalog, c)?;
+        }
+        Ok(())
+    }
+
+    /// This assumes that there are no more symlinks in the path stack.
+    async fn walk_pxar_archive(
+        accessor: &Accessor,
+        mut stack: &mut [PathStackEntry],
+    ) -> Result<FileEntry, Error> {
+        if stack[0].pxar.is_none() {
+            stack[0].pxar = Some(accessor.open_root().await?.lookup_self().await?);
+        }
+
+        // Now walk the directory stack:
+        let mut at = 1;
+        while at < stack.len() {
+            if stack[at].pxar.is_some() {
+                at += 1;
+                continue;
+            }
+
+            let parent = stack[at - 1].pxar.as_ref().unwrap();
+            let dir = parent.enter_directory().await?;
+            let name = Path::new(OsStr::from_bytes(&stack[at].catalog.name));
+            stack[at].pxar = Some(
+                dir.lookup(name)
+                    .await?
+                    .ok_or_else(|| format_err!("no such entry in pxar file: {:?}", name))?,
+            );
+
+            at += 1;
+        }
+
+        Ok(stack.last().unwrap().pxar.clone().unwrap())
+    }
+
+    fn complete_path(&mut self, input: &str) -> Result<Vec<String>, Error> {
+        let mut tmp_stack;
+        let (parent, base, part) = match input.rfind('/') {
+            Some(ind) => {
+                let (base, part) = input.split_at(ind + 1);
+                let path = PathBuf::from(base);
+                if path.is_absolute() {
+                    tmp_stack = self.new_path_stack();
+                } else {
+                    tmp_stack = self.position.clone();
+                }
+                Self::walk_catalog_nofollow(&mut tmp_stack, &mut self.catalog, &path)?;
+                (&tmp_stack.last().unwrap().catalog, base, part)
+            }
+            None => (&self.position.last().unwrap().catalog, "", input),
+        };
+
+        let entries = self.catalog.read_dir(parent)?;
+
+        let mut out = Vec::new();
+        for entry in entries {
+            let mut name = base.to_string();
+            if entry.name.starts_with(part.as_bytes()) {
+                name.push_str(std::str::from_utf8(&entry.name)?);
+                if entry.is_directory() {
+                    name.push('/');
+                }
+                out.push(name);
+            }
+        }
+
+        Ok(out)
+    }
+
+    // Break async recursion here: lookup -> walk_catalog -> step -> lookup
+    fn lookup<'future, 's, 'c, 'a, 'p, 'y>(
+        stack: &'s [PathStackEntry],
+        catalog: &'c mut CatalogReader,
+        accessor: &'a Accessor,
+        path: Option<&'p Path>,
+        follow_symlinks: &'y mut Option<usize>,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<PathStackEntry>, Error>> + Send + 'future>>
     where
-        F: FnOnce(&mut Context) -> Result<T, Error>,
+        's: 'future,
+        'c: 'future,
+        'a: 'future,
+        'p: 'future,
+        'y: 'future,
     {
-        CONTEXT.with(|cell| {
-            let mut ctx = cell.borrow_mut();
-            call(&mut ctx.as_mut().unwrap())
+        Box::pin(async move {
+            Ok(match path {
+                None => stack.to_vec(),
+                Some(path) => {
+                    let mut stack = if path.is_absolute() {
+                        stack[..1].to_vec()
+                    } else {
+                        stack.to_vec()
+                    };
+                    Self::walk_catalog(&mut stack, catalog, accessor, path, follow_symlinks)
+                        .await?;
+                    stack
+                }
+            })
         })
     }
 
-    /// Generate CString from provided stack of `DirEntry`s.
-    fn generate_cstring(dir_stack: &[DirEntry]) -> Result<CString, Error> {
-        let mut path = vec![b'/'];
-        // Skip the archive root, the '/' is displayed for it instead
-        for component in dir_stack.iter().skip(1) {
-            path.extend_from_slice(&component.name);
-            if component.is_directory() {
-                path.push(b'/');
+    async fn ls(&mut self, path: Option<&Path>) -> Result<(), Error> {
+        let stack = Self::lookup(
+            &self.position,
+            &mut self.catalog,
+            &self.accessor,
+            path,
+            &mut Some(0),
+        )
+        .await?;
+
+        let last = stack.last().unwrap();
+        if last.catalog.is_directory() {
+            let items = self.catalog.read_dir(&stack.last().unwrap().catalog)?;
+            let mut out = std::io::stdout();
+            // FIXME: columnize
+            for item in items {
+                out.write_all(&item.name)?;
+                out.write_all(b"\n")?;
             }
-        }
-        Ok(unsafe { CString::from_vec_unchecked(path) })
-    }
-
-    /// Generate the CString to display by readline based on
-    /// PROMPT_PREFIX, PROMPT and the current working directory.
-    fn generate_prompt(&self) -> Result<String, Error> {
-        let prompt = format!(
-            "{}{} {} ",
-            PROMPT_PREFIX,
-            self.path.generate_cstring()?.to_string_lossy(),
-            PROMPT,
-        );
-        Ok(prompt)
-    }
-}
-
-/// A valid path in the catalog starting from root.
-///
-/// Symlinks are stored by pushing the symlink entry and the target entry onto
-/// the stack. Allows to resolve all symlink in order to generate a canonical
-/// path needed for reading from the archive.
-#[derive(Clone)]
-struct CatalogPathStack {
-    stack: Vec<DirEntry>,
-    root: DirEntry,
-}
-
-impl CatalogPathStack {
-    /// Create a new stack with given root entry.
-    fn new(root: DirEntry) -> Self {
-        Self {
-            stack: Vec::new(),
-            root,
-        }
-    }
-
-    /// Get a clone of the root directories entry.
-    fn root(&self) -> DirEntry {
-        self.root.clone()
-    }
-
-    /// Remove all entries from the stack.
-    ///
-    /// This equals to being at the root directory.
-    fn clear(&mut self) {
-        self.stack.clear();
-    }
-
-    /// Get a reference to the last entry on the stack.
-    fn last(&self) -> &DirEntry {
-        self.stack.last().unwrap_or(&self.root)
-    }
-
-    /// Check if the last entry is a symlink.
-    fn last_is_symlink(&self) -> bool {
-        self.last().is_symlink()
-    }
-
-    /// Check if the last entry is a directory.
-    fn last_is_directory(&self) -> bool {
-        self.last().is_directory()
-    }
-
-    /// Remove a component, if it was a symlink target,
-    /// this removes also the symlink entry.
-    fn pop(&mut self) -> Option<DirEntry> {
-        let entry = self.stack.pop()?;
-        if self.last_is_symlink() {
-            self.stack.pop()
         } else {
-            Some(entry)
-        }
-    }
-
-    /// Add a component to the stack.
-    fn push(&mut self, entry: DirEntry) {
-        self.stack.push(entry)
-    }
-
-    /// Check if pushing the given entry onto the CatalogPathStack would create a
-    /// loop by checking if the same entry is already present.
-    fn creates_loop(&self, entry: &DirEntry) -> bool {
-        self.stack.iter().any(|comp| comp.eq(entry))
-    }
-
-    /// Starting from this path, traverse the catalog by the provided `path`.
-    fn traverse(
-        &mut self,
-        path: &PathBuf,
-        mut decoder: &mut Decoder,
-        mut catalog: &mut CatalogReader<std::fs::File>,
-        follow_final: bool,
-    ) -> Result<(), Error> {
-        for component in path.components() {
-            match component {
-                Component::RootDir => self.clear(),
-                Component::CurDir => continue,
-                Component::ParentDir => { self.pop(); }
-                Component::Normal(comp) => {
-                    let entry = catalog.lookup(self.last(), comp.as_bytes())?;
-                    if self.creates_loop(&entry) {
-                        bail!("loop detected, will not follow");
-                    }
-                    self.push(entry);
-                    if self.last_is_symlink() && follow_final {
-                        let mut canonical = self.canonical(&mut decoder, &mut catalog, follow_final)?;
-                        let target = canonical.pop().unwrap();
-                        self.push(target);
-                    }
-                }
-                Component::Prefix(_) => bail!("encountered prefix component. Non unix systems not supported."),
-            }
-        }
-        if path.as_os_str().as_bytes().ends_with(b"/") && !self.last_is_directory() {
-            bail!("entry is not a directory");
+            let mut out = std::io::stdout();
+            out.write_all(&last.catalog.name)?;
+            out.write_all(b"\n")?;
         }
         Ok(())
     }
 
-    /// Create a canonical version of this path with symlinks resolved.
-    ///
-    /// If resolve final is true, follow also an eventual symlink of the last
-    /// path component.
-    fn canonical(
-        &self,
-        mut decoder: &mut Decoder,
-        mut catalog: &mut CatalogReader<std::fs::File>,
-        resolve_final: bool,
+    async fn stat(&mut self, path: PathBuf) -> Result<(), Error> {
+        let mut stack = Self::lookup(
+            &self.position,
+            &mut self.catalog,
+            &self.accessor,
+            Some(&path),
+            &mut Some(0),
+        )
+        .await?;
+
+        let file = Self::walk_pxar_archive(&self.accessor, &mut stack).await?;
+        std::io::stdout()
+            .write_all(crate::pxar::format_multi_line_entry(file.entry()).as_bytes())?;
+        Ok(())
+    }
+
+    async fn cd(&mut self, path: Option<&Path>) -> Result<(), Error> {
+        match path {
+            Some(path) => {
+                let new_position = Self::lookup(
+                    &self.position,
+                    &mut self.catalog,
+                    &self.accessor,
+                    Some(path),
+                    &mut None,
+                )
+                .await?;
+                if !new_position.last().unwrap().catalog.is_directory() {
+                    bail!("not a directory");
+                }
+                self.position = new_position;
+            }
+            None => self.position.truncate(1),
+        }
+        self.update_prompt();
+        Ok(())
+    }
+
+    /// This stack must have been canonicalized already!
+    fn format_path_stack(stack: &[PathStackEntry]) -> OsString {
+        if stack.len() <= 1 {
+            return OsString::from("/");
+        }
+
+        let mut out = OsString::new();
+        for c in stack.iter().skip(1) {
+            out.push("/");
+            out.push(OsStr::from_bytes(&c.catalog.name));
+        }
+
+        out
+    }
+
+    async fn select(&mut self, path: PathBuf) -> Result<(), Error> {
+        let stack = Self::lookup(
+            &self.position,
+            &mut self.catalog,
+            &self.accessor,
+            Some(&path),
+            &mut Some(0),
+        )
+        .await?;
+
+        let path = Self::format_path_stack(&stack);
+        let entry = MatchEntry::include(MatchPattern::Literal(path.as_bytes().to_vec()));
+        if self.selected.insert(path.clone(), entry).is_some() {
+            println!("path already selected: {:?}", path);
+        } else {
+            println!("added path: {:?}", path);
+        }
+
+        Ok(())
+    }
+
+    async fn deselect(&mut self, path: PathBuf) -> Result<(), Error> {
+        let stack = Self::lookup(
+            &self.position,
+            &mut self.catalog,
+            &self.accessor,
+            Some(&path),
+            &mut Some(0),
+        )
+        .await?;
+
+        let path = Self::format_path_stack(&stack);
+
+        if self.selected.remove(&path).is_some() {
+            println!("removed path from selection: {:?}", path);
+        } else {
+            println!("path not selected: {:?}", path);
+        }
+
+        Ok(())
+    }
+
+    async fn deselect_all(&mut self) -> Result<(), Error> {
+        self.selected.clear();
+        println!("cleared selection");
+        Ok(())
+    }
+
+    async fn list_selected(&mut self, patterns: bool) -> Result<(), Error> {
+        if patterns {
+            self.list_selected_patterns().await
+        } else {
+            self.list_matching_files().await
+        }
+    }
+
+    async fn list_selected_patterns(&self) -> Result<(), Error> {
+        for entry in self.selected.keys() {
+            println!("{:?}", entry);
+        }
+        Ok(())
+    }
+
+    fn build_match_list(&self) -> Vec<MatchEntry> {
+        let mut list = Vec::with_capacity(self.selected.len());
+        for entry in self.selected.values() {
+            list.push(entry.clone());
+        }
+        list
+    }
+
+    async fn list_matching_files(&mut self) -> Result<(), Error> {
+        let matches = self.build_match_list();
+
+        self.catalog.find(
+            &self.position[0].catalog,
+            &mut Vec::new(),
+            &matches,
+            &mut |path: &[u8]| -> Result<(), Error> {
+                let mut out = std::io::stdout();
+                out.write_all(path)?;
+                out.write_all(b"\n")?;
+                Ok(())
+            },
+        )?;
+
+        Ok(())
+    }
+
+    async fn find(&mut self, pattern: String, select: bool) -> Result<(), Error> {
+        let pattern_os = OsString::from(pattern.clone());
+        let pattern_entry =
+            MatchEntry::parse_pattern(pattern, PatternFlag::PATH_NAME, MatchType::Include)?;
+
+        let mut found_some = false;
+        self.catalog.find(
+            &self.position[0].catalog,
+            &mut Vec::new(),
+            &[&pattern_entry],
+            &mut |path: &[u8]| -> Result<(), Error> {
+                found_some = true;
+                let mut out = std::io::stdout();
+                out.write_all(path)?;
+                out.write_all(b"\n")?;
+                Ok(())
+            },
+        )?;
+
+        if found_some && select {
+            self.selected.insert(pattern_os, pattern_entry);
+        }
+
+        Ok(())
+    }
+
+    async fn restore_selected(&mut self, destination: PathBuf) -> Result<(), Error> {
+        if self.selected.is_empty() {
+            bail!("no entries selected");
+        }
+
+        let match_list = self.build_match_list();
+
+        self.restore_with_match_list(destination, &match_list).await
+    }
+
+    async fn restore(
+        &mut self,
+        destination: PathBuf,
+        pattern: Option<String>,
+    ) -> Result<(), Error> {
+        let tmp;
+        let match_list: &[MatchEntry] = match pattern {
+            None => &[],
+            Some(pattern) => {
+                tmp = [MatchEntry::parse_pattern(
+                    pattern,
+                    PatternFlag::PATH_NAME,
+                    MatchType::Include,
+                )?];
+                &tmp
+            }
+        };
+
+        self.restore_with_match_list(destination, match_list).await
+    }
+
+    async fn restore_with_match_list(
+        &mut self,
+        destination: PathBuf,
+        match_list: &[MatchEntry],
+    ) -> Result<(), Error> {
+        create_path(
+            &destination,
+            None,
+            Some(CreateOptions::new().perm(Mode::from_bits_truncate(0o700))),
+        )
+        .map_err(|err| format_err!("error creating directory {:?}: {}", destination, err))?;
+
+        let rootdir = Dir::open(
+            &destination,
+            OFlag::O_DIRECTORY | OFlag::O_CLOEXEC,
+            Mode::empty(),
+        )
+        .map_err(|err| {
+            format_err!("unable to open target directory {:?}: {}", destination, err,)
+        })?;
+
+        let mut dir_stack = self.new_path_stack();
+        Self::walk_pxar_archive(&self.accessor, &mut dir_stack).await?;
+        let root_meta = dir_stack
+            .last()
+            .unwrap()
+            .pxar
+            .as_ref()
+            .unwrap()
+            .entry()
+            .metadata()
+            .clone();
+        let pxar_dir_stack = PxarDirStack::new(rootdir, root_meta);
+
+        let mut extractor = ExtractorState::new(
+            flags::DEFAULT,
+            &mut self.catalog,
+            dir_stack,
+            pxar_dir_stack,
+            &match_list,
+            &self.accessor,
+        )?;
+
+        extractor.extract().await
+    }
+}
+
+enum LoopState {
+    Break,
+    Continue,
+}
+
+struct ExtractorState<'a> {
+    path: Vec<u8>,
+    path_len: usize,
+    path_len_stack: Vec<usize>,
+
+    dir_stack: Vec<PathStackEntry>,
+
+    matches: bool,
+    matches_stack: Vec<bool>,
+
+    read_dir: <Vec<catalog::DirEntry> as IntoIterator>::IntoIter,
+    read_dir_stack: Vec<<Vec<catalog::DirEntry> as IntoIterator>::IntoIter>,
+
+    pxar_dir_stack: PxarDirStack,
+
+    catalog: &'a mut CatalogReader,
+    feature_flags: u64,
+    match_list: &'a [MatchEntry],
+    accessor: &'a Accessor,
+}
+
+impl<'a> ExtractorState<'a> {
+    pub fn new(
+        feature_flags: u64,
+        catalog: &'a mut CatalogReader,
+        dir_stack: Vec<PathStackEntry>,
+        pxar_dir_stack: PxarDirStack,
+        match_list: &'a [MatchEntry],
+        accessor: &'a Accessor,
     ) -> Result<Self, Error> {
-        let mut canonical = CatalogPathStack::new(self.root.clone());
-        let mut iter = self.stack.iter().enumerate();
-        while let Some((index, component)) = iter.next() {
-            if component.is_directory() {
-                canonical.push(component.clone());
-            } else if component.is_symlink() {
-                canonical.push(component.clone());
-                 if index != self.stack.len() - 1 || resolve_final {
-                    // Get the symlink target by traversing the canonical path
-                    // in the archive up to the symlink.
-                    let archive_entry = canonical.lookup(&mut decoder)?;
-                    canonical.pop();
-                    // Resolving target means also ignoring the target in the iterator, so get it.
-                    iter.next();
-                    let target = archive_entry.target
-                        .ok_or_else(|| format_err!("expected entry with symlink target."))?;
-                    canonical.traverse(&target, &mut decoder, &mut catalog, resolve_final)?;
-                }
-            } else if index != self.stack.len() - 1 {
-                bail!("intermitten node is not symlink nor directory");
-            } else {
-                canonical.push(component.clone());
-            }
-        }
-        Ok(canonical)
+        let read_dir = catalog
+            .read_dir(&dir_stack.last().unwrap().catalog)?
+            .into_iter();
+        Ok(Self {
+            path: Vec::new(),
+            path_len: 0,
+            path_len_stack: Vec::new(),
+
+            dir_stack,
+
+            matches: match_list.is_empty(),
+            matches_stack: Vec::new(),
+
+            read_dir,
+            read_dir_stack: Vec::new(),
+
+            pxar_dir_stack,
+
+            catalog,
+            feature_flags,
+            match_list,
+            accessor,
+        })
     }
 
-    /// Lookup this path in the archive using the provided decoder.
-    fn lookup(&self, decoder: &mut Decoder) -> Result<DirectoryEntry, Error> {
-        let mut current = decoder.root()?;
-        for component in self.stack.iter() {
-            match decoder.lookup(&current, &OsStr::from_bytes(&component.name))? {
-                Some(item) => current = item,
-                // This should not happen if catalog an archive are consistent.
-                None => bail!("no such file or directory in archive - inconsistent catalog"),
+    pub async fn extract(&mut self) -> Result<(), Error> {
+        loop {
+            let entry = match self.read_dir.next() {
+                Some(entry) => entry,
+                None => match self.handle_end_of_directory()? {
+                    LoopState::Break => break, // done with root directory
+                    LoopState::Continue => continue,
+                },
+            };
+
+            self.path.truncate(self.path_len);
+            if !entry.name.starts_with(b"/") {
+                self.path.reserve(entry.name.len() + 1);
+                self.path.push(b'/');
             }
+            self.path.extend(&entry.name);
+
+            self.handle_entry(entry).await?;
         }
-        Ok(current)
+
+        Ok(())
     }
 
-    /// Generate a CString from this.
-    fn generate_cstring(&self) -> Result<CString, Error> {
-        let mut path = vec![b'/'];
-        let mut iter = self.stack.iter().enumerate();
-        while let Some((index, component)) = iter.next() {
-            if component.is_symlink() && index != self.stack.len() - 1 {
-                let (_, next) = iter.next()
-                    .ok_or_else(|| format_err!("unresolved symlink encountered"))?;
-                // Display the name of the link, not the target
-                path.extend_from_slice(&component.name);
-                if next.is_directory() {
-                    path.push(b'/');
+    fn handle_end_of_directory(&mut self) -> Result<LoopState, Error> {
+        // go up a directory:
+        self.read_dir = match self.read_dir_stack.pop() {
+            Some(r) => r,
+            None => return Ok(LoopState::Break), // out of root directory
+        };
+
+        self.matches = self
+            .matches_stack
+            .pop()
+            .ok_or_else(|| format_err!("internal iterator error (matches_stack)"))?;
+
+        self.dir_stack
+            .pop()
+            .ok_or_else(|| format_err!("internal iterator error (dir_stack)"))?;
+
+        let dir = self
+            .pxar_dir_stack
+            .pop()?
+            .ok_or_else(|| format_err!("internal iterator error (pxar_dir_stack)"))?;
+
+        self.path_len = self
+            .path_len_stack
+            .pop()
+            .ok_or_else(|| format_err!("internal iterator error (path_len_stack)"))?;
+
+        self.path.push(0);
+        let dirname = CStr::from_bytes_with_nul(&self.path[(self.path_len + 1)..])?;
+
+        if let Some(fd) = dir.try_as_raw_fd() {
+            // the directory was created, so apply the metadata:
+            metadata::apply(self.feature_flags, dir.metadata(), fd, dirname)?;
+        }
+
+        Ok(LoopState::Continue)
+    }
+
+    async fn handle_new_directory(
+        &mut self,
+        entry: catalog::DirEntry,
+        match_result: Option<MatchType>,
+    ) -> Result<(), Error> {
+        // enter a new directory:
+        self.read_dir_stack.push(mem::replace(
+            &mut self.read_dir,
+            self.catalog.read_dir(&entry)?.into_iter(),
+        ));
+        self.matches_stack.push(self.matches);
+        self.dir_stack.push(PathStackEntry::new(entry));
+        self.path_len_stack.push(self.path_len);
+        self.path_len = self.path.len();
+
+        Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+        let dir_pxar = self.dir_stack.last().unwrap().pxar.as_ref().unwrap();
+        let dir_meta = dir_pxar.entry().metadata().clone();
+        self.pxar_dir_stack
+            .push(dir_pxar.file_name().to_os_string(), dir_meta)?;
+
+        if self.matches && match_result != Some(MatchType::Exclude) {
+            todo!("create this directory");
+        }
+
+        Ok(())
+    }
+
+    pub async fn handle_entry(&mut self, entry: catalog::DirEntry) -> Result<(), Error> {
+        let match_result = self.match_list.matches(&self.path, entry.get_file_mode());
+        let did_match = match match_result {
+            Some(MatchType::Include) => true,
+            Some(MatchType::Exclude) => false,
+            None => self.matches,
+        };
+
+        match (did_match, &entry.attr) {
+            (_, DirEntryAttribute::Directory { .. }) => {
+                self.handle_new_directory(entry, match_result).await?;
+            }
+            (true, DirEntryAttribute::File { .. }) => {
+                self.dir_stack.push(PathStackEntry::new(entry));
+                let file = Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+                self.extract_file(file).await?;
+                self.dir_stack.pop();
+            }
+            (true, DirEntryAttribute::Symlink)
+            | (true, DirEntryAttribute::BlockDevice)
+            | (true, DirEntryAttribute::CharDevice)
+            | (true, DirEntryAttribute::Fifo)
+            | (true, DirEntryAttribute::Socket)
+            | (true, DirEntryAttribute::Hardlink) => {
+                let attr = entry.attr.clone();
+                self.dir_stack.push(PathStackEntry::new(entry));
+                let file = Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
+                self.extract_special(file, attr).await?;
+                self.dir_stack.pop();
+            }
+            (false, _) => (), // skip
+        }
+
+        Ok(())
+    }
+
+    fn path(&self) -> &OsStr {
+        OsStr::from_bytes(&self.path)
+    }
+
+    async fn extract_file(&mut self, entry: FileEntry) -> Result<(), Error> {
+        match entry.kind() {
+            pxar::EntryKind::File { size, .. } => {
+                let mut contents = entry.contents().await?;
+
+                let parent = self.pxar_dir_stack.last_dir_fd(true)?;
+                let mut file = tokio::fs::File::from_std(unsafe {
+                    std::fs::File::from_raw_fd(nix::fcntl::openat(
+                        parent,
+                        entry.file_name(),
+                        OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                        Mode::from_bits(0o600).unwrap(),
+                    )?)
+                });
+
+                let extracted = tokio::io::copy(&mut contents, &mut file).await?;
+                if *size != extracted {
+                    bail!("extracted {} bytes of a file of {} bytes", extracted, size);
                 }
-            } else {
-                path.extend_from_slice(&component.name);
-                if component.is_directory() {
-                    path.push(b'/');
-                }
+
+                metadata::apply_with_path(
+                    flags::DEFAULT,
+                    entry.metadata(),
+                    file.as_raw_fd(),
+                    entry.file_name(),
+                )?;
+
+                Ok(())
+            }
+            _ => {
+                bail!(
+                    "catalog file {:?} not a regular file in the archive",
+                    self.path()
+                );
             }
         }
-        Ok(unsafe { CString::from_vec_unchecked(path) })
+    }
+
+    async fn extract_special(
+        &mut self,
+        entry: FileEntry,
+        catalog_attr: DirEntryAttribute,
+    ) -> Result<(), Error> {
+        match (catalog_attr, entry.kind()) {
+            (DirEntryAttribute::Symlink, pxar::EntryKind::Symlink(symlink)) => {
+                self.extract_symlink(entry.file_name(), symlink.as_os_str(), entry.metadata())
+            }
+            (DirEntryAttribute::Symlink, _) => {
+                bail!(
+                    "catalog symlink {:?} not a symlink in the archive",
+                    self.path()
+                );
+            }
+
+            (DirEntryAttribute::Hardlink, pxar::EntryKind::Hardlink(hardlink)) => {
+                self.extract_hardlink(entry.file_name(), hardlink.as_os_str(), entry.metadata())
+            }
+            (DirEntryAttribute::Hardlink, _) => {
+                bail!(
+                    "catalog hardlink {:?} not a hardlink in the archive",
+                    self.path()
+                );
+            }
+
+            (ref attr, pxar::EntryKind::Device(device)) => {
+                self.extract_device(attr.clone(), entry.file_name(), device, entry.metadata())
+            }
+
+            (DirEntryAttribute::Fifo, pxar::EntryKind::Fifo) => {
+                self.extract_node(entry.file_name(), 0, entry.metadata())
+            }
+            (DirEntryAttribute::Fifo, _) => {
+                bail!("catalog fifo {:?} not a fifo in the archive", self.path());
+            }
+
+            (DirEntryAttribute::Socket, pxar::EntryKind::Socket) => {
+                self.extract_node(entry.file_name(), 0, entry.metadata())
+            }
+            (DirEntryAttribute::Socket, _) => {
+                bail!(
+                    "catalog socket {:?} not a socket in the archive",
+                    self.path()
+                );
+            }
+
+            attr => bail!("unhandled file type {:?} for {:?}", attr, self.path()),
+        }
+    }
+
+    fn extract_symlink(
+        &mut self,
+        file_name: &OsStr,
+        target: &OsStr,
+        metadata: &Metadata,
+    ) -> Result<(), Error> {
+        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
+        nix::unistd::symlinkat(target, Some(parent), file_name)?;
+
+        metadata::apply_at(
+            self.feature_flags,
+            metadata,
+            parent,
+            &CString::new(file_name.as_bytes())?,
+        )?;
+
+        Ok(())
+    }
+
+    fn extract_hardlink(
+        &mut self,
+        file_name: &OsStr,
+        target: &OsStr,
+        _metadata: &Metadata,
+    ) -> Result<(), Error> {
+        crate::pxar::tools::assert_relative_path(target)?;
+
+        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
+        let root = self.pxar_dir_stack.root_dir_fd()?;
+        nix::unistd::linkat(
+            Some(root),
+            target,
+            Some(parent),
+            file_name,
+            nix::unistd::LinkatFlags::NoSymlinkFollow,
+        )?;
+
+        Ok(())
+    }
+
+    fn extract_device(
+        &mut self,
+        attr: DirEntryAttribute,
+        file_name: &OsStr,
+        device: &pxar::format::Device,
+        metadata: &Metadata,
+    ) -> Result<(), Error> {
+        match attr {
+            DirEntryAttribute::BlockDevice => {
+                if !metadata.stat.is_blockdev() {
+                    bail!(
+                        "catalog block device {:?} is not a block device in the archive",
+                        self.path(),
+                    );
+                }
+            }
+            DirEntryAttribute::CharDevice => {
+                if !metadata.stat.is_chardev() {
+                    bail!(
+                        "catalog character device {:?} is not a character device in the archive",
+                        self.path(),
+                    );
+                }
+            }
+            _ => {
+                bail!(
+                    "unexpected file type for {:?} in the catalog, \
+                     which is a device special file in the archive",
+                    self.path(),
+                );
+            }
+        }
+        self.extract_node(file_name, device.to_dev_t(), metadata)
+    }
+
+    fn extract_node(
+        &mut self,
+        file_name: &OsStr,
+        device: libc::dev_t,
+        metadata: &Metadata,
+    ) -> Result<(), Error> {
+        let mode = metadata.stat.mode;
+        let mode = u32::try_from(mode).map_err(|_| {
+            format_err!(
+                "device node's mode contains illegal bits: 0x{:x} (0o{:o})",
+                mode,
+                mode,
+            )
+        })?;
+
+        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
+        let file_name = CString::new(file_name.as_bytes())?;
+        unsafe { c_result!(libc::mknodat(parent, file_name.as_ptr(), mode, device)) }
+            .map_err(|err| format_err!("failed to create device node: {}", err))?;
+
+        metadata::apply_at(self.feature_flags, metadata, parent, &file_name)
     }
 }

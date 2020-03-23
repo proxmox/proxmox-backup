@@ -628,9 +628,9 @@ fn dynamic_chunk_index(
 
         let count = index.index_count();
         for pos in 0..count {
-            let (start, end, digest) = index.chunk_info(pos)?;
-            let size = (end - start) as u32;
-            env.register_chunk(digest, size)?;
+            let info = index.chunk_info(pos)?;
+            let size = info.size() as u32;
+            env.register_chunk(info.digest, size)?;
         }
 
         let reader = DigestListEncoder::new(Box::new(index));

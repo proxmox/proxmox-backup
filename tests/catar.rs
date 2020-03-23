@@ -14,30 +14,27 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         .status()
         .expect("failed to execute casync");
 
-    let mut writer = std::fs::OpenOptions::new()
+    let writer = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(true)
         .open("test-proxmox.catar")?;
+    let writer = pxar::encoder::sync::StandardWriter::new(writer);
 
-    let mut dir = nix::dir::Dir::open(
+    let dir = nix::dir::Dir::open(
         dir_name, nix::fcntl::OFlag::O_NOFOLLOW,
         nix::sys::stat::Mode::empty())?;
 
-    let path = std::path::PathBuf::from(dir_name);
-
-    let catalog = None::<&mut catalog::DummyCatalogWriter>;
-    Encoder::encode(
-        path,
-        &mut dir,
-        &mut writer,
-        catalog,
+    create_archive(
+        dir,
+        writer,
+        Vec::new(),
+        flags::DEFAULT,
         None,
         false,
-        false,
-        flags::DEFAULT,
-        Vec::new(),
+        |_| Ok(()),
         ENCODER_MAX_ENTRIES,
+        None,
     )?;
 
     Command::new("cmp")

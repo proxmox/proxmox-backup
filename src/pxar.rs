@@ -47,33 +47,21 @@
 //! (user, group, acl, ...) because this is already defined by the
 //! linked `ENTRY`.
 
-mod binary_search_tree;
-pub use binary_search_tree::*;
-
-pub mod flags;
-pub use flags::*;
-
-mod format_definition;
-pub use format_definition::*;
-
-mod encoder;
-pub use encoder::*;
-
-mod sequential_decoder;
-pub use sequential_decoder::*;
-
-mod decoder;
-pub use decoder::*;
-
-mod match_pattern;
-pub use match_pattern::*;
-
-mod dir_stack;
-pub use dir_stack::*;
-
-pub mod fuse;
-pub use fuse::*;
-
 pub mod catalog;
+pub(crate) mod create;
+pub(crate) mod dir_stack;
+pub(crate) mod extract;
+pub(crate) mod metadata;
+pub mod flags;
+pub mod fuse;
+pub(crate) mod tools;
 
-mod helper;
+pub use create::create_archive;
+pub use extract::extract_archive;
+
+/// The format requires to build sorted directory lookup tables in
+/// memory, so we restrict the number of allowed entries to limit
+/// maximum memory usage.
+pub const ENCODER_MAX_ENTRIES: usize = 1024 * 1024;
+
+pub use tools::{format_multi_line_entry, format_single_line_entry};

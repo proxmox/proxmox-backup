@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{BufWriter, Seek, SeekFrom, Write};
+use std::ops::Range;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use proxmox::tools::vec;
 
 use super::chunk_stat::ChunkStat;
 use super::chunk_store::ChunkStore;
+use super::index::ChunkReadInfo;
 use super::read_chunk::ReadChunk;
 use super::Chunker;
 use super::IndexFile;
@@ -136,7 +138,7 @@ impl DynamicIndexReader {
     }
 
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn chunk_info(&self, pos: usize) -> Result<(u64, u64, [u8; 32]), Error> {
+    pub fn chunk_info(&self, pos: usize) -> Result<ChunkReadInfo, Error> {
         if pos >= self.index_entries {
             bail!("chunk index out of range");
         }
@@ -157,7 +159,10 @@ impl DynamicIndexReader {
             );
         }
 
-        Ok((start, end, unsafe { digest.assume_init() }))
+        Ok(ChunkReadInfo {
+            range: start..end,
+            digest: unsafe { digest.assume_init() },
+        })
     }
 
     #[inline]
@@ -258,6 +263,25 @@ impl IndexFile for DynamicIndexReader {
     }
 }
 
+struct CachedChunk {
+    range: Range<u64>,
+    data: Vec<u8>,
+}
+
+impl CachedChunk {
+    /// Perform sanity checks on the range and data size:
+    pub fn new(range: Range<u64>, data: Vec<u8>) -> Result<Self, Error> {
+        if data.len() as u64 != range.end - range.start {
+            bail!(
+                "read chunk with wrong size ({} != {})",
+                data.len(),
+                range.end - range.start,
+            );
+        }
+        Ok(Self { range, data })
+    }
+}
+
 pub struct BufferedDynamicReader<S> {
     store: S,
     index: DynamicIndexReader,
@@ -266,7 +290,7 @@ pub struct BufferedDynamicReader<S> {
     buffered_chunk_idx: usize,
     buffered_chunk_start: u64,
     read_offset: u64,
-    lru_cache: crate::tools::lru_cache::LruCache<usize, (u64, u64, Vec<u8>)>,
+    lru_cache: crate::tools::lru_cache::LruCache<usize, CachedChunk>,
 }
 
 struct ChunkCacher<'a, S> {
@@ -274,10 +298,12 @@ struct ChunkCacher<'a, S> {
     index: &'a DynamicIndexReader,
 }
 
-impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, (u64, u64, Vec<u8>)> for ChunkCacher<'a, S> {
-    fn fetch(&mut self, index: usize) -> Result<Option<(u64, u64, Vec<u8>)>, anyhow::Error> {
-        let (start, end, digest) = self.index.chunk_info(index)?;
-        self.store.read_chunk(&digest).and_then(|data| Ok(Some((start, end, data))))
+impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, CachedChunk> for ChunkCacher<'a, S> {
+    fn fetch(&mut self, index: usize) -> Result<Option<CachedChunk>, Error> {
+        let info = self.index.chunk_info(index)?;
+        let range = info.range;
+        let data = self.store.read_chunk(&info.digest)?;
+        CachedChunk::new(range, data).map(Some)
     }
 }
 
@@ -301,7 +327,8 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
     }
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
-        let (start, end, data) = self.lru_cache.access(
+        //let (start, end, data) = self.lru_cache.access(
+        let cached_chunk = self.lru_cache.access(
             idx,
             &mut ChunkCacher {
                 store: &mut self.store,
@@ -309,21 +336,13 @@ impl<S: ReadChunk> BufferedDynamicReader<S> {
             },
         )?.ok_or_else(|| format_err!("chunk not found by cacher"))?;
 
-        if (*end - *start) != data.len() as u64 {
-            bail!(
-                "read chunk with wrong size ({} != {}",
-                (*end - *start),
-                data.len()
-            );
-        }
-
         // fixme: avoid copy
         self.read_buffer.clear();
-        self.read_buffer.extend_from_slice(&data);
+        self.read_buffer.extend_from_slice(&cached_chunk.data);
 
         self.buffered_chunk_idx = idx;
 
-        self.buffered_chunk_start = *start;
+        self.buffered_chunk_start = cached_chunk.range.start;
         //println!("BUFFER {} {}",  self.buffered_chunk_start, end);
         Ok(())
     }

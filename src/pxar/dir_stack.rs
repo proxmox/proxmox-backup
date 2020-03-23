@@ -1,118 +1,141 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 
-use anyhow::{format_err, Error};
-use nix::errno::Errno;
+use anyhow::{bail, format_err, Error};
+use nix::dir::Dir;
 use nix::fcntl::OFlag;
-use nix::sys::stat::Mode;
-use nix::NixPath;
+use nix::sys::stat::{mkdirat, Mode};
 
-use super::format_definition::{PxarAttributes, PxarEntry};
+use proxmox::sys::error::SysError;
+use pxar::Metadata;
+
+use crate::pxar::tools::{assert_relative_path, perms_from_metadata};
 
 pub struct PxarDir {
-    pub filename: OsString,
-    pub entry: PxarEntry,
-    pub attr: PxarAttributes,
-    pub dir: Option<nix::dir::Dir>,
-}
-
-pub struct PxarDirStack {
-    root: RawFd,
-    data: Vec<PxarDir>,
+    file_name: OsString,
+    metadata: Metadata,
+    dir: Option<Dir>,
 }
 
 impl PxarDir {
-    pub fn new(filename: &OsStr, entry: PxarEntry, attr: PxarAttributes) -> Self {
+    pub fn new(file_name: OsString, metadata: Metadata) -> Self {
         Self {
-            filename: filename.to_os_string(),
-            entry,
-            attr,
+            file_name,
+            metadata,
             dir: None,
         }
     }
 
-    fn create_dir(&self, parent: RawFd, create_new: bool) -> Result<nix::dir::Dir, nix::Error> {
-        let res = self
-            .filename
-            .with_nix_path(|cstr| unsafe { libc::mkdirat(parent, cstr.as_ptr(), libc::S_IRWXU) })?;
+    pub fn with_dir(dir: Dir, metadata: Metadata) -> Self {
+        Self {
+            file_name: OsString::from("."),
+            metadata,
+            dir: Some(dir),
+        }
+    }
 
-        match Errno::result(res) {
-            Ok(_) => {}
+    fn create_dir(&mut self, parent: RawFd, allow_existing_dirs: bool) -> Result<RawFd, Error> {
+        match mkdirat(
+            parent,
+            self.file_name.as_os_str(),
+            perms_from_metadata(&self.metadata)?,
+        ) {
+            Ok(()) => (),
             Err(err) => {
-                if err == nix::Error::Sys(nix::errno::Errno::EEXIST) {
-                    if create_new {
-                        return Err(err);
-                    }
-                } else {
-                    return Err(err);
+                if !(allow_existing_dirs && err.already_exists()) {
+                    return Err(err.into());
                 }
             }
         }
 
-        let dir = nix::dir::Dir::openat(
+        self.open_dir(parent)
+    }
+
+    fn open_dir(&mut self, parent: RawFd) -> Result<RawFd, Error> {
+        let dir = Dir::openat(
             parent,
-            self.filename.as_os_str(),
+            self.file_name.as_os_str(),
             OFlag::O_DIRECTORY,
             Mode::empty(),
         )?;
 
-        Ok(dir)
+        let fd = dir.as_raw_fd();
+        self.dir = Some(dir);
+
+        Ok(fd)
+    }
+
+    pub fn try_as_raw_fd(&self) -> Option<RawFd> {
+        self.dir.as_ref().map(AsRawFd::as_raw_fd)
+    }
+
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
     }
 }
 
+pub struct PxarDirStack {
+    dirs: Vec<PxarDir>,
+    path: PathBuf,
+    created: usize,
+}
+
 impl PxarDirStack {
-    pub fn new(parent: RawFd) -> Self {
+    pub fn new(root: Dir, metadata: Metadata) -> Self {
         Self {
-            root: parent,
-            data: Vec::new(),
+            dirs: vec![PxarDir::with_dir(root, metadata)],
+            path: PathBuf::from("/"),
+            created: 1, // the root directory exists
         }
     }
 
-    pub fn push(&mut self, dir: PxarDir) {
-        self.data.push(dir);
+    pub fn is_empty(&self) -> bool {
+        self.dirs.is_empty()
     }
 
-    pub fn pop(&mut self) -> Option<PxarDir> {
-        self.data.pop()
+    pub fn push(&mut self, file_name: OsString, metadata: Metadata) -> Result<(), Error> {
+        assert_relative_path(&file_name)?;
+        self.path.push(&file_name);
+        self.dirs.push(PxarDir::new(file_name, metadata));
+        Ok(())
     }
 
-    pub fn as_path_buf(&self) -> PathBuf {
-        let path: PathBuf = self.data.iter().map(|d| d.filename.clone()).collect();
-        path
-    }
-
-    pub fn last(&self) -> Option<&PxarDir> {
-        self.data.last()
-    }
-
-    pub fn last_mut(&mut self) -> Option<&mut PxarDir> {
-        self.data.last_mut()
-    }
-
-    pub fn last_dir_fd(&self) -> Option<RawFd> {
-        let last_dir = self.data.last()?;
-        match &last_dir.dir {
-            Some(d) => Some(d.as_raw_fd()),
-            None => None,
-        }
-    }
-
-    pub fn create_all_dirs(&mut self, create_new: bool) -> Result<RawFd, Error> {
-        let mut current_fd = self.root;
-        for d in &mut self.data {
-            match &d.dir {
-                Some(dir) => current_fd = dir.as_raw_fd(),
-                None => {
-                    let dir = d
-                        .create_dir(current_fd, create_new)
-                        .map_err(|err| format_err!("create dir failed - {}", err))?;
-                    current_fd = dir.as_raw_fd();
-                    d.dir = Some(dir);
-                }
+    pub fn pop(&mut self) -> Result<Option<PxarDir>, Error> {
+        let out = self.dirs.pop();
+        if !self.path.pop() {
+            if self.path.as_os_str() == "/" {
+                // we just finished the root directory, make sure this can only happen once:
+                self.path = PathBuf::new();
+            } else {
+                bail!("lost track of path");
             }
         }
+        self.created = self.created.min(self.dirs.len());
+        Ok(out)
+    }
 
-        Ok(current_fd)
+    pub fn last_dir_fd(&mut self, allow_existing_dirs: bool) -> Result<RawFd, Error> {
+        // should not be possible given the way we use it:
+        assert!(!self.dirs.is_empty(), "PxarDirStack underrun");
+
+        let mut fd = self.dirs[self.created - 1]
+            .try_as_raw_fd()
+            .ok_or_else(|| format_err!("lost track of directory file descriptors"))?;
+        while self.created < self.dirs.len() {
+            fd = self.dirs[self.created].create_dir(fd, allow_existing_dirs)?;
+            self.created += 1;
+        }
+
+        Ok(fd)
+    }
+
+    pub fn root_dir_fd(&self) -> Result<RawFd, Error> {
+        // should not be possible given the way we use it:
+        assert!(!self.dirs.is_empty(), "PxarDirStack underrun");
+
+        self.dirs[0]
+            .try_as_raw_fd()
+            .ok_or_else(|| format_err!("lost track of directory file descriptors"))
     }
 }
