@@ -4,12 +4,12 @@ Ext.define('pbs-data-store-content', {
 	'backup-type',
 	'backup-id',
 	{
-	    name: 'last-backup',
+	    name: 'backup-time',
 	    type: 'date',
 	    dateFormat: 'timestamp'
 	},
 	'files',
-	{ name: 'backup-count', type: 'int' },
+	{ name: 'size', type: 'int' },
 	{
 	    name: 'backup-group',
 	    calculate: function (data) {
@@ -20,13 +20,10 @@ Ext.define('pbs-data-store-content', {
 });
 
 Ext.define('PBS.DataStoreContent', {
-    extend: 'Ext.grid.GridPanel',
+    extend: 'Ext.tree.Panel',
     alias: 'widget.pbsDataStoreContent',
 
-    store: {
-	model: 'pbs-data-store-content',
-	sorters: 'backup-group',
-    },
+    rootVisible: false,
 
     controller: {
 	xclass: 'Ext.app.ViewController',
@@ -35,6 +32,12 @@ Ext.define('PBS.DataStoreContent', {
 	    if (!view.datastore) {
 		throw "no datastore specified";
 	    }
+
+	    this.data_store = Ext.create('Ext.data.Store', {
+		model: 'pbs-data-store-content',
+		sorters: 'backup-group',
+		groupField: 'backup-group',
+	    });
 
 	    view.title = gettext('Data Store Content: ') + view.datastore;
 
@@ -45,12 +48,80 @@ Ext.define('PBS.DataStoreContent', {
 	reload: function() {
 	    var view = this.getView();
 
-	    let url = `/api2/json/admin/datastore/${view.datastore}/groups`;
-	    view.store.setProxy({
+	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
+	    this.data_store.setProxy({
 		type: 'proxmox',
 		url:  url
 	    });
-	    view.store.load();
+
+
+	    this.data_store.load(function(records, operation, success) {
+		console.log('loaded records');
+
+		let groups = {};
+
+		records.forEach(function(item) {
+		    var btype = item.data["backup-type"];
+		    let group = btype + "/" + item.data["backup-id"];
+
+		    if (groups[group] !== undefined)
+			return;
+
+		    var cls = '';
+		    if (btype === 'vm') {
+			cls = 'fa-desktop';
+		    } else if (btype === 'ct') {
+			cls = 'fa-cube';
+		    } else if (btype === 'host') {
+			cls = 'fa-building';
+		    } else {
+			return btype + '/' + value;
+		    }
+
+		    groups[group] = {
+			text: group,
+			leaf: false,
+			iconCls: "fa " + cls,
+			expanded: false,
+			children: []
+		    };
+		});
+
+		records.forEach(function(item) {
+		    console.log(item);
+
+		    let group = item.data["backup-type"] + "/" + item.data["backup-id"];
+		    let children = groups[group].children;
+
+		    let data = item.data;
+		    data.text = Ext.Date.format(data["backup-time"], 'Y-m-d H:i:s');
+		    data.leaf = true;
+
+		    children.push(data);
+		});
+
+		let children = [];
+		Ext.Object.each(groups, function(key, group) {
+		    let last_backup = 0;
+		    group.children.forEach(function(item) {
+			if (item["backup-time"] > last_backup) {
+			    last_backup = item["backup-time"];
+			    group["backup-time"] = last_backup;
+			    group.files = item.files;
+			    group.size = item.size;
+			}
+		    });
+		    group.count = group.children.length;
+		    children.push(group)
+		})
+
+		view.setRootNode({
+		    expanded: true,
+		    children: children
+		});
+
+	    });
+
 	},
     },
 
@@ -76,38 +147,39 @@ Ext.define('PBS.DataStoreContent', {
 	Ext.apply(me, {
 	    columns: [
 		{
-		    header: gettext('Backup'),
-		    sortable: true,
-		    renderer: render_backup_type,
-		    dataIndex: 'backup-id',
+		    xtype: 'treecolumn',
+		    header: gettext("Backup Group"),
+		    dataIndex: 'text',
 		    flex: 1
 		},
 		{
 		    xtype: 'datecolumn',
-		    header: gettext('Last Backup'),
+		    header: gettext('Backup Time'),
 		    sortable: true,
-		    dataIndex: 'last-backup',
+		    dataIndex: 'backup-time',
 		    format: 'Y-m-d H:i:s',
-		    flex: 1
+		    width: 150
+		},
+		{
+		    header: gettext("Size"),
+		    sortable: true,
+		    dataIndex: 'size',
+		    renderer: Proxmox.Utils.format_size,
 		},
 		{
 		    xtype: 'numbercolumn',
 		    format: '0',
-		    header: gettext('Number of Backups'),
+		    header: gettext("Count"),
 		    sortable: true,
-		    dataIndex: 'backup-count',
-		    flex: 1
+		    dataIndex: 'count',
 		},
+		{
+		    header: gettext("Files"),
+		    sortable: false,
+		    dataIndex: 'files',
+		    flex: 4
+		}
 	    ],
-
-	    plugins: [{
-		ptype: 'rowexpander',
-		rowBodyTpl: new Ext.XTemplate(
-		    '<tpl for="files">',
-		    '<p>{.}</p>',
-		    '</tpl>'
-		),
-	    }],
 
 	    tbar: [
 		{

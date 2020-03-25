@@ -170,3 +170,13 @@ p.logs {
     margin: 5px;
     padding: 5px;
 }
+
+/* tree icons */
+
+/* big symbols */
+.x-tree-icon-custom {
+    font-size: 1.25em;
+    line-height: 1.6em;
+    color: #555;
+    margin-right: 5px;
+}
