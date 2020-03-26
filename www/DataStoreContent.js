@@ -114,6 +114,25 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 
 	},
+
+	onPrune: function() {
+	    var view = this.getView();
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+	    if (data.leaf) return;
+
+	    if (!view.datastore) return;
+
+	    let win = Ext.create('PBS.DataStorePrune', {
+		datastore: view.datastore,
+		backup_type: data.backup_type,
+		backup_id: data.backup_id,
+	    });
+	    win.on('destroy', this.reload, this);
+	    win.show();
+	}
     },
 
     initComponent: function() {
@@ -125,30 +144,8 @@ Ext.define('PBS.DataStoreContent', {
 	    text: gettext('Prune'),
 	    disabled: true,
 	    selModel: sm,
-	    enableFn: function(record) {
-		return !record.data.leaf;
-	    },
-	    handler: function() {
-		let rec = sm.getSelection()[0];
-		if (!(rec && rec.data)) return;
-		let data = rec.data;
-		if (data.leaf) return;
-
-		console.log(data);
-
-		console.log("PRUNE GROUP: " + me.datastore);
-
-		if (!me.datastore) return;
-
-		let win = Ext.create('PBS.DataStorePrune', {
-		    datastore: me.datastore,
-		    backup_type: data.backup_type,
-		    backup_id: data.backup_id,
-		});
-		win.on('destroy', me.getController().reload, me.getController());
-		win.show();
-
-	    }
+	    enableFn: function(record) { return !record.data.leaf; },
+	    handler: 'onPrune',
 	});
 
 	Ext.apply(me, {
