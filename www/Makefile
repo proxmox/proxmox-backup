@@ -11,6 +11,7 @@ JSSRC=							\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
+	DataStorePrune.js				\
 	DataStoreConfig.js				\
 	DataStoreContent.js				\
 	ServerAdministration.js				\

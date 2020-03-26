@@ -74,6 +74,8 @@ Ext.define('PBS.DataStoreContent', {
 			leaf: false,
 			iconCls: "fa " + cls,
 			expanded: false,
+			backup_type: item.data["backup-type"],
+			backup_id: item.data["backup-id"],
 			children: []
 		    };
 		});
@@ -117,7 +119,40 @@ Ext.define('PBS.DataStoreContent', {
     initComponent: function() {
 	var me = this;
 
+	var sm = Ext.create('Ext.selection.RowModel', {});
+
+	var prune_btn = new Proxmox.button.Button({
+	    text: gettext('Prune'),
+	    disabled: true,
+	    selModel: sm,
+	    enableFn: function(record) {
+		return !record.data.leaf;
+	    },
+	    handler: function() {
+		let rec = sm.getSelection()[0];
+		if (!(rec && rec.data)) return;
+		let data = rec.data;
+		if (data.leaf) return;
+
+		console.log(data);
+
+		console.log("PRUNE GROUP: " + me.datastore);
+
+		if (!me.datastore) return;
+
+		let win = Ext.create('PBS.DataStorePrune', {
+		    datastore: me.datastore,
+		    backup_type: data.backup_type,
+		    backup_id: data.backup_id,
+		});
+		win.on('destroy', me.getController().reload, me.getController());
+		win.show();
+
+	    }
+	});
+
 	Ext.apply(me, {
+	    selModel: sm,
 	    columns: [
 		{
 		    xtype: 'treecolumn',
@@ -160,6 +195,7 @@ Ext.define('PBS.DataStoreContent', {
 		    iconCls: 'fa fa-refresh',
 		    handler: 'reload',
 		},
+		prune_btn
 	    ],
 	});
 
