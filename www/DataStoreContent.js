@@ -80,13 +80,32 @@ Ext.define('PBS.DataStoreContent', {
 		    };
 		});
 
+		let backup_time_to_string = function(backup_time) {
+		    let pad = function(number) {
+			if (number < 10) {
+			    return '0' + number;
+			}
+			return number;
+		    };
+		    return backup_time.getUTCFullYear() +
+			'-' + pad(backup_time.getUTCMonth() + 1) +
+			'-' + pad(backup_time.getUTCDate()) +
+			'T' + pad(backup_time.getUTCHours()) +
+			':' + pad(backup_time.getUTCMinutes()) +
+			':' + pad(backup_time.getUTCSeconds()) +
+			'Z';
+		};
+
 		records.forEach(function(item) {
 		    let group = item.data["backup-type"] + "/" + item.data["backup-id"];
 		    let children = groups[group].children;
 
 		    let data = item.data;
+
 		    data.text = Ext.Date.format(data["backup-time"], 'Y-m-d H:i:s');
+		    data.text = group + '/' + backup_time_to_string(data["backup-time"]);
 		    data.leaf = true;
+		    data.cls = 'no-leaf-icons';
 
 		    children.push(data);
 		});
@@ -182,7 +201,7 @@ Ext.define('PBS.DataStoreContent', {
 		    header: gettext("Files"),
 		    sortable: false,
 		    dataIndex: 'files',
-		    flex: 4
+		    flex: 2
 		}
 	    ],
 

@@ -180,3 +180,8 @@ p.logs {
     color: #555;
     margin-right: 5px;
 }
+
+.no-leaf-icons .x-tree-icon-leaf {
+    visibility: hidden;
+    width: 5px;
+}
