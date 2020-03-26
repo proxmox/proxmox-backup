@@ -550,13 +550,19 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                     return Ok((formatter.format_error)(err));
                 }
                 Some(api_method) => {
-                    if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
-                        return proxy_protected_request(api_method, parts, body).await;
+                    let result = if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
+                        proxy_protected_request(api_method, parts, body).await
                     } else {
-                        return handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param).await;
+                        handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param).await
+                    };
+
+                    if let Err(err) = result {
+                        return Ok((formatter.format_error)(err));
                     }
+                    return result;
                 }
             }
+
         }
      } else {
         // not Auth required for accessing files!
