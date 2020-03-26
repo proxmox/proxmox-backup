@@ -1,4 +1,4 @@
-Ext.define('pbs-data-store-content', {
+Ext.define('pbs-data-store-snapshots', {
     extend: 'Ext.data.Model',
     fields: [
 	'backup-type',
@@ -10,13 +10,7 @@ Ext.define('pbs-data-store-content', {
 	},
 	'files',
 	{ name: 'size', type: 'int' },
-	{
-	    name: 'backup-group',
-	    calculate: function (data) {
-		return data["backup-type"] + '/' + data["backup-id"];
-	    }
-	},
-    ],
+    ]
 });
 
 Ext.define('PBS.DataStoreContent', {
@@ -34,7 +28,7 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 
 	    this.data_store = Ext.create('Ext.data.Store', {
-		model: 'pbs-data-store-content',
+		model: 'pbs-data-store-snapshots',
 		sorters: 'backup-group',
 		groupField: 'backup-group',
 	    });
@@ -54,10 +48,7 @@ Ext.define('PBS.DataStoreContent', {
 		url:  url
 	    });
 
-
 	    this.data_store.load(function(records, operation, success) {
-		console.log('loaded records');
-
 		let groups = {};
 
 		records.forEach(function(item) {
@@ -88,8 +79,6 @@ Ext.define('PBS.DataStoreContent', {
 		});
 
 		records.forEach(function(item) {
-		    console.log(item);
-
 		    let group = item.data["backup-type"] + "/" + item.data["backup-id"];
 		    let children = groups[group].children;
 
@@ -127,22 +116,6 @@ Ext.define('PBS.DataStoreContent', {
 
     initComponent: function() {
 	var me = this;
-
-	var render_backup_type = function(value, metaData, record) {
-	    var btype = record.data["backup-type"];
-	    var cls = '';
-	    if (btype === 'vm') {
-		cls = 'fa-desktop';
-	    } else if (btype === 'ct') {
-		cls = 'fa-cube';
-	    } else if (btype === 'host') {
-		cls = 'fa-building';
-	    } else {
-		return btype + '/' + value;
-	    }
-	    var fa = '<i class="fa fa-fw x-grid-icon-custom ' + cls  + '"></i> ';
-	    return fa + value;
-	};
 
 	Ext.apply(me, {
 	    columns: [
