@@ -33,7 +33,7 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 	},
 	{
 	    xtype: 'proxmoxintegerfield',
-	    name: 'keep-montly',
+	    name: 'keep-monthly',
 	    allowBlank: true,
 	    fieldLabel: gettext('keep-monthly'),
 	    minValue: 1,
