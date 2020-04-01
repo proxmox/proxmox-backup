@@ -419,33 +419,53 @@ fn prune(
 
     let worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
 
+    let mut prune_result = Vec::new();
+
+    let list = group.list_backups(&datastore.base_path())?;
+
+    let mut prune_info = compute_prune_info(list, &prune_options)?;
+
+    prune_info.reverse(); // delete older snapshots first
+
+    let keep_all = !prune_options.keeps_something();
+
+    if dry_run {
+        for (info, mut keep) in prune_info {
+            if keep_all { keep = true; }
+
+            let backup_time = info.backup_dir.backup_time();
+            let group = info.backup_dir.group();
+
+            prune_result.push(json!({
+                "backup-type": group.backup_type(),
+                "backup-id": group.backup_id(),
+                "backup-time": backup_time.timestamp(),
+                "keep": keep,
+            }));
+        }
+        return Ok(json!(prune_result));
+    }
+
+
     // We use a WorkerTask just to have a task log, but run synchrounously
     let worker = WorkerTask::new("prune", Some(worker_id), "root@pam", true)?;
+
     let result = try_block! {
-        if !prune_options.keeps_something() {
+        if keep_all {
             worker.log("No prune selection - keeping all files.");
-            return Ok(());
         } else {
             worker.log(format!("retention options: {}", prune_options.cli_options_string()));
-            if dry_run {
-                worker.log(format!("Testing prune on store \"{}\" group \"{}/{}\"",
-                                   store, backup_type, backup_id));
-            } else {
-                worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
-                                   store, backup_type, backup_id));
-            }
+            worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
+                               store, backup_type, backup_id));
         }
 
-        let list = group.list_backups(&datastore.base_path())?;
+        for (info, mut keep) in prune_info {
+            if keep_all { keep = true; }
 
-        let mut prune_info = compute_prune_info(list, &prune_options)?;
-
-        prune_info.reverse(); // delete older snapshots first
-
-        for (info, keep) in prune_info {
             let backup_time = info.backup_dir.backup_time();
             let timestamp = BackupDir::backup_time_to_string(backup_time);
             let group = info.backup_dir.group();
+
 
             let msg = format!(
                 "{}/{}/{} {}",
@@ -456,6 +476,13 @@ fn prune(
             );
 
             worker.log(msg);
+
+            prune_result.push(json!({
+                "backup-type": group.backup_type(),
+                "backup-id": group.backup_id(),
+                "backup-time": backup_time.timestamp(),
+                "keep": keep,
+            }));
 
             if !(dry_run || keep) {
                 datastore.remove_backup_dir(&info.backup_dir)?;
@@ -469,9 +496,9 @@ fn prune(
 
     if let Err(err) = result {
         bail!("prune failed - {}", err);
-    }
+    };
 
-    Ok(json!(worker.to_string())) // return the UPID
+    Ok(json!(prune_result))
 }
 
 #[api(
