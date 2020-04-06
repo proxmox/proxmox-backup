@@ -289,7 +289,7 @@ impl ChunkStore {
 
     pub fn sweep_unused_chunks(
         &self,
-        oldest_writer: Option<i64>,
+        oldest_writer: i64,
         status: &mut GarbageCollectionStatus,
         worker: Arc<WorkerTask>,
     ) -> Result<(), Error> {
@@ -299,10 +299,8 @@ impl ChunkStore {
 
         let mut min_atime = now - 3600*24; // at least 24h (see mount option relatime)
 
-        if let Some(stamp) = oldest_writer {
-            if stamp < min_atime {
-                min_atime = stamp;
-            }
+        if oldest_writer < min_atime {
+            min_atime = oldest_writer;
         }
 
         min_atime -= 300; // add 5 mins gap for safety
@@ -338,10 +336,9 @@ impl ChunkStore {
             let lock = self.mutex.lock();
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                let age = now - stat.st_atime;
-                //println!("FOUND {}  {:?}", age/(3600*24), filename);
                 if stat.st_atime < min_atime {
-                    println!("UNLINK {}  {:?}", age/(3600*24), filename);
+                    //let age = now - stat.st_atime;
+                    //println!("UNLINK {}  {:?}", age/(3600*24), filename);
                     let res = unsafe { libc::unlinkat(dirfd, filename.as_ptr(), 0) };
                     if res != 0 {
                         let err = nix::Error::last();
@@ -354,9 +351,14 @@ impl ChunkStore {
                     }
                     status.removed_chunks += 1;
                     status.removed_bytes += stat.st_size as u64;
-               } else {
-                    status.disk_chunks += 1;
-                    status.disk_bytes += stat.st_size as u64;
+                } else {
+                    if stat.st_atime < oldest_writer {
+                        status.pending_chunks += 1;
+                        status.pending_bytes += stat.st_size as u64;
+                    } else {
+                        status.disk_chunks += 1;
+                        status.disk_bytes += stat.st_size as u64;
+                     }
                 }
             }
             drop(lock);

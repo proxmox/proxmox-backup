@@ -313,6 +313,10 @@ pub struct GarbageCollectionStatus {
     pub removed_bytes: u64,
     /// Number of removed chunks.
     pub removed_chunks: usize,
+    /// Sum of pending bytes (pending removal - kept for safety).
+    pub pending_bytes: u64,
+    /// Number of pending chunks (pending removal - kept for safety).
+    pub pending_chunks: usize,
 }
 
 impl Default for GarbageCollectionStatus {
@@ -325,6 +329,8 @@ impl Default for GarbageCollectionStatus {
             disk_chunks: 0,
             removed_bytes: 0,
             removed_chunks: 0,
+            pending_bytes: 0,
+            pending_chunks: 0,
         }
     }
 }

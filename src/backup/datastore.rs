@@ -338,7 +338,9 @@ impl DataStore {
 
             let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
 
-            let oldest_writer = self.chunk_store.oldest_writer();
+            let now = unsafe { libc::time(std::ptr::null_mut()) };
+
+            let oldest_writer = self.chunk_store.oldest_writer().unwrap_or(now);
 
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.upid = Some(worker.to_string());
@@ -352,6 +354,10 @@ impl DataStore {
 
             worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
+            if gc_status.pending_bytes > 0 {
+                worker.log(&format!("Pending removals: {} bytes ({} chunks)", gc_status.pending_bytes, gc_status.pending_chunks));
+            }
+
             worker.log(&format!("Original data bytes: {}", gc_status.index_data_bytes));
 
             if gc_status.index_data_bytes > 0 {
