@@ -25,14 +25,7 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
         }
     }
 
-    if username == "root@pam" {
-        let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
-        auth.get_handler().set_credentials("root", password);
-        auth.authenticate()?;
-        return Ok(());
-    }
-
-    bail!("inavlid credentials");
+    crate::auth::authenticate_user(username, password)
 }
 
 #[api(

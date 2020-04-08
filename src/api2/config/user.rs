@@ -108,7 +108,7 @@ pub fn list_users(
     },
 )]
 /// Create new user.
-pub fn create_user(userid: String, param: Value) -> Result<(), Error> {
+pub fn create_user(userid: String, password: Option<String>, param: Value) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
@@ -120,12 +120,16 @@ pub fn create_user(userid: String, param: Value) -> Result<(), Error> {
         bail!("user '{}' already exists.", userid);
     }
 
-    // fixme: check/store password
-    // check domain
+    let (username, realm) = crate::auth::parse_userid(&userid)?;
+    let authenticator = crate::auth::lookup_authenticator(&realm)?;
 
     config.set_data(&userid, "user", &user)?;
 
     user::save_config(&config)?;
+
+    if let Some(password) = password {
+        authenticator.store_password(&username, &password)?;
+    }
 
     Ok(())
 }
@@ -236,7 +240,9 @@ pub fn update_user(
     }
 
     if let Some(password) = password {
-        unimplemented!();
+        let (username, realm) = crate::auth::parse_userid(&userid)?;
+        let authenticator = crate::auth::lookup_authenticator(&realm)?;
+        authenticator.store_password(&username, &password)?;
     }
 
     if let Some(firstname) = firstname {

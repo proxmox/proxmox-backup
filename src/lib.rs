@@ -19,3 +19,5 @@ pub mod api2;
 pub mod client;
 
 pub mod auth_helpers;
+
+pub mod auth;
