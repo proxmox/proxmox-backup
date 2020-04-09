@@ -94,7 +94,7 @@ pub const PASSWORD_FORMAT: ApiStringFormat =
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
     .min_length(1)
-    .max_length(64)
+    .max_length(1024)
     .schema();
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
