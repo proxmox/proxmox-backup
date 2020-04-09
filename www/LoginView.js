@@ -9,31 +9,89 @@ Ext.define('PBS.LoginView', {
 	    var me = this;
 	    var view = me.getView();
 	    var loginForm = me.lookupReference('loginForm');
+	    var unField = me.lookupReference('usernameField');
+	    var saveunField = me.lookupReference('saveunField');
 
-	    if (loginForm.isValid()) {
-		if (loginForm.isVisible()) {
-		    loginForm.mask(gettext('Please wait...'), 'x-mask-loading');
-		}
-		loginForm.submit({
-		    success: function(form, action) {
-			// save login data and create cookie
-			PBS.Utils.updateLoginData(action.result.data);
-			PBS.app.changeView('mainview');
-		    },
-		    failure: function(form, action) {
-			loginForm.unmask();
-			Ext.MessageBox.alert(
-			    gettext('Error'),
-			    gettext('Login failed. Please try again')
-			);
-		    }
-		});
+	    if (!loginForm.isValid()) {
+		return;
 	    }
+
+	    let params = loginForm.getValues();
+
+	    params.username = params.username + '@' + params.realm;
+	    delete(params.realm);
+
+	    if (loginForm.isVisible()) {
+		loginForm.mask(gettext('Please wait...'), 'x-mask-loading');
+	    }
+
+	    // set or clear username
+	    var sp = Ext.state.Manager.getProvider();
+	    if (saveunField.getValue() === true) {
+		sp.set(unField.getStateId(), unField.getValue());
+	    } else {
+		sp.clear(unField.getStateId());
+	    }
+	    sp.set(saveunField.getStateId(), saveunField.getValue());
+
+	    Proxmox.Utils.API2Request({
+		url: '/api2/extjs/access/ticket',
+		params: params,
+		method: 'POST',
+		success: function(resp, opts) {
+		    // save login data and create cookie
+		    PBS.Utils.updateLoginData(resp.result.data);
+		    PBS.app.changeView('mainview');
+		},
+		failure: function(resp, opts) {
+		    Proxmox.Utils.authClear();
+		    loginForm.unmask();
+		    Ext.MessageBox.alert(
+			gettext('Error'),
+			gettext('Login failed. Please try again')
+		    );
+		}
+	    });
 	},
 
 	control: {
+	    'field[name=username]': {
+		specialkey: function(f, e) {
+		    if (e.getKey() === e.ENTER) {
+			var pf = this.lookupReference('passwordField');
+			if (!pf.getValue()) {
+			    pf.focus(false);
+			}
+		    }
+		}
+	    },
+	    'field[name=lang]': {
+		change: function(f, value) {
+		    var dt = Ext.Date.add(new Date(), Ext.Date.YEAR, 10);
+		    Ext.util.Cookies.set('PBSLangCookie', value, dt);
+		    this.getView().mask(gettext('Please wait...'), 'x-mask-loading');
+		    window.location.reload();
+		}
+	    },
 	    'button[reference=loginButton]': {
 		click: 'submitForm'
+	    },
+	    'window[reference=loginwindow]': {
+		show: function() {
+		    var sp = Ext.state.Manager.getProvider();
+		    var checkboxField = this.lookupReference('saveunField');
+		    var unField = this.lookupReference('usernameField');
+
+		    var checked = sp.get(checkboxField.getStateId());
+		    checkboxField.setValue(checked);
+
+		    if(checked === true) {
+			var username = sp.get(unField.getStateId());
+			unField.setValue(username);
+			var pwField = this.lookupReference('passwordField');
+			pwField.focus();
+		    }
+		}
 	    }
 	}
     },
@@ -74,11 +132,9 @@ Ext.define('PBS.LoginView', {
 	    reference: 'loginwindow',
 	    autoShow: true,
 	    modal: true,
+	    width: 400,
 
-	    //defaultFocus: 'usernameField',
-	    // TODO: use usernameField again once we have a real user-,
-	    // permission system and root@pam isn't the default anymore
-	    defaultFocus: 'passwordField',
+	    defaultFocus: 'usernameField',
 
 	    layout: {
 		type: 'auto'
@@ -103,12 +159,16 @@ Ext.define('PBS.LoginView', {
 
 		    items: [
 			{
+			    xtype: 'pbsRealmComboBox',
+			    name: 'realm'
+			},
+			{
 			    xtype: 'textfield',
 			    fieldLabel: gettext('User name'),
 			    name: 'username',
-			    value: 'root@pam',
 			    itemId: 'usernameField',
-			    reference: 'usernameField'
+			    reference: 'usernameField',
+			    stateId: 'login-username'
 			},
 			{
 			    xtype: 'textfield',
@@ -117,9 +177,27 @@ Ext.define('PBS.LoginView', {
 			    name: 'password',
 			    itemId: 'passwordField',
 			    reference: 'passwordField',
+			},
+			{
+			    xtype: 'proxmoxLanguageSelector',
+			    fieldLabel: gettext('Language'),
+			    value: Ext.util.Cookies.get('PBSLangCookie') || Proxmox.defaultLang || 'en',
+			    name: 'lang',
+			    reference: 'langField',
+			    submitValue: false
 			}
 		    ],
 		    buttons: [
+			{
+			    xtype: 'checkbox',
+			    fieldLabel: gettext('Save User name'),
+			    name: 'saveusername',
+			    reference: 'saveunField',
+			    stateId: 'login-saveusername',
+			    labelWidth: 250,
+			    labelAlign: 'right',
+			    submitValue: false
+			},
 			{
 			    text: gettext('Login'),
 			    reference: 'loginButton',
