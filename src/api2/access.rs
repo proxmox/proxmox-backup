@@ -2,7 +2,7 @@ use failure::*;
 
 use serde_json::{json, Value};
 
-use proxmox::api::api;
+use proxmox::api::{api, RpcEnvironment};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::sortable;
 use proxmox::{http_err, list_subdirs_api_method};
@@ -10,6 +10,9 @@ use proxmox::{http_err, list_subdirs_api_method};
 use crate::tools;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
+use crate::api2::types::*;
+
+pub mod user;
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
@@ -32,13 +35,10 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
     input: {
         properties: {
             username: {
-                type: String,
-                description: "User name.",
-                max_length: 64,
+                schema: PROXMOX_USER_ID_SCHEMA,
             },
             password: {
-                type: String,
-                description: "The secret password. This can also be a valid ticket.",
+                schema: PASSWORD_SCHEMA,
             },
         },
     },
@@ -87,12 +87,57 @@ fn create_ticket(username: String, password: String) -> Result<Value, Error> {
     }
 }
 
+#[api(
+    input: {
+        properties: {
+            userid: {
+                schema: PROXMOX_USER_ID_SCHEMA,
+            },
+            password: {
+                schema: PASSWORD_SCHEMA,
+            },
+        },
+    },
+)]
+/// Change user password
+///
+/// Each user is allowed to change his own password. Superuser
+/// can change all passwords.
+fn change_password(
+    userid: String,
+    password: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let current_user = rpcenv.get_user()
+        .ok_or_else(|| format_err!("unknown user"))?;
+
+    let mut allowed = userid == current_user;
+
+    if userid == "root@pam" { allowed = true; }
+
+    if !allowed {
+        bail!("you are not authorized to change the password.");
+    }
+
+    let (username, realm) = crate::auth::parse_userid(&userid)?;
+    let authenticator = crate::auth::lookup_authenticator(&realm)?;
+    authenticator.store_password(&username, &password)?;
+
+    Ok(Value::Null)
+}
+
 #[sortable]
 const SUBDIRS: SubdirMap = &[
     (
+        "password", &Router::new()
+            .put(&API_METHOD_CHANGE_PASSWORD)
+    ),
+    (
         "ticket", &Router::new()
             .post(&API_METHOD_CREATE_TICKET)
-    )
+    ),
+    ("users", &user::ROUTER),
 ];
 
 pub const ROUTER: Router = Router::new()

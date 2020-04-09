@@ -91,6 +91,17 @@ pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
 
 
+pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
+    .format(&PASSWORD_FORMAT)
+    .min_length(1)
+    .max_length(64)
+    .schema();
+
+pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
+    .format(&PASSWORD_FORMAT)
+    .min_length(5)
+    .max_length(64)
+    .schema();
 
 pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema = StringSchema::new(
     "X509 certificate fingerprint (sha256)."

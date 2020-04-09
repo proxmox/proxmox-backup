@@ -140,7 +140,7 @@ pub fn create_user(userid: String, password: Option<String>, param: Value) -> Re
             userid: {
                 schema: PROXMOX_USER_ID_SCHEMA,
             },
-        },
+         },
     },
     returns: {
         description: "The user configuration (with config digest).",

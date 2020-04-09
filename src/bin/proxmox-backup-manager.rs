@@ -125,7 +125,7 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
 
     let output_format = get_output_format(&param);
 
-    let info = &api2::config::user::API_METHOD_LIST_USERS;
+    let info = &api2::access::user::API_METHOD_LIST_USERS;
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
@@ -152,18 +152,18 @@ fn user_commands() -> CommandLineInterface {
         .insert(
             "create",
             // fixme: howto handle password parameter?
-            CliCommand::new(&api2::config::user::API_METHOD_CREATE_USER)
+            CliCommand::new(&api2::access::user::API_METHOD_CREATE_USER)
                 .arg_param(&["userid"])
         )
         .insert(
             "update",
-            CliCommand::new(&api2::config::user::API_METHOD_UPDATE_USER)
+            CliCommand::new(&api2::access::user::API_METHOD_UPDATE_USER)
                 .arg_param(&["userid"])
                 .completion_cb("userid", config::user::complete_user_name)
         )
         .insert(
             "remove",
-            CliCommand::new(&api2::config::user::API_METHOD_DELETE_USER)
+            CliCommand::new(&api2::access::user::API_METHOD_DELETE_USER)
                 .arg_param(&["userid"])
                 .completion_cb("userid", config::user::complete_user_name)
         );
