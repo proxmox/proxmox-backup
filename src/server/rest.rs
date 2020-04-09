@@ -524,7 +524,10 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
 
             let mut uri_param = HashMap::new();
 
-            if comp_len == 4 && components[2] == "access" && components[3] == "ticket" {
+            if comp_len == 4 && components[2] == "access" && (
+                (components[3] == "ticket" && method ==  hyper::Method::POST) ||
+                (components[3] == "domains" && method ==  hyper::Method::GET)
+            ) {
                 // explicitly allow those calls without auth
             } else {
                 let (ticket, token) = extract_auth_data(&parts.headers);

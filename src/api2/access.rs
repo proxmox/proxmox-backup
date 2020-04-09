@@ -13,6 +13,7 @@ use crate::auth_helpers::*;
 use crate::api2::types::*;
 
 pub mod user;
+pub mod domain;
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
@@ -137,6 +138,7 @@ const SUBDIRS: SubdirMap = &[
         "ticket", &Router::new()
             .post(&API_METHOD_CREATE_TICKET)
     ),
+    ("domains", &domain::ROUTER),
     ("users", &user::ROUTER),
 ];
 
