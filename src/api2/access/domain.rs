@@ -23,6 +23,10 @@ use crate::api2::types::*;
                     schema: SINGLE_LINE_COMMENT_SCHEMA,
                     optional: true,
                 },
+                default: {
+                    description: "Default realm.",
+                    type: bool,
+                }
             },
         }
     }
@@ -33,7 +37,7 @@ use crate::api2::types::*;
 /// box (before the user is authenticated).
 fn list_domains() -> Result<Value, Error> {
     let mut list = Vec::new();
-    list.push(json!({ "realm": "pam", "comment": "Linux PAM standard authentication" }));
+    list.push(json!({ "realm": "pam", "comment": "Linux PAM standard authentication", "default": true }));
     list.push(json!({ "realm": "pbs", "comment": "Proxmox Backup authentication server" }));
     Ok(list.into())
 }
