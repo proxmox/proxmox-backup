@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use proxmox::api::{api, RpcEnvironment};
 use proxmox::api::router::{Router, SubdirMap};
-use proxmox::sortable;
+use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
 
 use crate::tools;
@@ -129,7 +129,7 @@ fn change_password(
 }
 
 #[sortable]
-const SUBDIRS: SubdirMap = &[
+const SUBDIRS: SubdirMap = &sorted!([
     (
         "password", &Router::new()
             .put(&API_METHOD_CHANGE_PASSWORD)
@@ -140,7 +140,7 @@ const SUBDIRS: SubdirMap = &[
     ),
     ("domains", &domain::ROUTER),
     ("users", &user::ROUTER),
-];
+]);
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
