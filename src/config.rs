@@ -18,6 +18,7 @@ use crate::buildcfg;
 pub mod datastore;
 pub mod remote;
 pub mod user;
+pub mod acl;
 
 /// Check configuration directory permissions
 ///
