@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::path::{PathBuf, Path};
 
 use failure::*;
@@ -70,7 +70,7 @@ pub struct AclTree {
 struct AclTreeNode {
     users: HashMap<String, HashMap<String, bool>>,
     groups: HashMap<String, HashMap<String, bool>>,
-    children: HashMap<String, AclTreeNode>,
+    children: BTreeMap<String, AclTreeNode>,
 }
 
 impl AclTreeNode {
@@ -79,7 +79,7 @@ impl AclTreeNode {
         Self {
             users: HashMap::new(),
             groups: HashMap::new(),
-            children: HashMap::new(),
+            children: BTreeMap::new(),
         }
     }
 
@@ -197,10 +197,10 @@ impl AclTree {
                 let role = role.as_str();
                 let user = user.to_string();
                 if *propagate {
-                    role_ug_map1.entry(role).or_insert_with(|| HashSet::new())
+                    role_ug_map1.entry(role).or_insert_with(|| BTreeSet::new())
                         .insert(user);
                 } else {
-                    role_ug_map0.entry(role).or_insert_with(|| HashSet::new())
+                    role_ug_map0.entry(role).or_insert_with(|| BTreeSet::new())
                         .insert(user);
                 }
             }
@@ -210,60 +210,53 @@ impl AclTree {
             for (role, propagate) in roles {
                 let group = format!("@{}", group);
                 if *propagate {
-                    role_ug_map1.entry(role).or_insert_with(|| HashSet::new())
+                    role_ug_map1.entry(role).or_insert_with(|| BTreeSet::new())
                         .insert(group);
                 } else {
-                    role_ug_map0.entry(role).or_insert_with(|| HashSet::new())
+                    role_ug_map0.entry(role).or_insert_with(|| BTreeSet::new())
                         .insert(group);
                 }
             }
         }
 
         fn group_by_property_list(
-            item_property_map: &HashMap<&str, HashSet<String>>,
-        ) -> HashMap<String, HashSet<String>> {
-            let mut result_map = HashMap::new();
+            item_property_map: &HashMap<&str, BTreeSet<String>>,
+        ) -> BTreeMap<String, BTreeSet<String>> {
+            let mut result_map = BTreeMap::new();
             for (item, property_map) in item_property_map {
-                let mut item_list = property_map.iter().map(|v| v.as_str())
-                    .collect::<Vec<&str>>();
-                item_list.sort();
-                let item_list = item_list.join(",");
-                result_map.entry(item_list).or_insert_with(|| HashSet::new())
+                let item_list = property_map.iter().fold(String::new(), |mut acc, v| {
+                    if !acc.is_empty() { acc.push(','); }
+                    acc.push_str(v);
+                    acc
+                });
+                result_map.entry(item_list).or_insert_with(|| BTreeSet::new())
                     .insert(item.to_string());
             }
             result_map
         }
 
-        let mut uglist_role_map0 = group_by_property_list(&role_ug_map0)
-            .into_iter()
-            .collect::<Vec<(String, HashSet<String>)>>();
-        uglist_role_map0.sort_unstable_by(|a,b| a.0.cmp(&b.0));
-
-        let mut uglist_role_map1 = group_by_property_list(&role_ug_map1)
-            .into_iter()
-            .collect::<Vec<(String, HashSet<String>)>>();
-        uglist_role_map1.sort_unstable_by(|a,b| a.0.cmp(&b.0));
-
+        let uglist_role_map0 = group_by_property_list(&role_ug_map0);
+        let uglist_role_map1 = group_by_property_list(&role_ug_map1);
 
         for (uglist, roles) in uglist_role_map0 {
-            let mut role_list = roles.iter().map(|v| v.as_str())
-                .collect::<Vec<&str>>();
-            role_list.sort();
-            writeln!(w, "acl:0:{}:{}:{}", path, uglist, role_list.join(","))?;
+            let role_list = roles.iter().fold(String::new(), |mut acc, v| {
+                if !acc.is_empty() { acc.push(','); }
+                acc.push_str(v);
+                acc
+            });
+            writeln!(w, "acl:0:{}:{}:{}", path, uglist, role_list)?;
         }
 
         for (uglist, roles) in uglist_role_map1 {
-            let mut role_list = roles.iter().map(|v| v.as_str())
-                .collect::<Vec<&str>>();
-            role_list.sort();
-            writeln!(w, "acl:1:{}:{}:{}", path, uglist, role_list.join(","))?;
+           let role_list = roles.iter().fold(String::new(), |mut acc, v| {
+                if !acc.is_empty() { acc.push(','); }
+                acc.push_str(v);
+                acc
+            });
+            writeln!(w, "acl:1:{}:{}:{}", path, uglist, role_list)?;
         }
 
-        let mut child_names = node.children.keys().map(|v| v.as_str()).collect::<Vec<&str>>();
-        child_names.sort();
-
-        for name in child_names {
-            let child = node.children.get(name).unwrap();
+        for (name, child) in node.children.iter() {
             let child_path = format!("{}/{}", path, name);
             Self::write_node_config(child, &child_path, w)?;
         }
