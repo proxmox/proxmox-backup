@@ -18,6 +18,9 @@ pub const PRIV_STORE_AUDIT: u64              = 1 << 3;
 pub const PRIV_STORE_ALLOCATE: u64           = 1 << 4;
 pub const PRIV_STORE_ALLOCATE_SPACE: u64     = 1 << 5;
 
+pub const ROLE_ADMIN: u64 = std::u64::MAX;
+pub const ROLE_NO_ACCESS: u64 = 0;
+
 pub const ROLE_AUDIT: u64 =
 PRIV_SYS_AUDIT |
 PRIV_STORE_AUDIT;
@@ -35,9 +38,9 @@ lazy_static! {
     static ref ROLE_NAMES: HashMap<&'static str, u64> = {
         let mut map = HashMap::new();
 
-        map.insert("Admin", std::u64::MAX);
+        map.insert("Admin", ROLE_ADMIN);
         map.insert("Audit", ROLE_AUDIT);
-
+        map.insert("NoAccess", ROLE_NO_ACCESS);
 
         map.insert("Store.Admin", ROLE_STORE_ADMIN);
         map.insert("Store.User", ROLE_STORE_USER);
@@ -78,6 +81,64 @@ impl AclTreeNode {
             groups: HashMap::new(),
             children: HashMap::new(),
         }
+    }
+
+    pub fn extract_roles(&self, user: &str, all: bool) -> HashSet<String> {
+        let user_roles = self.extract_user_roles(user, all);
+        if !user_roles.is_empty() {
+            // user privs always override group privs
+            return user_roles
+        };
+
+        self.extract_group_roles(user, all)
+    }
+
+    pub fn extract_user_roles(&self, user: &str, all: bool) -> HashSet<String> {
+
+        let mut set = HashSet::new();
+
+        let roles = match self.users.get(user) {
+            Some(m) => m,
+            None => return set,
+        };
+
+        for (role, propagate) in roles {
+            if *propagate || all {
+                if role == "NoAccess" {
+                    // return a set with a single role 'NoAccess'
+                    let mut set = HashSet::new();
+                    set.insert(role.to_string());
+                    return set;
+                }
+                set.insert(role.to_string());
+            }
+        }
+
+        set
+    }
+
+    pub fn extract_group_roles(&self, _user: &str, all: bool) -> HashSet<String> {
+
+        let mut set = HashSet::new();
+
+        for (_group, roles) in &self.groups {
+            let is_member = false; // fixme: check if user is member of the group
+            if !is_member { continue; }
+
+            for (role, propagate) in roles {
+                if *propagate || all {
+                    if role == "NoAccess" {
+                        // return a set with a single role 'NoAccess'
+                        let mut set = HashSet::new();
+                        set.insert(role.to_string());
+                        return set;
+                    }
+                    set.insert(role.to_string());
+                }
+            }
+        }
+
+        set
     }
 
     pub fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
@@ -275,12 +336,48 @@ impl AclTree {
         let digest = openssl::sha::sha256(raw.as_bytes());
 
         for (linenr, line) in raw.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() { continue; }
             if let Err(err) = tree.parse_acl_line(line) {
-                bail!("unable to parse acl config {:?}, line {} - {}", filename, linenr, err);
+                bail!("unable to parse acl config {:?}, line {} - {}",
+                      filename, linenr+1, err);
             }
         }
 
         Ok((tree, digest))
+    }
+
+    pub fn from_raw(raw: &str) -> Result<Self, Error> {
+        let mut tree = Self::new();
+        for (linenr, line) in raw.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() { continue; }
+            if let Err(err) = tree.parse_acl_line(line) {
+                bail!("unable to parse acl config data, line {} - {}", linenr+1, err);
+            }
+        }
+        Ok(tree)
+    }
+
+    pub fn roles(&self, userid: &str, path: &[&str]) -> HashSet<String> {
+
+        let mut node = &self.root;
+        let mut role_set = node.extract_roles(userid, path.is_empty());
+
+        for (pos, comp) in path.iter().enumerate() {
+            let last_comp = (pos + 1) == path.len();
+            node = match node.children.get(*comp) {
+                Some(n) => n,
+                None => return role_set, // path not found
+            };
+            let new_set = node.extract_roles(userid, last_comp);
+            if !new_set.is_empty() {
+                // overwrite previous settings
+                role_set = new_set;
+            }
+        }
+
+        role_set
     }
 }
 
@@ -309,4 +406,96 @@ pub fn store_config(acl: &AclTree, filename: &Path) -> Result<(), Error> {
     replace_file(filename, &raw, options)?;
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod test {
+
+    use failure::*;
+    use super::AclTree;
+
+    fn check_roles(
+        tree: &AclTree,
+        user: &str,
+        path: &str,
+        expected_roles: &str,
+    ) {
+
+        let path_vec = super::split_acl_path(path);
+        let mut roles = tree.roles(user, &path_vec)
+            .iter().map(|v| v.clone()).collect::<Vec<String>>();
+        roles.sort();
+        let roles = roles.join(",");
+
+        assert_eq!(roles, expected_roles, "\nat check_roles for '{}' on '{}'", user, path);
+    }
+
+    #[test]
+    fn test_acl_line_compression() -> Result<(), Error> {
+
+        let tree = AclTree::from_raw(r###"
+acl:0:/store/store2:user1:Admin
+acl:0:/store/store2:user2:Admin
+acl:0:/store/store2:user1:Store.User
+acl:0:/store/store2:user2:Store.User
+"###)?;
+
+        let mut raw: Vec<u8> = Vec::new();
+        tree.write_config(&mut raw)?;
+        let raw = std::str::from_utf8(&raw)?;
+
+        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Store.User\n");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_roles_1() -> Result<(), Error> {
+
+        let tree = AclTree::from_raw(r###"
+acl:1:/storage:user1@pbs:Admin
+acl:1:/storage/store1:user1@pbs:Store.User
+acl:1:/storage/store2:user2@pbs:Store.User
+"###)?;
+        check_roles(&tree, "user1@pbs", "/", "");
+        check_roles(&tree, "user1@pbs", "/storage", "Admin");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
+
+        check_roles(&tree, "user2@pbs", "/", "");
+        check_roles(&tree, "user2@pbs", "/storage", "");
+        check_roles(&tree, "user2@pbs", "/storage/store1", "");
+        check_roles(&tree, "user2@pbs", "/storage/store2", "Store.User");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_role_no_access() -> Result<(), Error> {
+
+        let tree = AclTree::from_raw(r###"
+acl:1:/:user1@pbs:Admin
+acl:1:/storage:user1@pbs:NoAccess
+acl:1:/storage/store1:user1@pbs:Store.User
+"###)?;
+        check_roles(&tree, "user1@pbs", "/", "Admin");
+        check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store2", "NoAccess");
+        check_roles(&tree, "user1@pbs", "/system", "Admin");
+
+        let tree = AclTree::from_raw(r###"
+acl:1:/:user1@pbs:Admin
+acl:0:/storage:user1@pbs:NoAccess
+acl:1:/storage/store1:user1@pbs:Store.User
+"###)?;
+        check_roles(&tree, "user1@pbs", "/", "Admin");
+        check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
+        check_roles(&tree, "user1@pbs", "/system", "Admin");
+
+        Ok(())
+    }
 }
