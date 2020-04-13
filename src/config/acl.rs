@@ -64,13 +64,13 @@ fn split_acl_path(path: &str) -> Vec<&str> {
 }
 
 pub struct AclTree {
-    root: AclTreeNode,
+    pub root: AclTreeNode,
 }
 
-struct AclTreeNode {
-    users: HashMap<String, HashMap<String, bool>>,
-    groups: HashMap<String, HashMap<String, bool>>,
-    children: BTreeMap<String, AclTreeNode>,
+pub struct AclTreeNode {
+    pub users: HashMap<String, HashMap<String, bool>>,
+    pub groups: HashMap<String, HashMap<String, bool>>,
+    pub children: BTreeMap<String, AclTreeNode>,
 }
 
 impl AclTreeNode {

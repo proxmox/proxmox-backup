@@ -14,6 +14,7 @@ use crate::api2::types::*;
 
 pub mod user;
 pub mod domain;
+pub mod acl;
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
@@ -130,6 +131,7 @@ fn change_password(
 
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
+    ("acl", &acl::ROUTER),
     (
         "password", &Router::new()
             .put(&API_METHOD_CHANGE_PASSWORD)

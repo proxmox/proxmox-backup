@@ -55,6 +55,8 @@ const_regex!{
     pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 
     pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
+
+    pub ACL_PATH_REGEX = concat!(r"^(?:\/|", r"(?:\/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -89,6 +91,9 @@ pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
 
 pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
+
+pub const ACL_PATH_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&ACL_PATH_REGEX);
 
 
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
