@@ -66,6 +66,19 @@ pub struct AclListItem {
     roleid: String,
 }
 
+fn check_acl_path(path: &str) -> Result<(), Error> {
+
+    let path = acl::split_acl_path(path);
+
+    if path.is_empty() { return Ok(()); }
+
+    if path.len() == 2 {
+        if path[0] == "storage" { return Ok(()); }
+    }
+
+    bail!("invalid acl path.");
+}
+
 fn extract_acl_node_data(
     node: &acl::AclTreeNode,
     path: &str,
@@ -182,7 +195,7 @@ pub fn update_acl(
 
     let delete = delete.unwrap_or(false);
 
-    if let Some(ref group) = group {
+    if let Some(ref _group) = group {
         bail!("parameter 'group' - groups are currently not supported.");
     } else if let Some(ref userid) = userid {
         if !delete { // Note: we allow to delete non-existent users
@@ -193,6 +206,10 @@ pub fn update_acl(
         }
     } else {
         bail!("missing 'userid' or 'group' parameter.");
+    }
+
+    if !delete { // Note: we allow to delete entries with invalid path
+        check_acl_path(&path);
     }
 
     if let Some(userid) = userid {

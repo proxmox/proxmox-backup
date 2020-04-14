@@ -52,7 +52,7 @@ lazy_static! {
     };
 }
 
-fn split_acl_path(path: &str) -> Vec<&str> {
+pub fn split_acl_path(path: &str) -> Vec<&str> {
 
     let items = path.split('/');
 
