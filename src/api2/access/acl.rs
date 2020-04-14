@@ -145,7 +145,7 @@ pub fn read_acl(
                 optional: true,
                 schema: PROXMOX_GROUP_ID_SCHEMA,
             },
-           delete: {
+            delete: {
                 optional: true,
                 description: "Remove permissions (instead of adding it).",
                 type: bool,
@@ -178,12 +178,22 @@ pub fn update_acl(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    // fixme: test if user/group exists?
-
-    // fixme: let propagate = propagate.unwrap_or(api_get_default!("propagate"));
     let propagate = propagate.unwrap_or(true);
 
     let delete = delete.unwrap_or(false);
+
+    if let Some(ref group) = group {
+        bail!("parameter 'group' - groups are currently not supported.");
+    } else if let Some(ref userid) = userid {
+        if !delete { // Note: we allow to delete non-existent users
+            let (user_cfg, _) = crate::config::user::cached_config()?;
+            if user_cfg.sections.get(userid).is_none() {
+                bail!("no such user.");
+            }
+        }
+    } else {
+        bail!("missing 'userid' or 'group' parameter.");
+    }
 
     if let Some(userid) = userid {
         if delete {
