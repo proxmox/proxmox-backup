@@ -68,15 +68,15 @@ pub struct AclListItem {
 
 fn check_acl_path(path: &str) -> Result<(), Error> {
 
-    let path = acl::split_acl_path(path);
+    let components = acl::split_acl_path(path);
 
-    if path.is_empty() { return Ok(()); }
+    if components.is_empty() { return Ok(()); }
 
-    if path.len() == 2 {
-        if path[0] == "storage" { return Ok(()); }
+    if components.len() == 2 {
+        if components[0] == "storage" { return Ok(()); }
     }
 
-    bail!("invalid acl path.");
+    bail!("invalid acl path '{}'.", path);
 }
 
 fn extract_acl_node_data(
@@ -209,7 +209,7 @@ pub fn update_acl(
     }
 
     if !delete { // Note: we allow to delete entries with invalid path
-        check_acl_path(&path);
+        check_acl_path(&path)?;
     }
 
     if let Some(userid) = userid {
