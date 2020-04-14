@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
 use failure::*;
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 
@@ -137,6 +139,41 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     }
 
     Ok((data, digest))
+}
+
+pub fn cached_config() -> Result<(Arc<SectionConfigData>,[u8;32]), Error> {
+
+    struct ConfigCache {
+        data: Option<(Arc<SectionConfigData>,[u8;32])>,
+        last_mtime: i64,
+        last_mtime_nsec: i64,
+    }
+
+    lazy_static! {
+        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
+            ConfigCache { data: None, last_mtime: 0, last_mtime_nsec: 0 });
+    }
+
+    let stat = nix::sys::stat::stat(USER_CFG_FILENAME)?;
+
+    { // limit scope
+        let cache = CACHED_CONFIG.read().unwrap();
+        if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
+            if let Some((ref config, ref digest)) = cache.data {
+                return Ok((config.clone(), *digest));
+            }
+        }
+    }
+
+    let (config, digest) = config()?;
+    let config = Arc::new(config);
+
+    let mut cache = CACHED_CONFIG.write().unwrap();
+    cache.last_mtime = stat.st_mtime;
+    cache.last_mtime_nsec = stat.st_mtime_nsec;
+    cache.data = Some((config.clone(), digest.clone()));
+
+    Ok((config, digest))
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
