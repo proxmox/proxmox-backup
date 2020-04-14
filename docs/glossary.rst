@@ -5,24 +5,23 @@ Glossary
 
    `Virtual machine`_
 
-      A Virtual machine is a program that can execute an entire
-      operatin system inside an emulated hardware environment.
+      A virtual machine is a program that can execute an entire
+      operating system inside an emulated hardware environment.
 
    `Container`_
 
-      A Container is an isolated user space. Programs runs directly on
-      the hosts kernel, but with limited access to the host resources.
+      A container is an isolated user space. Programs run directly on
+      the host's kernel, but with limited access to the host resources.
 
    Datastore
 
-      A place to store backups. The current implemenation is
-      file-system based, so this refers to a directory containing the
-      backup data.
+      A place to store backups. A directory which contains the backup data.
+      The current implemenation is file-system based.
 
    `Rust`_
 
       Rust is a new, fast and memory-efficient system programming
-      language, with no runtime or garbage collector. Rust’s rich type
+      language. It has no runtime or garbage collector. Rust’s rich type
       system and ownership model guarantee memory-safety and
       thread-safety. I can eliminate many classes of bugs
       at compile-time.
@@ -31,10 +30,8 @@ Glossary
 
       Is a tool that makes it easy to create intelligent and
       beautiful documentation. It was originally created for the
-      Python documentation, and it has excellent facilities for the
+      documentation of the Python programming language. It has excellent facilities for the
       documentation of software projects in a range of languages.
-
-
 
    `reStructuredText`_
 
@@ -44,8 +41,8 @@ Glossary
    `FUSE`
 
       Filesystem in Userspace (`FUSE <https://en.wikipedia.org/wiki/Filesystem_in_Userspace>`_)
-      defines an interface which allows to implement a filesystem in
+      defines an interface which makes it possible to implement a filesystem in
       userspace as opposed to implementing it in the kernel. The fuse
-      kernel driver handles filesystem requests and sends them to an
-      userspace application for reply.
+      kernel driver handles filesystem requests and sends them to a
+      userspace application.
 

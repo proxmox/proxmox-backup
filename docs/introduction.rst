@@ -1,14 +1,14 @@
 Introduction
 ============
 
-This documentationm is written in :term:`reStructuredText` and formatted with :term:`Sphinx`.
+This documentation is written in :term:`reStructuredText` and formatted with :term:`Sphinx`.
 
 
 What is Proxmox Backup
 ----------------------
 
 Proxmox Backup is an enterprise class client-server backup software,
-specially optimized for `Proxmox Virtual Environment`_ to backup
+specially optimized for the `Proxmox Virtual Environment`_ to backup
 :term:`virtual machine`\ s and :term:`container`\ s. It is also
 possible to backup physical hosts.
 
@@ -24,23 +24,23 @@ Architecture
 ------------
 
 Proxmox Backup uses a `Client-server model`_. The server is
-responsible to store the backup data, and provides an API to create
-backups and restore data. It is also possible to manage disks and
+responsible to store the backup data and provides an API to create
+backups and restore data. It is possible to manage disks and
 other server side resources using this API.
 
 A backup client uses this API to access the backed up data,
 i.e. ``proxmox-backup-client`` is a command line tool to create
-backups and restore data. We also deliver an integrated client for
+backups and restore data. We deliver an integrated client for
 QEMU_ with `Proxmox Virtual Environment`_.
 
 A single backup is allowed to contain several archives. For example,
 when you backup a :term:`virtual machine`, each disk is stored as a
 separate archive inside that backup. The VM configuration also gets an
 extra file. This way, it is easy to access and restore important parts
-of the backup, without having to scan the whole backup.
+of the backup without having to scan the whole backup.
 
 
-Main features
+Main Features
 -------------
 
 :Proxmox VE: The `Proxmox Virtual Environment`_ is fully
@@ -49,52 +49,52 @@ Main features
 
 :GUI: We provide a graphical, web based user interface.
 
-:Deduplication: Incremental backup produces large amounts of duplicate
+:Deduplication: Incremental backups produce large amounts of duplicate
    data. The deduplication layer removes that redundancy and makes
-   inkremental backup small and space efficient.
+   incremental backups small and space efficient.
 
 :Data Integrity: The built in `SHA-256`_ checksum algorithm assures the
    accuracy and consistency of your backups.
 
-:Remote Sync: It is possible to efficently synchronize data to remote
-   sites. Only deltas containing new data are transfered.
+:Remote Sync: It is possible to efficiently synchronize data to remote
+   sites. Only deltas containing new data are transferred.
 
 :Performance: The whole software stack is written in :term:`Rust`,
-   which provides high speed and memory efficiency.
+   to provide high speed and memory efficiency.
 
 :Compression: Ultra fast Zstandard_ compression is able to compress
    several gigabytes of data per second.
 
-:Encryption: Backups can be encrypted at client side using AES-256 in
+:Encryption: Backups can be encrypted client-side using AES-256 in
    GCM_ mode. This authenticated encryption mode (AE_) provides very
    high performance on modern hardware.
 
-:Open Source: No secrets. You have access to the whole source tree.
+:Open Source: No secrets. You have access to all the source code.
 
-:Support: Commercial support options available from `Proxmox`_.
+:Support: Commercial support options are available from `Proxmox`_.
 
 
 Why Backup?
 -----------
 
-The primary purpose of backup is to protect against data loss. Data
-loss can happen because of faulty hardware, but also by human errors.
+The primary purpose of a backup is to protect against data loss. Data
+loss can be caused by faulty hardware, but also by human error.
 
 A common mistake is to delete a file or folder which is still
-required. Virtualization can amplify this problem, because it is now
-easy to delete a whole virtual machine by a single button press.
+required. Virtualization can amplify this problem. It is now
+easy to delete a whole virtual machine by pressing a single button.
 
-Backups can also serve as a toolkit for administrators to temporarily
+Backups can serve as a toolkit for administrators to temporarily
 store data. For example, it is common practice to perform full backups
 before installing major software updates. If something goes wrong, you
-can just restore the previous state.
+can restore the previous state.
 
 Another reason for backups are legal requirements. Some data must be
-kept in a safe place for several years so that you can access it if
-required by law.
+kept in a safe place for several years by law, so that it can be accessed if
+required.
 
 Data loss can be very costly as it can severely restrict your
-business. Therefore, make sure that you regularly perform a backup
+business. Therefore, make sure that you perform a backup regularly
 and run restore tests.
 
 

@@ -1,55 +1,50 @@
 Installation
 ============
 
-`Proxmox Backup`_ is split into a server part and a client part. The
-server part comes with it's own graphical installer, but we also
-ship Debian_ package repositories, so you can easily install those
-packages on any Debian_ based system.
+`Proxmox Backup`_ is split into a server and client part. The server part
+can either be installed with a graphical installer or on top of
+Debian_ from the provided package repository.
 
 .. include:: package-repositories.rst
-
 
 Server installation
 -------------------
 
-The backup server stores the actual backup data, but also provides a
-web based GUI for various management tasks, for example disk
-management.
+The backup server stores the actual backed up data and provides a web based GUI
+for various management tasks such as disk management.
 
 .. note:: You always need a backup server. It is not possible to use
    `Proxmox Backup`_ without the server part.
 
-The server is based on Debian, therefore the disk image (ISO file) provided
-by us includes a complete Debian system ("buster" for version 1.x) as
-well as all necessary backup packages.
+The disk image (ISO file) provided by Proxmox includes a complete Debian system
+("buster" for version 1.x) as well as all necessary packages for the `Proxmox Backup`_ server.
 
-Using the installer will guide you through the setup, allowing
+The installer will guide you through the setup process and allows
 you to partition the local disk(s), apply basic system configurations
-(e.g. timezone, language, network) and install all required packages.
-Using the provided ISO will get you started in just a few minutes,
-that's why we recommend this method for new and existing users.
+(e.g. timezone, language, network), and installs all required packages.
+The provided ISO will get you started in just a few minutes, and is the
+recommended method for new and existing users.
 
 Alternatively, `Proxmox Backup`_ server can be installed on top of an
 existing Debian system.
 
-Using the `Proxmox Backup`_ Installer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Install `Proxmox Backup`_ with the Installer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can download the ISO from |DOWNLOADS|.
+Download the ISO from |DOWNLOADS|.
 It includes the following:
+
+* The `Proxmox Backup`_ server installer, which partitions the local
+  disk(s) with ext4, ext3, xfs or ZFS, and installs the operating
+  system.
 
 * Complete operating system (Debian Linux, 64-bit)
 
-* The `Proxmox Backup`_ server installer, which partitions the local
-  disk(s) with ext4, ext3, xfs or ZFS and installs the operating
-  system.
-
 * Our Linux kernel with ZFS support.
 
-* Complete toolset for administering backups and all necessary
-  resources
+* Complete tool-set to administer backups and all necessary resources
 
-* Web based management interface for using the toolset
+* Web based GUI management interface
 
 .. note:: During the installation process, the complete server
    is used by default and all existing data is removed.
@@ -58,8 +53,8 @@ It includes the following:
 Install `Proxmox Backup`_ server on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Proxmox ships as a set of Debian packages, so you can install it on
-top of a standard Debian installation.  After configuring the
+Proxmox ships as a set of Debian packages which can be installed on top of a
+standard Debian installation.  After configuring the
 :ref:`sysadmin_package_repositories`, you need to run:
 
 .. code-block:: console
@@ -67,7 +62,7 @@ top of a standard Debian installation.  After configuring the
   # apt-get update
   # apt-get install proxmox-backup-server
 
-Above code keeps the current (Debian) kernel and installs a minimal
+The commands above keep the current (Debian) kernel and install a minimal
 set of required packages.
 
 If you want to install the same set of packages as the installer
@@ -78,16 +73,15 @@ does, please use the following:
   # apt-get update
   # apt-get install proxmox-backup
 
-This installs all required packages, the Proxmox kernel with ZFS_
-support, and a set of commonly useful packages.
+This will install all required packages, the Proxmox kernel with ZFS_
+support, and a set of common and useful packages.
 
-Installing on top of an existing Debian_ installation looks easy, but
-it presumes that you have correctly installed the base system, and you
-know how you want to configure and use the local storage. Network
-configuration is also completely up to you.
+Installing `Proxmox Backup`_ on top of an existing Debian_ installation looks easy, but
+it presumes that the base system and local storage has been set up correctly.
 
-In general, this is not trivial, especially when you use LVM_ or
-ZFS_.
+In general this is not trivial, especially when LVM_ or ZFS_ is used.
+
+The network configuration is completely up to you as well.
 
 Install Proxmox Backup server on `Proxmox VE`_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,9 +95,9 @@ After configuring the
   # apt-get install proxmox-backup-server
 
 .. caution:: Installing the backup server directly on the hypervisor
-   is not recommended. It is more secure to use a separate physical
-   server to store backups. If the hypervisor server fails, you can
-   still access your backups.
+   is not recommended. It is safer to use a separate physical
+   server to store backups. Should the hypervisor server fail, you can
+   still access the backups.
 
 Client installation
 -------------------
@@ -111,8 +105,8 @@ Client installation
 Install `Proxmox Backup`_ client on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Proxmox ships as a set of Debian packages, so you can install it on
-top of a standard Debian installation.  After configuring the
+Proxmox ships as a set of Debian packages to be installed on
+top of a standard Debian installation. After configuring the
 :ref:`sysadmin_package_repositories`, you need to run:
 
 .. code-block:: console

@@ -5,12 +5,12 @@ Debian Package Repositories
 
 All Debian based systems use APT_ as package
 management tool. The list of repositories is defined in
-``/etc/apt/sources.list`` and ``.list`` files found inside
-``/etc/apt/sources.d/``. Updates can be installed directly using
+``/etc/apt/sources.list`` and ``.list`` files found in the
+``/etc/apt/sources.d/`` directory. Updates can be installed directly with
 the ``apt`` command line tool, or via the GUI.
 
 APT_ ``sources.list`` files list one package repository per line, with
-the most preferred source listed first. Empty lines are ignored, and a
+the most preferred source listed first. Empty lines are ignored and a
 ``#`` character anywhere on a line marks the remainder of that line as a
 comment. The information available from the configured sources is
 acquired by ``apt update``.
@@ -33,7 +33,7 @@ the backup server binaries.
 `Proxmox Backup`_ Enterprise Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is the default, stable and recommended repository, available for
+This is the default, stable, and recommended repository. It is available for
 all `Proxmox Backup`_ subscription users. It contains the most stable packages,
 and is suitable for production use. The ``pbs-enterprise`` repository is
 enabled by default:
@@ -44,15 +44,13 @@ enabled by default:
   deb https://enterprise.proxmox.com/debian/pbs buster pbs-enterprise
 
 
-As soon as updates are available, the superuser (``root@pam`` user) is
-notified via email about the available new packages. On the GUI, the
-change-log of each package can be viewed (if available), showing all
-details of the update. So you will never miss important security
-fixes.
+To never miss important security fixes, the superuser (``root@pam`` user) is
+notified via email about new packages as soon as they are available. The
+change-log and details of each package can be viewed in the GUI (if available).
 
 Please note that you need a valid subscription key to access this
-repository. We offer different support levels, and you can find further
-details at https://www.proxmox.com/en/proxmox-backup/pricing.
+repository. More information regarding subscription levels and pricing can be
+found at https://www.proxmox.com/en/proxmox-backup/pricing.
 
 .. note:: You can disable this repository by commenting out the above
   line using a `#` (at the start of the line). This prevents error
@@ -65,7 +63,7 @@ details at https://www.proxmox.com/en/proxmox-backup/pricing.
 
 As the name suggests, you do not need a subscription key to access
 this repository. It can be used for testing and non-production
-use. Its not recommended to run on production servers, as these
+use. It is not recommended to use it on production servers, because these
 packages are not always heavily tested and validated.
 
 We recommend to configure this repository in ``/etc/apt/sources.list``.
@@ -92,9 +90,9 @@ latest packages and is heavily used by developers to test new
 features.
 
 .. warning:: the ``pbstest`` repository should (as the name implies)
-  only be used for testing new features or bug fixes.
+  only be used to test new features or bug fixes.
 
-As usual, you can configure this using ``/etc/apt/sources.list`` by
+You can configure this using ``/etc/apt/sources.list`` by
 adding the following line:
 
 .. code-block:: sources.list

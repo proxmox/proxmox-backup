@@ -3,6 +3,7 @@ Administration Guide
 
 The administration guide.
 
+.. todo:: either add a bit more explanation or remove the previous sentence
 
 Terminology
 -----------
@@ -12,7 +13,7 @@ Backup Content
 
 When doing deduplication, there are different strategies to get
 optimal results in terms of performance and/or deduplication rates.
-Depending on the type of data, one can split data into fixed or variable
+Depending on the type of data, one can split data into *fixed* or *variable*
 sized chunks.
 
 Fixed sized chunking needs almost no CPU performance, and is used to
@@ -21,7 +22,7 @@ backup virtual machine images.
 Variable sized chunking needs more CPU power, but is essential to get
 good deduplication rates for file archives.
 
-Therefore, the backup server supports both strategies.
+The backup server supports both strategies.
 
 
 File Archives: ``<name>.pxar``
@@ -29,9 +30,9 @@ File Archives: ``<name>.pxar``
 
 .. see https://moinakg.wordpress.com/2013/06/22/high-performance-content-defined-chunking/
 
-A file archive stores a whole directory tree. Content is stored using
+A file archive stores a full directory tree. Content is stored using
 the :ref:`pxar-format`, split into variable sized chunks. The format
-is specially optimized to achieve good deduplication rates.
+is optimized to achieve good deduplication rates.
 
 
 Image Archives: ``<name>.img``
@@ -44,8 +45,8 @@ data. Content is split into fixed sized chunks.
 Binary Data (BLOBs)
 ^^^^^^^^^^^^^^^^^^^
 
-This type is used to store smaller (< 16MB) binaries like
-configuration data. Larger files should be stored as image archive.
+This type is used to store smaller (< 16MB) binary data such as
+configuration files. Larger files should be stored as image archive.
 
 .. caution:: Please do not store all files as BLOBs. Instead, use the
    file archive to store whole directory trees.
@@ -54,15 +55,15 @@ configuration data. Larger files should be stored as image archive.
 Catalog File: ``catalog.pcat1``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The catalog file is basically an index for file archive. It contains
-the list of files, and is used to speedup search operations.
+The catalog file is an index for file archives. It contains
+the list of files and is used to speed-up search operations.
 
 
 The Manifest: ``index.json``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The manifest contains the list of all backup files, including
-file sizes and checksums. It is used to verify the consistency of a
+The manifest contains the list of all backup files, their
+sizes and checksums. It is used to verify the consistency of a
 backup.
 
 
@@ -73,17 +74,17 @@ The backup server groups backups by *type*, where *type* is one of:
 
 ``vm``
     This type is used for :term:`virtual machine`\ s. Typically
-    contains the virtual machine configuration and an image archive
+    contains the virtual machine's configuration and an image archive
     for each disk.
 
 ``ct``
-    This type is used for :term:`container`\ s. Contains the container
+    This type is used for :term:`container`\ s. Contains the container's
     configuration and a single file archive for the container content.
 
 ``host``
-    This type is used for physical host, or if you want to run backups
-    manually from inside virtual machines or containers. Such backups
-    may contain file and image archives (no restrictions here).
+    This type is used for backups created from within the backed up machine.
+    Typically this would be a physical host but could also be a virtual machine
+    or container. Such backups may contain file and image archives, there are no restrictions in this regard.
 
 
 Backup ID
@@ -102,14 +103,14 @@ The time when the backup was made.
 Backup Group
 ~~~~~~~~~~~~
 
-We call the tuple ``<type>/<ID>`` a backup group. Such group
-may contains one or more backup snapshots.
+The tuple ``<type>/<ID>`` is called a backup group. Such a group
+may contain one or more backup snapshots.
 
 
 Backup Snapshot
 ~~~~~~~~~~~~~~~
 
-We call the triplet ``<type>/<ID>/<time>`` a backup snapshot. It
+The triplet ``<type>/<ID>/<time>`` is called a backup snapshot. It
 uniquely identifies a specific backup within a datastore.
 
 .. code-block:: console
@@ -118,25 +119,25 @@ uniquely identifies a specific backup within a datastore.
     vm/104/2019-10-09T08:01:06Z
     host/elsa/2019-11-08T09:48:14Z
 
-As you can see, the time is formatted as RFC3399_ using Coordinated
+As you can see, the time format is RFC3399_ with Coordinated
 Universal Time (UTC_, identified by the trailing *Z*).
 
 
 :term:`DataStore`
 ~~~~~~~~~~~~~~~~~
 
-A datastore is a place to store backups. The current implementation
+A datastore is a place where backups are stored. The current implementation
 uses a directory inside a standard unix file system (``ext4``, ``xfs``
-or ``zfs``) to store backup data.
+or ``zfs``) to store the backup data.
 
-Datastores are identified by a simple *ID*. You can configure that
+Datastores are identified by a simple *ID*. You can configure it
 when setting up the backup server.
 
 
 Backup Server Management
 ------------------------
 
-The command line tool to configure and manage the server is called
+The command line tool to configure and manage the backup server is called
 :command:`proxmox-backup-manager`.
 
 
@@ -144,7 +145,7 @@ Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 A :term:`datastore` is a place to store backups. You can configure
-several datastores, but you need at least one of them. The datastore is identified by a simple `name` and point to a directory.
+multiple datastores. At least one datastore needs to be configured. The datastore is identified by a simple `name` and points to a directory.
 
 The following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
 
@@ -152,20 +153,20 @@ The following command creates a new datastore called ``store1`` on :file:`/backu
 
   # proxmox-backup-manager datastore create store1 /backup/disk1/store1
 
-To list existing datastores use:
+To list existing datastores run:
 
 .. code-block:: console
 
   # proxmox-backup-manager datastore list
   store1 /backup/disk1/store1
 
-Finally, it is also possible to remove the datastore configuration:
+Finally, it is possible to remove the datastore configuration:
 
 .. code-block:: console
 
   # proxmox-backup-manager datastore remove store1
 
-.. note:: Above command removes the datastore configuration. It does
+.. note:: The above command removes only the datastore configuration. It does
    not delete any data from the underlying directory.
 
 
@@ -184,16 +185,16 @@ The command line client is called :command:`proxmox-backup-client`.
 Respository Locations
 ~~~~~~~~~~~~~~~~~~~~~
 
-The client uses a special repository notation to specify a datastore
+The client uses the following notation to specify a datastore repository
 on the backup server.
 
   [[username@]server:]datastore
 
-If you do not specify a ``username`` the default is ``root@pam``. The
-default for server is to use the local host (``localhost``).
+The default value for ``username`` ist ``root``. If no server is specified, the
+default is the local host (``localhost``).
 
-You can pass the repository by setting the ``--repository`` command
-line options, or by setting the ``PBS_REPOSITORY`` environment
+You can pass the repository with the ``--repository`` command
+line option, or by setting the ``PBS_REPOSITORY`` environment
 variable.
 
 
@@ -219,8 +220,8 @@ Environment Variables
 Output Format
 ~~~~~~~~~~~~~
 
-Most commands support the ``--output-format`` parameter, which can be
-set to the following values:
+Most commands support the ``--output-format`` parameter. It accepts
+the following values:
 
 :``text``: Text format (default). Structured data is rendered as a table.
 
@@ -240,9 +241,9 @@ Please use the following environment variables to modify output behavior:
 ``PROXMOX_OUTPUT_NO_HEADER``
   If set (to any value), do not render table headers.
 
-.. note:: The ``text`` format is designed to be human readable, but
+.. note:: The ``text`` format is designed to be human readable, and
    not meant to be parsed by automation tools. Please use the ``json``
-   format for such purpose because it is machine readable.
+   format if you need to process the output.
 
 
 .. _creating-backups:
@@ -250,15 +251,15 @@ Please use the following environment variables to modify output behavior:
 Creating Backups
 ~~~~~~~~~~~~~~~~
 
-This section explains how to create backup on physical host, or from
-inside virtual machines or containers. Such backups may contain file
-and image archives (no restrictions here).
+This section explains how to create a backup from within the machine. This can
+be a physical host, a virtual machine, or a container. Such backups may contain file
+and image archives. There are no restrictions in this case.
 
-.. note:: If you want to backup virtual machines or containers see :ref:`pve-integration`.
+.. note:: If you want to backup virtual machines or containers on Proxmov VE, see :ref:`pve-integration`.
 
-The prerequisite is that you have already set up (or can access) a
-backup server. It is assumed that you know the repository name and
-credentials. In the following examples we simply use ``backup-server:store1``.
+For the following example you need to have a backup server set up, working
+credentials and need to know the repository name.
+In the following examples we use ``backup-server:store1``.
 
 .. code-block:: console
 
@@ -275,15 +276,15 @@ credentials. In the following examples we simply use ``backup-server:store1``.
 This will prompt you for a password and then uploads a file archive named
 ``root.pxar`` containing all the files in the ``/`` directory.
 
-.. Caution:: Please note that proxmox-backup-client does not
+.. Caution:: Please note that the proxmox-backup-client does not
    automatically include mount points. Instead, you will see a short
-   ``skip mount point`` notice for each of them. The idea is that you
-   create a separate file archive for each mounted disk. You can also
+   ``skip mount point`` notice for each of them. The idea is to
+   create a separate file archive for each mounted disk. You can
    explicitly include them using the ``--include-dev`` option
    (i.e. ``--include-dev /boot/efi``). You can use this option
-   multiple times, once for each mount point you want to include.
+   multiple times for each mount point that should be included.
 
-The ``--repository`` option is sometimes quite long and is used by all
+The ``--repository`` option can get quite long and is used by all
 commands. You can avoid having to enter this value by setting the
 environment variable ``PBS_REPOSITORY``.
 
@@ -291,26 +292,26 @@ environment variable ``PBS_REPOSITORY``.
 
   # export PBS_REPOSTORY=backup-server:store1
 
-You can then execute all commands without specifying the ``--repository``
+After this you can execute all commands without specifying the ``--repository``
 option.
 
-One single backup is allowed to contain more than one archive. For example, assume you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
+One single backup is allowed to contain more than one archive. For example, if
+you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
 
 .. code-block:: console
 
   # proxmox-backup-client backup disk1.pxar:/mnt/disk1 disk2.pxar:/mnt/disk2
 
-This create a backup of both disks.
+This creates a backup of both disks.
 
 The backup command takes a list of backup specifications, which
-include archive name on the server, the type of the archive, and the
-archive source at the client. The format is quite simple to understand:
+include the archive name on the server, the type of the archive, and the
+archive source at the client. The format is:
 
     <archive-name>.<type>:<source-path>
 
 Common types are ``.pxar`` for file archives, and ``.img`` for block
-device images. Thus it is quite easy to create a backup for a block
-device:
+device images. To create a backup of a block device run the following command:
 
 .. code-block:: console
 
@@ -320,42 +321,43 @@ Excluding files/folders from a backup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes it is desired to exclude certain files or folders from a backup archive.
-Using the proxmox backup client this is possible via simple text based
-``.pxarexclude`` files placed in the filesystem hierarchy.
+To tell the Proxmox backup client when and how to ignore files and directories,
+place a text file called ``.pxarexclude`` in the filesystem hierarchy.
+Whenever the backup client encounters such a file in a directory, it interprets
+each line as glob match patterns for files and directories that are to be excluded
+from the backup.
 
-Whenever such a file is encountered in a directory, the backup client reads its
-content and lines are interpreted as glob match patterns for files/directories
-to exclude from the archive.
-The file must contain a single glob pattern on each line. Empty lines are ignored.
-The same is true for lines starting with ``#``, indicating a line containing comments.
-Lines starting with ``!`` correspond to glob match patterns for explicit inclusion
-of files previously excluded by a match. This allows for example to exclude
-all entries in a directory except for a few single files.
-Lines ending in ``/`` match directory entries only.
-The folder containing the ``.pxarexclude`` file is considered to be the root of
-the given patterns. It is only possible to match files in this or below this folder.
+The file must contain a single glob pattern per line. Empty lines are ignored.
+The same is true for lines starting with ``#``, which indicates a comment.
+A ``!`` at the beginning of a line reverses the glob match pattern from an exclusion
+to an explicit inclusion. This makes it possible to exclude all entries in a
+directory except for a few single files/subdirectories.
+Lines ending in ``/`` match only on directories.
+The directory containing the ``.pxarexclude`` file is considered to be the root of
+the given patterns. It is only possible to match files in this directory and its subdirectories.
 
-``\`` is used to escape glob characters. ``?`` matches any single character,
-``*`` matches any character including the empty string.
-``**`` is used to match also subdirectories and can be used to exclude for example
-all files ending in ``.tmp`` within the directory or a subdirectory by the
+``\`` is used to escape special glob characters.
+``?`` matches any single character.
+``*`` matches any character, including an empty string.
+``**`` is used to match subdirectories. It can be used to, for example, exclude
+all files ending in ``.tmp`` within the directory or subdirectories with the
 following pattern ``**/*.tmp``.
 ``[...]`` matches a single character from any of the provided characters within
 the brackets. ``[!...]`` does the complementary and matches any singe character
-not contained within the brackets. It is also possible to specify ranges by two
-characters separated by ``-``. For example ``[a-z]`` matches any lowercase
-alphabetic character, ``[0-9]`` matches any one single digit.
+not contained within the brackets. It is also possible to specify ranges with two
+characters separated by ``-``. For example, ``[a-z]`` matches any lowercase
+alphabetic character and ``[0-9]`` matches any one single digit.
 
-The order of the glob match patterns defines if the file is finally included or
+The order of the glob match patterns defines if a file is included or
 excluded, later entries win over previous ones.
 This is also true for match patterns encountered deeper down the directory tree,
-which may then override a previous exclusion.
-Note however that folders marked for exclusion are not read by the client,
-so ``.pxarexclude`` files contained within have no effect.
-``.pxarexclude`` files are treated as regular files and are also included in the
+which can override a previous exclusion.
+Be aware that excluded directories will **not** be read by the backup client.
+A ``.pxarexclude`` file in a subdirectory will have no effect.
+``.pxarexclude`` files are treated as regular files and will be included in the
 backup archive.
 
-For example, consider the following folder structure:
+For example, consider the following directory structure:
 
 .. code-block:: console
 
@@ -369,7 +371,7 @@ For example, consider the following folder structure:
     folder/subfolder1:
     .  ..  file0  file1  file2  file3
 
-The ``.pxarexclude`` files containing the following:
+The different ``.pxarexclude`` files contain the following:
 
 .. code-block:: console
 
@@ -386,7 +388,7 @@ The ``.pxarexclude`` files containing the following:
 This would exclude ``file1`` and ``file3`` in ``subfolder0`` and all of
 ``subfolder1`` except ``file2``.
 
-Restoring this archive form backup results in:
+Restoring this backup will result in:
 
 .. code-block:: console
 
@@ -403,8 +405,8 @@ Restoring this archive form backup results in:
 Encryption
 ^^^^^^^^^^
 
-Proxmox backup support client side encryption using AES-256 in GCM_
-mode. You first need to create an encryption key in order to use that:
+Proxmox backup supports client side encryption with AES-256 in GCM_
+mode. First you need to create an encryption key:
 
 .. code-block:: console
 
@@ -416,7 +418,7 @@ extra protection, you can also create it without a password:
 
 .. code-block:: console
 
-  # proxmox-backup-client key create /path/to/my-backup.key --kdf  none
+  # proxmox-backup-client key create /path/to/my-backup.key --kdf none
 
 
 .. code-block:: console
@@ -427,7 +429,7 @@ extra protection, you can also create it without a password:
   ...
 
 
-You can avoid having to enter the passwords by setting the environment
+You can avoid entering the passwords by setting the environment
 variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 
 .. todo:: Explain master-key
@@ -437,12 +439,12 @@ Restoring Data
 ~~~~~~~~~~~~~~
 
 The regular creation of backups is a necessary step to avoid data
-loss. More important, however, is the restoration. Be sure to perform
-periodic recovery tests to ensure that you can access your data in
+loss. More important, however, is the restoration. It is good practice to perform
+periodic recovery tests to ensure that you can access the data in
 case of problems.
 
-First, you need to find the snapshot you want to restore. The snapshot
-command gives you a list of all snapshots on the server:
+First, you need to find the snapshot which you want to restore. The snapshot
+command gives a list of all snapshots on the server:
 
 .. code-block:: console
 
@@ -452,7 +454,7 @@ command gives you a list of all snapshots on the server:
   host/elsa/2019-12-03T09:35:01Z | 51790622048 | root.pxar catalog.pcat1 index.json
   ...
 
-You can also inspect the catalog to find specific files.
+You can inspect the catalog to find specific files.
 
 .. code-block:: console
 
@@ -470,9 +472,8 @@ backup.
 
   # proxmox-backup-client restore host/elsa/2019-12-03T09:35:01Z root.pxar /target/path/
 
-You can instead simply download the contents of any archive using '-'
-instead of ``/target/path``. This dumps the content to standard
-output:
+To get the contents of any archive you can restore the ``ìndex.json`` file in the
+repository and restore it to '-'. This will dump the content to the standard output.
 
 .. code-block:: console
 
@@ -494,20 +495,18 @@ to use the interactive recovery shell.
   ...
 
 The interactive recovery shell is a minimalistic command line interface that
-utilizes the metadata stored in the catalog for you to quickly list, navigate and
-search files contained within a file archive.
-You can select individual files as well as select files matched by a glob pattern
-for restore.
+utilizes the metadata stored in the catalog to quickly list, navigate and
+search files in a file archive.
+To restore files, you can select them individually or match them with a glob
+pattern.
 
-The use of the catalog for navigation reduces the overhead otherwise caused by
-network traffic and decryption, as instead of downloading and decrypting
-individual encrypted chunks from the chunk-store to access the metadata, we only
-need to download and decrypt the catalog.
+Using the catalog for navigation reduces the overhead considerably because only
+the catalog needs to be downloaded and, optionally, decrypted.
 The actual chunks are only accessed if the metadata in the catalog is not enough
 or for the actual restore.
 
 Similar to common UNIX shells ``cd`` and ``ls`` are the commands used to change
-working directory and list directory contents of the archive.
+working directory and list directory contents in the archive.
 ``pwd`` shows the full path of the current working directory with respect to the
 archive root.
 
@@ -567,7 +566,7 @@ This allows you to access the full content of the archive in a seamless manner.
     load on your host, depending on the operations you perform on the mounted
     filesystem.
 
-To unmount the filesystem simply use the ``umount`` command on the mountpoint:
+To unmount the filesystem use the ``umount`` command on the mountpoint:
 
 .. code-block:: console
 
@@ -579,7 +578,7 @@ Login and Logout
 The client tool prompts you to enter the logon password as soon as you
 want to access the backup server. The server checks your credentials
 and responds with a ticket that is valid for two hours. The client
-tool automatically stores that ticket and use it for further requests
+tool automatically stores that ticket and uses it for further requests
 to this server.
 
 You can also manually trigger this login/logout using the login and
@@ -590,7 +589,7 @@ logout commands:
   # proxmox-backup-client login
   Password: **********
 
-To remove the ticket, simply issue a logout:
+To remove the ticket, issue a logout:
 
 .. code-block:: console
 
@@ -608,60 +607,62 @@ command:
   # proxmox-backup-client forget <snapshot>
 
 
-.. caution:: This command removes all the archives in this backup
-   snapshot so that they are inaccessible and unrecoverable.
+.. caution:: This command removes all archives in this backup
+   snapshot. They will be inaccessible and unrecoverable.
 
 
-Such manual removal is sometimes required, but normally the prune
+The manual removal is sometimes required, but normally the prune
 command is used to systematically delete older backups. Prune lets
-you specify which backup snapshots you want to keep. There are the
-following retention options:
+you specify which backup snapshots you want to keep. The
+following retention options are available:
 
 ``--keep-last <N>``
   Keep the last ``<N>`` backup snapshots.
 
 ``--keep-hourly <N>``
-  Keep backups for the last ``<N>`` different hours. If there is more than one
-  backup for a single hour, only the latest one is kept.
+  Keep backups for the last ``<N>`` hours. If there is more than one
+  backup for a single hour, only the latest is kept.
 
 ``--keep-daily <N>``
-  Keep backups for the last ``<N>`` different days. If there is more than one
-  backup for a single day, only the latest one is kept.
+  Keep backups for the last ``<N>`` days. If there is more than one
+  backup for a single day, only the latest is kept.
 
 ``--keep-weekly <N>``
-  Keep backups for the last ``<N>`` different weeks. If there is more than one
-  backup for a single week, only the latest one is kept.
+  Keep backups for the last ``<N>`` weeks. If there is more than one
+  backup for a single week, only the latest is kept.
 
-  .. note:: The weeks start on Monday and end on Sunday. The software
-     uses the `ISO week date`_ system and correctly handles weeks at
-     the end of the year.
+  .. note:: Weeks start on Monday and end on Sunday. The software
+     uses the `ISO week date`_ system and handles weeks at
+     the end of the year correctly.
 
 ``--keep-monthly <N>``
-  Keep backups for the last ``<N>`` different months. If there is more than one
-  backup for a single month, only the latest one is kept.
+  Keep backups for the last ``<N>`` months. If there is more than one
+  backup for a single month, only the latest is kept.
 
 ``--keep-yearly <N>``
-  Keep backups for the last ``<N>`` different years. If there is more than one
-  backup for a single year, only the latest one is kept.
+  Keep backups for the last ``<N>`` years. If there is more than one
+  backup for a single year, only the latest is kept.
 
+The retention options are processed in the order given above. Each option
+only covers backups within its time period. The next option does not take care
+of already covered backups. It will only consider older backups.
 
-Those retention options are processed in the order given above. Each
-option covers a specific period of time. We say that backups within
-this period are covered by this option. The next option does not take
-care of already covered backups and only considers older backups.
+For example, the ``--keep-monthly`` option does not consider any backup that is
+younger than one month.
 
-The prune command also looks for unfinished and incomplete backups and
-removes them unless they are newer than the last successful backup. In
-this case, the last failed backup is retained.
+.. todo:: check if the previous statement is correct
+
+Unfinished and incomplete backups will be removed by the prune command unless
+they are newer than the last successful backup. In this case, the last failed
+backup is retained.
 
 .. code-block:: console
 
   # proxmox-backup-client prune <group> --keep-daily 7 --keep-weekly 4 --keep-monthly 3
 
 
-You can use the ``--dry-run`` option to test your settings. This just
-shows the list of existing snapshots and what action prune would take
-on that.
+You can use the ``--dry-run`` option to test your settings. This only
+shows the list of existing snapshots and which action prune would take.
 
 .. code-block:: console
 
@@ -676,8 +677,8 @@ on that.
 
 
 .. note:: Neither the ``prune`` command nor the ``forget`` command free space
-   in the chunk-store. The chunk-store still contains the data blocks
-   unless you are performing :ref:`garbage-collection`.
+   in the chunk-store. The chunk-store still contains the data blocks. To free
+   space you need to perform :ref:`garbage-collection`.
 
 
 .. _garbage-collection:
@@ -687,8 +688,7 @@ Garbage Collection
 
 The ``prune`` command removes only the backup index files, not the data
 from the data store. This task is left to the garbage collection
-command. It is therefore recommended to carry out garbage collection
-regularly.
+command. It is recommended to carry out garbage collection on a regular basis.
 
 The garbage collection works in two phases. In the first phase, all
 data blocks that are still in use are marked. In the second phase,
