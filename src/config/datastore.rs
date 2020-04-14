@@ -101,3 +101,19 @@ pub fn complete_datastore_name(_arg: &str, _param: &HashMap<String, String>) -> 
         Err(_) => return vec![],
     }
 }
+
+pub fn complete_acl_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    let mut list = Vec::new();
+
+    list.push(String::from("/"));
+    list.push(String::from("/storage"));
+    list.push(String::from("/storage/"));
+
+    if let Ok((data, _digest)) = config() {
+        for id in data.sections.keys() {
+            list.push(format!("/storage/{}", id));
+        }
+    }
+
+    list
+}

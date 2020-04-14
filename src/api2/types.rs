@@ -25,6 +25,7 @@ macro_rules! DNS_NAME { () => (concat!(r"(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL
 // slash is not allowed because it is used as pve API delimiter
 // also see "man useradd"
 macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[:cntrl:]]+)") }
+macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
 
 macro_rules! PROXMOX_SAFE_ID_REGEX_STR {  () => (r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)") }
 
@@ -54,9 +55,11 @@ const_regex!{
 
     pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
 
+    pub PROXMOX_GROUP_ID_REGEX = concat!(r"^",  GROUP_NAME_REGEX_STR!(), r"$");
+
     pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 
-    pub ACL_PATH_REGEX = concat!(r"^(?:\/|", r"(?:\/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
+    pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -88,6 +91,9 @@ pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
 
 pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_USER_ID_REGEX);
+
+pub const PROXMOX_GROUP_ID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PROXMOX_GROUP_ID_REGEX);
 
 pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
@@ -214,6 +220,12 @@ pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = StringSchema::new("Authentication 
 
 pub const PROXMOX_USER_ID_SCHEMA: Schema = StringSchema::new("User ID")
     .format(&PROXMOX_USER_ID_FORMAT)
+    .min_length(3)
+    .max_length(64)
+    .schema();
+
+pub const PROXMOX_GROUP_ID_SCHEMA: Schema = StringSchema::new("Group ID")
+    .format(&PROXMOX_GROUP_ID_FORMAT)
     .min_length(3)
     .max_length(64)
     .schema();

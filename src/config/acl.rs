@@ -10,29 +10,31 @@ use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 // define Privilege bitfield
 
-pub const PRIV_SYS_AUDIT: u64               = 1 << 0;
-pub const PRIV_SYS_MODIFY: u64              = 1 << 1;
-pub const PRIV_SYS_POWER_MANAGEMENT: u64    = 1 << 2;
+pub const PRIV_SYS_AUDIT: u64                    = 1 << 0;
+pub const PRIV_SYS_MODIFY: u64                   = 1 << 1;
+pub const PRIV_SYS_POWER_MANAGEMENT: u64         = 1 << 2;
 
-pub const PRIV_STORE_AUDIT: u64              = 1 << 3;
-pub const PRIV_STORE_ALLOCATE: u64           = 1 << 4;
-pub const PRIV_STORE_ALLOCATE_SPACE: u64     = 1 << 5;
+pub const PRIV_DATASTORE_AUDIT: u64              = 1 << 3;
+pub const PRIV_DATASTORE_ALLOCATE: u64           = 1 << 4;
+pub const PRIV_DATASTORE_ALLOCATE_SPACE: u64     = 1 << 5;
 
 pub const ROLE_ADMIN: u64 = std::u64::MAX;
 pub const ROLE_NO_ACCESS: u64 = 0;
 
 pub const ROLE_AUDIT: u64 =
 PRIV_SYS_AUDIT |
-PRIV_STORE_AUDIT;
+PRIV_DATASTORE_AUDIT;
 
-pub const ROLE_STORE_ADMIN: u64 =
-PRIV_STORE_AUDIT |
-PRIV_STORE_ALLOCATE |
-PRIV_STORE_ALLOCATE_SPACE;
+pub const ROLE_DATASTORE_ADMIN: u64 =
+PRIV_DATASTORE_AUDIT |
+PRIV_DATASTORE_ALLOCATE |
+PRIV_DATASTORE_ALLOCATE_SPACE;
 
-pub const ROLE_STORE_USER: u64 =
-PRIV_STORE_AUDIT |
-PRIV_STORE_ALLOCATE_SPACE;
+pub const ROLE_DATASTORE_USER: u64 =
+PRIV_DATASTORE_AUDIT |
+PRIV_DATASTORE_ALLOCATE_SPACE;
+
+pub const ROLE_DATASTORE_AUDIT: u64 = PRIV_DATASTORE_AUDIT;
 
 lazy_static! {
     static ref ROLE_NAMES: HashMap<&'static str, u64> = {
@@ -42,8 +44,9 @@ lazy_static! {
         map.insert("Audit", ROLE_AUDIT);
         map.insert("NoAccess", ROLE_NO_ACCESS);
 
-        map.insert("Store.Admin", ROLE_STORE_ADMIN);
-        map.insert("Store.User", ROLE_STORE_USER);
+        map.insert("Datastore.Admin", ROLE_DATASTORE_ADMIN);
+        map.insert("Datastore.User", ROLE_DATASTORE_USER);
+        map.insert("Datastore.Audit", ROLE_DATASTORE_AUDIT);
 
         map
     };
@@ -141,6 +144,22 @@ impl AclTreeNode {
         set
     }
 
+    pub fn delete_group_role(&mut self, group: &str, role: &str) {
+        let roles = match self.groups.get_mut(group) {
+            Some(r) => r,
+            None => return,
+        };
+        roles.remove(role);
+    }
+
+    pub fn delete_user_role(&mut self, userid: &str, role: &str) {
+        let roles = match self.users.get_mut(userid) {
+            Some(r) => r,
+            None => return,
+        };
+        roles.remove(role);
+    }
+
     pub fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
         self.groups
             .entry(group).or_insert_with(|| HashMap::new())
@@ -160,6 +179,17 @@ impl AclTree {
         Self { root: AclTreeNode::new() }
     }
 
+    fn get_node(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
+        let mut node = &mut self.root;
+        for comp in path {
+            node = match node.children.get_mut(*comp) {
+                Some(n) => n,
+                None => return None,
+            };
+        }
+        Some(node)
+    }
+
     fn get_or_insert_node(&mut self, path: &[&str]) -> &mut AclTreeNode {
         let mut node = &mut self.root;
         for comp in path {
@@ -167,6 +197,24 @@ impl AclTree {
                 .or_insert_with(|| AclTreeNode::new());
         }
         node
+    }
+
+    pub fn delete_group_role(&mut self, path: &str, group: &str, role: &str) {
+        let path = split_acl_path(path);
+        let node = match self.get_node(&path) {
+            Some(n) => n,
+            None => return,
+        };
+        node.delete_group_role(group, role);
+    }
+
+    pub fn delete_user_role(&mut self, path: &str, userid: &str, role: &str) {
+        let path = split_acl_path(path);
+        let node = match self.get_node(&path) {
+            Some(n) => n,
+            None => return,
+        };
+        node.delete_user_role(userid, role);
     }
 
     pub fn insert_group_role(&mut self, path: &str, group: &str, role: &str, propagate: bool) {
@@ -382,7 +430,7 @@ pub fn config() -> Result<(AclTree, [u8; 32]), Error> {
     AclTree::load(&path)
 }
 
-pub fn store_config(acl: &AclTree, filename: &Path) -> Result<(), Error> {
+pub fn save_config(acl: &AclTree) -> Result<(), Error> {
     let mut raw: Vec<u8> = Vec::new();
 
     acl.write_config(&mut raw)?;
@@ -396,11 +444,10 @@ pub fn store_config(acl: &AclTree, filename: &Path) -> Result<(), Error> {
         .owner(nix::unistd::ROOT)
         .group(backup_user.gid);
 
-    replace_file(filename, &raw, options)?;
+    replace_file(ACL_CFG_FILENAME, &raw, options)?;
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod test {
@@ -430,15 +477,15 @@ mod test {
         let tree = AclTree::from_raw(r###"
 acl:0:/store/store2:user1:Admin
 acl:0:/store/store2:user2:Admin
-acl:0:/store/store2:user1:Store.User
-acl:0:/store/store2:user2:Store.User
+acl:0:/store/store2:user1:Datastore.User
+acl:0:/store/store2:user2:Datastore.User
 "###)?;
 
         let mut raw: Vec<u8> = Vec::new();
         tree.write_config(&mut raw)?;
         let raw = std::str::from_utf8(&raw)?;
 
-        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Store.User\n");
+        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Datastore.User\n");
 
         Ok(())
     }
@@ -448,18 +495,18 @@ acl:0:/store/store2:user2:Store.User
 
         let tree = AclTree::from_raw(r###"
 acl:1:/storage:user1@pbs:Admin
-acl:1:/storage/store1:user1@pbs:Store.User
-acl:1:/storage/store2:user2@pbs:Store.User
+acl:1:/storage/store1:user1@pbs:Datastore.User
+acl:1:/storage/store2:user2@pbs:Datastore.User
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "");
         check_roles(&tree, "user1@pbs", "/storage", "Admin");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
 
         check_roles(&tree, "user2@pbs", "/", "");
         check_roles(&tree, "user2@pbs", "/storage", "");
         check_roles(&tree, "user2@pbs", "/storage/store1", "");
-        check_roles(&tree, "user2@pbs", "/storage/store2", "Store.User");
+        check_roles(&tree, "user2@pbs", "/storage/store2", "Datastore.User");
 
         Ok(())
     }
@@ -470,22 +517,22 @@ acl:1:/storage/store2:user2@pbs:Store.User
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:1:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Store.User
+acl:1:/storage/store1:user1@pbs:Datastore.User
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
         check_roles(&tree, "user1@pbs", "/storage/store2", "NoAccess");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:0:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Store.User
+acl:1:/storage/store1:user1@pbs:Datastore.User
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Store.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 

@@ -220,7 +220,15 @@ fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
 fn acl_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_ACLS));
+        .insert("list", CliCommand::new(&&API_METHOD_LIST_ACLS))
+        .insert(
+            "update",
+            CliCommand::new(&api2::access::acl::API_METHOD_UPDATE_ACL)
+                .arg_param(&["path", "role"])
+                .completion_cb("userid", config::user::complete_user_name)
+                .completion_cb("path", config::datastore::complete_acl_path)
+
+        );
 
     cmd_def.into()
 }

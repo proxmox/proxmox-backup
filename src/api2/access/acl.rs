@@ -1,8 +1,7 @@
 use failure::*;
-use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, Router, RpcEnvironment};
 use proxmox::api::schema::{Schema, StringSchema, BooleanSchema, ApiStringFormat};
 
 use crate::api2::types::*;
@@ -27,7 +26,14 @@ pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
 
 pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
     "Role.")
-    .format(&ApiStringFormat::Enum(&["Admin", "User", "Audit", "NoAccess"]))
+    .format(&ApiStringFormat::Enum(&[
+        "Admin",
+        "Audit",
+        "Datastore.Admin",
+        "Datastore.Audit",
+        "Datastore.User",
+        "NoAccess",
+    ]))
     .schema();
 
 #[api(
@@ -109,7 +115,8 @@ pub fn read_acl(
 
     //let auth_user = rpcenv.get_user().unwrap();
 
-    let (tree, digest) = acl::config()?;
+    // fixme: return digest?
+    let (tree, _digest) = acl::config()?;
 
     let mut list: Vec<AclListItem> = Vec::new();
     extract_acl_node_data(&tree.root, "", &mut list);
@@ -117,5 +124,86 @@ pub fn read_acl(
     Ok(list)
 }
 
+#[api(
+    input: {
+        properties: {
+	    path: {
+                schema: ACL_PATH_SCHEMA,
+            },
+	    role: {
+                schema: ACL_ROLE_SCHEMA,
+            },
+            propagate: {
+                optional: true,
+                schema: ACL_PROPAGATE_SCHEMA,
+            },
+            userid: {
+                optional: true,
+                schema: PROXMOX_USER_ID_SCHEMA,
+            },
+            group: {
+                optional: true,
+                schema: PROXMOX_GROUP_ID_SCHEMA,
+            },
+           delete: {
+                optional: true,
+                description: "Remove permissions (instead of adding it).",
+                type: bool,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+       },
+    },
+)]
+/// Update Access Control List (ACLs).
+pub fn update_acl(
+    path: String,
+    role: String,
+    propagate: Option<bool>,
+    userid: Option<String>,
+    group: Option<String>,
+    delete: Option<bool>,
+    digest: Option<String>,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let _lock = crate::tools::open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+
+    let (mut tree, expected_digest) = acl::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
+
+    // fixme: test if user/group exists?
+
+    // fixme: let propagate = propagate.unwrap_or(api_get_default!("propagate"));
+    let propagate = propagate.unwrap_or(true);
+
+    let delete = delete.unwrap_or(false);
+
+    if let Some(userid) = userid {
+        if delete {
+            tree.delete_user_role(&path, &userid, &role);
+        } else {
+            tree.insert_user_role(&path, &userid, &role, propagate);
+        }
+    } else if let Some(group) = group {
+        if delete {
+            tree.delete_group_role(&path, &group, &role);
+        } else {
+            tree.insert_group_role(&path, &group, &role, propagate);
+        }
+    }
+
+    acl::save_config(&tree)?;
+
+    Ok(())
+}
+
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_READ_ACL);
+    .get(&API_METHOD_READ_ACL)
+    .put(&API_METHOD_UPDATE_ACL);
