@@ -35,6 +35,7 @@ PRIV_DATASTORE_AUDIT |
 PRIV_DATASTORE_ALLOCATE_SPACE;
 
 pub const ROLE_DATASTORE_AUDIT: u64 = PRIV_DATASTORE_AUDIT;
+pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
 lazy_static! {
     static ref ROLE_NAMES: HashMap<&'static str, u64> = {
@@ -42,7 +43,7 @@ lazy_static! {
 
         map.insert("Admin", ROLE_ADMIN);
         map.insert("Audit", ROLE_AUDIT);
-        map.insert("NoAccess", ROLE_NO_ACCESS);
+        map.insert(ROLE_NAME_NO_ACCESS, ROLE_NO_ACCESS);
 
         map.insert("Datastore.Admin", ROLE_DATASTORE_ADMIN);
         map.insert("Datastore.User", ROLE_DATASTORE_USER);
@@ -107,7 +108,7 @@ impl AclTreeNode {
 
         for (role, propagate) in roles {
             if *propagate || all {
-                if role == "NoAccess" {
+                if role == ROLE_NAME_NO_ACCESS {
                     // return a set with a single role 'NoAccess'
                     let mut set = HashSet::new();
                     set.insert(role.to_string());
@@ -130,7 +131,7 @@ impl AclTreeNode {
 
             for (role, propagate) in roles {
                 if *propagate || all {
-                    if role == "NoAccess" {
+                    if role == ROLE_NAME_NO_ACCESS {
                         // return a set with a single role 'NoAccess'
                         let mut set = HashSet::new();
                         set.insert(role.to_string());
@@ -161,15 +162,25 @@ impl AclTreeNode {
     }
 
     pub fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
-        self.groups
-            .entry(group).or_insert_with(|| HashMap::new())
-            .insert(role, propagate);
+        let map = self.groups.entry(group).or_insert_with(|| HashMap::new());
+        if role == ROLE_NAME_NO_ACCESS {
+            map.clear();
+            map.insert(role, propagate);
+        } else {
+            map.remove(ROLE_NAME_NO_ACCESS);
+            map.insert(role, propagate);
+        }
     }
 
     pub fn insert_user_role(&mut self, user: String, role: String, propagate: bool) {
-        self.users
-            .entry(user).or_insert_with(|| HashMap::new())
-            .insert(role, propagate);
+        let map = self.users.entry(user).or_insert_with(|| HashMap::new());
+        if role == ROLE_NAME_NO_ACCESS {
+            map.clear();
+            map.insert(role, propagate);
+        } else {
+            map.remove(ROLE_NAME_NO_ACCESS);
+            map.insert(role, propagate);
+        }
     }
 }
 
@@ -286,22 +297,23 @@ impl AclTree {
         let uglist_role_map0 = group_by_property_list(&role_ug_map0);
         let uglist_role_map1 = group_by_property_list(&role_ug_map1);
 
-        for (uglist, roles) in uglist_role_map0 {
-            let role_list = roles.iter().fold(String::new(), |mut acc, v| {
+        fn role_list(roles: &BTreeSet<String>) -> String {
+            if roles.contains(ROLE_NAME_NO_ACCESS) { return String::from(ROLE_NAME_NO_ACCESS); }
+            roles.iter().fold(String::new(), |mut acc, v| {
                 if !acc.is_empty() { acc.push(','); }
                 acc.push_str(v);
                 acc
-            });
-            writeln!(w, "acl:0:{}:{}:{}", path, uglist, role_list)?;
+            })
         }
 
-        for (uglist, roles) in uglist_role_map1 {
-           let role_list = roles.iter().fold(String::new(), |mut acc, v| {
-                if !acc.is_empty() { acc.push(','); }
-                acc.push_str(v);
-                acc
-            });
-            writeln!(w, "acl:1:{}:{}:{}", path, uglist, role_list)?;
+        for (uglist, roles) in &uglist_role_map0 {
+            let role_list = role_list(roles);
+            writeln!(w, "acl:0:{}:{}:{}", if path.is_empty() { "/" } else { path }, uglist, role_list)?;
+        }
+
+        for (uglist, roles) in &uglist_role_map1 {
+            let role_list = role_list(roles);
+            writeln!(w, "acl:1:{}:{}:{}", if path.is_empty() { "/" } else { path }, uglist, role_list)?;
         }
 
         for (name, child) in node.children.iter() {
@@ -538,4 +550,48 @@ acl:1:/storage/store1:user1@pbs:Datastore.User
 
         Ok(())
     }
+
+    #[test]
+    fn test_role_add_delete() -> Result<(), Error> {
+
+        let mut tree = AclTree::new();
+
+        tree.insert_user_role("/", "user1@pbs", "Admin", true);
+        tree.insert_user_role("/", "user1@pbs", "Audit", true);
+
+        check_roles(&tree, "user1@pbs", "/", "Admin,Audit");
+
+        tree.insert_user_role("/", "user1@pbs", "NoAccess", true);
+        check_roles(&tree, "user1@pbs", "/", "NoAccess");
+
+        let mut raw: Vec<u8> = Vec::new();
+        tree.write_config(&mut raw)?;
+        let raw = std::str::from_utf8(&raw)?;
+
+        assert_eq!(raw, "acl:1:/:user1@pbs:NoAccess\n");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_no_access_overwrite() -> Result<(), Error> {
+
+        let mut tree = AclTree::new();
+
+        tree.insert_user_role("/storage", "user1@pbs", "NoAccess", true);
+
+        check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
+
+        tree.insert_user_role("/storage", "user1@pbs", "Admin", true);
+        tree.insert_user_role("/storage", "user1@pbs", "Audit", true);
+
+        check_roles(&tree, "user1@pbs", "/storage", "Admin,Audit");
+
+        tree.insert_user_role("/storage", "user1@pbs", "NoAccess", true);
+
+        check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
+
+        Ok(())
+    }
+
 }
