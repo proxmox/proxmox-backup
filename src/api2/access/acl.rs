@@ -199,7 +199,7 @@ pub fn update_acl(
         bail!("parameter 'group' - groups are currently not supported.");
     } else if let Some(ref userid) = userid {
         if !delete { // Note: we allow to delete non-existent users
-            let (user_cfg, _) = crate::config::user::cached_config()?;
+            let user_cfg = crate::config::user::cached_config()?;
             if user_cfg.sections.get(userid).is_none() {
                 bail!("no such user.");
             }

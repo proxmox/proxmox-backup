@@ -141,10 +141,10 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     Ok((data, digest))
 }
 
-pub fn cached_config() -> Result<(Arc<SectionConfigData>,[u8;32]), Error> {
+pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
 
     struct ConfigCache {
-        data: Option<(Arc<SectionConfigData>,[u8;32])>,
+        data: Option<Arc<SectionConfigData>>,
         last_mtime: i64,
         last_mtime_nsec: i64,
     }
@@ -159,21 +159,21 @@ pub fn cached_config() -> Result<(Arc<SectionConfigData>,[u8;32]), Error> {
     { // limit scope
         let cache = CACHED_CONFIG.read().unwrap();
         if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
-            if let Some((ref config, ref digest)) = cache.data {
-                return Ok((config.clone(), *digest));
+            if let Some(ref config) = cache.data {
+                return Ok(config.clone());
             }
         }
     }
 
-    let (config, digest) = config()?;
+    let (config, _digest) = config()?;
     let config = Arc::new(config);
 
     let mut cache = CACHED_CONFIG.write().unwrap();
     cache.last_mtime = stat.st_mtime;
     cache.last_mtime_nsec = stat.st_mtime_nsec;
-    cache.data = Some((config.clone(), digest.clone()));
+    cache.data = Some(config.clone());
 
-    Ok((config, digest))
+    Ok(config)
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
