@@ -499,7 +499,7 @@ fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("create", CliCommand::new(&API_METHOD_CREATE_ARCHIVE)
-            .arg_param(&["archive", "source", "exclude"])
+            .arg_param(&["archive", "source"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("source", tools::complete_file_name)
         )
