@@ -504,7 +504,7 @@ fn main() {
             .completion_cb("source", tools::complete_file_name)
         )
         .insert("extract", CliCommand::new(&API_METHOD_EXTRACT_ARCHIVE)
-            .arg_param(&["archive", "pattern"])
+            .arg_param(&["archive", "target"])
             .completion_cb("archive", tools::complete_file_name)
             .completion_cb("target", tools::complete_file_name)
             .completion_cb("files-from", tools::complete_file_name)
