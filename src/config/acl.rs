@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::path::{PathBuf, Path};
+use std::sync::{Arc, RwLock};
 
 use failure::*;
 
@@ -440,6 +441,41 @@ pub const ACL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.acl.lck";
 pub fn config() -> Result<(AclTree, [u8; 32]), Error> {
     let path = PathBuf::from(ACL_CFG_FILENAME);
     AclTree::load(&path)
+}
+
+pub fn cached_config() -> Result<Arc<AclTree>, Error> {
+
+    struct ConfigCache {
+        data: Option<Arc<AclTree>>,
+        last_mtime: i64,
+        last_mtime_nsec: i64,
+    }
+
+    lazy_static! {
+        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
+            ConfigCache { data: None, last_mtime: 0, last_mtime_nsec: 0 });
+    }
+
+    let stat = nix::sys::stat::stat(ACL_CFG_FILENAME)?;
+
+    { // limit scope
+        let cache = CACHED_CONFIG.read().unwrap();
+        if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
+            if let Some(ref config) = cache.data {
+                return Ok(config.clone());
+            }
+        }
+    }
+
+    let (config, _digest) = config()?;
+    let config = Arc::new(config);
+
+    let mut cache = CACHED_CONFIG.write().unwrap();
+    cache.last_mtime = stat.st_mtime;
+    cache.last_mtime_nsec = stat.st_mtime_nsec;
+    cache.data = Some(config.clone());
+
+    Ok(config)
 }
 
 pub fn save_config(acl: &AclTree) -> Result<(), Error> {
