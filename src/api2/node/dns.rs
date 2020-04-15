@@ -6,9 +6,7 @@ use openssl::sha;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use proxmox::{sortable, identity};
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
-use proxmox::api::schema::*;
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
@@ -50,6 +48,37 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
     Ok(result)
 }
 
+#[api(
+    protected: true,
+    input: {
+        description: "Update DNS settings.",
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            search: {
+                schema: SEARCH_DOMAIN_SCHEMA,
+            },
+            dns1: {
+                optional: true,
+                schema: FIRST_DNS_SERVER_SCHEMA,
+            },
+            dns2: {
+                optional: true,
+                schema: SECOND_DNS_SERVER_SCHEMA,
+            },
+            dns3: {
+                optional: true,
+                schema: THIRD_DNS_SERVER_SCHEMA,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+)]
+/// Update DNS settings
 fn update_dns(
     param: Value,
     _info: &ApiMethod,
@@ -96,6 +125,41 @@ fn update_dns(
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "Returns DNS server IPs and sreach domain.",
+        type: Object,
+        properties: {
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+            search: {
+                optional: true,
+                schema: SEARCH_DOMAIN_SCHEMA,
+            },
+            dns1: {
+                optional: true,
+                schema: FIRST_DNS_SERVER_SCHEMA,
+            },
+            dns2: {
+                optional: true,
+                schema: SECOND_DNS_SERVER_SCHEMA,
+            },
+            dns3: {
+                optional: true,
+                schema: THIRD_DNS_SERVER_SCHEMA,
+            },
+        },
+    },
+)]
+/// Read DNS settings.
 fn get_dns(
     _param: Value,
     _info: &ApiMethod,
@@ -105,41 +169,6 @@ fn get_dns(
     read_etc_resolv_conf()
 }
 
-#[sortable]
 pub const ROUTER: Router = Router::new()
-    .get(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&get_dns),
-            &ObjectSchema::new(
-                "Read DNS settings.",
-                &sorted!([ ("node", false, &NODE_SCHEMA) ]),
-            )
-        ).returns(
-            &ObjectSchema::new(
-                "Returns DNS server IPs and sreach domain.",
-                &sorted!([
-                    ("digest", false, &PROXMOX_CONFIG_DIGEST_SCHEMA),
-                    ("search", true, &SEARCH_DOMAIN_SCHEMA),
-                    ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
-                    ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
-                    ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
-                ]),
-            ).schema()
-        )
-    )
-    .put(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&update_dns),
-            &ObjectSchema::new(
-                "Returns DNS server IPs and sreach domain.",
-                &sorted!([
-                    ("node", false, &NODE_SCHEMA),
-                    ("search", false, &SEARCH_DOMAIN_SCHEMA),
-                    ("dns1", true, &FIRST_DNS_SERVER_SCHEMA),
-                    ("dns2", true, &SECOND_DNS_SERVER_SCHEMA),
-                    ("dns3", true, &THIRD_DNS_SERVER_SCHEMA),
-                    ("digest", true, &PROXMOX_CONFIG_DIGEST_SCHEMA),
-                ]),
-            )
-        ).protected(true)
-    );
+    .get(&API_METHOD_GET_DNS)
+    .put(&API_METHOD_UPDATE_DNS);
