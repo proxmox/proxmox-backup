@@ -3,10 +3,11 @@ use serde_json::{json, Value};
 
 use proxmox::sys::linux::procfs;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, SubdirMap};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, SubdirMap, Permission};
 use proxmox::list_subdirs_api_method;
 
 use crate::api2::types::*;
+use crate::config::acl::PRIV_SYS_AUDIT;
 
 #[api(
     input: {
@@ -44,7 +45,10 @@ use crate::api2::types::*;
                 optional: true,
             },
         }
-   }
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
 )]
 /// Read node memory, CPU and (root) disk usage
 fn get_usage(
