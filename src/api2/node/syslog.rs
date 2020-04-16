@@ -3,9 +3,10 @@ use std::process::{Command, Stdio};
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
+use crate::config::acl::PRIV_SYS_AUDIT;
 
 fn dump_journal(
     start: Option<u64>,
@@ -121,6 +122,9 @@ fn dump_journal(
                 description: "Line text.",
             }
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read syslog entries.
