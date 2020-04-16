@@ -4,19 +4,78 @@ use std::io::{BufRead, BufReader};
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::api::{api, ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
-use proxmox::api::schema::*;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use crate::tools;
 use crate::api2::types::*;
 use crate::server::{self, UPID};
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "Task status nformation.",
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+            pid: {
+                type: i64,
+                description: "The Unix PID.",
+            },
+            pstart: {
+                type: u64,
+                description: "The Unix process start time from `/proc/pid/stat`",
+            },
+            starttime: {
+                type: i64,
+                description: "The task start time (Epoch)",
+            },
+            "type": {
+                type: String,
+                description: "Worker type (arbitrary ASCII string)",
+            },
+            id: {
+                type: String,
+                optional: true,
+                description: "Worker ID (arbitrary ASCII string)",
+            },
+            user: {
+                type: String,
+                description: "The user who started the task.",
+            },
+            status: {
+                type: String,
+                description: "'running' or 'stopped'",
+            },
+            exitstatus: {
+                type: String,
+                optional: true,
+                description: "'OK', 'Error: <msg>', or 'unkwown'.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Get task status.
 fn get_task_status(
     param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -50,9 +109,41 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
     upid_str.parse::<UPID>()
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+            "test-status": {
+                type: bool,
+                optional: true,
+                description: "Test task status, and set result attribute \"active\" accordingly.",
+            },
+            start: {
+                type: u64,
+                optional: true,
+                description: "Start at this line.",
+                default: 0,
+            },
+            limit: {
+                type: u64,
+                optional: true,
+                description: "Only list this amount of lines.",
+                default: 50,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Read task log.
 fn read_task_log(
     param: Value,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -99,10 +190,25 @@ fn read_task_log(
     Ok(json!(lines))
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            upid: {
+                schema: UPID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Try to stop a task.
 fn stop_task(
     param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -158,11 +264,13 @@ fn stop_task(
         type: Array,
         items: { type: TaskListItem },
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
 )]
 /// List tasks.
 pub fn list_tasks(
     param: Value,
-    _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
@@ -244,73 +352,22 @@ pub fn list_tasks(
 }
 
 #[sortable]
-const UPID_API_SUBDIRS: SubdirMap = &[
+const UPID_API_SUBDIRS: SubdirMap = &sorted!([
     (
         "log", &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&read_task_log),
-                    &ObjectSchema::new(
-                        "Read task log.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ( "test-status",
-                               true,
-                               &BooleanSchema::new(
-                                   "Test task status, and set result attribute \"active\" accordingly."
-                               ).schema()
-                            ),
-                            ("upid", false, &UPID_SCHEMA),
-                            ("start", true, &IntegerSchema::new("Start at this line.")
-                             .minimum(0)
-                             .default(0)
-                             .schema()
-                            ),
-                            ("limit", true, &IntegerSchema::new("Only list this amount of lines.")
-                             .minimum(0)
-                             .default(50)
-                             .schema()
-                            ),
-                        ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_READ_TASK_LOG)
     ),
     (
         "status", &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&get_task_status),
-                    &ObjectSchema::new(
-                        "Get task status.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("upid", false, &UPID_SCHEMA),
-                        ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_GET_TASK_STATUS)
     )
-];
+]);
 
-#[sortable]
 pub const UPID_API_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(UPID_API_SUBDIRS))
-    .delete(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&stop_task),
-            &ObjectSchema::new(
-                "Try to stop a task.",
-                &sorted!([
-                    ("node", false, &NODE_SCHEMA),
-                    ("upid", false, &UPID_SCHEMA),
-                ]),
-            )
-        ).protected(true)
-    )
+    .delete(&API_METHOD_STOP_TASK)
     .subdirs(&UPID_API_SUBDIRS);
 
-#[sortable]
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_TASKS)
     .match_all("upid", &UPID_API_ROUTER);
