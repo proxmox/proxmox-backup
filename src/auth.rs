@@ -130,6 +130,7 @@ pub fn parse_userid(userid: &str) -> Result<(String, String), Error> {
     Ok((data[1].to_owned(), data[0].to_owned()))
 }
 
+/// Lookup the autenticator for the specified realm
 pub fn lookup_authenticator(realm: &str) -> Result<Box<dyn ProxmoxAuthenticator>, Error> {
     match realm {
         "pam" => Ok(Box::new(PAM())),
@@ -138,27 +139,9 @@ pub fn lookup_authenticator(realm: &str) -> Result<Box<dyn ProxmoxAuthenticator>
     }
 }
 
+/// Authenticate users
 pub fn authenticate_user(userid: &str, password: &str) -> Result<(), Error> {
     let (username, realm) = parse_userid(userid)?;
-
-    let (user_config, _digest) = crate::config::user::config()?;
-    let user: Result<crate::config::user::User, Error> = user_config.lookup("user", userid);
-    match user {
-        Ok(user) => {
-            if let Some(false) = user.enable {
-                bail!("account disabled");
-            }
-            if let Some(expire) = user.expire {
-                if expire > 0 {
-                    let now = unsafe { libc::time(std::ptr::null_mut()) };
-                    if expire <= now {
-                        bail!("account expired");
-                    }
-                }
-            }
-        },
-        Err(_) => bail!("no such user"),
-    }
 
     lookup_authenticator(&realm)?
     .authenticate_user(&username, password)

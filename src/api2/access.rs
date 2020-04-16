@@ -2,7 +2,7 @@ use failure::*;
 
 use serde_json::{json, Value};
 
-use proxmox::api::{api, RpcEnvironment};
+use proxmox::api::{api, RpcEnvironment, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
@@ -11,12 +11,19 @@ use crate::tools;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
 use crate::api2::types::*;
+use crate::config::cached_user_info::CachedUserInfo;
 
 pub mod user;
 pub mod domain;
 pub mod acl;
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
+
+    let user_info = CachedUserInfo::new()?;
+
+    if !user_info.is_active_user(&username) {
+        bail!("user account disabled or expired.");
+    }
 
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
@@ -61,6 +68,9 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
         },
     },
     protected: true,
+    access: {
+        permission: &Permission::World,
+    },
 )]
 /// Create or verify authentication ticket.
 ///
@@ -100,6 +110,11 @@ fn create_ticket(username: String, password: String) -> Result<Value, Error> {
             },
         },
     },
+    access: {
+        description: "Anybody is allowed to change there own password. The Superuser may change any password.",
+        permission: &Permission::Anybody,
+    },
+
 )]
 /// Change user password
 ///

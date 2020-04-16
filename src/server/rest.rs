@@ -19,7 +19,7 @@ use url::form_urlencoded;
 
 use proxmox::http_err;
 use proxmox::api::{ApiHandler, ApiMethod, HttpError};
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::{RpcEnvironment, RpcEnvironmentType, check_api_permission};
 use proxmox::api::schema::{ObjectSchema, parse_simple_value, verify_json_object, parse_parameter_strings};
 
 use super::environment::RestEnvironment;
@@ -28,6 +28,7 @@ use super::ApiConfig;
 
 use crate::auth_helpers::*;
 use crate::tools;
+use crate::config::cached_user_info::CachedUserInfo;
 
 extern "C"  { fn tzset(); }
 
@@ -468,7 +469,12 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
     (ticket, token)
 }
 
-fn check_auth(method: &hyper::Method, ticket: &Option<String>, token: &Option<String>) -> Result<String, Error> {
+fn check_auth(
+    method: &hyper::Method,
+    ticket: &Option<String>,
+    token: &Option<String>,
+    user_info: &CachedUserInfo,
+) -> Result<String, Error> {
 
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
@@ -480,6 +486,10 @@ fn check_auth(method: &hyper::Method, ticket: &Option<String>, token: &Option<St
         }
         None => bail!("missing ticket"),
     };
+
+    if !user_info.is_active_user(&username) {
+        bail!("user account disabled or expired.");
+    }
 
     if method != hyper::Method::GET {
         if let Some(token) = token {
@@ -508,6 +518,8 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
     let env_type = api.env_type();
     let mut rpcenv = RestEnvironment::new(env_type);
 
+    let user_info = CachedUserInfo::new()?;
+
     let delay_unauth_time = std::time::Instant::now() + std::time::Duration::from_millis(3000);
 
     if comp_len >= 1 && components[0] == "api2" {
@@ -531,16 +543,11 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                 // explicitly allow those calls without auth
             } else {
                 let (ticket, token) = extract_auth_data(&parts.headers);
-                match check_auth(&method, &ticket, &token) {
-                    Ok(username) => {
-
-                        // fixme: check permissions
-
-                        rpcenv.set_user(Some(username));
-                    }
+                match check_auth(&method, &ticket, &token, &user_info) {
+                    Ok(username) => rpcenv.set_user(Some(username)),
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
-                        let err = http_err!(UNAUTHORIZED, format!("permission check failed - {}", err));
+                        let err = http_err!(UNAUTHORIZED, format!("authentication failed - {}", err));
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
@@ -553,6 +560,13 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                     return Ok((formatter.format_error)(err));
                 }
                 Some(api_method) => {
+                    let user = rpcenv.get_user();
+                    if !check_api_permission(api_method.access.permission, user.as_deref(), &uri_param, &user_info) {
+                        let err = http_err!(FORBIDDEN, format!("permission check failed"));
+                        tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
+                        return Ok((formatter.format_error)(err));
+                    }
+
                     let result = if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
                         proxy_protected_request(api_method, parts, body).await
                     } else {
@@ -577,7 +591,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
         if comp_len == 0 {
             let (ticket, token) = extract_auth_data(&parts.headers);
             if ticket != None {
-                match check_auth(&method, &ticket, &token) {
+                match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(username) => {
                         let new_token = assemble_csrf_prevention_token(csrf_secret(), &username);
                         return Ok(get_index(Some(username), Some(new_token)));

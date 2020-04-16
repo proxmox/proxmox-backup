@@ -6,11 +6,12 @@ use openssl::sha;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use crate::api2::types::*;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 static RESOLV_CONF_FN: &str = "/etc/resolv.conf";
 
@@ -77,6 +78,9 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    }
 )]
 /// Update DNS settings
 fn update_dns(
@@ -158,6 +162,9 @@ fn update_dns(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    }
 )]
 /// Read DNS settings.
 fn get_dns(

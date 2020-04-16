@@ -1,7 +1,7 @@
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::ObjectSchema;
 
 pub const PROXMOX_PKG_VERSION: &str =
@@ -31,6 +31,6 @@ pub const ROUTER: Router = Router::new()
         &ApiMethod::new(
             &ApiHandler::Sync(&get_version),
             &ObjectSchema::new("Proxmox Backup Server API version.", &[])
-        )
+        ).access(None, &Permission::Anybody)
     );
 

@@ -2,7 +2,7 @@ use failure::*;
 
 use serde_json::{json, Value};
 
-use proxmox::api::api;
+use proxmox::api::{api, Permission};
 use proxmox::api::router::Router;
 
 use crate::api2::types::*;
@@ -29,12 +29,13 @@ use crate::api2::types::*;
                 }
             },
         }
+    },
+    access: {
+        description: "Anyone can access this, because we need that list for the login box (before the user is authenticated).",
+        permission: &Permission::World,
     }
 )]
 /// Authentication domain/realm index.
-///
-/// Anyone can access this, because we need that list for the login
-/// box (before the user is authenticated).
 fn list_domains() -> Result<Value, Error> {
     let mut list = Vec::new();
     list.push(json!({ "realm": "pam", "comment": "Linux PAM standard authentication", "default": true }));

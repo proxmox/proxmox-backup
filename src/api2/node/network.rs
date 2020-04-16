@@ -1,28 +1,37 @@
 use failure::*;
 use serde_json::{json, Value};
 
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
-use proxmox::api::schema::ObjectSchema;
+use proxmox::api::{api, Router, Permission};
 
 use crate::api2::types::*;
+use crate::config::acl::{PRIV_SYS_AUDIT};
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "The network configuration from /etc/network/interfaces.",
+        properties: {
+            // fixme
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Read network configuration.
 fn get_network_config(
     _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     Ok(json!({}))
 }
 
 pub const ROUTER: Router = Router::new()
-    .get(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&get_network_config),
-            &ObjectSchema::new(
-                "Read network configuration.",
-                &[ ("node", false, &NODE_SCHEMA) ],
-            )
-        )
-    );
+    .get(&API_METHOD_GET_NETWORK_CONFIG);
   
