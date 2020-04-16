@@ -19,6 +19,7 @@ pub mod datastore;
 pub mod remote;
 pub mod user;
 pub mod acl;
+pub mod cached_user_info;
 
 /// Check configuration directory permissions
 ///
