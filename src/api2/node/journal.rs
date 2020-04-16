@@ -4,9 +4,10 @@ use failure::*;
 use serde_json::{json, Value};
 use std::io::{BufRead,BufReader};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
+use crate::config::acl::PRIV_SYS_AUDIT;
 
 #[api(
     protected: true,
@@ -52,6 +53,9 @@ use crate::api2::types::*;
             type: String,
             description: "Line text.",
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read syslog entries.
