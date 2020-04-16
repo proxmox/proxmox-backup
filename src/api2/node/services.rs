@@ -4,12 +4,12 @@ use failure::*;
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity, list_subdirs_api_method};
-use proxmox::api::{ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, Router, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
 use crate::api2::types::*;
-use crate::tools;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",
@@ -91,11 +91,45 @@ fn json_service_state(service: &str, status: Value) -> Value {
     Value::Null
 }
 
-
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "Returns a list of systemd services.",
+        type: Array,
+        items: {
+            description: "Service details.",
+            properties: {
+                service: {
+                    schema: SERVICE_ID_SCHEMA,
+                },
+                name: {
+                    type: String,
+                    description: "systemd service name.",
+                },
+                desc: {
+                    type: String,
+                    description: "systemd service description.",
+                },
+                state: {
+                    type: String,
+                    description: "systemd service 'SubState'.",
+                },
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Service list.
 fn list_services(
     _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let mut list = vec![];
@@ -115,21 +149,36 @@ fn list_services(
     Ok(Value::from(list))
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            service: {
+                schema: SERVICE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Read service properties.
 fn get_service_state(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    service: String,
+    _param: Value,
 ) -> Result<Value, Error> {
 
-    let service = tools::required_string_param(&param, "service")?;
+    let service = service.as_str();
 
     if !SERVICE_NAME_LIST.contains(&service) {
         bail!("unknown service name '{}'", service);
     }
 
-    let status = get_full_service_state(service)?;
+    let status = get_full_service_state(&service)?;
 
-    Ok(json_service_state(service, status))
+    Ok(json_service_state(&service, status))
 }
 
 fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
@@ -158,61 +207,117 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            service: {
+                schema: SERVICE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Start service.
 fn start_service(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    service: String,
+    _param: Value,
 ) -> Result<Value, Error> {
-
-    let service = tools::required_string_param(&param, "service")?;
 
     log::info!("starting service {}", service);
 
-    run_service_command(service, "start")
+    run_service_command(&service, "start")
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            service: {
+                schema: SERVICE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Stop service.
 fn stop_service(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let service = tools::required_string_param(&param, "service")?;
+    service: String,
+    _param: Value,
+ ) -> Result<Value, Error> {
 
     log::info!("stoping service {}", service);
 
-    run_service_command(service, "stop")
+    run_service_command(&service, "stop")
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            service: {
+                schema: SERVICE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Retart service.
 fn restart_service(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    service: String,
+    _param: Value,
 ) -> Result<Value, Error> {
-
-    let service = tools::required_string_param(&param, "service")?;
 
     log::info!("re-starting service {}", service);
 
-    if service == "proxmox-backup-proxy" {
+    if &service == "proxmox-backup-proxy" {
         // special case, avoid aborting running tasks
-        run_service_command(service, "reload")
+        run_service_command(&service, "reload")
     } else {
-        run_service_command(service, "restart")
+        run_service_command(&service, "restart")
     }
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            service: {
+                schema: SERVICE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Reload service.
 fn reload_service(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    service: String,
+    _param: Value,
 ) -> Result<Value, Error> {
-
-    let service = tools::required_string_param(&param, "service")?;
 
     log::info!("reloading service {}", service);
 
-    run_service_command(service, "reload")
+    run_service_command(&service, "reload")
 }
 
 
@@ -221,111 +326,33 @@ const SERVICE_ID_SCHEMA: Schema = StringSchema::new("Service ID.")
     .schema();
 
 #[sortable]
-const SERVICE_SUBDIRS: SubdirMap = &[
+const SERVICE_SUBDIRS: SubdirMap = &sorted!([
     (
         "reload", &Router::new()
-            .post(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&reload_service),
-                    &ObjectSchema::new(
-                        "Reload service.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("service", false, &SERVICE_ID_SCHEMA),
-                        ]),
-                    )
-                ).protected(true)
-            )
+            .post(&API_METHOD_RELOAD_SERVICE)
     ),
     (
         "restart", &Router::new()
-            .post(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&restart_service),
-                    &ObjectSchema::new(
-                        "Restart service.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("service", false, &SERVICE_ID_SCHEMA),
-                        ]),
-                    )
-                ).protected(true)
-            )
+            .post(&API_METHOD_RESTART_SERVICE)
     ),
     (
         "start", &Router::new()
-            .post(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&start_service),
-                    &ObjectSchema::new(
-                        "Start service.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("service", false, &SERVICE_ID_SCHEMA),
-                        ]),
-                    )
-                ).protected(true)
-            )
+            .post(&API_METHOD_START_SERVICE)
     ),
     (
         "state", &Router::new()
-            .get(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&get_service_state),
-                    &ObjectSchema::new(
-                        "Read service properties.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("service", false, &SERVICE_ID_SCHEMA),
-                        ]),
-                    )
-                )
-            )
+            .get(&API_METHOD_GET_SERVICE_STATE)
     ),
     (
         "stop", &Router::new()
-            .post(
-                &ApiMethod::new(
-                    &ApiHandler::Sync(&stop_service),
-                    &ObjectSchema::new(
-                        "Stop service.",
-                        &sorted!([
-                            ("node", false, &NODE_SCHEMA),
-                            ("service", false, &SERVICE_ID_SCHEMA),
-                        ]),
-                    )
-                ).protected(true)
-            )
+            .post(&API_METHOD_STOP_SERVICE)
     ),
-];
+]);
 
 const SERVICE_ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SERVICE_SUBDIRS))
     .subdirs(SERVICE_SUBDIRS);
 
-#[sortable]
 pub const ROUTER: Router = Router::new()
-    .get(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&list_services),
-            &ObjectSchema::new(
-                "Service list.",
-                &sorted!([ ("node", false, &NODE_SCHEMA) ]),
-            )
-        ).returns(
-            &ArraySchema::new(
-                "Returns a list of systemd services.",
-                &ObjectSchema::new(
-                    "Service details.",
-                    &sorted!([
-                        ("service", false, &SERVICE_ID_SCHEMA),
-                        ("name", false, &StringSchema::new("systemd service name.").schema()),
-                        ("desc", false, &StringSchema::new("systemd service description.").schema()),
-                        ("state", false, &StringSchema::new("systemd service 'SubState'.").schema()),
-                    ]),
-                ).schema()
-            ).schema()
-        )
-    )
+    .get(&API_METHOD_LIST_SERVICES)
     .match_all("service", &SERVICE_ROUTER);
-
