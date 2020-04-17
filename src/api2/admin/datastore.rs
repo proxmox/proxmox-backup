@@ -8,8 +8,9 @@ use hyper::http::request::Parts;
 use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
 
-use proxmox::api::api;
-use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::{
+    api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
+    RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
@@ -21,6 +22,7 @@ use crate::backup::*;
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
+use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_ALLOCATE_SPACE};
 
 fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
 
@@ -77,6 +79,9 @@ fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo
         items: {
             type: GroupListItem,
         }
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
     },
 )]
 /// List backup groups.
@@ -136,6 +141,9 @@ fn list_groups(
             type: BackupContent,
         }
     },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
+    },
 )]
 /// List snapshot files.
 pub fn list_snapshot_files(
@@ -184,6 +192,9 @@ pub fn list_snapshot_files(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+    },
 )]
 /// Delete backup snapshot.
 fn delete_snapshot(
@@ -226,6 +237,9 @@ fn delete_snapshot(
         items: {
             type: SnapshotListItem,
         }
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
     },
 )]
 /// List backup snapshots.
@@ -290,6 +304,9 @@ pub fn list_snapshots (
     },
     returns: {
         type: StorageStatus,
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
     },
 )]
 /// Get datastore status.
@@ -389,7 +406,7 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
             ("store", false, &DATASTORE_SCHEMA),
         ])
     )
-);
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
 
 fn prune(
     param: Value,
@@ -512,6 +529,9 @@ fn prune(
     returns: {
         schema: UPID_SCHEMA,
     },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+    },
 )]
 /// Start garbage collection.
 fn start_garbage_collection(
@@ -546,7 +566,10 @@ fn start_garbage_collection(
     },
     returns: {
         type: GarbageCollectionStatus,
-    }
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT, false),
+    },
 )]
 /// Garbage collection status.
 pub fn garbage_collection_status(
@@ -562,7 +585,12 @@ pub fn garbage_collection_status(
     Ok(status)
 }
 
-
+#[api(
+    access: {
+        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_AUDIT, false),
+    },
+)]
+/// Datastore list
 fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
@@ -587,7 +615,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
             ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
     )
-);
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
 
 fn download_file(
     _parts: Parts,
@@ -646,7 +674,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
         ]),
     )
-);
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
 
 fn upload_backup_log(
     _parts: Parts,
@@ -751,10 +779,5 @@ const DATASTORE_INFO_ROUTER: Router = Router::new()
 
 
 pub const ROUTER: Router = Router::new()
-    .get(
-        &ApiMethod::new(
-            &ApiHandler::Sync(&get_datastore_list),
-            &ObjectSchema::new("Directory index.", &[])
-        )
-    )
+    .get(&API_METHOD_GET_DATASTORE_LIST)
     .match_all("store", &DATASTORE_INFO_ROUTER);
