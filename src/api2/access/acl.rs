@@ -1,11 +1,12 @@
 use failure::*;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::{Schema, StringSchema, BooleanSchema, ApiStringFormat};
 
 use crate::api2::types::*;
 use crate::config::acl;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
     "Allow to propagate (inherit) permissions.")
@@ -119,7 +120,10 @@ fn extract_acl_node_data(
         items: {
             type: AclListItem,
         }
-    }
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
 )]
 /// Read Access Control List (ACLs).
 pub fn read_acl(
@@ -168,6 +172,9 @@ pub fn read_acl(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Update Access Control List (ACLs).
