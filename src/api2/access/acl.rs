@@ -44,7 +44,7 @@ fn check_acl_path(path: &str) -> Result<(), Error> {
     if components.is_empty() { return Ok(()); }
 
     if components.len() == 2 {
-        if components[0] == "storage" { return Ok(()); }
+        if components[0] == "datastore" { return Ok(()); }
     }
 
     bail!("invalid acl path '{}'.", path);
