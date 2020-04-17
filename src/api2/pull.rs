@@ -9,13 +9,14 @@ use std::io::{Seek, SeekFrom};
 use chrono::{Utc, TimeZone};
 
 use proxmox::api::api;
-use proxmox::api::{ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::server::{WorkerTask};
 use crate::backup::*;
 use crate::client::*;
 use crate::config::remote;
 use crate::api2::types::*;
+use crate::config::acl::PRIV_DATASTORE_ALLOCATE_SPACE;
 
 // fixme: implement filters
 // fixme: delete vanished groups
@@ -386,6 +387,12 @@ pub async fn pull_store(
                 default: true,
             },
         },
+    },
+    access: {
+        permission: &Permission::And(&[
+            &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+            &Permission::Privilege(&["remote", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+        ]),
     },
 )]
 /// Sync store from other repository
