@@ -18,6 +18,7 @@ use crate::config::acl::PRIV_PERMISSIONS_MODIFY;
 pub mod user;
 pub mod domain;
 pub mod acl;
+pub mod role;
 
 fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 
@@ -166,6 +167,7 @@ const SUBDIRS: SubdirMap = &sorted!([
             .post(&API_METHOD_CREATE_TICKET)
     ),
     ("domains", &domain::ROUTER),
+    ("roles", &role::ROUTER),
     ("users", &user::ROUTER),
 ]);
 

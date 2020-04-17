@@ -60,7 +60,7 @@ impl UserInformation for CachedUserInfo {
         let roles = self.acl_tree.roles(userid, path);
         let mut privs: u64 = 0;
         for role in roles {
-            if let Some(role_privs) = ROLE_NAMES.get(role.as_str()) {
+            if let Some((role_privs, _)) = ROLE_NAMES.get(role.as_str()) {
                 privs |= role_privs;
             }
         }

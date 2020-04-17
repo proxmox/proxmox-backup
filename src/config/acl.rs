@@ -41,16 +41,34 @@ pub const ROLE_DATASTORE_AUDIT: u64 = PRIV_DATASTORE_AUDIT;
 pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
 lazy_static! {
-    pub static ref ROLE_NAMES: HashMap<&'static str, u64> = {
+    pub static ref ROLE_NAMES: HashMap<&'static str, (u64, &'static str)> = {
         let mut map = HashMap::new();
 
-        map.insert("Admin", ROLE_ADMIN);
-        map.insert("Audit", ROLE_AUDIT);
-        map.insert(ROLE_NAME_NO_ACCESS, ROLE_NO_ACCESS);
+        map.insert("Admin", (
+            ROLE_ADMIN,
+            "Administrator",
+        ));
+        map.insert("Audit", (
+            ROLE_AUDIT,
+            "Auditor",
+        ));
+        map.insert(ROLE_NAME_NO_ACCESS, (
+            ROLE_NO_ACCESS,
+            "Disable access",
+        ));
 
-        map.insert("Datastore.Admin", ROLE_DATASTORE_ADMIN);
-        map.insert("Datastore.User", ROLE_DATASTORE_USER);
-        map.insert("Datastore.Audit", ROLE_DATASTORE_AUDIT);
+        map.insert("Datastore.Admin", (
+            ROLE_DATASTORE_ADMIN,
+            "Datastore Administrator",
+        ));
+        map.insert("Datastore.User", (
+            ROLE_DATASTORE_USER,
+            "Datastore User",
+        ));
+        map.insert("Datastore.Audit", (
+            ROLE_DATASTORE_AUDIT,
+            "Datastore Auditor",
+        ));
 
         map
     };
