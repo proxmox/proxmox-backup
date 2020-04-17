@@ -1,6 +1,6 @@
 //! Generate and verify Authentification tickets
 
-use failure::*;
+use anyhow::{bail, Error};
 use base64;
 
 use openssl::pkey::{PKey, Public, Private};

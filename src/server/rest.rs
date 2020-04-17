@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures::stream::TryStreamExt;
 use hyper::header;

@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::{Bytes, BytesMut};
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::*;
 
 /// Trait to get digest list from index files

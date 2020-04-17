@@ -11,7 +11,7 @@ use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::path::Path;
 use std::time::Duration;
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
 use percent_encoding::AsciiSet;

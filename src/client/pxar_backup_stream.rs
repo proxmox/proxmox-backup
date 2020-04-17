@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::thread;
 
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::stream::Stream;
 
 use nix::fcntl::OFlag;

@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use std::convert::TryInto;
 
 use proxmox::tools::io::{ReadExt, WriteExt};

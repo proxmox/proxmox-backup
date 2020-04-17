@@ -1,6 +1,6 @@
 use std::process::{Command, Stdio};
 
-use failure::*;
+use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity, list_subdirs_api_method};

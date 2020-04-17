@@ -9,7 +9,7 @@ use std::panic::UnwindSafe;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 

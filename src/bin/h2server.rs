@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use futures::*;
 
 // Simple H2 server to test H2 speed with h2client.rs

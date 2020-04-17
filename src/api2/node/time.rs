@@ -1,7 +1,7 @@
 use std::mem::{self, MaybeUninit};
 
 use chrono::prelude::*;
-use failure::*;
+use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, Router, Permission};

@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,5 +1,5 @@
 //use chrono::{Local, TimeZone};
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::header::{self, HeaderValue, UPGRADE};
 use hyper::http::request::Parts;

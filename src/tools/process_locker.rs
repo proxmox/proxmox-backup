@@ -7,7 +7,7 @@
 //! the timestamp for the oldest open lock with
 //! `oldest_shared_lock()`.
 
-use failure::*;
+use anyhow::{bail, Error};
 
 use std::sync::{Arc, Mutex};
 use std::os::unix::io::AsRawFd;

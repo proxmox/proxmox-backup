@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::{ready, Future};
 use h2::SendStream;
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::*;
 use hyper::{Request, Response, Body};
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};

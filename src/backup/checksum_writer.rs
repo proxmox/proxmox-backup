@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::io::Write;
 
-use failure::*;
+use anyhow::{Error};
 
 use super::CryptConfig;
 use crate::tools::borrow::Tied;

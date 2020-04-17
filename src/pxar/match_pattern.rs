@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::Read;
 use std::os::unix::io::{FromRawFd, RawFd};
 
-use failure::{bail, Error};
+use anyhow::{bail, Error};
 use libc::{c_char, c_int};
 use nix::errno::Errno;
 use nix::fcntl;
@@ -44,7 +44,7 @@ pub enum MatchType {
 /// ```
 /// # use std::ffi::CString;
 /// # use self::proxmox_backup::pxar::{MatchPattern, MatchType};
-/// # fn main() -> Result<(), failure::Error> {
+/// # fn main() -> Result<(), anyhow::Error> {
 /// let filename = CString::new("some.conf")?;
 /// let is_dir = false;
 ///
@@ -223,7 +223,7 @@ impl<'a> MatchPatternSlice<'a> {
     /// original pattern.
     /// ```
     /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
+    /// # fn main() -> Result<(), anyhow::Error> {
     /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
     /// let slice = pattern.as_slice();
     /// let front = slice.get_front_pattern();
@@ -246,7 +246,7 @@ impl<'a> MatchPatternSlice<'a> {
     /// If no slash is encountered, the `MatchPatternSlice` will be empty.
     /// ```
     /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
+    /// # fn main() -> Result<(), anyhow::Error> {
     /// let pattern = MatchPattern::from_line(b"some/match/pattern/")?.unwrap();
     /// let slice = pattern.as_slice();
     /// let rest = slice.get_rest_pattern();
@@ -379,7 +379,7 @@ impl<'a> MatchPatternSlice<'a> {
     /// ```
     /// # use std::ffi::CString;
     /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
+    /// # fn main() -> Result<(), anyhow::Error> {
     /// let patterns = vec![
     ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
     ///     MatchPattern::from_line(b"to_match/")?.unwrap()
@@ -454,7 +454,7 @@ impl<'a> MatchPatternSlice<'a> {
     /// ```
     /// # use std::ffi::CString;
     /// # use self::proxmox_backup::pxar::{MatchPattern, MatchPatternSlice, MatchType};
-    /// # fn main() -> Result<(), failure::Error> {
+    /// # fn main() -> Result<(), anyhow::Error> {
     /// let patterns = vec![
     ///     MatchPattern::from_line(b"some/match/pattern/")?.unwrap(),
     ///     MatchPattern::from_line(b"to_match/")?.unwrap()

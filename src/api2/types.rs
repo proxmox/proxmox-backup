@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};

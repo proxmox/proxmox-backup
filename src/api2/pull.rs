@@ -1,6 +1,6 @@
 //! Sync datastore from remote server
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use serde_json::json;
 use std::convert::TryFrom;
 use std::sync::Arc;

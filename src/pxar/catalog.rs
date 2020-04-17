@@ -3,7 +3,7 @@
 //! A file list catalog simply store a directory tree. Such catalogs
 //! may be used as index to do a fast search for files.
 
-use failure::*;
+use anyhow::{Error};
 use std::ffi::CStr;
 
 pub trait BackupCatalogWriter {

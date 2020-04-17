@@ -3,7 +3,7 @@ use std::task::{Context, Poll};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use futures::*;
 use http::Uri;
 use http::header::HeaderValue;

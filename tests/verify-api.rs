@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, format_err, Error};
 
 use proxmox_backup::api2;
 use proxmox::api::*;

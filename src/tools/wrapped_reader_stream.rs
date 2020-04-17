@@ -61,7 +61,7 @@ impl<T> Stream for StdChannelStream<T> {
 mod test {
     use std::io;
 
-    use failure::Error;
+    use anyhow::Error;
     use futures::stream::TryStreamExt;
 
     #[test]

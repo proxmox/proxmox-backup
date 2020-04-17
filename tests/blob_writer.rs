@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use std::sync::Arc;
 use std::io::Cursor;
 use std::io::{Read, Write, Seek, SeekFrom };

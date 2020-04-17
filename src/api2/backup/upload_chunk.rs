@@ -2,7 +2,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::Body;
 use hyper::http::request::Parts;

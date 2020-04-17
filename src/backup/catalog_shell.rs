@@ -7,7 +7,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
 
 use chrono::{Utc, offset::TimeZone};
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use nix::sys::stat::{Mode, SFlag};
 
 use proxmox::api::{cli::*, *};

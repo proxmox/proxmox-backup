@@ -2,7 +2,7 @@ extern crate proxmox_backup;
 
 // also see https://www.johndcook.com/blog/standard_deviation/
 
-use failure::*;
+use anyhow::{Error};
 use std::io::{Read, Write};
 
 use proxmox_backup::backup::*;

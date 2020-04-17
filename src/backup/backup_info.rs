@@ -1,6 +1,6 @@
 use crate::tools;
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use regex::Regex;
 use std::os::unix::io::RawFd;
 

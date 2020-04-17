@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use std::convert::TryInto;
 use std::io::{Seek, SeekFrom};
 

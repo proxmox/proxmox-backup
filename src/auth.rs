@@ -7,7 +7,7 @@ use std::io::Write;
 use std::ffi::{CString, CStr};
 
 use base64;
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use serde_json::json;
 
 pub trait ProxmoxAuthenticator {

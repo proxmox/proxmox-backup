@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::collections::HashMap;
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};

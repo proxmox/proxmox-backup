@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::sync::mpsc::SyncSender;
 
-use failure::*;
+use anyhow::{Error};
 
 /// Wrapper around SyncSender, which implements Write
 ///

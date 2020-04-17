@@ -19,7 +19,7 @@ bytes = "0.5"
 chrono = "0.4" # Date and time library for Rust
 crc32fast = "1"
 endian_trait = { version = "0.6", features = ["arrays"] }
-failure = "0.1"
+anyhow = "1.0"
 futures = "0.3"
 h2 = { version = "0.2", features = ["stream"] }
 http = "0.2"
@@ -34,7 +34,7 @@ pam = "0.7"
 pam-sys = "0.5"
 percent-encoding = "2.1"
 pin-utils = "0.1.0-alpha"
-proxmox = { version = "0.1.21", features = [ "sortable-macro", "api-macro" ] }
+proxmox = { version = "0.1.22", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 regex = "1.2"

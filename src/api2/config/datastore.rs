@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use failure::*;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};

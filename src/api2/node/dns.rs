@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use failure::*;
+use anyhow::{Error};
 use lazy_static::lazy_static;
 use openssl::sha;
 use regex::Regex;

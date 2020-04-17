@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};

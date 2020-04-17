@@ -2,7 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 
-use failure::{format_err, Error};
+use anyhow::{format_err, Error};
 use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::Mode;

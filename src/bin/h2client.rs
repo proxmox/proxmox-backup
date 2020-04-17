@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{Error};
 use futures::future::TryFutureExt;
 use futures::stream::Stream;
 use tokio::net::TcpStream;

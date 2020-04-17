@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 
 use proxmox::api::{*, cli::*};
 

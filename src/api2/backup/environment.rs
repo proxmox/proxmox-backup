@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 

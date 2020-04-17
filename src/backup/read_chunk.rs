@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use std::sync::Arc;
 
 use super::datastore::*;

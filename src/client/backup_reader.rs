@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{format_err, Error};
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::fs::File;
 use std::sync::Arc;

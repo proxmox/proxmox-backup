@@ -8,7 +8,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::os::unix::ffi::OsStrExt;
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use libc;
 
 use super::binary_search_tree::search_binary_tree_by;

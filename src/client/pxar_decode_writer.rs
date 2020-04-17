@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 
 use std::thread;
 use std::os::unix::io::FromRawFd;

@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::future::TryFutureExt;
 use futures::stream::Stream;
 

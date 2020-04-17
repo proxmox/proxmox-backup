@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use failure::*;
+use anyhow::{Error};
 
 use super::BackupReader;
 use crate::backup::{ReadChunk, DataBlob, CryptConfig};

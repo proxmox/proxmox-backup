@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use failure::*;
+use anyhow::{Error};
 
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::UserInformation;

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use failure::*;
+use anyhow::{format_err, Error};
 use chrono::{DateTime, Utc};
 use futures::*;
 use futures::stream::Stream;

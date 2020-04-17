@@ -1,6 +1,6 @@
 extern crate proxmox_backup;
 
-use failure::*;
+use anyhow::{format_err, Error};
 
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};

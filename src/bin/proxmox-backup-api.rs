@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use futures::*;
 
 use proxmox::try_block;

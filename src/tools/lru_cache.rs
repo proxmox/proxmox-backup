@@ -14,7 +14,7 @@ pub trait Cacher<K, V> {
     /// Whenever a cache miss occurs, the fetch method provides a corresponding value.
     /// If no value can be obtained for the given key, None is returned, the cache is
     /// not updated in that case.
-    fn fetch(&mut self, key: K) -> Result<Option<V>, failure::Error>;
+    fn fetch(&mut self, key: K) -> Result<Option<V>, anyhow::Error>;
 }
 
 /// Node of the doubly linked list storing key and value
@@ -46,11 +46,11 @@ impl<K, V> CacheNode<K, V> {
 /// # Examples:
 /// ```
 /// # use self::proxmox_backup::tools::lru_cache::{Cacher, LruCache};
-/// # fn main() -> Result<(), failure::Error> {
+/// # fn main() -> Result<(), anyhow::Error> {
 /// struct LruCacher {};
 ///
 /// impl Cacher<u64, u64> for LruCacher {
-///     fn fetch(&mut self, key: u64) -> Result<Option<u64>, failure::Error> {
+///     fn fetch(&mut self, key: u64) -> Result<Option<u64>, anyhow::Error> {
 ///         Ok(Some(key))
 ///     }
 /// }
@@ -189,7 +189,7 @@ impl<K: std::cmp::Eq + std::hash::Hash + Copy, V> LruCache<K, V> {
     /// value.
     /// If fetch returns a value, it is inserted as the most recently used entry
     /// in the cache.
-    pub fn access<'a>(&'a mut self, key: K, cacher: &mut dyn Cacher<K, V>) -> Result<Option<&'a mut V>, failure::Error> {
+    pub fn access<'a>(&'a mut self, key: K, cacher: &mut dyn Cacher<K, V>) -> Result<Option<&'a mut V>, anyhow::Error> {
         match self.map.entry(key) {
             Entry::Occupied(mut o) => {
                 // Cache hit, birng node to front of list

@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use serde_json::json;
 
 use super::HttpClient;

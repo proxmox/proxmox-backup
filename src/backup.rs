@@ -103,7 +103,7 @@
 //!
 //! Not sure if this is better. TODO
 
-use failure::*;
+use anyhow::{bail, Error};
 
 // Note: .pcat1 => Proxmox Catalog Format version 1
 pub const CATALOG_NAME: &str = "catalog.pcat1.didx";

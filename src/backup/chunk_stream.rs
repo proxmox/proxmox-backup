@@ -2,7 +2,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::BytesMut;
-use failure::*;
+use anyhow::{Error};
 use futures::ready;
 use futures::stream::{Stream, TryStream};
 

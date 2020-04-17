@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 

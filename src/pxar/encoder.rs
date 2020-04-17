@@ -10,7 +10,7 @@ use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 
 use endian_trait::Endian;
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::FileStat;

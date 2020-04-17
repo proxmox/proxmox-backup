@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::path::{PathBuf, Path};
 use std::sync::{Arc, RwLock};
 
-use failure::*;
+use anyhow::{bail, Error};
 
 use lazy_static::lazy_static;
 
@@ -520,7 +520,7 @@ pub fn save_config(acl: &AclTree) -> Result<(), Error> {
 #[cfg(test)]
 mod test {
 
-    use failure::*;
+    use anyhow::{Error};
     use super::AclTree;
 
     fn check_roles(

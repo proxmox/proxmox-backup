@@ -2,7 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 
 use chrono::{TimeZone, Local};
-use failure::*;
+use anyhow::{bail, Error};
 use futures::*;
 use hyper::http::request::Parts;
 use hyper::{header, Body, Response, StatusCode};

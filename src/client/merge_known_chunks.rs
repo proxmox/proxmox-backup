@@ -1,7 +1,7 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use failure::*;
+use anyhow::{Error};
 use futures::*;
 
 use crate::backup::ChunkInfo;

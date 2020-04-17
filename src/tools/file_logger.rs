@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use chrono::{TimeZone, Local};
 use std::io::Write;
 
@@ -10,7 +10,7 @@ use std::io::Write;
 /// #### Example:
 /// ```
 /// #[macro_use] extern crate proxmox_backup;
-/// # use failure::*;
+/// # use anyhow::{bail, format_err, Error};
 /// use proxmox_backup::tools::FileLogger;
 ///
 /// # std::fs::remove_file("test.log");

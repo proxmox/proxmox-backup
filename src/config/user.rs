@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use failure::*;
+use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
 use serde_json::json;

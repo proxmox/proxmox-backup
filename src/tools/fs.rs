@@ -4,7 +4,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use failure::*;
+use anyhow::{format_err, Error};
 use nix::dir;
 use nix::dir::Dir;
 use regex::Regex;
@@ -73,7 +73,7 @@ impl ReadDirEntry {
 }
 
 // Since Tied<T, U> implements Deref to U, a Tied<Dir, Iterator> already implements Iterator.
-// This is simply a wrapper with a shorter type name mapping nix::Error to failure::Error.
+// This is simply a wrapper with a shorter type name mapping nix::Error to anyhow::Error.
 /// Wrapper over a pair of `nix::dir::Dir` and `nix::dir::Iter`, returned by `read_subdir()`.
 pub struct ReadDir {
     iter: Tied<Dir, dyn Iterator<Item = nix::Result<dir::Entry>> + Send>,

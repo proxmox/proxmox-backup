@@ -1,6 +1,6 @@
 use std::fmt;
 
-use failure::*;
+use anyhow::{format_err, Error};
 
 use proxmox::api::schema::*;
 use proxmox::const_regex;

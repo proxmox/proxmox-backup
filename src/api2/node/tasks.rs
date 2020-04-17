@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use failure::*;
+use anyhow::{Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};

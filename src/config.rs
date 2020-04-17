@@ -3,7 +3,7 @@
 //! This library contains helper to read, parse and write the
 //! configuration files.
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use std::path::PathBuf;
 use nix::sys::stat::Mode;
 use openssl::rsa::{Rsa};

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use chrono::Local;
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use futures::*;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;

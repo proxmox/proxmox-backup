@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 
 //  chacha20-poly1305
 

@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
 

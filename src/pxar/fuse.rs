@@ -11,7 +11,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::sync::Mutex;
 
-use failure::{bail, format_err, Error};
+use anyhow::{bail, format_err, Error};
 use libc;
 use libc::{c_char, c_int, c_void, size_t};
 

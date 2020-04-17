@@ -5,7 +5,7 @@ use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::uuid::Uuid;
@@ -275,7 +275,7 @@ struct ChunkCacher<'a, S> {
 }
 
 impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, (u64, u64, Vec<u8>)> for ChunkCacher<'a, S> {
-    fn fetch(&mut self, index: usize) -> Result<Option<(u64, u64, Vec<u8>)>, failure::Error> {
+    fn fetch(&mut self, index: usize) -> Result<Option<(u64, u64, Vec<u8>)>, anyhow::Error> {
         let (start, end, digest) = self.index.chunk_info(index)?;
         self.store.read_chunk(&digest).and_then(|data| Ok(Some((start, end, data))))
     }

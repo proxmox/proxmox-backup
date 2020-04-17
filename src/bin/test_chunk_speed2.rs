@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use futures::*;
 
 extern crate proxmox_backup;

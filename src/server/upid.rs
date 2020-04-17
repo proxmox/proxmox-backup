@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 use regex::Regex;
 use chrono::Local;

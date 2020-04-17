@@ -7,7 +7,7 @@
 use std::cmp::Ordering;
 
 use endian_trait::Endian;
-use failure::{bail, Error};
+use anyhow::{bail, Error};
 use siphasher::sip::SipHasher24;
 
 

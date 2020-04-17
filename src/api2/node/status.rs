@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use serde_json::{json, Value};
 
 use proxmox::sys::linux::procfs;

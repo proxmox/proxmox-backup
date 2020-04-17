@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use nix::unistd::{fork, ForkResult, pipe};
 use std::os::unix::io::RawFd;
 use chrono::{Local, DateTime, Utc, TimeZone};

@@ -1,6 +1,6 @@
 use std::process::{Command, Stdio};
 
-use failure::*;
+use anyhow::{Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};

@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 
 #[macro_use]
 extern crate proxmox_backup;

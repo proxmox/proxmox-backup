@@ -6,7 +6,7 @@
 //! See the Wikipedia Artikel for [Authenticated
 //! encryption](https://en.wikipedia.org/wiki/Authenticated_encryption)
 //! for a short introduction.
-use failure::*;
+use anyhow::{bail, Error};
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::hash::MessageDigest;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};

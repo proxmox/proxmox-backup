@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, Error};
 
 use std::thread;
 use std::path::PathBuf;

@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use failure::*;
+use anyhow::{format_err, Error};
 use futures::future::{FutureExt, TryFutureExt};
 use tokio::sync::oneshot;
 

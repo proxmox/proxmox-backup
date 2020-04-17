@@ -3,7 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use chrono::{DateTime, Utc};
 

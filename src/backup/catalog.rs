@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{bail, format_err, Error};
 use std::fmt;
 use std::ffi::{CStr, CString, OsStr};
 use std::os::unix::ffi::OsStrExt;

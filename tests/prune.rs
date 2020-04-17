@@ -1,4 +1,4 @@
-use failure::*;
+use anyhow::{Error};
 use std::path::PathBuf;
 
 use proxmox_backup::backup::*;

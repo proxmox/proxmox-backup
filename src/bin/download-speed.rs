@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use failure::*;
+use anyhow::{Error};
 
 use chrono::{DateTime, Utc};
 
