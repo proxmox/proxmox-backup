@@ -6,7 +6,7 @@ use hyper::{Body, Response, StatusCode};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity, list_subdirs_api_method};
-use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
@@ -14,6 +14,7 @@ use crate::tools::{self, WrappedReaderStream};
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
+use crate::config::acl::PRIV_DATASTORE_ALLOCATE_SPACE;
 
 mod environment;
 use environment::*;
@@ -37,7 +38,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
         ]),
     )
-);
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
 
 fn upgrade_to_backup_protocol(
     parts: Parts,
