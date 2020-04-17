@@ -171,6 +171,35 @@ pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
     .max_length(64)
     .schema();
 
+pub const ACL_PATH_SCHEMA: Schema = StringSchema::new(
+    "Access control path.")
+    .format(&ACL_PATH_FORMAT)
+    .min_length(1)
+    .max_length(128)
+    .schema();
+
+pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
+    "Allow to propagate (inherit) permissions.")
+    .default(true)
+    .schema();
+
+pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
+    "Type of 'ugid' property.")
+    .format(&ApiStringFormat::Enum(&["user", "group"]))
+    .schema();
+
+pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
+    "Role.")
+    .format(&ApiStringFormat::Enum(&[
+        "Admin",
+        "Audit",
+        "Datastore.Admin",
+        "Datastore.Audit",
+        "Datastore.User",
+        "NoAccess",
+    ]))
+    .schema();
+
 pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
     StringSchema::new("Backup archive name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)

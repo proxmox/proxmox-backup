@@ -2,40 +2,10 @@ use failure::*;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
-use proxmox::api::schema::{Schema, StringSchema, BooleanSchema, ApiStringFormat};
 
 use crate::api2::types::*;
 use crate::config::acl;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-
-pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
-    "Allow to propagate (inherit) permissions.")
-    .default(true)
-    .schema();
-
-pub const ACL_PATH_SCHEMA: Schema = StringSchema::new(
-    "Access control path.")
-    .format(&ACL_PATH_FORMAT)
-    .min_length(1)
-    .max_length(128)
-    .schema();
-
-pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
-    "Type of 'ugid' property.")
-    .format(&ApiStringFormat::Enum(&["user", "group"]))
-    .schema();
-
-pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
-    "Role.")
-    .format(&ApiStringFormat::Enum(&[
-        "Admin",
-        "Audit",
-        "Datastore.Admin",
-        "Datastore.Audit",
-        "Datastore.User",
-        "NoAccess",
-    ]))
-    .schema();
 
 #[api(
     properties: {
