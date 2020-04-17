@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use failure::*;
 use serde_json::Value;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::datastore;
+use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_ALLOCATE};
 
 #[api(
     input: {
@@ -19,6 +20,9 @@ use crate::config::datastore;
         items: {
             type: datastore::DataStoreConfig,
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_AUDIT, false),
     },
 )]
 /// List all datastores
@@ -48,6 +52,9 @@ pub fn list_datastores(
                 schema: datastore::DIR_NAME_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
 /// Create new datastore config.
@@ -87,6 +94,9 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
         description: "The datastore configuration (with config digest).",
         type: datastore::DataStoreConfig,
     },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_AUDIT, false),
+    },
 )]
 /// Read a datastore configuration.
 pub fn read_datastore(name: String) -> Result<Value, Error> {
@@ -113,6 +123,9 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
 /// Create new datastore config.
@@ -157,16 +170,27 @@ pub fn update_datastore(
             name: {
                 schema: DATASTORE_SCHEMA,
             },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
 /// Remove a datastore configuration.
-pub fn delete_datastore(name: String) -> Result<(), Error> {
+pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
 
-    // fixme: locking ?
-    // fixme: check digest ?
+    let _lock = crate::tools::open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let (mut config, _digest) = datastore::config()?;
+    let (mut config, expected_digest) = datastore::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
