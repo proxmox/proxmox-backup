@@ -1,11 +1,12 @@
 use failure::*;
 use serde_json::Value;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::{Schema, StringSchema};
 
 use crate::api2::types::*;
 use crate::config::user;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
@@ -53,6 +54,9 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
                 },
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// List all users
@@ -106,6 +110,9 @@ pub fn list_users(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
 )]
 /// Create new user.
 pub fn create_user(userid: String, password: Option<String>, param: Value) -> Result<(), Error> {
@@ -145,6 +152,9 @@ pub fn create_user(userid: String, password: Option<String>, param: Value) -> Re
     returns: {
         description: "The user configuration (with config digest).",
         type: user::User,
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read user configuration data.
@@ -196,6 +206,9 @@ pub fn read_user(userid: String) -> Result<Value, Error> {
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Update user configuration.
@@ -275,6 +288,9 @@ pub fn update_user(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Remove a user from the configuration file.
