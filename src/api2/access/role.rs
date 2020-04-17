@@ -17,8 +17,7 @@ use crate::config::acl::ROLE_NAMES;
             description: "User name with description.",
             properties: {
                 role: {
-                    description: "Role name.",
-                    type: String,
+                    schema: ACL_ROLE_SCHEMA,
                 },
                 comment: {
                     schema: SINGLE_LINE_COMMENT_SCHEMA,
