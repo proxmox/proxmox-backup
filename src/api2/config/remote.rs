@@ -1,10 +1,11 @@
 use failure::*;
 use serde_json::Value;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::config::remote;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 #[api(
     input: {
@@ -36,6 +37,9 @@ use crate::config::remote;
                 },
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// List all remotes
@@ -78,6 +82,9 @@ pub fn list_remotes(
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
 )]
 /// Create new remote.
 pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
@@ -111,6 +118,9 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
         description: "The remote configuration (with config digest).",
         type: remote::Remote,
     },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    }
 )]
 /// Read remote configuration data.
 pub fn read_remote(name: String) -> Result<Value, Error> {
@@ -153,6 +163,9 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Update remote configuration.
@@ -207,6 +220,9 @@ pub fn update_remote(
                 schema: REMOTE_ID_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Remove a remote from the configuration file.
