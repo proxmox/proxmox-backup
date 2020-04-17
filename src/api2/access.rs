@@ -2,7 +2,7 @@ use failure::*;
 
 use serde_json::{json, Value};
 
-use proxmox::api::{api, RpcEnvironment, Permission};
+use proxmox::api::{api, RpcEnvironment, Permission, UserInformation};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
@@ -11,7 +11,9 @@ use crate::tools;
 use crate::tools::ticket::*;
 use crate::auth_helpers::*;
 use crate::api2::types::*;
+
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::config::acl::PRIV_PERMISSIONS_MODIFY;
 
 pub mod user;
 pub mod domain;
@@ -111,7 +113,7 @@ fn create_ticket(username: String, password: String) -> Result<Value, Error> {
         },
     },
     access: {
-        description: "Anybody is allowed to change there own password. The Superuser may change any password.",
+        description: "Anybody is allowed to change there own password. In addition, users with 'Permissions:Modify' privilege may change any password.",
         permission: &Permission::Anybody,
     },
 
@@ -132,6 +134,14 @@ fn change_password(
     let mut allowed = userid == current_user;
 
     if userid == "root@pam" { allowed = true; }
+
+    if !allowed {
+        use crate::config::cached_user_info::CachedUserInfo;
+
+        let user_info = CachedUserInfo::new()?;
+        let privs = user_info.lookup_privs(&current_user, &[]);
+        if (privs & PRIV_PERMISSIONS_MODIFY) != 0 { allowed = true; }
+    }
 
     if !allowed {
         bail!("you are not authorized to change the password.");

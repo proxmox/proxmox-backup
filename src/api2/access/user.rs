@@ -6,7 +6,7 @@ use proxmox::api::schema::{Schema, StringSchema};
 
 use crate::api2::types::*;
 use crate::config::user;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
@@ -111,7 +111,7 @@ pub fn list_users(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Create new user.
@@ -208,7 +208,7 @@ pub fn read_user(userid: String) -> Result<Value, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Update user configuration.
@@ -290,7 +290,7 @@ pub fn update_user(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Remove a user from the configuration file.

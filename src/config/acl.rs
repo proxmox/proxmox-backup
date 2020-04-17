@@ -19,6 +19,8 @@ pub const PRIV_DATASTORE_AUDIT: u64              = 1 << 3;
 pub const PRIV_DATASTORE_ALLOCATE: u64           = 1 << 4;
 pub const PRIV_DATASTORE_ALLOCATE_SPACE: u64     = 1 << 5;
 
+pub const PRIV_PERMISSIONS_MODIFY: u64           = 1 << 6;
+
 pub const ROLE_ADMIN: u64 = std::u64::MAX;
 pub const ROLE_NO_ACCESS: u64 = 0;
 
