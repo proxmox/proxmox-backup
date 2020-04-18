@@ -137,8 +137,6 @@ fn change_password(
     if userid == "root@pam" { allowed = true; }
 
     if !allowed {
-        use crate::config::cached_user_info::CachedUserInfo;
-
         let user_info = CachedUserInfo::new()?;
         let privs = user_info.lookup_privs(&current_user, &[]);
         if (privs & PRIV_PERMISSIONS_MODIFY) != 0 { allowed = true; }
