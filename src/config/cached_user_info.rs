@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{Error};
+use anyhow::{Error, bail};
 
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::UserInformation;
@@ -44,6 +44,25 @@ impl CachedUserInfo {
         } else {
             return false;
         }
+    }
+
+    pub fn check_privs(
+        &self,
+        userid: &str,
+        path: &[&str],
+        required_privs: u64,
+        partial: bool,
+    ) -> Result<(), Error> {
+        let user_privs = self.lookup_privs(userid, path);
+        let allowed = if partial {
+            (user_privs & required_privs) != 0
+        } else {
+            (user_privs & required_privs) == required_privs
+        };
+        if !allowed {
+            bail!("no permissions");
+        }
+        Ok(())
     }
 }
 
