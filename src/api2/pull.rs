@@ -17,6 +17,7 @@ use crate::client::*;
 use crate::config::remote;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_ALLOCATE_SPACE;
+use crate::config::cached_user_info::CachedUserInfo;
 
 // fixme: implement filters
 // fixme: delete vanished groups
@@ -389,10 +390,9 @@ pub async fn pull_store(
         },
     },
     access: {
-        permission: &Permission::And(&[
-            &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
-            &Permission::Privilege(&["remote", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
-        ]),
+        // Note: used parameters are no uri parameters, so we need to test inside function body
+        description: "The user needs Datastore.AllocateSpace privilege on '/datastore/{store}' and '/remote/{remote}/{remote-store}'.",
+        permission: &Permission::Anybody,
     },
 )]
 /// Sync store from other repository
@@ -405,7 +405,11 @@ async fn pull (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
+    let user_info = CachedUserInfo::new()?;
+
     let username = rpcenv.get_user().unwrap();
+    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_ALLOCATE_SPACE, false)?;
+    user_info.check_privs(&username, &["remote", &remote, &remote_store], PRIV_DATASTORE_ALLOCATE_SPACE, false)?;
 
     let delete = delete.unwrap_or(true);
 

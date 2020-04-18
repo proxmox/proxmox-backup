@@ -15,6 +15,7 @@ use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_ALLOCATE_SPACE;
+use crate::config::cached_user_info::CachedUserInfo;
 
 mod environment;
 use environment::*;
@@ -38,7 +39,11 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
         ]),
     )
-).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
+).access(
+    // Note: parameter 'store' is no uri parameter, so we need to test inside function body
+    Some("The user needs Datastore.AllocateSpace privilege on /datastore/{store}."),
+    &Permission::Anybody
+);
 
 fn upgrade_to_backup_protocol(
     parts: Parts,
@@ -51,7 +56,13 @@ fn upgrade_to_backup_protocol(
     async move {
     let debug = param["debug"].as_bool().unwrap_or(false);
 
+    let username = rpcenv.get_user().unwrap();
+
     let store = tools::required_string_param(&param, "store")?.to_owned();
+
+    let user_info = CachedUserInfo::new()?;
+    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_ALLOCATE_SPACE, false)?;
+
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let backup_type = tools::required_string_param(&param, "backup-type")?;
@@ -74,7 +85,6 @@ fn upgrade_to_backup_protocol(
 
     let worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
 
-    let username = rpcenv.get_user().unwrap();
     let env_type = rpcenv.env_type();
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
