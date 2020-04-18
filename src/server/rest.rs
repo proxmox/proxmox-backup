@@ -562,7 +562,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                 }
                 Some(api_method) => {
                     let user = rpcenv.get_user();
-                    if !check_api_permission(api_method.access.permission, user.as_deref(), &uri_param, &user_info) {
+                    if !check_api_permission(api_method.access.permission, user.as_deref(), &uri_param, user_info.as_ref()) {
                         let err = http_err!(FORBIDDEN, format!("permission check failed"));
                         tokio::time::delay_until(Instant::from_std(access_forbidden_time)).await;
                         return Ok((formatter.format_error)(err));

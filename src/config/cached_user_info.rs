@@ -1,10 +1,11 @@
 //! Cached user info for fast ACL permission checks
 
-use std::sync::Arc;
+use std::sync::{RwLock, Arc};
 
 use anyhow::{Error, bail};
 
 use proxmox::api::section_config::SectionConfigData;
+use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
 
 use super::acl::{AclTree, ROLE_NAMES};
@@ -16,14 +17,43 @@ pub struct CachedUserInfo {
     acl_tree: Arc<AclTree>,
 }
 
+fn now() -> i64 { unsafe { libc::time(std::ptr::null_mut()) } }
+
+struct ConfigCache {
+    data: Option<Arc<CachedUserInfo>>,
+    last_update: i64,
+}
+
+lazy_static! {
+    static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
+        ConfigCache { data: None, last_update: 0 }
+    );
+}
+
 impl CachedUserInfo {
 
-    /// Creates a new instance.
-    pub fn new() -> Result<Self, Error> {
-        Ok(CachedUserInfo {
+    /// Returns a cached instance (up to 5 seconds old).
+    pub fn new() -> Result<Arc<Self>, Error> {
+        let now = now();
+        { // limit scope
+            let cache = CACHED_CONFIG.read().unwrap();
+            if (now - cache.last_update) < 5 {
+                if let Some(ref config) = cache.data {
+                    return Ok(config.clone());
+                }
+            }
+        }
+
+        let config = Arc::new(CachedUserInfo {
             user_cfg: super::user::cached_config()?,
             acl_tree: super::acl::cached_config()?,
-        })
+        });
+
+        let mut cache = CACHED_CONFIG.write().unwrap();
+        cache.last_update = now;
+        cache.data = Some(config.clone());
+
+        Ok(config)
     }
 
     /// Test if a user account is enabled and not expired
@@ -34,8 +64,7 @@ impl CachedUserInfo {
             }
             if let Some(expire) = info.expire {
                 if expire > 0 {
-                    let now = unsafe { libc::time(std::ptr::null_mut()) };
-                    if expire <= now {
+                    if expire <= now() {
                         return false;
                     }
                 }
