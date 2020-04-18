@@ -446,7 +446,7 @@ pub struct TaskListItem {
 // Regression tests
 
 #[test]
-fn test_cert_fingerprint_schema() -> Result<(), Error> {
+fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
     let schema = CERT_FINGERPRINT_SHA256_SCHEMA;
 
@@ -487,7 +487,7 @@ fn test_cert_fingerprint_schema() -> Result<(), Error> {
 }
 
 #[test]
-fn test_proxmox_user_id_schema() -> Result<(), Error> {
+fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
 
     let schema = PROXMOX_USER_ID_SCHEMA;
 
