@@ -20,6 +20,7 @@ pub mod remote;
 pub mod user;
 pub mod acl;
 pub mod cached_user_info;
+pub mod network;
 
 /// Check configuration directory permissions
 ///
