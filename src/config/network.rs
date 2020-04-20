@@ -4,7 +4,7 @@ use std::collections::{HashSet, HashMap};
 use anyhow::{Error, bail};
 
 mod helper;
-//pub use helper::*;
+pub use helper::*;
 
 mod lexer;
 pub use lexer::*;
@@ -12,19 +12,19 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-#[derive(Debug, PartialEq)]
-pub enum AddressFamily {
-    Inet4and6, // both v4 and v6
-    Inet, // v4
-    Inet6, // v6
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ConfigMethod {
+    Manual,
+    Static,
+    DHCP,
+    Loopback,
 }
 
 #[derive(Debug)]
 pub struct Interface {
     pub name: String,
-    pub address_family: AddressFamily,
-    pub method_v4: Option<Token>,
-    pub method_v6: Option<Token>,
+    pub method_v4: Option<ConfigMethod>,
+    pub method_v6: Option<ConfigMethod>,
     pub address_v4: Option<String>,
     pub gateway_v4: Option<String>,
     pub netmask_v4: Option<u8>,
@@ -37,25 +37,11 @@ pub struct Interface {
 
 impl Interface {
 
-    pub fn new(
-        name: String,
-        address_family: AddressFamily,
-        config_method: Option<Token>,
-    ) -> Self {
-        let config_method_v4 = match address_family {
-            AddressFamily::Inet | AddressFamily::Inet4and6 => Some(config_method.unwrap_or(Token::Static)),
-            _ => None,
-        };
-        let config_method_v6 = match address_family {
-            AddressFamily::Inet6 | AddressFamily::Inet4and6 => Some(config_method.unwrap_or(Token::Static)),
-            _ => None,
-        };
-
-        Self {
+    pub fn new(name: String) -> Self {
+         Self {
             name,
-            address_family,
-            method_v4: config_method_v4,
-            method_v6: config_method_v6,
+            method_v4: None,
+            method_v6: None,
             address_v4: None,
             gateway_v4: None,
             netmask_v4: None,
@@ -65,6 +51,24 @@ impl Interface {
             options_v4: Vec::new(),
             options_v6: Vec::new(),
         }
+    }
+
+    fn set_method_v4(&mut self, method: ConfigMethod) -> Result<(), Error> {
+        if self.method_v4.is_none() {
+            self.method_v4 = Some(method);
+        } else {
+            bail!("inet configuration method already set.");
+        }
+        Ok(())
+    }
+
+    fn set_method_v6(&mut self, method: ConfigMethod) -> Result<(), Error> {
+        if self.method_v6.is_none() {
+            self.method_v6 = Some(method);
+        } else {
+            bail!("inet6 configuration method already set.");
+        }
+        Ok(())
     }
 
     fn set_address_v4(&mut self, address: String) -> Result<(), Error> {
@@ -130,12 +134,12 @@ impl Interface {
     }
 
     fn push_addon_option(&mut self, text: String) {
-        match self.address_family {
-            AddressFamily::Inet | AddressFamily::Inet4and6  => self.options_v4.push(text),
-            AddressFamily::Inet6 => self.options_v6.push(text),
+        if self.method_v4.is_none() && self.method_v6.is_some() {
+            self.options_v6.push(text);
+        } else {
+            self.options_v4.push(text);
         }
     }
-
 }
 
 #[derive(Debug)]
@@ -164,18 +168,12 @@ impl NetworkConfig {
 
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
 
-        fn method_to_str(method: &Option<Token>) -> &str {
+        fn method_to_str(method: ConfigMethod) -> &'static str {
             match method {
-                None => "static",
-                Some(method) => {
-                    match method {
-                        Token::Static => "static",
-                        Token::Loopback => "loopback",
-                        Token::Manual => "manual",
-                        Token::DHCP => "dhcp",
-                        _ => unreachable!(),
-                    }
-                }
+                ConfigMethod::Static => "static",
+                ConfigMethod::Loopback => "loopback",
+                ConfigMethod::Manual => "manual",
+                ConfigMethod::DHCP => "dhcp",
             }
         }
 
@@ -220,28 +218,23 @@ impl NetworkConfig {
                 writeln!(w, "auto {}", name)?;
             }
 
-            if interface.address_family == AddressFamily::Inet4and6  && interface.method_v4 == interface.method_v6 {
-                writeln!(w, "iface {} {}", name, method_to_str(&interface.method_v4))?;
+            if interface.method_v4 == interface.method_v6 {
+                let method = interface.method_v4.unwrap_or(ConfigMethod::Static);
+                writeln!(w, "iface {} {}", name, method_to_str(method))?;
                 write_attributes_v4(w, &interface)?;
-                write_attributes_v6(w, &interface)?;
-                writeln!(w)?;
-            } else if interface.address_family == AddressFamily::Inet4and6 {
-                writeln!(w, "iface {} inet {}", name, method_to_str(&interface.method_v4))?;
-                write_attributes_v4(w, &interface)?;
-                writeln!(w)?;
-                writeln!(w, "iface {} inet6 {}", name, method_to_str(&interface.method_v6))?;
-                write_attributes_v6(w, &interface)?;
-                writeln!(w)?;
-            } else if interface.address_family == AddressFamily::Inet  {
-                writeln!(w, "iface {} inet {}", name, method_to_str(&interface.method_v4))?;
-                write_attributes_v4(w, &interface)?;
-                writeln!(w)?;
-            } else if interface.address_family == AddressFamily::Inet6 {
-                writeln!(w, "iface {} inet {}", name, method_to_str(&interface.method_v6))?;
                 write_attributes_v6(w, &interface)?;
                 writeln!(w)?;
             } else {
-                unreachable!();
+                if let Some(method) = interface.method_v4 {
+                    writeln!(w, "iface {} inet {}", name, method_to_str(method))?;
+                    write_attributes_v4(w, &interface)?;
+                    writeln!(w)?;
+                }
+                if let Some(method) = interface.method_v6 {
+                    writeln!(w, "iface {} inet6 {}", name, method_to_str(method))?;
+                    write_attributes_v6(w, &interface)?;
+                    writeln!(w)?;
+                }
             }
             Ok(())
         }
@@ -286,4 +279,3 @@ impl NetworkConfig {
         Ok(())
     }
 }
-

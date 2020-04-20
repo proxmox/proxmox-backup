@@ -11,7 +11,7 @@ use proxmox::*; // for IP macros
 use super::helper::*;
 use super::lexer::*;
 
-use super::{NetworkConfig, NetworkOrderEntry, Interface, AddressFamily};
+use super::{NetworkConfig, NetworkOrderEntry, Interface, ConfigMethod};
 
 pub struct NetworkParser {
     input: Peekable<Lexer<BufReader<File>>>,
@@ -206,67 +206,54 @@ impl NetworkParser {
         self.eat(Token::Iface)?;
         let iface = self.next_text()?;
 
-        let mut address_family = None;
+        let mut address_family_v4 = false;
+        let mut address_family_v6 = false;
         let mut config_method = None;
 
         loop {
             let (token, text) = self.next()?;
             match token {
                 Token::Newline => break,
-                Token::Inet => {
-                    address_family = Some(match address_family {
-                        None => AddressFamily::Inet,
-                        Some(AddressFamily::Inet) => AddressFamily::Inet,
-                        Some(AddressFamily::Inet6) => AddressFamily::Inet4and6,
-                        Some(AddressFamily::Inet4and6) => AddressFamily::Inet4and6,
-                    });
-                }
-                Token::Inet6 => {
-                    address_family = Some(match address_family {
-                        None => AddressFamily::Inet6,
-                        Some(AddressFamily::Inet) => AddressFamily::Inet4and6,
-                        Some(AddressFamily::Inet6) => AddressFamily::Inet6,
-                        Some(AddressFamily::Inet4and6) => AddressFamily::Inet4and6,
-                    });
-                }
-                Token::Loopback | Token::Static | Token::Manual | Token::DHCP => {
-                    if config_method.is_none() {
-                        config_method = Some(token);
-                    } else {
-                        bail!("multiple configuration method definitions");
-                    }
-                }
+                Token::Inet => address_family_v4 = true,
+                Token::Inet6 => address_family_v6 = true,
+                Token::Loopback => config_method = Some(ConfigMethod::Loopback),
+                Token::Static => config_method = Some(ConfigMethod::Static),
+                Token::Manual => config_method = Some(ConfigMethod::Manual),
+                Token::DHCP => config_method = Some(ConfigMethod::DHCP),
                 _ => bail!("unknown iface option {}", text),
             }
         }
 
-        let address_family = address_family.unwrap_or(AddressFamily::Inet4and6);
-
         let has_attributes = self.peek()? == Token::Attribute;
+        let config_method = config_method.unwrap_or(ConfigMethod::Static);
+
+        if !(address_family_v4 || address_family_v6) {
+            address_family_v4 = true;
+            address_family_v6 = true;
+        }
 
         if let Some(mut interface) = config.interfaces.get_mut(&iface) {
-            let compatible = match interface.address_family {
-                AddressFamily::Inet => {
-                    interface.method_v6 = config_method;
-                    address_family == AddressFamily::Inet6
-                }
-                AddressFamily::Inet6 => {
-                    interface.method_v4 = config_method;
-                    address_family == AddressFamily::Inet
-                }
-                _ => false,
-            };
-            if !compatible {
-                bail!("duplicate config for iface '{}'", iface);
+            if address_family_v4 {
+                interface.set_method_v4(config_method)?;
             }
-            interface.address_family = AddressFamily::Inet4and6;
+            if address_family_v6 {
+                interface.set_method_v6(config_method)?;
+            }
+
             if has_attributes { self.parse_iface_attributes(&mut interface)?; }
         } else {
-            let mut interface = Interface::new(iface.clone(), address_family, config_method);
+            let mut interface = Interface::new(iface.clone());
+            if address_family_v4 {
+                interface.set_method_v4(config_method)?;
+            }
+            if address_family_v6 {
+                interface.set_method_v6(config_method)?;
+            }
 
             if has_attributes { self.parse_iface_attributes(&mut interface)?; }
 
             config.interfaces.insert(interface.name.clone(), interface);
+
             config.order.push(NetworkOrderEntry::Iface(iface));
         }
 
