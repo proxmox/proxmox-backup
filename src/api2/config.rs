@@ -3,9 +3,11 @@ use proxmox::list_subdirs_api_method;
 
 pub mod datastore;
 pub mod remote;
+pub mod network;
 
 const SUBDIRS: SubdirMap = &[
     ("datastore", &datastore::ROUTER),
+    ("network", &network::ROUTER),
     ("remote", &remote::ROUTER),
 ];
 

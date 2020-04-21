@@ -233,6 +233,14 @@ fn acl_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+fn network_commands() -> CommandLineInterface {
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&api2::config::network::API_METHOD_LIST_NETWORK_DEVICES));
+
+    cmd_def.into()
+}
+
 fn datastore_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
@@ -603,6 +611,7 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
         .insert("datastore", datastore_commands())
+        .insert("network", network_commands())
         .insert("user", user_commands())
         .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())

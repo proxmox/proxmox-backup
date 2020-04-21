@@ -2,8 +2,10 @@ use std::io::{Write};
 use std::collections::{HashSet, HashMap};
 
 use anyhow::{Error, bail};
+use serde::{Serialize, Deserialize};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use proxmox::api::api;
 
 mod helper;
 pub use helper::*;
@@ -14,29 +16,90 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Interface configuration method
 pub enum ConfigMethod {
+    /// Configuration is done manually using other tools
     Manual,
+    /// Define interfaces with statically allocated addresses.
     Static,
+    /// Obtain an address via DHCP
     DHCP,
+    /// Define the loopback interface.
     Loopback,
 }
 
-#[derive(Debug)]
+#[api(
+    properties: {
+        name: {
+            type: String,
+            min_length: 1,
+            max_length: libc::IFNAMSIZ-1,
+        },
+        method_v4: {
+            type: ConfigMethod,
+            optional: true,
+        },
+        method_v6: {
+            type: ConfigMethod,
+            optional: true,
+        },
+        options_v4: {
+            description: "Option list (inet)",
+            type: Array,
+            items: {
+                description: "Optional attribute.",
+                type: String,
+            },
+        },
+        options_v6: {
+            description: "Option list (inet6)",
+            type: Array,
+            items: {
+                description: "Optional attribute.",
+                type: String,
+            },
+        },
+    }
+)]
+#[derive(Debug, Serialize, Deserialize)]
+/// Network Interface configuration
 pub struct Interface {
+    /// Autostart interface
     pub autostart: bool,
+    /// Interface is a physical network device
     pub exists: bool,
+    /// Interface is active (UP)
     pub active: bool,
+    /// Interface name
     pub name: String,
-    pub method_v4: Option<ConfigMethod>,
+    #[serde(skip_serializing_if="Option::is_none")]
+     pub method_v4: Option<ConfigMethod>,
+    #[serde(skip_serializing_if="Option::is_none")]
     pub method_v6: Option<ConfigMethod>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 address
     pub address_v4: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 gateway
     pub gateway_v4: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 netmask
     pub netmask_v4: Option<u8>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 address
     pub address_v6: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 gateway
     pub gateway_v6: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 netmask
     pub netmask_v6: Option<u8>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
     pub options_v4: Vec<String>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
     pub options_v6: Vec<String>,
 }
 
@@ -231,7 +294,7 @@ enum NetworkOrderEntry {
 
 #[derive(Debug)]
 pub struct NetworkConfig {
-    interfaces: HashMap<String, Interface>,
+    pub interfaces: HashMap<String, Interface>,
     order: Vec<NetworkOrderEntry>,
 }
 
