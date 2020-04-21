@@ -22,6 +22,7 @@ pub enum ConfigMethod {
 
 #[derive(Debug)]
 pub struct Interface {
+    pub autostart: bool,
     pub name: String,
     pub method_v4: Option<ConfigMethod>,
     pub method_v6: Option<ConfigMethod>,
@@ -38,8 +39,9 @@ pub struct Interface {
 impl Interface {
 
     pub fn new(name: String) -> Self {
-         Self {
+        Self {
             name,
+            autostart: false,
             method_v4: None,
             method_v6: None,
             address_v4: None,
@@ -140,6 +142,78 @@ impl Interface {
             self.options_v4.push(text);
         }
     }
+
+    fn write_iface_attributes_v4(&self, w: &mut dyn Write) -> Result<(), Error> {
+        if let Some(address) = &self.address_v4 {
+            if let Some(netmask) = self.netmask_v4 {
+                writeln!(w, "    address {}/{}", address, netmask)?;
+            } else {
+                writeln!(w, "    address {}", address)?;
+            }
+        }
+        if let Some(gateway) = &self.gateway_v4 {
+            writeln!(w, "    gateway {}", gateway)?;
+        }
+        for option in &self.options_v4 {
+            writeln!(w, "    {}", option)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_iface_attributes_v6(&self, w: &mut dyn Write) -> Result<(), Error> {
+        if let Some(address) = &self.address_v6 {
+            if let Some(netmask) = self.netmask_v6 {
+                writeln!(w, "    address {}/{}", address, netmask)?;
+            } else {
+                writeln!(w, "    address {}", address)?;
+            }
+        }
+        if let Some(gateway) = &self.gateway_v6 {
+            writeln!(w, "    gateway {}", gateway)?;
+        }
+        for option in &self.options_v6 {
+            writeln!(w, "    {}", option)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_iface(&self, w: &mut dyn Write) -> Result<(), Error> {
+
+        fn method_to_str(method: ConfigMethod) -> &'static str {
+            match method {
+                ConfigMethod::Static => "static",
+                ConfigMethod::Loopback => "loopback",
+                ConfigMethod::Manual => "manual",
+                ConfigMethod::DHCP => "dhcp",
+            }
+        }
+
+        if self.autostart {
+            writeln!(w, "auto {}", self.name)?;
+        }
+
+        if self.method_v4 == self.method_v6 {
+            let method = self.method_v4.unwrap_or(ConfigMethod::Static);
+            writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
+            self.write_iface_attributes_v4(w)?;
+            self.write_iface_attributes_v6(w)?;
+            writeln!(w)?;
+        } else {
+            if let Some(method) = self.method_v4 {
+                writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
+                self.write_iface_attributes_v4(w)?;
+                writeln!(w)?;
+            }
+            if let Some(method) = self.method_v6 {
+                writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method))?;
+                self.write_iface_attributes_v6(w)?;
+                writeln!(w)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -151,7 +225,6 @@ enum NetworkOrderEntry {
 
 #[derive(Debug)]
 pub struct NetworkConfig {
-    pub auto_flag: HashSet<String>,
     interfaces: HashMap<String, Interface>,
     order: Vec<NetworkOrderEntry>,
 }
@@ -160,7 +233,6 @@ impl NetworkConfig {
 
     pub fn new() -> Self {
         Self {
-            auto_flag: HashSet::new(),
             interfaces: HashMap::new(),
             order: Vec::new(),
         }
@@ -168,83 +240,12 @@ impl NetworkConfig {
 
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
 
-        fn method_to_str(method: ConfigMethod) -> &'static str {
-            match method {
-                ConfigMethod::Static => "static",
-                ConfigMethod::Loopback => "loopback",
-                ConfigMethod::Manual => "manual",
-                ConfigMethod::DHCP => "dhcp",
-            }
-        }
-
-        fn write_attributes_v4(w: &mut dyn Write, interface: &Interface) -> Result<(), Error> {
-            if let Some(address) = &interface.address_v4 {
-                if let Some(netmask) = interface.netmask_v4 {
-                    writeln!(w, "    address {}/{}", address, netmask)?;
-                } else {
-                    writeln!(w, "    address {}", address)?;
-                }
-            }
-            if let Some(gateway) = &interface.gateway_v4 {
-                writeln!(w, "    gateway {}", gateway)?;
-            }
-            for option in &interface.options_v4 {
-                writeln!(w, "    {}", option)?;
-            }
-
-            Ok(())
-        };
-
-        fn write_attributes_v6(w: &mut dyn Write, interface: &Interface) -> Result<(), Error> {
-            if let Some(address) = &interface.address_v6 {
-                if let Some(netmask) = interface.netmask_v6 {
-                    writeln!(w, "    address {}/{}", address, netmask)?;
-                } else {
-                    writeln!(w, "    address {}", address)?;
-                }
-            }
-            if let Some(gateway) = &interface.gateway_v6 {
-                writeln!(w, "    gateway {}", gateway)?;
-            }
-            for option in &interface.options_v6 {
-                writeln!(w, "    {}", option)?;
-            }
-
-            Ok(())
-        };
-
-        fn write_interface(w: &mut dyn Write, config: &NetworkConfig, name: &str, interface: &Interface) -> Result<(), Error> {
-            if config.auto_flag.contains(name) {
-                writeln!(w, "auto {}", name)?;
-            }
-
-            if interface.method_v4 == interface.method_v6 {
-                let method = interface.method_v4.unwrap_or(ConfigMethod::Static);
-                writeln!(w, "iface {} {}", name, method_to_str(method))?;
-                write_attributes_v4(w, &interface)?;
-                write_attributes_v6(w, &interface)?;
-                writeln!(w)?;
-            } else {
-                if let Some(method) = interface.method_v4 {
-                    writeln!(w, "iface {} inet {}", name, method_to_str(method))?;
-                    write_attributes_v4(w, &interface)?;
-                    writeln!(w)?;
-                }
-                if let Some(method) = interface.method_v6 {
-                    writeln!(w, "iface {} inet6 {}", name, method_to_str(method))?;
-                    write_attributes_v6(w, &interface)?;
-                    writeln!(w)?;
-                }
-            }
-            Ok(())
-        }
-
         let mut done = HashSet::new();
 
         let mut last_entry_was_comment = false;
 
         for entry in self.order.iter() {
-            match entry {
+             match entry {
                 NetworkOrderEntry::Comment(comment) => {
                     writeln!(w, "#{}", comment)?;
                     last_entry_was_comment = true;
@@ -267,14 +268,14 @@ impl NetworkConfig {
                     if done.contains(name) { continue; }
                     done.insert(name);
 
-                    write_interface(w, self, name, interface)?;
+                    interface.write_iface(w)?;
                 }
             }
         }
 
         for (name, interface) in &self.interfaces {
             if done.contains(name) { continue; }
-            write_interface(w, self, name, interface)?;
+            interface.write_iface(w)?;
         }
         Ok(())
     }

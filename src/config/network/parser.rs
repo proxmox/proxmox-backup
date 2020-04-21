@@ -1,6 +1,7 @@
 use std::io::{BufReader};
 use std::fs::File;
 use std::iter::{Peekable, Iterator};
+use std::collections::HashSet;
 
 use anyhow::{Error, bail, format_err};
 use lazy_static::lazy_static;
@@ -70,15 +71,22 @@ impl NetworkParser {
         Ok(())
     }
 
-    fn parse_auto(&mut self, config: &mut NetworkConfig) -> Result<(), Error> {
+    fn parse_auto(&mut self, auto_flag: &mut HashSet<String>) -> Result<(), Error> {
         self.eat(Token::Auto)?;
 
-        let iface = self.next_text()?;
-        println!("AUTO {}", iface);
+        loop {
+            match self.next()? {
+                (Token::Text, iface) => {
+                    println!("AUTO {}", iface);
+                    auto_flag.insert(iface.to_string());
+                }
+                (Token::Newline, _) => break,
+                unexpected => {
+                    bail!("expected {:?}, got {:?}", Token::Text, unexpected);
+                }
+            }
 
-        self.eat(Token::Newline)?;
-
-        config.auto_flag.insert(iface.to_string());
+        }
 
         Ok(())
     }
@@ -268,13 +276,15 @@ impl NetworkParser {
     pub fn _parse_interfaces(&mut self) -> Result<NetworkConfig, Error> {
         let mut config = NetworkConfig::new();
 
+        let mut auto_flag: HashSet<String> = HashSet::new();
+
         loop {
             let peek = self.peek()?;
             println!("TOKEN: {:?}", peek);
             match peek {
                 Token::EOF => {
                     // fixme: trailing comments
-                    return Ok(config);
+                    break;
                 }
                 Token::Newline => {
                     self.eat(Token::Newline)?;
@@ -287,7 +297,7 @@ impl NetworkParser {
                     self.eat(Token::Newline)?;
                 }
                 Token::Auto => {
-                    self.parse_auto(&mut config)?;
+                    self.parse_auto(&mut auto_flag)?;
                 }
                 Token::Iface => {
                     self.parse_iface(&mut config)?;
@@ -300,5 +310,13 @@ impl NetworkParser {
                 }
             }
         }
+
+        for iface in auto_flag.iter() {
+            if let Some(interface) = config.interfaces.get_mut(iface) {
+                interface.autostart = true;
+            }
+        }
+
+        Ok(config)
     }
 }
