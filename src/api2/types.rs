@@ -101,6 +101,8 @@ pub const PASSWORD_FORMAT: ApiStringFormat =
 pub const ACL_PATH_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&ACL_PATH_REGEX);
 
+pub const NETWORK_INTERFACE_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
 
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
@@ -458,12 +460,16 @@ pub enum NetworkConfigMethod {
     Loopback,
 }
 
+pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network interface name.")
+    .format(&NETWORK_INTERFACE_FORMAT)
+    .min_length(1)
+    .max_length(libc::IFNAMSIZ-1)
+    .schema();
+
 #[api(
     properties: {
         name: {
-            type: String,
-            min_length: 1,
-            max_length: libc::IFNAMSIZ-1,
+            schema: NETWORK_INTERFACE_NAME_SCHEMA,
         },
         method_v4: {
             type: NetworkConfigMethod,
@@ -477,7 +483,7 @@ pub enum NetworkConfigMethod {
             description: "Option list (inet)",
             type: Array,
             items: {
-                description: "Optional attribute.",
+                description: "Optional attribute line.",
                 type: String,
             },
         },
@@ -485,7 +491,7 @@ pub enum NetworkConfigMethod {
             description: "Option list (inet6)",
             type: Array,
             items: {
-                description: "Optional attribute.",
+                description: "Optional attribute line.",
                 type: String,
             },
         },
