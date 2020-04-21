@@ -443,6 +443,93 @@ pub struct TaskListItem {
     pub status: Option<String>,
 }
 
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Interface configuration method
+pub enum NetworkConfigMethod {
+    /// Configuration is done manually using other tools
+    Manual,
+    /// Define interfaces with statically allocated addresses.
+    Static,
+    /// Obtain an address via DHCP
+    DHCP,
+    /// Define the loopback interface.
+    Loopback,
+}
+
+#[api(
+    properties: {
+        name: {
+            type: String,
+            min_length: 1,
+            max_length: libc::IFNAMSIZ-1,
+        },
+        method_v4: {
+            type: NetworkConfigMethod,
+            optional: true,
+        },
+        method_v6: {
+            type: NetworkConfigMethod,
+            optional: true,
+        },
+        options_v4: {
+            description: "Option list (inet)",
+            type: Array,
+            items: {
+                description: "Optional attribute.",
+                type: String,
+            },
+        },
+        options_v6: {
+            description: "Option list (inet6)",
+            type: Array,
+            items: {
+                description: "Optional attribute.",
+                type: String,
+            },
+        },
+    }
+)]
+#[derive(Debug, Serialize, Deserialize)]
+/// Network Interface configuration
+pub struct Interface {
+    /// Autostart interface
+    pub autostart: bool,
+    /// Interface is a physical network device
+    pub exists: bool,
+    /// Interface is active (UP)
+    pub active: bool,
+    /// Interface name
+    pub name: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+     pub method_v4: Option<NetworkConfigMethod>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub method_v6: Option<NetworkConfigMethod>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 address
+    pub address_v4: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 gateway
+    pub gateway_v4: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv4 netmask
+    pub netmask_v4: Option<u8>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 address
+    pub address_v6: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 gateway
+    pub gateway_v6: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// IPv6 netmask
+    pub netmask_v6: Option<u8>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub options_v4: Vec<String>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub options_v6: Vec<String>,
+}
+
 // Regression tests
 
 #[test]

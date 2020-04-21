@@ -6,6 +6,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 //use crate::api2::types::*;
 use crate::config::network;
 use crate::config::acl::{PRIV_SYS_AUDIT};
+use crate::api2::types::Interface;
 
 #[api(
     input: {
@@ -15,7 +16,7 @@ use crate::config::acl::{PRIV_SYS_AUDIT};
         description: "List network devices (with config digest).",
         type: Array,
         items: {
-            type: network::Interface,
+            type: Interface,
         },
     },
     access: {
