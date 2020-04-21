@@ -1,5 +1,4 @@
-use std::io::{BufReader};
-use std::fs::File;
+use std::io::{BufRead};
 use std::iter::{Peekable, Iterator};
 use std::collections::HashSet;
 
@@ -14,15 +13,14 @@ use super::lexer::*;
 
 use super::{NetworkConfig, NetworkOrderEntry, Interface, ConfigMethod};
 
-pub struct NetworkParser {
-    input: Peekable<Lexer<BufReader<File>>>,
+pub struct NetworkParser<R: BufRead> {
+    input: Peekable<Lexer<R>>,
     line_nr: usize,
 }
 
-impl NetworkParser {
+impl <R: BufRead> NetworkParser<R> {
 
-    pub fn new(file: File) -> Self {
-        let reader = BufReader::new(file);
+    pub fn new(reader: R) -> Self {
         let input = Lexer::new(reader).peekable();
         Self { input, line_nr: 1 }
     }
@@ -328,7 +326,7 @@ impl NetworkParser {
             if let Some(interface) = config.interfaces.get_mut(iface) {
                 interface.exists = exists;
                 interface.active = *active;
-            } else if exists { // also add physical NICs
+            } else if exists { // also add all physical NICs
                 let mut interface = Interface::new(iface.clone());
                 interface.set_method_v4(ConfigMethod::Manual)?;
                 interface.exists = true;

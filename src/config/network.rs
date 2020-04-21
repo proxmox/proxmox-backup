@@ -3,6 +3,8 @@ use std::collections::{HashSet, HashMap};
 
 use anyhow::{Error, bail};
 
+use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+
 mod helper;
 pub use helper::*;
 
@@ -283,4 +285,45 @@ impl NetworkConfig {
         }
         Ok(())
     }
+}
+
+pub const NETWORK_INTERFACES_FILENAME: &str = "/etc/network/interfaces";
+pub const NETWORK_LOCKFILE: &str = "/var/lock/pve-network.lck";
+
+pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
+    let content = match std::fs::read(NETWORK_INTERFACES_FILENAME) {
+        Ok(c) => c,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                Vec::new()
+            } else {
+                bail!("unable to read '{}' - {}", NETWORK_INTERFACES_FILENAME, err);
+            }
+        }
+    };
+
+    let digest = openssl::sha::sha256(&content);
+
+    let mut parser = NetworkParser::new(&content[..]);
+    let data = parser.parse_interfaces()?;
+
+    Ok((data, digest))
+}
+
+pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
+
+    let mut raw = Vec::new();
+    config.write_config(&mut raw)?;
+
+    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
+    // set the correct owner/group/permissions while saving file
+    // owner(rw) = root, group(r)=root, others(r)
+    let options = CreateOptions::new()
+        .perm(mode)
+        .owner(nix::unistd::ROOT)
+        .group(nix::unistd::Gid::from_raw(0));
+
+    replace_file(NETWORK_INTERFACES_FILENAME, &raw, options)?;
+
+    Ok(())
 }
