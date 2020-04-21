@@ -1,5 +1,10 @@
 use std::collections::HashMap;
+
+use anyhow::{Error, bail, format_err};
 use lazy_static::lazy_static;
+use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
+use nix::ioctl_read_bad;
+use regex::Regex;
 
 pub static IPV4_REVERSE_MASK: &[&'static str] = &[
     "0.0.0.0",
@@ -45,4 +50,49 @@ lazy_static! {
         }
         map
     };
+}
+
+pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
+
+    const PROC_NET_DEV: &str = "/proc/net/dev";
+
+    #[repr(C)]
+    pub struct ifreq {
+        ifr_name: [libc::c_uchar; libc::IFNAMSIZ],
+        ifru_flags: libc::c_short,
+    }
+
+    ioctl_read_bad!(get_interface_flags, libc::SIOCGIFFLAGS, ifreq);
+
+    lazy_static!{
+        static ref IFACE_LINE_REGEX: Regex = Regex::new(r"^\s*([^:\s]+):").unwrap();
+    }
+    let raw = std::fs::read_to_string(PROC_NET_DEV)
+        .map_err(|err| format_err!("unable to read {} - {}", PROC_NET_DEV, err))?;
+
+    let lines = raw.lines();
+
+    let sock = socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(), None)
+        .or_else(|_| socket(AddressFamily::Inet6, SockType::Datagram, SockFlag::empty(), None))?;
+
+    let mut interface_list = HashMap::new();
+
+    for line in lines {
+        if let Some(cap) = IFACE_LINE_REGEX.captures(line) {
+            let ifname = &cap[1];
+
+            let mut req = ifreq { ifr_name: *b"0000000000000000", ifru_flags: 0 };
+            for (i, b) in std::ffi::CString::new(ifname)?.as_bytes_with_nul().iter().enumerate() {
+                if i < (libc::IFNAMSIZ-1) { req.ifr_name[i] = *b as libc::c_uchar; }
+            }
+            let res = unsafe { get_interface_flags(sock, &mut req)? };
+            if res != 0 {
+                bail!("ioctl get_interface_flags for '{}' failed ({})", ifname, res);
+            }
+            let is_up = (req.ifru_flags & (libc::IFF_UP as libc::c_short)) != 0;
+            interface_list.insert(ifname.to_string(), is_up);
+        }
+    }
+
+    Ok(interface_list)
 }
