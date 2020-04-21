@@ -317,6 +317,27 @@ impl NetworkParser {
             }
         }
 
+        let existing_interfaces = get_network_interfaces()?;
+
+        lazy_static!{
+            static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"(?:eth\d+|en[^:.]+|ib\d+)").unwrap();
+        }
+
+        for (iface, active) in existing_interfaces.iter()  {
+            let exists = PHYSICAL_NIC_REGEX.is_match(iface);
+            if let Some(interface) = config.interfaces.get_mut(iface) {
+                interface.exists = exists;
+                interface.active = *active;
+            } else if exists { // also add physical NICs
+                let mut interface = Interface::new(iface.clone());
+                interface.set_method_v4(ConfigMethod::Manual)?;
+                interface.exists = true;
+                interface.active = *active;
+                config.interfaces.insert(interface.name.clone(), interface);
+                config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
+            }
+        }
+
         Ok(config)
     }
 }

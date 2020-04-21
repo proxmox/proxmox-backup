@@ -23,6 +23,8 @@ pub enum ConfigMethod {
 #[derive(Debug)]
 pub struct Interface {
     pub autostart: bool,
+    pub exists: bool,
+    pub active: bool,
     pub name: String,
     pub method_v4: Option<ConfigMethod>,
     pub method_v6: Option<ConfigMethod>,
@@ -42,6 +44,8 @@ impl Interface {
         Self {
             name,
             autostart: false,
+            exists: false,
+            active: false,
             method_v4: None,
             method_v6: None,
             address_v4: None,
