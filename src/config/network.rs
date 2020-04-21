@@ -20,7 +20,7 @@ pub use parser::*;
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Interface configuration method
-pub enum ConfigMethod {
+pub enum NetworkConfigMethod {
     /// Configuration is done manually using other tools
     Manual,
     /// Define interfaces with statically allocated addresses.
@@ -39,11 +39,11 @@ pub enum ConfigMethod {
             max_length: libc::IFNAMSIZ-1,
         },
         method_v4: {
-            type: ConfigMethod,
+            type: NetworkConfigMethod,
             optional: true,
         },
         method_v6: {
-            type: ConfigMethod,
+            type: NetworkConfigMethod,
             optional: true,
         },
         options_v4: {
@@ -76,9 +76,9 @@ pub struct Interface {
     /// Interface name
     pub name: String,
     #[serde(skip_serializing_if="Option::is_none")]
-     pub method_v4: Option<ConfigMethod>,
+     pub method_v4: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub method_v6: Option<ConfigMethod>,
+    pub method_v6: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv4 address
     pub address_v4: Option<String>,
@@ -124,7 +124,7 @@ impl Interface {
         }
     }
 
-    fn set_method_v4(&mut self, method: ConfigMethod) -> Result<(), Error> {
+    fn set_method_v4(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
         if self.method_v4.is_none() {
             self.method_v4 = Some(method);
         } else {
@@ -133,7 +133,7 @@ impl Interface {
         Ok(())
     }
 
-    fn set_method_v6(&mut self, method: ConfigMethod) -> Result<(), Error> {
+    fn set_method_v6(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
         if self.method_v6.is_none() {
             self.method_v6 = Some(method);
         } else {
@@ -250,12 +250,12 @@ impl Interface {
 
     fn write_iface(&self, w: &mut dyn Write) -> Result<(), Error> {
 
-        fn method_to_str(method: ConfigMethod) -> &'static str {
+        fn method_to_str(method: NetworkConfigMethod) -> &'static str {
             match method {
-                ConfigMethod::Static => "static",
-                ConfigMethod::Loopback => "loopback",
-                ConfigMethod::Manual => "manual",
-                ConfigMethod::DHCP => "dhcp",
+                NetworkConfigMethod::Static => "static",
+                NetworkConfigMethod::Loopback => "loopback",
+                NetworkConfigMethod::Manual => "manual",
+                NetworkConfigMethod::DHCP => "dhcp",
             }
         }
 
@@ -264,7 +264,7 @@ impl Interface {
         }
 
         if self.method_v4 == self.method_v6 {
-            let method = self.method_v4.unwrap_or(ConfigMethod::Static);
+            let method = self.method_v4.unwrap_or(NetworkConfigMethod::Static);
             writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
             self.write_iface_attributes_v4(w)?;
             self.write_iface_attributes_v6(w)?;

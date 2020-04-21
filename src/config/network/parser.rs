@@ -11,7 +11,7 @@ use proxmox::*; // for IP macros
 use super::helper::*;
 use super::lexer::*;
 
-use super::{NetworkConfig, NetworkOrderEntry, Interface, ConfigMethod};
+use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod};
 
 pub struct NetworkParser<R: BufRead> {
     input: Peekable<Lexer<R>>,
@@ -222,16 +222,16 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::Newline => break,
                 Token::Inet => address_family_v4 = true,
                 Token::Inet6 => address_family_v6 = true,
-                Token::Loopback => config_method = Some(ConfigMethod::Loopback),
-                Token::Static => config_method = Some(ConfigMethod::Static),
-                Token::Manual => config_method = Some(ConfigMethod::Manual),
-                Token::DHCP => config_method = Some(ConfigMethod::DHCP),
+                Token::Loopback => config_method = Some(NetworkConfigMethod::Loopback),
+                Token::Static => config_method = Some(NetworkConfigMethod::Static),
+                Token::Manual => config_method = Some(NetworkConfigMethod::Manual),
+                Token::DHCP => config_method = Some(NetworkConfigMethod::DHCP),
                 _ => bail!("unknown iface option {}", text),
             }
         }
 
         let has_attributes = self.peek()? == Token::Attribute;
-        let config_method = config_method.unwrap_or(ConfigMethod::Static);
+        let config_method = config_method.unwrap_or(NetworkConfigMethod::Static);
 
         if !(address_family_v4 || address_family_v6) {
             address_family_v4 = true;
@@ -328,7 +328,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.active = *active;
             } else if exists { // also add all physical NICs
                 let mut interface = Interface::new(iface.clone());
-                interface.set_method_v4(ConfigMethod::Manual)?;
+                interface.set_method_v4(NetworkConfigMethod::Manual)?;
                 interface.exists = true;
                 interface.active = *active;
                 config.interfaces.insert(interface.name.clone(), interface);
