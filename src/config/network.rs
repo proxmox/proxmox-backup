@@ -97,13 +97,16 @@ impl Interface {
         }
     }
 
-    fn write_iface_attributes_v4(&self, w: &mut dyn Write) -> Result<(), Error> {
-        if let Some(address) = &self.cidr_v4 {
-            writeln!(w, "    address {}", address)?;
+    fn write_iface_attributes_v4(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+        if method == NetworkConfigMethod::Static {
+            if let Some(address) = &self.cidr_v4 {
+                writeln!(w, "    address {}", address)?;
+            }
+            if let Some(gateway) = &self.gateway_v4 {
+                writeln!(w, "    gateway {}", gateway)?;
+            }
         }
-        if let Some(gateway) = &self.gateway_v4 {
-            writeln!(w, "    gateway {}", gateway)?;
-        }
+
         for option in &self.options_v4 {
             writeln!(w, "    {}", option)?;
         }
@@ -111,13 +114,16 @@ impl Interface {
         Ok(())
     }
 
-    fn write_iface_attributes_v6(&self, w: &mut dyn Write) -> Result<(), Error> {
-        if let Some(address) = &self.cidr_v6 {
-            writeln!(w, "    address {}", address)?;
+    fn write_iface_attributes_v6(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
+        if method == NetworkConfigMethod::Static {
+            if let Some(address) = &self.cidr_v6 {
+                writeln!(w, "    address {}", address)?;
+            }
+            if let Some(gateway) = &self.gateway_v6 {
+                writeln!(w, "    gateway {}", gateway)?;
+            }
         }
-        if let Some(gateway) = &self.gateway_v6 {
-            writeln!(w, "    gateway {}", gateway)?;
-        }
+
         for option in &self.options_v6 {
             writeln!(w, "    {}", option)?;
         }
@@ -136,25 +142,28 @@ impl Interface {
             }
         }
 
+        if self.method_v4.is_none() && self.method_v6.is_none() { return Ok(()); }
+
         if self.autostart {
             writeln!(w, "auto {}", self.name)?;
         }
 
         if self.method_v4 == self.method_v6 {
-            let method = self.method_v4.unwrap_or(NetworkConfigMethod::Static);
-            writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
-            self.write_iface_attributes_v4(w)?;
-            self.write_iface_attributes_v6(w)?;
-            writeln!(w)?;
+            if let Some(method) = self.method_v4 {
+                writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
+                self.write_iface_attributes_v4(w, method)?;
+                self.write_iface_attributes_v6(w, method)?;
+                writeln!(w)?;
+            }
         } else {
             if let Some(method) = self.method_v4 {
                 writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
-                self.write_iface_attributes_v4(w)?;
+                self.write_iface_attributes_v4(w, method)?;
                 writeln!(w)?;
             }
             if let Some(method) = self.method_v6 {
                 writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method))?;
-                self.write_iface_attributes_v6(w)?;
+                self.write_iface_attributes_v6(w, method)?;
                 writeln!(w)?;
             }
         }
