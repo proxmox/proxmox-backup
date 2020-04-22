@@ -80,6 +80,14 @@ pub fn read_interface(name: String) -> Result<Value, Error> {
             name: {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
+            method_v4: {
+                type: NetworkConfigMethod,
+                optional: true,
+            },
+            method_v6: {
+                type: NetworkConfigMethod,
+                optional: true,
+            },
             address: {
                 schema: CIDR_SCHEMA,
                 optional: true,
@@ -101,6 +109,8 @@ pub fn read_interface(name: String) -> Result<Value, Error> {
 /// Update network interface config.
 pub fn update_interface(
     name: String,
+    method_v4: Option<NetworkConfigMethod>,
+    method_v6: Option<NetworkConfigMethod>,
     address: Option<String>,
     gateway: Option<String>,
     digest: Option<String>,
@@ -116,6 +126,9 @@ pub fn update_interface(
     }
 
     let interface = config.lookup_mut(&name)?;
+
+    if method_v4.is_some() { interface.method_v4 = method_v4; }
+    if method_v6.is_some() { interface.method_v6 = method_v6; }
 
     if let Some(address) = address {
         let (_, _, is_v6) = network::parse_cidr(&address)?;
