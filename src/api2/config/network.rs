@@ -1,5 +1,6 @@
 use anyhow::{Error};
 use serde_json::{Value, to_value};
+use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
@@ -73,6 +74,25 @@ pub fn read_interface(name: String) -> Result<Value, Error> {
     Ok(data)
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the IPv4 address property.
+    address_v4,
+    /// Delete the IPv6 address property.
+    address_v6,
+    /// Delete the IPv4 gateway property.
+    gateway_v4,
+    /// Delete the IPv6 gateway property.
+    gateway_v6,
+    /// Delete the whole IPv4 configuration entry.
+    method_v4,
+    /// Delete the whole IPv6 configuration entry.
+    method_v6,
+}
+
 #[api(
     protected: true,
     input: {
@@ -96,6 +116,14 @@ pub fn read_interface(name: String) -> Result<Value, Error> {
                 schema: IP_SCHEMA,
                 optional: true,
             },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -113,6 +141,7 @@ pub fn update_interface(
     method_v6: Option<NetworkConfigMethod>,
     address: Option<String>,
     gateway: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -126,6 +155,19 @@ pub fn update_interface(
     }
 
     let interface = config.lookup_mut(&name)?;
+
+    if let Some(delete) = delete {
+        for name in delete {
+            match name {
+                DeletableProperty::address_v4 => { interface.cidr_v4 = None; },
+                DeletableProperty::address_v6 => { interface.cidr_v6 = None; },
+                DeletableProperty::gateway_v4 => { interface.gateway_v4 = None; },
+                DeletableProperty::gateway_v6 => { interface.gateway_v6 = None; },
+                DeletableProperty::method_v4 => { interface.method_v4 = None; },
+                DeletableProperty::method_v6 => { interface.method_v6 = None; },
+            }
+        }
+    }
 
     if method_v4.is_some() { interface.method_v4 = method_v4; }
     if method_v6.is_some() { interface.method_v6 = method_v6; }
