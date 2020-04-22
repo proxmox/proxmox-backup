@@ -1,7 +1,7 @@
 use std::io::{Write};
 use std::collections::{HashSet, HashMap};
 
-use anyhow::{Error, bail};
+use anyhow::{Error, format_err, bail};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
@@ -184,6 +184,20 @@ impl NetworkConfig {
         }
     }
 
+    pub fn lookup(&self, name: &str) -> Result<&Interface, Error> {
+        let interface = self.interfaces.get(name).ok_or_else(|| {
+            format_err!("interface '{}' does not exist.", name)
+        })?;
+        Ok(interface)
+    }
+
+    pub fn lookup_mut(&mut self, name: &str) -> Result<&mut Interface, Error> {
+        let interface = self.interfaces.get_mut(name).ok_or_else(|| {
+            format_err!("interface '{}' does not exist.", name)
+        })?;
+        Ok(interface)
+    }
+
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
 
         let mut done = HashSet::new();
@@ -266,4 +280,12 @@ pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
     replace_file(NETWORK_INTERFACES_FILENAME, &raw, options)?;
 
     Ok(())
+}
+
+// shell completion helper
+pub fn complete_interface_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    match config() {
+        Ok((data, _digest)) => data.interfaces.keys().map(|id| id.to_string()).collect(),
+        Err(_) => return vec![],
+    }
 }

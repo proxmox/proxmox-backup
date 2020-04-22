@@ -236,7 +236,17 @@ fn acl_commands() -> CommandLineInterface {
 fn network_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::network::API_METHOD_LIST_NETWORK_DEVICES));
+        .insert("list", CliCommand::new(&api2::config::network::API_METHOD_LIST_NETWORK_DEVICES))
+        .insert("update",
+                CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::network::complete_interface_name)
+        )
+        .insert("remove",
+                CliCommand::new(&api2::config::network::API_METHOD_DELETE_INTERFACE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::network::complete_interface_name)
+        );
 
     cmd_def.into()
 }
