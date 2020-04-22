@@ -4,7 +4,6 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
-//use crate::api2::types::*;
 use crate::config::network;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
@@ -95,6 +94,8 @@ pub enum DeletableProperty {
     mtu_v4,
     /// Delete mtu IPv6.
     mtu_v6,
+    /// Delete auto flag
+    auto,
 }
 
 #[api(
@@ -103,6 +104,11 @@ pub enum DeletableProperty {
         properties: {
             name: {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
+            },
+            auto: {
+                description: "Autostart interface.",
+                type: bool,
+                optional: true,
             },
             method_v4: {
                 type: NetworkConfigMethod,
@@ -153,6 +159,7 @@ pub enum DeletableProperty {
 /// Update network interface config.
 pub fn update_interface(
     name: String,
+    auto: Option<bool>,
     method_v4: Option<NetworkConfigMethod>,
     method_v6: Option<NetworkConfigMethod>,
     address: Option<String>,
@@ -185,10 +192,12 @@ pub fn update_interface(
                 DeletableProperty::method_v6 => { interface.method_v6 = None; },
                 DeletableProperty::mtu_v4 => { interface.mtu_v4 = None; },
                 DeletableProperty::mtu_v6 => { interface.mtu_v6 = None; },
+                DeletableProperty::auto => { interface.auto = false; },
             }
         }
     }
 
+    if let Some(auto) = auto { interface.auto = auto; }
     if method_v4.is_some() { interface.method_v4 = method_v4; }
     if method_v6.is_some() { interface.method_v6 = method_v6; }
     if mtu_v4.is_some() { interface.mtu_v4 = mtu_v4; }

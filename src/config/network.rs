@@ -21,7 +21,7 @@ impl Interface {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            autostart: false,
+            auto: false,
             exists: false,
             active: false,
             method_v4: None,
@@ -154,7 +154,7 @@ impl Interface {
 
         if self.method_v4.is_none() && self.method_v6.is_none() { return Ok(()); }
 
-        if self.autostart {
+        if self.auto {
             writeln!(w, "auto {}", self.name)?;
         }
 

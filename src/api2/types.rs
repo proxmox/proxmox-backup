@@ -562,7 +562,7 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
 /// Network Interface configuration
 pub struct Interface {
     /// Autostart interface
-    pub autostart: bool,
+    pub auto: bool,
     /// Interface is a physical network device
     pub exists: bool,
     /// Interface is active (UP)

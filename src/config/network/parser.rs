@@ -282,7 +282,7 @@ impl <R: BufRead> NetworkParser<R> {
 
         for iface in auto_flag.iter() {
             if let Some(interface) = config.interfaces.get_mut(iface) {
-                interface.autostart = true;
+                interface.auto = true;
             }
         }
 
