@@ -18,7 +18,19 @@ use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_ALLOCATE};
         description: "List the configured datastores (with config digest).",
         type: Array,
         items: {
-            type: datastore::DataStoreConfig,
+            description: "Datastore configuration.",
+            properties: {
+                name: {
+                    schema: DATASTORE_SCHEMA,
+                },
+                path: {
+                    schema: datastore::DIR_NAME_SCHEMA,
+                },
+                comment: {
+                    optional: true,
+                    schema: SINGLE_LINE_COMMENT_SCHEMA,
+                },
+            },
         },
     },
     access: {

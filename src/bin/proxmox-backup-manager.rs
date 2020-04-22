@@ -288,10 +288,41 @@ fn network_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Datastore list.
+fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::datastore::API_METHOD_LIST_DATASTORES;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("path"))
+        .column(ColumnConfig::new("comment"));
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn datastore_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::datastore::API_METHOD_LIST_DATASTORES))
+        .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
         .insert("create",
                 CliCommand::new(&api2::config::datastore::API_METHOD_CREATE_DATASTORE)
                 .arg_param(&["name", "path"])
