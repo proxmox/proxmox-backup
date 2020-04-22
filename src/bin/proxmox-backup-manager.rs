@@ -233,10 +233,47 @@ fn acl_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Network device list.
+fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::network::API_METHOD_LIST_NETWORK_DEVICES;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("auto"))
+        .column(ColumnConfig::new("method_v4"))
+        .column(ColumnConfig::new("method_v6"))
+        .column(ColumnConfig::new("cidr_v4"))
+        .column(ColumnConfig::new("gateway_v4"))
+        .column(ColumnConfig::new("cidr_v6"))
+        .column(ColumnConfig::new("gateway_v6"))
+       ;
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn network_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&api2::config::network::API_METHOD_LIST_NETWORK_DEVICES))
+        .insert("list", CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES))
         .insert("update",
                 CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
                 .arg_param(&["name"])
