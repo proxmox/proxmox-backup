@@ -6,6 +6,8 @@ use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
 use nix::ioctl_read_bad;
 use regex::Regex;
 
+use proxmox::*; // for IP macros
+
 pub static IPV4_REVERSE_MASK: &[&'static str] = &[
     "0.0.0.0",
     "128.0.0.0",
@@ -50,6 +52,44 @@ lazy_static! {
         }
         map
     };
+}
+
+pub fn parse_cidr(cidr: &str) -> Result<(String, u8, bool), Error> {
+
+    lazy_static! {
+        pub static ref CIDR_V4_REGEX: Regex = Regex::new(
+            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")
+        ).unwrap();
+        pub static ref CIDR_V6_REGEX: Regex = Regex::new(
+            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")
+        ).unwrap();
+    }
+
+    if let Some(caps) = CIDR_V4_REGEX.captures(&cidr) {
+        let address = &caps[1];
+        let mask = &caps[2];
+        let mask = u8::from_str_radix(mask, 10)
+            .map(|mask| {
+                if !(mask > 0 && mask <= 32) {
+                    bail!("IPv4 mask '{}' is out of range (1..32).", mask);
+                }
+                Ok(mask)
+            })?;
+        return Ok((address.to_string(), mask.unwrap(), false));
+    } else if let Some(caps) = CIDR_V6_REGEX.captures(&cidr) {
+        let address = &caps[1];
+        let mask = &caps[2];
+        let mask = u8::from_str_radix(mask, 10)
+            .map(|mask| {
+                if !(mask >= 1 && mask <= 128) {
+                    bail!("IPv6 mask '{}' is out of range (1..128).", mask);
+                }
+                Ok(mask)
+            })?;
+        return Ok((address.to_string(), mask.unwrap(), true));
+    } else {
+        bail!("invalid address/mask '{}'", cidr);
+    }
 }
 
 pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {

@@ -26,12 +26,10 @@ impl Interface {
             active: false,
             method_v4: None,
             method_v6: None,
-            address_v4: None,
+            cidr_v4: None,
             gateway_v4: None,
-            netmask_v4: None,
-            address_v6: None,
+            cidr_v6: None,
             gateway_v6: None,
-            netmask_v6: None,
             options_v4: Vec::new(),
             options_v6: Vec::new(),
         }
@@ -55,9 +53,9 @@ impl Interface {
         Ok(())
     }
 
-    fn set_address_v4(&mut self, address: String) -> Result<(), Error> {
-        if self.address_v4.is_none() {
-            self.address_v4 = Some(address);
+    fn set_cidr_v4(&mut self, address: String) -> Result<(), Error> {
+        if self.cidr_v4.is_none() {
+            self.cidr_v4 = Some(address);
         } else {
             bail!("duplicate IPv4 address.");
         }
@@ -73,22 +71,9 @@ impl Interface {
         Ok(())
     }
 
-    fn set_netmask_v4(&mut self, mask: u8) -> Result<(), Error> {
-        if self.netmask_v4.is_none() {
-            if mask > 0 && mask <= 32 {
-                self.netmask_v4 = Some(mask);
-            } else {
-                bail!("invalid ipv4 netmaks '{}'", mask);
-            }
-        } else {
-            bail!("duplicate IPv4 netmask.");
-        }
-        Ok(())
-    }
-
-    fn set_address_v6(&mut self, address: String) -> Result<(), Error> {
-        if self.address_v6.is_none() {
-            self.address_v6 = Some(address);
+    fn set_cidr_v6(&mut self, address: String) -> Result<(), Error> {
+        if self.cidr_v6.is_none() {
+            self.cidr_v6 = Some(address);
         } else {
             bail!("duplicate IPv6 address.");
         }
@@ -104,19 +89,6 @@ impl Interface {
         Ok(())
     }
 
-    fn set_netmask_v6(&mut self, mask: u8) -> Result<(), Error> {
-        if self.netmask_v6.is_none() {
-            if mask > 0 && mask <= 128 {
-                self.netmask_v6 = Some(mask);
-            } else {
-                bail!("invalid ipv6 netmaks '{}'", mask);
-            }
-        } else {
-            bail!("duplicate IPv6 netmask.");
-        }
-        Ok(())
-    }
-
     fn push_addon_option(&mut self, text: String) {
         if self.method_v4.is_none() && self.method_v6.is_some() {
             self.options_v6.push(text);
@@ -126,12 +98,8 @@ impl Interface {
     }
 
     fn write_iface_attributes_v4(&self, w: &mut dyn Write) -> Result<(), Error> {
-        if let Some(address) = &self.address_v4 {
-            if let Some(netmask) = self.netmask_v4 {
-                writeln!(w, "    address {}/{}", address, netmask)?;
-            } else {
-                writeln!(w, "    address {}", address)?;
-            }
+        if let Some(address) = &self.cidr_v4 {
+            writeln!(w, "    address {}", address)?;
         }
         if let Some(gateway) = &self.gateway_v4 {
             writeln!(w, "    gateway {}", gateway)?;
@@ -144,12 +112,8 @@ impl Interface {
     }
 
     fn write_iface_attributes_v6(&self, w: &mut dyn Write) -> Result<(), Error> {
-        if let Some(address) = &self.address_v6 {
-            if let Some(netmask) = self.netmask_v6 {
-                writeln!(w, "    address {}/{}", address, netmask)?;
-            } else {
-                writeln!(w, "    address {}", address)?;
-            }
+        if let Some(address) = &self.cidr_v6 {
+            writeln!(w, "    address {}", address)?;
         }
         if let Some(gateway) = &self.gateway_v6 {
             writeln!(w, "    gateway {}", gateway)?;

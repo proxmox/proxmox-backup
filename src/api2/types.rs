@@ -509,27 +509,21 @@ pub struct Interface {
     /// Interface name
     pub name: String,
     #[serde(skip_serializing_if="Option::is_none")]
-     pub method_v4: Option<NetworkConfigMethod>,
+    pub method_v4: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub method_v6: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
-    /// IPv4 address
-    pub address_v4: Option<String>,
+    /// IPv4 address with netmask
+    pub cidr_v4: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv4 gateway
     pub gateway_v4: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    /// IPv4 netmask
-    pub netmask_v4: Option<u8>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    /// IPv6 address
-    pub address_v6: Option<String>,
+    /// IPv6 address with netmask
+    pub cidr_v6: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv6 gateway
     pub gateway_v6: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    /// IPv6 netmask
-    pub netmask_v6: Option<u8>,
     #[serde(skip_serializing_if="Vec::is_empty")]
     pub options_v4: Vec<String>,
     #[serde(skip_serializing_if="Vec::is_empty")]

@@ -6,8 +6,6 @@ use anyhow::{Error, bail, format_err};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use proxmox::*; // for IP macros
-
 use super::helper::*;
 use super::lexer::*;
 
@@ -91,33 +89,13 @@ impl <R: BufRead> NetworkParser<R> {
 
     fn parse_iface_address(&mut self, interface: &mut Interface) -> Result<(), Error> {
         self.eat(Token::Address)?;
-        let address = self.next_text()?;
+        let cidr = self.next_text()?;
 
-        lazy_static! {
-            pub static ref ADDRESS_V4_REGEX: Regex = Regex::new(
-                concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")
-            ).unwrap();
-           pub static ref ADDRESS_V6_REGEX: Regex = Regex::new(
-               concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,2}))?$")
-            ).unwrap();
-        }
-
-        if let Some(caps) = ADDRESS_V4_REGEX.captures(&address) {
-            let address = caps.get(1).unwrap().as_str();
-            interface.set_address_v4(address.to_string())?;
-            if let Some(mask) = caps.get(2) {
-                let mask = u8::from_str_radix(mask.as_str(), 10)?;
-                interface.set_netmask_v4(mask)?;
-            }
-        } else if let Some(caps) = ADDRESS_V6_REGEX.captures(&address) {
-            let address = caps.get(1).unwrap().as_str();
-            interface.set_address_v6(address.to_string())?;
-            if let Some(mask) = caps.get(2) {
-                let mask = u8::from_str_radix(mask.as_str(), 10)?;
-                interface.set_netmask_v6(mask)?;
-            }
+        let (_address, _mask, ipv6) = parse_cidr(&cidr)?;
+        if ipv6 {
+            interface.set_cidr_v6(cidr)?;
         } else {
-             bail!("unable to parse IP address");
+            interface.set_cidr_v4(cidr)?;
         }
 
         self.eat(Token::Newline)?;
@@ -163,29 +141,6 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
-    fn parse_iface_netmask(&mut self, interface: &mut Interface) -> Result<(), Error> {
-        self.eat(Token::Netmask)?;
-        let netmask = self.next_text()?;
-
-        if let Some(mask) = IPV4_MASK_HASH_LOCALNET.get(netmask.as_str())  {
-            interface.set_netmask_v4(*mask)?;
-        } else {
-            match u8::from_str_radix(netmask.as_str(), 10) {
-                Ok(mask) => {
-                    if mask <= 32 { interface.set_netmask_v4(mask)?; }
-                    interface.set_netmask_v6(mask)?;
-                }
-                Err(err) => {
-                    bail!("unable to parse netmask '{}' - {}", netmask, err);
-                }
-            }
-        }
-
-        self.eat(Token::Newline)?;
-
-        Ok(())
-    }
-
     fn parse_iface_attributes(&mut self, interface: &mut Interface) -> Result<(), Error> {
 
         loop {
@@ -198,7 +153,7 @@ impl <R: BufRead> NetworkParser<R> {
             match self.peek()? {
                 Token::Address => self.parse_iface_address(interface)?,
                 Token::Gateway => self.parse_iface_gateway(interface)?,
-                Token::Netmask => self.parse_iface_netmask(interface)?,
+                Token::Netmask => bail!("netmask is deprecated and no longer supported"),
                 _ => {
                     self.parse_iface_addon_attribute(interface)?;
                 },
