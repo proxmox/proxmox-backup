@@ -58,10 +58,10 @@ pub fn parse_cidr(cidr: &str) -> Result<(String, u8, bool), Error> {
 
     lazy_static! {
         pub static ref CIDR_V4_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")
+            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))$")
         ).unwrap();
         pub static ref CIDR_V6_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")
+            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))$")
         ).unwrap();
     }
 
