@@ -128,7 +128,7 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
         permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
-/// Create new datastore config.
+/// Update datastore config.
 pub fn update_datastore(
     name: String,
     comment: Option<String>,
