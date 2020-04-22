@@ -73,8 +73,7 @@ impl <R: BufRead> NetworkParser<R> {
         loop {
             match self.next()? {
                 (Token::Text, iface) => {
-                    println!("AUTO {}", iface);
-                    auto_flag.insert(iface.to_string());
+                     auto_flag.insert(iface.to_string());
                 }
                 (Token::Newline, _) => break,
                 unexpected => {
@@ -232,20 +231,16 @@ impl <R: BufRead> NetworkParser<R> {
         let mut auto_flag: HashSet<String> = HashSet::new();
 
         loop {
-            let peek = self.peek()?;
-            println!("TOKEN: {:?}", peek);
-            match peek {
+            match self.peek()? {
                 Token::EOF => {
-                    // fixme: trailing comments
                     break;
                 }
                 Token::Newline => {
+                    // skip empty lines
                     self.eat(Token::Newline)?;
-                    // fixme end of entry
                 }
                 Token::Comment => {
                     let (_, text) = self.next()?;
-                    println!("COMMENT: {}", text);
                     config.order.push(NetworkOrderEntry::Comment(text));
                     self.eat(Token::Newline)?;
                 }
