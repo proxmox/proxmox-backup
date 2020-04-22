@@ -30,6 +30,8 @@ impl Interface {
             gateway_v4: None,
             cidr_v6: None,
             gateway_v6: None,
+            mtu_v4: None,
+            mtu_v6: None,
             options_v4: Vec::new(),
             options_v6: Vec::new(),
         }
@@ -107,6 +109,10 @@ impl Interface {
             }
         }
 
+        if let Some(mtu) = &self.mtu_v4 {
+            writeln!(w, "    mtu {}", mtu)?;
+        }
+
         for option in &self.options_v4 {
             writeln!(w, "    {}", option)?;
         }
@@ -122,6 +128,10 @@ impl Interface {
             if let Some(gateway) = &self.gateway_v6 {
                 writeln!(w, "    gateway {}", gateway)?;
             }
+        }
+
+        if let Some(mtu) = &self.mtu_v6 {
+            writeln!(w, "    mtu {}", mtu)?;
         }
 
         for option in &self.options_v6 {
@@ -148,7 +158,10 @@ impl Interface {
             writeln!(w, "auto {}", self.name)?;
         }
 
-        if self.method_v4 == self.method_v6 {
+        if self.method_v4 == self.method_v6
+            && self.mtu_v4 == self.mtu_v6
+            && self.options_v4.is_empty() == self.options_v6.is_empty()
+        {
             if let Some(method) = self.method_v4 {
                 writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v4(w, method)?;

@@ -91,6 +91,10 @@ pub enum DeletableProperty {
     method_v4,
     /// Delete the whole IPv6 configuration entry.
     method_v6,
+    /// Delete mtu for IPv4.
+    mtu_v4,
+    /// Delete mtu IPv6.
+    mtu_v6,
 }
 
 #[api(
@@ -115,6 +119,18 @@ pub enum DeletableProperty {
             gateway: {
                 schema: IP_SCHEMA,
                 optional: true,
+            },
+            mtu_v4: {
+                description: "Maximum Transmission Unit for IPv4.",
+                optional: true,
+                minimum: 46,
+                maximum: 65535,
+            },
+            mtu_v6: {
+                description: "Maximum Transmission Unit for IPv6.",
+                optional: true,
+                minimum: 46,
+                maximum: 65535,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -141,6 +157,8 @@ pub fn update_interface(
     method_v6: Option<NetworkConfigMethod>,
     address: Option<String>,
     gateway: Option<String>,
+    mtu_v4: Option<u64>,
+    mtu_v6: Option<u64>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -165,12 +183,16 @@ pub fn update_interface(
                 DeletableProperty::gateway_v6 => { interface.gateway_v6 = None; },
                 DeletableProperty::method_v4 => { interface.method_v4 = None; },
                 DeletableProperty::method_v6 => { interface.method_v6 = None; },
+                DeletableProperty::mtu_v4 => { interface.mtu_v4 = None; },
+                DeletableProperty::mtu_v6 => { interface.mtu_v6 = None; },
             }
         }
     }
 
     if method_v4.is_some() { interface.method_v4 = method_v4; }
     if method_v6.is_some() { interface.method_v6 = method_v6; }
+    if mtu_v4.is_some() { interface.mtu_v4 = mtu_v4; }
+    if mtu_v6.is_some() { interface.mtu_v6 = mtu_v6; }
 
     if let Some(address) = address {
         let (_, _, is_v6) = network::parse_cidr(&address)?;

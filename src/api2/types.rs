@@ -585,6 +585,14 @@ pub struct Interface {
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv6 gateway
     pub gateway_v6: Option<String>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// Maximum Transmission Unit for IPv4
+    pub mtu_v4: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    /// Maximum Transmission Unit for IPv6
+    pub mtu_v6: Option<u64>,
+
     #[serde(skip_serializing_if="Vec::is_empty")]
     pub options_v4: Vec<String>,
     #[serde(skip_serializing_if="Vec::is_empty")]

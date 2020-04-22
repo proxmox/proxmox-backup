@@ -21,6 +21,7 @@ pub enum Token {
     Netmask,
     Static,
     Attribute,
+    MTU,
     EOF,
 }
 
@@ -38,6 +39,7 @@ lazy_static! {
         map.insert("manual", Token::Manual);
         map.insert("netmask", Token::Netmask);
         map.insert("static", Token::Static);
+        map.insert("mtu", Token::MTU);
         map
     };
 }

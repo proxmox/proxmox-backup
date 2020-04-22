@@ -121,6 +121,22 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
+    fn parse_iface_mtu(&mut self) -> Result<u64, Error> {
+        self.eat(Token::MTU)?;
+
+        let mtu = self.next_text()?;
+        let mtu = match u64::from_str_radix(&mtu, 10) {
+            Ok(mtu) => mtu,
+            Err(err) => {
+                bail!("unable to parse mtu value '{}' - {}", mtu, err);
+            }
+        };
+
+        self.eat(Token::Newline)?;
+
+        Ok(mtu)
+    }
+
     fn parse_to_eol(&mut self) -> Result<String, Error> {
         let mut line = String::new();
         loop {
@@ -140,7 +156,7 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
-    fn parse_iface_attributes(&mut self, interface: &mut Interface) -> Result<(), Error> {
+    fn parse_iface_attributes(&mut self, interface: &mut Interface, family_v4: bool, family_v6: bool) -> Result<(), Error> {
 
         loop {
             match self.peek()? {
@@ -152,6 +168,11 @@ impl <R: BufRead> NetworkParser<R> {
             match self.peek()? {
                 Token::Address => self.parse_iface_address(interface)?,
                 Token::Gateway => self.parse_iface_gateway(interface)?,
+                Token::MTU => {
+                    let mtu = self.parse_iface_mtu()?;
+                    if family_v4 { interface.mtu_v4 = Some(mtu); }
+                    if family_v6 { interface.mtu_v6 = Some(mtu); }
+                }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
                 _ => {
                     self.parse_iface_addon_attribute(interface)?;
@@ -200,7 +221,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.set_method_v6(config_method)?;
             }
 
-            if has_attributes { self.parse_iface_attributes(&mut interface)?; }
+            if has_attributes { self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?; }
         } else {
             let mut interface = Interface::new(iface.clone());
             if address_family_v4 {
@@ -210,7 +231,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.set_method_v6(config_method)?;
             }
 
-            if has_attributes { self.parse_iface_attributes(&mut interface)?; }
+            if has_attributes { self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?; }
 
             config.interfaces.insert(interface.name.clone(), interface);
 
