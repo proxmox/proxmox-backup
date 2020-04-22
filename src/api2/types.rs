@@ -29,8 +29,17 @@ macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
 
 macro_rules! PROXMOX_SAFE_ID_REGEX_STR {  () => (r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)") }
 
+macro_rules! CIDR_V4_REGEX_STR { () => (concat!(r"(?:", IPV4RE!(), r"/\d{1,2})$")) }
+macro_rules! CIDR_V6_REGEX_STR { () => (concat!(r"(?:", IPV6RE!(), r"/\d{1,3})$")) }
+
 const_regex!{
-    pub IP_FORMAT_REGEX = IPRE!();
+    pub IP_V4_REGEX = concat!(r"^", IPV4RE!(), r"$");
+    pub IP_V6_REGEX = concat!(r"^", IPV6RE!(), r"$");
+    pub IP_REGEX = concat!(r"^", IPRE!(), r"$");
+    pub CIDR_V4_REGEX =  concat!(r"^", CIDR_V4_REGEX_STR!(), r"$");
+    pub CIDR_V6_REGEX =  concat!(r"^", CIDR_V6_REGEX_STR!(), r"$");
+    pub CIDR_REGEX =  concat!(r"^(?:", CIDR_V4_REGEX_STR!(), "|",  CIDR_V6_REGEX_STR!(), r")$");
+
     pub SHA256_HEX_REGEX = r"^[a-f0-9]{64}$"; // fixme: define in common_regex ?
     pub SYSTEMD_DATETIME_REGEX = r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$"; //  fixme: define in common_regex ?
 
@@ -65,8 +74,14 @@ const_regex!{
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SYSTEMD_DATETIME_REGEX);
 
+pub const IP_V4_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&IP_V4_REGEX);
+
+pub const IP_V6_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&IP_V6_REGEX);
+
 pub const IP_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&IP_FORMAT_REGEX);
+    ApiStringFormat::Pattern(&IP_REGEX);
 
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
@@ -103,6 +118,16 @@ pub const ACL_PATH_FORMAT: ApiStringFormat =
 
 pub const NETWORK_INTERFACE_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+
+pub const CIDR_V4_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&CIDR_V4_REGEX);
+
+pub const CIDR_V6_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&CIDR_V6_REGEX);
+
+pub const CIDR_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&CIDR_REGEX);
+
 
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
@@ -164,6 +189,42 @@ pub const SECOND_DNS_SERVER_SCHEMA: Schema =
 pub const THIRD_DNS_SERVER_SCHEMA: Schema =
     StringSchema::new("Third name server IP address.")
     .format(&IP_FORMAT)
+    .schema();
+
+pub const IP_V4_SCHEMA: Schema =
+    StringSchema::new("IPv4 address.")
+    .format(&IP_V4_FORMAT)
+    .max_length(15)
+    .schema();
+
+pub const IP_V6_SCHEMA: Schema =
+    StringSchema::new("IPv6 address.")
+    .format(&IP_V6_FORMAT)
+    .max_length(39)
+    .schema();
+
+pub const IP_SCHEMA: Schema =
+    StringSchema::new("IP (IPv4 or IPv6) address.")
+    .format(&IP_FORMAT)
+    .max_length(39)
+    .schema();
+
+pub const CIDR_V4_SCHEMA: Schema =
+    StringSchema::new("IPv4 address with netmask (CIDR notation).")
+    .format(&CIDR_V4_FORMAT)
+    .max_length(18)
+    .schema();
+
+pub const CIDR_V6_SCHEMA: Schema =
+    StringSchema::new("IPv6 address with netmask (CIDR notation).")
+    .format(&CIDR_V6_FORMAT)
+    .max_length(43)
+    .schema();
+
+pub const CIDR_SCHEMA: Schema =
+    StringSchema::new("IP address (IPv4 or IPv6) with netmask (CIDR notation).")
+    .format(&CIDR_FORMAT)
+    .max_length(43)
     .schema();
 
 pub const TIME_ZONE_SCHEMA: Schema = StringSchema::new(
