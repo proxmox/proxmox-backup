@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::{Error, bail};
 use serde_json::{Value, to_value};
 use ::serde::{Deserialize, Serialize};
 
@@ -171,6 +171,14 @@ pub fn update_interface(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
+    let current_gateway_v4 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway_v4.is_some())
+        .map(|(name, _)| name.to_string());
+
+    let current_gateway_v6 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway_v4.is_some())
+        .map(|(name, _)| name.to_string());
+
     let interface = config.lookup_mut(&name)?;
 
     if let Some(delete) = delete {
@@ -205,8 +213,18 @@ pub fn update_interface(
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
         if is_v6 {
+            if let Some(current_gateway_v6) = current_gateway_v6 {
+                if current_gateway_v6 != name {
+                    bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
+                }
+            }
             interface.gateway_v6 = Some(gateway);
         } else {
+            if let Some(current_gateway_v4) = current_gateway_v4 {
+                if current_gateway_v4 != name {
+                    bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
+                }
+            }
             interface.gateway_v4 = Some(gateway);
         }
     }
