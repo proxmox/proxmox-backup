@@ -90,6 +90,10 @@ pub enum DeletableProperty {
     method_v4,
     /// Delete the whole IPv6 configuration entry.
     method_v6,
+    /// Delete IPv4 comments
+    comments_v4,
+    /// Delete IPv6 comments
+    comments_v6,
     /// Delete mtu.
     mtu,
     /// Delete auto flag
@@ -119,6 +123,16 @@ pub enum DeletableProperty {
             },
             method_v6: {
                 type: NetworkConfigMethod,
+                optional: true,
+            },
+            comments_v4: {
+                description: "Comments (inet)",
+                type: String,
+                optional: true,
+            },
+            comments_v6: {
+                description: "Comments (inet6)",
+                type: String,
                 optional: true,
             },
             address: {
@@ -168,6 +182,8 @@ pub fn update_interface(
     auto: Option<bool>,
     method_v4: Option<NetworkConfigMethod>,
     method_v6: Option<NetworkConfigMethod>,
+    comments_v4: Option<String>,
+    comments_v6: Option<String>,
     address: Option<String>,
     gateway: Option<String>,
     mtu: Option<u64>,
@@ -205,6 +221,8 @@ pub fn update_interface(
                 DeletableProperty::gateway_v6 => { interface.gateway_v6 = None; },
                 DeletableProperty::method_v4 => { interface.method_v4 = None; },
                 DeletableProperty::method_v6 => { interface.method_v6 = None; },
+                DeletableProperty::comments_v4 => { interface.comments_v4 = Vec::new(); },
+                DeletableProperty::comments_v6 => { interface.comments_v6 = Vec::new(); },
                 DeletableProperty::mtu => { interface.mtu = None; },
                 DeletableProperty::auto => { interface.auto = false; },
                 DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
@@ -246,6 +264,14 @@ pub fn update_interface(
             }
             interface.gateway_v4 = Some(gateway);
         }
+    }
+
+    if let Some(comments) = comments_v4 {
+        interface.comments_v4 = comments.lines().map(String::from).collect();
+    }
+
+    if let Some(comments) = comments_v6 {
+        interface.comments_v6 = comments.lines().map(String::from).collect();
     }
 
     network::save_config(&config)?;
