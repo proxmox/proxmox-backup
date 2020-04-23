@@ -254,16 +254,41 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
         _ => unreachable!(),
     };
 
+    fn render_address(_value: &Value, record: &Value) -> Result<String, Error> {
+        let mut text = String::new();
+
+        if let Some(cidr) = record["cidr_v4"].as_str() {
+            text.push_str(cidr);
+        }
+        if let Some(cidr) = record["cidr_v6"].as_str() {
+            if !text.is_empty() { text.push('\n'); }
+            text.push_str(cidr);
+        }
+
+        Ok(text)
+    }
+
+    fn render_gateway(_value: &Value, record: &Value) -> Result<String, Error> {
+        let mut text = String::new();
+
+        if let Some(gateway) = record["gateway_v4"].as_str() {
+            text.push_str(gateway);
+        }
+        if let Some(gateway) = record["gateway_v6"].as_str() {
+            if !text.is_empty() { text.push('\n'); }
+            text.push_str(gateway);
+        }
+
+        Ok(text)
+    }
+
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("auto"))
         .column(ColumnConfig::new("method_v4"))
         .column(ColumnConfig::new("method_v6"))
-        .column(ColumnConfig::new("cidr_v4"))
-        .column(ColumnConfig::new("gateway_v4"))
-        .column(ColumnConfig::new("cidr_v6"))
-        .column(ColumnConfig::new("gateway_v6"))
-       ;
+        .column(ColumnConfig::new("cidr_v4").header("address").renderer(render_address))
+        .column(ColumnConfig::new("gateway_v4").header("gateway").renderer(render_gateway));
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
