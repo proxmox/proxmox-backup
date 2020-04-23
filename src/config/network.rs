@@ -251,14 +251,15 @@ impl Interface {
             if let Some(method) = self.method_v4 {
                 writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v4(w, method)?;
+                self.write_iface_attributes(w)?;
                 writeln!(w)?;
             }
             if let Some(method) = self.method_v6 {
                 writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v6(w, method)?;
+                self.write_iface_attributes(w)?;
                 writeln!(w)?;
             }
-            self.write_iface_attributes(w)?;
         }
         Ok(())
     }
