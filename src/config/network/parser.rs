@@ -9,7 +9,7 @@ use regex::Regex;
 use super::helper::*;
 use super::lexer::*;
 
-use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod};
+use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod, NetworkInterfaceType};
 
 pub struct NetworkParser<R: BufRead> {
     input: Peekable<Lexer<R>>,
@@ -288,21 +288,41 @@ impl <R: BufRead> NetworkParser<R> {
         let existing_interfaces = get_network_interfaces()?;
 
         lazy_static!{
-            static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"(?:eth\d+|en[^:.]+|ib\d+)").unwrap();
+            static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
+            static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
+            static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+$").unwrap();
         }
 
         for (iface, active) in existing_interfaces.iter()  {
-            let exists = PHYSICAL_NIC_REGEX.is_match(iface);
             if let Some(interface) = config.interfaces.get_mut(iface) {
-                interface.exists = exists;
                 interface.active = *active;
-            } else if exists { // also add all physical NICs
+            } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
                 let mut interface = Interface::new(iface.clone());
                 interface.set_method_v4(NetworkConfigMethod::Manual)?;
-                interface.exists = true;
+                interface.interface_type = NetworkInterfaceType::Ethernet;
                 interface.active = *active;
                 config.interfaces.insert(interface.name.clone(), interface);
                 config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
+            }
+        }
+
+        for (name, interface) in config.interfaces.iter_mut() {
+            if interface.interface_type != NetworkInterfaceType::Unknown { continue; }
+            if name == "lo" {
+                interface.interface_type = NetworkInterfaceType::Loopback;
+                continue;
+            }
+            if INTERFACE_ALIAS_REGEX.is_match(name) {
+                interface.interface_type = NetworkInterfaceType::Alias;
+                continue;
+            }
+            if VLAN_INTERFACE_REGEX.is_match(name) {
+                interface.interface_type = NetworkInterfaceType::Vlan;
+                continue;
+            }
+            if PHYSICAL_NIC_REGEX.is_match(name) {
+                interface.interface_type = NetworkInterfaceType::Ethernet;
+                continue;
             }
         }
 

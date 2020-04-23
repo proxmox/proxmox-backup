@@ -14,15 +14,15 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-use crate::api2::types::{Interface, NetworkConfigMethod};
+use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType};
 
 impl Interface {
 
     pub fn new(name: String) -> Self {
         Self {
             name,
+            interface_type: NetworkInterfaceType::Unknown,
             auto: false,
-            exists: false,
             active: false,
             method_v4: None,
             method_v6: None,
@@ -153,8 +153,8 @@ impl Interface {
                 options_v6,
                 // the rest does not matter
                 name: _name,
+                interface_type: _interface_type,
                 auto: _auto,
-                exists: _exists,
                 active: _active,
                 cidr_v4: _cidr_v4,
                 cidr_v6: _cidr_v6,

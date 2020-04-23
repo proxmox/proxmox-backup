@@ -521,6 +521,29 @@ pub enum NetworkConfigMethod {
     Loopback,
 }
 
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Network interface type
+pub enum NetworkInterfaceType {
+    /// Loopback
+    Loopback,
+    /// Physical Ethernet device
+    Ethernet,
+    /// Name looks like a physical ethernet device, but device is not found
+    Vanished,
+    /// Linux Bridge
+    Bridge,
+    /// Linux Bond
+    Bond,
+    /// Linux VLAN (eth.10)
+    Vlan,
+    /// Interface Alias (eth:1)
+    Alias,
+    /// Unknown interface type
+    Unknown,
+}
+
 pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network interface name.")
     .format(&NETWORK_INTERFACE_FORMAT)
     .min_length(1)
@@ -531,6 +554,9 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
     properties: {
         name: {
             schema: NETWORK_INTERFACE_NAME_SCHEMA,
+        },
+        interface_type: {
+            type: NetworkInterfaceType,
         },
         method_v4: {
             type: NetworkConfigMethod,
@@ -563,12 +589,12 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
 pub struct Interface {
     /// Autostart interface
     pub auto: bool,
-    /// Interface is a physical network device
-    pub exists: bool,
     /// Interface is active (UP)
     pub active: bool,
     /// Interface name
     pub name: String,
+    /// Interface type
+    pub interface_type: NetworkInterfaceType,
     #[serde(skip_serializing_if="Option::is_none")]
     pub method_v4: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]

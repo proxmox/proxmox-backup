@@ -283,6 +283,7 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     }
 
     let options = default_table_format_options()
+        .column(ColumnConfig::new("interface_type").header("type"))
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("auto"))
         .column(ColumnConfig::new("method_v4"))
