@@ -92,6 +92,15 @@ impl Interface {
         Ok(())
     }
 
+    fn set_interface_type(&mut self, interface_type: NetworkInterfaceType) -> Result<(), Error> {
+        if self.interface_type == NetworkInterfaceType::Unknown {
+            self.interface_type = interface_type;
+        } else if self.interface_type != interface_type {
+            bail!("interface type already defined - cannot change from {:?} to {:?}", self.interface_type, interface_type);
+        }
+        Ok(())
+    }
+
     fn push_addon_option(&mut self, text: String) {
         if self.method_v4.is_none() && self.method_v6.is_some() {
             self.options_v6.push(text);

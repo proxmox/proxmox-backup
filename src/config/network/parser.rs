@@ -174,6 +174,7 @@ impl <R: BufRead> NetworkParser<R> {
 
         Ok(list)
     }
+
     fn parse_iface_attributes(&mut self, interface: &mut Interface) -> Result<(), Error> {
 
         loop {
@@ -194,13 +195,13 @@ impl <R: BufRead> NetworkParser<R> {
                     self.eat(Token::BridgePorts)?;
                     let ports = self.parse_iface_list()?;
                     interface.bridge_ports = Some(ports);
-                    interface.interface_type = NetworkInterfaceType::Bridge;
+                    interface.set_interface_type(NetworkInterfaceType::Bridge)?;
                 }
                 Token::BondSlaves => {
                     self.eat(Token::BondSlaves)?;
                     let slaves = self.parse_iface_list()?;
                     interface.bond_slaves = Some(slaves);
-                    interface.interface_type = NetworkInterfaceType::Bond;
+                    interface.set_interface_type(NetworkInterfaceType::Bond)?;
                 }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
                 _ => {
