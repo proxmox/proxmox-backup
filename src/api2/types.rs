@@ -586,6 +586,22 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
                 type: String,
             },
         },
+        comments_v4: {
+            description: "Comments (inet)",
+            type: Array,
+            items: {
+                description: "Comment line.",
+                type: String,
+            },
+        },
+        comments_v6: {
+            description: "Comments (inet6)",
+            type: Array,
+            items: {
+                description: "Comment line.",
+                type: String,
+            },
+        },
         bridge_ports: {
             schema: NETWORK_INTERFACE_LIST_SCHEMA,
             optional: true,
@@ -628,6 +644,11 @@ pub struct Interface {
     pub options_v4: Vec<String>,
     #[serde(skip_serializing_if="Vec::is_empty")]
     pub options_v6: Vec<String>,
+
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub comments_v4: Vec<String>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub comments_v6: Vec<String>,
 
     #[serde(skip_serializing_if="Option::is_none")]
     /// Maximum Transmission Unit

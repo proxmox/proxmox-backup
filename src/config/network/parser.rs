@@ -59,12 +59,12 @@ impl <R: BufRead> NetworkParser<R> {
         }
     }
 
-    fn eat(&mut self, expected: Token) -> Result<(), Error> {
-        let (next, _) = self.next()?;
+    fn eat(&mut self, expected: Token) -> Result<String, Error> {
+        let (next, text) = self.next()?;
         if next != expected {
             bail!("expected {:?}, got {:?}", expected, next);
         }
-        Ok(())
+        Ok(text)
     }
 
     fn parse_auto(&mut self, auto_flag: &mut HashSet<String>) -> Result<(), Error> {
@@ -150,12 +150,6 @@ impl <R: BufRead> NetworkParser<R> {
         }
     }
 
-    fn parse_iface_addon_attribute(&mut self, interface: &mut Interface) -> Result<(), Error> {
-        let option = self.parse_to_eol()?;
-        if !option.is_empty() { interface.push_addon_option(option) };
-        Ok(())
-    }
-
     fn parse_iface_list(&mut self) -> Result<Vec<String>, Error> {
         let mut list = Vec::new();
 
@@ -175,13 +169,29 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(list)
     }
 
-    fn parse_iface_attributes(&mut self, interface: &mut Interface) -> Result<(), Error> {
+    fn parse_iface_attributes(
+        &mut self,
+        interface: &mut Interface,
+        address_family_v4: bool,
+        address_family_v6: bool,
+    ) -> Result<(), Error> {
 
         loop {
             match self.peek()? {
-                Token::Attribute => self.eat(Token::Attribute)?,
+                Token::Attribute => { self.eat(Token::Attribute)?; },
+                Token::Comment => {
+                    let comment = self.eat(Token::Comment)?;
+                    if !address_family_v4 && address_family_v6 {
+                        interface.comments_v6.push(comment);
+                    } else {
+                        interface.comments_v4.push(comment);
+                    }
+                    self.eat(Token::Newline)?;
+                    continue;
+                }
                 Token::Newline => break,
-                unexpected => bail!("unknown token {:?}", unexpected),
+                Token::EOF => break,
+                unexpected => bail!("unexpected token {:?} (expected iface attribute)", unexpected),
             }
 
             match self.peek()? {
@@ -204,9 +214,17 @@ impl <R: BufRead> NetworkParser<R> {
                     interface.set_interface_type(NetworkInterfaceType::Bond)?;
                 }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
-                _ => {
-                    self.parse_iface_addon_attribute(interface)?;
-                },
+
+                _ => { // parse addon attributes
+                    let option = self.parse_to_eol()?;
+                    if !option.is_empty() {
+                        if !address_family_v4 && address_family_v6 {
+                            interface.options_v6.push(option);
+                        } else {
+                            interface.options_v4.push(option);
+                        }
+                   };
+                 },
             }
         }
 
@@ -235,7 +253,6 @@ impl <R: BufRead> NetworkParser<R> {
             }
         }
 
-        let has_attributes = self.peek()? == Token::Attribute;
         let config_method = config_method.unwrap_or(NetworkConfigMethod::Static);
 
         if !(address_family_v4 || address_family_v6) {
@@ -251,7 +268,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.set_method_v6(config_method)?;
             }
 
-            if has_attributes { self.parse_iface_attributes(&mut interface)?; }
+            self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?;
         } else {
             let mut interface = Interface::new(iface.clone());
             if address_family_v4 {
@@ -261,7 +278,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.set_method_v6(config_method)?;
             }
 
-            if has_attributes { self.parse_iface_attributes(&mut interface)?; }
+            self.parse_iface_attributes(&mut interface, address_family_v4, address_family_v6)?;
 
             config.interfaces.insert(interface.name.clone(), interface);
 

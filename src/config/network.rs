@@ -32,6 +32,8 @@ impl Interface {
             gateway_v6: None,
             options_v4: Vec::new(),
             options_v6: Vec::new(),
+            comments_v4: Vec::new(),
+            comments_v6: Vec::new(),
             mtu: None,
             bridge_ports: None,
             bond_slaves: None,
@@ -117,14 +119,6 @@ impl Interface {
         Ok(())
     }
 
-    fn push_addon_option(&mut self, text: String) {
-        if self.method_v4.is_none() && self.method_v6.is_some() {
-            self.options_v6.push(text);
-        } else {
-            self.options_v4.push(text);
-        }
-    }
-
     /// Write attributes not dependening on address family
     fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
 
@@ -172,6 +166,10 @@ impl Interface {
             writeln!(w, "    {}", option)?;
         }
 
+        for comment in &self.comments_v4 {
+            writeln!(w, "#4{}", comment)?;
+        }
+
         Ok(())
     }
 
@@ -190,6 +188,10 @@ impl Interface {
             writeln!(w, "    {}", option)?;
         }
 
+        for comment in &self.comments_v6 {
+            writeln!(w, "#6{}", comment)?;
+        }
+
         Ok(())
     }
 
@@ -202,6 +204,8 @@ impl Interface {
                 method_v6,
                 options_v4,
                 options_v6,
+                comments_v4,
+                comments_v6,
                 // the rest does not matter
                 name: _name,
                 interface_type: _interface_type,
@@ -216,6 +220,8 @@ impl Interface {
                 bond_slaves: _bond_slaves,
             } => {
                 method_v4 == method_v6
+                    && comments_v4.is_empty()
+                    && comments_v6.is_empty()
                     && options_v4.is_empty()
                     && options_v6.is_empty()
             }
@@ -257,7 +263,9 @@ impl Interface {
             if let Some(method) = self.method_v6 {
                 writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v6(w, method)?;
-                self.write_iface_attributes(w)?;
+                if self.method_v4.is_none() { // only write common attributes once
+                    self.write_iface_attributes(w)?;
+                }
                 writeln!(w)?;
             }
         }
