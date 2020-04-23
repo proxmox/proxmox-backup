@@ -30,10 +30,9 @@ impl Interface {
             gateway_v4: None,
             cidr_v6: None,
             gateway_v6: None,
-            mtu_v4: None,
-            mtu_v6: None,
             options_v4: Vec::new(),
             options_v6: Vec::new(),
+            mtu: None,
         }
     }
 
@@ -99,6 +98,15 @@ impl Interface {
         }
     }
 
+    /// Write attributes not dependening on address family
+    fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
+        if let Some(mtu) = self.mtu {
+            writeln!(w, "    mtu {}", mtu)?;
+        }
+        Ok(())
+    }
+
+    /// Write attributes dependening on address family inet (IPv4)
     fn write_iface_attributes_v4(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
             if let Some(address) = &self.cidr_v4 {
@@ -109,10 +117,6 @@ impl Interface {
             }
         }
 
-        if let Some(mtu) = &self.mtu_v4 {
-            writeln!(w, "    mtu {}", mtu)?;
-        }
-
         for option in &self.options_v4 {
             writeln!(w, "    {}", option)?;
         }
@@ -120,6 +124,7 @@ impl Interface {
         Ok(())
     }
 
+    /// Write attributes dependening on address family inet6 (IPv6)
     fn write_iface_attributes_v6(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
             if let Some(address) = &self.cidr_v6 {
@@ -128,10 +133,6 @@ impl Interface {
             if let Some(gateway) = &self.gateway_v6 {
                 writeln!(w, "    gateway {}", gateway)?;
             }
-        }
-
-        if let Some(mtu) = &self.mtu_v6 {
-            writeln!(w, "    mtu {}", mtu)?;
         }
 
         for option in &self.options_v6 {
@@ -159,13 +160,13 @@ impl Interface {
         }
 
         if self.method_v4 == self.method_v6
-            && self.mtu_v4 == self.mtu_v6
             && self.options_v4.is_empty() == self.options_v6.is_empty()
         {
             if let Some(method) = self.method_v4 {
                 writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v4(w, method)?;
                 self.write_iface_attributes_v6(w, method)?;
+                self.write_iface_attributes(w)?;
                 writeln!(w)?;
             }
         } else {
@@ -179,6 +180,7 @@ impl Interface {
                 self.write_iface_attributes_v6(w, method)?;
                 writeln!(w)?;
             }
+            self.write_iface_attributes(w)?;
         }
         Ok(())
     }
