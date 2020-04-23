@@ -101,6 +101,22 @@ impl Interface {
         Ok(())
     }
 
+    pub(crate) fn set_bridge_ports(&mut self, ports: Vec<String>) -> Result<(), Error> {
+        if self.interface_type != NetworkInterfaceType::Bridge {
+            bail!("interface '{}' is no bridge (type is {:?})", self.name, self.interface_type);
+        }
+        self.bridge_ports = Some(ports);
+        Ok(())
+    }
+
+    pub(crate) fn set_bond_slaves(&mut self, slaves: Vec<String>) -> Result<(), Error> {
+        if self.interface_type != NetworkInterfaceType::Bond {
+            bail!("interface '{}' is no bond (type is {:?})", self.name, self.interface_type);
+        }
+        self.bond_slaves = Some(slaves);
+        Ok(())
+    }
+
     fn push_addon_option(&mut self, text: String) {
         if self.method_v4.is_none() && self.method_v6.is_some() {
             self.options_v6.push(text);

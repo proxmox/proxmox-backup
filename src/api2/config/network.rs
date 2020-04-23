@@ -94,7 +94,12 @@ pub enum DeletableProperty {
     mtu,
     /// Delete auto flag
     auto,
+    /// Delete bridge ports (set to 'none')
+    bridge_ports,
+    /// Delete bond-slaves (set to 'none')
+    bond_slaves,
 }
+
 
 #[api(
     protected: true,
@@ -131,6 +136,14 @@ pub enum DeletableProperty {
                 maximum: 65535,
                 default: 1500,
             },
+            bridge_ports: {
+                schema: NETWORK_INTERFACE_LIST_SCHEMA,
+                optional: true,
+            },
+            bond_slaves: {
+                schema: NETWORK_INTERFACE_LIST_SCHEMA,
+                optional: true,
+            },
             delete: {
                 description: "List of properties to delete.",
                 type: Array,
@@ -158,6 +171,8 @@ pub fn update_interface(
     address: Option<String>,
     gateway: Option<String>,
     mtu: Option<u64>,
+    bridge_ports: Option<Vec<String>>,
+    bond_slaves: Option<Vec<String>>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -182,8 +197,8 @@ pub fn update_interface(
     let interface = config.lookup_mut(&name)?;
 
     if let Some(delete) = delete {
-        for name in delete {
-            match name {
+        for delete_prop in delete {
+            match delete_prop {
                 DeletableProperty::address_v4 => { interface.cidr_v4 = None; },
                 DeletableProperty::address_v6 => { interface.cidr_v6 = None; },
                 DeletableProperty::gateway_v4 => { interface.gateway_v4 = None; },
@@ -192,6 +207,8 @@ pub fn update_interface(
                 DeletableProperty::method_v6 => { interface.method_v6 = None; },
                 DeletableProperty::mtu => { interface.mtu = None; },
                 DeletableProperty::auto => { interface.auto = false; },
+                DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
+                DeletableProperty::bond_slaves => { interface.set_bond_slaves(Vec::new())?; }
             }
         }
     }
@@ -200,6 +217,8 @@ pub fn update_interface(
     if method_v4.is_some() { interface.method_v4 = method_v4; }
     if method_v6.is_some() { interface.method_v6 = method_v6; }
     if mtu.is_some() { interface.mtu = mtu; }
+    if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
+    if let Some(slaves) = bond_slaves { interface.set_bond_slaves(slaves)?; }
 
     if let Some(address) = address {
         let (_, _, is_v6) = network::parse_cidr(&address)?;
