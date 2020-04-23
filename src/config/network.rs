@@ -142,6 +142,33 @@ impl Interface {
         Ok(())
     }
 
+    /// Return whether we can write a single entry for inet and inet6
+    fn combine_entry(&self) -> bool {
+        // Note: use match to make sure we considered all values at compile time
+        match self {
+            Interface {
+                method_v4,
+                method_v6,
+                options_v4,
+                options_v6,
+                // the rest does not matter
+                name: _name,
+                auto: _auto,
+                exists: _exists,
+                active: _active,
+                cidr_v4: _cidr_v4,
+                cidr_v6: _cidr_v6,
+                gateway_v4: _gateway_v4,
+                gateway_v6: _gateway_v6,
+                mtu: _mtu,
+            } => {
+                method_v4 == method_v6
+                    && options_v4.is_empty()
+                    && options_v6.is_empty()
+            }
+        }
+    }
+
     fn write_iface(&self, w: &mut dyn Write) -> Result<(), Error> {
 
         fn method_to_str(method: NetworkConfigMethod) -> &'static str {
@@ -159,9 +186,7 @@ impl Interface {
             writeln!(w, "auto {}", self.name)?;
         }
 
-        if self.method_v4 == self.method_v6
-            && self.options_v4.is_empty() == self.options_v6.is_empty()
-        {
+        if self.combine_entry() {
             if let Some(method) = self.method_v4 {
                 writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v4(w, method)?;
