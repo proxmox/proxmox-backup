@@ -36,9 +36,12 @@ pam = "0.7"
 pam-sys = "0.5"
 percent-encoding = "2.1"
 pin-utils = "0.1.0"
+pathpatterns = "0.1.0"
 proxmox = { version = "0.1.39", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
-#proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
+proxmox-fuse = "0.1.0"
+pxar = { version = "0.1.6", features = [ "tokio-io", "futures-io" ] }
+#pxar = { path = "../pxar", features = [ "tokio-io", "futures-io" ] }
 regex = "1.2"
 rustyline = "6"
 serde = { version = "1.0", features = ["derive"] }
