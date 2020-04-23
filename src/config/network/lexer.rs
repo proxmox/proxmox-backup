@@ -23,6 +23,7 @@ pub enum Token {
     Attribute,
     MTU,
     BridgePorts,
+    BondSlaves,
     EOF,
 }
 
@@ -43,6 +44,8 @@ lazy_static! {
         map.insert("mtu", Token::MTU);
         map.insert("bridge-ports", Token::BridgePorts);
         map.insert("bridge_ports", Token::BridgePorts);
+        map.insert("bond-slaves", Token::BondSlaves);
+        map.insert("bond_slaves", Token::BondSlaves);
         map
     };
 }

@@ -196,6 +196,12 @@ impl <R: BufRead> NetworkParser<R> {
                     interface.bridge_ports = Some(ports);
                     interface.interface_type = NetworkInterfaceType::Bridge;
                 }
+                Token::BondSlaves => {
+                    self.eat(Token::BondSlaves)?;
+                    let slaves = self.parse_iface_list()?;
+                    interface.bond_slaves = Some(slaves);
+                    interface.interface_type = NetworkInterfaceType::Bond;
+                }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
                 _ => {
                     self.parse_iface_addon_attribute(interface)?;

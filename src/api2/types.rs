@@ -590,6 +590,10 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
             schema: NETWORK_INTERFACE_LIST_SCHEMA,
             optional: true,
         },
+        bond_slaves: {
+            schema: NETWORK_INTERFACE_LIST_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Debug, Serialize, Deserialize)]
@@ -631,6 +635,9 @@ pub struct Interface {
 
     #[serde(skip_serializing_if="Option::is_none")]
     pub bridge_ports: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bond_slaves: Option<Vec<String>>,
 }
 
 // Regression tests

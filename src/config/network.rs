@@ -34,6 +34,7 @@ impl Interface {
             options_v6: Vec::new(),
             mtu: None,
             bridge_ports: None,
+            bond_slaves: None,
         }
     }
 
@@ -112,6 +113,15 @@ impl Interface {
                     }
                 }
             }
+            NetworkInterfaceType::Bond => {
+                if let Some(ref slaves) = self.bond_slaves {
+                    if slaves.is_empty() {
+                        writeln!(w, "    bond-slaves none")?;
+                    } else {
+                        writeln!(w, "    bond-slaves {}", slaves.join(" "))?;
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -178,6 +188,7 @@ impl Interface {
                 gateway_v6: _gateway_v6,
                 mtu: _mtu,
                 bridge_ports: _bridge_ports,
+                bond_slaves: _bond_slaves,
             } => {
                 method_v4 == method_v6
                     && options_v4.is_empty()
