@@ -550,6 +550,10 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
     .max_length(libc::IFNAMSIZ-1)
     .schema();
 
+pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
+    "Network interface list.", &NETWORK_INTERFACE_NAME_SCHEMA)
+    .schema();
+
 #[api(
     properties: {
         name: {
@@ -581,6 +585,10 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
                 description: "Optional attribute line.",
                 type: String,
             },
+        },
+        bridge_ports: {
+            schema: NETWORK_INTERFACE_LIST_SCHEMA,
+            optional: true,
         },
     }
 )]
@@ -620,6 +628,9 @@ pub struct Interface {
     #[serde(skip_serializing_if="Option::is_none")]
     /// Maximum Transmission Unit
     pub mtu: Option<u64>,
+
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bridge_ports: Option<Vec<String>>,
 }
 
 // Regression tests

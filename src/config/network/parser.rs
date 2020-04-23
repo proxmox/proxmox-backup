@@ -156,6 +156,24 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
+    fn parse_iface_list(&mut self) -> Result<Vec<String>, Error> {
+        let mut list = Vec::new();
+
+        loop {
+            let (token, text) = self.next()?;
+            match token {
+                Token::Newline => break,
+                Token::Text => {
+                    if &text != "none" {
+                        list.push(text);
+                    }
+                }
+                _ => bail!("unable to parse interface list - unexpected token '{:?}'", token),
+            }
+        }
+
+        Ok(list)
+    }
     fn parse_iface_attributes(&mut self, interface: &mut Interface) -> Result<(), Error> {
 
         loop {
@@ -171,6 +189,12 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::MTU => {
                     let mtu = self.parse_iface_mtu()?;
                     interface.mtu = Some(mtu);
+                }
+                Token::BridgePorts => {
+                    self.eat(Token::BridgePorts)?;
+                    let ports = self.parse_iface_list()?;
+                    interface.bridge_ports = Some(ports);
+                    interface.interface_type = NetworkInterfaceType::Bridge;
                 }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
                 _ => {

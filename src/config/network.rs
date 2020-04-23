@@ -33,6 +33,7 @@ impl Interface {
             options_v4: Vec::new(),
             options_v6: Vec::new(),
             mtu: None,
+            bridge_ports: None,
         }
     }
 
@@ -100,9 +101,24 @@ impl Interface {
 
     /// Write attributes not dependening on address family
     fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
+
+        match self.interface_type {
+            NetworkInterfaceType::Bridge => {
+                if let Some(ref ports) = self.bridge_ports {
+                    if ports.is_empty() {
+                        writeln!(w, "    bridge-ports none")?;
+                    } else {
+                        writeln!(w, "    bridge-ports {}", ports.join(" "))?;
+                    }
+                }
+            }
+            _ => {}
+        }
+
         if let Some(mtu) = self.mtu {
             writeln!(w, "    mtu {}", mtu)?;
         }
+
         Ok(())
     }
 
@@ -161,6 +177,7 @@ impl Interface {
                 gateway_v4: _gateway_v4,
                 gateway_v6: _gateway_v6,
                 mtu: _mtu,
+                bridge_ports: _bridge_ports,
             } => {
                 method_v4 == method_v6
                     && options_v4.is_empty()

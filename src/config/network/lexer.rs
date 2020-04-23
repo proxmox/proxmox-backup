@@ -22,6 +22,7 @@ pub enum Token {
     Static,
     Attribute,
     MTU,
+    BridgePorts,
     EOF,
 }
 
@@ -40,6 +41,8 @@ lazy_static! {
         map.insert("netmask", Token::Netmask);
         map.insert("static", Token::Static);
         map.insert("mtu", Token::MTU);
+        map.insert("bridge-ports", Token::BridgePorts);
+        map.insert("bridge_ports", Token::BridgePorts);
         map
     };
 }
