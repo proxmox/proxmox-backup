@@ -1,3 +1,5 @@
+use std::path::Path;
+use std::process::Command;
 use std::collections::HashMap;
 
 use anyhow::{Error, bail, format_err};
@@ -135,4 +137,60 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
     }
 
     Ok(interface_list)
+}
+
+pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> {
+
+    let output = Command::new("/usr/bin/diff")
+        .arg("-b")
+        .arg("-u")
+        .arg(filename)
+        .arg(shadow)
+        .output()
+        .map_err(|err| format_err!("failed to execute diff - {}", err))?;
+
+    if !output.status.success() {
+        match output.status.code() {
+            Some(code) => {
+                if code == 0 { return Ok(String::new()); }
+                if code != 1 {
+                    let msg = String::from_utf8(output.stderr)
+                        .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                        .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+
+                   bail!("diff failed with status code: {} - {}", code, msg);
+                }
+            }
+            None => bail!("diff terminated by signal"),
+        }
+    }
+
+    let diff = String::from_utf8(output.stdout)?;
+
+    Ok(diff)
+}
+
+pub fn assert_ifupdown2_installed() -> Result<(), Error> {
+    if !Path::new("/usr/share/ifupdown2").exists() {
+        bail!("ifupdown2 is not installed.");
+    }
+
+    Ok(())
+}
+
+pub fn network_reload() -> Result<(), Error> {
+
+    let status = Command::new("/sbin/ifreload")
+        .arg("-a")
+        .status()
+        .map_err(|err| format_err!("failed to execute ifreload: - {}", err))?;
+
+    if !status.success() {
+        match status.code() {
+            Some(code) => bail!("ifreload failed with status code: {}", code),
+            None => bail!("ifreload terminated by signal")
+        }
+    }
+
+    Ok(())
 }

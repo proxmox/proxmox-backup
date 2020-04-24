@@ -387,6 +387,15 @@ pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
     Ok((data, digest))
 }
 
+pub fn changes() -> Result<String, Error> {
+
+    if !std::path::Path::new(NETWORK_INTERFACES_NEW_FILENAME).exists() {
+        return Ok(String::new());
+    }
+
+    compute_file_diff(NETWORK_INTERFACES_FILENAME, NETWORK_INTERFACES_NEW_FILENAME)
+}
+
 pub fn save_config(config: &NetworkConfig) -> Result<(), Error> {
 
     let mut raw = Vec::new();

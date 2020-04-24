@@ -254,6 +254,12 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
         _ => unreachable!(),
     };
 
+    if let Some(changes) = rpcenv.get_result_attrib("changes") {
+        if let Some(diff) = changes.as_str() {
+            eprintln!("pending changes:\n{}\n", diff);
+        }
+    }
+
     fn render_address(_value: &Value, record: &Value) -> Result<String, Error> {
         let mut text = String::new();
 
@@ -300,15 +306,21 @@ fn network_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES))
-        .insert("update",
-                CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
+        .insert(
+            "update",
+            CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::network::complete_interface_name)
         )
-        .insert("remove",
-                CliCommand::new(&api2::config::network::API_METHOD_DELETE_INTERFACE)
+        .insert(
+            "remove",
+            CliCommand::new(&api2::config::network::API_METHOD_DELETE_INTERFACE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::network::complete_interface_name)
+        )
+        .insert(
+            "reload",
+            CliCommand::new(&api2::config::network::API_METHOD_RELOAD_NETWORK_CONFIG)
         );
 
     cmd_def.into()

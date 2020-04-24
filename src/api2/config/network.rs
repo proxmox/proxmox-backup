@@ -27,7 +27,7 @@ use crate::api2::types::*;
 pub fn list_network_devices(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let (config, digest) = network::config()?;
@@ -39,6 +39,11 @@ pub fn list_network_devices(
         let mut item: Value = to_value(interface)?;
         item["digest"] = digest.clone().into();
         list.push(item);
+    }
+
+    let diff = network::changes()?;
+    if !diff.is_empty() {
+        rpcenv.set_result_attrib("changes",  diff.into());
     }
 
     Ok(list.into())
@@ -312,6 +317,23 @@ pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Erro
     Ok(())
 }
 
+#[api(
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Reload network configuration (requires ifupdown2).
+pub fn reload_network_config() -> Result<(), Error> {
+
+    network::assert_ifupdown2_installed()?;
+
+    let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
+
+    network::network_reload()?;
+
+    Ok(())
+}
+
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_INTERFACE)
     .put(&API_METHOD_UPDATE_INTERFACE)
@@ -319,4 +341,5 @@ const ITEM_ROUTER: Router = Router::new()
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_NETWORK_DEVICES)
+    .put(&API_METHOD_RELOAD_NETWORK_CONFIG)
     .match_all("name", &ITEM_ROUTER);
