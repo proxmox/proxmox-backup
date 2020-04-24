@@ -32,8 +32,8 @@ impl Interface {
             gateway_v6: None,
             options_v4: Vec::new(),
             options_v6: Vec::new(),
-            comments_v4: Vec::new(),
-            comments_v6: Vec::new(),
+            comments_v4: None,
+            comments_v6: None,
             mtu: None,
             bridge_ports: None,
             bond_slaves: None,
@@ -166,8 +166,10 @@ impl Interface {
             writeln!(w, "    {}", option)?;
         }
 
-        for comment in &self.comments_v4 {
-            writeln!(w, "#4{}", comment)?;
+        if let Some(ref comments) = self.comments_v4 {
+            for comment in comments.lines() {
+                writeln!(w, "#{}", comment)?;
+            }
         }
 
         Ok(())
@@ -188,8 +190,10 @@ impl Interface {
             writeln!(w, "    {}", option)?;
         }
 
-        for comment in &self.comments_v6 {
-            writeln!(w, "#6{}", comment)?;
+        if let Some(ref comments) = self.comments_v6 {
+            for comment in comments.lines() {
+                writeln!(w, "#{}", comment)?;
+            }
         }
 
         Ok(())
@@ -220,8 +224,8 @@ impl Interface {
                 bond_slaves: _bond_slaves,
             } => {
                 method_v4 == method_v6
-                    && comments_v4.is_empty()
-                    && comments_v6.is_empty()
+                    && comments_v4.is_none()
+                    && comments_v6.is_none()
                     && options_v4.is_empty()
                     && options_v6.is_empty()
             }

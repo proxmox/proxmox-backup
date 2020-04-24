@@ -182,9 +182,15 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::Comment => {
                     let comment = self.eat(Token::Comment)?;
                     if !address_family_v4 && address_family_v6 {
-                        interface.comments_v6.push(comment);
+                        let mut comments = interface.comments_v6.take().unwrap_or(String::new());
+                        if !comments.is_empty() { comments.push('\n'); }
+                        comments.push_str(&comment);
+                        interface.comments_v6 = Some(comments);
                     } else {
-                        interface.comments_v4.push(comment);
+                        let mut comments = interface.comments_v4.take().unwrap_or(String::new());
+                        if !comments.is_empty() { comments.push('\n'); }
+                        comments.push_str(&comment);
+                        interface.comments_v4 = Some(comments);
                     }
                     self.eat(Token::Newline)?;
                     continue;

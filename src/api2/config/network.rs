@@ -126,12 +126,12 @@ pub enum DeletableProperty {
                 optional: true,
             },
             comments_v4: {
-                description: "Comments (inet)",
+                description: "Comments (inet, may span multiple lines)",
                 type: String,
                 optional: true,
             },
             comments_v6: {
-                description: "Comments (inet6)",
+                description: "Comments (inet5, may span multiple lines)",
                 type: String,
                 optional: true,
             },
@@ -221,8 +221,8 @@ pub fn update_interface(
                 DeletableProperty::gateway_v6 => { interface.gateway_v6 = None; },
                 DeletableProperty::method_v4 => { interface.method_v4 = None; },
                 DeletableProperty::method_v6 => { interface.method_v6 = None; },
-                DeletableProperty::comments_v4 => { interface.comments_v4 = Vec::new(); },
-                DeletableProperty::comments_v6 => { interface.comments_v6 = Vec::new(); },
+                DeletableProperty::comments_v4 => { interface.comments_v4 = None; },
+                DeletableProperty::comments_v6 => { interface.comments_v6 = None; },
                 DeletableProperty::mtu => { interface.mtu = None; },
                 DeletableProperty::auto => { interface.auto = false; },
                 DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
@@ -266,13 +266,8 @@ pub fn update_interface(
         }
     }
 
-    if let Some(comments) = comments_v4 {
-        interface.comments_v4 = comments.lines().map(String::from).collect();
-    }
-
-    if let Some(comments) = comments_v6 {
-        interface.comments_v6 = comments.lines().map(String::from).collect();
-    }
+    if comments_v4.is_some() { interface.comments_v4 = comments_v4; }
+    if comments_v6.is_some() { interface.comments_v6 = comments_v6; }
 
     network::save_config(&config)?;
 
