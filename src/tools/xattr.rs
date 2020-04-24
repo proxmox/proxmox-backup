@@ -22,8 +22,7 @@ pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
         match err {
             Errno::ERANGE => {
                 // Buffer was not big enough to fit the list, retry with double the size
-                if size * 2 < size { return Err(Errno::ENOMEM); }
-                size *= 2;
+                size = size.checked_mul(2).ok_or(Errno::ENOMEM)?;
             },
             _ => return Err(err),
         }
@@ -49,8 +48,7 @@ pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
         match err {
             Errno::ERANGE => {
                 // Buffer was not big enough to fit the value, retry with double the size
-                if size * 2 < size { return Err(Errno::ENOMEM); }
-                size *= 2;
+                size = size.checked_mul(2).ok_or(Errno::ENOMEM)?;
             },
             _ => return Err(err),
         }
