@@ -287,7 +287,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
             Err(err) => bail!("read_xattrs failed for {:?} - {}", self.full_path(), err),
         };
 
-        for name in xattr_names.split(|c| *c == b'\0') {
+        for name in &xattr_names {
             // Only extract the relevant extended attributes
             if !xattr::is_valid_xattr_name(&name) {
                 continue;
@@ -307,7 +307,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 }
             } else if self.has_features(flags::WITH_XATTRS) {
                 xattrs.push(PxarXAttr {
-                    name: name.to_vec(),
+                    name: name.to_bytes().to_vec(),
                     value,
                 });
             }

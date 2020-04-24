@@ -1,7 +1,7 @@
 //! *pxar* format decoder.
 //!
 //! This module contain the code to decode *pxar* archive files.
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -164,9 +164,10 @@ impl<R: Read> SequentialDecoder<R> {
             .position(|c| *c == b'\0')
             .ok_or_else(|| format_err!("no value found in xattr"))?;
 
-        let (name, value) = buffer.split_at(separator);
-        if !xattr::is_valid_xattr_name(name) || xattr::is_security_capability(name) {
-            bail!("incorrect xattr name - {}.", String::from_utf8_lossy(name));
+        let (name, value) = buffer.split_at(separator + 1);
+        let c_name = unsafe { CStr::from_bytes_with_nul_unchecked(name) };
+        if !xattr::is_valid_xattr_name(c_name) || xattr::is_security_capability(c_name) {
+            bail!("incorrect xattr name - {:?}.", c_name);
         }
 
         Ok(PxarXAttr {

@@ -1,15 +1,59 @@
 //! Wrapper functions for the libc xattr calls
 
-extern crate libc;
-
+use std::ffi::CStr;
 use std::os::unix::io::RawFd;
+
 use nix::errno::Errno;
 
 use proxmox::tools::vec;
 
 use crate::pxar::{PxarXAttr, PxarFCaps};
 
-pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
+/// Result of `flistxattr`, allows iterating over the attributes as a list of `&CStr`s.
+///
+/// Listing xattrs produces a list separated by zeroes, inherently making them available as `&CStr`
+/// already, so we make use of this fact and reflect this in the interface.
+pub struct ListXAttr {
+    data: Vec<u8>,
+}
+
+impl ListXAttr {
+    fn new(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+}
+
+impl<'a> IntoIterator for &'a ListXAttr {
+    type Item = &'a CStr;
+    type IntoIter = ListXAttrIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ListXAttrIter {
+            data: &self.data,
+            at: 0,
+        }
+    }
+}
+
+/// Iterator over the extended attribute entries in a `ListXAttr`.
+pub struct ListXAttrIter<'a> {
+    data: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Iterator for ListXAttrIter<'a> {
+    type Item = &'a CStr;
+
+    fn next(&mut self) -> Option<&'a CStr> {
+        let data = &self.data[self.at..];
+        let next = data.iter().position(|b| *b == 0)? + 1;
+        self.at += next;
+        Some(unsafe { CStr::from_bytes_with_nul_unchecked(&data[..next]) })
+    }
+}
+
+/// Return a list of extended attributes accessible as an iterator over items of type `&CStr`.
+pub fn flistxattr(fd: RawFd) -> Result<ListXAttr, nix::errno::Errno> {
     // Initial buffer size for the attribute list, if content does not fit
     // it gets dynamically increased until big enough.
     let mut size = 256;
@@ -32,16 +76,20 @@ pub fn flistxattr(fd: RawFd) -> Result<Vec<u8>, nix::errno::Errno> {
             libc::flistxattr(fd, buffer.as_mut_ptr() as *mut i8, buffer.len())
         };
     }
-    buffer.resize(bytes as usize, 0);
+    buffer.truncate(bytes as usize);
 
-    Ok(buffer)
+    Ok(ListXAttr::new(buffer))
 }
 
-pub fn fgetxattr(fd: RawFd, name: &[u8]) -> Result<Vec<u8>, nix::errno::Errno> {
+/// Get an extended attribute by name.
+///
+/// Extended attributes may not contain zeroes, which we enforce in the API by using a `&CStr`
+/// type.
+pub fn fgetxattr(fd: RawFd, name: &CStr) -> Result<Vec<u8>, nix::errno::Errno> {
     let mut size = 256;
     let mut buffer = vec::undefined(size);
     let mut bytes = unsafe {
-        libc::fgetxattr(fd, name.as_ptr() as *const i8, buffer.as_mut_ptr() as *mut core::ffi::c_void, buffer.len())
+        libc::fgetxattr(fd, name.as_ptr(), buffer.as_mut_ptr() as *mut core::ffi::c_void, buffer.len())
     };
     while bytes < 0 {
         let err = Errno::last();
@@ -92,20 +140,21 @@ pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &PxarFCaps) -> Result<(), nix::errno::E
     Ok(())
 }
 
-pub fn is_security_capability(name: &[u8]) -> bool {
-    name == b"security.capability"
+pub fn is_security_capability(name: &CStr) -> bool {
+    name.to_bytes() == b"security.capability"
 }
 
 /// Check if the passed name buffer starts with a valid xattr namespace prefix
 /// and is within the length limit of 255 bytes
-pub fn is_valid_xattr_name(name: &[u8]) -> bool {
+pub fn is_valid_xattr_name(c_name: &CStr) -> bool {
+    let name = c_name.to_bytes();
     if name.is_empty() || name.len() > 255 {
         return false;
     }
     if name.starts_with(b"user.") || name.starts_with(b"trusted.") {
         return true;
     }
-    is_security_capability(name)
+    is_security_capability(c_name)
 }
 
 #[cfg(test)]
@@ -118,6 +167,8 @@ mod tests {
 
     #[test]
     fn test_fsetxattr_fgetxattr() {
+        use proxmox::c_str;
+
         let path = "./tests/xattrs.txt";
         let file = OpenOptions::new()
             .write(true)
@@ -167,26 +218,28 @@ mod tests {
         assert_eq!(fsetxattr(fd, &invalid_name_prefix), Err(Errno::EOPNOTSUPP));
         assert_eq!(fsetxattr(fd, &invalid_name_length), Err(Errno::ERANGE));
 
-        let v0 = fgetxattr(fd, b"user.attribute0\0".as_ref()).unwrap();
-        let v1 = fgetxattr(fd, b"user.empty\0".as_ref()).unwrap();
+        let v0 = fgetxattr(fd, c_str!("user.attribute0")).unwrap();
+        let v1 = fgetxattr(fd, c_str!("user.empty")).unwrap();
 
         assert_eq!(v0, b"value0".as_ref());
         assert_eq!(v1, b"".as_ref());
-        assert_eq!(fgetxattr(fd, b"user.attribute1\0".as_ref()), Err(Errno::ENODATA));
+        assert_eq!(fgetxattr(fd, c_str!("user.attribute1")), Err(Errno::ENODATA));
 
         std::fs::remove_file(&path).unwrap();
     }
 
     #[test]
     fn test_is_valid_xattr_name() {
-        let empty = Vec::new();
-        let too_long = vec![b'a'; 265];
+        use std::ffi::CString;
 
-        assert!(!is_valid_xattr_name(empty.as_slice()));
-        assert!(!is_valid_xattr_name(too_long.as_slice()));
-        assert!(!is_valid_xattr_name(b"system.attr"));
-        assert!(is_valid_xattr_name(b"user.attr"));
-        assert!(is_valid_xattr_name(b"trusted.attr"));
-        assert!(is_valid_xattr_name(b"security.capability"));
+        use proxmox::c_str;
+
+        let too_long = CString::new(vec![b'a'; 265]).unwrap();
+
+        assert!(!is_valid_xattr_name(&too_long));
+        assert!(!is_valid_xattr_name(c_str!("system.attr")));
+        assert!(is_valid_xattr_name(c_str!("user.attr")));
+        assert!(is_valid_xattr_name(c_str!("trusted.attr")));
+        assert!(is_valid_xattr_name(c_str!("security.capability")));
     }
 }
