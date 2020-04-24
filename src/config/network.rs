@@ -290,6 +290,20 @@ pub struct NetworkConfig {
     order: Vec<NetworkOrderEntry>,
 }
 
+use std::convert::TryFrom;
+
+impl TryFrom<NetworkConfig> for String  {
+
+    type Error = Error;
+
+    fn try_from(config: NetworkConfig) -> Result<Self, Self::Error> {
+        let mut output = Vec::new();
+        config.write_config(&mut output)?;
+        let res = String::from_utf8(output)?;
+        Ok(res)
+    }
+}
+
 impl NetworkConfig {
 
     pub fn new() -> Self {
@@ -381,8 +395,9 @@ pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
 
     let digest = openssl::sha::sha256(&content);
 
+    let existing_interfaces = get_network_interfaces()?;
     let mut parser = NetworkParser::new(&content[..]);
-    let data = parser.parse_interfaces()?;
+    let data = parser.parse_interfaces(Some(&existing_interfaces))?;
 
     Ok((data, digest))
 }
@@ -419,5 +434,57 @@ pub fn complete_interface_name(_arg: &str, _param: &HashMap<String, String>) -> 
     match config() {
         Ok((data, _digest)) => data.interfaces.keys().map(|id| id.to_string()).collect(),
         Err(_) => return vec![],
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use anyhow::{Error};
+
+    use super::*;
+
+    #[test]
+    fn test_network_config_create_lo_1() -> Result<(), Error> {
+
+        let input = "";
+
+        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+
+        let config = parser.parse_interfaces(None)?;
+
+        let output = String::try_from(config)?;
+
+        let expected = "auto lo\niface lo inet loopback\n\n";
+        assert_eq!(output, expected);
+
+        // run again using output as input
+        let mut parser = NetworkParser::new(&output.as_bytes()[..]);
+
+        let config = parser.parse_interfaces(None)?;
+
+        let output = String::try_from(config)?;
+
+        assert_eq!(output, expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_network_config_create_lo_2() -> Result<(), Error> {
+
+        let input = "#c1\n\n#c2\n\niface test inet manual\n";
+
+        let mut parser = NetworkParser::new(&input.as_bytes()[..]);
+
+        let config = parser.parse_interfaces(None)?;
+
+        let output = String::try_from(config)?;
+
+        // Note: loopback should be added in front of other interfaces
+        let expected = "#c1\n#c2\n\nauto lo\niface lo inet loopback\n\niface test inet manual\n\n";
+        assert_eq!(output, expected);
+
+        Ok(())
     }
 }

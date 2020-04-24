@@ -1,6 +1,6 @@
 use std::io::{BufRead};
 use std::iter::{Peekable, Iterator};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Error, bail, format_err};
 use lazy_static::lazy_static;
@@ -294,12 +294,12 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
-    pub fn parse_interfaces(&mut self) -> Result<NetworkConfig, Error> {
-        self._parse_interfaces()
+    pub fn parse_interfaces(&mut self, existing_interfaces: Option<&HashMap<String, bool>>) -> Result<NetworkConfig, Error> {
+        self._parse_interfaces(existing_interfaces)
             .map_err(|err| format_err!("line {}: {}", self.line_nr, err))
     }
 
-    pub fn _parse_interfaces(&mut self) -> Result<NetworkConfig, Error> {
+    pub fn _parse_interfaces(&mut self, existing_interfaces: Option<&HashMap<String, bool>>) -> Result<NetworkConfig, Error> {
         let mut config = NetworkConfig::new();
 
         let mut auto_flag: HashSet<String> = HashSet::new();
@@ -339,27 +339,27 @@ impl <R: BufRead> NetworkParser<R> {
             }
         }
 
-        let existing_interfaces = get_network_interfaces()?;
-
         lazy_static!{
             static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
             static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
             static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+$").unwrap();
         }
 
-        for (iface, active) in existing_interfaces.iter()  {
-            if let Some(interface) = config.interfaces.get_mut(iface) {
-                interface.active = *active;
-                if interface.interface_type == NetworkInterfaceType::Unknown {
+        if let Some(existing_interfaces) = existing_interfaces {
+            for (iface, active) in existing_interfaces.iter()  {
+                if let Some(interface) = config.interfaces.get_mut(iface) {
+                    interface.active = *active;
+                    if interface.interface_type == NetworkInterfaceType::Unknown {
+                        interface.interface_type = NetworkInterfaceType::Ethernet;
+                    }
+                } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
+                    let mut interface = Interface::new(iface.clone());
+                    interface.set_method_v4(NetworkConfigMethod::Manual)?;
                     interface.interface_type = NetworkInterfaceType::Ethernet;
+                    interface.active = *active;
+                    config.interfaces.insert(interface.name.clone(), interface);
+                    config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
                 }
-           } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
-                let mut interface = Interface::new(iface.clone());
-                interface.set_method_v4(NetworkConfigMethod::Manual)?;
-                interface.interface_type = NetworkInterfaceType::Ethernet;
-                interface.active = *active;
-                config.interfaces.insert(interface.name.clone(), interface);
-                config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
             }
         }
 
@@ -381,6 +381,32 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.interface_type = NetworkInterfaceType::Vanished;
                 continue;
             }
+        }
+
+        if config.interfaces.get("lo").is_none() {
+            let mut interface = Interface::new(String::from("lo"));
+            interface.set_method_v4(NetworkConfigMethod::Loopback)?;
+            interface.interface_type = NetworkInterfaceType::Loopback;
+            interface.auto = true;
+            config.interfaces.insert(interface.name.clone(), interface);
+
+            // Note: insert 'lo' as first interface after initial comments
+            let mut new_order = Vec::new();
+            let mut added_lo = false;
+            for entry in config.order {
+                if added_lo { new_order.push(entry); continue; } // copy the rest
+                match entry {
+                    NetworkOrderEntry::Comment(_) => {
+                        new_order.push(entry);
+                     }
+                    _ => {
+                        new_order.push(NetworkOrderEntry::Iface(String::from("lo")));
+                        added_lo = true;
+                        new_order.push(entry);
+                    }
+                }
+            }
+            config.order = new_order;
         }
 
         Ok(config)
