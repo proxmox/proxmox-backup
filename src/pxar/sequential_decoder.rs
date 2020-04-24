@@ -341,12 +341,14 @@ impl<R: Read> SequentialDecoder<R> {
         fcaps: &Option<PxarFCaps>,
     ) -> Result<(), Error> {
         for xattr in xattrs {
-            if let Err(err) = xattr::fsetxattr(fd, &xattr) {
+            let name = CString::new(&xattr.name[..])
+                .map_err(|_| format_err!("invalid xattr name with zeroes"))?;
+            if let Err(err) = xattr::fsetxattr(fd, &name, &xattr.value) {
                 bail!("fsetxattr failed with error: {}", err);
             }
         }
         if let Some(fcaps) = fcaps {
-            if let Err(err) = xattr::fsetxattr_fcaps(fd, &fcaps) {
+            if let Err(err) = xattr::fsetxattr_fcaps(fd, &fcaps.data) {
                 bail!("fsetxattr_fcaps failed with error: {}", err);
             }
         }

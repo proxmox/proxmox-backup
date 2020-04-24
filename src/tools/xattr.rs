@@ -5,9 +5,16 @@ use std::os::unix::io::RawFd;
 
 use nix::errno::Errno;
 
+use proxmox::c_str;
 use proxmox::tools::vec;
 
-use crate::pxar::{PxarXAttr, PxarFCaps};
+/// `"security.capability"` as a CStr to typos.
+///
+/// This cannot be `const` until `const_cstr_unchecked` is stable.
+#[inline]
+fn xattr_name_fcaps() -> &'static CStr {
+    c_str!("security.capability")
+}
 
 /// Result of `flistxattr`, allows iterating over the attributes as a list of `&CStr`s.
 ///
@@ -110,38 +117,26 @@ pub fn fgetxattr(fd: RawFd, name: &CStr) -> Result<Vec<u8>, nix::errno::Errno> {
     Ok(buffer)
 }
 
-pub fn fsetxattr(fd: RawFd, xattr: &PxarXAttr) -> Result<(), nix::errno::Errno> {
-    let mut name = xattr.name.clone();
-    name.push(b'\0');
+/// Set an extended attribute on a file descriptor.
+pub fn fsetxattr(fd: RawFd, name: &CStr, data: &[u8]) -> Result<(), nix::errno::Errno> {
     let flags = 0 as libc::c_int;
     let result = unsafe {
-        libc::fsetxattr(fd, name.as_ptr() as *const libc::c_char, xattr.value.as_ptr() as *const libc::c_void, xattr.value.len(), flags)
+        libc::fsetxattr(fd, name.as_ptr(), data.as_ptr() as *const libc::c_void, data.len(), flags)
     };
     if result < 0 {
-        let err = Errno::last();
-        return Err(err);
+        return Err(Errno::last());
     }
 
     Ok(())
 }
 
-pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &PxarFCaps) -> Result<(), nix::errno::Errno> {
+pub fn fsetxattr_fcaps(fd: RawFd, fcaps: &[u8]) -> Result<(), nix::errno::Errno> {
     // TODO casync checks and removes capabilities if they are set
-    let name = b"security.capability\0";
-    let flags = 0 as libc::c_int;
-    let result = unsafe {
-        libc::fsetxattr(fd, name.as_ptr() as *const libc::c_char, fcaps.data.as_ptr() as *const libc::c_void, fcaps.data.len(), flags)
-    };
-    if result < 0 {
-        let err = Errno::last();
-        return Err(err);
-    }
-
-    Ok(())
+    fsetxattr(fd, xattr_name_fcaps(), fcaps)
 }
 
 pub fn is_security_capability(name: &CStr) -> bool {
-    name.to_bytes() == b"security.capability"
+    name.to_bytes() == xattr_name_fcaps().to_bytes()
 }
 
 /// Check if the passed name buffer starts with a valid xattr namespace prefix
@@ -161,14 +156,16 @@ pub fn is_valid_xattr_name(c_name: &CStr) -> bool {
 mod tests {
     use super::*;
 
+    use std::ffi::CString;
     use std::fs::OpenOptions;
     use std::os::unix::io::AsRawFd;
+
     use nix::errno::Errno;
+
+    use proxmox::c_str;
 
     #[test]
     fn test_fsetxattr_fgetxattr() {
-        use proxmox::c_str;
-
         let path = "./tests/xattrs.txt";
         let file = OpenOptions::new()
             .write(true)
@@ -178,45 +175,22 @@ mod tests {
 
         let fd = file.as_raw_fd();
 
-        let valid_user = PxarXAttr {
-            name: b"user.attribute0".to_vec(),
-            value: b"value0".to_vec(),
-        };
-
-        let valid_empty_value = PxarXAttr {
-            name: b"user.empty".to_vec(),
-            value: Vec::new(),
-        };
-
-        let invalid_trusted = PxarXAttr {
-            name: b"trusted.attribute0".to_vec(),
-            value: b"value0".to_vec(),
-        };
-
-        let invalid_name_prefix = PxarXAttr {
-            name: b"users.attribte0".to_vec(),
-            value: b"value".to_vec(),
-        };
-
         let mut name = b"user.".to_vec();
         for _ in 0..260 {
             name.push(b'a');
         }
 
-        let invalid_name_length = PxarXAttr {
-            name,
-            value: b"err".to_vec(),
-        };
+        let invalid_name = CString::new(name).unwrap();
 
-        assert!(fsetxattr(fd, &valid_user).is_ok());
-        assert!(fsetxattr(fd, &valid_empty_value).is_ok());
+        assert!(fsetxattr(fd, c_str!("user.attribute0"), b"value0").is_ok());
+        assert!(fsetxattr(fd, c_str!("user.empty"), b"").is_ok());
 
         if nix::unistd::Uid::current() != nix::unistd::ROOT {
-            assert_eq!(fsetxattr(fd, &invalid_trusted), Err(Errno::EPERM));
+            assert_eq!(fsetxattr(fd, c_str!("trusted.attribute0"), b"value0"), Err(Errno::EPERM));
         }
 
-        assert_eq!(fsetxattr(fd, &invalid_name_prefix), Err(Errno::EOPNOTSUPP));
-        assert_eq!(fsetxattr(fd, &invalid_name_length), Err(Errno::ERANGE));
+        assert_eq!(fsetxattr(fd, c_str!("garbage.attribute0"), b"value"), Err(Errno::EOPNOTSUPP));
+        assert_eq!(fsetxattr(fd, &invalid_name, b"err"), Err(Errno::ERANGE));
 
         let v0 = fgetxattr(fd, c_str!("user.attribute0")).unwrap();
         let v1 = fgetxattr(fd, c_str!("user.empty")).unwrap();
@@ -230,16 +204,12 @@ mod tests {
 
     #[test]
     fn test_is_valid_xattr_name() {
-        use std::ffi::CString;
-
-        use proxmox::c_str;
-
         let too_long = CString::new(vec![b'a'; 265]).unwrap();
 
         assert!(!is_valid_xattr_name(&too_long));
         assert!(!is_valid_xattr_name(c_str!("system.attr")));
         assert!(is_valid_xattr_name(c_str!("user.attr")));
         assert!(is_valid_xattr_name(c_str!("trusted.attr")));
-        assert!(is_valid_xattr_name(c_str!("security.capability")));
+        assert!(is_valid_xattr_name(super::xattr_name_fcaps()));
     }
 }
