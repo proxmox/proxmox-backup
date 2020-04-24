@@ -8,11 +8,11 @@ use nix::errno::Errno;
 use proxmox::c_str;
 use proxmox::tools::vec;
 
-/// `"security.capability"` as a CStr to typos.
+/// `"security.capability"` as a CStr to avoid typos.
 ///
 /// This cannot be `const` until `const_cstr_unchecked` is stable.
 #[inline]
-fn xattr_name_fcaps() -> &'static CStr {
+pub fn xattr_name_fcaps() -> &'static CStr {
     c_str!("security.capability")
 }
 
