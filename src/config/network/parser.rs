@@ -344,7 +344,10 @@ impl <R: BufRead> NetworkParser<R> {
         for (iface, active) in existing_interfaces.iter()  {
             if let Some(interface) = config.interfaces.get_mut(iface) {
                 interface.active = *active;
-            } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
+                if interface.interface_type == NetworkInterfaceType::Unknown {
+                    interface.interface_type = NetworkInterfaceType::Ethernet;
+                }
+           } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
                 let mut interface = Interface::new(iface.clone());
                 interface.set_method_v4(NetworkConfigMethod::Manual)?;
                 interface.interface_type = NetworkInterfaceType::Ethernet;
@@ -369,7 +372,7 @@ impl <R: BufRead> NetworkParser<R> {
                 continue;
             }
             if PHYSICAL_NIC_REGEX.is_match(name) {
-                interface.interface_type = NetworkInterfaceType::Ethernet;
+                interface.interface_type = NetworkInterfaceType::Vanished;
                 continue;
             }
         }
