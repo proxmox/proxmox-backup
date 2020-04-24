@@ -304,10 +304,30 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     Ok(Value::Null)
 }
 
+#[api()]
+/// Show pending configuration changes (diff)
+fn pending_network_changes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let info = &api2::config::network::API_METHOD_LIST_NETWORK_DEVICES;
+    let _data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    if let Some(changes) = rpcenv.get_result_attrib("changes") {
+        if let Some(diff) = changes.as_str() {
+            println!("{}", diff);
+        }
+    }
+
+    Ok(Value::Null)
+}
+
 fn network_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES))
+        .insert("changes", CliCommand::new(&API_METHOD_PENDING_NETWORK_CHANGES))
         .insert(
             "update",
             CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
