@@ -256,7 +256,9 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 
     if let Some(changes) = rpcenv.get_result_attrib("changes") {
         if let Some(diff) = changes.as_str() {
-            eprintln!("pending changes:\n{}\n", diff);
+            if output_format == "text" {
+                eprintln!("pending changes:\n{}\n", diff);
+            }
         }
     }
 
