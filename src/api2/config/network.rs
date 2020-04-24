@@ -334,6 +334,19 @@ pub fn reload_network_config() -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Revert network configuration (rm /etc/network/interfaces.new).
+pub fn revert_network_config() -> Result<(), Error> {
+
+    let _ = std::fs::remove_file(network::NETWORK_INTERFACES_NEW_FILENAME);
+
+    Ok(())
+}
+
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_INTERFACE)
     .put(&API_METHOD_UPDATE_INTERFACE)
@@ -342,4 +355,5 @@ const ITEM_ROUTER: Router = Router::new()
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_NETWORK_DEVICES)
     .put(&API_METHOD_RELOAD_NETWORK_CONFIG)
+    .delete(&API_METHOD_REVERT_NETWORK_CONFIG)
     .match_all("name", &ITEM_ROUTER);

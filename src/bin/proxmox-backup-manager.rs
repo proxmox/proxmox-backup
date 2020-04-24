@@ -340,6 +340,7 @@ fn network_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
                 .completion_cb("name", config::network::complete_interface_name)
         )
+        .insert("revert", CliCommand::new(&api2::config::network::API_METHOD_REVERT_NETWORK_CONFIG))
         .insert(
             "reload",
             CliCommand::new(&api2::config::network::API_METHOD_RELOAD_NETWORK_CONFIG)
