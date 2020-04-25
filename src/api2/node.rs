@@ -3,7 +3,7 @@ use proxmox::list_subdirs_api_method;
 
 pub mod tasks;
 mod time;
-mod network;
+pub mod network;
 pub mod dns;
 mod syslog;
 mod journal;

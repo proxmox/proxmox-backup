@@ -248,7 +248,7 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 
     let output_format = get_output_format(&param);
 
-    let info = &api2::config::network::API_METHOD_LIST_NETWORK_DEVICES;
+    let info = &api2::node::network::API_METHOD_LIST_NETWORK_DEVICES;
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
@@ -308,7 +308,7 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 /// Show pending configuration changes (diff)
 fn pending_network_changes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
 
-    let info = &api2::config::network::API_METHOD_LIST_NETWORK_DEVICES;
+    let info = &api2::node::network::API_METHOD_LIST_NETWORK_DEVICES;
     let _data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
@@ -326,24 +326,39 @@ fn pending_network_changes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Res
 fn network_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES))
-        .insert("changes", CliCommand::new(&API_METHOD_PENDING_NETWORK_CHANGES))
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES)
+                .fixed_param("node", String::from("localhost"))
+        )
+        .insert(
+            "changes",
+            CliCommand::new(&API_METHOD_PENDING_NETWORK_CHANGES)
+                .fixed_param("node", String::from("localhost"))
+        )
         .insert(
             "update",
-            CliCommand::new(&api2::config::network::API_METHOD_UPDATE_INTERFACE)
+            CliCommand::new(&api2::node::network::API_METHOD_UPDATE_INTERFACE)
+                .fixed_param("node", String::from("localhost"))
                 .arg_param(&["name"])
                 .completion_cb("name", config::network::complete_interface_name)
         )
         .insert(
             "remove",
-            CliCommand::new(&api2::config::network::API_METHOD_DELETE_INTERFACE)
+            CliCommand::new(&api2::node::network::API_METHOD_DELETE_INTERFACE)
+                .fixed_param("node", String::from("localhost"))
                 .arg_param(&["name"])
                 .completion_cb("name", config::network::complete_interface_name)
         )
-        .insert("revert", CliCommand::new(&api2::config::network::API_METHOD_REVERT_NETWORK_CONFIG))
+        .insert(
+            "revert",
+            CliCommand::new(&api2::node::network::API_METHOD_REVERT_NETWORK_CONFIG)
+                .fixed_param("node", String::from("localhost"))
+        )
         .insert(
             "reload",
-            CliCommand::new(&api2::config::network::API_METHOD_RELOAD_NETWORK_CONFIG)
+            CliCommand::new(&api2::node::network::API_METHOD_RELOAD_NETWORK_CONFIG)
+                .fixed_param("node", String::from("localhost"))
         );
 
     cmd_def.into()
