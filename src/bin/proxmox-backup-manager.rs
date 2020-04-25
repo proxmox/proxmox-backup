@@ -244,9 +244,11 @@ fn acl_commands() -> CommandLineInterface {
     }
 )]
 /// Network device list.
-fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
+
+    param["node"] = "localhost".into();
 
     let info = &api2::node::network::API_METHOD_LIST_NETWORK_DEVICES;
     let mut data = match info.handler {
@@ -306,7 +308,8 @@ fn list_network_devices(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
 
 #[api()]
 /// Show pending configuration changes (diff)
-fn pending_network_changes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+fn pending_network_changes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+    param["node"] = "localhost".into();
 
     let info = &api2::node::network::API_METHOD_LIST_NETWORK_DEVICES;
     let _data = match info.handler {
@@ -329,12 +332,10 @@ fn network_commands() -> CommandLineInterface {
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_NETWORK_DEVICES)
-                .fixed_param("node", String::from("localhost"))
         )
         .insert(
             "changes",
             CliCommand::new(&API_METHOD_PENDING_NETWORK_CHANGES)
-                .fixed_param("node", String::from("localhost"))
         )
         .insert(
             "update",
