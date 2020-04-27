@@ -22,7 +22,12 @@ use crate::backup::*;
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
-use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_ALLOCATE_SPACE};
+use crate::config::acl::{
+    PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_READ,
+    PRIV_DATASTORE_PRUNE,
+    PRIV_DATASTORE_CREATE_BACKUP,
+};
 
 fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
 
@@ -193,7 +198,7 @@ pub fn list_snapshot_files(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_PRUNE, false),
     },
 )]
 /// Delete backup snapshot.
@@ -406,7 +411,7 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
             ("store", false, &DATASTORE_SCHEMA),
         ])
     )
-).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_PRUNE, false));
 
 fn prune(
     param: Value,
@@ -530,7 +535,7 @@ fn prune(
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false),
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_PRUNE, false),
     },
 )]
 /// Start garbage collection.
@@ -615,7 +620,7 @@ pub const API_METHOD_DOWNLOAD_FILE: ApiMethod = ApiMethod::new(
             ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
         ]),
     )
-).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ, false));
 
 fn download_file(
     _parts: Parts,
@@ -674,7 +679,7 @@ pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
         ]),
     )
-).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_ALLOCATE_SPACE, false));
+).access(None, &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_CREATE_BACKUP, false));
 
 fn upload_backup_log(
     _parts: Parts,
