@@ -8,7 +8,7 @@ use proxmox::api::section_config::SectionConfigData;
 use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
 
-use super::acl::{AclTree, ROLE_NAMES};
+use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
 use super::user::User;
 
 /// Cache User/Group/Acl configuration data for fast permission tests
@@ -105,6 +105,9 @@ impl UserInformation for CachedUserInfo {
     }
 
     fn lookup_privs(&self, userid: &str, path: &[&str]) -> u64 {
+
+        if self.is_superuser(userid) { return ROLE_ADMIN; }
+
         let roles = self.acl_tree.roles(userid, path);
         let mut privs: u64 = 0;
         for role in roles {
