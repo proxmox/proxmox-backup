@@ -8,7 +8,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::datastore;
-use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_ALLOCATE};
+use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 
 #[api(
     input: {
@@ -66,7 +66,7 @@ pub fn list_datastores(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_ALLOCATE, false),
+        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_MODIFY, false),
     },
 )]
 /// Create new datastore config.
@@ -137,7 +137,7 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_MODIFY, false),
     },
 )]
 /// Update datastore config.
@@ -189,7 +189,7 @@ pub fn update_datastore(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_MODIFY, false),
     },
 )]
 /// Remove a datastore configuration.
