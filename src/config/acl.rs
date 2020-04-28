@@ -33,6 +33,7 @@ pub const ROLE_AUDIT: u64 =
 PRIV_SYS_AUDIT |
 PRIV_DATASTORE_AUDIT;
 
+/// Datastore.Admin can do anything on the datastore.
 pub const ROLE_DATASTORE_ADMIN: u64 =
 PRIV_DATASTORE_AUDIT |
 PRIV_DATASTORE_MODIFY |
@@ -40,9 +41,21 @@ PRIV_DATASTORE_READ |
 PRIV_DATASTORE_BACKUP |
 PRIV_DATASTORE_PRUNE;
 
-pub const ROLE_DATASTORE_USER: u64 =
+/// Datastore.Reader can read datastore content an do restore
+pub const ROLE_DATASTORE_READER: u64 =
+PRIV_DATASTORE_AUDIT |
+PRIV_DATASTORE_READ;
+
+/// Datastore.Backup can do backup and restore, but no prune.
+pub const ROLE_DATASTORE_BACKUP: u64 =
 PRIV_DATASTORE_BACKUP;
 
+/// Datastore.PowerUser can do backup, restore, and prune.
+pub const ROLE_DATASTORE_POWERUSER: u64 =
+PRIV_DATASTORE_PRUNE |
+PRIV_DATASTORE_BACKUP;
+
+/// Datastore.Audit can audit the datastore.
 pub const ROLE_DATASTORE_AUDIT: u64 =
 PRIV_DATASTORE_AUDIT;
 
@@ -69,9 +82,17 @@ lazy_static! {
             ROLE_DATASTORE_ADMIN,
             "Datastore Administrator",
         ));
-        map.insert("Datastore.User", (
-            ROLE_DATASTORE_USER,
-            "Datastore User",
+        map.insert("Datastore.Reader", (
+            ROLE_DATASTORE_READER,
+            "Datastore Reader (inspect datastore content and do restores)",
+        ));
+        map.insert("Datastore.Backup", (
+            ROLE_DATASTORE_BACKUP,
+            "Datastore Backup (backup and restore owned backups)",
+        ));
+        map.insert("Datastore.PowerUser", (
+            ROLE_DATASTORE_POWERUSER,
+            "Datastore PowerUser (backup, restore and prune owned backup)",
         ));
         map.insert("Datastore.Audit", (
             ROLE_DATASTORE_AUDIT,
