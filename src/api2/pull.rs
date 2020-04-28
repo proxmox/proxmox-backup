@@ -16,7 +16,7 @@ use crate::backup::*;
 use crate::client::*;
 use crate::config::remote;
 use crate::api2::types::*;
-use crate::config::acl::{PRIV_DATASTORE_CREATE_BACKUP, PRIV_DATASTORE_READ};
+use crate::config::acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_READ};
 use crate::config::cached_user_info::CachedUserInfo;
 
 // fixme: implement filters
@@ -312,6 +312,7 @@ pub async fn pull_store(
     src_repo: &BackupRepository,
     tgt_store: Arc<DataStore>,
     delete: bool,
+    username: String,
 ) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/groups", src_repo.store());
@@ -332,15 +333,27 @@ pub async fn pull_store(
     let mut errors = false;
 
     let mut new_groups = std::collections::HashSet::new();
+    for item in list.iter() {
+        new_groups.insert(BackupGroup::new(&item.backup_type, &item.backup_id));
+    }
 
     for item in list {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
+
+        let owner = tgt_store.create_backup_group(&group, &username)?;
+        // permission check
+        if owner != username { // only the owner is allowed to create additional snapshots
+            worker.log(format!("sync group {}/{} failed - owner check failed ({} != {})",
+                               item.backup_type, item.backup_id, username, owner));
+            errors = true;
+            continue; // do not stop here, instead continue
+        }
+
         if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group, delete).await {
             worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
             errors = true;
-            // do not stop here, instead continue
+            continue; // do not stop here, instead continue
         }
-        new_groups.insert(group);
     }
 
     if delete {
@@ -391,7 +404,9 @@ pub async fn pull_store(
     },
     access: {
         // Note: used parameters are no uri parameters, so we need to test inside function body
-        description: "The user needs Datastore.CreateBackup privilege on '/datastore/{store}' and Datastore.Read on '/remote/{remote}/{remote-store}'.",
+        description: r###"The user needs Datastore.Backup privilege on '/datastore/{store}',
+and needs to own the backup group. Datastore.Read is required on '/remote/{remote}/{remote-store}'.
+"###,
         permission: &Permission::Anybody,
     },
 )]
@@ -408,7 +423,7 @@ async fn pull (
     let user_info = CachedUserInfo::new()?;
 
     let username = rpcenv.get_user().unwrap();
-    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_CREATE_BACKUP, false)?;
+    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
     user_info.check_privs(&username, &["remote", &remote, &remote_store], PRIV_DATASTORE_READ, false)?;
 
     let delete = delete.unwrap_or(true);
@@ -437,7 +452,7 @@ async fn pull (
         // explicit create shared lock to prevent GC on newly created chunks
         let _shared_store_lock = tgt_store.try_shared_chunk_store_lock()?;
 
-        pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete).await?;
+        pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, username).await?;
 
         worker.log(format!("sync datastore '{}' end", store));
 

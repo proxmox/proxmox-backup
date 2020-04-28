@@ -17,8 +17,11 @@ pub const PRIV_SYS_POWER_MANAGEMENT: u64         = 1 << 2;
 
 pub const PRIV_DATASTORE_AUDIT: u64              = 1 << 3;
 pub const PRIV_DATASTORE_MODIFY: u64             = 1 << 4;
-pub const PRIV_DATASTORE_CREATE_BACKUP: u64      = 1 << 5;
-pub const PRIV_DATASTORE_READ: u64               = 1 << 6;
+pub const PRIV_DATASTORE_READ: u64               = 1 << 5;
+
+/// Datastore.Backup also requires backup ownership
+pub const PRIV_DATASTORE_BACKUP: u64             = 1 << 6;
+/// Datastore.Prune also requires backup ownership
 pub const PRIV_DATASTORE_PRUNE: u64              = 1 << 7;
 
 pub const PRIV_PERMISSIONS_MODIFY: u64           = 1 << 8;
@@ -33,12 +36,12 @@ PRIV_DATASTORE_AUDIT;
 pub const ROLE_DATASTORE_ADMIN: u64 =
 PRIV_DATASTORE_AUDIT |
 PRIV_DATASTORE_MODIFY |
-PRIV_DATASTORE_CREATE_BACKUP |
 PRIV_DATASTORE_READ |
+PRIV_DATASTORE_BACKUP |
 PRIV_DATASTORE_PRUNE;
 
 pub const ROLE_DATASTORE_USER: u64 =
-PRIV_DATASTORE_CREATE_BACKUP;
+PRIV_DATASTORE_BACKUP;
 
 pub const ROLE_DATASTORE_AUDIT: u64 =
 PRIV_DATASTORE_AUDIT;

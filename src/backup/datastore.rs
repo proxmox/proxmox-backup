@@ -1,5 +1,5 @@
 use std::collections::{HashSet, HashMap};
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -236,18 +236,80 @@ impl DataStore {
         }
     }
 
-    pub fn create_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(PathBuf, bool), io::Error> {
+    /// Returns the backup owner.
+    ///
+    /// The backup owner is the user who first created the backup group.
+    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<String, Error> {
+        let mut full_path = self.base_path();
+        full_path.push(backup_group.group_path());
+        full_path.push("owner");
+        let owner = proxmox::tools::fs::file_read_firstline(full_path)?;
+        Ok(owner.trim_end().to_string()) // remove trailing newline
+    }
+
+    /// Set the backup owner.
+    pub fn set_owner(&self, backup_group: &BackupGroup, userid: &str, force: bool) -> Result<(), Error> {
+        let mut path = self.base_path();
+        path.push(backup_group.group_path());
+        path.push("owner");
+
+        let mut open_options = std::fs::OpenOptions::new();
+        open_options.write(true);
+        open_options.truncate(true);
+
+        if force {
+            open_options.create(true);
+        } else {
+            open_options.create_new(true);
+        }
+
+        let mut file = open_options.open(&path)
+            .map_err(|err| format_err!("unable to create owner file {:?} - {}", path, err))?;
+
+        write!(file, "{}\n", userid)
+            .map_err(|err| format_err!("unable to write owner file  {:?} - {}", path, err))?;
+
+        Ok(())
+    }
+
+    /// Create a backup group if it does not already exists.
+    ///
+    /// And set the owner to 'userid'. If the group already exists, it returns the
+    /// current owner (instead of setting the owner).
+    pub fn create_backup_group(&self, backup_group: &BackupGroup, userid: &str) -> Result<String, Error> {
 
         // create intermediate path first:
-        let mut full_path = self.base_path();
-        full_path.push(backup_dir.group().group_path());
+        let base_path = self.base_path();
+
+        let mut full_path = base_path.clone();
+        full_path.push(backup_group.backup_type());
         std::fs::create_dir_all(&full_path)?;
 
+        full_path.push(backup_group.backup_id());
+
+        // create the last component now
+        match std::fs::create_dir(&full_path) {
+            Ok(_) => {
+                self.set_owner(backup_group, userid, false)?;
+                let owner = self.get_owner(backup_group)?; // just to be sure
+                Ok(owner)
+            }
+            Err(ref err) if err.kind() == io::ErrorKind::AlreadyExists => {
+                let owner = self.get_owner(backup_group)?; // just to be sure
+                Ok(owner)
+            }
+            Err(err) => bail!("unable to create backup group {:?} - {}", full_path, err),
+        }
+    }
+
+    /// Creates a new backup snapshot inside a BackupGroup
+    ///
+    /// The BackupGroup directory needs to exist.
+    pub fn create_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(PathBuf, bool), io::Error> {
         let relative_path = backup_dir.relative_path();
         let mut full_path = self.base_path();
         full_path.push(&relative_path);
 
-        // create the last component now
         match std::fs::create_dir(&full_path) {
             Ok(_) => Ok((relative_path, true)),
             Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok((relative_path, false)),
