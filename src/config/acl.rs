@@ -574,15 +574,15 @@ mod test {
         let tree = AclTree::from_raw(r###"
 acl:0:/store/store2:user1:Admin
 acl:0:/store/store2:user2:Admin
-acl:0:/store/store2:user1:Datastore.User
-acl:0:/store/store2:user2:Datastore.User
+acl:0:/store/store2:user1:Datastore.Backup
+acl:0:/store/store2:user2:Datastore.Backup
 "###)?;
 
         let mut raw: Vec<u8> = Vec::new();
         tree.write_config(&mut raw)?;
         let raw = std::str::from_utf8(&raw)?;
 
-        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Datastore.User\n");
+        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Datastore.Backup\n");
 
         Ok(())
     }
@@ -592,18 +592,18 @@ acl:0:/store/store2:user2:Datastore.User
 
         let tree = AclTree::from_raw(r###"
 acl:1:/storage:user1@pbs:Admin
-acl:1:/storage/store1:user1@pbs:Datastore.User
-acl:1:/storage/store2:user2@pbs:Datastore.User
+acl:1:/storage/store1:user1@pbs:Datastore.Backup
+acl:1:/storage/store2:user2@pbs:Datastore.Backup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "");
         check_roles(&tree, "user1@pbs", "/storage", "Admin");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
 
         check_roles(&tree, "user2@pbs", "/", "");
         check_roles(&tree, "user2@pbs", "/storage", "");
         check_roles(&tree, "user2@pbs", "/storage/store1", "");
-        check_roles(&tree, "user2@pbs", "/storage/store2", "Datastore.User");
+        check_roles(&tree, "user2@pbs", "/storage/store2", "Datastore.Backup");
 
         Ok(())
     }
@@ -614,22 +614,22 @@ acl:1:/storage/store2:user2@pbs:Datastore.User
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:1:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Datastore.User
+acl:1:/storage/store1:user1@pbs:Datastore.Backup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "NoAccess");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:0:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Datastore.User
+acl:1:/storage/store1:user1@pbs:Datastore.Backup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.User");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 
