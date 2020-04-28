@@ -142,3 +142,27 @@ fn verify_root_api() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn verify_acl_role_schema() -> Result<(), Error> {
+
+    let list = match api2::types::ACL_ROLE_SCHEMA {
+        Schema::String(StringSchema { format: Some(ApiStringFormat::Enum(list)), .. }) => list,
+        _ => unreachable!(),
+    };
+
+    let map = &proxmox_backup::config::acl::ROLE_NAMES;
+    for item in *list {
+        if !map.contains_key(item) {
+            bail!("found role '{}' without description/mapping", item);
+        }
+    }
+
+    for role in map.keys() {
+        if !list.contains(role) {
+            bail!("role '{}' missing in ACL_ROLE_SCHEMA enum", role);
+        }
+    }
+
+    Ok(())
+}

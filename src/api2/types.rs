@@ -257,8 +257,10 @@ pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
         "Admin",
         "Audit",
         "Datastore.Admin",
+        "Datastore.Reader",
         "Datastore.Audit",
-        "Datastore.User",
+        "Datastore.Backup",
+        "Datastore.PowerUser",
         "NoAccess",
     ]))
     .schema();
