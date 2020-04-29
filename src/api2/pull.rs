@@ -16,7 +16,7 @@ use crate::backup::*;
 use crate::client::*;
 use crate::config::remote;
 use crate::api2::types::*;
-use crate::config::acl::{PRIV_DATASTORE_BACKUP, PRIV_REMOTE_READ};
+use crate::config::acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ};
 use crate::config::cached_user_info::CachedUserInfo;
 
 // fixme: implement filters
@@ -406,6 +406,7 @@ pub async fn pull_store(
         // Note: used parameters are no uri parameters, so we need to test inside function body
         description: r###"The user needs Datastore.Backup privilege on '/datastore/{store}',
 and needs to own the backup group. Remote.Read is required on '/remote/{remote}/{remote-store}'.
+The delete flag additionally requires the Datastore.Prune privilege on '/datastore/{store}'.
 "###,
         permission: &Permission::Anybody,
     },
@@ -427,6 +428,11 @@ async fn pull (
     user_info.check_privs(&username, &["remote", &remote, &remote_store], PRIV_REMOTE_READ, false)?;
 
     let delete = delete.unwrap_or(true);
+
+    if delete {
+        user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_PRUNE, false)?;
+    }
+
 
     let tgt_store = DataStore::lookup_datastore(&store)?;
 
