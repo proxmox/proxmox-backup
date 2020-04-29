@@ -67,17 +67,17 @@ Ext.define('PBS.view.main.NavigationTree', {
 
 	    let root = view.getStore().getRoot();
 
-	    if (!root.findChild('path', 'pbsDataStoreList', false)) {
+	    if (!root.findChild('path', 'pbsDataStoreStatus', false)) {
 		root.appendChild({
 		    text: gettext('Data Store'),
 		    expanded: true,
 		    iconCls: 'fa fa-archive',
-		    path: 'pbsDataStoreList',
+		    path: 'pbsDataStoreStatus',
 		    leaf: false
 		});
 	    }
 
-	    var list = root.findChild('path', 'pbsDataStoreList', false);
+	    var list = root.findChild('path', 'pbsDataStoreStatus', false);
 	    var length = records.length;
 	    var lookup_hash = {};
 	    for (var i = 0; i < length; i++) {

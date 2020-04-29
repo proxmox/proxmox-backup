@@ -14,6 +14,7 @@ JSSRC=							\
 	Subscription.js					\
 	DataStorePrune.js				\
 	DataStoreConfig.js				\
+	DataStoreStatus.js				\
 	DataStoreContent.js				\
 	ServerAdministration.js				\
 	Dashboard.js					\
