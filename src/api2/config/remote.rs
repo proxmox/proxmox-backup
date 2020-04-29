@@ -1,5 +1,6 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
+use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
@@ -52,7 +53,7 @@ pub fn list_remotes(
     let (config, digest) = remote::config()?;
 
     let value = config.convert_to_array("name", Some(&digest), &["password"]);
-  
+
     Ok(value.into())
 }
 
@@ -130,6 +131,16 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
         .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
     Ok(data)
 }
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the comment property.
+    comment,
+    /// Delete the fingerprint property.
+    fingerprint,
+}
 
 #[api(
     protected: true,
@@ -158,6 +169,14 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
                 optional: true,
                 schema: CERT_FINGERPRINT_SHA256_SCHEMA,
             },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -176,6 +195,7 @@ pub fn update_remote(
     userid: Option<String>,
     password: Option<String>,
     fingerprint: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -190,6 +210,15 @@ pub fn update_remote(
 
     let mut data: remote::Remote = config.lookup("remote", &name)?;
 
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::comment => { data.comment = None; },
+                DeletableProperty::fingerprint => { data.fingerprint = None; },
+            }
+        }
+    }
+
     if let Some(comment) = comment {
         let comment = comment.trim().to_string();
         if comment.is_empty() {
@@ -202,7 +231,6 @@ pub fn update_remote(
     if let Some(userid) = userid { data.userid = userid; }
     if let Some(password) = password { data.password = password; }
 
-    // fixme: howto delete a fingeprint?
     if let Some(fingerprint) = fingerprint { data.fingerprint = Some(fingerprint); }
 
     config.set_data(&name, "remote", &data)?;
