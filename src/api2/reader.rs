@@ -31,15 +31,9 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
         concat!("Upgraded to backup protocol ('", PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!(), "')."),
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
-            ("backup-type", false, &StringSchema::new("Backup type.")
-             .format(&ApiStringFormat::Enum(&["vm", "ct", "host"]))
-             .schema()
-            ),
-            ("backup-id", false, &StringSchema::new("Backup ID.").schema()),
-            ("backup-time", false, &IntegerSchema::new("Backup time (Unix epoch.)")
-             .minimum(1_547_797_308)
-             .schema()
-            ),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false, &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
         ]),
     )

@@ -248,24 +248,9 @@ pub const ACL_PROPAGATE_SCHEMA: Schema = BooleanSchema::new(
 
 pub const ACL_UGID_TYPE_SCHEMA: Schema = StringSchema::new(
     "Type of 'ugid' property.")
-    .format(&ApiStringFormat::Enum(&["user", "group"]))
-    .schema();
-
-pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
-    "Role.")
     .format(&ApiStringFormat::Enum(&[
-        "Admin",
-        "Audit",
-        "Datastore.Admin",
-        "Datastore.Reader",
-        "Datastore.Audit",
-        "Datastore.Backup",
-        "Datastore.PowerUser",
-        "Remote.Admin",
-        "Remote.Audit",
-        "Remote.SyncOperator",
-        "NoAccess",
-    ]))
+        EnumEntry::new("user", "User"),
+        EnumEntry::new("group", "Group")]))
     .schema();
 
 pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
@@ -275,7 +260,10 @@ pub const BACKUP_ARCHIVE_NAME_SCHEMA: Schema =
 
 pub const BACKUP_TYPE_SCHEMA: Schema =
     StringSchema::new("Backup type.")
-    .format(&ApiStringFormat::Enum(&["vm", "ct", "host"]))
+    .format(&ApiStringFormat::Enum(&[
+        EnumEntry::new("vm", "Virtual Machine Backup"),
+        EnumEntry::new("ct", "Container Backup"),
+        EnumEntry::new("host", "Host Backup")]))
     .schema();
 
 pub const BACKUP_ID_SCHEMA: Schema =

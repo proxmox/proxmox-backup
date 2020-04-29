@@ -2,12 +2,17 @@ use std::io::Write;
 use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 use std::path::{PathBuf, Path};
 use std::sync::{Arc, RwLock};
+use std::str::FromStr;
 
 use anyhow::{bail, Error};
 
 use lazy_static::lazy_static;
 
+use ::serde::{Deserialize, Serialize};
+use serde::de::{value, IntoDeserializer};
+
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use proxmox::api::{api, schema::*};
 
 // define Privilege bitfield
 
@@ -83,56 +88,56 @@ PRIV_REMOTE_PRUNE;
 
 pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
+#[api()]
+#[repr(u64)]
+#[derive(Serialize, Deserialize)]
+/// Role
+pub enum Role {
+    /// Administrator
+    Admin = ROLE_ADMIN,
+    /// Auditor
+    Audit = ROLE_AUDIT,
+    /// Disable Access
+    NoAccess = ROLE_NO_ACCESS,
+    /// Datastore Administrator
+    DatastoreAdmin = ROLE_DATASTORE_ADMIN,
+    /// Datastore Reader (inspect datastore content and do restores)
+    DatastoreReader = ROLE_DATASTORE_READER,
+    /// Datastore Backup (backup and restore owned backups)
+    DatastoreBackup = ROLE_DATASTORE_BACKUP,
+    /// Datastore PowerUser (backup, restore and prune owned backup)
+    DatastorePowerUser = ROLE_DATASTORE_POWERUSER,
+    /// Datastore Auditor
+    DatastoreAudit = ROLE_DATASTORE_AUDIT,
+    /// Remote Auditor
+    RemoteAudit = ROLE_REMOTE_AUDIT,
+    /// Remote Administrator
+    RemoteAdmin = ROLE_REMOTE_ADMIN,
+    /// Syncronisation Opertator
+    RemoteSyncOperator = ROLE_REMOTE_SYNC_OPERATOR,
+}
+
+impl FromStr for Role {
+    type Err = value::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::deserialize(s.into_deserializer())
+    }
+}
+
 lazy_static! {
     pub static ref ROLE_NAMES: HashMap<&'static str, (u64, &'static str)> = {
         let mut map = HashMap::new();
 
-        map.insert("Admin", (
-            ROLE_ADMIN,
-            "Administrator",
-        ));
-        map.insert("Audit", (
-            ROLE_AUDIT,
-            "Auditor",
-        ));
-        map.insert(ROLE_NAME_NO_ACCESS, (
-            ROLE_NO_ACCESS,
-            "Disable access",
-        ));
+        let list = match Role::API_SCHEMA {
+            Schema::String(StringSchema { format: Some(ApiStringFormat::Enum(list)), .. }) => list,
+            _ => unreachable!(),
+        };
 
-        map.insert("Datastore.Admin", (
-            ROLE_DATASTORE_ADMIN,
-            "Datastore Administrator",
-        ));
-        map.insert("Datastore.Reader", (
-            ROLE_DATASTORE_READER,
-            "Datastore Reader (inspect datastore content and do restores)",
-        ));
-        map.insert("Datastore.Backup", (
-            ROLE_DATASTORE_BACKUP,
-            "Datastore Backup (backup and restore owned backups)",
-        ));
-        map.insert("Datastore.PowerUser", (
-            ROLE_DATASTORE_POWERUSER,
-            "Datastore PowerUser (backup, restore and prune owned backup)",
-        ));
-        map.insert("Datastore.Audit", (
-            ROLE_DATASTORE_AUDIT,
-            "Datastore Auditor",
-        ));
-
-        map.insert("Remote.Audit", (
-            ROLE_REMOTE_AUDIT,
-            "Remote Auditor",
-        ));
-        map.insert("Remote.Admin", (
-            ROLE_REMOTE_ADMIN,
-            "Remote Administrator",
-        ));
-        map.insert("Remote.SyncOperator", (
-            ROLE_REMOTE_SYNC_OPERATOR,
-            "Syncronisation Opertator",
-        ));
+        for entry in list.iter() {
+            let privs: u64 = Role::from_str(entry.value).unwrap() as u64;
+            map.insert(entry.value, (privs, entry.description));
+        }
 
         map
     };
@@ -615,15 +620,15 @@ mod test {
         let tree = AclTree::from_raw(r###"
 acl:0:/store/store2:user1:Admin
 acl:0:/store/store2:user2:Admin
-acl:0:/store/store2:user1:Datastore.Backup
-acl:0:/store/store2:user2:Datastore.Backup
+acl:0:/store/store2:user1:DatastoreBackup
+acl:0:/store/store2:user2:DatastoreBackup
 "###)?;
 
         let mut raw: Vec<u8> = Vec::new();
         tree.write_config(&mut raw)?;
         let raw = std::str::from_utf8(&raw)?;
 
-        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,Datastore.Backup\n");
+        assert_eq!(raw, "acl:0:/store/store2:user1,user2:Admin,DatastoreBackup\n");
 
         Ok(())
     }
@@ -633,18 +638,18 @@ acl:0:/store/store2:user2:Datastore.Backup
 
         let tree = AclTree::from_raw(r###"
 acl:1:/storage:user1@pbs:Admin
-acl:1:/storage/store1:user1@pbs:Datastore.Backup
-acl:1:/storage/store2:user2@pbs:Datastore.Backup
+acl:1:/storage/store1:user1@pbs:DatastoreBackup
+acl:1:/storage/store2:user2@pbs:DatastoreBackup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "");
         check_roles(&tree, "user1@pbs", "/storage", "Admin");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "DatastoreBackup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
 
         check_roles(&tree, "user2@pbs", "/", "");
         check_roles(&tree, "user2@pbs", "/storage", "");
         check_roles(&tree, "user2@pbs", "/storage/store1", "");
-        check_roles(&tree, "user2@pbs", "/storage/store2", "Datastore.Backup");
+        check_roles(&tree, "user2@pbs", "/storage/store2", "DatastoreBackup");
 
         Ok(())
     }
@@ -655,22 +660,22 @@ acl:1:/storage/store2:user2@pbs:Datastore.Backup
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:1:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Datastore.Backup
+acl:1:/storage/store1:user1@pbs:DatastoreBackup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "DatastoreBackup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "NoAccess");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 
         let tree = AclTree::from_raw(r###"
 acl:1:/:user1@pbs:Admin
 acl:0:/storage:user1@pbs:NoAccess
-acl:1:/storage/store1:user1@pbs:Datastore.Backup
+acl:1:/storage/store1:user1@pbs:DatastoreBackup
 "###)?;
         check_roles(&tree, "user1@pbs", "/", "Admin");
         check_roles(&tree, "user1@pbs", "/storage", "NoAccess");
-        check_roles(&tree, "user1@pbs", "/storage/store1", "Datastore.Backup");
+        check_roles(&tree, "user1@pbs", "/storage/store1", "DatastoreBackup");
         check_roles(&tree, "user1@pbs", "/storage/store2", "Admin");
         check_roles(&tree, "user1@pbs", "/system", "Admin");
 

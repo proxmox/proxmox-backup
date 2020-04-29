@@ -1852,7 +1852,9 @@ fn key_mgmt_cli() -> CliCommandMap {
 
     const KDF_SCHEMA: Schema =
         StringSchema::new("Key derivation function. Choose 'none' to store the key unecrypted.")
-        .format(&ApiStringFormat::Enum(&["scrypt", "none"]))
+        .format(&ApiStringFormat::Enum(&[
+            EnumEntry::new("scrypt", "SCrypt"),
+            EnumEntry::new("none", "Do not encrypt the key")]))
         .default("scrypt")
         .schema();
 

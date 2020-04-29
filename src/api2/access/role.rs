@@ -6,7 +6,7 @@ use proxmox::api::{api, Permission};
 use proxmox::api::router::Router;
 
 use crate::api2::types::*;
-use crate::config::acl::ROLE_NAMES;
+use crate::config::acl::{Role, ROLE_NAMES};
 
 #[api(
     returns: {
@@ -17,7 +17,7 @@ use crate::config::acl::ROLE_NAMES;
             description: "User name with description.",
             properties: {
                 role: {
-                    schema: ACL_ROLE_SCHEMA,
+                    type: Role,
                 },
                 comment: {
                     schema: SINGLE_LINE_COMMENT_SCHEMA,

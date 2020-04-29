@@ -5,7 +5,7 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::config::acl;
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 
 #[api(
     properties: {
@@ -23,7 +23,7 @@ use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
             description: "User or Group ID.",
         },
 	roleid: {
-            schema: ACL_ROLE_SCHEMA,
+            type: Role,
         }
     }
 )]
@@ -118,7 +118,7 @@ pub fn read_acl(
                 schema: ACL_PATH_SCHEMA,
             },
 	    role: {
-                schema: ACL_ROLE_SCHEMA,
+                type: Role,
             },
             propagate: {
                 optional: true,
