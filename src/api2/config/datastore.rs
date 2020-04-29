@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Error};
 use serde_json::Value;
+use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
@@ -119,6 +120,15 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
     Ok(data)
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the comment property.
+    comment,
+}
+
 #[api(
     protected: true,
     input: {
@@ -129,6 +139,14 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
             comment: {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
             },
             digest: {
                 optional: true,
@@ -144,6 +162,7 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
 pub fn update_datastore(
     name: String,
     comment: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -158,6 +177,14 @@ pub fn update_datastore(
     }
 
     let mut data: datastore::DataStoreConfig = config.lookup("datastore", &name)?;
+
+     if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::comment => { data.comment = None; },
+            }
+        }
+    }
 
     if let Some(comment) = comment {
         let comment = comment.trim().to_string();
