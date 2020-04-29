@@ -131,6 +131,7 @@ pub fn read_remote(name: String) -> Result<Value, Error> {
         .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
     Ok(data)
 }
+
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
