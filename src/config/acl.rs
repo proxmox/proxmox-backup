@@ -26,6 +26,11 @@ pub const PRIV_DATASTORE_PRUNE: u64              = 1 << 7;
 
 pub const PRIV_PERMISSIONS_MODIFY: u64           = 1 << 8;
 
+pub const PRIV_REMOTE_AUDIT: u64                 = 1 << 9;
+pub const PRIV_REMOTE_MODIFY: u64                = 1 << 10;
+pub const PRIV_REMOTE_READ: u64                  = 1 << 11;
+pub const PRIV_REMOTE_PRUNE: u64                 = 1 << 12;
+
 pub const ROLE_ADMIN: u64 = std::u64::MAX;
 pub const ROLE_NO_ACCESS: u64 = 0;
 
@@ -58,6 +63,23 @@ PRIV_DATASTORE_BACKUP;
 /// Datastore.Audit can audit the datastore.
 pub const ROLE_DATASTORE_AUDIT: u64 =
 PRIV_DATASTORE_AUDIT;
+
+/// Remote.Audit can audit the remote
+pub const ROLE_REMOTE_AUDIT: u64 =
+PRIV_REMOTE_AUDIT;
+
+/// Remote.Admin can do anything on the remote.
+pub const ROLE_REMOTE_ADMIN: u64 =
+PRIV_REMOTE_AUDIT |
+PRIV_REMOTE_MODIFY |
+PRIV_REMOTE_READ |
+PRIV_REMOTE_PRUNE;
+
+/// Remote.SyncOperator can do read and prune on the remote.
+pub const ROLE_REMOTE_SYNC_OPERATOR: u64 =
+PRIV_REMOTE_AUDIT |
+PRIV_REMOTE_READ |
+PRIV_REMOTE_PRUNE;
 
 pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
@@ -97,6 +119,19 @@ lazy_static! {
         map.insert("Datastore.Audit", (
             ROLE_DATASTORE_AUDIT,
             "Datastore Auditor",
+        ));
+
+        map.insert("Remote.Audit", (
+            ROLE_REMOTE_AUDIT,
+            "Remote Auditor",
+        ));
+        map.insert("Remote.Admin", (
+            ROLE_REMOTE_ADMIN,
+            "Remote Administrator",
+        ));
+        map.insert("Remote.SyncOperator", (
+            ROLE_REMOTE_SYNC_OPERATOR,
+            "Syncronisation Opertator",
         ));
 
         map

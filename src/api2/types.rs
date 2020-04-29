@@ -261,6 +261,9 @@ pub const ACL_ROLE_SCHEMA: Schema = StringSchema::new(
         "Datastore.Audit",
         "Datastore.Backup",
         "Datastore.PowerUser",
+        "Remote.Admin",
+        "Remote.Audit",
+        "Remote.SyncOperator",
         "NoAccess",
     ]))
     .schema();
