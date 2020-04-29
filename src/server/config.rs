@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::path::{PathBuf};
+use anyhow::Error;
 
 use hyper::Method;
+use handlebars::Handlebars;
 
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 
@@ -10,17 +12,22 @@ pub struct ApiConfig {
     router: &'static Router,
     aliases: HashMap<String, PathBuf>,
     env_type: RpcEnvironmentType,
+    pub templates: Handlebars<'static>,
 }
 
 impl ApiConfig {
 
-    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Self {
-        Self {
-            basedir: basedir.into(),
+    pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Result<Self, Error> {
+        let mut templates = Handlebars::new();
+        let basedir = basedir.into();
+        templates.register_template_file("index", basedir.join("index.hbs"))?;
+        Ok(Self {
+            basedir,
             router,
             aliases: HashMap::new(),
             env_type,
-        }
+            templates
+        })
     }
 
     pub fn find_method(

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Proxmox Backup Server</title>
+    <link rel="icon" sizes="128x128" href="/images/logo-128.png" />
+    <link rel="apple-touch-icon" sizes="128x128" href="/pve2/images/logo-128.png" />
+    <link rel="stylesheet" type="text/css" href="/extjs/theme-crisp/resources/theme-crisp-all.css" />
+    <link rel="stylesheet" type="text/css" href="/extjs/crisp/resources/charts-all.css" />
+    <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="/css/ext6-pbs.css" />
+    <script type='text/javascript'> function gettext(buf) { return buf; } </script>
+    {{#if debug}}
+    <script type="text/javascript" src="/extjs/ext-all-debug.js"></script>
+    <script type="text/javascript" src="/extjs/charts-debug.js"></script>
+    {{else}}
+    <script type="text/javascript" src="/extjs/ext-all.js"></script>
+    <script type="text/javascript" src="/extjs/charts.js"></script>
+    {{/if}}
+    <script type="text/javascript">
+    Proxmox = {
+	Setup: { auth_cookie_name: 'PBSAuthCookie' },
+	NodeName: "{{ NodeName }}",
+	UserName: "{{ UserName }}",
+	CSRFPreventionToken: "{{ CSRFPreventionToken }}",
+    };
+    </script>
+    <script type="text/javascript" src="/widgettoolkit/proxmoxlib.js"></script>
+    <script type="text/javascript" src="/extjs/locale/locale-en.js"></script>
+    <script type="text/javascript">
+      Ext.History.fieldid = 'x-history-field';
+    </script>
+    <script type="text/javascript" src="/js/proxmox-backup-gui.js"></script>
+  </head>
+  <body>
+    <!-- Fields required for history management -->
+    <form id="history-form" class="x-hidden">
+      <input type="hidden" id="x-history-field"/>
+    </form>
+  </body>
+</html>

@@ -36,8 +36,9 @@ clean:
 	find . -name '*~' -exec rm {} ';'	
 	rm -rf js
 
-install: js/proxmox-backup-gui.js css/ext6-pbs.css
+install: js/proxmox-backup-gui.js css/ext6-pbs.css index.hbs
 	install -dm755 $(DESTDIR)$(JSDIR)
+	install -m644 index.hbs $(DESTDIR)$(JSDIR)/
 	install -dm755 $(DESTDIR)$(JSDIR)/js
 	install -m644 js/proxmox-backup-gui.js $(DESTDIR)$(JSDIR)/js/
 	install -dm755 $(DESTDIR)$(JSDIR)/css

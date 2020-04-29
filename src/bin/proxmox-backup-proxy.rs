@@ -34,7 +34,7 @@ async fn run() -> Result<(), Error> {
     let _ = csrf_secret(); // load with lazy_static
 
     let mut config = ApiConfig::new(
-        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC);
+        buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC)?;
 
     // add default dirs which includes jquery and bootstrap
     // my $base = '/usr/share/libpve-http-server-perl';

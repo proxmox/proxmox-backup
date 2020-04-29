@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
+use handlebars::Handlebars;
 
 use proxmox::http_err;
 use proxmox::api::{ApiHandler, ApiMethod, HttpError};
@@ -311,59 +312,43 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     Ok(resp)
 }
 
-fn get_index(username: Option<String>, token: Option<String>) ->  Response<Body> {
+fn get_index(username: Option<String>, token: Option<String>, template: &Handlebars, parts: Parts) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
     let username = username.unwrap_or_else(|| String::from(""));
 
     let token = token.unwrap_or_else(|| String::from(""));
 
-    let setup = json!({
-        "Setup": { "auth_cookie_name": "PBSAuthCookie" },
+    let mut debug = false;
+
+    if let Some(query_str) = parts.uri.query() {
+        for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
+            if k == "debug" && v == "1" || v == "true" {
+                debug = true;
+            }
+        }
+    }
+
+    let data = json!({
         "NodeName": nodename,
         "UserName": username,
         "CSRFPreventionToken": token,
+        "debug": debug,
     });
 
-    let index = format!(r###"
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Proxmox Backup Server</title>
-    <link rel="icon" sizes="128x128" href="/images/logo-128.png" />
-    <link rel="apple-touch-icon" sizes="128x128" href="/pve2/images/logo-128.png" />
-    <link rel="stylesheet" type="text/css" href="/extjs/theme-crisp/resources/theme-crisp-all.css" />
-    <link rel="stylesheet" type="text/css" href="/extjs/crisp/resources/charts-all.css" />
-    <link rel="stylesheet" type="text/css" href="/fontawesome/css/font-awesome.css" />
-    <link rel="stylesheet" type="text/css" href="/css/ext6-pbs.css" />
-    <script type='text/javascript'> function gettext(buf) {{ return buf; }} </script>
-    <script type="text/javascript" src="/extjs/ext-all-debug.js"></script>
-    <script type="text/javascript" src="/extjs/charts-debug.js"></script>
-    <script type="text/javascript">
-      Proxmox = {};
-    </script>
-    <script type="text/javascript" src="/widgettoolkit/proxmoxlib.js"></script>
-    <script type="text/javascript" src="/extjs/locale/locale-en.js"></script>
-    <script type="text/javascript">
-      Ext.History.fieldid = 'x-history-field';
-    </script>
-    <script type="text/javascript" src="/js/proxmox-backup-gui.js"></script>
-  </head>
-  <body>
-    <!-- Fields required for history management -->
-    <form id="history-form" class="x-hidden">
-      <input type="hidden" id="x-history-field"/>
-    </form>
-  </body>
-</html>
-"###, setup.to_string());
+    let mut ct = "text/html";
+
+    let index = match template.render("index", &data) {
+        Ok(index) => index,
+        Err(err) => {
+            ct = "text/plain";
+            format!("Error rendering template: {}", err.desc)
+        },
+    };
 
     Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html")
+        .header(header::CONTENT_TYPE, ct)
         .body(index.into())
         .unwrap()
 }
@@ -595,15 +580,15 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                 match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(username) => {
                         let new_token = assemble_csrf_prevention_token(csrf_secret(), &username);
-                        return Ok(get_index(Some(username), Some(new_token)));
+                        return Ok(get_index(Some(username), Some(new_token), &api.templates, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
-                        return Ok(get_index(None, None));
+                        return Ok(get_index(None, None, &api.templates, parts));
                     }
                 }
             } else {
-                return Ok(get_index(None, None));
+                return Ok(get_index(None, None, &api.templates, parts));
             }
         } else {
             let filename = api.find_alias(&components);
