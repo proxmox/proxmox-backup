@@ -660,6 +660,22 @@ pub fn garbage_collection_status(
 }
 
 #[api(
+    returns: {
+        description: "List the accessible datastores.",
+        type: Array,
+        items: {
+            description: "Datastore name and description.",
+            properties: {
+                store: {
+                    schema: DATASTORE_SCHEMA,
+                },
+                comment: {
+                    optional: true,
+                    schema: SINGLE_LINE_COMMENT_SCHEMA,
+                },
+            },
+        },
+    },
     access: {
         permission: &Permission::Anybody,
     },
@@ -676,15 +692,21 @@ fn get_datastore_list(
     let username = rpcenv.get_user().unwrap();
     let user_info = CachedUserInfo::new()?;
 
-    let mut skip: Vec<&str> = Vec::new();
+    let mut list = Vec::new();
 
-    for (store, _) in &config.sections {
+    for (store, (_, data)) in &config.sections {
         let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
-        if !allowed { skip.push(store); }
+        if allowed {
+            let mut entry = json!({ "store": store });
+            if let Some(comment) = data["comment"].as_str() {
+                entry["comment"] = comment.into();
+            }
+            list.push(entry);
+        }
     }
 
-    Ok(config.convert_to_array("store", None, &skip))
+    Ok(list.into())
 }
 
 #[sortable]
