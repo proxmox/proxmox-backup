@@ -19,6 +19,12 @@ Ext.define('PBS.store.NavigationStore', {
 		expanded: true,
 		children: [
 		    {
+			text: gettext('Data Store'),
+			iconCls: 'fa fa-archive',
+			path: 'pbsDataStoreConfig',
+			leaf: true
+		    },
+		    {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
@@ -61,17 +67,17 @@ Ext.define('PBS.view.main.NavigationTree', {
 
 	    let root = view.getStore().getRoot();
 
-	    if (!root.findChild('path', 'pbsDataStoreConfig', false)) {
+	    if (!root.findChild('path', 'pbsDataStoreList', false)) {
 		root.appendChild({
 		    text: gettext('Data Store'),
 		    expanded: true,
 		    iconCls: 'fa fa-archive',
-		    path: 'pbsDataStoreConfig',
+		    path: 'pbsDataStoreList',
 		    leaf: false
 		});
 	    }
 
-	    var list = root.findChild('path', 'pbsDataStoreConfig', false);
+	    var list = root.findChild('path', 'pbsDataStoreList', false);
 	    var length = records.length;
 	    var lookup_hash = {};
 	    for (var i = 0; i < length; i++) {
