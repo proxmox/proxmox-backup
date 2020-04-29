@@ -540,9 +540,13 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
             ConfigCache { data: None, last_mtime: 0, last_mtime_nsec: 0 });
     }
 
-    let stat = nix::sys::stat::stat(ACL_CFG_FILENAME)?;
+    let stat = match nix::sys::stat::stat(ACL_CFG_FILENAME) {
+        Ok(stat) => Some(stat),
+        Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => None,
+        Err(err) => bail!("unable to stat '{}' - {}", ACL_CFG_FILENAME, err),
+    };
 
-    { // limit scope
+    if let Some(stat) = stat {
         let cache = CACHED_CONFIG.read().unwrap();
         if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
             if let Some(ref config) = cache.data {
@@ -555,8 +559,10 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
     let config = Arc::new(config);
 
     let mut cache = CACHED_CONFIG.write().unwrap();
-    cache.last_mtime = stat.st_mtime;
-    cache.last_mtime_nsec = stat.st_mtime_nsec;
+    if let Some(stat) = stat {
+        cache.last_mtime = stat.st_mtime;
+        cache.last_mtime_nsec = stat.st_mtime_nsec;
+    }
     cache.data = Some(config.clone());
 
     Ok(config)
