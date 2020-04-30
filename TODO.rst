@@ -1,15 +1,23 @@
 TODO list for Proxmox Backup
 ============================
 
-* user management api
 
 * disk management api
-
-* start writing server GUI
 
 * improve catalog shell commands
 
 * improve user documentation
+
+
+GUI
+===
+
+* fix network/dns GUI (netzwork/dns api changed)
+
+* user/acl/permission management GUI
+
+* impl. fancy DatastoreStatus.js dashboard
+
 
 
 Chores:
