@@ -55,7 +55,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		autoStart: true,
 		interval: 15 * 1000,
 		storeid: 'pbs-datastore-list',
-		model: 'pbs-data-store-config'
+		model: 'pbs-datastore-list'
 	    });
 
 	    view.rstore.on('load', this.onLoad, this);
