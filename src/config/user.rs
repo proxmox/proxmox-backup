@@ -160,10 +160,14 @@ pub fn cached_config() -> Result<Arc<SectionConfigData>, Error> {
         Err(err) => bail!("unable to stat '{}' - {}", USER_CFG_FILENAME, err),
     };
 
-    if let Some(stat) = stat {
+    { // limit scope
         let cache = CACHED_CONFIG.read().unwrap();
-        if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
-            if let Some(ref config) = cache.data {
+        if let Some(ref config) = cache.data {
+            if let Some(stat) = stat {
+                if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
+                    return Ok(config.clone());
+                }
+            } else if cache.last_mtime == 0 && cache.last_mtime_nsec == 0 {
                 return Ok(config.clone());
             }
         }
