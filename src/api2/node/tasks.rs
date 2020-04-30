@@ -70,7 +70,7 @@ use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Get task status.
@@ -138,7 +138,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read task log.
@@ -203,7 +203,7 @@ fn read_task_log(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Try to stop a task.

@@ -47,7 +47,7 @@ use crate::config::acl::PRIV_SYS_AUDIT;
         }
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "status"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read node memory, CPU and (root) disk usage
