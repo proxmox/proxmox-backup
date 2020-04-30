@@ -502,6 +502,17 @@ pub struct TaskListItem {
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Node Power command type.
+pub enum NodePowerCommand {
+    /// Restart the server
+    Reboot,
+    /// Shutdown the server
+    Shutdown,
+}
+
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 /// Interface configuration method
 pub enum NetworkConfigMethod {
     /// Configuration is done manually using other tools

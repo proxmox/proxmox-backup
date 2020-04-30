@@ -1,13 +1,14 @@
-use anyhow::{Error};
+use std::process::Command;
+
+use anyhow::{Error, format_err, bail};
 use serde_json::{json, Value};
 
 use proxmox::sys::linux::procfs;
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, SubdirMap, Permission};
-use proxmox::list_subdirs_api_method;
+use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
-use crate::config::acl::PRIV_SYS_AUDIT;
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
 
 #[api(
     input: {
@@ -70,12 +71,49 @@ fn get_usage(
     }))
 }
 
-pub const USAGE_ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_USAGE);
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            command: {
+                type: NodePowerCommand,
+            },
+        }
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "status"], PRIV_SYS_POWER_MANAGEMENT, false),
+    },
+)]
+/// Reboot or shutdown the node.
+fn reboot_or_shutdown(command: NodePowerCommand) -> Result<(), Error> {
 
-pub const SUBDIRS: SubdirMap = &[
-    ("usage", &USAGE_ROUTER),
-];
+    let systemctl_command = match command {
+        NodePowerCommand::Reboot => "reboot",
+        NodePowerCommand::Shutdown => "poweroff",
+    };
+
+    let output = Command::new("/bin/systemctl")
+        .arg(systemctl_command)
+        .output()
+        .map_err(|err| format_err!("failed to execute systemctl - {}", err))?;
+
+    if !output.status.success() {
+        match output.status.code() {
+            Some(code) => {
+                let msg = String::from_utf8(output.stderr)
+                    .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                    .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+                bail!("diff failed with status code: {} - {}", code, msg);
+            }
+            None => bail!("systemctl terminated by signal"),
+        }
+    }
+    Ok(())
+}
+
 pub const ROUTER: Router = Router::new()
-    .get(&list_subdirs_api_method!(SUBDIRS))
-    .subdirs(SUBDIRS);
+    .get(&API_METHOD_GET_USAGE)
+    .post(&API_METHOD_REBOOT_OR_SHUTDOWN);
