@@ -274,11 +274,13 @@ fn stop_task(
                 type: bool,
                 description: "Only list running tasks.",
                 optional: true,
+                default: false,
             },
             errors: {
                 type: bool,
                 description: "Only list erroneous tasks.",
                 optional:true,
+                default: false,
             },
             userfilter: {
                 optional:true,
@@ -299,14 +301,13 @@ fn stop_task(
 )]
 /// List tasks.
 pub fn list_tasks(
+    start: u64,
+    limit: u64,
+    errors: bool,
+    running: bool,
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
-
-    let start = param["start"].as_u64().unwrap_or(0);
-    let limit = param["limit"].as_u64().unwrap_or(50);
-    let errors = param["errors"].as_bool().unwrap_or(false);
-    let running = param["running"].as_bool().unwrap_or(false);
 
     let username = rpcenv.get_user().unwrap();
     let user_info = CachedUserInfo::new()?;
