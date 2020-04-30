@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader};
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox::api::{api, Router, RpcEnvironment, Permission, UserInformation};
 use proxmox::api::router::SubdirMap;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
@@ -12,6 +12,8 @@ use crate::tools;
 use crate::api2::types::*;
 use crate::server::{self, UPID};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::cached_user_info::CachedUserInfo;
+
 
 #[api(
     input: {
@@ -70,15 +72,24 @@ use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_AUDIT, false),
+        description: "Users can access there own tasks, or need Sys.Audit on /system/tasks.",
+        permission: &Permission::Anybody,
     },
 )]
 /// Get task status.
 fn get_task_status(
     param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
+
+    let username = rpcenv.get_user().unwrap();
+
+    if username != upid.username {
+        let user_info = CachedUserInfo::new()?;
+        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+    }
 
     let mut result = json!({
         "upid": param["upid"],
@@ -138,7 +149,8 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_AUDIT, false),
+        description: "Users can access there own tasks, or need Sys.Audit on /system/tasks.",
+        permission: &Permission::Anybody,
     },
 )]
 /// Read task log.
@@ -148,6 +160,13 @@ fn read_task_log(
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
+
+    let username = rpcenv.get_user().unwrap();
+
+    if username != upid.username {
+        let user_info = CachedUserInfo::new()?;
+        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+    }
 
     let test_status = param["test-status"].as_bool().unwrap_or(false);
 
@@ -203,15 +222,24 @@ fn read_task_log(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "tasks"], PRIV_SYS_MODIFY, false),
+        description: "Users can stop there own tasks, or need Sys.Modify on /system/tasks.",
+        permission: &Permission::Anybody,
     },
 )]
 /// Try to stop a task.
 fn stop_task(
     param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
+
+    let username = rpcenv.get_user().unwrap();
+
+    if username != upid.username {
+        let user_info = CachedUserInfo::new()?;
+        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
+    }
 
     if crate::server::worker_is_active(&upid) {
         server::abort_worker_async(upid);
@@ -265,7 +293,8 @@ fn stop_task(
         items: { type: TaskListItem },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        description: "Users can only see there own tasks, unless the have Sys.Audit on /system/tasks.",
+        permission: &Permission::Anybody,
     },
 )]
 /// List tasks.
@@ -279,6 +308,12 @@ pub fn list_tasks(
     let errors = param["errors"].as_bool().unwrap_or(false);
     let running = param["running"].as_bool().unwrap_or(false);
 
+    let username = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&username, &["system", "tasks"]);
+
+    let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
+
     let store = param["store"].as_str();
 
     let userfilter = param["userfilter"].as_str();
@@ -290,6 +325,8 @@ pub fn list_tasks(
     let mut count = 0;
 
     for info in list.iter() {
+        if !list_all && info.upid.username != username { continue; }
+
         let mut entry = TaskListItem {
             upid: info.upid_str.clone(),
             node: "localhost".to_string(),
