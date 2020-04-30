@@ -123,7 +123,7 @@ Ext.define('PBS.Dashboard', {
 		autoDestroy: true,
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/nodes/localhost/status/usage'
+		    url: '/api2/json/nodes/localhost/status'
 		},
 		listeners: {
 		    load: 'updateUsageStats'
