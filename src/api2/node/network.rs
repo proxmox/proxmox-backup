@@ -24,7 +24,7 @@ use crate::api2::types::*;
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// List all datastores
@@ -69,7 +69,7 @@ pub fn list_network_devices(
         type: Interface,
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read a network interface configuration.
@@ -188,7 +188,7 @@ pub enum DeletableProperty {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Update network interface config.
@@ -306,7 +306,7 @@ pub fn update_interface(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Remove network interface configuration.
@@ -339,7 +339,7 @@ pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Erro
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Reload network configuration (requires ifupdown2).
@@ -363,7 +363,7 @@ pub fn reload_network_config() -> Result<(), Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Revert network configuration (rm /etc/network/interfaces.new).

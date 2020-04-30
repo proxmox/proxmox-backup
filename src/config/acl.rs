@@ -157,6 +157,59 @@ pub fn split_acl_path(path: &str) -> Vec<&str> {
     components
 }
 
+pub fn check_acl_path(path: &str) -> Result<(), Error> {
+
+    let components = split_acl_path(path);
+
+    let components_len = components.len();
+
+    if components_len == 0 { return Ok(()); }
+    match components[0] {
+        "access" => {
+            if components_len == 1 { return Ok(()); }
+            match components[1] {
+                "acl" | "users" => {
+                    if components_len == 2 { return Ok(()); }
+                }
+                _ => {},
+            }
+        }
+        "datastore" => {  // /datastore/{store}
+            if components_len <= 2 { return Ok(()); }
+        }
+        "remote" => { // /remote/{remote}/{store}
+            if components_len <= 3 { return Ok(()); }
+        }
+        "system" => {
+            if components_len == 1 { return Ok(()); }
+            match components[1] {
+                "log" | "status" | "tasks" | "time" => {
+                    if components_len == 2 { return Ok(()); }
+                }
+                "services" => { // /system/services/{service}
+                    if components_len <= 3 { return Ok(()); }
+                }
+                "network" => {
+                    if components_len == 2 { return Ok(()); }
+                    match components[2] {
+                        "dns" => {
+                            if components_len == 3 { return Ok(()); }
+                        }
+                        "interfaces" => { // /system/network/interfaces/{iface}
+                            if components_len <= 4 { return Ok(()); }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+
+    bail!("invalid acl path '{}'.", path);
+}
+
 pub struct AclTree {
     pub root: AclTreeNode,
 }

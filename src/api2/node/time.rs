@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use proxmox::api::{api, Router, Permission};
 use proxmox::tools::fs::{file_read_firstline, replace_file, CreateOptions};
 
+use crate::config::acl::PRIV_SYS_MODIFY;
 use crate::api2::types::*;
 
 fn read_etc_localtime() -> Result<String, Error> {
@@ -95,6 +96,9 @@ fn get_time(_param: Value) -> Result<Value, Error> {
                 schema: TIME_ZONE_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "time"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Set time zone

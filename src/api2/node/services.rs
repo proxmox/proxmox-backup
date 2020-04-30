@@ -124,7 +124,7 @@ fn json_service_state(service: &str, status: Value) -> Value {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "services"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Service list.
@@ -161,7 +161,7 @@ fn list_services(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "services", "{service}"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read service properties.
@@ -220,7 +220,7 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "services", "{service}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Start service.
@@ -247,7 +247,7 @@ fn start_service(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "services", "{service}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Stop service.
@@ -274,7 +274,7 @@ fn stop_service(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "services", "{service}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Retart service.
@@ -306,7 +306,7 @@ fn restart_service(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "services", "{service}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Reload service.

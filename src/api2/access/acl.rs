@@ -5,7 +5,7 @@ use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::config::acl;
-use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 
 #[api(
     properties: {
@@ -35,19 +35,6 @@ pub struct AclListItem {
     ugid_type: String,
     propagate: bool,
     roleid: String,
-}
-
-fn check_acl_path(path: &str) -> Result<(), Error> {
-
-    let components = acl::split_acl_path(path);
-
-    if components.is_empty() { return Ok(()); }
-
-    if components.len() == 2 {
-        if components[0] == "datastore" { return Ok(()); }
-    }
-
-    bail!("invalid acl path '{}'.", path);
 }
 
 fn extract_acl_node_data(
@@ -92,7 +79,7 @@ fn extract_acl_node_data(
         }
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["access", "acl"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read Access Control List (ACLs).
@@ -144,7 +131,7 @@ pub fn read_acl(
        },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "acl"], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Update Access Control List (ACLs).
@@ -186,7 +173,7 @@ pub fn update_acl(
     }
 
     if !delete { // Note: we allow to delete entries with invalid path
-        check_acl_path(&path)?;
+        acl::check_acl_path(&path)?;
     }
 
     if let Some(userid) = userid {

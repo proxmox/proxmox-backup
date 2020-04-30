@@ -56,7 +56,7 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// List all users
@@ -111,7 +111,7 @@ pub fn list_users(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Create new user.
@@ -154,7 +154,7 @@ pub fn create_user(userid: String, password: Option<String>, param: Value) -> Re
         type: user::User,
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read user configuration data.
@@ -208,7 +208,7 @@ pub fn read_user(userid: String) -> Result<Value, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Update user configuration.
@@ -290,7 +290,7 @@ pub fn update_user(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
     },
 )]
 /// Remove a user from the configuration file.

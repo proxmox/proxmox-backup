@@ -111,7 +111,7 @@ pub fn read_etc_resolv_conf() -> Result<Value, Error> {
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "dns"], PRIV_SYS_MODIFY, false),
     }
 )]
 /// Update DNS settings
@@ -206,7 +206,7 @@ pub fn update_dns(
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "network", "dns"], PRIV_SYS_AUDIT, false),
     }
 )]
 /// Read DNS settings.

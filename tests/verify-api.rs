@@ -43,6 +43,25 @@ fn verify_schema(schema: &Schema) -> Result<(), Error> {
     }
     Ok(())
 }
+
+fn verify_access_permissions(permission: &Permission) -> Result<(), Error> {
+
+    match permission {
+        Permission::Or(list) => {
+            for perm in list.iter() { verify_access_permissions(perm)?; }
+        }
+        Permission::And(list) => {
+            for perm in list.iter() { verify_access_permissions(perm)?; }
+        }
+        Permission::Privilege(path_comp, ..)=> {
+            let path = format!("/{}", path_comp.join("/"));
+            proxmox_backup::config::acl::check_acl_path(&path)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn verify_api_method(
     method: &str,
     path: &str,
@@ -54,6 +73,9 @@ fn verify_api_method(
 
     verify_schema(info.returns)
         .map_err(|err| format_err!("{} {} returns: {}", method, path, err))?;
+
+    verify_access_permissions(info.access.permission)
+        .map_err(|err| format_err!("{} {} access: {}", method, path, err))?;
 
     Ok(())
 }

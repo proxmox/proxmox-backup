@@ -55,7 +55,7 @@ use crate::config::acl::PRIV_SYS_AUDIT;
         },
     },
     access: {
-        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Privilege(&["system", "log"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read syslog entries.
