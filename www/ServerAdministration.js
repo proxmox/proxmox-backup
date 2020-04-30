@@ -18,10 +18,10 @@ Ext.define('PBS.ServerAdministration', {
     },
 
     items: [
-//	{
-//	    xtype: 'pbsServerStatus',
-//	    itemId: 'status'
-//	},
+	{
+	    xtype: 'pbsServerStatus',
+	    itemId: 'status'
+	},
 	{
 	    xtype: 'proxmoxNodeServiceView',
             title: gettext('Services'),
