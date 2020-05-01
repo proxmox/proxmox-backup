@@ -145,7 +145,9 @@ Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 A :term:`datastore` is a place to store backups. You can configure
-multiple datastores. At least one datastore needs to be configured. The datastore is identified by a simple `name` and points to a directory.
+multiple datastores. At least one datastore needs to be
+configured. The datastore is identified by a simple `name` and points
+to a directory.
 
 The following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
 
@@ -158,7 +160,11 @@ To list existing datastores run:
 .. code-block:: console
 
   # proxmox-backup-manager datastore list
-  store1 /backup/disk1/store1
+  ┌────────┬──────────────────────┬─────────────────────────────┐
+  │ name   │ path                 │ comment                     │
+  ╞════════╪══════════════════════╪═════════════════════════════╡
+  │ store1 │ /backup/disk1/store1 │ This is my default storage. │
+  └────────┴──────────────────────┴─────────────────────────────┘
 
 Finally, it is possible to remove the datastore configuration:
 
@@ -174,6 +180,75 @@ File Layout
 ^^^^^^^^^^^
 
 .. todo:: Add datastore file layout example
+
+
+User Management
+~~~~~~~~~~~~~~~
+
+Proxmox Backup support several authentication realms, and you need to
+choose the realm when you add a new user. Possible realms are:
+
+:pam: Linux PAM standard authentication. Use this if you want to
+      authenticate as Linux system user (Users needs to exist on the
+      system).
+
+:pbs: Proxmox Backup Server realm. This type stores hashed passwords in
+      ``/etc/proxmox-backup/shadow.json``.
+
+After installation, there is a single user ``root@pam``, which
+corresponds to the Unix superuser. You can use the
+``proxmox-backup-manager`` command line tool to list or manipulate
+users:
+
+.. code-block:: console
+
+  # proxmox-backup-manager user list
+  ┌─────────────┬────────┬────────┬───────────┬──────────┬─────────────────┬────────────────────┐
+  │ userid      │ enable │ expire │ firstname │ lastname │ email           │ comment            │
+  ╞═════════════╪════════╪════════╪═══════════╪══════════╪═════════════════╪════════════════════╡
+  │ root@pam    │      1 │        │           │          │                 │ Superuser          │
+  └─────────────┴────────┴────────┴───────────┴──────────┴─────────────────┴────────────────────┘
+
+The superuser has full administration rights on everything, so you
+normally want to add other users with less privileges:
+
+.. code-block:: console
+
+  # proxmox-backup-manager user create john@pbs --email john@example.com
+
+The create command lets you specify many option like ``--email`` or
+``--password``, but you can update or change any of them using the
+update command later:
+
+.. code-block:: console
+
+  # proxmox-backup-manager user update john@pbs --firstname John --lastname Smith
+  # proxmox-backup-manager user update john@pbs --comment "An example user."
+
+
+.. todo:: Mention how to set password without passing plaintext password as cli argument.
+
+
+The resulting use list looks like this:
+
+.. code-block:: console
+
+  # proxmox-backup-manager user list
+  ┌──────────┬────────┬────────┬───────────┬──────────┬──────────────────┬──────────────────┐
+  │ userid   │ enable │ expire │ firstname │ lastname │ email            │ comment          │
+  ╞══════════╪════════╪════════╪═══════════╪══════════╪══════════════════╪══════════════════╡
+  │ john@pbs │      1 │        │ John      │ Smith    │ john@example.com │ An example user. │
+  ├──────────┼────────┼────────┼───────────┼──────────┼──────────────────┼──────────────────┤
+  │ root@pam │      1 │        │           │          │                  │ Superuser        │
+  └──────────┴────────┴────────┴───────────┴──────────┴──────────────────┴──────────────────┘
+
+Newly created users do not have an permissions. Please read the next
+section to learn how to set access permissions.
+
+
+Access Control
+~~~~~~~~~~~~~~
+
 
 
 Backup Client usage
