@@ -12,7 +12,7 @@ TODO list for Proxmox Backup
 GUI
 ===
 
-* fix network/dns GUI (netzwork/dns api changed)
+* fix network/dns GUI (network/dns api changed)
 
 * user/acl/permission management GUI
 
@@ -24,6 +24,8 @@ Chores:
 =======
 
 * move tools/xattr.rs and tools/acl.rs to proxmox/sys/linux/
+
+* recompute PXAR_ header types from strings: avoid using numbers from casync
 
 
 Suggestions
