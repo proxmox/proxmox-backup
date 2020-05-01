@@ -133,8 +133,14 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("userid"))
-        .column(ColumnConfig::new("enable"))
-        .column(ColumnConfig::new("expire"))
+        .column(
+            ColumnConfig::new("enable")
+                .renderer(tools::format::render_bool_with_default_true)
+        )
+        .column(
+            ColumnConfig::new("expire")
+                .renderer(tools::format::render_epoch)
+        )
         .column(ColumnConfig::new("firstname"))
         .column(ColumnConfig::new("lastname"))
         .column(ColumnConfig::new("email"))

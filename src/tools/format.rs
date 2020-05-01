@@ -41,3 +41,8 @@ pub fn render_task_status(value: &Value, record: &Value) -> Result<String, Error
         Ok(value.as_str().unwrap_or("unknown").to_string())
     }
 }
+
+pub fn render_bool_with_default_true(value: &Value, _record: &Value) -> Result<String, Error> {
+    let value = value.as_bool().unwrap_or(true);
+    Ok((if value { "1" } else { "0" }).to_string())
+}
