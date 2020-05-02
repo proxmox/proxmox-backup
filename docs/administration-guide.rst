@@ -245,6 +245,19 @@ The resulting use list looks like this:
 Newly created users do not have an permissions. Please read the next
 section to learn how to set access permissions.
 
+If you want to disable an user account, you can do that by setting ``--enable`` to ``0``
+
+.. code-block:: console
+
+  # proxmox-backup-manager user update john@pbs --enable 0
+
+Or completely remove the users with:
+
+.. code-block:: console
+
+  # proxmox-backup-manager user remove john@pbs
+
+
 
 Access Control
 ~~~~~~~~~~~~~~
