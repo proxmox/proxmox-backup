@@ -258,9 +258,47 @@ Or completely remove the users with:
   # proxmox-backup-manager user remove john@pbs
 
 
-
 Access Control
 ~~~~~~~~~~~~~~
+
+Users do not have any permission by default. Instead you need to
+specify what is allowed and what not. You can do this by assigning
+roles to users on specific objects like datastores or remotes. The
+following roles exist:
+
+**Admin**
+  The Administrator can do anything.
+
+**Audit**
+  An Auditor can view things, but is not allowed to change settings.
+
+**NoAccess**
+  Disable Access - nothing is allowed.
+
+**DatastoreAdmin**
+  Can do anything on datastores.
+
+**DatastoreAudit**
+  Can view datastore settings and list content. But
+  is not allowed to read the actual data.
+
+**DataStoreReader**
+  Can Inspect datastore content and can do restores.
+
+**DataStoreBackup**
+  Can backup and restore owned backups.
+
+**DatastorePowerUser**
+  Can backup, restore, and prune owned backups.
+
+**RemoteAdmin**
+  Can do anything on remotes.
+
+**RemoteAudit**
+  Can view remote settings.
+
+**RemoteSyncOperator**
+  Is allowed to read data from a remote.
 
 
 
