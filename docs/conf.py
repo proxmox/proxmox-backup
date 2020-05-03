@@ -272,7 +272,11 @@ latex_elements = {
 
      # Additional stuff for the LaTeX preamble.
      #
-     # 'preamble': '',
+     # fix baselineskip in code-blocks with scaled font
+     # see: https://github.com/sphinx-doc/sphinx/issues/6733
+    'preamble': r'''
+\fvset{formatcom=\baselineskip9pt\relax\let\strut\empty}
+''',
 
      # Latex figure (float) alignment
      #
