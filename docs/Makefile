@@ -73,10 +73,11 @@ html: ${GENERATED_SYNOPSIS}
 
 .PHONY: latexpdf
 latexpdf: ${GENERATED_SYNOPSIS}
+	@echo "Requires python3-sphinx, texlive-xetex and xindy"
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
-	@echo "Running LaTeX files through pdflatex..."
+	@echo "Running LaTeX files through xelatex..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf
-	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
+	@echo "xelatex finished; the PDF files are in $(BUILDDIR)/latex."
 
 .PHONY: epub3
 epub3: ${GENERATED_SYNOPSIS}

@@ -251,14 +251,24 @@ htmlhelp_basename = 'ProxmoxBackupdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
+latex_engine = 'xelatex'
+
 latex_elements = {
+    'fontenc': '\\usepackage{fontspec}',
+
      # The paper size ('letterpaper' or 'a4paper').
      #
      'papersize': 'a4paper',
 
      # The font size ('10pt', '11pt' or '12pt').
      #
-     'pointsize': '12pt',
+     'pointsize': '10pt',
+
+    'fontpkg': r'''
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+''',
 
      # Additional stuff for the LaTeX preamble.
      #
