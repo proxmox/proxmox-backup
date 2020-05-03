@@ -267,7 +267,7 @@ latex_elements = {
     'fontpkg': r'''
 \setmainfont{DejaVu Serif}
 \setsansfont{DejaVu Sans}
-\setmonofont{DejaVu Sans Mono}
+\setmonofont{DejaVu Sans Mono}[Scale=0.8]
 ''',
 
      # Additional stuff for the LaTeX preamble.

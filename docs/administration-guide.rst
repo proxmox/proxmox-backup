@@ -203,11 +203,11 @@ users:
 .. code-block:: console
 
   # proxmox-backup-manager user list
-  ┌─────────────┬────────┬────────┬───────────┬──────────┬─────────────────┬────────────────────┐
-  │ userid      │ enable │ expire │ firstname │ lastname │ email           │ comment            │
-  ╞═════════════╪════════╪════════╪═══════════╪══════════╪═════════════════╪════════════════════╡
-  │ root@pam    │      1 │        │           │          │                 │ Superuser          │
-  └─────────────┴────────┴────────┴───────────┴──────────┴─────────────────┴────────────────────┘
+  ┌─────────────┬────────┬────────┬───────────┬──────────┬────────────────┬────────────────────┐
+  │ userid      │ enable │ expire │ firstname │ lastname │ email          │ comment            │
+  ╞═════════════╪════════╪════════╪═══════════╪══════════╪════════════════╪════════════════════╡
+  │ root@pam    │      1 │        │           │          │                │ Superuser          │
+  └─────────────┴────────┴────────┴───────────┴──────────┴────────────────┴────────────────────┘
 
 The superuser has full administration rights on everything, so you
 normally want to add other users with less privileges:
