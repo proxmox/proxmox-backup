@@ -575,9 +575,13 @@ command gives a list of all snapshots on the server:
 .. code-block:: console
 
   # proxmox-backup-client snapshots
-  ...
-  host/elsa/2019-12-03T09:30:15Z | 51788646825 | root.pxar catalog.pcat1 index.json
-  host/elsa/2019-12-03T09:35:01Z | 51790622048 | root.pxar catalog.pcat1 index.json
+  ┌────────────────────────────────┬─────────────┬────────────────────────────────────┐
+  │ snapshot                       │        size │ files                              │
+  ╞════════════════════════════════╪═════════════╪════════════════════════════════════╡
+  │ host/elsa/2019-12-03T09:30:15Z │ 51788646825 │ root.pxar catalog.pcat1 index.json │
+  ├────────────────────────────────┼─────────────┼────────────────────────────────────┤
+  │ host/elsa/2019-12-03T09:35:01Z │ 51790622048 │ root.pxar catalog.pcat1 index.json │
+  ├────────────────────────────────┼─────────────┼────────────────────────────────────┤
   ...
 
 You can inspect the catalog to find specific files.
