@@ -21,6 +21,21 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+# -- Implement custom formatter for code-blocks ---------------------------
+#
+# * use smaller font
+# * avoid space between lines to nicely format utf8 tables
+
+from sphinx.highlighting import PygmentsBridge
+from pygments.formatters.latex import LatexFormatter
+
+class CustomLatexFormatter(LatexFormatter):
+    def __init__(self, **options):
+        super(CustomLatexFormatter, self).__init__(**options)
+        self.verboptions = r"formatcom=\footnotesize\relax\let\strut\empty"
+
+PygmentsBridge.latex_formatter = CustomLatexFormatter
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -267,16 +282,12 @@ latex_elements = {
     'fontpkg': r'''
 \setmainfont{DejaVu Serif}
 \setsansfont{DejaVu Sans}
-\setmonofont{DejaVu Sans Mono}[Scale=0.8]
+\setmonofont{DejaVu Sans Mono}
 ''',
 
      # Additional stuff for the LaTeX preamble.
      #
-     # fix baselineskip in code-blocks with scaled font
-     # see: https://github.com/sphinx-doc/sphinx/issues/6733
-    'preamble': r'''
-\fvset{formatcom=\baselineskip9pt\relax\let\strut\empty}
-''',
+     # 'preamble': '',
 
      # Latex figure (float) alignment
      #
