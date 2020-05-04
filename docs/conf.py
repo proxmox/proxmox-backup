@@ -280,8 +280,8 @@ latex_elements = {
      'pointsize': '10pt',
 
     'fontpkg': r'''
-\setmainfont{DejaVu Serif}
-\setsansfont{DejaVu Sans}
+\setmainfont{XCharter}
+\setsansfont{Lato}
 \setmonofont{DejaVu Sans Mono}
 ''',
 

@@ -73,7 +73,7 @@ html: ${GENERATED_SYNOPSIS}
 
 .PHONY: latexpdf
 latexpdf: ${GENERATED_SYNOPSIS}
-	@echo "Requires python3-sphinx, texlive-xetex and xindy"
+	@echo "Requires python3-sphinx, texlive-xetex, xindy and texlive-fonts-extra"
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo "Running LaTeX files through xelatex..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf
