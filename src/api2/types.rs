@@ -393,6 +393,30 @@ pub struct SnapshotListItem {
 
 #[api(
     properties: {
+        "backup-type": {
+            schema: BACKUP_TYPE_SCHEMA,
+        },
+        "backup-id": {
+            schema: BACKUP_ID_SCHEMA,
+        },
+        "backup-time": {
+            schema: BACKUP_TIME_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Prune result.
+pub struct PruneListItem {
+    pub backup_type: String, // enum
+    pub backup_id: String,
+    pub backup_time: i64,
+    /// Keep snapshot
+    pub keep: bool,
+}
+
+#[api(
+    properties: {
         "filename": {
             schema: BACKUP_ARCHIVE_NAME_SCHEMA,
         },

@@ -1424,11 +1424,29 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
 
-    let result = client.post(&path, Some(param)).await?;
+    let mut result = client.post(&path, Some(param)).await?;
 
     record_repository(&repo);
 
-    view_task_result(client, result, &output_format).await?;
+    let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
+        let item: PruneListItem = serde_json::from_value(record.to_owned())?;
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
+    };
+
+    let options = default_table_format_options()
+        .sortby("backup-type", false)
+        .sortby("backup-id", false)
+        .sortby("backup-time", false)
+        .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
+        .column(ColumnConfig::new("keep"))
+        ;
+
+    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_PRUNE;
+
+    let mut data = result["data"].take();
+
+    format_and_print_result_full(&mut data, info, &output_format, &options);
 
     Ok(Value::Null)
 }

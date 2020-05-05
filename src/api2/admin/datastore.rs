@@ -455,6 +455,11 @@ macro_rules! add_common_prune_prameters {
     }
 }
 
+pub const API_RETURN_SCHEMA_PRUNE: Schema = ArraySchema::new(
+    "Returns the list of snapshots and a flag indicating if there are kept or removed.",
+    PruneListItem::API_SCHEMA
+).schema();
+
 const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&prune),
     &ObjectSchema::new(
@@ -469,8 +474,9 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
         ],[
             ("store", false, &DATASTORE_SCHEMA),
         ])
-    )
-).access(None, &Permission::Privilege(
+    ))
+    .returns(&API_RETURN_SCHEMA_PRUNE)
+    .access(None, &Permission::Privilege(
     &["datastore", "{store}"],
     PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,
     true)
