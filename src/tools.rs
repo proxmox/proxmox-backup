@@ -24,6 +24,7 @@ pub mod acl;
 pub mod async_io;
 pub mod borrow;
 pub mod daemon;
+pub mod disks;
 pub mod fs;
 pub mod format;
 pub mod lru_cache;
