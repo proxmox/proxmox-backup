@@ -1439,6 +1439,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
         .sortby("backup-id", false)
         .sortby("backup-time", false)
         .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
+        .column(ColumnConfig::new("backup-time").renderer(tools::format::render_epoch).header("date"))
         .column(ColumnConfig::new("keep"))
         ;
 
