@@ -777,11 +777,6 @@ The retention options are processed in the order given above. Each option
 only covers backups within its time period. The next option does not take care
 of already covered backups. It will only consider older backups.
 
-For example, the ``--keep-monthly`` option does not consider any backup that is
-younger than one month.
-
-.. todo:: check if the previous statement is correct
-
 Unfinished and incomplete backups will be removed by the prune command unless
 they are newer than the last successful backup. In this case, the last failed
 backup is retained.
@@ -797,14 +792,19 @@ shows the list of existing snapshots and which action prune would take.
 .. code-block:: console
 
   # proxmox-backup-client prune host/elsa --dry-run --keep-daily 1 --keep-weekly 3
-  retention options: --keep-daily 1 --keep-weekly 3
-  Testing prune on store "store2" group "host/elsa"
-  host/elsa/2019-12-04T13:20:37Z keep
-  host/elsa/2019-12-03T09:35:01Z remove
-  host/elsa/2019-11-22T11:54:47Z keep
-  host/elsa/2019-11-21T12:36:25Z remove
-  host/elsa/2019-11-10T10:42:20Z keep
-
+  ┌────────────────────────────────┬──────┐
+  │ snapshot                       │ keep │
+  ╞════════════════════════════════╪══════╡
+  │ host/elsa/2019-12-04T13:20:37Z │    1 │
+  ├────────────────────────────────┼──────┤
+  │ host/elsa/2019-12-03T09:35:01Z │    0 │
+  ├────────────────────────────────┼──────┤
+  │ host/elsa/2019-11-22T11:54:47Z │    1 │
+  ├────────────────────────────────┼──────┤
+  │ host/elsa/2019-11-21T12:36:25Z │    0 │
+  ├────────────────────────────────┼──────┤
+  │ host/elsa/2019-11-10T10:42:20Z │    1 │
+  └────────────────────────────────┴──────┘
 
 .. note:: Neither the ``prune`` command nor the ``forget`` command free space
    in the chunk-store. The chunk-store still contains the data blocks. To free
