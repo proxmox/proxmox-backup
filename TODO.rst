@@ -16,7 +16,12 @@ GUI
 
 * user/acl/permission management GUI
 
-* impl. fancy DatastoreStatus.js dashboard
+* implement GUI to configure remotes
+
+* implement fancy DatastoreStatus.js dashboard
+
+* implement PVE GUI to add PBS storage (with convenient copy/paste
+  functionality, like we have for cluster join)
 
 
 
