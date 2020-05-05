@@ -514,7 +514,7 @@ impl WorkerTask {
     /// Fail if abort was requested.
     pub fn fail_on_abort(&self) -> Result<(), Error> {
         if self.abort_requested() {
-            bail!("task '{}': abort requested - aborting task", self.upid);
+            bail!("abort requested - aborting task");
         }
         Ok(())
     }

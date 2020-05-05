@@ -291,7 +291,7 @@ impl ChunkStore {
         &self,
         oldest_writer: i64,
         status: &mut GarbageCollectionStatus,
-        worker: Arc<WorkerTask>,
+        worker: &WorkerTask,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
 
@@ -314,6 +314,7 @@ impl ChunkStore {
                 worker.log(format!("percentage done: {}, chunk count: {}", percentage, chunk_count));
             }
 
+            worker.fail_on_abort()?;
             tools::fail_on_shutdown()?;
 
             let (dirfd, entry) = match entry {

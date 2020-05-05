@@ -352,12 +352,14 @@ impl DataStore {
         index: I,
         file_name: &Path, // only used for error reporting
         status: &mut GarbageCollectionStatus,
+        worker: &WorkerTask,
     ) -> Result<(), Error> {
 
         status.index_file_count += 1;
         status.index_data_bytes += index.index_bytes();
 
         for pos in 0..index.index_count() {
+            worker.fail_on_abort()?;
             tools::fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if let Err(err) = self.chunk_store.touch_chunk(digest) {
@@ -368,21 +370,22 @@ impl DataStore {
         Ok(())
     }
 
-    fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus) -> Result<(), Error> {
+    fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus, worker: &WorkerTask) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
 
         for path in image_list {
 
+            worker.fail_on_abort()?;
             tools::fail_on_shutdown()?;
 
             if let Ok(archive_type) = archive_type(&path) {
                 if archive_type == ArchiveType::FixedIndex {
                     let index = self.open_fixed_reader(&path)?;
-                    self.index_mark_used_chunks(index, &path, status)?;
+                    self.index_mark_used_chunks(index, &path, status, worker)?;
                 } else if archive_type == ArchiveType::DynamicIndex {
                     let index = self.open_dynamic_reader(&path)?;
-                    self.index_mark_used_chunks(index, &path, status)?;
+                    self.index_mark_used_chunks(index, &path, status, worker)?;
                 }
             }
         }
@@ -394,7 +397,7 @@ impl DataStore {
         self.last_gc_status.lock().unwrap().clone()
     }
 
-    pub fn garbage_collection(&self, worker: Arc<WorkerTask>) -> Result<(), Error> {
+    pub fn garbage_collection(&self, worker: &WorkerTask) -> Result<(), Error> {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
@@ -409,10 +412,10 @@ impl DataStore {
 
             worker.log("Start GC phase1 (mark used chunks)");
 
-            self.mark_used_chunks(&mut gc_status)?;
+            self.mark_used_chunks(&mut gc_status, &worker)?;
 
             worker.log("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status, worker.clone())?;
+            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status, &worker)?;
 
             worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
