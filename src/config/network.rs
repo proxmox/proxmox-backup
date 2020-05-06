@@ -22,27 +22,28 @@ impl Interface {
         Self {
             name,
             interface_type: NetworkInterfaceType::Unknown,
-            auto: false,
+            autostart: false,
             active: false,
-            method_v4: None,
-            method_v6: None,
-            cidr_v4: None,
-            gateway_v4: None,
-            cidr_v6: None,
-            gateway_v6: None,
-            options_v4: Vec::new(),
-            options_v6: Vec::new(),
-            comments_v4: None,
-            comments_v6: None,
+            method: None,
+            method6: None,
+            cidr: None,
+            gateway: None,
+            cidr6: None,
+            gateway6: None,
+            options: Vec::new(),
+            options6: Vec::new(),
+            comments: None,
+            comments6: None,
             mtu: None,
             bridge_ports: None,
+            bridge_vlan_aware: None,
             bond_slaves: None,
         }
     }
 
     fn set_method_v4(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
-        if self.method_v4.is_none() {
-            self.method_v4 = Some(method);
+        if self.method.is_none() {
+            self.method = Some(method);
         } else {
             bail!("inet configuration method already set.");
         }
@@ -50,8 +51,8 @@ impl Interface {
     }
 
     fn set_method_v6(&mut self, method: NetworkConfigMethod) -> Result<(), Error> {
-        if self.method_v6.is_none() {
-            self.method_v6 = Some(method);
+        if self.method6.is_none() {
+            self.method6 = Some(method);
         } else {
             bail!("inet6 configuration method already set.");
         }
@@ -59,8 +60,8 @@ impl Interface {
     }
 
     fn set_cidr_v4(&mut self, address: String) -> Result<(), Error> {
-        if self.cidr_v4.is_none() {
-            self.cidr_v4 = Some(address);
+        if self.cidr.is_none() {
+            self.cidr = Some(address);
         } else {
             bail!("duplicate IPv4 address.");
         }
@@ -68,8 +69,8 @@ impl Interface {
     }
 
     fn set_gateway_v4(&mut self, gateway: String) -> Result<(), Error> {
-        if self.gateway_v4.is_none() {
-            self.gateway_v4 = Some(gateway);
+        if self.gateway.is_none() {
+            self.gateway = Some(gateway);
         } else {
             bail!("duplicate IPv4 gateway.");
         }
@@ -77,8 +78,8 @@ impl Interface {
     }
 
     fn set_cidr_v6(&mut self, address: String) -> Result<(), Error> {
-        if self.cidr_v6.is_none() {
-            self.cidr_v6 = Some(address);
+        if self.cidr6.is_none() {
+            self.cidr6 = Some(address);
         } else {
             bail!("duplicate IPv6 address.");
         }
@@ -86,8 +87,8 @@ impl Interface {
     }
 
     fn set_gateway_v6(&mut self, gateway: String) -> Result<(), Error> {
-        if self.gateway_v6.is_none() {
-            self.gateway_v6 = Some(gateway);
+        if self.gateway6.is_none() {
+            self.gateway6 = Some(gateway);
         } else {
             bail!("duplicate IPv4 gateway.");
         }
@@ -124,20 +125,23 @@ impl Interface {
 
         match self.interface_type {
             NetworkInterfaceType::Bridge => {
+                if let Some(true) = self.bridge_vlan_aware {
+                    writeln!(w, "\tbridge-vlan-aware yes")?;
+                }
                 if let Some(ref ports) = self.bridge_ports {
                     if ports.is_empty() {
-                        writeln!(w, "    bridge-ports none")?;
+                        writeln!(w, "\tbridge-ports none")?;
                     } else {
-                        writeln!(w, "    bridge-ports {}", ports.join(" "))?;
+                        writeln!(w, "\tbridge-ports {}", ports.join(" "))?;
                     }
                 }
             }
             NetworkInterfaceType::Bond => {
                 if let Some(ref slaves) = self.bond_slaves {
                     if slaves.is_empty() {
-                        writeln!(w, "    bond-slaves none")?;
+                        writeln!(w, "\tbond-slaves none")?;
                     } else {
-                        writeln!(w, "    bond-slaves {}", slaves.join(" "))?;
+                        writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
                     }
                 }
             }
@@ -145,7 +149,7 @@ impl Interface {
         }
 
         if let Some(mtu) = self.mtu {
-            writeln!(w, "    mtu {}", mtu)?;
+            writeln!(w, "\tmtu {}", mtu)?;
         }
 
         Ok(())
@@ -154,19 +158,19 @@ impl Interface {
     /// Write attributes dependening on address family inet (IPv4)
     fn write_iface_attributes_v4(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
-            if let Some(address) = &self.cidr_v4 {
-                writeln!(w, "    address {}", address)?;
+            if let Some(address) = &self.cidr {
+                writeln!(w, "\taddress {}", address)?;
             }
-            if let Some(gateway) = &self.gateway_v4 {
-                writeln!(w, "    gateway {}", gateway)?;
+            if let Some(gateway) = &self.gateway {
+                writeln!(w, "\tgateway {}", gateway)?;
             }
         }
 
-        for option in &self.options_v4 {
-            writeln!(w, "    {}", option)?;
+        for option in &self.options {
+            writeln!(w, "\t{}", option)?;
         }
 
-        if let Some(ref comments) = self.comments_v4 {
+        if let Some(ref comments) = self.comments {
             for comment in comments.lines() {
                 writeln!(w, "#{}", comment)?;
             }
@@ -178,19 +182,19 @@ impl Interface {
     /// Write attributes dependening on address family inet6 (IPv6)
     fn write_iface_attributes_v6(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
-            if let Some(address) = &self.cidr_v6 {
-                writeln!(w, "    address {}", address)?;
+            if let Some(address) = &self.cidr6 {
+                writeln!(w, "\taddress {}", address)?;
             }
-            if let Some(gateway) = &self.gateway_v6 {
-                writeln!(w, "    gateway {}", gateway)?;
+            if let Some(gateway) = &self.gateway6 {
+                writeln!(w, "\tgateway {}", gateway)?;
             }
         }
 
-        for option in &self.options_v6 {
-            writeln!(w, "    {}", option)?;
+        for option in &self.options6 {
+            writeln!(w, "\t{}", option)?;
         }
 
-        if let Some(ref comments) = self.comments_v6 {
+        if let Some(ref comments) = self.comments6 {
             for comment in comments.lines() {
                 writeln!(w, "#{}", comment)?;
             }
@@ -204,30 +208,31 @@ impl Interface {
         // Note: use match to make sure we considered all values at compile time
         match self {
             Interface {
-                method_v4,
-                method_v6,
-                options_v4,
-                options_v6,
-                comments_v4,
-                comments_v6,
+                method,
+                method6,
+                options,
+                options6,
+                comments,
+                comments6,
                 // the rest does not matter
                 name: _name,
                 interface_type: _interface_type,
-                auto: _auto,
+                autostart: _autostart,
                 active: _active,
-                cidr_v4: _cidr_v4,
-                cidr_v6: _cidr_v6,
-                gateway_v4: _gateway_v4,
-                gateway_v6: _gateway_v6,
+                cidr: _cidr,
+                cidr6: _cidr6,
+                gateway: _gateway,
+                gateway6: _gateway6,
                 mtu: _mtu,
                 bridge_ports: _bridge_ports,
+                bridge_vlan_aware: _bridge_vlan_aware,
                 bond_slaves: _bond_slaves,
             } => {
-                method_v4 == method_v6
-                    && comments_v4.is_none()
-                    && comments_v6.is_none()
-                    && options_v4.is_empty()
-                    && options_v6.is_empty()
+                method == method6
+                    && comments.is_none()
+                    && comments6.is_none()
+                    && options.is_empty()
+                    && options6.is_empty()
             }
         }
     }
@@ -243,36 +248,46 @@ impl Interface {
             }
         }
 
-        if self.method_v4.is_none() && self.method_v6.is_none() { return Ok(()); }
+        if self.method.is_none() && self.method6.is_none() { return Ok(()); }
 
-        if self.auto {
+        if self.autostart {
             writeln!(w, "auto {}", self.name)?;
         }
 
         if self.combine_entry() {
-            if let Some(method) = self.method_v4 {
+            if let Some(method) = self.method {
                 writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
                 self.write_iface_attributes_v4(w, method)?;
                 self.write_iface_attributes_v6(w, method)?;
                 self.write_iface_attributes(w)?;
                 writeln!(w)?;
             }
-        } else {
-            if let Some(method) = self.method_v4 {
-                writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
-                self.write_iface_attributes_v4(w, method)?;
-                self.write_iface_attributes(w)?;
-                writeln!(w)?;
+            return Ok(());
+        }
+                    
+        if let Some(method) = self.method {
+            writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
+            self.write_iface_attributes_v4(w, method)?;
+            self.write_iface_attributes(w)?;
+            writeln!(w)?;
+        }
+        
+        if let Some(method6) = self.method6 {
+            let mut skip_v6 = false; // avoid empty inet6 manual entry
+            if self.method.is_some() && method6 == NetworkConfigMethod::Manual {
+                if self.comments6.is_none() && self.options6.is_empty() { skip_v6 = true; }
             }
-            if let Some(method) = self.method_v6 {
-                writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method))?;
-                self.write_iface_attributes_v6(w, method)?;
-                if self.method_v4.is_none() { // only write common attributes once
+       
+            if !skip_v6 {
+                writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method6))?;
+                self.write_iface_attributes_v6(w, method6)?;
+                if self.method.is_none() { // only write common attributes once
                     self.write_iface_attributes(w)?;
                 }
                 writeln!(w)?;
             }
         }
+
         Ok(())
     }
 }

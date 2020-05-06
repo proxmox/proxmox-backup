@@ -140,7 +140,9 @@ impl Shell {
                     continue;
                 }
             };
-            let _ = handle_command(helper.cmd_def(), "", args, None);
+
+            let rpcenv = CliEnvironment::new();
+            let _ = handle_command(helper.cmd_def(), "", args, rpcenv, None);
             self.rl.add_history_entry(line);
             self.update_prompt()?;
         }

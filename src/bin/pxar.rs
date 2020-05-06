@@ -519,5 +519,6 @@ fn main() {
             .completion_cb("archive", tools::complete_file_name)
         );
 
-    run_cli_command(cmd_def, None);
+    let rpcenv = CliEnvironment::new();
+    run_cli_command(cmd_def, rpcenv, None);
 }

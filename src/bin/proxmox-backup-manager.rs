@@ -273,10 +273,10 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
     fn render_address(_value: &Value, record: &Value) -> Result<String, Error> {
         let mut text = String::new();
 
-        if let Some(cidr) = record["cidr_v4"].as_str() {
+        if let Some(cidr) = record["cidr"].as_str() {
             text.push_str(cidr);
         }
-        if let Some(cidr) = record["cidr_v6"].as_str() {
+        if let Some(cidr) = record["cidr6"].as_str() {
             if !text.is_empty() { text.push('\n'); }
             text.push_str(cidr);
         }
@@ -287,10 +287,10 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
     fn render_gateway(_value: &Value, record: &Value) -> Result<String, Error> {
         let mut text = String::new();
 
-        if let Some(gateway) = record["gateway_v4"].as_str() {
+        if let Some(gateway) = record["gateway"].as_str() {
             text.push_str(gateway);
         }
-        if let Some(gateway) = record["gateway_v6"].as_str() {
+        if let Some(gateway) = record["gateway6"].as_str() {
             if !text.is_empty() { text.push('\n'); }
             text.push_str(gateway);
         }
@@ -299,13 +299,13 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
     }
 
     let options = default_table_format_options()
-        .column(ColumnConfig::new("interface_type").header("type"))
+        .column(ColumnConfig::new("type").header("type"))
         .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("auto"))
-        .column(ColumnConfig::new("method_v4"))
-        .column(ColumnConfig::new("method_v6"))
-        .column(ColumnConfig::new("cidr_v4").header("address").renderer(render_address))
-        .column(ColumnConfig::new("gateway_v4").header("gateway").renderer(render_gateway));
+        .column(ColumnConfig::new("autostart"))
+        .column(ColumnConfig::new("method"))
+        .column(ColumnConfig::new("method6"))
+        .column(ColumnConfig::new("cidr").header("address").renderer(render_address))
+        .column(ColumnConfig::new("gateway").header("gateway").renderer(render_gateway));
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
@@ -347,15 +347,15 @@ fn network_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::node::network::API_METHOD_UPDATE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
-                .arg_param(&["name"])
-                .completion_cb("name", config::network::complete_interface_name)
+                .arg_param(&["iface"])
+                .completion_cb("iface", config::network::complete_interface_name)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::node::network::API_METHOD_DELETE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
-                .arg_param(&["name"])
-                .completion_cb("name", config::network::complete_interface_name)
+                .arg_param(&["iface"])
+                .completion_cb("iface", config::network::complete_interface_name)
         )
         .insert(
             "revert",
@@ -839,7 +839,10 @@ fn main() {
                 .completion_cb("remote-store", complete_remote_datastore_name)
         );
 
-    proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def));
+    let mut rpcenv = CliEnvironment::new();
+    rpcenv.set_user(Some(String::from("root@pam")));
+    
+   proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def, rpcenv));
 }
 
 // shell completion helper

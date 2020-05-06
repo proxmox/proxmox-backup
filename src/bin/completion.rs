@@ -83,7 +83,8 @@ fn main() -> Result<(), Error> {
 
         let args = shellword_split(&line)?;
 
-        let _ = handle_command(helper.cmd_def(), "", args, None);
+        let rpcenv = CliEnvironment::new();
+        let _ = handle_command(helper.cmd_def(), "", args, rpcenv, None);
 
         rl.add_history_entry(line);
     }

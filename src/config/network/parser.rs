@@ -137,6 +137,21 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(mtu)
     }
 
+    fn parse_yes_no(&mut self) -> Result<bool, Error> {
+        let text = self.next_text()?;
+        let value = match text.to_lowercase().as_str() {
+            "yes" => true,
+            "no" => false,
+            _ => {
+                bail!("unable to bool value '{}' - (expected yes/no)", text);
+            }
+        };
+
+        self.eat(Token::Newline)?;
+
+        Ok(value)
+    }
+
     fn parse_to_eol(&mut self) -> Result<String, Error> {
         let mut line = String::new();
         loop {
@@ -182,15 +197,15 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::Comment => {
                     let comment = self.eat(Token::Comment)?;
                     if !address_family_v4 && address_family_v6 {
-                        let mut comments = interface.comments_v6.take().unwrap_or(String::new());
+                        let mut comments = interface.comments6.take().unwrap_or(String::new());
                         if !comments.is_empty() { comments.push('\n'); }
                         comments.push_str(&comment);
-                        interface.comments_v6 = Some(comments);
+                        interface.comments6 = Some(comments);
                     } else {
-                        let mut comments = interface.comments_v4.take().unwrap_or(String::new());
+                        let mut comments = interface.comments.take().unwrap_or(String::new());
                         if !comments.is_empty() { comments.push('\n'); }
                         comments.push_str(&comment);
-                        interface.comments_v4 = Some(comments);
+                        interface.comments = Some(comments);
                     }
                     self.eat(Token::Newline)?;
                     continue;
@@ -206,6 +221,11 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::MTU => {
                     let mtu = self.parse_iface_mtu()?;
                     interface.mtu = Some(mtu);
+                }
+                Token::BridgeVlanAware => {
+                    self.eat(Token::BridgeVlanAware)?;
+                    let bridge_vlan_aware = self.parse_yes_no()?;
+                    interface.bridge_vlan_aware = Some(bridge_vlan_aware);
                 }
                 Token::BridgePorts => {
                     self.eat(Token::BridgePorts)?;
@@ -225,9 +245,9 @@ impl <R: BufRead> NetworkParser<R> {
                     let option = self.parse_to_eol()?;
                     if !option.is_empty() {
                         if !address_family_v4 && address_family_v6 {
-                            interface.options_v6.push(option);
+                            interface.options6.push(option);
                         } else {
-                            interface.options_v4.push(option);
+                            interface.options.push(option);
                         }
                    };
                  },
@@ -335,7 +355,7 @@ impl <R: BufRead> NetworkParser<R> {
 
         for iface in auto_flag.iter() {
             if let Some(interface) = config.interfaces.get_mut(iface) {
-                interface.auto = true;
+                interface.autostart = true;
             }
         }
 
@@ -349,13 +369,13 @@ impl <R: BufRead> NetworkParser<R> {
             for (iface, active) in existing_interfaces.iter()  {
                 if let Some(interface) = config.interfaces.get_mut(iface) {
                     interface.active = *active;
-                    if interface.interface_type == NetworkInterfaceType::Unknown {
-                        interface.interface_type = NetworkInterfaceType::Ethernet;
+                    if interface.interface_type == NetworkInterfaceType::Unknown && PHYSICAL_NIC_REGEX.is_match(iface) {
+                        interface.interface_type = NetworkInterfaceType::Eth;
                     }
                 } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
                     let mut interface = Interface::new(iface.clone());
                     interface.set_method_v4(NetworkConfigMethod::Manual)?;
-                    interface.interface_type = NetworkInterfaceType::Ethernet;
+                    interface.interface_type = NetworkInterfaceType::Eth;
                     interface.active = *active;
                     config.interfaces.insert(interface.name.clone(), interface);
                     config.order.push(NetworkOrderEntry::Iface(iface.to_string()));
@@ -378,7 +398,7 @@ impl <R: BufRead> NetworkParser<R> {
                 continue;
             }
             if PHYSICAL_NIC_REGEX.is_match(name) {
-                interface.interface_type = NetworkInterfaceType::Vanished;
+                interface.interface_type = NetworkInterfaceType::Eth;
                 continue;
             }
         }
@@ -387,7 +407,7 @@ impl <R: BufRead> NetworkParser<R> {
             let mut interface = Interface::new(String::from("lo"));
             interface.set_method_v4(NetworkConfigMethod::Loopback)?;
             interface.interface_type = NetworkInterfaceType::Loopback;
-            interface.auto = true;
+            interface.autostart = true;
             config.interfaces.insert(interface.name.clone(), interface);
 
             // Note: insert 'lo' as first interface after initial comments

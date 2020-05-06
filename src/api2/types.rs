@@ -557,9 +557,7 @@ pub enum NetworkInterfaceType {
     /// Loopback
     Loopback,
     /// Physical Ethernet device
-    Ethernet,
-    /// Name looks like a physical ethernet device, but device is not found
-    Vanished,
+    Eth,
     /// Linux Bridge
     Bridge,
     /// Linux Bond
@@ -587,18 +585,34 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
         name: {
             schema: NETWORK_INTERFACE_NAME_SCHEMA,
         },
-        interface_type: {
+        "type": {
             type: NetworkInterfaceType,
         },
-        method_v4: {
+        method: {
             type: NetworkConfigMethod,
             optional: true,
         },
-        method_v6: {
+        method6: {
             type: NetworkConfigMethod,
             optional: true,
         },
-        options_v4: {
+        cidr: {
+            schema: CIDR_V4_SCHEMA,
+            optional: true,
+        },
+        cidr6: {
+            schema: CIDR_V6_SCHEMA,
+            optional: true,
+        },
+        gateway: {
+            schema: IP_V4_SCHEMA,
+            optional: true,
+        },
+        gateway6: {
+            schema: IP_V6_SCHEMA,
+            optional: true,
+        },
+        options: {
             description: "Option list (inet)",
             type: Array,
             items: {
@@ -606,7 +620,7 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
                 type: String,
             },
         },
-        options_v6: {
+        options6: {
             description: "Option list (inet6)",
             type: Array,
             items: {
@@ -614,12 +628,12 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
                 type: String,
             },
         },
-        comments_v4: {
+        comments: {
             description: "Comments (inet, may span multiple lines)",
             type: String,
             optional: true,
         },
-        comments_v6: {
+        comments6: {
             description: "Comments (inet6, may span multiple lines)",
             type: String,
             optional: true,
@@ -638,39 +652,41 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
 /// Network Interface configuration
 pub struct Interface {
     /// Autostart interface
-    pub auto: bool,
+    #[serde(rename = "autostart")]
+    pub autostart: bool,
     /// Interface is active (UP)
     pub active: bool,
     /// Interface name
     pub name: String,
     /// Interface type
+    #[serde(rename = "type")]
     pub interface_type: NetworkInterfaceType,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub method_v4: Option<NetworkConfigMethod>,
+    pub method: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub method_v6: Option<NetworkConfigMethod>,
+    pub method6: Option<NetworkConfigMethod>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv4 address with netmask
-    pub cidr_v4: Option<String>,
+    pub cidr: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv4 gateway
-    pub gateway_v4: Option<String>,
+    pub gateway: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv6 address with netmask
-    pub cidr_v6: Option<String>,
+    pub cidr6: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     /// IPv6 gateway
-    pub gateway_v6: Option<String>,
+    pub gateway6: Option<String>,
 
     #[serde(skip_serializing_if="Vec::is_empty")]
-    pub options_v4: Vec<String>,
+    pub options: Vec<String>,
     #[serde(skip_serializing_if="Vec::is_empty")]
-    pub options_v6: Vec<String>,
+    pub options6: Vec<String>,
 
     #[serde(skip_serializing_if="Option::is_none")]
-    pub comments_v4: Option<String>,
+    pub comments: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub comments_v6: Option<String>,
+    pub comments6: Option<String>,
 
     #[serde(skip_serializing_if="Option::is_none")]
     /// Maximum Transmission Unit
@@ -678,6 +694,9 @@ pub struct Interface {
 
     #[serde(skip_serializing_if="Option::is_none")]
     pub bridge_ports: Option<Vec<String>>,
+    /// Enable bridge vlan support.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bridge_vlan_aware: Option<bool>,
 
     #[serde(skip_serializing_if="Option::is_none")]
     pub bond_slaves: Option<Vec<String>>,

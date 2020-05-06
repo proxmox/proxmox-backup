@@ -7,6 +7,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use crate::config::network;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
+use crate::server::{WorkerTask};
 
 #[api(
     input: {
@@ -39,9 +40,11 @@ pub fn list_network_devices(
 
     let mut list = Vec::new();
 
-    for interface in config.interfaces.values() {
+    for (iface, interface) in config.interfaces.iter() {
+        if iface == "lo" { continue; } // do not list lo
         let mut item: Value = to_value(interface)?;
         item["digest"] = digest.clone().into();
+        item["iface"] = iface.to_string().into();
         list.push(item);
     }
 
@@ -54,12 +57,12 @@ pub fn list_network_devices(
 }
 
 #[api(
-   input: {
+    input: {
         properties: {
             node: {
                 schema: NODE_SCHEMA,
             },
-            name: {
+            iface: {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
         },
@@ -73,11 +76,11 @@ pub fn list_network_devices(
     },
 )]
 /// Read a network interface configuration.
-pub fn read_interface(name: String) -> Result<Value, Error> {
+pub fn read_interface(iface: String) -> Result<Value, Error> {
 
     let (config, digest) = network::config()?;
 
-    let interface = config.lookup(&name)?;
+    let interface = config.lookup(&iface)?;
 
     let mut data: Value = to_value(interface)?;
     data["digest"] = proxmox::tools::digest_to_hex(&digest).into();
@@ -91,27 +94,29 @@ pub fn read_interface(name: String) -> Result<Value, Error> {
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the IPv4 address property.
-    address_v4,
+    cidr,
     /// Delete the IPv6 address property.
-    address_v6,
+    cidr6,
     /// Delete the IPv4 gateway property.
-    gateway_v4,
+    gateway,
     /// Delete the IPv6 gateway property.
-    gateway_v6,
+    gateway6,
     /// Delete the whole IPv4 configuration entry.
-    method_v4,
+    method,
     /// Delete the whole IPv6 configuration entry.
-    method_v6,
+    method6,
     /// Delete IPv4 comments
-    comments_v4,
+    comments,
     /// Delete IPv6 comments
-    comments_v6,
+    comments6,
     /// Delete mtu.
     mtu,
-    /// Delete auto flag
-    auto,
+    /// Delete autostart flag
+    autostart,
     /// Delete bridge ports (set to 'none')
     bridge_ports,
+    /// Delet bridge-vlan-aware flag
+    bridge_vlan_aware,
     /// Delete bond-slaves (set to 'none')
     bond_slaves,
 }
@@ -124,38 +129,51 @@ pub enum DeletableProperty {
             node: {
                 schema: NODE_SCHEMA,
             },
-            name: {
+            iface: {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
-            auto: {
+            "type": {
+                description: "Interface type. If specified, need to match the current type.",
+                type: NetworkInterfaceType,
+                optional: true,
+            },
+            autostart: {
                 description: "Autostart interface.",
                 type: bool,
                 optional: true,
             },
-            method_v4: {
+            method: {
                 type: NetworkConfigMethod,
                 optional: true,
             },
-            method_v6: {
+            method6: {
                 type: NetworkConfigMethod,
                 optional: true,
             },
-            comments_v4: {
+            comments: {
                 description: "Comments (inet, may span multiple lines)",
                 type: String,
                 optional: true,
             },
-            comments_v6: {
+            comments6: {
                 description: "Comments (inet5, may span multiple lines)",
                 type: String,
                 optional: true,
             },
-            address: {
-                schema: CIDR_SCHEMA,
+            cidr: {
+                schema: CIDR_V4_SCHEMA,
+                optional: true,
+            },
+            cidr6: {
+                schema: CIDR_V6_SCHEMA,
                 optional: true,
             },
             gateway: {
-                schema: IP_SCHEMA,
+                schema: IP_V4_SCHEMA,
+                optional: true,
+            },
+            gateway6: {
+                schema: IP_V6_SCHEMA,
                 optional: true,
             },
             mtu: {
@@ -168,6 +186,11 @@ pub enum DeletableProperty {
             bridge_ports: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
+            },
+            bridge_vlan_aware: {
+	        description: "Enable bridge vlan support.",
+	        type: bool,
+	        optional: true,
             },
             bond_slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
@@ -188,24 +211,28 @@ pub enum DeletableProperty {
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{iface}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Update network interface config.
 pub fn update_interface(
-    name: String,
-    auto: Option<bool>,
-    method_v4: Option<NetworkConfigMethod>,
-    method_v6: Option<NetworkConfigMethod>,
-    comments_v4: Option<String>,
-    comments_v6: Option<String>,
-    address: Option<String>,
+    iface: String,
+    autostart: Option<bool>,
+    method: Option<NetworkConfigMethod>,
+    method6: Option<NetworkConfigMethod>,
+    comments: Option<String>,
+    comments6: Option<String>,
+    cidr: Option<String>,
     gateway: Option<String>,
+    cidr6: Option<String>,
+    gateway6: Option<String>,
     mtu: Option<u64>,
     bridge_ports: Option<Vec<String>>,
+    bridge_vlan_aware: Option<bool>,
     bond_slaves: Option<Vec<String>>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
+    param: Value,
 ) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0))?;
@@ -218,71 +245,98 @@ pub fn update_interface(
     }
 
     let current_gateway_v4 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway_v4.is_some())
+        .find(|(_, interface)| interface.gateway.is_some())
         .map(|(name, _)| name.to_string());
 
     let current_gateway_v6 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway_v4.is_some())
+        .find(|(_, interface)| interface.gateway6.is_some())
         .map(|(name, _)| name.to_string());
 
-    let interface = config.lookup_mut(&name)?;
+    let interface = config.lookup_mut(&iface)?;
+
+    if let Some(interface_type) = param.get("type") {
+        let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.clone())?;
+        if  interface_type != interface.interface_type {
+            bail!("got unexpected interface type ({:?} != {:?})", interface_type, interface.interface_type);
+        }
+    }
 
     if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
-                DeletableProperty::address_v4 => { interface.cidr_v4 = None; },
-                DeletableProperty::address_v6 => { interface.cidr_v6 = None; },
-                DeletableProperty::gateway_v4 => { interface.gateway_v4 = None; },
-                DeletableProperty::gateway_v6 => { interface.gateway_v6 = None; },
-                DeletableProperty::method_v4 => { interface.method_v4 = None; },
-                DeletableProperty::method_v6 => { interface.method_v6 = None; },
-                DeletableProperty::comments_v4 => { interface.comments_v4 = None; },
-                DeletableProperty::comments_v6 => { interface.comments_v6 = None; },
+                DeletableProperty::cidr => { interface.cidr = None; },
+                DeletableProperty::cidr6 => { interface.cidr6 = None; },
+                DeletableProperty::gateway => { interface.gateway = None; },
+                DeletableProperty::gateway6 => { interface.gateway6 = None; },
+                DeletableProperty::method => { interface.method = None; },
+                DeletableProperty::method6 => { interface.method6 = None; },
+                DeletableProperty::comments => { interface.comments = None; },
+                DeletableProperty::comments6 => { interface.comments6 = None; },
                 DeletableProperty::mtu => { interface.mtu = None; },
-                DeletableProperty::auto => { interface.auto = false; },
+                DeletableProperty::autostart => { interface.autostart = false; },
                 DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
+                DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
                 DeletableProperty::bond_slaves => { interface.set_bond_slaves(Vec::new())?; }
             }
         }
     }
 
-    if let Some(auto) = auto { interface.auto = auto; }
-    if method_v4.is_some() { interface.method_v4 = method_v4; }
-    if method_v6.is_some() { interface.method_v6 = method_v6; }
+    if let Some(autostart) = autostart { interface.autostart = autostart; }
+    if method.is_some() { interface.method = method; }
+    if method6.is_some() { interface.method6 = method6; }
     if mtu.is_some() { interface.mtu = mtu; }
     if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
+    if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
     if let Some(slaves) = bond_slaves { interface.set_bond_slaves(slaves)?; }
 
-    if let Some(address) = address {
-        let (_, _, is_v6) = network::parse_cidr(&address)?;
-        if is_v6 {
-            interface.cidr_v6 = Some(address);
-        } else {
-            interface.cidr_v4 = Some(address);
-        }
+    if let Some(cidr) = cidr {
+        let (_, _, is_v6) = network::parse_cidr(&cidr)?;
+        if is_v6 { bail!("invalid address type (expected IPv4, got IPv6)"); }
+        interface.cidr = Some(cidr);
+    }
+
+    if let Some(cidr6) = cidr6 {
+        let (_, _, is_v6) = network::parse_cidr(&cidr6)?;
+        if !is_v6 { bail!("invalid address type (expected IPv6, got IPv4)"); }
+        interface.cidr6 = Some(cidr6);
     }
 
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
-        if is_v6 {
-            if let Some(current_gateway_v6) = current_gateway_v6 {
-                if current_gateway_v6 != name {
-                    bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
-                }
+        if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if let Some(current_gateway_v4) = current_gateway_v4 {
+            if current_gateway_v4 != iface {
+                bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
             }
-            interface.gateway_v6 = Some(gateway);
-        } else {
-            if let Some(current_gateway_v4) = current_gateway_v4 {
-                if current_gateway_v4 != name {
-                    bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
-                }
-            }
-            interface.gateway_v4 = Some(gateway);
         }
+        interface.gateway = Some(gateway);
     }
 
-    if comments_v4.is_some() { interface.comments_v4 = comments_v4; }
-    if comments_v6.is_some() { interface.comments_v6 = comments_v6; }
+    if let Some(gateway6) = gateway6 {
+        let is_v6 = gateway6.contains(':');
+        if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if let Some(current_gateway_v6) = current_gateway_v6 {
+            if current_gateway_v6 != iface {
+                bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
+            }
+        }
+        interface.gateway6 = Some(gateway6);
+    }
+
+    if comments.is_some() { interface.comments = comments; }
+    if comments6.is_some() { interface.comments6 = comments6; }
+
+    if interface.cidr.is_some() || interface.gateway.is_some() {
+        interface.method = Some(NetworkConfigMethod::Static);
+    } else {
+        interface.method = Some(NetworkConfigMethod::Manual);
+    }
+
+    if interface.cidr6.is_some() || interface.gateway6.is_some() {
+        interface.method6 = Some(NetworkConfigMethod::Static);
+    } else {
+        interface.method6 = Some(NetworkConfigMethod::Manual);
+    }
 
     network::save_config(&config)?;
 
@@ -296,7 +350,7 @@ pub fn update_interface(
             node: {
                 schema: NODE_SCHEMA,
             },
-            name: {
+            iface: {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
             digest: {
@@ -306,11 +360,11 @@ pub fn update_interface(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_MODIFY, false),
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{iface}"], PRIV_SYS_MODIFY, false),
     },
 )]
 /// Remove network interface configuration.
-pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Error> {
+pub fn delete_interface(iface: String, digest: Option<String>) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0))?;
 
@@ -321,9 +375,9 @@ pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Erro
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let _interface = config.lookup(&name)?; // check if interface exists
+    let _interface = config.lookup(&iface)?; // check if interface exists
 
-    config.interfaces.remove(&name);
+    config.interfaces.remove(&iface);
 
     network::save_config(&config)?;
 
@@ -331,6 +385,7 @@ pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Erro
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             node: {
@@ -343,15 +398,23 @@ pub fn delete_interface(name: String, digest: Option<String>) -> Result<(), Erro
     },
 )]
 /// Reload network configuration (requires ifupdown2).
-pub fn reload_network_config() -> Result<(), Error> {
+pub async fn reload_network_config(
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
 
     network::assert_ifupdown2_installed()?;
 
-    let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
+    let username = rpcenv.get_user().unwrap();
 
-    network::network_reload()?;
+    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), &username.clone(), true, |_worker| async {
 
-    Ok(())
+        let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
+
+        network::network_reload()?;
+        Ok(())
+    })?;
+
+    Ok(upid_str)
 }
 
 #[api(
@@ -383,4 +446,4 @@ pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_NETWORK_DEVICES)
     .put(&API_METHOD_RELOAD_NETWORK_CONFIG)
     .delete(&API_METHOD_REVERT_NETWORK_CONFIG)
-    .match_all("name", &ITEM_ROUTER);
+    .match_all("iface", &ITEM_ROUTER);

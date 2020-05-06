@@ -37,7 +37,7 @@ pam = "0.7"
 pam-sys = "0.5"
 percent-encoding = "2.1"
 pin-utils = "0.1.0-alpha"
-proxmox = { version = "0.1.25", features = [ "sortable-macro", "api-macro" ] }
+proxmox = { version = "0.1.26", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 regex = "1.2"
