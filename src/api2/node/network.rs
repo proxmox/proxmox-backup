@@ -88,6 +88,200 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
     Ok(data)
 }
 
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            iface: {
+                schema: NETWORK_INTERFACE_NAME_SCHEMA,
+            },
+            "type": {
+                description: "Interface type.",
+                type: NetworkInterfaceType,
+                optional: true,
+            },
+            autostart: {
+                description: "Autostart interface.",
+                type: bool,
+                optional: true,
+            },
+            method: {
+                type: NetworkConfigMethod,
+                optional: true,
+            },
+            method6: {
+                type: NetworkConfigMethod,
+                optional: true,
+            },
+            comments: {
+                description: "Comments (inet, may span multiple lines)",
+                type: String,
+                optional: true,
+            },
+            comments6: {
+                description: "Comments (inet5, may span multiple lines)",
+                type: String,
+                optional: true,
+            },
+            cidr: {
+                schema: CIDR_V4_SCHEMA,
+                optional: true,
+            },
+            cidr6: {
+                schema: CIDR_V6_SCHEMA,
+                optional: true,
+            },
+            gateway: {
+                schema: IP_V4_SCHEMA,
+                optional: true,
+            },
+            gateway6: {
+                schema: IP_V6_SCHEMA,
+                optional: true,
+            },
+            mtu: {
+                description: "Maximum Transmission Unit.",
+                optional: true,
+                minimum: 46,
+                maximum: 65535,
+                default: 1500,
+            },
+            bridge_ports: {
+                schema: NETWORK_INTERFACE_LIST_SCHEMA,
+                optional: true,
+            },
+            bridge_vlan_aware: {
+	        description: "Enable bridge vlan support.",
+	        type: bool,
+	        optional: true,
+            },
+            bond_slaves: {
+                schema: NETWORK_INTERFACE_LIST_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "network", "interfaces", "{iface}"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Create network interface configuration.
+pub fn create_interface(
+    iface: String,
+    autostart: Option<bool>,
+    method: Option<NetworkConfigMethod>,
+    method6: Option<NetworkConfigMethod>,
+    comments: Option<String>,
+    comments6: Option<String>,
+    cidr: Option<String>,
+    gateway: Option<String>,
+    cidr6: Option<String>,
+    gateway6: Option<String>,
+    mtu: Option<u64>,
+    bridge_ports: Option<Vec<String>>,
+    bridge_vlan_aware: Option<bool>,
+    bond_slaves: Option<Vec<String>>,
+    param: Value,
+) -> Result<(), Error> {
+
+    let interface_type = crate::tools::required_string_param(&param, "type")?;
+    let interface_type: NetworkInterfaceType = serde_json::from_value(interface_type.into())?;
+
+    let _lock = crate::tools::open_file_locked(network::NETWORK_LOCKFILE, std::time::Duration::new(10, 0))?;
+
+    let (mut config, _digest) = network::config()?;
+
+    if config.interfaces.contains_key(&iface) {
+        bail!("interface '{}' already exists", iface);
+    }
+
+    let current_gateway_v4 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway.is_some())
+        .map(|(name, _)| name.to_string());
+
+    let current_gateway_v6 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway6.is_some())
+        .map(|(name, _)| name.to_string());
+
+
+    let mut interface = Interface::new(iface.clone());
+    interface.interface_type = interface_type;
+
+    if let Some(autostart) = autostart { interface.autostart = autostart; }
+    if method.is_some() { interface.method = method; }
+    if method6.is_some() { interface.method6 = method6; }
+    if mtu.is_some() { interface.mtu = mtu; }
+    if comments.is_some() { interface.comments = comments; }
+    if comments6.is_some() { interface.comments6 = comments6; }
+
+    if let Some(cidr) = cidr {
+        let (_, _, is_v6) = network::parse_cidr(&cidr)?;
+        if is_v6 { bail!("invalid address type (expected IPv4, got IPv6)"); }
+        interface.cidr = Some(cidr);
+    }
+
+    if let Some(cidr6) = cidr6 {
+        let (_, _, is_v6) = network::parse_cidr(&cidr6)?;
+        if !is_v6 { bail!("invalid address type (expected IPv6, got IPv4)"); }
+        interface.cidr6 = Some(cidr6);
+    }
+
+    if let Some(gateway) = gateway {
+        let is_v6 = gateway.contains(':');
+        if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
+        if let Some(current_gateway_v4) = current_gateway_v4 {
+            if current_gateway_v4 != iface {
+                bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
+            }
+        }
+        interface.gateway = Some(gateway);
+    }
+
+    if let Some(gateway6) = gateway6 {
+        let is_v6 = gateway6.contains(':');
+        if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
+        if let Some(current_gateway_v6) = current_gateway_v6 {
+            if current_gateway_v6 != iface {
+                bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
+            }
+        }
+        interface.gateway6 = Some(gateway6);
+    }
+
+    match interface_type {
+        NetworkInterfaceType::Bridge => {
+            if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
+            if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
+        }
+        NetworkInterfaceType::Bond => {
+            if let Some(slaves) = bond_slaves { interface.set_bond_slaves(slaves)?; }
+        }
+        _ => bail!("creating network interface type '{:?}' is not supported", interface_type),
+    }
+
+    if interface.cidr.is_some() || interface.gateway.is_some() {
+        interface.method = Some(NetworkConfigMethod::Static);
+    } else if interface.method.is_none() {
+        interface.method = Some(NetworkConfigMethod::Manual);
+    }
+
+    if interface.cidr6.is_some() || interface.gateway6.is_some() {
+        interface.method6 = Some(NetworkConfigMethod::Static);
+    } else if interface.method6.is_none() {
+        interface.method6 = Some(NetworkConfigMethod::Manual);
+    }
+
+    config.interfaces.insert(iface, interface);
+
+    network::save_config(&config)?;
+
+    Ok(())
+}
+
 #[api()]
 #[derive(Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
@@ -445,5 +639,6 @@ const ITEM_ROUTER: Router = Router::new()
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_NETWORK_DEVICES)
     .put(&API_METHOD_RELOAD_NETWORK_CONFIG)
+    .post(&API_METHOD_CREATE_INTERFACE)
     .delete(&API_METHOD_REVERT_NETWORK_CONFIG)
     .match_all("iface", &ITEM_ROUTER);
