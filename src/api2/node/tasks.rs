@@ -77,7 +77,7 @@ use crate::config::cached_user_info::CachedUserInfo;
     },
 )]
 /// Get task status.
-fn get_task_status(
+async fn get_task_status(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -102,7 +102,7 @@ fn get_task_status(
         "user": upid.username,
     });
 
-    if crate::server::worker_is_active(&upid) {
+    if crate::server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
     } else {
         let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(String::from("unknown"));
@@ -154,7 +154,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
     },
 )]
 /// Read task log.
-fn read_task_log(
+async fn read_task_log(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
@@ -202,7 +202,7 @@ fn read_task_log(
     rpcenv.set_result_attrib("total", Value::from(count));
 
     if test_status {
-        let active = crate::server::worker_is_active(&upid);
+        let active = crate::server::worker_is_active(&upid).await?;
         rpcenv.set_result_attrib("active", Value::from(active));
     }
 
@@ -241,9 +241,7 @@ fn stop_task(
         user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 
-    if crate::server::worker_is_active(&upid) {
-        server::abort_worker_async(upid);
-    }
+    server::abort_worker_async(upid);
 
     Ok(Value::Null)
 }
