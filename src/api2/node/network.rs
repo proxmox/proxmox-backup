@@ -187,7 +187,11 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
 	        type: bool,
 	        optional: true,
             },
-            bond_slaves: {
+            bond_mode: {
+                type: LinuxBondMode,
+                optional: true,
+            },
+            slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
             },
@@ -212,7 +216,8 @@ pub fn create_interface(
     mtu: Option<u64>,
     bridge_ports: Option<Vec<String>>,
     bridge_vlan_aware: Option<bool>,
-    bond_slaves: Option<Vec<String>>,
+    bond_mode: Option<LinuxBondMode>,
+    slaves: Option<Vec<String>>,
     param: Value,
 ) -> Result<(), Error> {
 
@@ -269,7 +274,8 @@ pub fn create_interface(
             if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
         }
         NetworkInterfaceType::Bond => {
-            if let Some(slaves) = bond_slaves { interface.set_bond_slaves(slaves)?; }
+            if bond_mode.is_some() { interface.bond_mode = bond_mode; }
+            if let Some(slaves) = slaves { interface.set_bond_slaves(slaves)?; }
         }
         _ => bail!("creating network interface type '{:?}' is not supported", interface_type),
     }
@@ -323,7 +329,7 @@ pub enum DeletableProperty {
     /// Delet bridge-vlan-aware flag
     bridge_vlan_aware,
     /// Delete bond-slaves (set to 'none')
-    bond_slaves,
+    slaves,
 }
 
 
@@ -397,7 +403,11 @@ pub enum DeletableProperty {
 	        type: bool,
 	        optional: true,
             },
-            bond_slaves: {
+            bond_mode: {
+                type: LinuxBondMode,
+                optional: true,
+            },
+            slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
             },
@@ -434,7 +444,8 @@ pub fn update_interface(
     mtu: Option<u64>,
     bridge_ports: Option<Vec<String>>,
     bridge_vlan_aware: Option<bool>,
-    bond_slaves: Option<Vec<String>>,
+    bond_mode: Option<LinuxBondMode>,
+    slaves: Option<Vec<String>>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     param: Value,
@@ -476,7 +487,7 @@ pub fn update_interface(
                 DeletableProperty::autostart => { interface.autostart = false; },
                 DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
                 DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
-                DeletableProperty::bond_slaves => { interface.set_bond_slaves(Vec::new())?; }
+                DeletableProperty::slaves => { interface.set_bond_slaves(Vec::new())?; }
             }
         }
     }
@@ -487,7 +498,8 @@ pub fn update_interface(
     if mtu.is_some() { interface.mtu = mtu; }
     if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
     if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
-    if let Some(slaves) = bond_slaves { interface.set_bond_slaves(slaves)?; }
+    if let Some(slaves) = slaves { interface.set_bond_slaves(slaves)?; }
+    if bond_mode.is_some() { interface.bond_mode = bond_mode; }
 
     if let Some(cidr) = cidr {
         let (_, _, is_v6) = network::parse_cidr(&cidr)?;

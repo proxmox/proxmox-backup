@@ -551,6 +551,30 @@ pub enum NetworkConfigMethod {
 
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[allow(non_camel_case_types)]
+#[repr(u8)]
+/// Linux Bond Mode
+pub enum LinuxBondMode {
+    /// Round-robin policy
+    balance_rr = 0,
+    /// Active-backup policy
+    active_backup = 1,
+    /// XOR policy
+    balance_xor = 2,
+    /// Broadcast policy
+    broadcast = 3,
+    /// IEEE 802.3ad Dynamic link aggregation
+    //#[serde(rename = "802.3ad")]
+    ieee802_3ad = 4,
+    /// Adaptive transmit load balancing
+    balance_tlb = 5,
+    /// Adaptive load balancing
+    balance_alb = 6,
+}
+
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Network interface type
 pub enum NetworkInterfaceType {
@@ -642,10 +666,14 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
             schema: NETWORK_INTERFACE_LIST_SCHEMA,
             optional: true,
         },
-        bond_slaves: {
+        slaves: {
             schema: NETWORK_INTERFACE_LIST_SCHEMA,
             optional: true,
         },
+        bond_mode: {
+            type: LinuxBondMode,
+            optional: true,
+        }
     }
 )]
 #[derive(Debug, Serialize, Deserialize)]
@@ -699,7 +727,9 @@ pub struct Interface {
     pub bridge_vlan_aware: Option<bool>,
 
     #[serde(skip_serializing_if="Option::is_none")]
-    pub bond_slaves: Option<Vec<String>>,
+    pub slaves: Option<Vec<String>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bond_mode: Option<LinuxBondMode>,
 }
 
 // Regression tests

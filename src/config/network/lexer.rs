@@ -25,6 +25,7 @@ pub enum Token {
     BridgePorts,
     BridgeVlanAware,
     BondSlaves,
+    BondMode,
     EOF,
 }
 
@@ -49,6 +50,8 @@ lazy_static! {
         map.insert("bridge_vlan_aware", Token::BridgeVlanAware);
         map.insert("bond-slaves", Token::BondSlaves);
         map.insert("bond_slaves", Token::BondSlaves);
+        map.insert("bond-mode", Token::BondMode);
+        map.insert("bond_mode", Token::BondMode);
         map
     };
 }

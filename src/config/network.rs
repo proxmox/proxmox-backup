@@ -2,6 +2,7 @@ use std::io::{Write};
 use std::collections::{HashSet, HashMap};
 
 use anyhow::{Error, format_err, bail};
+use serde::de::{value, IntoDeserializer, Deserialize};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
@@ -14,7 +15,24 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType};
+use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode};
+
+pub fn bond_mode_from_str(s: &str) -> Result<LinuxBondMode, Error> {
+    LinuxBondMode::deserialize(s.into_deserializer())
+        .map_err(|_: value::Error| format_err!("invalid bond_mode '{}'", s))
+}
+
+pub fn bond_mode_to_str(mode: LinuxBondMode) -> &'static str {
+    match mode {
+        LinuxBondMode::balance_rr => "balance-rr",
+        LinuxBondMode::active_backup => "active-backup",
+        LinuxBondMode::balance_xor => "balance-xor",
+        LinuxBondMode::broadcast => "broadcast",
+        LinuxBondMode::ieee802_3ad => "802.3ad",
+        LinuxBondMode::balance_tlb => "balance-tlb",
+        LinuxBondMode::balance_alb => "balance-alb",
+    }
+}
 
 impl Interface {
 
@@ -37,7 +55,8 @@ impl Interface {
             mtu: None,
             bridge_ports: None,
             bridge_vlan_aware: None,
-            bond_slaves: None,
+            slaves: None,
+            bond_mode: None,
         }
     }
 
@@ -116,7 +135,7 @@ impl Interface {
         if self.interface_type != NetworkInterfaceType::Bond {
             bail!("interface '{}' is no bond (type is {:?})", self.name, self.interface_type);
         }
-        self.bond_slaves = Some(slaves);
+        self.slaves = Some(slaves);
         Ok(())
     }
 
@@ -137,7 +156,10 @@ impl Interface {
                 }
             }
             NetworkInterfaceType::Bond => {
-                if let Some(ref slaves) = self.bond_slaves {
+                let mode = self.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
+                writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
+
+                if let Some(ref slaves) = self.slaves {
                     if slaves.is_empty() {
                         writeln!(w, "\tbond-slaves none")?;
                     } else {
@@ -226,7 +248,8 @@ impl Interface {
                 mtu: _mtu,
                 bridge_ports: _bridge_ports,
                 bridge_vlan_aware: _bridge_vlan_aware,
-                bond_slaves: _bond_slaves,
+                slaves: _slaves,
+                bond_mode: _bond_mode,
             } => {
                 method == method6
                     && comments.is_none()
@@ -264,20 +287,20 @@ impl Interface {
             }
             return Ok(());
         }
-                    
+
         if let Some(method) = self.method {
             writeln!(w, "iface {} inet {}", self.name, method_to_str(method))?;
             self.write_iface_attributes_v4(w, method)?;
             self.write_iface_attributes(w)?;
             writeln!(w)?;
         }
-        
+
         if let Some(method6) = self.method6 {
             let mut skip_v6 = false; // avoid empty inet6 manual entry
             if self.method.is_some() && method6 == NetworkConfigMethod::Manual {
                 if self.comments6.is_none() && self.options6.is_empty() { skip_v6 = true; }
             }
-       
+
             if !skip_v6 {
                 writeln!(w, "iface {} inet6 {}", self.name, method_to_str(method6))?;
                 self.write_iface_attributes_v6(w, method6)?;

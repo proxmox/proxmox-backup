@@ -9,7 +9,7 @@ use regex::Regex;
 use super::helper::*;
 use super::lexer::*;
 
-use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod, NetworkInterfaceType};
+use super::{NetworkConfig, NetworkOrderEntry, Interface, NetworkConfigMethod, NetworkInterfaceType, bond_mode_from_str};
 
 pub struct NetworkParser<R: BufRead> {
     input: Peekable<Lexer<R>>,
@@ -236,8 +236,14 @@ impl <R: BufRead> NetworkParser<R> {
                 Token::BondSlaves => {
                     self.eat(Token::BondSlaves)?;
                     let slaves = self.parse_iface_list()?;
-                    interface.bond_slaves = Some(slaves);
+                    interface.slaves = Some(slaves);
                     interface.set_interface_type(NetworkInterfaceType::Bond)?;
+                }
+                Token::BondMode => {
+                    self.eat(Token::BondMode)?;
+                    let mode = self.next_text()?;
+                    interface.bond_mode = Some(bond_mode_from_str(&mode)?);
+                    self.eat(Token::Newline)?;
                 }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
 
