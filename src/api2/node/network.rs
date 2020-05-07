@@ -4,10 +4,38 @@ use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
-use crate::config::network;
+use crate::config::network::{self, NetworkConfig};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
 use crate::server::{WorkerTask};
+
+fn check_duplicate_gateway_v4(config: &NetworkConfig, iface: &str) -> Result<(), Error> {
+
+    let current_gateway_v4 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway.is_some())
+        .map(|(name, _)| name.to_string());
+
+    if let Some(current_gateway_v4) = current_gateway_v4 {
+        if current_gateway_v4 != iface {
+            bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
+        }
+    }
+    Ok(())
+}
+
+fn check_duplicate_gateway_v6(config: &NetworkConfig, iface: &str) -> Result<(), Error> {
+
+    let current_gateway_v6 = config.interfaces.iter()
+        .find(|(_, interface)| interface.gateway6.is_some())
+        .map(|(name, _)| name.to_string());
+
+    if let Some(current_gateway_v6) = current_gateway_v6 {
+        if current_gateway_v6 != iface {
+            bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
+        }
+    }
+    Ok(())
+}
 
 #[api(
     input: {
@@ -199,15 +227,6 @@ pub fn create_interface(
         bail!("interface '{}' already exists", iface);
     }
 
-    let current_gateway_v4 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway.is_some())
-        .map(|(name, _)| name.to_string());
-
-    let current_gateway_v6 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway6.is_some())
-        .map(|(name, _)| name.to_string());
-
-
     let mut interface = Interface::new(iface.clone());
     interface.interface_type = interface_type;
 
@@ -233,22 +252,14 @@ pub fn create_interface(
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
         if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
-        if let Some(current_gateway_v4) = current_gateway_v4 {
-            if current_gateway_v4 != iface {
-                bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
-            }
-        }
+        check_duplicate_gateway_v4(&config, &iface)?;
         interface.gateway = Some(gateway);
     }
 
     if let Some(gateway6) = gateway6 {
         let is_v6 = gateway6.contains(':');
         if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
-        if let Some(current_gateway_v6) = current_gateway_v6 {
-            if current_gateway_v6 != iface {
-                bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
-            }
-        }
+        check_duplicate_gateway_v6(&config, &iface)?;
         interface.gateway6 = Some(gateway6);
     }
 
@@ -438,13 +449,8 @@ pub fn update_interface(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let current_gateway_v4 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway.is_some())
-        .map(|(name, _)| name.to_string());
-
-    let current_gateway_v6 = config.interfaces.iter()
-        .find(|(_, interface)| interface.gateway6.is_some())
-        .map(|(name, _)| name.to_string());
+    if gateway.is_some() { check_duplicate_gateway_v4(&config, &iface)?; }
+    if gateway6.is_some() { check_duplicate_gateway_v6(&config, &iface)?; }
 
     let interface = config.lookup_mut(&iface)?;
 
@@ -498,22 +504,12 @@ pub fn update_interface(
     if let Some(gateway) = gateway {
         let is_v6 = gateway.contains(':');
         if is_v6 {  bail!("invalid address type (expected IPv4, got IPv6)"); }
-        if let Some(current_gateway_v4) = current_gateway_v4 {
-            if current_gateway_v4 != iface {
-                bail!("Default IPv4 gateway already exists on interface '{}'", current_gateway_v4);
-            }
-        }
         interface.gateway = Some(gateway);
     }
 
     if let Some(gateway6) = gateway6 {
         let is_v6 = gateway6.contains(':');
         if !is_v6 {  bail!("invalid address type (expected IPv6, got IPv4)"); }
-        if let Some(current_gateway_v6) = current_gateway_v6 {
-            if current_gateway_v6 != iface {
-                bail!("Default IPv6 gateway already exists on interface '{}'", current_gateway_v6);
-            }
-        }
         interface.gateway6 = Some(gateway6);
     }
 
