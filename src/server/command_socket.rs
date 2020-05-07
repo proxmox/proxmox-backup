@@ -18,29 +18,37 @@ where
 {
     let path: PathBuf = path.into();
 
+    let backup_user = crate::backup::backup_user()?;
+    let backup_gid = backup_user.gid.as_raw();
+
     let mut socket = UnixListener::bind(&path)?;
 
     let func = Arc::new(func);
 
     let control_future = async move {
         loop {
-            let (conn, _addr) = socket
-                .accept()
-                .await
-                .map_err(|err| {
-                    format_err!("failed to accept on control socket {:?}: {}", path, err)
-                })?;
-
-            // check permissions (same gid, or root user)
-            let opt = socket::sockopt::PeerCredentials {};
-            match socket::getsockopt(conn.as_raw_fd(), opt) {
-                Ok(cred) => {
-                    let mygid = unsafe { libc::getgid() };
-                    if !(cred.uid() == 0 || cred.gid() == mygid) {
-                        bail!("no permissions for {:?}", cred);
-                    }
+            let (conn, _addr) = match socket.accept().await {
+                Ok(data) => data,
+                Err(err) => {
+                    eprintln!("failed to accept on control socket {:?}: {}", path, err);
+                    continue;
                 }
-                Err(e) => bail!("no permissions - unable to read peer credential - {}", e),
+            };
+
+            let opt = socket::sockopt::PeerCredentials {};
+            let cred = match socket::getsockopt(conn.as_raw_fd(), opt) {
+                Ok(cred) => cred,
+                Err(err) => {
+                    eprintln!("no permissions - unable to read peer credential - {}", err);
+                    continue;
+                }
+            };
+
+            // check permissions (same gid, root user, or backup group)
+            let mygid = unsafe { libc::getgid() };
+            if !(cred.uid() == 0 || cred.gid() == mygid || cred.gid() == backup_gid) {
+                eprintln!("no permissions for {:?}", cred);
+                continue;
             }
 
             let (rx, mut tx) = tokio::io::split(conn);
@@ -94,12 +102,11 @@ where
 }
 
 
-pub fn send_command<P>(
+pub async fn send_command<P>(
     path: P,
     params: Value
-) -> impl Future<Output = Result<Value, Error>>
+) -> Result<Value, Error>
     where P: Into<PathBuf>,
-
 {
     let path: PathBuf = path.into();
 
@@ -131,5 +138,5 @@ pub fn send_command<P>(
                     bail!("unable to parse response: {}", data);
                 }
             }
-        })
+        }).await
 }
