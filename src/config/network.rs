@@ -1,5 +1,5 @@
 use std::io::{Write};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, BTreeMap};
 
 use anyhow::{Error, format_err, bail};
 use serde::de::{value, IntoDeserializer, Deserialize};
@@ -278,7 +278,7 @@ enum NetworkOrderEntry {
 
 #[derive(Debug)]
 pub struct NetworkConfig {
-    pub interfaces: HashMap<String, Interface>,
+    pub interfaces: BTreeMap<String, Interface>,
     order: Vec<NetworkOrderEntry>,
 }
 
@@ -300,7 +300,7 @@ impl NetworkConfig {
 
     pub fn new() -> Self {
         Self {
-            interfaces: HashMap::new(),
+            interfaces: BTreeMap::new(),
             order: Vec::new(),
         }
     }
@@ -319,7 +319,30 @@ impl NetworkConfig {
         Ok(interface)
     }
 
+    /// Check if ports are used only once
+    pub fn check_port_usage(&self) -> Result<(), Error> {
+        let mut used_ports = HashMap::new();
+        let mut check_port_usage = |iface, ports: &Vec<String>| {
+            for port in ports.iter() {
+                if let Some(prev_iface) = used_ports.get(port) {
+                    bail!("iface '{}' port '{}' is already used on interface '{}'",
+                          iface, port, prev_iface);
+                }
+                used_ports.insert(port.to_string(), iface);
+            }
+            Ok(())
+        };
+
+        for (iface, interface) in self.interfaces.iter() {
+            if let Some(ports) = &interface.bridge_ports { check_port_usage(iface, ports)?; }
+            if let Some(slaves) = &interface.slaves { check_port_usage(iface, slaves)?; }
+        }
+        Ok(())
+    }
+
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
+
+        self.check_port_usage()?;
 
         let mut done = HashSet::new();
 
