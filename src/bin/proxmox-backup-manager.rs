@@ -365,6 +365,8 @@ fn network_commands() -> CommandLineInterface {
                 .fixed_param("node", String::from("localhost"))
                 .arg_param(&["iface"])
                 .completion_cb("iface", config::network::complete_interface_name)
+                .completion_cb("bridge_ports", config::network::complete_port_list)
+                .completion_cb("slaves", config::network::complete_port_list)
         )
         .insert(
             "update",
@@ -372,6 +374,8 @@ fn network_commands() -> CommandLineInterface {
                 .fixed_param("node", String::from("localhost"))
                 .arg_param(&["iface"])
                 .completion_cb("iface", config::network::complete_interface_name)
+                .completion_cb("bridge_ports", config::network::complete_port_list)
+                .completion_cb("slaves", config::network::complete_port_list)
         )
         .insert(
             "remove",

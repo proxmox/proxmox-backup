@@ -532,6 +532,25 @@ pub fn complete_interface_name(_arg: &str, _param: &HashMap<String, String>) -> 
     }
 }
 
+
+pub fn complete_port_list(arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    let mut ports = Vec::new();
+    match config() {
+        Ok((data, _digest)) => {
+            for (iface, interface) in data.interfaces.iter() {
+                if interface.interface_type == NetworkInterfaceType::Eth {
+                    ports.push(iface.to_string());
+                }
+            }
+        }
+        Err(_) => return vec![],
+    };
+
+    let arg = arg.clone().trim();
+    let prefix = if let Some(idx) = arg.rfind(",") { &arg[..idx+1] } else { "" };
+    ports.iter().map(|port| format!("{}{}", prefix, port)).collect()
+}
+
 #[cfg(test)]
 mod test {
 
