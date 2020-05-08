@@ -340,9 +340,81 @@ impl NetworkConfig {
         Ok(())
     }
 
+    /// Check if child mtu is less or equal than parent mtu
+    pub fn check_mtu(&self, parent_name: &str, child_name: &str) -> Result<(), Error> {
+
+        let parent = self.interfaces.get(parent_name)
+            .ok_or(format_err!("check_mtu - missing parent interface '{}'", parent_name))?;
+        let child = self.interfaces.get(child_name)
+            .ok_or(format_err!("check_mtu - missing child interface '{}'", child_name))?;
+
+        let child_mtu = match child.mtu {
+            Some(mtu) => mtu,
+            None => return Ok(()),
+        };
+
+        let parent_mtu = match parent.mtu {
+            Some(mtu) => mtu,
+            None => {
+                if parent.interface_type == NetworkInterfaceType::Bond {
+                    child_mtu
+                } else {
+                    1500
+                }
+            }
+        };
+
+        if parent_mtu < child_mtu {
+            bail!("interface '{}' - mtu {} is lower than '{}' - mtu {}\n",
+                  parent_name, parent_mtu, child_name, child_mtu);
+        }
+
+        Ok(())
+    }
+
+    /// Check if bond slaves exists
+    pub fn check_bond_slaves(&self) -> Result<(), Error> {
+        for (iface, interface) in self.interfaces.iter() {
+            if let Some(slaves) = &interface.slaves {
+                for slave in slaves.iter() {
+                    match self.interfaces.get(slave) {
+                        Some(entry) => {
+                            if entry.interface_type != NetworkInterfaceType::Eth {
+                                bail!("bond '{}' - wrong interface type on slave '{}' ({:?} != {:?})",
+                                      iface, slave, entry.interface_type, NetworkInterfaceType::Eth);
+                            }
+                        }
+                        None => {
+                            bail!("bond '{}' - unable to find slave '{}'", iface, slave);
+                        }
+                    }
+                    self.check_mtu(iface, slave)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Check if bridge ports exists
+    pub fn check_bridge_ports(&self) -> Result<(), Error> {
+        for (iface, interface) in self.interfaces.iter() {
+            if let Some(ports) = &interface.bridge_ports {
+                for port in ports.iter() {
+                    if !self.interfaces.contains_key(port) {
+                        bail!("bridge '{}' - unable to find port '{}'", iface, port);
+                    }
+                    self.check_mtu(iface, port)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
 
         self.check_port_usage()?;
+        self.check_bond_slaves()?;
+        self.check_bridge_ports()?;
 
         let mut done = HashSet::new();
 
