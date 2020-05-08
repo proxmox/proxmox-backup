@@ -142,29 +142,29 @@ impl Interface {
     /// Write attributes not dependening on address family
     fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
 
+        static EMPTY_LIST: Vec<String> = Vec::new();
+
         match self.interface_type {
             NetworkInterfaceType::Bridge => {
                 if let Some(true) = self.bridge_vlan_aware {
                     writeln!(w, "\tbridge-vlan-aware yes")?;
                 }
-                if let Some(ref ports) = self.bridge_ports {
-                    if ports.is_empty() {
-                        writeln!(w, "\tbridge-ports none")?;
-                    } else {
-                        writeln!(w, "\tbridge-ports {}", ports.join(" "))?;
-                    }
+                let ports = self.bridge_ports.as_ref().unwrap_or(&EMPTY_LIST);
+                if ports.is_empty() {
+                    writeln!(w, "\tbridge-ports none")?;
+                } else {
+                    writeln!(w, "\tbridge-ports {}", ports.join(" "))?;
                 }
             }
             NetworkInterfaceType::Bond => {
                 let mode = self.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
                 writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
 
-                if let Some(ref slaves) = self.slaves {
-                    if slaves.is_empty() {
-                        writeln!(w, "\tbond-slaves none")?;
-                    } else {
-                        writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
-                    }
+                let slaves = self.slaves.as_ref().unwrap_or(&EMPTY_LIST);
+                if slaves.is_empty() {
+                    writeln!(w, "\tbond-slaves none")?;
+                } else {
+                    writeln!(w, "\tbond-slaves {}", slaves.join(" "))?;
                 }
             }
             _ => {}
