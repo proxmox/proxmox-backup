@@ -344,6 +344,13 @@ fn network_commands() -> CommandLineInterface {
             CliCommand::new(&API_METHOD_PENDING_NETWORK_CHANGES)
         )
         .insert(
+            "create",
+            CliCommand::new(&api2::node::network::API_METHOD_CREATE_INTERFACE)
+                .fixed_param("node", String::from("localhost"))
+                .arg_param(&["iface"])
+                .completion_cb("iface", config::network::complete_interface_name)
+        )
+        .insert(
             "update",
             CliCommand::new(&api2::node::network::API_METHOD_UPDATE_INTERFACE)
                 .fixed_param("node", String::from("localhost"))
