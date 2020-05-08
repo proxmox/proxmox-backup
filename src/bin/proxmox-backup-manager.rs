@@ -284,6 +284,21 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
         Ok(text)
     }
 
+    fn render_ports(_value: &Value, record: &Value) -> Result<String, Error> {
+        let mut text = String::new();
+
+        if let Some(ports) = record["bridge_ports"].as_array() {
+            let list: Vec<&str> = ports.iter().filter_map(|v| v.as_str()).collect();
+            text.push_str(&list.join(" "));
+        }
+        if let Some(slaves) = record["slaves"].as_array() {
+            let list: Vec<&str> = slaves.iter().filter_map(|v| v.as_str()).collect();
+            text.push_str(&list.join(" "));
+        }
+
+        Ok(text)
+    }
+
     fn render_gateway(_value: &Value, record: &Value) -> Result<String, Error> {
         let mut text = String::new();
 
@@ -299,13 +314,14 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
     }
 
     let options = default_table_format_options()
-        .column(ColumnConfig::new("type").header("type"))
         .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("type").header("type"))
         .column(ColumnConfig::new("autostart"))
         .column(ColumnConfig::new("method"))
         .column(ColumnConfig::new("method6"))
         .column(ColumnConfig::new("cidr").header("address").renderer(render_address))
-        .column(ColumnConfig::new("gateway").header("gateway").renderer(render_gateway));
+        .column(ColumnConfig::new("gateway").header("gateway").renderer(render_gateway))
+        .column(ColumnConfig::new("bridge_ports").header("ports/slaves").renderer(render_ports));
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
@@ -848,7 +864,7 @@ fn main() {
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_user(Some(String::from("root@pam")));
-    
+
    proxmox_backup::tools::runtime::main(run_async_cli_command(cmd_def, rpcenv));
 }
 
