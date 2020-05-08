@@ -3,11 +3,17 @@ use serde_json::{Value, to_value};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox::api::schema::parse_property_string;
 
 use crate::config::network::{self, NetworkConfig};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::*;
 use crate::server::{WorkerTask};
+
+fn split_interface_list(list: &str) -> Result<Vec<String>, Error> {
+    let value = parse_property_string(&list, &NETWORK_INTERFACE_ARRAY_SCHEMA)?;
+    Ok(value.as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect())
+}
 
 fn check_duplicate_gateway_v4(config: &NetworkConfig, iface: &str) -> Result<(), Error> {
 
@@ -214,10 +220,10 @@ pub fn create_interface(
     cidr6: Option<String>,
     gateway6: Option<String>,
     mtu: Option<u64>,
-    bridge_ports: Option<Vec<String>>,
+    bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
-    slaves: Option<Vec<String>>,
+    slaves: Option<String>,
     param: Value,
 ) -> Result<(), Error> {
 
@@ -270,12 +276,18 @@ pub fn create_interface(
 
     match interface_type {
         NetworkInterfaceType::Bridge => {
-            if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
+            if let Some(ports) = bridge_ports {
+                let ports = split_interface_list(&ports)?;
+                interface.set_bridge_ports(ports)?;
+            }
             if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
         }
         NetworkInterfaceType::Bond => {
             if bond_mode.is_some() { interface.bond_mode = bond_mode; }
-            if let Some(slaves) = slaves { interface.set_bond_slaves(slaves)?; }
+            if let Some(slaves) = slaves {
+                let slaves = split_interface_list(&slaves)?;
+                interface.set_bond_slaves(slaves)?;
+            }
         }
         _ => bail!("creating network interface type '{:?}' is not supported", interface_type),
     }
@@ -442,10 +454,10 @@ pub fn update_interface(
     cidr6: Option<String>,
     gateway6: Option<String>,
     mtu: Option<u64>,
-    bridge_ports: Option<Vec<String>>,
+    bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
-    slaves: Option<Vec<String>>,
+    slaves: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     param: Value,
@@ -496,9 +508,15 @@ pub fn update_interface(
     if method.is_some() { interface.method = method; }
     if method6.is_some() { interface.method6 = method6; }
     if mtu.is_some() { interface.mtu = mtu; }
-    if let Some(ports) = bridge_ports { interface.set_bridge_ports(ports)?; }
+    if let Some(ports) = bridge_ports {
+        let ports = split_interface_list(&ports)?;
+        interface.set_bridge_ports(ports)?;
+    }
     if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
-    if let Some(slaves) = slaves { interface.set_bond_slaves(slaves)?; }
+    if let Some(slaves) = slaves {
+        let slaves = split_interface_list(&slaves)?;
+        interface.set_bond_slaves(slaves)?;
+    }
     if bond_mode.is_some() { interface.bond_mode = bond_mode; }
 
     if let Some(cidr) = cidr {

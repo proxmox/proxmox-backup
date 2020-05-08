@@ -600,8 +600,13 @@ pub const NETWORK_INTERFACE_NAME_SCHEMA: Schema = StringSchema::new("Network int
     .max_length(libc::IFNAMSIZ-1)
     .schema();
 
-pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
+pub const NETWORK_INTERFACE_ARRAY_SCHEMA: Schema = ArraySchema::new(
     "Network interface list.", &NETWORK_INTERFACE_NAME_SCHEMA)
+    .schema();
+
+pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = StringSchema::new(
+    "A list of network devices, comma separated.")
+    .format(&ApiStringFormat::PropertyString(&NETWORK_INTERFACE_ARRAY_SCHEMA))
     .schema();
 
 #[api(
@@ -663,11 +668,11 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = ArraySchema::new(
             optional: true,
         },
         bridge_ports: {
-            schema: NETWORK_INTERFACE_LIST_SCHEMA,
+            schema: NETWORK_INTERFACE_ARRAY_SCHEMA,
             optional: true,
         },
         slaves: {
-            schema: NETWORK_INTERFACE_LIST_SCHEMA,
+            schema: NETWORK_INTERFACE_ARRAY_SCHEMA,
             optional: true,
         },
         bond_mode: {
