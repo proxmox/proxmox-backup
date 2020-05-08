@@ -3,6 +3,8 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 
 use anyhow::{Error, format_err, bail};
 use serde::de::{value, IntoDeserializer, Deserialize};
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
@@ -397,9 +399,15 @@ impl NetworkConfig {
 
     /// Check if bridge ports exists
     pub fn check_bridge_ports(&self) -> Result<(), Error> {
+        lazy_static!{
+            static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^(\S+)\.(\d+)$").unwrap();
+        }
+
         for (iface, interface) in self.interfaces.iter() {
             if let Some(ports) = &interface.bridge_ports {
                 for port in ports.iter() {
+                    let captures = VLAN_INTERFACE_REGEX.captures(port);
+                    let port = if let Some(ref caps) = captures { &caps[1] } else { port.as_str() };
                     if !self.interfaces.contains_key(port) {
                         bail!("bridge '{}' - unable to find port '{}'", iface, port);
                     }
