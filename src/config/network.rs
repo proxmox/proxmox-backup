@@ -225,41 +225,6 @@ impl Interface {
         Ok(())
     }
 
-    /// Return whether we can write a single entry for inet and inet6
-    fn combine_entry(&self) -> bool {
-        // Note: use match to make sure we considered all values at compile time
-        match self {
-            Interface {
-                method,
-                method6,
-                options,
-                options6,
-                comments,
-                comments6,
-                // the rest does not matter
-                name: _name,
-                interface_type: _interface_type,
-                autostart: _autostart,
-                active: _active,
-                cidr: _cidr,
-                cidr6: _cidr6,
-                gateway: _gateway,
-                gateway6: _gateway6,
-                mtu: _mtu,
-                bridge_ports: _bridge_ports,
-                bridge_vlan_aware: _bridge_vlan_aware,
-                slaves: _slaves,
-                bond_mode: _bond_mode,
-            } => {
-                method == method6
-                    && comments.is_none()
-                    && comments6.is_none()
-                    && options.is_empty()
-                    && options6.is_empty()
-            }
-        }
-    }
-
     fn write_iface(&self, w: &mut dyn Write) -> Result<(), Error> {
 
         fn method_to_str(method: NetworkConfigMethod) -> &'static str {
@@ -275,17 +240,6 @@ impl Interface {
 
         if self.autostart {
             writeln!(w, "auto {}", self.name)?;
-        }
-
-        if self.combine_entry() {
-            if let Some(method) = self.method {
-                writeln!(w, "iface {} {}", self.name, method_to_str(method))?;
-                self.write_iface_attributes_v4(w, method)?;
-                self.write_iface_attributes_v6(w, method)?;
-                self.write_iface_attributes(w)?;
-                writeln!(w)?;
-            }
-            return Ok(());
         }
 
         if let Some(method) = self.method {
