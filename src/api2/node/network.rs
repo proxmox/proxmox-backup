@@ -638,6 +638,7 @@ pub async fn reload_network_config(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             node: {
