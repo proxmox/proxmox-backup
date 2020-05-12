@@ -31,6 +31,7 @@ pub mod lru_cache;
 pub mod runtime;
 pub mod ticket;
 pub mod timer;
+pub mod systemd;
 
 mod wrapped_reader_stream;
 pub use wrapped_reader_stream::*;
