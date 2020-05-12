@@ -32,6 +32,8 @@ Chores:
 
 * recompute PXAR_ header types from strings: avoid using numbers from casync
 
+* remove pbs-* systemd timers and services on package purge
+
 
 Suggestions
 ===========
