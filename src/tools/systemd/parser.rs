@@ -16,10 +16,11 @@ use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 
 lazy_static! {
-    pub static ref CONFIG: SectionConfig = init();
+    pub static ref SERVICE_CONFIG: SectionConfig = init_service();
+    pub static ref TIMER_CONFIG: SectionConfig = init_timer();
 }
 
-fn init() -> SectionConfig {
+fn init_service() -> SectionConfig {
 
     let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
 
@@ -44,6 +45,28 @@ fn init() -> SectionConfig {
         }
         _ => unreachable!(),
     };
+
+    config
+}
+
+fn init_timer() -> SectionConfig {
+
+    let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
+
+    match SystemdUnitSection::API_SCHEMA {
+        Schema::Object(ref obj_schema) =>  {
+            let plugin = SectionConfigPlugin::new("Unit".to_string(), obj_schema);
+            config.register_plugin(plugin);
+        }
+        _ => unreachable!(),
+    };
+    match SystemdInstallSection::API_SCHEMA {
+        Schema::Object(ref obj_schema) =>  {
+            let plugin = SectionConfigPlugin::new("Install".to_string(), obj_schema);
+            config.register_plugin(plugin);
+        }
+        _ => unreachable!(),
+    };
     match SystemdTimerSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
             let plugin = SectionConfigPlugin::new("Timer".to_string(), obj_schema);
@@ -55,19 +78,26 @@ fn init() -> SectionConfig {
     config
 }
 
-pub fn parse_systemd_config(filename: &str) -> Result<SectionConfigData, Error> {
+fn parse_systemd_config(config: &SectionConfig, filename: &str) -> Result<SectionConfigData, Error> {
 
     let raw = proxmox::tools::fs::file_get_contents(filename)?;
     let input = String::from_utf8(raw)?;
 
-    let data = CONFIG.parse(filename, &input)?;
+    let data = config.parse(filename, &input)?;
 
     Ok(data)
 }
 
+pub fn parse_systemd_service(filename: &str) -> Result<SectionConfigData, Error> {
+    parse_systemd_config(&SERVICE_CONFIG, filename)
+}
 
-pub fn save_systemd_config(filename: &str, config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(filename, &config)?;
+pub fn parse_systemd_timer(filename: &str) -> Result<SectionConfigData, Error> {
+    parse_systemd_config(&TIMER_CONFIG, filename)
+}
+
+fn save_systemd_config(config: &SectionConfig, filename: &str, data: &SectionConfigData) -> Result<(), Error> {
+    let raw = config.write(filename, &data)?;
 
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
     // set the correct owner/group/permissions while saving file, owner(rw) = root
@@ -78,4 +108,12 @@ pub fn save_systemd_config(filename: &str, config: &SectionConfigData) -> Result
     replace_file(filename, raw.as_bytes(), options)?;
 
     Ok(())
+}
+
+pub fn save_systemd_service(filename: &str, data: &SectionConfigData) -> Result<(), Error> {
+    save_systemd_config(&SERVICE_CONFIG, filename, data)
+}
+
+pub fn save_systemd_timer(filename: &str, data: &SectionConfigData) -> Result<(), Error> {
+    save_systemd_config(&TIMER_CONFIG, filename, data)
 }

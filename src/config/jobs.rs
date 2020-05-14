@@ -3,7 +3,6 @@ use regex::Regex;
 use lazy_static::lazy_static;
 
 use proxmox::api::section_config::SectionConfigData;
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
 use crate::PROXMOX_SAFE_ID_REGEX_STR;
 use crate::tools::systemd::parser::*;
@@ -59,7 +58,7 @@ pub fn list_jobs() -> Result<Vec<JobListEntry>, Error> {
         };
 
         // fixme: read config data ?
-        //let config = parse_systemd_config(&format!("{}/{}", SYSTEMD_CONFIG_DIR, name))?;
+        //let config = parse_systemd_timer(&format!("{}/{}", SYSTEMD_CONFIG_DIR, name))?;
 
         match (&caps[1], &caps[2]) {
             ("gc", store) => {
@@ -152,22 +151,10 @@ pub fn create_garbage_collection_job(
 
     let basename = format!("{}/pbs-gc-{}", SYSTEMD_CONFIG_DIR, store);
     let timer_fn = format!("{}.timer", basename);
-    let timer_config = CONFIG.write(&timer_fn, &timer_config)?;
-
     let service_fn = format!("{}.service", basename);
-    let service_config = CONFIG.write(&service_fn, &service_config)?;
 
-    let backup_user = crate::backup::backup_user()?;
-    let mode = nix::sys::stat::Mode::from_bits_truncate(0o0750);
-    // set the correct owner/group/permissions while saving file
-    // owner(rw) = root, group(r)= backup
-    let options = CreateOptions::new()
-        .perm(mode)
-        .owner(nix::unistd::ROOT)
-        .group(backup_user.gid);
-
-    replace_file(service_fn, service_config.as_bytes(), options.clone())?;
-    replace_file(timer_fn, timer_config.as_bytes(), options)?;
+    save_systemd_service(&service_fn, &service_config)?;
+    save_systemd_timer(&timer_fn, &timer_config)?;
 
     Ok(())
 }
