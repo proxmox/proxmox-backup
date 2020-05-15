@@ -1,7 +1,5 @@
-use std::mem::{self, MaybeUninit};
-
 use chrono::prelude::*;
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, Router, Permission};
@@ -17,23 +15,10 @@ fn read_etc_localtime() -> Result<String, Error> {
     }
 
     // otherwise guess from the /etc/localtime symlink
-    let mut buf = MaybeUninit::<[u8; 64]>::uninit();
-    let len = unsafe {
-        libc::readlink(
-            "/etc/localtime".as_ptr() as *const _,
-            buf.as_mut_ptr() as *mut _,
-            mem::size_of_val(&buf),
-        )
-    };
-    if len <= 0 {
-        bail!("failed to guess timezone");
-    }
-    let len = len as usize;
-    let buf = unsafe {
-        (*buf.as_mut_ptr())[len] = 0;
-        buf.assume_init()
-    };
-    let link = std::str::from_utf8(&buf[..len])?;
+    let link = std::fs::read_link("/etc/localtime").
+        map_err(|err| format_err!("failed to guess timezone - {}", err))?;
+
+    let link = link.to_string_lossy();
     match link.rfind("/zoneinfo/") {
         Some(pos) => Ok(link[(pos + 10)..].to_string()),
         None => Ok(link.to_string()),
