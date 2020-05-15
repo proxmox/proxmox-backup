@@ -41,6 +41,73 @@ pub enum DateTimeValue {
     Repeated(u32, u32),
 }
 
+impl DateTimeValue {
+    // Test if the entry contains the value
+    pub fn contains(&self, value: u32) -> bool {
+        match self {
+            DateTimeValue::Single(v) => *v == value,
+            DateTimeValue::Range(start, end) => value >= *start && value <= *end,
+            DateTimeValue::Repeated(start, repetition) => {
+                if *repetition > 0 {
+                    let mut found = false;
+                    let mut v = *start;
+                    loop {
+                        if v == value { found = true; break; }
+                        v += *repetition;
+                        if v > value { break; }
+                    }
+                    found
+                } else {
+                    *start == value
+                }
+            }
+        }
+    }
+
+    // Find an return an entry greater than value
+    pub fn find_next(list: &[DateTimeValue], value: u32) -> Option<u32> {
+        let mut next: Option<u32> = None;
+        let mut set_next = |v: u32| {
+            if let Some(n) = next {
+                if v > n { next = Some(v); }
+            } else {
+                next = Some(v);
+            }
+        };
+        for spec in list {
+            match spec {
+                DateTimeValue::Single(v) => {
+                    if *v > value { set_next(*v); }
+                }
+                DateTimeValue::Range(start, end) => {
+                    if value < *start {
+                        set_next(*start);
+                    } else {
+                        let n = value + 1;
+                        if n >= *start && n <= *end {
+                            set_next(n);
+                        }
+                    }
+                }
+                DateTimeValue::Repeated(start, repetition) => {
+                    if value < *start {
+                        set_next(*start);
+                    } else if *repetition > 0 {
+                        let mut v = *start;
+                        loop {
+                            if v > value { set_next(v); break; }
+                            v += *repetition;
+                            if v > value { break; }
+                        }
+                    }
+                }
+            }
+        }
+
+        next
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct CalendarEvent {
     pub days: WeekDays,
