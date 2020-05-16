@@ -18,7 +18,7 @@ type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
 
 fn parse_error<'a>(i: &'a str, context: &'static str) -> nom::Err<VerboseError<&'a str>> {
     let err = VerboseError { errors: Vec::new() };
-    let err =VerboseError::add_context(i, context, err);
+    let err = VerboseError::add_context(i, context, err);
     nom::Err::Error(err)
 }
 
@@ -90,8 +90,14 @@ lazy_static! {
         map
     };
 }
-fn parse_u32(i: &str) -> IResult<&str, u32> {
-    map_res(recognize(digit1), str::parse)(i)
+fn parse_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, u32> {
+    move |i: &str| {
+        let (i, v) = map_res(recognize(digit1), str::parse)(i)?;
+        if (v as usize) >= max {
+            return Err(parse_error(i, "time value too large"));
+        }
+        Ok((i, v))
+    }
 }
 
 fn parse_u64(i: &str) -> IResult<&str, u64> {
@@ -142,38 +148,40 @@ fn parse_weekdays_range(i: &str) -> IResult<&str, WeekDays> {
     }
 }
 
-fn parse_date_time_comp(i: &str) -> IResult<&str, DateTimeValue> {
+fn parse_date_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, DateTimeValue> {
+    move |i: &str| {
+        let (i, value) = parse_time_comp(max)(i)?;
 
-    let (i, value) = parse_u32(i)?;
+        if let (i, Some(end)) = opt(preceded(tag(".."), parse_time_comp(max)))(i)? {
+            return Ok((i, DateTimeValue::Range(value, end)))
+        }
 
-    if let (i, Some(end)) = opt(preceded(tag(".."), parse_u32))(i)? {
-        return Ok((i, DateTimeValue::Range(value, end)))
-    }
-
-    if i.starts_with("/") {
-        let i = &i[1..];
-        let (i, repeat) = parse_u32(i)?;
-        Ok((i, DateTimeValue::Repeated(value, repeat)))
-    } else {
-        Ok((i, DateTimeValue::Single(value)))
+        if i.starts_with("/") {
+            let i = &i[1..];
+            let (i, repeat) = parse_time_comp(max)(i)?;
+            Ok((i, DateTimeValue::Repeated(value, repeat)))
+        } else {
+            Ok((i, DateTimeValue::Single(value)))
+        }
     }
 }
 
-fn parse_date_time_comp_list(i: &str) -> IResult<&str, Vec<DateTimeValue>> {
+fn parse_date_time_comp_list(max: usize) -> impl Fn(&str) -> IResult<&str, Vec<DateTimeValue>> {
+    move |i: &str| {
+        if i.starts_with("*") {
+            return Ok((&i[1..], Vec::new()));
+        }
 
-    if i.starts_with("*") {
-        return Ok((&i[1..], Vec::new()));
+        separated_nonempty_list(tag(","), parse_date_time_comp(max))(i)
     }
-
-    separated_nonempty_list(tag(","), parse_date_time_comp)(i)
 }
 
 fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeValue>, Vec<DateTimeValue>)> {
 
     let (i, (hour, minute, opt_second)) = tuple((
-        parse_date_time_comp_list,
-        preceded(tag(":"), parse_date_time_comp_list),
-        opt(preceded(tag(":"), parse_date_time_comp_list)),
+        parse_date_time_comp_list(24),
+        preceded(tag(":"), parse_date_time_comp_list(60)),
+        opt(preceded(tag(":"), parse_date_time_comp_list(60))),
     ))(i)?;
 
     if let Some(second) = opt_second {
