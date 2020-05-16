@@ -32,17 +32,15 @@ impl DateTimeValue {
             DateTimeValue::Single(v) => *v == value,
             DateTimeValue::Range(start, end) => value >= *start && value <= *end,
             DateTimeValue::Repeated(start, repetition) => {
-                if *repetition > 0 {
-                    let mut found = false;
-                    let mut v = *start;
-                    loop {
-                        if v == value { found = true; break; }
-                        v += *repetition;
-                        if v > value { break; }
+                if value >= *start {
+                    if *repetition > 0 {
+                        let offset = value - start;
+                        offset % repetition == 0
+                    } else {
+                        *start == value
                     }
-                    found
                 } else {
-                    *start == value
+                    false
                 }
             }
         }
@@ -77,12 +75,7 @@ impl DateTimeValue {
                     if value < *start {
                         set_next(*start);
                     } else if *repetition > 0 {
-                        let mut v = *start;
-                        loop {
-                            if v > value { set_next(v); break; }
-                            v += *repetition;
-                            if v > value { break; }
-                        }
+                        set_next(((value - start + repetition) / repetition) * repetition);
                     }
                 }
             }
