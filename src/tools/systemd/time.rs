@@ -75,7 +75,7 @@ impl DateTimeValue {
                     if value < *start {
                         set_next(*start);
                     } else if *repetition > 0 {
-                        set_next(((value - start + repetition) / repetition) * repetition);
+                        set_next(start + ((value - start + repetition) / repetition) * repetition);
                     }
                 }
             }
@@ -262,7 +262,7 @@ pub fn compute_next_event(
             if event.hour.iter().find(|hspec| hspec.contains(hour)).is_none() {
                 if let Some(n) = DateTimeValue::find_next(&event.hour, hour) {
                     // test next hour
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour += n as libc::c_int;
+                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour = n as libc::c_int;
                     wrap_time(&mut t);
                     continue;
                 } else {
@@ -280,7 +280,7 @@ pub fn compute_next_event(
             if event.minute.iter().find(|hspec| hspec.contains(minute)).is_none() {
                 if let Some(n) = DateTimeValue::find_next(&event.minute, minute) {
                     // test next minute
-                    t.tm_sec = 0; t.tm_min += n as libc::c_int;
+                    t.tm_sec = 0; t.tm_min = n as libc::c_int;
                     wrap_time(&mut t);
                     continue;
                 } else {
@@ -352,6 +352,11 @@ mod test {
         test_value("mon *:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY)?;
         test_value("mon 2:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR)?;
         test_value("mon 2:50", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR + 50*MIN)?;
+
+        let n = test_value("5/2:0", THURSDAY_00_00, THURSDAY_00_00 + 5*HOUR)?;
+        let n = test_value("5/2:0", n, THURSDAY_00_00 + 7*HOUR)?;
+        let n = test_value("5/2:0", n, THURSDAY_00_00 + 9*HOUR)?;
+        test_value("5/2:0", n, THURSDAY_00_00 + 11*HOUR)?;
 
         let mut n = test_value("*:*", THURSDAY_00_00, THURSDAY_00_00 + MIN)?;
         for i in 2..100 {
