@@ -1,9 +1,8 @@
 use anyhow::{bail, Error};
 use bitflags::bitflags;
 
-use proxmox::tools::time::*;
-
 use super::parse_time::*;
+use super::tm_editor::*;
 
 bitflags!{
     #[derive(Default)]
@@ -44,6 +43,10 @@ impl DateTimeValue {
                 }
             }
         }
+    }
+
+    pub fn list_contains(list: &[DateTimeValue], value: u32) -> bool {
+        list.iter().find(|spec| spec.contains(value)).is_some()
     }
 
     // Find an return an entry greater than value
@@ -93,7 +96,6 @@ pub struct CalendarEvent {
     pub hour: Vec<DateTimeValue>,
 }
 
-
 #[derive(Default)]
 pub struct TimeSpan {
     pub nsec: u64,
@@ -106,13 +108,6 @@ pub struct TimeSpan {
     pub weeks: u64,
     pub months: u64,
     pub years: u64,
-}
-
-impl TimeSpan {
-
-    pub fn  new() -> Self {
-        Self::default()
-    }
 }
 
 impl From<TimeSpan> for f64 {
@@ -141,75 +136,6 @@ pub fn verify_calendar_event(i: &str) -> Result<(), Error> {
     Ok(())
 }
 
-
-fn is_leap_year(year: libc::c_int) -> bool {
-    if year % 4 != 0  { return false; }
-    if year % 100 != 0 { return true; }
-    if year % 400 != 0  { return false; }
-    return true;
-}
-
-fn days_in_month(mon: libc::c_int, year: libc::c_int) -> libc::c_int {
-
-    let mon = mon % 12;
-
-    static MAP: &[libc::c_int] = &[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-    if mon == 1 && is_leap_year(year) { return 29; }
-
-    MAP[mon as usize]
-}
-
-fn wrap_time(t: &mut libc::tm) {
-
-    // sec: 0..59
-    if t.tm_sec >= 60 {
-        t.tm_min += t.tm_sec / 60;
-        t.tm_sec %= 60;
-    }
-
-    // min: 0..59
-    if t.tm_min >= 60 {
-        t.tm_hour += t.tm_min / 60;
-        t.tm_min %= 60;
-    }
-
-    // hour: 0..23
-    if t.tm_hour >= 24 {
-        t.tm_mday += t.tm_hour / 24;
-        t.tm_wday += t.tm_hour / 24;
-        t.tm_hour %= 24;
-    }
-
-    // Translate to 0..($days_in_mon-1)
-    t.tm_mday -= 1;
-    loop {
-	let days_in_mon = days_in_month(t.tm_mon, t.tm_year);
-	if t.tm_mday < days_in_mon { break; }
-	// Wrap one month
-	t.tm_mday -= days_in_mon;
-        t.tm_wday += 7 - (days_in_mon % 7);
-	t.tm_mon += 1;
-    }
-
-    // Translate back to 1..$days_in_mon
-    t.tm_mday += 1;
-
-    // mon: 0..11
-    if t.tm_mon >= 12 {
-        t.tm_year += t.tm_mon / 12;
-        t.tm_mon %= 12;
-    }
-
-    t.tm_wday %= 7;
-}
-
-fn time_add_days(t: &mut libc::tm, days: libc::c_int) {
-    t.tm_mday += days;
-    t.tm_wday += days;
-    wrap_time(t);
-}
-
 pub fn compute_next_event(
     event: &CalendarEvent,
     last: i64,
@@ -220,9 +146,7 @@ pub fn compute_next_event(
 
     let all_days = event.days.is_empty() || event.days.is_all();
 
-    let mut t = if utc { gmtime(last)? } else { localtime(last)? };
-    t.tm_sec = 0; // we're not interested in seconds, actually
-    t.tm_year += 1900; // real years for clarity
+    let mut t = TmEditor::new(last, utc)?;
 
     let mut count = 0;
 
@@ -234,8 +158,7 @@ pub fn compute_next_event(
         }
 
         if !all_days { // match day first
-            // Note: tm_wday (0-6, Sunday = 0) => convert to Sunday = 6
-            let day_num = (t.tm_wday + 6) % 7;
+            let day_num = t.day_num();
             let day = WeekDays::from_bits(1<<day_num).unwrap();
             if !event.days.contains(day) {
                 if let Some(n) = (day_num+1..6)
@@ -243,32 +166,27 @@ pub fn compute_next_event(
                     .find(|d| event.days.contains(*d))
                 {
                     // try next day
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour = 0;
-                    time_add_days(&mut t, (n.bits() as i32) - day_num);
+                    t.add_days((n.bits() as i32) - day_num, true);
                     continue;
                 } else {
                     // try next week
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour = 0;
-                    time_add_days(&mut t, 7 - day_num);
+                    t.add_days(7 - day_num, true);
                     continue;
-
                 }
             }
         }
 
         // this day
         if !event.hour.is_empty() {
-            let hour = t.tm_hour as u32;
-            if event.hour.iter().find(|hspec| hspec.contains(hour)).is_none() {
+            let hour = t.hour() as u32;
+            if !DateTimeValue::list_contains(&event.hour, hour) {
                 if let Some(n) = DateTimeValue::find_next(&event.hour, hour) {
                     // test next hour
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour = n as libc::c_int;
-                    wrap_time(&mut t);
+                    t.set_time(n as libc::c_int, 0, 0);
                     continue;
                 } else {
                     // test next day
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour = 0;
-                    time_add_days(&mut t, 1);
+                    t.add_days(1, true);
                     continue;
                 }
             }
@@ -276,24 +194,21 @@ pub fn compute_next_event(
 
         // this hour
         if !event.minute.is_empty() {
-            let minute = t.tm_min as u32;
-            if event.minute.iter().find(|hspec| hspec.contains(minute)).is_none() {
+            let minute = t.min() as u32;
+            if !DateTimeValue::list_contains(&event.minute, minute) {
                 if let Some(n) = DateTimeValue::find_next(&event.minute, minute) {
                     // test next minute
-                    t.tm_sec = 0; t.tm_min = n as libc::c_int;
-                    wrap_time(&mut t);
+                    t.set_min_sec(n as libc::c_int, 0);
                     continue;
                 } else {
-                   // test next hour
-                    t.tm_sec = 0; t.tm_min = 0; t.tm_hour += 1;
-                    wrap_time(&mut t);
+                    // test next hour
+                    t.set_time(t.hour() + 1, 0, 0);
                     continue;
                 }
             }
         }
 
-        t.tm_year -= 1900;
-        let next = if utc { timegm(t)? } else { timelocal(t)? };
+        let next = t.into_epoch()?;
         return Ok(next)
     }
 }
@@ -302,6 +217,7 @@ pub fn compute_next_event(
 mod test {
 
     use super::*;
+    use proxmox::tools::time::*;
 
     fn test_event(v: &'static str) -> Result<(), Error> {
         match parse_calendar_event(v) {
