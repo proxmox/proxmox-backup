@@ -19,7 +19,7 @@ bitflags!{
 pub struct TmEditor {
     utc: bool,
     t: libc::tm,
-    changes: TMChanges,
+    pub changes: TMChanges,
 }
 
 fn is_leap_year(year: libc::c_int) -> bool {

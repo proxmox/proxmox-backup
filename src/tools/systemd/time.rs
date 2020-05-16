@@ -157,10 +157,12 @@ pub fn compute_next_event(
             count += 1;
         }
 
-        if !all_days { // match day first
+        if !all_days && t.changes.contains(TMChanges::WDAY) { // match day first
             let day_num = t.day_num();
             let day = WeekDays::from_bits(1<<day_num).unwrap();
-            if !event.days.contains(day) {
+            if event.days.contains(day) {
+                t.changes.remove(TMChanges::WDAY);
+            } else {
                 if let Some(n) = (day_num+1..6)
                     .map(|d| WeekDays::from_bits(1<<d).unwrap())
                     .find(|d| event.days.contains(*d))
@@ -177,9 +179,11 @@ pub fn compute_next_event(
         }
 
         // this day
-        if !event.hour.is_empty() {
+        if !event.hour.is_empty() && t.changes.contains(TMChanges::HOUR) {
             let hour = t.hour() as u32;
-            if !DateTimeValue::list_contains(&event.hour, hour) {
+            if DateTimeValue::list_contains(&event.hour, hour) {
+                t.changes.remove(TMChanges::HOUR);
+            } else {
                 if let Some(n) = DateTimeValue::find_next(&event.hour, hour) {
                     // test next hour
                     t.set_time(n as libc::c_int, 0, 0);
@@ -193,9 +197,11 @@ pub fn compute_next_event(
         }
 
         // this hour
-        if !event.minute.is_empty() {
+        if !event.minute.is_empty()  && t.changes.contains(TMChanges::MIN) {
             let minute = t.min() as u32;
-            if !DateTimeValue::list_contains(&event.minute, minute) {
+            if DateTimeValue::list_contains(&event.minute, minute) {
+                t.changes.remove(TMChanges::MIN);
+            } else {
                 if let Some(n) = DateTimeValue::find_next(&event.minute, minute) {
                     // test next minute
                     t.set_min_sec(n as libc::c_int, 0);
@@ -209,9 +215,11 @@ pub fn compute_next_event(
         }
 
         // this minute
-        if !event.second.is_empty() {
+        if !event.second.is_empty() && t.changes.contains(TMChanges::SEC) {
             let second = t.sec() as u32;
-            if !DateTimeValue::list_contains(&event.second, second) {
+            if DateTimeValue::list_contains(&event.second, second) {
+                t.changes.remove(TMChanges::SEC);
+            } else {
                 if let Some(n) = DateTimeValue::find_next(&event.second, second) {
                     // test next second
                     t.set_sec(n as libc::c_int);
