@@ -44,7 +44,6 @@ impl TmEditor {
 
     pub fn new(epoch: i64, utc: bool) -> Result<Self, Error> {
         let mut t = if utc { gmtime(epoch)? } else { localtime(epoch)? };
-        t.tm_sec = 0; // we're not interested in seconds, actually
         t.tm_year += 1900; // real years for clarity
         Ok(Self { utc, t, changes: TMChanges::all() })
     }

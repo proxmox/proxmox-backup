@@ -142,7 +142,7 @@ pub fn compute_next_event(
     utc: bool,
 ) -> Result<i64, Error> {
 
-    let last = last + 60; // at least one minute later
+    let last = last + 1; // at least one second later
 
     let all_days = event.days.is_empty() || event.days.is_all();
 
@@ -208,6 +208,22 @@ pub fn compute_next_event(
             }
         }
 
+        // this minute
+        if !event.second.is_empty() {
+            let second = t.sec() as u32;
+            if !DateTimeValue::list_contains(&event.second, second) {
+                if let Some(n) = DateTimeValue::find_next(&event.second, second) {
+                    // test next second
+                    t.set_sec(n as libc::c_int);
+                    continue;
+                } else {
+                    // test next min
+                    t.set_min_sec(t.min() + 1, 0);
+                    continue;
+                }
+            }
+        }
+
         let next = t.into_epoch()?;
         return Ok(next)
     }
@@ -263,7 +279,10 @@ mod test {
         const THURSDAY_00_00: i64 = make_test_time(0, 0, 0);
         const THURSDAY_15_00: i64 = make_test_time(0, 15, 0);
 
+        test_value("*:0", THURSDAY_00_00, THURSDAY_00_00 + HOUR)?;
         test_value("*:*", THURSDAY_00_00, THURSDAY_00_00 + MIN)?;
+        test_value("*:*:*", THURSDAY_00_00, THURSDAY_00_00 + 1)?;
+        test_value("*:3:5", THURSDAY_00_00, THURSDAY_00_00 + 3*MIN + 5)?;
 
         test_value("mon *:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY)?;
         test_value("mon 2:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR)?;
