@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use proxmox::api::section_config::SectionConfigData;
 
 use crate::PROXMOX_SAFE_ID_REGEX_STR;
-use crate::tools::systemd::parser::*;
+use crate::tools::systemd::config::*;
 use crate::tools::systemd::types::*;
 
 const SYSTEMD_CONFIG_DIR: &str = "/etc/systemd/system";
