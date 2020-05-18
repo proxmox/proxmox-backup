@@ -56,6 +56,9 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
 
 #[api(
     properties: {
+        userid: {
+            schema: PROXMOX_USER_ID_SCHEMA,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -85,6 +88,7 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
 #[derive(Serialize,Deserialize)]
 /// User properties.
 pub struct User {
+    pub userid: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -105,7 +109,7 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("user".to_string(), None, obj_schema);
+    let plugin = SectionConfigPlugin::new("user".to_string(), Some("userid".to_string()), obj_schema);
     let mut config = SectionConfig::new(&PROXMOX_USER_ID_SCHEMA);
 
     config.register_plugin(plugin);

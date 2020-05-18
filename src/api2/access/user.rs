@@ -22,37 +22,8 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
         description: "List users (with config digest).",
         type: Array,
         items: {
-            type: Object,
+            type: user::User,
             description: "User configuration (without password).",
-            properties: {
-                userid: {
-                    schema: PROXMOX_USER_ID_SCHEMA,
-                },
-                comment: {
-                    schema: SINGLE_LINE_COMMENT_SCHEMA,
-                    optional: true,
-                },
-                enable: {
-                    schema: user::ENABLE_USER_SCHEMA,
-                    optional: true,
-                },
-                expire: {
-                    schema: user::EXPIRE_USER_SCHEMA,
-                    optional: true,
-                },
-                firstname: {
-                    schema: user::FIRST_NAME_SCHEMA,
-                    optional: true,
-                },
-                lastname: {
-                    schema: user::LAST_NAME_SCHEMA,
-                    optional: true,
-                },
-                email: {
-                    schema: user::EMAIL_SCHEMA,
-                    optional: true,
-                },
-            },
         },
     },
     access: {
@@ -63,14 +34,16 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
 pub fn list_users(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<user::User>, Error> {
 
     let (config, digest) = user::config()?;
 
-    let value = config.convert_to_array("userid", Some(&digest), &[]);
+    let list = config.convert_to_typed_array("user")?;
 
-    Ok(value.into())
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    Ok(list)
 }
 
 #[api(
@@ -119,7 +92,9 @@ pub fn create_user(userid: String, password: Option<String>, param: Value) -> Re
 
     let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let user: user::User = serde_json::from_value(param.clone())?;
+    let mut data = param.clone();
+    data["userid"] = Value::from(userid.clone());
+    let user: user::User = serde_json::from_value(data)?;
 
     let (mut config, _digest) = user::config()?;
 
@@ -158,12 +133,11 @@ pub fn create_user(userid: String, password: Option<String>, param: Value) -> Re
     },
 )]
 /// Read user configuration data.
-pub fn read_user(userid: String) -> Result<Value, Error> {
+pub fn read_user(userid: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<user::User, Error> {
     let (config, digest) = user::config()?;
-    let mut data = config.lookup_json("user", &userid)?;
-    data.as_object_mut().unwrap()
-        .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
-    Ok(data)
+    let user = config.lookup("user", &userid)?;
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    Ok(user)
 }
 
 #[api(
