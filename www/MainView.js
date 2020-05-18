@@ -177,7 +177,8 @@ Ext.define('PBS.MainView', {
 	    height: 38,
 	    items: [
 		{
-		    xtype: 'proxmoxlogo'
+		    xtype: 'proxmoxlogo',
+		    prefix: '',
 		},
 		{
 		    xtype: 'versioninfo'

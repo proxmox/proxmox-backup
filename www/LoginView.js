@@ -114,7 +114,8 @@ Ext.define('PBS.LoginView', {
 	    height: 38,
 	    items: [
 		{
-		    xtype: 'proxmoxlogo'
+		    xtype: 'proxmoxlogo',
+		    prefix: '',
 		},
 		{
 		    xtype: 'versioninfo',
@@ -159,10 +160,6 @@ Ext.define('PBS.LoginView', {
 
 		    items: [
 			{
-			    xtype: 'pbsRealmComboBox',
-			    name: 'realm'
-			},
-			{
 			    xtype: 'textfield',
 			    fieldLabel: gettext('User name'),
 			    name: 'username',
@@ -177,6 +174,10 @@ Ext.define('PBS.LoginView', {
 			    name: 'password',
 			    itemId: 'passwordField',
 			    reference: 'passwordField',
+			},
+			{
+			    xtype: 'pmxRealmComboBox',
+			    name: 'realm'
 			},
 			{
 			    xtype: 'proxmoxLanguageSelector',

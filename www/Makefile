@@ -6,8 +6,6 @@ IMAGES := \
 
 JSSRC=							\
 	Utils.js					\
-	Logo.js						\
-	RealmComboBox.js				\
 	LoginView.js					\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
