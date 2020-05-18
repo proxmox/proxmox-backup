@@ -41,16 +41,13 @@ pub fn json_data_response(data: Value) -> Response<Body> {
 
 fn add_result_attributes(result: &mut Value, rpcenv: &dyn RpcEnvironment)
 {
-    if let Some(total) = rpcenv.get_result_attrib("total").and_then(|v| v.as_u64()) {
-        result["total"] = Value::from(total);
-    }
+    let attributes = match rpcenv.result_attrib().as_object() {
+        Some(attr) => attr,
+        None => return,
+    };
 
-    if let Some(active) = rpcenv.get_result_attrib("active").and_then(|v| v.as_bool()) {
-        result["active"] = Value::from(active);
-    }
-
-    if let Some(changes) = rpcenv.get_result_attrib("changes") {
-        result["changes"] = changes.clone();
+    for (key, value) in attributes {
+        result[key] = value.clone();
     }
 }
 

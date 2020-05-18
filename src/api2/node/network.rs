@@ -66,7 +66,7 @@ fn check_duplicate_gateway_v6(config: &NetworkConfig, iface: &str) -> Result<(),
 pub fn list_network_devices(
     _param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut dyn RpcEnvironment,
+    mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let (config, digest) = network::config()?;
@@ -84,7 +84,7 @@ pub fn list_network_devices(
 
     let diff = network::changes()?;
     if !diff.is_empty() {
-        rpcenv.set_result_attrib("changes",  diff.into());
+        rpcenv["changes"] = diff.into();
     }
 
     Ok(list.into())

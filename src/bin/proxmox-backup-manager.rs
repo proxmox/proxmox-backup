@@ -262,11 +262,9 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
         _ => unreachable!(),
     };
 
-    if let Some(changes) = rpcenv.get_result_attrib("changes") {
-        if let Some(diff) = changes.as_str() {
-            if output_format == "text" {
-                eprintln!("pending changes:\n{}\n", diff);
-            }
+    if let Value::String(ref diff) = rpcenv["changes"] {
+        if output_format == "text" {
+            eprintln!("pending changes:\n{}\n", diff);
         }
     }
 
@@ -339,10 +337,8 @@ fn pending_network_changes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) ->
         _ => unreachable!(),
     };
 
-    if let Some(changes) = rpcenv.get_result_attrib("changes") {
-        if let Some(diff) = changes.as_str() {
-            println!("{}", diff);
-        }
+    if let Value::String(ref diff) = rpcenv["changes"] {
+        println!("{}", diff);
     }
 
     Ok(Value::Null)

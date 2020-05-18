@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
@@ -80,7 +80,7 @@ impl SharedBackupState {
 #[derive(Clone)]
 pub struct BackupEnvironment {
     env_type: RpcEnvironmentType,
-    result_attributes: HashMap<String, Value>,
+    result_attributes: Value,
     user: String,
     pub debug: bool,
     pub formatter: &'static OutputFormatter,
@@ -110,7 +110,7 @@ impl BackupEnvironment {
         };
 
         Self {
-            result_attributes: HashMap::new(),
+            result_attributes: json!({}),
             env_type,
             user,
             worker,
@@ -480,12 +480,12 @@ impl BackupEnvironment {
 
 impl RpcEnvironment for BackupEnvironment {
 
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
+    fn result_attrib_mut(&mut self) -> &mut Value {
+        &mut self.result_attributes
     }
 
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
+    fn result_attrib(&self) -> &Value {
+        &self.result_attributes
     }
 
     fn env_type(&self) -> RpcEnvironmentType {

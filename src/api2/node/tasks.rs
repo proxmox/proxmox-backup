@@ -156,7 +156,7 @@ fn extract_upid(param: &Value) -> Result<UPID, Error> {
 /// Read task log.
 async fn read_task_log(
     param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
+    mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let upid = extract_upid(&param)?;
@@ -199,11 +199,11 @@ async fn read_task_log(
         }
     }
 
-    rpcenv.set_result_attrib("total", Value::from(count));
+    rpcenv["total"] = Value::from(count);
 
     if test_status {
         let active = crate::server::worker_is_active(&upid).await?;
-        rpcenv.set_result_attrib("active", Value::from(active));
+        rpcenv["active"] = Value::from(active);
     }
 
     Ok(json!(lines))
@@ -304,7 +304,7 @@ pub fn list_tasks(
     errors: bool,
     running: bool,
     param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
+    mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
     let username = rpcenv.get_user().unwrap();
@@ -382,7 +382,7 @@ pub fn list_tasks(
         if (result.len() as u64) < limit { result.push(entry); };
     }
 
-    rpcenv.set_result_attrib("total", Value::from(count));
+    rpcenv["total"] = Value::from(count);
 
     Ok(result)
 }

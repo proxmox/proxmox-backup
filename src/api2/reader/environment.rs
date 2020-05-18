@@ -1,8 +1,7 @@
 //use anyhow::{bail, format_err, Error};
 use std::sync::Arc;
-use std::collections::HashMap;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
@@ -16,7 +15,7 @@ use crate::server::formatter::*;
 #[derive(Clone)]
 pub struct ReaderEnvironment {
     env_type: RpcEnvironmentType,
-    result_attributes: HashMap<String, Value>,
+    result_attributes: Value,
     user: String,
     pub debug: bool,
     pub formatter: &'static OutputFormatter,
@@ -37,7 +36,7 @@ impl ReaderEnvironment {
 
 
         Self {
-            result_attributes: HashMap::new(),
+            result_attributes: json!({}),
             env_type,
             user,
             worker,
@@ -61,12 +60,12 @@ impl ReaderEnvironment {
 
 impl RpcEnvironment for ReaderEnvironment {
 
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
+    fn result_attrib_mut(&mut self) -> &mut Value {
+        &mut self.result_attributes
     }
 
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
+    fn result_attrib(&self) -> &Value {
+        &self.result_attributes
     }
 
     fn env_type(&self) -> RpcEnvironmentType {

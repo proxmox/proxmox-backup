@@ -1,19 +1,18 @@
-use std::collections::HashMap;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
 /// Encapsulates information about the runtime environment
 pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
-    result_attributes: HashMap<String, Value>,
+    result_attributes: Value,
     user: Option<String>,
 }
 
 impl RestEnvironment {
     pub fn new(env_type: RpcEnvironmentType) -> Self {
         Self {
-            result_attributes: HashMap::new(),
+            result_attributes: json!({}),
             user: None,
             env_type,
         }
@@ -22,12 +21,12 @@ impl RestEnvironment {
 
 impl RpcEnvironment for RestEnvironment {
 
-    fn set_result_attrib(&mut self, name: &str, value: Value) {
-        self.result_attributes.insert(name.into(), value);
+    fn result_attrib_mut (&mut self) -> &mut Value {
+        &mut self.result_attributes
     }
 
-    fn get_result_attrib(&self, name: &str) -> Option<&Value> {
-        self.result_attributes.get(name)
+    fn result_attrib(&self) -> &Value {
+        &self.result_attributes
     }
 
     fn env_type(&self) -> RpcEnvironmentType {

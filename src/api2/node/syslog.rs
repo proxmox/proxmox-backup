@@ -131,7 +131,7 @@ fn dump_journal(
 fn get_syslog(
     param: Value,
     _info: &ApiMethod,
-    rpcenv: &mut dyn RpcEnvironment,
+    mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
     let (count, lines) = dump_journal(
@@ -141,7 +141,7 @@ fn get_syslog(
         param["until"].as_str(),
         param["service"].as_str())?;
 
-    rpcenv.set_result_attrib("total", Value::from(count));
+    rpcenv["total"] = Value::from(count);
 
     Ok(json!(lines))
 }
