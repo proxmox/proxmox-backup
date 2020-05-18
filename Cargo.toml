@@ -14,7 +14,7 @@ name = "proxmox_backup"
 path = "src/lib.rs"
 
 [dependencies]
-base64 = "0.10"
+base64 = "0.12"
 bitflags = "1.2.1"
 bytes = "0.5"
 chrono = "0.4" # Date and time library for Rust
@@ -41,14 +41,14 @@ proxmox = { version = "0.1.30", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro" ] }
 regex = "1.2"
-rustyline = "5.0.5"
+rustyline = "6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 siphasher = "0.3"
 syslog = "4.0"
 tokio = { version = "0.2.9", features = [ "blocking", "fs", "io-util", "macros", "rt-threaded", "signal", "stream", "tcp", "time", "uds" ] }
 tokio-openssl = "0.4.0"
-tokio-util = { version = "0.2.0", features = [ "codec" ] }
+tokio-util = { version = "0.3", features = [ "codec" ] }
 tower-service = "0.3.0"
 udev = "0.3"
 url = "2.1"
