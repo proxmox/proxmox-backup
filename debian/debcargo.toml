@@ -11,8 +11,20 @@ vcs_git = ""
 vcs_browser = ""
 maintainer = "Proxmox Support Team <support@proxmox.com>"
 section = "admin"
-build_depends = [ "debhelper (>= 12~)", "bash-completion", "python3-docutils", "rsync" ]
-build_depends_excludes = [ "debhelper (>=11)" ]
+build_depends = [
+  "debhelper (>= 12~)",
+  "bash-completion",
+  "python3-docutils",
+  "rsync",
+]
+build_depends_excludes = [
+  "debhelper (>=11)",
+]
 
 [packages.lib]
-depends = [ "libacl1-dev", "libsystemd-dev", "libfuse3-dev", "uuid-dev" ]
+depends = [
+  "libacl1-dev",
+  "libfuse3-dev",
+  "libsystemd-dev",
+  "uuid-dev",
+]
