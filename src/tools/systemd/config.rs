@@ -26,21 +26,21 @@ fn init_service() -> SectionConfig {
 
     match SystemdUnitSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Unit".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdInstallSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Install".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdServiceSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Service".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Service".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
@@ -55,21 +55,21 @@ fn init_timer() -> SectionConfig {
 
     match SystemdUnitSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Unit".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdInstallSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Install".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),
     };
     match SystemdTimerSection::API_SCHEMA {
         Schema::Object(ref obj_schema) =>  {
-            let plugin = SectionConfigPlugin::new("Timer".to_string(), obj_schema);
+            let plugin = SectionConfigPlugin::new("Timer".to_string(), None, obj_schema);
             config.register_plugin(plugin);
         }
         _ => unreachable!(),

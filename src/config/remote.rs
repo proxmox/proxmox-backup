@@ -66,7 +66,7 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("remote".to_string(), obj_schema);
+    let plugin = SectionConfigPlugin::new("remote".to_string(), None, obj_schema);
     let mut config = SectionConfig::new(&REMOTE_ID_SCHEMA);
     config.register_plugin(plugin);
 
