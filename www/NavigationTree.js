@@ -19,6 +19,12 @@ Ext.define('PBS.store.NavigationStore', {
 		expanded: true,
 		children: [
 		    {
+			text: gettext('User Management'),
+			iconCls: 'fa fa-user',
+			path: 'pbsUserView',
+			leaf: true
+		    },
+		    {
 			text: gettext('Data Store'),
 			iconCls: 'fa fa-archive',
 			path: 'pbsDataStoreConfig',

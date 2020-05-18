@@ -5,6 +5,8 @@ IMAGES := \
 	images/proxmox_logo.png
 
 JSSRC=							\
+	config/UserView.js				\
+	window/UserEdit.js				\
 	Utils.js					\
 	LoginView.js					\
 	VersionInfo.js					\
