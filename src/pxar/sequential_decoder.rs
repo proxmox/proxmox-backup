@@ -1159,7 +1159,7 @@ fn symlinkat(target: &Path, parent: RawFd, linkname: &OsStr) -> Result<(), Error
 
 fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
     // restore mtime
-    const UTIME_OMIT: i64 = ((1 << 30) - 2);
+    const UTIME_OMIT: i64 = (1 << 30) - 2;
     const NANOS_PER_SEC: i64 = 1_000_000_000;
 
     let sec = (mtime_nsec as i64) / NANOS_PER_SEC;
