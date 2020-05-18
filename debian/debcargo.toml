@@ -15,7 +15,18 @@ build_depends = [
   "debhelper (>= 12~)",
   "bash-completion",
   "python3-docutils",
+  "python3-pygments",
   "rsync",
+  "fonts-dejavu-core <!nodoc>",
+  "fonts-lato <!nodoc>",
+  "fonts-open-sans <!nodoc>",
+  "graphviz <!nodoc>",
+  "latexmk <!nodoc>",
+  "python3-sphinx <!nodoc>",
+  "texlive-fonts-extra <!nodoc>",
+  "texlive-fonts-recommended <!nodoc>",
+  "texlive-xetex <!nodoc>",
+  "xindy <!nodoc>",
 ]
 build_depends_excludes = [
   "debhelper (>=11)",
