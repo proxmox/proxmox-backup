@@ -4,7 +4,6 @@ use std::sync::{Arc, RwLock};
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
-use serde_json::json;
 
 use proxmox::api::{
     api,
@@ -136,9 +135,15 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
     let mut data = CONFIG.parse(USER_CFG_FILENAME, &content)?;
 
     if data.sections.get("root@pam").is_none() {
-        let user: User = serde_json::from_value(json!({
-            "comment": "Superuser",
-        })).unwrap();
+        let user: User = User {
+            userid: "root@pam".to_string(),
+            comment: Some("Superuser".to_string()),
+            enable: None,
+            expire: None,
+            firstname: None,
+            lastname: None,
+            email: None,
+        };
         data.set_data("root@pam", "user", &user).unwrap();
     }
 
