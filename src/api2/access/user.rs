@@ -88,24 +88,22 @@ pub fn list_users(
     },
 )]
 /// Create new user.
-pub fn create_user(userid: String, password: Option<String>, param: Value) -> Result<(), Error> {
+pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let mut data = param.clone();
-    data["userid"] = Value::from(userid.clone());
-    let user: user::User = serde_json::from_value(data)?;
+    let user: user::User = serde_json::from_value(param)?;
 
     let (mut config, _digest) = user::config()?;
 
-    if let Some(_) = config.sections.get(&userid) {
-        bail!("user '{}' already exists.", userid);
+    if let Some(_) = config.sections.get(&user.userid) {
+        bail!("user '{}' already exists.", user.userid);
     }
 
-    let (username, realm) = crate::auth::parse_userid(&userid)?;
+    let (username, realm) = crate::auth::parse_userid(&user.userid)?;
     let authenticator = crate::auth::lookup_authenticator(&realm)?;
 
-    config.set_data(&userid, "user", &user)?;
+    config.set_data(&user.userid, "user", &user)?;
 
     user::save_config(&config)?;
 
