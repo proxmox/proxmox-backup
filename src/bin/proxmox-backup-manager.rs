@@ -84,13 +84,43 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, 
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Show remote configuration
+fn show_remote(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::remote::API_METHOD_READ_REMOTE;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options();
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn remote_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&&API_METHOD_LIST_REMOTES))
         .insert(
             "show",
-            CliCommand::new(&api2::config::remote::API_METHOD_READ_REMOTE)
+            CliCommand::new(&API_METHOD_SHOW_REMOTE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::remote::complete_remote_name)
         )
@@ -482,12 +512,42 @@ fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Show datastore configuration
+fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::datastore::API_METHOD_READ_DATASTORE;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options();
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
 fn datastore_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
         .insert("show",
-                CliCommand::new(&api2::config::datastore::API_METHOD_READ_DATASTORE)
+                CliCommand::new(&API_METHOD_SHOW_DATASTORE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
         )
