@@ -174,25 +174,37 @@ async fn run_task_scheduler() {
 async fn schedule_tasks() -> Result<(), Error> {
 
     schedule_datastore_garbage_collection().await;
+    schedule_datastore_prune().await;
 
     Ok(())
 }
 
-fn lookup_last_worker_start(worker_type: &str, worker_id: &str) -> Result<i64, Error> {
+fn lookup_last_worker(worker_type: &str, worker_id: &str) -> Result<Option<server::UPID>, Error> {
 
     let list = proxmox_backup::server::read_task_list()?;
 
-    for entry in list {
+    let mut last: Option<&server::UPID> = None;
+
+    for entry in list.iter() {
         if entry.upid.worker_type == worker_type {
-            if let Some(id) = entry.upid.worker_id {
+            if let Some(ref id) = entry.upid.worker_id {
                 if id == worker_id {
-                    return Ok(entry.upid.starttime);
+                    match last {
+                        Some(ref upid) => {
+                            if upid.starttime < entry.upid.starttime {
+                                last = Some(&entry.upid)
+                            }
+                        }
+                        None => {
+                            last = Some(&entry.upid)
+                        }
+                    }
                 }
             }
         }
     }
 
-    Ok(0)
+    Ok(last.cloned())
 }
 
 
@@ -200,10 +212,11 @@ async fn schedule_datastore_garbage_collection() {
 
     use proxmox_backup::backup::DataStore;
     use proxmox_backup::server::{UPID, WorkerTask};
+    use proxmox_backup::config::datastore::{self, DataStoreConfig};
     use proxmox_backup::tools::systemd::time::{
         parse_calendar_event, compute_next_event};
 
-    let config = match proxmox_backup::config::datastore::config() {
+    let config = match datastore::config() {
         Err(err) => {
             eprintln!("unable to read datastore config - {}", err);
             return;
@@ -220,7 +233,7 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        let store_config: proxmox_backup::config::datastore::DataStoreConfig = match serde_json::from_value(store_config) {
+        let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
             Ok(c) => c,
             Err(err) => {
                 eprintln!("datastore config from_value failed - {}", err);
@@ -255,8 +268,9 @@ async fn schedule_datastore_garbage_collection() {
                 }
             }
         } else {
-            match lookup_last_worker_start(worker_type, &store) {
-                Ok(t) => t,
+            match lookup_last_worker(worker_type, &store) {
+                Ok(Some(upid)) => upid.starttime,
+                Ok(None) => 0,
                 Err(err) => {
                     eprintln!("lookup_last_job_start failed: {}", err);
                     continue;
@@ -294,6 +308,139 @@ async fn schedule_datastore_garbage_collection() {
             }
         ) {
             eprintln!("unable to start garbage collection on store {} - {}", store2, err);
+        }
+    }
+}
+
+async fn schedule_datastore_prune() {
+
+    use proxmox_backup::backup::{
+        PruneOptions, DataStore, BackupGroup, BackupDir, compute_prune_info};
+    use proxmox_backup::server::{WorkerTask};
+    use proxmox_backup::config::datastore::{self, DataStoreConfig};
+    use proxmox_backup::tools::systemd::time::{
+        parse_calendar_event, compute_next_event};
+
+    let config = match datastore::config() {
+        Err(err) => {
+            eprintln!("unable to read datastore config - {}", err);
+            return;
+        }
+        Ok((config, _digest)) => config,
+    };
+
+    for (store, (_, store_config)) in config.sections {
+        let datastore = match DataStore::lookup_datastore(&store) {
+            Ok(datastore) => datastore,
+            Err(err) => {
+                eprintln!("lookup_datastore failed - {}", err);
+                continue;
+            }
+        };
+
+        let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("datastore config from_value failed - {}", err);
+                continue;
+            }
+        };
+
+        let event_str = match store_config.prune_schedule {
+            Some(event_str) => event_str,
+            None => continue,
+        };
+
+        let prune_options = PruneOptions {
+            keep_last: store_config.keep_last,
+            keep_hourly: store_config.keep_hourly,
+            keep_daily:  store_config.keep_daily,
+            keep_weekly: store_config.keep_weekly,
+            keep_monthly: store_config.keep_monthly,
+            keep_yearly: store_config.keep_yearly,
+        };
+
+        if !prune_options.keeps_something() { // no prune settings - keep all
+            continue;
+        }
+
+        let event = match parse_calendar_event(&event_str) {
+            Ok(event) => event,
+            Err(err) => {
+                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
+                continue;
+            }
+        };
+
+        //fixme: if last_prune_job_stzill_running { continue; }
+
+        let worker_type = "prune";
+
+        let last = match lookup_last_worker(worker_type, &store) {
+            Ok(Some(upid)) => upid.starttime,
+            Ok(None) => 0,
+            Err(err) => {
+                eprintln!("lookup_last_job_start failed: {}", err);
+                continue;
+            }
+        };
+
+        let next = match compute_next_event(&event, last, false) {
+            Ok(next) => next,
+            Err(err) => {
+                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
+                continue;
+            }
+        };
+
+        let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(epoch_now) => epoch_now.as_secs() as i64,
+            Err(err) => {
+                eprintln!("query system time failed - {}", err);
+                continue;
+            }
+        };
+        if next > now  { continue; }
+
+        let store2 = store.clone();
+
+        if let Err(err) = WorkerTask::new_thread(
+            worker_type,
+            Some(store.clone()),
+            "root@pam",
+            false,
+            move |worker| {
+                worker.log(format!("Starting datastore prune on store \"{}\"", store));
+                worker.log(format!("retention options: {}", prune_options.cli_options_string()));
+
+                let base_path = datastore.base_path();
+
+                let groups = BackupGroup::list_groups(&base_path)?;
+                for group in groups {
+                    let list = group.list_backups(&base_path)?;
+                    let mut prune_info = compute_prune_info(list, &prune_options)?;
+                    prune_info.reverse(); // delete older snapshots first
+
+                    worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
+                                       store, group.backup_type(), group.backup_id()));
+
+                    for (info, keep) in prune_info {
+                        worker.log(format!(
+                            "{} {}/{}/{}",
+                            if keep { "keep" } else { "remove" },
+                            group.backup_type(), group.backup_id(),
+                            BackupDir::backup_time_to_string(info.backup_dir.backup_time())));
+
+                        if !keep {
+                            datastore.remove_backup_dir(&info.backup_dir)?;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+        ) {
+            eprintln!("unable to start datastore prune on store {} - {}", store2, err);
         }
     }
 }
