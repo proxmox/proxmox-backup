@@ -89,6 +89,12 @@ fn remote_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&&API_METHOD_LIST_REMOTES))
         .insert(
+            "show",
+            CliCommand::new(&api2::config::remote::API_METHOD_READ_REMOTE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::remote::complete_remote_name)
+        )
+        .insert(
             "create",
             // fixme: howto handle password parameter?
             CliCommand::new(&api2::config::remote::API_METHOD_CREATE_REMOTE)
@@ -480,6 +486,11 @@ fn datastore_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
+        .insert("show",
+                CliCommand::new(&api2::config::datastore::API_METHOD_READ_DATASTORE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+        )
         .insert("create",
                 CliCommand::new(&api2::config::datastore::API_METHOD_CREATE_DATASTORE)
                 .arg_param(&["name", "path"])
