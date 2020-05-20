@@ -16,7 +16,7 @@ use crate::config::acl::{Role, ROLE_NAMES, PRIVILEGES};
             type: Object,
             description: "User name with description.",
             properties: {
-                role: {
+                roleid: {
                     type: Role,
                 },
                 privs: {
@@ -49,7 +49,7 @@ fn list_roles() -> Result<Value, Error> {
                 priv_list.push(name.clone());
             }
         }
-        list.push(json!({ "role": role, "privs": priv_list, "comment": comment }));
+        list.push(json!({ "roleid": role, "privs": priv_list, "comment": comment }));
     }
     Ok(list.into())
 }
