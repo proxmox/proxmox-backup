@@ -103,6 +103,7 @@ pub fn read_acl(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
 	    path: {
