@@ -4,11 +4,11 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::backup::*;
-use crate::config::datastore;
+use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
 use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 
 #[api(
@@ -18,25 +18,7 @@ use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
     returns: {
         description: "List the configured datastores (with config digest).",
         type: Array,
-        items: {
-            description: "Datastore configuration.",
-            properties: {
-                name: {
-                    schema: DATASTORE_SCHEMA,
-                },
-                path: {
-                    schema: datastore::DIR_NAME_SCHEMA,
-                },
-                "gc-schedule": {
-                    optional: true,
-                    schema: GC_SCHEDULE_SCHEMA,
-                },
-                comment: {
-                    optional: true,
-                    schema: SINGLE_LINE_COMMENT_SCHEMA,
-                },
-            },
-        },
+        items: { type: datastore::DataStoreConfig },
     },
     access: {
         permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_AUDIT, false),
@@ -45,14 +27,22 @@ use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 /// List all datastores
 pub fn list_datastores(
     _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<DataStoreConfig>, Error> {
 
     let (config, digest) = datastore::config()?;
 
-    Ok(config.convert_to_array("name", Some(&digest), &[]))
+    let list = config.convert_to_typed_array("datastore")?;
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    Ok(list)
 }
+
+
+// fixme: impl. const fn get_object_schema(datastore::DataStoreConfig::API_SCHEMA),
+// but this need support for match inside const fn
+// see: https://github.com/rust-lang/rust/issues/49146
 
 #[api(
     protected: true,
@@ -60,6 +50,9 @@ pub fn list_datastores(
         properties: {
             name: {
                 schema: DATASTORE_SCHEMA,
+            },
+            path: {
+                schema: DIR_NAME_SCHEMA,
             },
             comment: {
                 optional: true,
@@ -69,8 +62,33 @@ pub fn list_datastores(
                 optional: true,
                 schema: GC_SCHEDULE_SCHEMA,
             },
-            path: {
-                schema: datastore::DIR_NAME_SCHEMA,
+            "prune-schedule": {
+                optional: true,
+                schema: PRUNE_SCHEDULE_SCHEMA,
+            },
+            "keep-last": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_LAST,
+            },
+            "keep-hourly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_HOURLY,
+            },
+            "keep-daily": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_DAILY,
+            },
+            "keep-weekly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_WEEKLY,
+            },
+            "keep-monthly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_MONTHLY,
+            },
+            "keep-yearly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_YEARLY,
             },
         },
     },
@@ -79,7 +97,7 @@ pub fn list_datastores(
     },
 )]
 /// Create new datastore config.
-pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
+pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
@@ -87,16 +105,16 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
 
     let (mut config, _digest) = datastore::config()?;
 
-    if let Some(_) = config.sections.get(&name) {
-        bail!("datastore '{}' already exists.", name);
+    if let Some(_) = config.sections.get(&datastore.name) {
+        bail!("datastore '{}' already exists.", datastore.name);
     }
 
     let path: PathBuf = datastore.path.clone().into();
 
     let backup_user = crate::backup::backup_user()?;
-    let _store = ChunkStore::create(&name, path, backup_user.uid, backup_user.gid)?;
+    let _store = ChunkStore::create(&datastore.name, path, backup_user.uid, backup_user.gid)?;
 
-    config.set_data(&name, "datastore", &datastore)?;
+    config.set_data(&datastore.name, "datastore", &datastore)?;
 
     datastore::save_config(&config)?;
 
@@ -120,12 +138,16 @@ pub fn create_datastore(name: String, param: Value) -> Result<(), Error> {
     },
 )]
 /// Read a datastore configuration.
-pub fn read_datastore(name: String) -> Result<Value, Error> {
+pub fn read_datastore(
+    name: String,
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<DataStoreConfig, Error> {
     let (config, digest) = datastore::config()?;
-    let mut data = config.lookup_json("datastore", &name)?;
-    data.as_object_mut().unwrap()
-        .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
-    Ok(data)
+
+    let store_config = config.lookup("datastore", &name)?;
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    Ok(store_config)
 }
 
 #[api()]
@@ -138,6 +160,20 @@ pub enum DeletableProperty {
     comment,
     /// Delete the garbage collection schedule.
     gc_schedule,
+    /// Delete the prune job schedule.
+    prune_schedule,
+    /// Delete the keep-last property
+    keep_last,
+    /// Delete the keep-hourly property
+    keep_hourly,
+    /// Delete the keep-daily property
+    keep_daily,
+    /// Delete the keep-weekly property
+    keep_weekly,
+    /// Delete the keep-monthly property
+    keep_monthly,
+    /// Delete the keep-yearly property
+    keep_yearly,
 }
 
 #[api(
@@ -154,6 +190,34 @@ pub enum DeletableProperty {
             "gc-schedule": {
                 optional: true,
                 schema: GC_SCHEDULE_SCHEMA,
+            },
+            "prune-schedule": {
+                optional: true,
+                schema: PRUNE_SCHEDULE_SCHEMA,
+            },
+            "keep-last": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_LAST,
+            },
+            "keep-hourly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_HOURLY,
+            },
+            "keep-daily": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_DAILY,
+            },
+            "keep-weekly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_WEEKLY,
+            },
+            "keep-monthly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_MONTHLY,
+            },
+            "keep-yearly": {
+                optional: true,
+                schema: PRUNE_SCHEMA_KEEP_YEARLY,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -178,6 +242,13 @@ pub fn update_datastore(
     name: String,
     comment: Option<String>,
     gc_schedule: Option<String>,
+    prune_schedule: Option<String>,
+    keep_last: Option<i64>,
+    keep_hourly: Option<i64>,
+    keep_daily: Option<i64>,
+    keep_weekly: Option<i64>,
+    keep_monthly: Option<i64>,
+    keep_yearly: Option<i64>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -199,6 +270,13 @@ pub fn update_datastore(
             match delete_prop {
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::gc_schedule => { data.gc_schedule = None; },
+                DeletableProperty::prune_schedule => { data.prune_schedule = None; },
+                DeletableProperty::keep_last => { data.keep_last = None; },
+                DeletableProperty::keep_hourly => { data.keep_hourly = None; },
+                DeletableProperty::keep_daily => { data.keep_daily = None; },
+                DeletableProperty::keep_weekly => { data.keep_weekly = None; },
+                DeletableProperty::keep_monthly => { data.keep_monthly = None; },
+                DeletableProperty::keep_yearly => { data.keep_yearly = None; },
             }
         }
     }
@@ -213,6 +291,14 @@ pub fn update_datastore(
     }
 
     if gc_schedule.is_some() { data.gc_schedule = gc_schedule; }
+    if prune_schedule.is_some() { data.prune_schedule = prune_schedule; }
+
+    if keep_last.is_some() { data.keep_last = keep_last; }
+    if keep_hourly.is_some() { data.keep_hourly = keep_hourly; }
+    if keep_daily.is_some() { data.keep_daily = keep_daily; }
+    if keep_weekly.is_some() { data.keep_weekly = keep_weekly; }
+    if keep_monthly.is_some() { data.keep_monthly = keep_monthly; }
+    if keep_yearly.is_some() { data.keep_yearly = keep_yearly; }
 
     config.set_data(&name, "datastore", &data)?;
 

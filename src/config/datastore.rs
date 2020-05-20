@@ -26,16 +26,47 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
 
 #[api(
     properties: {
+        name: {
+            schema: DATASTORE_SCHEMA,
+        },
+        path: {
+            schema: DIR_NAME_SCHEMA,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
         "gc-schedule": {
-            schema: GC_SCHEDULE_SCHEMA,
             optional: true,
+            schema: GC_SCHEDULE_SCHEMA,
         },
-        path: {
-            schema: DIR_NAME_SCHEMA,
+        "prune-schedule": {
+            optional: true,
+            schema: PRUNE_SCHEDULE_SCHEMA,
+        },
+        "keep-last": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_LAST,
+        },
+        "keep-hourly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_HOURLY,
+        },
+        "keep-daily": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_DAILY,
+        },
+        "keep-weekly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_WEEKLY,
+        },
+        "keep-monthly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_MONTHLY,
+        },
+        "keep-yearly": {
+            optional: true,
+            schema: PRUNE_SCHEMA_KEEP_YEARLY,
         },
     }
 )]
@@ -43,12 +74,27 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
 #[derive(Serialize,Deserialize)]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
+    pub name: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub path: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub gc_schedule: Option<String>,
- }
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub prune_schedule: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_last: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_hourly: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_daily: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_weekly: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_monthly: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub keep_yearly: Option<i64>,
+}
 
 fn init() -> SectionConfig {
     let obj_schema = match DataStoreConfig::API_SCHEMA {
@@ -56,7 +102,7 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("datastore".to_string(), None, obj_schema);
+    let plugin = SectionConfigPlugin::new("datastore".to_string(), Some(String::from("name")), obj_schema);
     let mut config = SectionConfig::new(&DATASTORE_SCHEMA);
     config.register_plugin(plugin);
 
