@@ -488,7 +488,8 @@ fn datastore_commands() -> CommandLineInterface {
                 CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
                 .arg_param(&["name"])
                 .completion_cb("name", config::datastore::complete_datastore_name)
-        )
+                .completion_cb("gc-schedule", config::datastore::complete_calendar_event)
+    )
         .insert("remove",
                 CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
                 .arg_param(&["name"])

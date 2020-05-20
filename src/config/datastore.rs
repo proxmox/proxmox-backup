@@ -123,3 +123,9 @@ pub fn complete_acl_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<St
 
     list
 }
+
+pub fn complete_calendar_event(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    // just give some hints about possible values
+    ["minutely", "hourly", "daily", "mon..fri", "0:0"]
+        .iter().map(|s| String::from(*s)).collect()
+}
