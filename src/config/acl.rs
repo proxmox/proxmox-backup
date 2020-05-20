@@ -12,29 +12,36 @@ use ::serde::{Deserialize, Serialize};
 use serde::de::{value, IntoDeserializer};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
+use proxmox::constnamemap;
 use proxmox::api::{api, schema::*};
 
 // define Privilege bitfield
 
-pub const PRIV_SYS_AUDIT: u64                    = 1 << 0;
-pub const PRIV_SYS_MODIFY: u64                   = 1 << 1;
-pub const PRIV_SYS_POWER_MANAGEMENT: u64         = 1 << 2;
+constnamemap! {
+    /// Contains a list of Privileges
+    PRIVILEGES: u64 => {
+        PRIV_SYS_AUDIT("Sys.Audit")                         = 1 << 0;
+        PRIV_SYS_MODIFY("Sys.Modify")                       = 1 << 1;
+        PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement")    = 1 << 2;
 
-pub const PRIV_DATASTORE_AUDIT: u64              = 1 << 3;
-pub const PRIV_DATASTORE_MODIFY: u64             = 1 << 4;
-pub const PRIV_DATASTORE_READ: u64               = 1 << 5;
+        PRIV_DATASTORE_AUDIT("Datastore.Audit")             = 1 << 3;
+        PRIV_DATASTORE_MODIFY("Datastore.Modify")           = 1 << 4;
+        PRIV_DATASTORE_READ("Datastore.Read")               = 1 << 5;
 
-/// Datastore.Backup also requires backup ownership
-pub const PRIV_DATASTORE_BACKUP: u64             = 1 << 6;
-/// Datastore.Prune also requires backup ownership
-pub const PRIV_DATASTORE_PRUNE: u64              = 1 << 7;
+        /// Datastore.Backup also requires backup ownership
+        PRIV_DATASTORE_BACKUP("Datastore.Backup")           = 1 << 6;
+        /// Datastore.Prune also requires backup ownership
+        PRIV_DATASTORE_PRUNE("Datastore.Prune")             = 1 << 7;
 
-pub const PRIV_PERMISSIONS_MODIFY: u64           = 1 << 8;
+        PRIV_PERMISSIONS_MODIFY("Permissions.Modify")       = 1 << 8;
 
-pub const PRIV_REMOTE_AUDIT: u64                 = 1 << 9;
-pub const PRIV_REMOTE_MODIFY: u64                = 1 << 10;
-pub const PRIV_REMOTE_READ: u64                  = 1 << 11;
-pub const PRIV_REMOTE_PRUNE: u64                 = 1 << 12;
+        PRIV_REMOTE_AUDIT("Remote.Audit")                   = 1 << 9;
+        PRIV_REMOTE_MODIFY("Remote.Modify")                 = 1 << 10;
+        PRIV_REMOTE_READ("Remote.Read")                     = 1 << 11;
+        PRIV_REMOTE_PRUNE("Remote.Prune")                   = 1 << 12;
+    }
+}
+
 
 pub const ROLE_ADMIN: u64 = std::u64::MAX;
 pub const ROLE_NO_ACCESS: u64 = 0;
