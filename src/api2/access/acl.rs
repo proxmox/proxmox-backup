@@ -41,6 +41,7 @@ fn extract_acl_node_data(
     node: &acl::AclTreeNode,
     path: &str,
     list: &mut Vec<AclListItem>,
+    exact: bool,
 ) {
     for (user, roles) in &node.users {
         for (role, propagate) in roles {
@@ -64,9 +65,12 @@ fn extract_acl_node_data(
             });
         }
     }
+    if exact {
+        return;
+    }
     for (comp, child) in &node.children {
         let new_path = format!("{}/{}", path, comp);
-        extract_acl_node_data(child, &new_path, list);
+        extract_acl_node_data(child, &new_path, list, exact);
     }
 }
 
@@ -93,7 +97,7 @@ pub fn read_acl(
     let (tree, _digest) = acl::config()?;
 
     let mut list: Vec<AclListItem> = Vec::new();
-    extract_acl_node_data(&tree.root, "", &mut list);
+    extract_acl_node_data(&tree.root, "", &mut list, false);
 
     Ok(list)
 }
