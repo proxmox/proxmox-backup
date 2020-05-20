@@ -6,7 +6,7 @@ use proxmox::api::{api, Permission};
 use proxmox::api::router::Router;
 
 use crate::api2::types::*;
-use crate::config::acl::{Role, ROLE_NAMES};
+use crate::config::acl::{Role, ROLE_NAMES, PRIVILEGES};
 
 #[api(
     returns: {
@@ -18,6 +18,14 @@ use crate::config::acl::{Role, ROLE_NAMES};
             properties: {
                 role: {
                     type: Role,
+                },
+                privs: {
+                    type: Array,
+                    description: "List of Privileges",
+                    items: {
+                        type: String,
+                        description: "A Privilege",
+                    },
                 },
                 comment: {
                     schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -34,8 +42,14 @@ use crate::config::acl::{Role, ROLE_NAMES};
 fn list_roles() -> Result<Value, Error> {
     let mut list = Vec::new();
 
-    for (role, comment) in ROLE_NAMES.iter() {
-        list.push(json!({ "role": role, "comment": comment }));
+    for (role, (privs, comment)) in ROLE_NAMES.iter() {
+        let mut priv_list = Vec::new();
+        for (name, privilege) in PRIVILEGES.iter() {
+            if privs & privilege > 0 {
+                priv_list.push(name.clone());
+            }
+        }
+        list.push(json!({ "role": role, "privs": priv_list, "comment": comment }));
     }
     Ok(list.into())
 }
