@@ -411,44 +411,32 @@ macro_rules! add_common_prune_prameters {
             (
                 "keep-daily",
                 true,
-                &IntegerSchema::new("Number of daily backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_DAILY,
             ),
             (
                 "keep-hourly",
                 true,
-                &IntegerSchema::new("Number of hourly backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_HOURLY,
             ),
             (
                 "keep-last",
                 true,
-                &IntegerSchema::new("Number of backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_LAST,
             ),
             (
                 "keep-monthly",
                 true,
-                &IntegerSchema::new("Number of monthly backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_MONTHLY,
             ),
             (
                 "keep-weekly",
                 true,
-                &IntegerSchema::new("Number of weekly backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_WEEKLY,
             ),
             (
                 "keep-yearly",
                 true,
-                &IntegerSchema::new("Number of yearly backups to keep.")
-                    .minimum(1)
-                    .schema()
+                &PRUNE_SCHEMA_KEEP_YEARLY,
             ),
             $( $list2 )*
         ]
