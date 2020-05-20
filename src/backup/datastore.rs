@@ -397,6 +397,10 @@ impl DataStore {
         self.last_gc_status.lock().unwrap().clone()
     }
 
+    pub fn garbage_collection_running(&self) -> bool {
+        if let Ok(_) = self.gc_mutex.try_lock() { false } else { true }
+    }
+
     pub fn garbage_collection(&self, worker: &WorkerTask) -> Result<(), Error> {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
