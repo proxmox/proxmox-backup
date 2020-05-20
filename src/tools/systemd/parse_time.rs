@@ -193,7 +193,17 @@ fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
 
 pub fn parse_calendar_event(i: &str) -> Result<CalendarEvent, Error> {
     match all_consuming(parse_calendar_event_incomplete)(i) {
-        Err(err) => bail!("unable to parse calendar event: {}", err),
+        Err(nom::Err::Error(VerboseError { errors })) |
+        Err(nom::Err::Failure(VerboseError { errors })) => {
+            if errors.is_empty() {
+                bail!("unable to parse calendar event");
+            } else {
+                bail!("unable to parse calendar event at '{}': {:?}", errors[0].0, errors[0].1);
+            }
+        }
+        Err(err) => {
+            bail!("unable to parse calendar event: {}", err);
+        }
         Ok((_, ce)) => Ok(ce),
     }
 }
@@ -231,7 +241,7 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
                 }));
             }
             "monthly" | "weekly" | "yearly" | "quarterly" | "semiannually" => {
-                unimplemented!();
+                return Err(parse_error(i, "unimplemented date or time specification"));
             }
             _ => { /* continue */ }
         }
