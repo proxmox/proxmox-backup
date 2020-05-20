@@ -23,8 +23,7 @@ Ext.define('PBS.config.ACLView', {
     stateful: true,
     stateId: 'grid-acls',
 
-    title: gettext('ACLs'),
-
+    title: gettext('Permissions'),
 
     aclPath: undefined,
     aclExact: undefined,
