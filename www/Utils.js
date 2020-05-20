@@ -15,6 +15,16 @@ Ext.define('PBS.Utils', {
 	Ext.util.Cookies.set('PBSAuthCookie', data.ticket, null, '/', null, false);
     },
 
+    dataStorePrefix: 'DataStore-',
+
+    getDataStoreFromPath: function(path) {
+	return path.slice(PBS.Utils.dataStorePrefix.length);
+    },
+
+    isDataStorePath: function(path) {
+	return path.indexOf(PBS.Utils.dataStorePrefix) === 0;
+    },
+
     constructor: function() {
 	var me = this;
 

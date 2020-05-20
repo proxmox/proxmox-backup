@@ -19,6 +19,8 @@ Ext.define('PBS.DataStoreContent', {
 
     rootVisible: false,
 
+    title: gettext('Content'),
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
@@ -32,8 +34,6 @@ Ext.define('PBS.DataStoreContent', {
 		sorters: 'backup-group',
 		groupField: 'backup-group',
 	    });
-
-	    view.title = gettext('Data Store Content: ') + view.datastore;
 
 	    Proxmox.Utils.monStoreErrors(view, view.store, true);
 	    this.reload(); // initial load

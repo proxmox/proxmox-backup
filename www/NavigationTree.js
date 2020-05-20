@@ -98,7 +98,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		if (!list.findChild('text', name, false)) {
 		    list.appendChild({
 			text: name,
-			path: 'pbsDataStoreContent:' + name,
+			path: `DataStore-${name}`,
 			iconCls: 'fa fa-database',
 			leaf: true
 		    });

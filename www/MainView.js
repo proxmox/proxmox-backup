@@ -20,17 +20,24 @@ Ext.define('PBS.MainView', {
 	beforeChangePath: function(path, subpath, action) {
 	    var me = this;
 
-	    if (!Ext.ClassManager.getByAlias('widget.'+ path)) {
-		console.warn('xtype "'+path+'" not found');
+	    let xtype = path;
+	    let datastore;
+	    let isDataStore = PBS.Utils.isDataStorePath(path);
+	    if (isDataStore) {
+		xtype = 'pbsDataStorePanel';
+		datastore = PBS.Utils.getDataStoreFromPath(path);
+	    }
+
+	    if (!Ext.ClassManager.getByAlias(`widget.${xtype}`)) {
+		console.warn(`xtype ${xtype} not found`);
 		action.stop();
 		return;
 	    }
 
 	    var lastpanel = me.lookupReference('contentpanel').getLayout().getActiveItem();
-	    if (lastpanel && lastpanel.xtype === path) {
-		if (path === 'pbsDataStoreContent') {
-		    subpath = subpath || '';
-		    if (subpath === lastpanel.datastore) {
+	    if (lastpanel && lastpanel.xtype === xtype) {
+		if (isDataStore) {
+		    if (datastore === lastpanel.datastore) {
 			action.stop();
 			return;
 		    }
@@ -61,8 +68,12 @@ Ext.define('PBS.MainView', {
 	    var lastpanel = contentpanel.getLayout().getActiveItem();
 
 	    var obj;
-	    if (path === 'pbsDataStoreContent') {
-		obj = contentpanel.add({ xtype: path, datastore: subpath, border: false });
+	    if (PBS.Utils.isDataStorePath(path)) {
+		let datastore = PBS.Utils.getDataStoreFromPath(path);
+		obj = contentpanel.add({
+		    xtype: 'pbsDataStorePanel',
+		    datastore,
+		});
 	    } else {
 		obj = contentpanel.add({ xtype: path, border: false });
 	    }

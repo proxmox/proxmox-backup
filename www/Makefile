@@ -19,6 +19,7 @@ JSSRC=							\
 	DataStoreConfig.js				\
 	DataStoreStatus.js				\
 	DataStoreContent.js				\
+	DataStorePanel.js				\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\
