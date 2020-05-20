@@ -25,6 +25,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true
 		    },
 		    {
+			text: gettext('Permissions'),
+			iconCls: 'fa fa-unlock',
+			path: 'pbsACLView',
+			leaf: true
+		    },
+		    {
 			text: gettext('Data Store'),
 			iconCls: 'fa fa-archive',
 			path: 'pbsDataStoreConfig',

@@ -7,7 +7,9 @@ IMAGES := \
 JSSRC=							\
 	form/UserSelector.js				\
 	config/UserView.js				\
+	config/ACLView.js				\
 	window/UserEdit.js				\
+	window/ACLEdit.js				\
 	Utils.js					\
 	LoginView.js					\
 	VersionInfo.js					\
