@@ -21,10 +21,7 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     returns: {
         description: "List users (with config digest).",
         type: Array,
-        items: {
-            type: user::User,
-            description: "User configuration (without password).",
-        },
+        items: { type: user::User },
     },
     access: {
         permission: &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
