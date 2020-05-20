@@ -75,6 +75,20 @@ fn extract_acl_node_data(
 }
 
 #[api(
+    input: {
+        properties: {
+	    path: {
+                schema: ACL_PATH_SCHEMA,
+                optional: true,
+            },
+            exact: {
+                description: "If set, returns only ACL for the exact path.",
+                type: bool,
+                optional: true,
+                default: false,
+            },
+        },
+    },
     returns: {
         description: "ACL entry list.",
         type: Array,
@@ -88,16 +102,25 @@ fn extract_acl_node_data(
 )]
 /// Read Access Control List (ACLs).
 pub fn read_acl(
-    _rpcenv: &mut dyn RpcEnvironment,
+    path: Option<String>,
+    exact: bool,
+    mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<AclListItem>, Error> {
 
     //let auth_user = rpcenv.get_user().unwrap();
 
-    // fixme: return digest?
-    let (tree, _digest) = acl::config()?;
+    let (mut tree, digest) = acl::config()?;
 
     let mut list: Vec<AclListItem> = Vec::new();
-    extract_acl_node_data(&tree.root, "", &mut list, false);
+    if let Some(path) = &path {
+        if let Some(node) = &tree.find_node(path) {
+            extract_acl_node_data(&node, path, &mut list, exact);
+        }
+    } else {
+        extract_acl_node_data(&tree.root, "", &mut list, exact);
+    }
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
     Ok(list)
 }

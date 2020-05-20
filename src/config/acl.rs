@@ -340,6 +340,11 @@ impl AclTree {
         Self { root: AclTreeNode::new() }
     }
 
+    pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
+        let path = split_acl_path(path);
+        return self.get_node(&path);
+    }
+
     fn get_node(&mut self, path: &[&str]) -> Option<&mut AclTreeNode> {
         let mut node = &mut self.root;
         for comp in path {
