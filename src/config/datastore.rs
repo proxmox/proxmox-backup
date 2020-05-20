@@ -22,7 +22,6 @@ lazy_static! {
 }
 
 // fixme: define better schemas
-
 pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema();
 
 #[api(
@@ -31,17 +30,24 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
         },
+        "gc-schedule": {
+            schema: GC_SCHEDULE_SCHEMA,
+            optional: true,
+        },
         path: {
             schema: DIR_NAME_SCHEMA,
         },
     }
 )]
+#[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
 /// Datastore configuration properties.
 pub struct DataStoreConfig {
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub path: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub gc_schedule: Option<String>,
  }
 
 fn init() -> SectionConfig {

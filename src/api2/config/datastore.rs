@@ -27,6 +27,10 @@ use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
                 path: {
                     schema: datastore::DIR_NAME_SCHEMA,
                 },
+                "gc-schedule": {
+                    optional: true,
+                    schema: GC_SCHEDULE_SCHEMA,
+                },
                 comment: {
                     optional: true,
                     schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -60,6 +64,10 @@ pub fn list_datastores(
             comment: {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            "gc-schedule": {
+                optional: true,
+                schema: GC_SCHEDULE_SCHEMA,
             },
             path: {
                 schema: datastore::DIR_NAME_SCHEMA,
@@ -122,11 +130,14 @@ pub fn read_datastore(name: String) -> Result<Value, Error> {
 
 #[api()]
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
     /// Delete the comment property.
     comment,
+    /// Delete the garbage collection schedule.
+    gc_schedule,
 }
 
 #[api(
@@ -139,6 +150,10 @@ pub enum DeletableProperty {
             comment: {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            "gc-schedule": {
+                optional: true,
+                schema: GC_SCHEDULE_SCHEMA,
             },
             delete: {
                 description: "List of properties to delete.",
@@ -162,6 +177,7 @@ pub enum DeletableProperty {
 pub fn update_datastore(
     name: String,
     comment: Option<String>,
+    gc_schedule: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -182,6 +198,7 @@ pub fn update_datastore(
         for delete_prop in delete {
             match delete_prop {
                 DeletableProperty::comment => { data.comment = None; },
+                DeletableProperty::gc_schedule => { data.gc_schedule = None; },
             }
         }
     }
@@ -194,6 +211,8 @@ pub fn update_datastore(
             data.comment = Some(comment);
         }
     }
+
+    if gc_schedule.is_some() { data.gc_schedule = gc_schedule; }
 
     config.set_data(&name, "datastore", &data)?;
 
