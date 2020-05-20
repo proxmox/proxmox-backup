@@ -83,17 +83,17 @@ pub struct DataStoreConfig {
     #[serde(skip_serializing_if="Option::is_none")]
     pub prune_schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_last: Option<i64>,
+    pub keep_last: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_hourly: Option<i64>,
+    pub keep_hourly: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_daily: Option<i64>,
+    pub keep_daily: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_weekly: Option<i64>,
+    pub keep_weekly: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_monthly: Option<i64>,
+    pub keep_monthly: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub keep_yearly: Option<i64>,
+    pub keep_yearly: Option<u64>,
 }
 
 fn init() -> SectionConfig {
