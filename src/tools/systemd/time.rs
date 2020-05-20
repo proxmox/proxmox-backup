@@ -1,7 +1,7 @@
 use anyhow::{bail, Error};
 use bitflags::bitflags;
 
-use super::parse_time::*;
+pub use super::parse_time::*;
 use super::tm_editor::*;
 
 bitflags!{
