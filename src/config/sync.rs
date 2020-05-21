@@ -52,8 +52,8 @@ lazy_static! {
 )]
 #[serde(rename_all="kebab-case")]
 #[derive(Serialize,Deserialize)]
-/// Pull Job
-pub struct PullJobConfig {
+/// Sync Job
+pub struct SyncJobConfig {
     pub id: String,
     pub store: String,
     pub remote: String,
@@ -67,40 +67,40 @@ pub struct PullJobConfig {
 }
 
 fn init() -> SectionConfig {
-    let obj_schema = match PullJobConfig::API_SCHEMA {
+    let obj_schema = match SyncJobConfig::API_SCHEMA {
         Schema::Object(ref obj_schema) => obj_schema,
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("pull".to_string(), Some(String::from("id")), obj_schema);
+    let plugin = SectionConfigPlugin::new("sync".to_string(), Some(String::from("id")), obj_schema);
     let mut config = SectionConfig::new(&JOB_ID_SCHEMA);
     config.register_plugin(plugin);
 
     config
 }
 
-pub const JOB_CFG_FILENAME: &str = "/etc/proxmox-backup/job.cfg";
-pub const JOB_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.job.lck";
+pub const SYNC_CFG_FILENAME: &str = "/etc/proxmox-backup/sync.cfg";
+pub const SYNC_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.sync.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-    let content = match std::fs::read_to_string(JOB_CFG_FILENAME) {
+    let content = match std::fs::read_to_string(SYNC_CFG_FILENAME) {
         Ok(c) => c,
         Err(err) => {
             if err.kind() == std::io::ErrorKind::NotFound {
                 String::from("")
             } else {
-                bail!("unable to read '{}' - {}", JOB_CFG_FILENAME, err);
+                bail!("unable to read '{}' - {}", SYNC_CFG_FILENAME, err);
             }
         }
     };
 
     let digest = openssl::sha::sha256(content.as_bytes());
-    let data = CONFIG.parse(JOB_CFG_FILENAME, &content)?;
+    let data = CONFIG.parse(SYNC_CFG_FILENAME, &content)?;
     Ok((data, digest))
 }
 
 pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
-    let raw = CONFIG.write(JOB_CFG_FILENAME, &config)?;
+    let raw = CONFIG.write(SYNC_CFG_FILENAME, &config)?;
 
     let backup_user = crate::backup::backup_user()?;
     let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
@@ -111,13 +111,13 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
         .owner(nix::unistd::ROOT)
         .group(backup_user.gid);
 
-    replace_file(JOB_CFG_FILENAME, raw.as_bytes(), options)?;
+    replace_file(SYNC_CFG_FILENAME, raw.as_bytes(), options)?;
 
     Ok(())
 }
 
 // shell completion helper
-pub fn complete_job_id(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+pub fn complete_sync_job_id(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {
         Ok((data, _digest)) => data.sections.iter().map(|(id, _)| id.to_string()).collect(),
         Err(_) => return vec![],

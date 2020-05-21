@@ -3,12 +3,12 @@ use proxmox::list_subdirs_api_method;
 
 pub mod datastore;
 pub mod remote;
-pub mod job;
+pub mod sync;
 
 const SUBDIRS: SubdirMap = &[
     ("datastore", &datastore::ROUTER),
-    ("job", &job::ROUTER),
     ("remote", &remote::ROUTER),
+    ("sync", &sync::ROUTER),
 ];
 
 pub const ROUTER: Router = Router::new()

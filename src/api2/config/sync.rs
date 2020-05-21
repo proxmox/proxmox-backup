@@ -5,7 +5,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::api::{api, Router, RpcEnvironment};
 
 use crate::api2::types::*;
-use crate::config::jobs::{self, PullJobConfig};
+use crate::config::sync::{self, SyncJobConfig};
 
 // fixme: add access permissions
 
@@ -16,18 +16,18 @@ use crate::config::jobs::{self, PullJobConfig};
     returns: {
         description: "List configured jobs.",
         type: Array,
-        items: { type: jobs::PullJobConfig },
+        items: { type: sync::SyncJobConfig },
     },
 )]
-/// List all pull jobs
-pub fn list_pull_jobs(
+/// List all sync jobs
+pub fn list_sync_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<PullJobConfig>, Error> {
+) -> Result<Vec<SyncJobConfig>, Error> {
 
-    let (config, digest) = jobs::config()?;
+    let (config, digest) = sync::config()?;
 
-    let list = config.convert_to_typed_array("pull")?;
+    let list = config.convert_to_typed_array("sync")?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -65,22 +65,22 @@ pub fn list_pull_jobs(
         },
     },
 )]
-/// Create a new pull job.
-pub fn create_pull_job(param: Value) -> Result<(), Error> {
+/// Create a new sync job.
+pub fn create_sync_job(param: Value) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(jobs::JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = crate::tools::open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let pull_job: jobs::PullJobConfig = serde_json::from_value(param.clone())?;
+    let sync_job: sync::SyncJobConfig = serde_json::from_value(param.clone())?;
 
-    let (mut config, _digest) = jobs::config()?;
+    let (mut config, _digest) = sync::config()?;
 
-    if let Some(_) = config.sections.get(&pull_job.id) {
-        bail!("job '{}' already exists.", pull_job.id);
+    if let Some(_) = config.sections.get(&sync_job.id) {
+        bail!("job '{}' already exists.", sync_job.id);
     }
 
-    config.set_data(&pull_job.id, "pull", &pull_job)?;
+    config.set_data(&sync_job.id, "sync", &sync_job)?;
 
-    jobs::save_config(&config)?;
+    sync::save_config(&config)?;
 
     Ok(())
 }
@@ -94,21 +94,21 @@ pub fn create_pull_job(param: Value) -> Result<(), Error> {
         },
     },
     returns: {
-        description: "The pull job configuration.",
-        type: jobs::PullJobConfig,
+        description: "The sync job configuration.",
+        type: sync::SyncJobConfig,
     },
 )]
-/// Read a pull job configuration.
-pub fn read_pull_job(
+/// Read a sync job configuration.
+pub fn read_sync_job(
     id: String,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<PullJobConfig, Error> {
-    let (config, digest) = jobs::config()?;
+) -> Result<SyncJobConfig, Error> {
+    let (config, digest) = sync::config()?;
 
-    let pull_job = config.lookup("pull", &id)?;
+    let sync_job = config.lookup("sync", &id)?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    Ok(pull_job)
+    Ok(sync_job)
 }
 
 #[api()]
@@ -171,8 +171,8 @@ pub enum DeletableProperty {
         },
     },
 )]
-/// Update pull job config.
-pub fn update_pull_job(
+/// Update sync job config.
+pub fn update_sync_job(
     id: String,
     store: Option<String>,
     remote: Option<String>,
@@ -184,17 +184,17 @@ pub fn update_pull_job(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(jobs::JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = crate::tools::open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     // pass/compare digest
-    let (mut config, expected_digest) = jobs::config()?;
+    let (mut config, expected_digest) = sync::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: jobs::PullJobConfig = config.lookup("pull", &id)?;
+    let mut data: sync::SyncJobConfig = config.lookup("sync", &id)?;
 
      if let Some(delete) = delete {
         for delete_prop in delete {
@@ -223,9 +223,9 @@ pub fn update_pull_job(
     if schedule.is_some() { data.schedule = schedule; }
     if remove_vanished.is_some() { data.remove_vanished = remove_vanished; }
 
-    config.set_data(&id, "pull", &data)?;
+    config.set_data(&id, "sync", &data)?;
 
-    jobs::save_config(&config)?;
+    sync::save_config(&config)?;
 
     Ok(())
 }
@@ -244,12 +244,12 @@ pub fn update_pull_job(
         },
     },
 )]
-/// Remove a job configuration
-pub fn delete_job(id: String, digest: Option<String>) -> Result<(), Error> {
+/// Remove a sync job configuration
+pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(jobs::JOB_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = crate::tools::open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let (mut config, expected_digest) = jobs::config()?;
+    let (mut config, expected_digest) = sync::config()?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
@@ -261,17 +261,17 @@ pub fn delete_job(id: String, digest: Option<String>) -> Result<(), Error> {
         None => bail!("job '{}' does not exist.", id),
     }
 
-    jobs::save_config(&config)?;
+    sync::save_config(&config)?;
 
     Ok(())
 }
 
 const ITEM_ROUTER: Router = Router::new()
-    .get(&API_METHOD_READ_PULL_JOB)
-    .put(&API_METHOD_UPDATE_PULL_JOB)
-    .delete(&API_METHOD_DELETE_JOB);
+    .get(&API_METHOD_READ_SYNC_JOB)
+    .put(&API_METHOD_UPDATE_SYNC_JOB)
+    .delete(&API_METHOD_DELETE_SYNC_JOB);
 
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_PULL_JOBS)
-    .post(&API_METHOD_CREATE_PULL_JOB)
+    .get(&API_METHOD_LIST_SYNC_JOBS)
+    .post(&API_METHOD_CREATE_SYNC_JOB)
     .match_all("name", &ITEM_ROUTER);
