@@ -10,5 +10,7 @@ mod network;
 pub use network::*;
 mod remote;
 pub use remote::*;
+mod sync;
+pub use sync::*;
 mod user;
 pub use user::*;
