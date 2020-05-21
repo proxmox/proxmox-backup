@@ -1,5 +1,7 @@
 mod acl;
 pub use acl::*;
+mod dns;
+pub use dns::*;
 mod network;
 pub use network::*;
 mod remote;
