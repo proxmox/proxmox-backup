@@ -8,11 +8,14 @@ use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::configdir;
 use proxmox_backup::tools;
-use proxmox_backup::config::{self, remote::{self, Remote}};
+use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
 use proxmox_backup::client::*;
 use proxmox_backup::tools::ticket::*;
 use proxmox_backup::auth_helpers::*;
+
+mod proxmox_backup_manager;
+use proxmox_backup_manager::*;
 
 async fn view_task_result(
     client: HttpClient,
@@ -49,101 +52,6 @@ fn connect() -> Result<HttpClient, Error> {
     };
 
     Ok(client)
-}
-
-#[api(
-    input: {
-        properties: {
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-    }
-)]
-/// List configured remotes.
-fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
-    let output_format = get_output_format(&param);
-
-    let info = &api2::config::remote::API_METHOD_LIST_REMOTES;
-    let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    let options = default_table_format_options()
-        .column(ColumnConfig::new("name"))
-        .column(ColumnConfig::new("host"))
-        .column(ColumnConfig::new("userid"))
-        .column(ColumnConfig::new("fingerprint"))
-        .column(ColumnConfig::new("comment"));
-
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
-
-    Ok(Value::Null)
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: REMOTE_ID_SCHEMA,
-            },
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-    }
-)]
-/// Show remote configuration
-fn show_remote(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
-
-    let output_format = get_output_format(&param);
-
-    let info = &api2::config::remote::API_METHOD_READ_REMOTE;
-    let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    let options = default_table_format_options();
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
-
-    Ok(Value::Null)
-}
-
-fn remote_commands() -> CommandLineInterface {
-
-    let cmd_def = CliCommandMap::new()
-        .insert("list", CliCommand::new(&&API_METHOD_LIST_REMOTES))
-        .insert(
-            "show",
-            CliCommand::new(&API_METHOD_SHOW_REMOTE)
-                .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
-        )
-        .insert(
-            "create",
-            // fixme: howto handle password parameter?
-            CliCommand::new(&api2::config::remote::API_METHOD_CREATE_REMOTE)
-                .arg_param(&["name"])
-        )
-        .insert(
-            "update",
-            CliCommand::new(&api2::config::remote::API_METHOD_UPDATE_REMOTE)
-                .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
-        )
-        .insert(
-            "remove",
-            CliCommand::new(&api2::config::remote::API_METHOD_DELETE_REMOTE)
-                .arg_param(&["name"])
-                .completion_cb("name", config::remote::complete_remote_name)
-        );
-
-    cmd_def.into()
 }
 
 #[api(
@@ -948,9 +856,9 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
     let _ = proxmox::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
-        let (remote_config, _digest) = remote::config()?;
+        let (remote_config, _digest) = config::remote::config()?;
 
-        let remote: Remote = remote_config.lookup("remote", &remote)?;
+        let remote: config::remote::Remote = remote_config.lookup("remote", &remote)?;
 
         let options = HttpClientOptions::new()
             .password(Some(remote.password.clone()))
