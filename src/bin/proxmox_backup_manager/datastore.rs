@@ -1,0 +1,97 @@
+use anyhow::Error;
+use serde_json::Value;
+
+use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
+
+use proxmox_backup::config;
+use proxmox_backup::api2::{self, types::* };
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Datastore list.
+fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::datastore::API_METHOD_LIST_DATASTORES;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("path"))
+        .column(ColumnConfig::new("comment"));
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Show datastore configuration
+fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::config::datastore::API_METHOD_READ_DATASTORE;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options();
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
+pub fn datastore_commands() -> CommandLineInterface {
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORES))
+        .insert("show",
+                CliCommand::new(&API_METHOD_SHOW_DATASTORE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+        )
+        .insert("create",
+                CliCommand::new(&api2::config::datastore::API_METHOD_CREATE_DATASTORE)
+                .arg_param(&["name", "path"])
+        )
+        .insert("update",
+                CliCommand::new(&api2::config::datastore::API_METHOD_UPDATE_DATASTORE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+                .completion_cb("gc-schedule", config::datastore::complete_calendar_event)
+                .completion_cb("prune-schedule", config::datastore::complete_calendar_event)
+    )
+        .insert("remove",
+                CliCommand::new(&api2::config::datastore::API_METHOD_DELETE_DATASTORE)
+                .arg_param(&["name"])
+                .completion_cb("name", config::datastore::complete_datastore_name)
+        );
+
+    cmd_def.into()
+}

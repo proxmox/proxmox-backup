@@ -1,5 +1,7 @@
 mod acl;
 pub use acl::*;
+mod datastore;
+pub use datastore::*;
 mod dns;
 pub use dns::*;
 mod network;
