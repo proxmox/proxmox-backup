@@ -303,6 +303,17 @@ pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .max_length(32)
     .schema();
 
+pub const JOB_ID_SCHEMA: Schema = StringSchema::new("Job ID.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(3)
+    .max_length(32)
+    .schema();
+
+pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
+    "Delete vanished backups. This remove the local copy if the remote backup was deleted.")
+    .default(true)
+    .schema();
+
 pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
     .schema();

@@ -394,11 +394,9 @@ pub async fn pull_store(
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
             },
-            delete: {
-                description: "Delete vanished backups. This remove the local copy if the remote backup was deleted.",
-                type: Boolean,
+            "remove-vanished": {
+                schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
                 optional: true,
-                default: true,
             },
         },
     },
@@ -416,7 +414,7 @@ async fn pull (
     store: String,
     remote: String,
     remote_store: String,
-    delete: Option<bool>,
+    remove_vanished: Option<bool>,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
@@ -427,7 +425,7 @@ async fn pull (
     user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
     user_info.check_privs(&username, &["remote", &remote, &remote_store], PRIV_REMOTE_READ, false)?;
 
-    let delete = delete.unwrap_or(true);
+    let delete = remove_vanished.unwrap_or(true);
 
     if delete {
         user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_PRUNE, false)?;
