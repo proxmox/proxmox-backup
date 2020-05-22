@@ -315,6 +315,9 @@ pub async fn pull_store(
     username: String,
 ) -> Result<(), Error> {
 
+    // explicit create shared lock to prevent GC on newly created chunks
+    let _shared_store_lock = tgt_store.try_shared_chunk_store_lock()?;
+
     let path = format!("api2/json/admin/datastore/{}/groups", src_repo.store());
 
     let mut result = client.get(&path, None).await?;
@@ -431,7 +434,6 @@ async fn pull (
         user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_PRUNE, false)?;
     }
 
-
     let tgt_store = DataStore::lookup_datastore(&store)?;
 
     let (remote_config, _digest) = remote::config()?;
@@ -452,9 +454,6 @@ async fn pull (
     let upid_str = WorkerTask::spawn("sync", Some(store.clone()), &username.clone(), true, move |worker| async move {
 
         worker.log(format!("sync datastore '{}' start", store));
-
-        // explicit create shared lock to prevent GC on newly created chunks
-        let _shared_store_lock = tgt_store.try_shared_chunk_store_lock()?;
 
         pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, username).await?;
 
