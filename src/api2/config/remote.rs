@@ -88,7 +88,7 @@ pub fn list_remotes(
     },
 )]
 /// Create new remote.
-pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
+pub fn create_remote(param: Value) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
@@ -96,11 +96,11 @@ pub fn create_remote(name: String, param: Value) -> Result<(), Error> {
 
     let (mut config, _digest) = remote::config()?;
 
-    if let Some(_) = config.sections.get(&name) {
-        bail!("remote '{}' already exists.", name);
+    if let Some(_) = config.sections.get(&remote.name) {
+        bail!("remote '{}' already exists.", remote.name);
     }
 
-    config.set_data(&name, "remote", &remote)?;
+    config.set_data(&remote.name, "remote", &remote)?;
 
     remote::save_config(&config)?;
 

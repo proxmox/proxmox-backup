@@ -29,6 +29,9 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
 
 #[api(
     properties: {
+        name: {
+            schema: REMOTE_ID_SCHEMA,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -51,6 +54,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
 #[derive(Serialize,Deserialize)]
 /// Remote properties.
 pub struct Remote {
+    pub name: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub host: String,
@@ -66,7 +70,7 @@ fn init() -> SectionConfig {
         _ => unreachable!(),
     };
 
-    let plugin = SectionConfigPlugin::new("remote".to_string(), None, obj_schema);
+    let plugin = SectionConfigPlugin::new("remote".to_string(), Some("name".to_string()), obj_schema);
     let mut config = SectionConfig::new(&REMOTE_ID_SCHEMA);
     config.register_plugin(plugin);
 
