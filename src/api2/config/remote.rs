@@ -131,6 +131,7 @@ pub fn read_remote(
 ) -> Result<Value, Error> {
     let (config, digest) = remote::config()?;
     let mut data = config.lookup_json("remote", &name)?;
+    data.as_object_mut().unwrap().remove("password");
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(data)
 }
