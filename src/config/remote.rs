@@ -59,6 +59,7 @@ pub struct Remote {
     pub comment: Option<String>,
     pub host: String,
     pub userid: String,
+    #[serde(skip_serializing_if="String::is_empty")]
     pub password: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub fingerprint: Option<String>,

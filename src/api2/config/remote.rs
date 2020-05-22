@@ -16,27 +16,8 @@ use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
         description: "The list of configured remotes (with config digest).",
         type: Array,
         items: {
-            type: Object,
+            type: remote::Remote,
             description: "Remote configuration (without password).",
-            properties: {
-                name: {
-                    schema: REMOTE_ID_SCHEMA,
-                },
-                comment: {
-                    optional: true,
-                    schema: SINGLE_LINE_COMMENT_SCHEMA,
-                },
-                host: {
-                    schema: DNS_NAME_OR_IP_SCHEMA,
-                },
-                userid: {
-                    schema: PROXMOX_USER_ID_SCHEMA,
-                },
-                fingerprint: {
-                    optional: true,
-                    schema: CERT_FINGERPRINT_SHA256_SCHEMA,
-                },
-            },
         },
     },
     access: {
@@ -47,14 +28,20 @@ use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
 pub fn list_remotes(
     _param: Value,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<remote::Remote>, Error> {
 
     let (config, digest) = remote::config()?;
 
-    let value = config.convert_to_array("name", Some(&digest), &["password"]);
+    let mut list: Vec<remote::Remote> = config.convert_to_typed_array("remote")?;
 
-    Ok(value.into())
+    // don't return password in api
+    for remote in &mut list {
+        remote.password = "".to_string();
+    }
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    Ok(list)
 }
 
 #[api(
@@ -128,10 +115,10 @@ pub fn read_remote(
     name: String,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<remote::Remote, Error> {
     let (config, digest) = remote::config()?;
-    let mut data = config.lookup_json("remote", &name)?;
-    data.as_object_mut().unwrap().remove("password");
+    let mut data: remote::Remote = config.lookup("remote", &name)?;
+    data.password = "".to_string(); // do not return password in api
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(data)
 }
