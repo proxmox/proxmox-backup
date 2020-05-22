@@ -5,7 +5,7 @@ Ext.define('pmx-acls', {
 	{
 	    name: 'aclid',
 	    calculate: function(data) {
-		return `${data.path} for ${data.ugid}`;
+		return `${data.path} for ${data.ugid} - ${data.roleid}`;
 	    },
 	},
     ],
@@ -84,7 +84,7 @@ Ext.define('PBS.config.ACLView', {
 	type: 'diff',
 	autoDestroy: true,
 	autoDestroyRstore: true,
-	sorters: 'userid',
+	sorters: 'aclid',
 	rstore: {
 	    type: 'update',
 	    storeid: 'pmx-acls',
