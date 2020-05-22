@@ -251,6 +251,10 @@ pub fn update_remote(
             name: {
                 schema: REMOTE_ID_SCHEMA,
             },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
         },
     },
     access: {
@@ -258,12 +262,16 @@ pub fn update_remote(
     },
 )]
 /// Remove a remote from the configuration file.
-pub fn delete_remote(name: String) -> Result<(), Error> {
+pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> {
 
-    // fixme: locking ?
-    // fixme: check digest ?
+    let _lock = crate::tools::open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let (mut config, _digest) = remote::config()?;
+    let (mut config, expected_digest) = remote::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
 
     match config.sections.get(&name) {
         Some(_) => { config.sections.remove(&name); },
