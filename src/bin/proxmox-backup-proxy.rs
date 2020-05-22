@@ -451,7 +451,7 @@ async fn schedule_datastore_sync_jobs() {
 
     use proxmox_backup::{
         backup::DataStore,
-        client::{ HttpClient, HttpClientOptions, BackupRepository },
+        client::{ HttpClient, HttpClientOptions, BackupRepository, pull::pull_store },
         server::{ WorkerTask },
         config::{ sync::{self, SyncJobConfig}, remote::{self, Remote} },
         tools::systemd::time::{ parse_calendar_event, compute_next_event },
@@ -570,7 +570,7 @@ async fn schedule_datastore_sync_jobs() {
 
                 let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), job_config.remote_store);
 
-                proxmox_backup::api2::pull::pull_store(&worker, &client, &src_repo, tgt_store, delete, username).await?;
+                pull_store(&worker, &client, &src_repo, tgt_store, delete, username).await?;
 
                 Ok(())
             }
