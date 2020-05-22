@@ -124,11 +124,14 @@ pub fn create_remote(param: Value) -> Result<(), Error> {
     }
 )]
 /// Read remote configuration data.
-pub fn read_remote(name: String) -> Result<Value, Error> {
+pub fn read_remote(
+    name: String,
+    _info: &ApiMethod,
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
     let (config, digest) = remote::config()?;
     let mut data = config.lookup_json("remote", &name)?;
-    data.as_object_mut().unwrap()
-        .insert("digest".into(), proxmox::tools::digest_to_hex(&digest).into());
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(data)
 }
 
