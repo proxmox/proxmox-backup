@@ -45,11 +45,11 @@ impl RRD {
         epoch: u64,
         timeframe: RRDTimeFrameResolution,
         mode: RRDMode,
-    ) -> Value {
+    ) -> (u64, u64, Vec<Option<f64>>) {
 
         let reso = timeframe as u64;
 
-        let end = reso*(epoch/reso);
+        let end = reso*((epoch + reso -1)/reso);
         let start = end - reso*(RRD_DATA_ENTRIES as u64);
 
         let rrd_end = reso*(self.last_update/reso);
@@ -69,23 +69,23 @@ impl RRD {
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         for _ in 0..RRD_DATA_ENTRIES {
             if t < rrd_start || t > rrd_end {
-                list.push(json!({ "time": t }));
+                list.push(None);
             } else {
                 let entry = data[index];
                 if entry.count == 0 {
-                    list.push(json!({ "time": t }));
+                    list.push(None);
                 } else {
                     let value = match mode {
                         RRDMode::Max => entry.max,
                         RRDMode::Average => entry.average,
                     };
-                    list.push(json!({ "time": t, "value": value }));
+                    list.push(Some(value));
                 }
             }
             t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
         }
 
-        list.into()
+        (start, reso, list.into())
     }
 
     pub fn from_raw(mut raw: &[u8]) -> Result<Self, Error> {
@@ -207,55 +207,4 @@ impl RRD {
 
         self.last_update = epoch;
     }
-}
-
-pub fn extract_rrd_data(
-    rrd_list: &[(&str, &RRD)],
-    epoch: u64,
-    timeframe: RRDTimeFrameResolution,
-    mode: RRDMode,
-) -> Value {
-
-    let reso = timeframe as u64;
-
-    let end = reso*(epoch/reso);
-    let start = end - reso*(RRD_DATA_ENTRIES as u64);
-
-    let mut list = Vec::new();
-
-    let mut t = start;
-    let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-    for _ in 0..RRD_DATA_ENTRIES {
-        let mut item = json!({ "time": t });
-        for (name, rrd) in rrd_list.iter() {
-            let rrd_end = reso*(rrd.last_update/reso);
-            let rrd_start = rrd_end - reso*(RRD_DATA_ENTRIES as u64);
-
-            if t < rrd_start || t > rrd_end {
-                continue;
-            } else {
-                let data = match timeframe {
-                    RRDTimeFrameResolution::Hour => &rrd.hour,
-                    RRDTimeFrameResolution::Day => &rrd.day,
-                    RRDTimeFrameResolution::Week => &rrd.week,
-                    RRDTimeFrameResolution::Month => &rrd.month,
-                    RRDTimeFrameResolution::Year => &rrd.year,
-                };
-                let entry = data[index];
-                if entry.count == 0 {
-                    continue;
-                } else {
-                    let value = match mode {
-                        RRDMode::Max => entry.max,
-                        RRDMode::Average => entry.average,
-                    };
-                    item[name] = value.into();
-                }
-            }
-        }
-        list.push(item);
-        t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-    }
-
-    list.into()
 }

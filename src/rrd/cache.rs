@@ -5,7 +5,7 @@ use std::sync::{RwLock};
 
 use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 
@@ -67,24 +67,6 @@ pub fn update_value(rel_path: &str, value: f64) -> Result<(), Error> {
 }
 
 pub fn extract_data(
-    rel_path: &str,
-    timeframe: RRDTimeFrameResolution,
-    mode: RRDMode,
-) -> Result<Value, Error> {
-
-    let now = now()?;
-
-    let map = RRD_CACHE.read().unwrap();
-
-    if let Some(rrd) = map.get(rel_path) {
-        Ok(rrd.extract_data(now, timeframe, mode))
-    } else {
-        Ok(RRD::new().extract_data(now, timeframe, mode))
-    }
-}
-
-
-pub fn extract_data_list(
     base: &str,
     items: &[&str],
     timeframe: RRDTimeFrameResolution,
@@ -95,17 +77,29 @@ pub fn extract_data_list(
 
     let map = RRD_CACHE.read().unwrap();
 
-    let mut list: Vec<(&str, &RRD)> = Vec::new();
-
     let empty_rrd = RRD::new();
 
+    let mut result = Vec::new();
+
     for name in items.iter() {
-        if let Some(rrd) = map.get(&format!("{}/{}", base, name)) {
-            list.push((name, rrd));
-        } else {
-            list.push((name, &empty_rrd));
+        let rrd = map.get(&format!("{}/{}", base, name)).unwrap_or(&empty_rrd);
+        let (start, reso, list) = rrd.extract_data(now, timeframe, mode);
+        let mut t = start;
+        for index in 0..RRD_DATA_ENTRIES {
+            if result.len() <= index {
+                if let Some(value) = list[index] {
+                    result.push(json!({ "time": t, *name: value }));
+                } else {
+                    result.push(json!({ "time": t }));
+                }
+            } else {
+                if let Some(value) = list[index] {
+                    result[index][name] = value.into();
+                }
+            }
+            t += reso;
         }
     }
 
-    Ok(extract_rrd_data(&list, now, timeframe, mode))
+    Ok(result.into())
 }

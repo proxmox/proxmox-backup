@@ -27,7 +27,7 @@ fn get_node_stats(
     _param: Value,
 ) -> Result<Value, Error> {
 
-    crate::rrd::extract_data_list(
+    crate::rrd::extract_data(
         "host",
         &["cpu", "iowait", "memtotal", "memused"],
         timeframe,
