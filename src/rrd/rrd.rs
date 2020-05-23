@@ -4,23 +4,10 @@ use std::path::Path;
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
+use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
+
 const RRD_DATA_ENTRIES: usize = 70;
 
-#[derive(Copy, Clone)]
-pub enum RRDMode {
-    Max,
-    Average,
-}
-
-#[repr(u64)]
-#[derive(Copy, Clone)]
-pub enum RRDTimeFrameResolution {
-    Hour = 60,       // 1 min => last 70 minutes
-    Day = 60*30,     // 30 min => last 35 hours
-    Week = 60*180,   // 3 hours => about 8 days
-    Month = 60*720,  // 12 hours => last 35 days
-    Year = 60*10080, // 1 week => last 490 days
-}
 
 #[repr(C)]
 #[derive(Default, Copy, Clone)]

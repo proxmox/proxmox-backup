@@ -9,6 +9,8 @@ use serde_json::Value;
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 
+use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
+
 use super::*;
 
 const PBS_RRD_BASEDIR: &str = "/var/lib/proxmox-backup/rrdb";

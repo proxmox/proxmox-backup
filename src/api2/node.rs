@@ -9,11 +9,13 @@ mod syslog;
 mod journal;
 mod services;
 mod status;
+mod rrd;
 
 pub const SUBDIRS: SubdirMap = &[
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
+    ("rrd", &rrd::ROUTER),
     ("services", &services::ROUTER),
     ("status", &status::ROUTER),
     ("syslog", &syslog::ROUTER),
