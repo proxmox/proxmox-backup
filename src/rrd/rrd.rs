@@ -2,7 +2,6 @@ use std::io::Read;
 use std::path::Path;
 
 use anyhow::{bail, Error};
-use serde_json::{json, Value};
 
 use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
 
@@ -49,7 +48,7 @@ impl RRD {
 
         let reso = timeframe as u64;
 
-        let end = reso*((epoch + reso -1)/reso);
+        let end = reso*(epoch/reso + 1);
         let start = end - reso*(RRD_DATA_ENTRIES as u64);
 
         let rrd_end = reso*(self.last_update/reso);
@@ -140,7 +139,10 @@ impl RRD {
             RRDEntry { max: value, average: value,  count: 1 }
         } else {
             let new_max = if max > value { max } else { value };
-            let new_average = (average*(count as f64) + value)/(new_count as f64);
+            //let new_average = (average*(count as f64) + value)/(new_count as f64);
+            // Note: Try to avoid numeric errors
+            let new_average = average*((count as f64)/(new_count as f64))
+                + value/(new_count as f64);
             RRDEntry { max: new_max, average: new_average, count: new_count }
         }
     }
