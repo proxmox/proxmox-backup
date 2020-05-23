@@ -8,12 +8,67 @@ Ext.define('pbs-datastore-list', {
     idProperty: 'store'
 });
 
+Ext.define('pve-rrd-node', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{
+	    name: 'value',
+	    // percentage
+	    convert: function(value) {
+		return value*100;
+	    }
+	},
+	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
+    ]
+});
+
 Ext.define('PBS.DataStoreStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsDataStoreStatus',
 
     title: gettext('Data Store Status'),
+    tbar: ['->', { xtype: 'proxmoxRRDTypeSelector' } ],
 
-    html: "Add fancy datastore dashboard...",
-    
+    initComponent: function() {
+        var me = this;
+
+	// this is just a test for the RRD api
+
+	var rrdstore = Ext.create('Proxmox.data.RRDStore', {
+	    rrdurl: "/api2/json/nodes/localhost/rrd",
+	    model: 'pve-rrd-node'
+	});
+
+	me.items = {
+	    xtype: 'container',
+	    itemId: 'itemcontainer',
+	    layout: 'column',
+	    minWidth: 700,
+	    defaults: {
+		minHeight: 320,
+		padding: 5,
+		columnWidth: 1
+	    },
+	    items: [
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('CPU usage'),
+		    fields: ['value'],
+		    fieldTitles: [gettext('CPU usage')],
+		    store: rrdstore
+		}
+	    ]
+	};
+
+	me.listeners = {
+	    activate: function() {
+		rrdstore.startUpdate();
+	    },
+	    destroy: function() {
+		rrdstore.stopUpdate();
+	    },
+	};
+
+	me.callParent();
+    }
 });
