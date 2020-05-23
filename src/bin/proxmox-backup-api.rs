@@ -34,6 +34,8 @@ async fn run() -> Result<(), Error> {
 
     config::update_self_signed_cert(false)?;
 
+    proxmox_backup::rrd::create_rrdb_dir()?;
+
     if let Err(err) = generate_auth_key() {
         bail!("unable to generate auth key - {}", err);
     }
@@ -46,7 +48,7 @@ async fn run() -> Result<(), Error> {
 
     let config = server::ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED)?;
- 
+
     let rest_server = RestServer::new(config);
 
     // http server future:
@@ -86,6 +88,6 @@ async fn run() -> Result<(), Error> {
     proxmox_backup::server::last_worker_future().await?;
 
     log::info!("done - exit server");
-    
+
     Ok(())
 }

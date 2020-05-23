@@ -108,6 +108,7 @@ async fn run() -> Result<(), Error> {
     }
 
     start_task_scheduler();
+    start_stat_generator();
 
     server.await?;
     log::info!("server shutting down, waiting for active workers to complete");
@@ -115,6 +116,13 @@ async fn run() -> Result<(), Error> {
     log::info!("done - exit server");
 
     Ok(())
+}
+
+fn start_stat_generator() {
+    let abort_future = server::shutdown_future();
+    let future = Box::pin(run_stat_generator());
+    let task = futures::future::select(future, abort_future);
+    tokio::spawn(task.map(|_| ()));
 }
 
 fn start_task_scheduler() {
@@ -576,6 +584,34 @@ async fn schedule_datastore_sync_jobs() {
             }
         ) {
             eprintln!("unable to start datastore sync job {} - {}", job_id2, err);
+        }
+    }
+}
+
+async fn run_stat_generator() {
+
+    loop {
+        let delay_target = Instant::now() +  Duration::from_secs(10);
+
+        generate_host_stats().await;
+
+        tokio::time::delay_until(tokio::time::Instant::from_std(delay_target)).await;
+    }
+
+}
+
+async fn generate_host_stats() {
+    use proxmox::sys::linux::procfs::read_proc_stat;
+    use proxmox_backup::rrd;
+
+    match read_proc_stat() {
+        Ok(stat) => {
+            if let Err(err) = rrd::update_value("host/cpu", stat.cpu) {
+                eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("read_proc_stat failed - {}", err);
         }
     }
 }
