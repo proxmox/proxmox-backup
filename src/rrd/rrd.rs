@@ -6,8 +6,7 @@ use serde_json::{json, Value};
 
 use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
 
-const RRD_DATA_ENTRIES: usize = 70;
-
+pub const RRD_DATA_ENTRIES: usize = 70;
 
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
@@ -65,7 +64,7 @@ impl RRD {
             RRDTimeFrameResolution::Month => &self.month,
             RRDTimeFrameResolution::Year => &self.year,
         };
-        
+
         let mut t = start;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         for _ in 0..RRD_DATA_ENTRIES {
@@ -94,7 +93,7 @@ impl RRD {
         if raw.len() != expected_len {
             bail!("RRD::from_raw failed - wrong data size ({} != {})", raw.len(), expected_len);
         }
-        
+
         let mut rrd: RRD = unsafe { std::mem::zeroed() };
         unsafe {
             let rrd_slice = std::slice::from_raw_parts_mut(&mut rrd as *mut _ as *mut u8, expected_len);
@@ -108,7 +107,7 @@ impl RRD {
         let raw = proxmox::tools::fs::file_get_contents(filename)?;
         Self::from_raw(&raw)
     }
-    
+
     pub fn save(&self, filename: &Path) -> Result<(), Error> {
         use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
@@ -126,15 +125,15 @@ impl RRD {
             .group(backup_user.gid);
 
         replace_file(filename, rrd_slice, options)?;
-        
+
         Ok(())
     }
-    
+
     fn compute_new_value(
         data: &[RRDEntry; RRD_DATA_ENTRIES],
         index: usize,
         value: f64,
-    ) -> RRDEntry {        
+    ) -> RRDEntry {
         let RRDEntry { max, average, count } = data[index];
         let new_count = count + 1; // fixme: check overflow?
         if count == 0 {
@@ -145,7 +144,7 @@ impl RRD {
             RRDEntry { max: new_max, average: new_average, count: new_count }
         }
     }
-    
+
     pub fn update(&mut self, epoch: u64, value: f64) {
         // fixme: check time progress (epoch  last)
         let last = self.last_update;
@@ -162,7 +161,7 @@ impl RRD {
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         self.hour[index] = Self::compute_new_value(&self.hour, index, value);
 
-        let reso = RRDTimeFrameResolution::Day as u64; 
+        let reso = RRDTimeFrameResolution::Day as u64;
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let mut t = last;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -172,8 +171,8 @@ impl RRD {
         }
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         self.day[index] = Self::compute_new_value(&self.day, index, value);
- 
-        let reso = RRDTimeFrameResolution::Week as u64; 
+
+        let reso = RRDTimeFrameResolution::Week as u64;
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let mut t = last;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -184,7 +183,7 @@ impl RRD {
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         self.week[index] = Self::compute_new_value(&self.week, index, value);
 
-        let reso = RRDTimeFrameResolution::Month as u64; 
+        let reso = RRDTimeFrameResolution::Month as u64;
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let mut t = last;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -194,8 +193,8 @@ impl RRD {
         }
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         self.month[index] = Self::compute_new_value(&self.month, index, value);
-        
-        let reso = RRDTimeFrameResolution::Year as u64; 
+
+        let reso = RRDTimeFrameResolution::Year as u64;
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let mut t = last;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -208,4 +207,55 @@ impl RRD {
 
         self.last_update = epoch;
     }
+}
+
+pub fn extract_rrd_data(
+    rrd_list: &[(&str, &RRD)],
+    epoch: u64,
+    timeframe: RRDTimeFrameResolution,
+    mode: RRDMode,
+) -> Value {
+
+    let reso = timeframe as u64;
+
+    let end = reso*(epoch/reso);
+    let start = end - reso*(RRD_DATA_ENTRIES as u64);
+
+    let mut list = Vec::new();
+
+    let mut t = start;
+    let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+    for _ in 0..RRD_DATA_ENTRIES {
+        let mut item = json!({ "time": t });
+        for (name, rrd) in rrd_list.iter() {
+            let rrd_end = reso*(rrd.last_update/reso);
+            let rrd_start = rrd_end - reso*(RRD_DATA_ENTRIES as u64);
+
+            if t < rrd_start || t > rrd_end {
+                continue;
+            } else {
+                let data = match timeframe {
+                    RRDTimeFrameResolution::Hour => &rrd.hour,
+                    RRDTimeFrameResolution::Day => &rrd.day,
+                    RRDTimeFrameResolution::Week => &rrd.week,
+                    RRDTimeFrameResolution::Month => &rrd.month,
+                    RRDTimeFrameResolution::Year => &rrd.year,
+                };
+                let entry = data[index];
+                if entry.count == 0 {
+                    continue;
+                } else {
+                    let value = match mode {
+                        RRDMode::Max => entry.max,
+                        RRDMode::Average => entry.average,
+                    };
+                    item[name] = value.into();
+                }
+            }
+        }
+        list.push(item);
+        t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
+    }
+
+    list.into()
 }

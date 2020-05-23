@@ -20,15 +20,20 @@ use crate::api2::types::*;
         },
     },
 )]
-/// Read CPU stats
-fn get_cpu_stats(
+/// Read node stats
+fn get_node_stats(
     timeframe: RRDTimeFrameResolution,
     cf: RRDMode,
     _param: Value,
 ) -> Result<Value, Error> {
 
-    crate::rrd::extract_data("host/cpu", timeframe, cf)
+    crate::rrd::extract_data_list(
+        "host",
+        &["cpu", "iowait", "memtotal", "memused"],
+        timeframe,
+        cf,
+    )
 }
 
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_CPU_STATS);
+    .get(&API_METHOD_GET_NODE_STATS);

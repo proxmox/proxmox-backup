@@ -12,15 +12,25 @@ Ext.define('pve-rrd-node', {
     extend: 'Ext.data.Model',
     fields: [
 	{
-	    name: 'value',
+	    name: 'cpu',
 	    // percentage
 	    convert: function(value) {
 		return value*100;
 	    }
 	},
+	{
+	    name: 'iowait',
+	    // percentage
+	    convert: function(value) {
+		return value*100;
+	    }
+	},
+	"memtotal",
+	"memused",
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
 });
+
 
 Ext.define('PBS.DataStoreStatus', {
     extend: 'Ext.panel.Panel',
@@ -53,10 +63,17 @@ Ext.define('PBS.DataStoreStatus', {
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('CPU usage'),
-		    fields: ['value'],
-		    fieldTitles: [gettext('CPU usage')],
+		    fields: ['cpu','iowait'],
+		    fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
 		    store: rrdstore
-		}
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Memory usage'),
+		    fields: ['memtotal','memused'],
+		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
+		    store: rrdstore
+		},
 	    ]
 	};
 

@@ -49,7 +49,7 @@ pub fn update_value(rel_path: &str, value: f64) -> Result<(), Error> {
 
     let mut map = RRD_CACHE.write().unwrap();
     let now = now()?;
-    
+
     if let Some(rrd) = map.get_mut(rel_path) {
         rrd.update(now, value);
         rrd.save(&path)?;
@@ -62,7 +62,7 @@ pub fn update_value(rel_path: &str, value: f64) -> Result<(), Error> {
         rrd.save(&path)?;
         map.insert(rel_path.into(), rrd);
     }
-   
+
     Ok(())
 }
 
@@ -75,10 +75,37 @@ pub fn extract_data(
     let now = now()?;
 
     let map = RRD_CACHE.read().unwrap();
-    
+
     if let Some(rrd) = map.get(rel_path) {
         Ok(rrd.extract_data(now, timeframe, mode))
     } else {
         Ok(RRD::new().extract_data(now, timeframe, mode))
     }
+}
+
+
+pub fn extract_data_list(
+    base: &str,
+    items: &[&str],
+    timeframe: RRDTimeFrameResolution,
+    mode: RRDMode,
+) -> Result<Value, Error> {
+
+    let now = now()?;
+
+    let map = RRD_CACHE.read().unwrap();
+
+    let mut list: Vec<(&str, &RRD)> = Vec::new();
+
+    let empty_rrd = RRD::new();
+
+    for name in items.iter() {
+        if let Some(rrd) = map.get(&format!("{}/{}", base, name)) {
+            list.push((name, rrd));
+        } else {
+            list.push((name, &empty_rrd));
+        }
+    }
+
+    Ok(extract_rrd_data(&list, now, timeframe, mode))
 }

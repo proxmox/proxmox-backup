@@ -601,7 +601,7 @@ async fn run_stat_generator() {
 }
 
 async fn generate_host_stats() {
-    use proxmox::sys::linux::procfs::read_proc_stat;
+    use proxmox::sys::linux::procfs::{read_meminfo, read_proc_stat};
     use proxmox_backup::rrd;
 
     match read_proc_stat() {
@@ -612,6 +612,19 @@ async fn generate_host_stats() {
         }
         Err(err) => {
             eprintln!("read_proc_stat failed - {}", err);
+        }
+    }
+    match read_meminfo() {
+        Ok(meminfo) => {
+            if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64) {
+                eprintln!("rrd::update_value 'host/memtotal' failed - {}", err);
+            }
+            if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64) {
+                eprintln!("rrd::update_value 'host/memused' failed - {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("read_meminfo failed - {}", err);
         }
     }
 }
