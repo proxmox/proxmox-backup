@@ -29,7 +29,7 @@ fn get_node_stats(
 
     crate::rrd::extract_data(
         "host",
-        &["cpu", "iowait", "memtotal", "memused"],
+        &["cpu", "iowait", "memtotal", "memused", "netin", "netout"],
         timeframe,
         cf,
     )

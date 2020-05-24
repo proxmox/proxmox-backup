@@ -25,8 +25,10 @@ Ext.define('pve-rrd-node', {
 		return value*100;
 	    }
 	},
-	"memtotal",
-	"memused",
+	'netin',
+	'netout',
+	'memtotal',
+	'memused',
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
 });
@@ -72,6 +74,12 @@ Ext.define('PBS.DataStoreStatus', {
 		    title: gettext('Memory usage'),
 		    fields: ['memtotal','memused'],
 		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Network traffic'),
+		    fields: ['netin','netout'],
 		    store: rrdstore
 		},
 	    ]
