@@ -129,83 +129,66 @@ impl RRD {
     }
 
     fn compute_new_value(
-        data: &[RRDEntry; RRD_DATA_ENTRIES],
-        index: usize,
+        data: &mut [RRDEntry; RRD_DATA_ENTRIES],
+        epoch: u64,
+        reso: u64,
         value: f64,
-    ) -> RRDEntry {
+    ) {
+        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         let RRDEntry { max, average, count } = data[index];
         let new_count = count + 1; // fixme: check overflow?
         if count == 0 {
-            RRDEntry { max: value, average: value,  count: 1 }
-        } else {
+             data[index] = RRDEntry { max: value, average: value,  count: 1 };
+       } else {
             let new_max = if max > value { max } else { value };
-            //let new_average = (average*(count as f64) + value)/(new_count as f64);
+            // let new_average = (average*(count as f64) + value)/(new_count as f64);
             // Note: Try to avoid numeric errors
-            let new_average = average*((count as f64)/(new_count as f64))
+            let new_average = (average*(count as f64))/(new_count as f64)
                 + value/(new_count as f64);
-            RRDEntry { max: new_max, average: new_average, count: new_count }
+            data[index] = RRDEntry { max: new_max, average: new_average, count: new_count };
+        }
+    }
+
+    fn delete_old(data: &mut [RRDEntry], epoch: u64, last: u64, reso: u64) {
+        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
+        let min_time = (min_time/reso + 1)*reso;
+        let mut t = last - (RRD_DATA_ENTRIES as u64)*reso;
+        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+        for _ in 0..RRD_DATA_ENTRIES {
+            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
+            if t < min_time {
+                data[index] = RRDEntry::default();
+            } else {
+                break;
+            }
         }
     }
 
     pub fn update(&mut self, epoch: u64, value: f64) {
-        // fixme: check time progress (epoch  last)
         let last = self.last_update;
+        if epoch < last {
+            eprintln!("rrdb update failed - time in past ({} < {})", epoch, last);
+        }
 
         let reso = RRDTimeFrameResolution::Hour as u64;
-
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
-        let mut t = last;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            if t < min_time { self.hour[index] = RRDEntry::default(); }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-        }
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        self.hour[index] = Self::compute_new_value(&self.hour, index, value);
+        Self::delete_old(&mut self.hour, epoch, last, reso);
+        Self::compute_new_value(&mut self.hour, epoch, reso, value);
 
         let reso = RRDTimeFrameResolution::Day as u64;
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
-        let mut t = last;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            if t < min_time { self.day[index] = RRDEntry::default(); }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-        }
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        self.day[index] = Self::compute_new_value(&self.day, index, value);
+        Self::delete_old(&mut self.day, epoch, last, reso);
+        Self::compute_new_value(&mut self.day, epoch, reso, value);
 
         let reso = RRDTimeFrameResolution::Week as u64;
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
-        let mut t = last;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            if t < min_time { self.week[index] = RRDEntry::default(); }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-        }
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        self.week[index] = Self::compute_new_value(&self.week, index, value);
+        Self::delete_old(&mut self.week, epoch, last, reso);
+        Self::compute_new_value(&mut self.week, epoch, reso, value);
 
         let reso = RRDTimeFrameResolution::Month as u64;
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
-        let mut t = last;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            if t < min_time { self.month[index] = RRDEntry::default(); }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-        }
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        self.month[index] = Self::compute_new_value(&self.month, index, value);
+        Self::delete_old(&mut self.month, epoch, last, reso);
+        Self::compute_new_value(&mut self.month, epoch, reso, value);
 
         let reso = RRDTimeFrameResolution::Year as u64;
-        let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
-        let mut t = last;
-        let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        for _ in 0..RRD_DATA_ENTRIES {
-            if t < min_time { self.year[index] = RRDEntry::default(); }
-            t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
-        }
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        self.year[index] = Self::compute_new_value(&self.year, index, value);
+        Self::delete_old(&mut self.year, epoch, last, reso);
+        Self::compute_new_value(&mut self.year, epoch, reso, value);
 
         self.last_update = epoch;
     }
