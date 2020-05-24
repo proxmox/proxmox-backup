@@ -366,7 +366,6 @@ impl <R: BufRead> NetworkParser<R> {
         }
 
         lazy_static!{
-            static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
             static ref INTERFACE_ALIAS_REGEX: Regex = Regex::new(r"^\S+:\d+$").unwrap();
             static ref VLAN_INTERFACE_REGEX: Regex = Regex::new(r"^\S+\.\d+$").unwrap();
         }
@@ -375,10 +374,10 @@ impl <R: BufRead> NetworkParser<R> {
             for (iface, active) in existing_interfaces.iter()  {
                 if let Some(interface) = config.interfaces.get_mut(iface) {
                     interface.active = *active;
-                    if interface.interface_type == NetworkInterfaceType::Unknown && PHYSICAL_NIC_REGEX.is_match(iface) {
+                    if interface.interface_type == NetworkInterfaceType::Unknown && super::is_physical_nic(iface) {
                         interface.interface_type = NetworkInterfaceType::Eth;
                     }
-                } else if PHYSICAL_NIC_REGEX.is_match(iface) { // also add all physical NICs
+                } else if super::is_physical_nic(iface) { // also add all physical NICs
                     let mut interface = Interface::new(iface.clone());
                     interface.set_method_v4(NetworkConfigMethod::Manual)?;
                     interface.interface_type = NetworkInterfaceType::Eth;
@@ -403,7 +402,7 @@ impl <R: BufRead> NetworkParser<R> {
                 interface.interface_type = NetworkInterfaceType::Vlan;
                 continue;
             }
-            if PHYSICAL_NIC_REGEX.is_match(name) {
+            if super::is_physical_nic(name) {
                 interface.interface_type = NetworkInterfaceType::Eth;
                 continue;
             }

@@ -19,6 +19,14 @@ pub use parser::*;
 
 use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode};
 
+lazy_static!{
+    static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
+}
+
+pub fn is_physical_nic(iface: &str) -> bool {
+    PHYSICAL_NIC_REGEX.is_match(iface)
+}
+
 pub fn bond_mode_from_str(s: &str) -> Result<LinuxBondMode, Error> {
     LinuxBondMode::deserialize(s.into_deserializer())
         .map_err(|_: value::Error| format_err!("invalid bond_mode '{}'", s))
