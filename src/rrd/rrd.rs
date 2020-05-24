@@ -8,21 +8,31 @@ use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
 pub const RRD_DATA_ENTRIES: usize = 70;
 
 #[repr(C)]
-#[derive(Default, Copy, Clone)]
+#[derive(Copy, Clone)]
 struct RRDEntry {
     max: f64,
     average: f64,
-    count: u64,
+}
+
+impl Default for RRDEntry {
+    fn default() -> Self {
+        Self { max: f64::NAN, average: f64::NAN }
+    }
 }
 
 #[repr(C)]
 // Note: Avoid alignment problems by using 8byte types only
 pub struct RRD {
     last_update: u64,
+    last_hour_count: u64,
     hour: [RRDEntry; RRD_DATA_ENTRIES],
+    last_day_count: u64,
     day: [RRDEntry; RRD_DATA_ENTRIES],
+    last_week_count: u64,
     week: [RRDEntry; RRD_DATA_ENTRIES],
+    last_month_count: u64,
     month: [RRDEntry; RRD_DATA_ENTRIES],
+    last_year_count: u64,
     year: [RRDEntry; RRD_DATA_ENTRIES],
 }
 
@@ -31,10 +41,15 @@ impl RRD {
     pub fn new() -> Self {
         Self {
             last_update: 0,
+            last_hour_count: 0,
             hour: [RRDEntry::default(); RRD_DATA_ENTRIES],
+            last_day_count: 0,
             day: [RRDEntry::default(); RRD_DATA_ENTRIES],
+            last_week_count: 0,
             week: [RRDEntry::default(); RRD_DATA_ENTRIES],
+            last_month_count: 0,
             month: [RRDEntry::default(); RRD_DATA_ENTRIES],
+            last_year_count: 0,
             year: [RRDEntry::default(); RRD_DATA_ENTRIES],
         }
     }
@@ -71,13 +86,13 @@ impl RRD {
                 list.push(None);
             } else {
                 let entry = data[index];
-                if entry.count == 0 {
+                let value = match mode {
+                    RRDMode::Max => entry.max,
+                    RRDMode::Average => entry.average,
+                };
+                if value.is_nan() {
                     list.push(None);
                 } else {
-                    let value = match mode {
-                        RRDMode::Max => entry.max,
-                        RRDMode::Average => entry.average,
-                    };
                     list.push(Some(value));
                 }
             }
@@ -130,22 +145,41 @@ impl RRD {
 
     fn compute_new_value(
         data: &mut [RRDEntry; RRD_DATA_ENTRIES],
+        count: &mut u64,
         epoch: u64,
+        last: u64,
         reso: u64,
         value: f64,
     ) {
+        if value.is_nan() {
+            eprintln!("rrdb update failed - new value is NAN");
+            return;
+        }
+
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        let RRDEntry { max, average, count } = data[index];
-        let new_count = count + 1; // fixme: check overflow?
-        if count == 0 {
-             data[index] = RRDEntry { max: value, average: value,  count: 1 };
+        let last_index = ((last/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+
+        if (epoch - last) > reso || index != last_index {
+            *count = 0;
+        }
+
+        let RRDEntry { max, average } = data[index];
+        if max.is_nan() || average.is_nan() {
+            *count = 0;
+        }
+
+        let new_count = *count + 1; // fixme: check overflow?
+        if *count == 0 {
+            data[index] = RRDEntry { max: value, average: value };
+            *count = 1;
        } else {
             let new_max = if max > value { max } else { value };
             // let new_average = (average*(count as f64) + value)/(new_count as f64);
             // Note: Try to avoid numeric errors
-            let new_average = (average*(count as f64))/(new_count as f64)
+            let new_average = (average*(*count as f64))/(new_count as f64)
                 + value/(new_count as f64);
-            data[index] = RRDEntry { max: new_max, average: new_average, count: new_count };
+            data[index] = RRDEntry { max: new_max, average: new_average };
+            *count = new_count;
         }
     }
 
@@ -172,23 +206,23 @@ impl RRD {
 
         let reso = RRDTimeFrameResolution::Hour as u64;
         Self::delete_old(&mut self.hour, epoch, last, reso);
-        Self::compute_new_value(&mut self.hour, epoch, reso, value);
+        Self::compute_new_value(&mut self.hour, &mut self.last_hour_count, epoch, last, reso, value);
 
         let reso = RRDTimeFrameResolution::Day as u64;
         Self::delete_old(&mut self.day, epoch, last, reso);
-        Self::compute_new_value(&mut self.day, epoch, reso, value);
+        Self::compute_new_value(&mut self.day, &mut self.last_day_count, epoch, last, reso, value);
 
         let reso = RRDTimeFrameResolution::Week as u64;
         Self::delete_old(&mut self.week, epoch, last, reso);
-        Self::compute_new_value(&mut self.week, epoch, reso, value);
+        Self::compute_new_value(&mut self.week, &mut self.last_week_count, epoch, last, reso, value);
 
         let reso = RRDTimeFrameResolution::Month as u64;
         Self::delete_old(&mut self.month, epoch, last, reso);
-        Self::compute_new_value(&mut self.month, epoch, reso, value);
+        Self::compute_new_value(&mut self.month, &mut self.last_month_count, epoch, last, reso, value);
 
         let reso = RRDTimeFrameResolution::Year as u64;
         Self::delete_old(&mut self.year, epoch, last, reso);
-        Self::compute_new_value(&mut self.year, epoch, reso, value);
+        Self::compute_new_value(&mut self.year, &mut self.last_year_count, epoch, last, reso, value);
 
         self.last_update = epoch;
     }
