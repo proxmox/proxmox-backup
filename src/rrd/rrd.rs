@@ -34,6 +34,7 @@ struct RRA {
     resolution: u64,
     last_update: u64,
     last_count: u64,
+    counter_value: f64, // used for derive/counters
     data: [f64; RRD_DATA_ENTRIES],
 }
 
@@ -43,6 +44,7 @@ impl RRA {
             flags, resolution,
             last_update: 0,
             last_count: 0,
+            counter_value: f64::NAN,
             data: [f64::NAN; RRD_DATA_ENTRIES],
         }
     }
@@ -63,7 +65,7 @@ impl RRA {
         }
     }
 
-    fn compute_new_value(&mut self, epoch: u64, value: f64) {
+    fn compute_new_value(&mut self, epoch: u64, mut value: f64) {
         let reso = self.resolution;
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         let last_index = ((self.last_update/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -77,7 +79,20 @@ impl RRA {
             self.last_count = 0;
         }
 
-        let new_count = self.last_count + 1; // fixme: check overflow?
+        let new_count = if self.last_count < u64::MAX {
+            self.last_count + 1
+        } else {
+            u64::MAX // should never happen
+        };
+
+        if self.flags.contains(RRAFlags::DST_DERIVE) {
+            let diff = if self.counter_value.is_nan() { 0.0 } else { value - self.counter_value };
+            self.counter_value = value;
+
+            value = diff/(reso as f64);
+            if !last_value.is_nan() { value += last_value };
+        }
+
         if self.last_count == 0 {
             self.data[index] = value;
             self.last_count = 1;
