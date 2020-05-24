@@ -40,7 +40,7 @@ fn now() -> Result<u64, Error> {
     Ok(epoch.as_secs())
 }
 
-pub fn update_value(rel_path: &str, value: f64) -> Result<(), Error> {
+pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
 
     let mut path = PathBuf::from(PBS_RRD_BASEDIR);
     path.push(rel_path);
@@ -56,7 +56,7 @@ pub fn update_value(rel_path: &str, value: f64) -> Result<(), Error> {
     } else {
         let mut rrd = match RRD::load(&path) {
             Ok(rrd) => rrd,
-            Err(_) => RRD::new(),
+            Err(_) => RRD::new(dst),
         };
         rrd.update(now, value);
         rrd.save(&path)?;
@@ -77,12 +77,13 @@ pub fn extract_data(
 
     let map = RRD_CACHE.read().unwrap();
 
-    let empty_rrd = RRD::new();
-
     let mut result = Vec::new();
 
     for name in items.iter() {
-        let rrd = map.get(&format!("{}/{}", base, name)).unwrap_or(&empty_rrd);
+        let rrd = match map.get(&format!("{}/{}", base, name)) {
+            Some(rrd) => rrd,
+            None => continue,
+        };
         let (start, reso, list) = rrd.extract_data(now, timeframe, mode);
         let mut t = start;
         for index in 0..RRD_DATA_ENTRIES {

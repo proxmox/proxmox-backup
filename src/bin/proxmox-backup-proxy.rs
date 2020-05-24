@@ -606,7 +606,7 @@ async fn generate_host_stats() {
 
     match read_proc_stat() {
         Ok(stat) => {
-            if let Err(err) = rrd::update_value("host/cpu", stat.cpu) {
+            if let Err(err) = rrd::update_value("host/cpu", stat.cpu, rrd::DST::Gauge) {
                 eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
             }
         }
@@ -616,10 +616,10 @@ async fn generate_host_stats() {
     }
     match read_meminfo() {
         Ok(meminfo) => {
-            if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64) {
+            if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64, rrd::DST::Gauge) {
                 eprintln!("rrd::update_value 'host/memtotal' failed - {}", err);
             }
-            if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64) {
+            if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64, rrd::DST::Gauge) {
                 eprintln!("rrd::update_value 'host/memused' failed - {}", err);
             }
         }
