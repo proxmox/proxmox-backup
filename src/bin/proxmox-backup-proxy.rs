@@ -602,7 +602,7 @@ async fn run_stat_generator() {
 
 async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
-        read_meminfo, read_proc_stat, read_proc_net_dev};
+        read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
     use proxmox_backup::rrd;
 
     proxmox_backup::tools::runtime::block_in_place(move || {
@@ -656,6 +656,17 @@ async fn generate_host_stats() {
             }
             Err(err) => {
                 eprintln!("read_prox_net_dev failed - {}", err);
+            }
+        }
+
+        match read_loadavg() {
+            Ok(loadavg) => {
+               if let Err(err) = rrd::update_value("host/loadavg", loadavg.0 as f64, rrd::DST::Gauge) {
+                   eprintln!("rrd::update_value 'host/roottotal' failed - {}", err);
+               }
+            }
+            Err(err) => {
+                eprintln!("read_loadavg failed - {}", err);
             }
         }
 
