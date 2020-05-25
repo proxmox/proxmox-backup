@@ -89,6 +89,13 @@ Ext.define('PBS.view.main.NavigationTree', {
 		});
 	    }
 
+	    // FIXME: newly added always get appended to the end..
+	    records.sort((a, b) => {
+		if (a.id > b.id) return  1;
+		if (a.id < b.id) return -1;
+		return 0;
+	    });
+
 	    var list = root.findChild('path', 'pbsDataStoreStatus', false);
 	    var length = records.length;
 	    var lookup_hash = {};
