@@ -32,7 +32,7 @@ pub enum DST {
 struct RRA {
     flags: RRAFlags,
     resolution: u64,
-    last_update: u64,
+    last_update: f64,
     last_count: u64,
     counter_value: f64, // used for derive/counters
     data: [f64; RRD_DATA_ENTRIES],
@@ -42,18 +42,21 @@ impl RRA {
     fn new(flags: RRAFlags, resolution: u64) -> Self {
         Self {
             flags, resolution,
-            last_update: 0,
+            last_update: 0.0,
             last_count: 0,
             counter_value: f64::NAN,
             data: [f64::NAN; RRD_DATA_ENTRIES],
         }
     }
 
-    fn delete_old(&mut self, epoch: u64) {
+    fn delete_old(&mut self, time: f64) {
+        let epoch = time as u64;
+        let last_update = self.last_update as u64;
         let reso = self.resolution;
+
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let min_time = (min_time/reso + 1)*reso;
-        let mut t = self.last_update - (RRD_DATA_ENTRIES as u64)*reso;
+        let mut t = last_update - (RRD_DATA_ENTRIES as u64)*reso;
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         for _ in 0..RRD_DATA_ENTRIES {
             t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
@@ -65,12 +68,23 @@ impl RRA {
         }
     }
 
-    fn compute_new_value(&mut self, epoch: u64, mut value: f64) {
+    fn compute_new_value(&mut self, time: f64, mut value: f64) {
+        let epoch = time as u64;
+        let time_diff = time - self.last_update;
+        let last_update = self.last_update as u64;
         let reso = self.resolution;
-        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
-        let last_index = ((self.last_update/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
 
-        if (epoch - self.last_update) > reso || index != last_index {
+        // derive counter value
+        if self.flags.contains(RRAFlags::DST_DERIVE) {
+            let diff = if self.counter_value.is_nan() { 0.0 } else { value - self.counter_value };
+            self.counter_value = value;
+            value = diff/time_diff;
+        }
+
+        let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+        let last_index = ((last_update/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
+
+        if (epoch - (last_update as u64)) > reso || index != last_index {
             self.last_count = 0;
         }
 
@@ -84,14 +98,6 @@ impl RRA {
         } else {
             u64::MAX // should never happen
         };
-
-        if self.flags.contains(RRAFlags::DST_DERIVE) {
-            let diff = if self.counter_value.is_nan() { 0.0 } else { value - self.counter_value };
-            self.counter_value = value;
-
-            value = diff/(reso as f64);
-            if !last_value.is_nan() { value += last_value };
-        }
 
         if self.last_count == 0 {
             self.data[index] = value;
@@ -109,11 +115,11 @@ impl RRA {
             self.data[index] = new_value;
             self.last_count = new_count;
         }
-        self.last_update = epoch;
+        self.last_update = time;
     }
 
-    fn update(&mut self, epoch: u64, value: f64) {
-        if epoch < self.last_update {
+    fn update(&mut self, epoch: f64, value: f64) {
+        if epoch <= self.last_update {
             eprintln!("rrdb update failed - time in past ({} < {})", epoch, self.last_update);
         }
         if value.is_nan() {
@@ -195,11 +201,11 @@ impl RRD {
 
     pub fn extract_data(
         &self,
-        epoch: u64,
+        time: f64,
         timeframe: RRDTimeFrameResolution,
         mode: RRDMode,
     ) -> (u64, u64, Vec<Option<f64>>) {
-
+        let epoch = time as u64;
         let reso = timeframe as u64;
 
         let end = reso*(epoch/reso + 1);
@@ -220,7 +226,7 @@ impl RRD {
             (RRDMode::Max, RRDTimeFrameResolution::Year) => &self.year_max,
         };
 
-        let rrd_end = reso*(raa.last_update/reso);
+        let rrd_end = reso*((raa.last_update as u64)/reso);
         let rrd_start = rrd_end - reso*(RRD_DATA_ENTRIES as u64);
 
         let mut t = start;
@@ -284,20 +290,20 @@ impl RRD {
     }
 
 
-    pub fn update(&mut self, epoch: u64, value: f64) {
-        self.hour_avg.update(epoch, value);
-        self.hour_max.update(epoch, value);
+    pub fn update(&mut self, time: f64, value: f64) {
+        self.hour_avg.update(time, value);
+        self.hour_max.update(time, value);
 
-        self.day_avg.update(epoch, value);
-        self.day_max.update(epoch, value);
+        self.day_avg.update(time, value);
+        self.day_max.update(time, value);
 
-        self.week_avg.update(epoch, value);
-        self.week_max.update(epoch, value);
+        self.week_avg.update(time, value);
+        self.week_max.update(time, value);
 
-        self.month_avg.update(epoch, value);
-        self.month_max.update(epoch, value);
+        self.month_avg.update(time, value);
+        self.month_max.update(time, value);
 
-        self.year_avg.update(epoch, value);
-        self.year_max.update(epoch, value);
+        self.year_avg.update(time, value);
+        self.year_max.update(time, value);
     }
 }

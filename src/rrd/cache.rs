@@ -35,9 +35,9 @@ pub fn create_rrdb_dir() -> Result<(), Error> {
     Ok(())
 }
 
-fn now() -> Result<u64, Error> {
-    let epoch = SystemTime::now().duration_since(UNIX_EPOCH)?;
-    Ok(epoch.as_secs())
+fn now() -> Result<f64, Error> {
+    let time = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    Ok(time.as_secs_f64())
 }
 
 pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
