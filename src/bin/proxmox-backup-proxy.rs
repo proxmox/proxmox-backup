@@ -625,6 +625,12 @@ async fn generate_host_stats() {
                 if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64, rrd::DST::Gauge) {
                     eprintln!("rrd::update_value 'host/memused' failed - {}", err);
                 }
+                if let Err(err) = rrd::update_value("host/swaptotal", meminfo.swaptotal as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/swaptotal' failed - {}", err);
+                }
+                if let Err(err) = rrd::update_value("host/swapused", meminfo.swapused as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/swapused' failed - {}", err);
+                }
             }
             Err(err) => {
                 eprintln!("read_meminfo failed - {}", err);
