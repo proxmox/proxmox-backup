@@ -29,5 +29,10 @@ Ext.define('PBS.Utils', {
 	var me = this;
 
 	// do whatever you want here
+	Proxmox.Utils.override_task_descriptions({
+	    garbage_collection: ['Datastore', gettext('Garbage collect') ],
+	    backup: [ '', gettext('Backup') ],
+	    reader: [ '', gettext('Read datastore objects') ], // FIXME: better one
+	});
     }
 });
