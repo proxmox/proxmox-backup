@@ -18,7 +18,6 @@ Ext.define('PBS.SystemConfiguration', {
 		align: 'stretch',
 		multi: true
 	    },
-	    bodyPadding: '0 0 10 0',
 	    defaults: {
 		collapsible: true,
 		animCollapse: false,
@@ -26,12 +25,8 @@ Ext.define('PBS.SystemConfiguration', {
 	    },
 	    items: [
 		{
-		    flex: 1,
-		    minHeight: 200,
-		    title: gettext('Interfaces'),
-		    xtype: 'proxmoxNodeNetworkView',
-		    showApplyBtn: true,
-		    types: ['bond', 'bridge', 'vlan'],
+		    title: gettext('Time'),
+		    xtype: 'proxmoxNodeTimeView',
 		    nodename: 'localhost'
 		},
 		{
@@ -40,10 +35,14 @@ Ext.define('PBS.SystemConfiguration', {
 		    nodename: 'localhost'
 		},
 		{
-		    title: gettext('Time'),
-		    xtype: 'proxmoxNodeTimeView',
+		    flex: 1,
+		    minHeight: 200,
+		    title: gettext('Network Interfaces'),
+		    xtype: 'proxmoxNodeNetworkView',
+		    showApplyBtn: true,
+		    types: ['bond', 'bridge', 'vlan'],
 		    nodename: 'localhost'
-		}
+		},
 	    ]
 //	},
 //	{
