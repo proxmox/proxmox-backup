@@ -35,6 +35,7 @@ fn get_node_stats(
             "swaptotal", "swapused",
             "netin", "netout",
             "roottotal", "rootused",
+            "loadavg",
         ],
         timeframe,
         cf,

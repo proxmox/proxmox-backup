@@ -33,6 +33,7 @@ Ext.define('pve-rrd-node', {
 	'swapused',
 	'roottotal',
 	'rootused',
+	'loadavg',
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
 });
@@ -73,6 +74,13 @@ Ext.define('PBS.DataStoreStatus', {
 		    title: gettext('CPU usage'),
 		    fields: ['cpu','iowait'],
 		    fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Server load'),
+		    fields: ['loadavg'],
+		    fieldTitles: [gettext('Load average')],
 		    store: rrdstore
 		},
 		{
