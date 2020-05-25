@@ -600,21 +600,31 @@ async fn run_stat_generator() {
 
 }
 
+fn rrd_update_gauge(name: &str, value: f64) {
+    use proxmox_backup::rrd;
+    if let Err(err) = rrd::update_value(name, value, rrd::DST::Gauge) {
+        eprintln!("rrd::update_value '{}' failed - {}", name, err);
+    }
+}
+
+fn rrd_update_derive(name: &str, value: f64) {
+    use proxmox_backup::rrd;
+    if let Err(err) = rrd::update_value(name, value, rrd::DST::Derive) {
+        eprintln!("rrd::update_value '{}' failed - {}", name, err);
+    }
+}
+
 async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
-    use proxmox_backup::{ rrd, config::datastore };
+    use proxmox_backup::config::datastore;
 
     proxmox_backup::tools::runtime::block_in_place(move || {
 
         match read_proc_stat() {
             Ok(stat) => {
-                if let Err(err) = rrd::update_value("host/cpu", stat.cpu, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/iowait", stat.iowait_percent, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/iowait' failed - {}", err);
-                }
+                rrd_update_gauge("host/cpu", stat.cpu);
+                rrd_update_gauge("host/iowait", stat.iowait_percent);
             }
             Err(err) => {
                 eprintln!("read_proc_stat failed - {}", err);
@@ -623,18 +633,10 @@ async fn generate_host_stats() {
 
         match read_meminfo() {
             Ok(meminfo) => {
-                if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/memtotal' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/memused' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/swaptotal", meminfo.swaptotal as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/swaptotal' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/swapused", meminfo.swapused as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/swapused' failed - {}", err);
-                }
+                rrd_update_gauge("host/memtotal", meminfo.memtotal as f64);
+                rrd_update_gauge("host/memused", meminfo.memused as f64);
+                rrd_update_gauge("host/swaptotal", meminfo.swaptotal as f64);
+                rrd_update_gauge("host/swapused", meminfo.swapused as f64);
             }
             Err(err) => {
                 eprintln!("read_meminfo failed - {}", err);
@@ -651,12 +653,8 @@ async fn generate_host_stats() {
                     netin += item.receive;
                     netout += item.send;
                 }
-                if let Err(err) = rrd::update_value("host/netin", netin as f64, rrd::DST::Derive) {
-                    eprintln!("rrd::update_value 'host/netin' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/netout", netout as f64, rrd::DST::Derive) {
-                    eprintln!("rrd::update_value 'host/netout' failed - {}", err);
-                }
+                rrd_update_derive("host/netin", netin as f64);
+                rrd_update_derive("host/netout", netout as f64);
             }
             Err(err) => {
                 eprintln!("read_prox_net_dev failed - {}", err);
@@ -665,9 +663,7 @@ async fn generate_host_stats() {
 
         match read_loadavg() {
             Ok(loadavg) => {
-               if let Err(err) = rrd::update_value("host/loadavg", loadavg.0 as f64, rrd::DST::Gauge) {
-                   eprintln!("rrd::update_value 'host/roottotal' failed - {}", err);
-               }
+                rrd_update_gauge("host/loadavg", loadavg.0 as f64);
             }
             Err(err) => {
                 eprintln!("read_loadavg failed - {}", err);
@@ -676,12 +672,8 @@ async fn generate_host_stats() {
 
         match disk_usage(std::path::Path::new("/")) {
             Ok((total, used, _avail)) => {
-                if let Err(err) = rrd::update_value("host/roottotal", total as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/roottotal' failed - {}", err);
-                }
-                if let Err(err) = rrd::update_value("host/rootused", used as f64, rrd::DST::Gauge) {
-                    eprintln!("rrd::update_value 'host/rootused' failed - {}", err);
-                }
+                rrd_update_gauge("host/roottotal", total as f64);
+                rrd_update_gauge("host/rootused", used as f64);
             }
             Err(err) => {
                 eprintln!("read root disk_usage failed - {}", err);
@@ -697,12 +689,8 @@ async fn generate_host_stats() {
                     match disk_usage(std::path::Path::new(&config.path)) {
                         Ok((total, used, _avail)) => {
                             let rrd_key = format!("datastore/{}", config.name);
-                            if let Err(err) = rrd::update_value(&rrd_key, total as f64, rrd::DST::Gauge) {
-                                eprintln!("rrd::update_value '{}' failed - {}", rrd_key, err);
-                            }
-                            if let Err(err) = rrd::update_value(&rrd_key, used as f64, rrd::DST::Gauge) {
-                                eprintln!("rrd::update_value '{}' failed - {}", rrd_key, err);
-                            }
+                            rrd_update_gauge(&rrd_key, total as f64);
+                            rrd_update_gauge(&rrd_key, used as f64);
                         }
                         Err(err) => {
                             eprintln!("read disk_usage on {:?} failed - {}", config.path, err);
