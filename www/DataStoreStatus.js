@@ -29,6 +29,8 @@ Ext.define('pve-rrd-node', {
 	'netout',
 	'memtotal',
 	'memused',
+	'swaptotal',
+	'swapused',
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
 });
@@ -40,6 +42,8 @@ Ext.define('PBS.DataStoreStatus', {
 
     title: gettext('Data Store Status'),
     tbar: ['->', { xtype: 'proxmoxRRDTypeSelector' } ],
+
+    scrollable: true,
 
     initComponent: function() {
         var me = this;
@@ -74,6 +78,13 @@ Ext.define('PBS.DataStoreStatus', {
 		    title: gettext('Memory usage'),
 		    fields: ['memtotal','memused'],
 		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Swap usage'),
+		    fields: ['swaptotal','swapused'],
+		    fieldTitles: [gettext('Total'), gettext('Swap usage')],
 		    store: rrdstore
 		},
 		{
