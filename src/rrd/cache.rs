@@ -56,7 +56,12 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
     } else {
         let mut rrd = match RRD::load(&path) {
             Ok(rrd) => rrd,
-            Err(_) => RRD::new(dst),
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    eprintln!("overwriting old RRD file, because of load error: {}", err);
+                }
+                RRD::new(dst)
+            },
         };
         rrd.update(now, value);
         rrd.save(&path)?;

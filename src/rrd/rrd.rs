@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::Path;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 
 use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
 
@@ -275,10 +275,11 @@ impl RRD {
         (start, reso, list.into())
     }
 
-    pub fn from_raw(mut raw: &[u8]) -> Result<Self, Error> {
+    pub fn from_raw(mut raw: &[u8]) -> Result<Self, std::io::Error> {
         let expected_len = std::mem::size_of::<RRD>();
         if raw.len() != expected_len {
-            bail!("RRD::from_raw failed - wrong data size ({} != {})", raw.len(), expected_len);
+            let msg = format!("wrong data size ({} != {})", raw.len(), expected_len);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
         }
 
         let mut rrd: RRD = unsafe { std::mem::zeroed() };
@@ -288,15 +289,21 @@ impl RRD {
         }
 
         if rrd.magic != PROXMOX_RRD_MAGIC_1_0 {
-            bail!("RRD::from_raw failed - wrong magic number");
+            let msg = format!("wrong magic number");
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
         }
 
         Ok(rrd)
     }
 
-    pub fn load(filename: &Path) -> Result<Self, Error> {
-        let raw = proxmox::tools::fs::file_get_contents(filename)?;
-        Self::from_raw(&raw)
+    pub fn load(path: &Path) -> Result<Self, std::io::Error> {
+        proxmox::try_block!({
+            let raw = std::fs::read(path)?;
+            Self::from_raw(&raw)
+        }).map_err(|err| {
+            let msg = format!("RRD load {:?} failed - {}", path, err);
+            std::io::Error::new(std::io::ErrorKind::Other, msg)
+        })
     }
 
     pub fn save(&self, filename: &Path) -> Result<(), Error> {
