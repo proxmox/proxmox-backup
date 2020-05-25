@@ -14,6 +14,7 @@ bitflags!{
         // Data Source Types
         const DST_GAUGE  = 1;
         const DST_DERIVE = 2;
+        const DST_COUNTER = 4;
         const DST_MASK   = 255; // first 8 bits
 
         // Consolidation Functions
@@ -68,18 +69,10 @@ impl RRA {
         }
     }
 
-    fn compute_new_value(&mut self, time: f64, mut value: f64) {
+    fn compute_new_value(&mut self, time: f64, value: f64) {
         let epoch = time as u64;
-        let time_diff = time - self.last_update;
         let last_update = self.last_update as u64;
         let reso = self.resolution;
-
-        // derive counter value
-        if self.flags.contains(RRAFlags::DST_DERIVE) {
-            let diff = if self.counter_value.is_nan() { 0.0 } else { value - self.counter_value };
-            self.counter_value = value;
-            value = diff/time_diff;
-        }
 
         let index = ((epoch/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         let last_index = ((last_update/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
@@ -118,17 +111,46 @@ impl RRA {
         self.last_update = time;
     }
 
-    fn update(&mut self, epoch: f64, value: f64) {
-        if epoch <= self.last_update {
-            eprintln!("rrdb update failed - time in past ({} < {})", epoch, self.last_update);
+    fn update(&mut self, time: f64, mut value: f64) {
+
+        if time <= self.last_update {
+            eprintln!("rrdb update failed - time in past ({} < {})", time, self.last_update);
         }
+
         if value.is_nan() {
             eprintln!("rrdb update failed - new value is NAN");
             return;
         }
 
-        self.delete_old(epoch);
-        self.compute_new_value(epoch, value);
+        // derive counter value
+        if self.flags.intersects(RRAFlags::DST_DERIVE | RRAFlags::DST_COUNTER) {
+            let time_diff = time - self.last_update;
+            let diff = if self.counter_value.is_nan() {
+                0.0
+            } else {
+                if self.flags.contains(RRAFlags::DST_COUNTER) { // check for overflow
+                    if value < 0.0 {
+                        eprintln!("rrdb update failed - got negative value for counter");
+                        return;
+                    }
+                    // Note: We do not try automatic overflow corrections
+                    if value < self.counter_value { // overflow or counter reset
+                        self.counter_value = value;
+                        eprintln!("rrdb update failed - conter overflow/reset detected");
+                        return;
+                    } else {
+                        value - self.counter_value
+                    }
+                } else {
+                    value - self.counter_value
+                }
+            };
+            self.counter_value = value;
+            value = diff/time_diff;
+        }
+
+        self.delete_old(time);
+        self.compute_new_value(time, value);
     }
 }
 
