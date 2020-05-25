@@ -7,6 +7,9 @@ use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
 
 pub const RRD_DATA_ENTRIES: usize = 70;
 
+// openssl::sha::sha256(b"Proxmox Round Robin Database file v1.0")[0..8];
+pub const PROXMOX_RRD_MAGIC_1_0: [u8; 8] =  [206, 46, 26, 212, 172, 158, 5, 186];
+
 use bitflags::bitflags;
 
 bitflags!{
@@ -157,6 +160,7 @@ impl RRA {
 #[repr(C)]
 // Note: Avoid alignment problems by using 8byte types only
 pub struct RRD {
+    magic: [u8; 8],
     hour_avg: RRA,
     hour_max: RRA,
     day_avg: RRA,
@@ -178,6 +182,7 @@ impl RRD {
         };
 
         Self {
+            magic: PROXMOX_RRD_MAGIC_1_0,
             hour_avg: RRA::new(
                 flags | RRAFlags::CF_AVERAGE,
                 RRDTimeFrameResolution::Hour as u64,
@@ -280,6 +285,10 @@ impl RRD {
         unsafe {
             let rrd_slice = std::slice::from_raw_parts_mut(&mut rrd as *mut _ as *mut u8, expected_len);
             raw.read_exact(rrd_slice)?;
+        }
+
+        if rrd.magic != PROXMOX_RRD_MAGIC_1_0 {
+            bail!("RRD::from_raw failed - wrong magic number");
         }
 
         Ok(rrd)
