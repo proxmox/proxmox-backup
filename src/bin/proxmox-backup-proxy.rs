@@ -603,7 +603,7 @@ async fn run_stat_generator() {
 async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
-    use proxmox_backup::rrd;
+    use proxmox_backup::{ rrd, config::datastore };
 
     proxmox_backup::tools::runtime::block_in_place(move || {
 
@@ -685,6 +685,33 @@ async fn generate_host_stats() {
             }
             Err(err) => {
                 eprintln!("read root disk_usage failed - {}", err);
+            }
+        }
+
+        match datastore::config() {
+            Ok((config, _)) => {
+                let datastore_list: Vec<datastore::DataStoreConfig> =
+                    config.convert_to_typed_array("datastore").unwrap_or(Vec::new());
+
+                for config in datastore_list {
+                    match disk_usage(std::path::Path::new(&config.path)) {
+                        Ok((total, used, _avail)) => {
+                            let rrd_key = format!("datastore/{}", config.name);
+                            if let Err(err) = rrd::update_value(&rrd_key, total as f64, rrd::DST::Gauge) {
+                                eprintln!("rrd::update_value '{}' failed - {}", rrd_key, err);
+                            }
+                            if let Err(err) = rrd::update_value(&rrd_key, used as f64, rrd::DST::Gauge) {
+                                eprintln!("rrd::update_value '{}' failed - {}", rrd_key, err);
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("read disk_usage on {:?} failed - {}", config.path, err);
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("read datastore config failed - {}", err);
             }
         }
 
