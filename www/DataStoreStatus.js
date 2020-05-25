@@ -31,6 +31,8 @@ Ext.define('pve-rrd-node', {
 	'memused',
 	'swaptotal',
 	'swapused',
+	'roottotal',
+	'rootused',
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
 });
@@ -91,6 +93,13 @@ Ext.define('PBS.DataStoreStatus', {
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Network traffic'),
 		    fields: ['netin','netout'],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Root Disk usage'),
+		    fields: ['roottotal','rootused'],
+		    fieldTitles: [gettext('Total'), gettext('Disk usage')],
 		    store: rrdstore
 		},
 	    ]
