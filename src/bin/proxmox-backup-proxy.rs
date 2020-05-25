@@ -658,5 +658,35 @@ async fn generate_host_stats() {
                 eprintln!("read_prox_net_dev failed - {}", err);
             }
         }
+
+        match disk_usage(std::path::Path::new("/")) {
+            Ok((total, used, _avail)) => {
+                if let Err(err) = rrd::update_value("host/roottotal", total as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/roottotal' failed - {}", err);
+                }
+                if let Err(err) = rrd::update_value("host/rootused", used as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/rootused' failed - {}", err);
+                }
+            }
+            Err(err) => {
+                eprintln!("read root disk_usage failed - {}", err);
+            }
+        }
+
     });
+}
+
+// Returns (total, used, avail)
+fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
+
+    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
+
+    use nix::NixPath;
+
+    let res = path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
+    nix::errno::Errno::result(res)?;
+
+    let bsize = stat.f_bsize as u64;
+
+    Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
 }
