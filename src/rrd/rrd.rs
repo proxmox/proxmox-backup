@@ -297,13 +297,8 @@ impl RRD {
     }
 
     pub fn load(path: &Path) -> Result<Self, std::io::Error> {
-        proxmox::try_block!({
-            let raw = std::fs::read(path)?;
-            Self::from_raw(&raw)
-        }).map_err(|err| {
-            let msg = format!("RRD load {:?} failed - {}", path, err);
-            std::io::Error::new(std::io::ErrorKind::Other, msg)
-        })
+        let raw = std::fs::read(path)?;
+        Self::from_raw(&raw)
     }
 
     pub fn save(&self, filename: &Path) -> Result<(), Error> {

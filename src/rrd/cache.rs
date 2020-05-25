@@ -58,7 +58,7 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
             Ok(rrd) => rrd,
             Err(err) => {
                 if err.kind() != std::io::ErrorKind::NotFound {
-                    eprintln!("overwriting old RRD file, because of load error: {}", err);
+                    eprintln!("overwriting RRD file {:?}, because of load error: {}", path, err);
                 }
                 RRD::new(dst)
             },
