@@ -605,50 +605,52 @@ async fn generate_host_stats() {
         read_meminfo, read_proc_stat, read_proc_net_dev};
     use proxmox_backup::rrd;
 
-    match read_proc_stat() {
-        Ok(stat) => {
-            if let Err(err) = rrd::update_value("host/cpu", stat.cpu, rrd::DST::Gauge) {
-                eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
-            }
-        }
-        Err(err) => {
-            eprintln!("read_proc_stat failed - {}", err);
-        }
-    }
-    match read_meminfo() {
-        Ok(meminfo) => {
-            if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64, rrd::DST::Gauge) {
-                eprintln!("rrd::update_value 'host/memtotal' failed - {}", err);
-            }
-            if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64, rrd::DST::Gauge) {
-                eprintln!("rrd::update_value 'host/memused' failed - {}", err);
-            }
-        }
-        Err(err) => {
-            eprintln!("read_meminfo failed - {}", err);
-        }
-    }
+    proxmox_backup::tools::runtime::block_in_place(move || {
 
-    match read_proc_net_dev() {
-        Ok(netdev) => {
-            use proxmox_backup::config::network::is_physical_nic;
-            let mut netin = 0;
-            let mut netout = 0;
-            for item in netdev {
-                if !is_physical_nic(&item.device) { continue; }
-                netin += item.receive;
-                netout += item.send;
+        match read_proc_stat() {
+            Ok(stat) => {
+                if let Err(err) = rrd::update_value("host/cpu", stat.cpu, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
+                }
             }
-            if let Err(err) = rrd::update_value("host/netin", netin as f64, rrd::DST::Derive) {
-                eprintln!("rrd::update_value 'host/netin' failed - {}", err);
-            }
-            if let Err(err) = rrd::update_value("host/netout", netout as f64, rrd::DST::Derive) {
-                eprintln!("rrd::update_value 'host/netout' failed - {}", err);
+            Err(err) => {
+                eprintln!("read_proc_stat failed - {}", err);
             }
         }
-        Err(err) => {
-            eprintln!("read_prox_net_dev failed - {}", err);
+        match read_meminfo() {
+            Ok(meminfo) => {
+                if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/memtotal' failed - {}", err);
+                }
+                if let Err(err) = rrd::update_value("host/memused", meminfo.memused as f64, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/memused' failed - {}", err);
+                }
+            }
+            Err(err) => {
+                eprintln!("read_meminfo failed - {}", err);
+            }
         }
-    }
 
+        match read_proc_net_dev() {
+            Ok(netdev) => {
+                use proxmox_backup::config::network::is_physical_nic;
+                let mut netin = 0;
+                let mut netout = 0;
+                for item in netdev {
+                    if !is_physical_nic(&item.device) { continue; }
+                    netin += item.receive;
+                    netout += item.send;
+                }
+                if let Err(err) = rrd::update_value("host/netin", netin as f64, rrd::DST::Derive) {
+                    eprintln!("rrd::update_value 'host/netin' failed - {}", err);
+                }
+                if let Err(err) = rrd::update_value("host/netout", netout as f64, rrd::DST::Derive) {
+                    eprintln!("rrd::update_value 'host/netout' failed - {}", err);
+                }
+            }
+            Err(err) => {
+                eprintln!("read_prox_net_dev failed - {}", err);
+            }
+        }
+    });
 }
