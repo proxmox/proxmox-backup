@@ -612,11 +612,15 @@ async fn generate_host_stats() {
                 if let Err(err) = rrd::update_value("host/cpu", stat.cpu, rrd::DST::Gauge) {
                     eprintln!("rrd::update_value 'host/cpu' failed - {}", err);
                 }
+                if let Err(err) = rrd::update_value("host/iowait", stat.iowait_percent, rrd::DST::Gauge) {
+                    eprintln!("rrd::update_value 'host/iowait' failed - {}", err);
+                }
             }
             Err(err) => {
                 eprintln!("read_proc_stat failed - {}", err);
             }
         }
+
         match read_meminfo() {
             Ok(meminfo) => {
                 if let Err(err) = rrd::update_value("host/memtotal", meminfo.memtotal as f64, rrd::DST::Gauge) {
