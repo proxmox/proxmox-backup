@@ -23,6 +23,12 @@ Ext.define('PBS.DataStorePanel', {
 	    },
 	},
 	{
+	    xtype: 'pbsDataStoreStatistic',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
 	    itemId: 'acl',
 	    xtype: 'pbsACLView',
 	    aclExact: true,

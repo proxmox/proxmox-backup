@@ -843,6 +843,46 @@ fn upload_backup_log(
     }.boxed()
 }
 
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            timeframe: {
+                type: RRDTimeFrameResolution,
+            },
+            cf: {
+                type: RRDMode,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
+    },
+)]
+/// Read datastore stats
+fn get_rrd_stats(
+    store: String,
+    timeframe: RRDTimeFrameResolution,
+    cf: RRDMode,
+    _param: Value,
+) -> Result<Value, Error> {
+
+    let rrd_dir = format!("datastore/{}", store);
+
+    crate::rrd::extract_data(
+        &rrd_dir,
+        &[
+            "total", "used",
+            "read_ios", "read_bytes", "read_ticks",
+            "write_ios", "write_bytes", "write_ticks",
+        ],
+        timeframe,
+        cf,
+    )
+}
+
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
@@ -870,6 +910,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "prune",
         &Router::new()
             .post(&API_METHOD_PRUNE)
+    ),
+    (
+        "rrd",
+        &Router::new()
+            .get(&API_METHOD_GET_RRD_STATS)
     ),
     (
         "snapshots",
