@@ -61,6 +61,7 @@ Ext.define('PBS.Utils', {
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
 	    garbage_collection: ['Datastore', gettext('Garbage collect') ],
+	    sync: ['Datastore', gettext('Remote Sync') ],
 	    prune: (type, id) => {
 		return PBS.Utils.render_datastore_worker_id(id, gettext('Prune'));
 	    },
