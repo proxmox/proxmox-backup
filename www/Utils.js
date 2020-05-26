@@ -44,6 +44,16 @@ Ext.define('PBS.Utils', {
 	}
 	return what;
     },
+    render_datastore_time_worker_id: function(id, what) {
+	const res = id.match(/^(\S+)_([^_\s]+)_([^_\s]+)_([^_\s]+)$/);
+	if (res) {
+	    let datastore = res[1], type = res[2], id = res[3];
+	    let datetime = Ext.Date.parse(parseInt(res[4], 16), 'U');
+	    let utctime = PBS.Utils.render_datetime_utc(datetime);
+	    return `Datastore ${datastore} - ${what} ${type}/${id}/${utctime}`;
+	}
+	return what;
+    },
 
     constructor: function() {
 	var me = this;
@@ -57,7 +67,9 @@ Ext.define('PBS.Utils', {
 	    backup: (type, id) => {
 		return PBS.Utils.render_datastore_worker_id(id, gettext('Backup'));
 	    },
-	    reader: [ '', gettext('Read datastore objects') ], // FIXME: better one
+	    reader: (type, id) => {
+		return PBS.Utils.render_datastore_time_worker_id(id, gettext('Read objects'));
+	    },
 	});
     }
 });
