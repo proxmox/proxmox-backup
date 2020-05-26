@@ -60,6 +60,7 @@ pub struct Remote {
     pub host: String,
     pub userid: String,
     #[serde(skip_serializing_if="String::is_empty")]
+    #[serde(with = "proxmox::tools::serde::string_as_base64")]
     pub password: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub fingerprint: Option<String>,

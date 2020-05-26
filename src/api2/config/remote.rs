@@ -1,6 +1,7 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
+use base64;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
@@ -75,11 +76,13 @@ pub fn list_remotes(
     },
 )]
 /// Create new remote.
-pub fn create_remote(param: Value) -> Result<(), Error> {
+pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
 
     let _lock = crate::tools::open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
-    let remote: remote::Remote = serde_json::from_value(param.clone())?;
+    let mut data = param.clone();
+    data["password"] = Value::from(base64::encode(password.as_bytes()));
+    let remote: remote::Remote = serde_json::from_value(data)?;
 
     let (mut config, _digest) = remote::config()?;
 
