@@ -29,109 +29,124 @@ Ext.define('PBS.DataStoreContent', {
 		throw "no datastore specified";
 	    }
 
-	    this.data_store = Ext.create('Ext.data.Store', {
+	    this.store = Ext.create('Ext.data.Store', {
 		model: 'pbs-data-store-snapshots',
 		sorters: 'backup-group',
 		groupField: 'backup-group',
 	    });
+	    this.store.on('load', this.onLoad, this);
 
 	    Proxmox.Utils.monStoreErrors(view, view.store, true);
 	    this.reload(); // initial load
 	},
 
 	reload: function() {
-	    var view = this.getView();
+	    let view = this.getView();
+
+	    if (!view.store || !this.store) {
+		console.warn('cannot reload, no store(s)');
+		return;
+	    }
 
 	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
-	    this.data_store.setProxy({
+	    this.store.setProxy({
 		type: 'proxmox',
 		url:  url
 	    });
 
-	    this.data_store.load(function(records, operation, success) {
-		let groups = {};
+	    this.store.load();
+	},
 
-		records.forEach(function(item) {
-		    var btype = item.data["backup-type"];
-		    let group = btype + "/" + item.data["backup-id"];
+	getRecordGroups: function(records) {
+	    let groups = {};
 
-		    if (groups[group] !== undefined)
-			return;
+	    for (const item of records) {
+		var btype = item.data["backup-type"];
+		let group = btype + "/" + item.data["backup-id"];
 
-		    var cls = '';
-		    if (btype === 'vm') {
-			cls = 'fa-desktop';
-		    } else if (btype === 'ct') {
-			cls = 'fa-cube';
-		    } else if (btype === 'host') {
-			cls = 'fa-building';
-		    } else {
-			return btype + '/' + value;
-		    }
+		if (groups[group] !== undefined) {
+		    continue;
+		}
 
-		    groups[group] = {
-			text: group,
-			leaf: false,
-			iconCls: "fa " + cls,
-			expanded: false,
-			backup_type: item.data["backup-type"],
-			backup_id: item.data["backup-id"],
-			children: []
-		    };
-		});
+		var cls = '';
+		if (btype === 'vm') {
+		    cls = 'fa-desktop';
+		} else if (btype === 'ct') {
+		    cls = 'fa-cube';
+		} else if (btype === 'host') {
+		    cls = 'fa-building';
+		} else {
+		    console.warn(`got unkown backup-type '${btype}'`);
+		    continue; // FIXME: auto render? what do?
+		}
 
-		let backup_time_to_string = function(backup_time) {
-		    let pad = function(number) {
-			if (number < 10) {
-			    return '0' + number;
-			}
-			return number;
-		    };
-		    return backup_time.getUTCFullYear() +
-			'-' + pad(backup_time.getUTCMonth() + 1) +
-			'-' + pad(backup_time.getUTCDate()) +
-			'T' + pad(backup_time.getUTCHours()) +
-			':' + pad(backup_time.getUTCMinutes()) +
-			':' + pad(backup_time.getUTCSeconds()) +
-			'Z';
+		groups[group] = {
+		    text: group,
+		    leaf: false,
+		    iconCls: "fa " + cls,
+		    expanded: false,
+		    backup_type: item.data["backup-type"],
+		    backup_id: item.data["backup-id"],
+		    children: []
 		};
+	    }
 
-		records.forEach(function(item) {
-		    let group = item.data["backup-type"] + "/" + item.data["backup-id"];
-		    let children = groups[group].children;
+	    return groups;
+	},
 
-		    let data = item.data;
+	onLoad: function(store, records, success) {
+	    let view = this.getView();
 
-		    data.text = Ext.Date.format(data["backup-time"], 'Y-m-d H:i:s');
-		    data.text = group + '/' + backup_time_to_string(data["backup-time"]);
-		    data.leaf = true;
-		    data.cls = 'no-leaf-icons';
+	    if (!success) {
+		return;
+	    }
 
-		    children.push(data);
-		});
+	    let groups = this.getRecordGroups(records);
 
-		let children = [];
-		Ext.Object.each(groups, function(key, group) {
-		    let last_backup = 0;
-		    group.children.forEach(function(item) {
-			if (item["backup-time"] > last_backup) {
-			    last_backup = item["backup-time"];
-			    group["backup-time"] = last_backup;
-			    group.files = item.files;
-			    group.size = item.size;
-			}
-		    });
-		    group.count = group.children.length;
-		    children.push(group)
-		})
+	    let backup_time_to_string = function(backup_time) {
+		let pad = (number) => number < 10 ? '0' + number : number;
+		return backup_time.getUTCFullYear() +
+		    '-' + pad(backup_time.getUTCMonth() + 1) +
+		    '-' + pad(backup_time.getUTCDate()) +
+		    'T' + pad(backup_time.getUTCHours()) +
+		    ':' + pad(backup_time.getUTCMinutes()) +
+		    ':' + pad(backup_time.getUTCSeconds()) +
+		    'Z';
+	    };
 
-		view.setRootNode({
-		    expanded: true,
-		    children: children
-		});
+	    for (const item of records) {
+		let group = item.data["backup-type"] + "/" + item.data["backup-id"];
+		let children = groups[group].children;
 
+		let data = item.data;
+
+		data.text = Ext.Date.format(data["backup-time"], 'Y-m-d H:i:s');
+		data.text = group + '/' + backup_time_to_string(data["backup-time"]);
+		data.leaf = true;
+		data.cls = 'no-leaf-icons';
+
+		children.push(data);
+	    }
+
+	    let children = [];
+	    for (const [_key, group] of Object.entries(groups)) {
+		let last_backup = 0;
+		for (const item of group.children) {
+		    if (item["backup-time"] > last_backup) {
+			last_backup = item["backup-time"];
+			group["backup-time"] = last_backup;
+			group.files = item.files;
+			group.size = item.size;
+		    }
+		}
+		group.count = group.children.length;
+		children.push(group);
+	    }
+
+	    view.setRootNode({
+		expanded: true,
+		children: children
 	    });
-
 	},
 
 	onPrune: function() {
