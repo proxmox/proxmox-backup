@@ -222,7 +222,7 @@ impl Disk {
     /// Read from a file in this device's sys path.
     ///
     /// Note: path must be a relative path!
-    fn read_sys(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
+    pub fn read_sys(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
         assert!(path.is_relative());
 
         std::fs::read(self.syspath().join(path))
