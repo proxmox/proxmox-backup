@@ -52,14 +52,13 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		method: "POST",
 		params: params,
 		callback: function() {
-		    console.log("DONE");
+		    return; // for easy breakpoint setting
 		},
 		failure: function (response, opts) {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		},
 		success: function(response, options) {
 		    var data = response.result.data;
-		    console.log(data);
 		    view.prune_store.setData(data);
 		}
 	    });
