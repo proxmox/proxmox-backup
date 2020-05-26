@@ -79,6 +79,16 @@ Ext.define('PBS.config.ACLView', {
 	    proxy.setExtraParams(params);
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
+	control: {
+	    '#': { // view
+		activate: function() {
+		    this.getView().getStore().rstore.startUpdate();
+		},
+		deactivate: function() {
+		    this.getView().getStore().rstore.stopUpdate();
+		},
+	    },
+	},
     },
 
     store: {
@@ -90,7 +100,6 @@ Ext.define('PBS.config.ACLView', {
 	    type: 'update',
 	    storeid: 'pmx-acls',
 	    model: 'pmx-acls',
-	    autoStart: true,
 	    interval: 5000,
 	},
     },
