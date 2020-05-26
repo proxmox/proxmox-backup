@@ -31,6 +31,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true
 		    },
 		    {
+			text: gettext('Remotes'),
+			iconCls: 'fa fa-server',
+			path: 'pbsRemoteView',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Data Store'),
 			iconCls: 'fa fa-archive',
 			path: 'pbsDataStoreConfig',

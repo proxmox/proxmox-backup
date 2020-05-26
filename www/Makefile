@@ -7,8 +7,10 @@ IMAGES := \
 JSSRC=							\
 	form/UserSelector.js				\
 	config/UserView.js				\
+	config/RemoteView.js				\
 	config/ACLView.js				\
 	window/UserEdit.js				\
+	window/RemoteEdit.js				\
 	window/ACLEdit.js				\
 	Utils.js					\
 	LoginView.js					\
