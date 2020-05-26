@@ -400,21 +400,22 @@ impl HttpClient {
         if interactive && tty::stdin_isatty() {
             println!("fingerprint: {}", fp_string);
             loop {
-                print!("Want to trust? (y/n): ");
+                print!("Are you sure you want to continue connecting? (y/n): ");
                 let _ = std::io::stdout().flush();
-                let mut buf = [0u8; 1];
-                use std::io::Read;
-                match std::io::stdin().read_exact(&mut buf) {
-                    Ok(()) => {
-                        if buf[0] == b'y' || buf[0] == b'Y' {
+                use std::io::{BufRead, BufReader};
+                let mut line = String::new();
+                match BufReader::new(std::io::stdin()).read_line(&mut line) {
+                    Ok(_) => {
+                        let trimmed = line.trim();
+                        if trimmed == "y" || trimmed == "Y" {
                             return (true, Some(fp_string));
-                        } else if buf[0] == b'n' || buf[0] == b'N' {
+                        } else if trimmed == "n" || trimmed == "N" {
                             return (false, None);
+                        } else {
+                            continue;
                         }
                     }
-                    Err(_) => {
-                        return (false, None);
-                    }
+                    Err(_) => return (false, None),
                 }
             }
         }
