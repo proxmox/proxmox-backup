@@ -1,10 +1,39 @@
+Ext.define('pve-rrd-node', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{
+	    name: 'cpu',
+	    // percentage
+	    convert: function(value) {
+		return value*100;
+	    }
+	},
+	{
+	    name: 'iowait',
+	    // percentage
+	    convert: function(value) {
+		return value*100;
+	    }
+	},
+	'netin',
+	'netout',
+	'memtotal',
+	'memused',
+	'swaptotal',
+	'swapused',
+	'roottotal',
+	'rootused',
+	'loadavg',
+	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
+    ]
+});
 Ext.define('PBS.ServerStatus', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsServerStatus',
 
     title: gettext('ServerStatus'),
 
-    html: "Add Something usefule here ?",
+    scrollable: true,
 
     initComponent: function() {
         var me = this;
@@ -41,7 +70,76 @@ Ext.define('PBS.ServerStatus', {
 	    iconCls: 'fa fa-power-off'
 	});
 
-	me.tbar = [ restartBtn, shutdownBtn ];
+	me.tbar = [ restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' } ];
+
+	var rrdstore = Ext.create('Proxmox.data.RRDStore', {
+	    rrdurl: "/api2/json/nodes/localhost/rrd",
+	    model: 'pve-rrd-node'
+	});
+
+	me.items = {
+	    xtype: 'container',
+	    itemId: 'itemcontainer',
+	    layout: 'column',
+	    minWidth: 700,
+	    defaults: {
+		minHeight: 320,
+		padding: 5,
+		columnWidth: 1
+	    },
+	    items: [
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('CPU usage'),
+		    fields: ['cpu','iowait'],
+		    fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Server load'),
+		    fields: ['loadavg'],
+		    fieldTitles: [gettext('Load average')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Memory usage'),
+		    fields: ['memtotal','memused'],
+		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Swap usage'),
+		    fields: ['swaptotal','swapused'],
+		    fieldTitles: [gettext('Total'), gettext('Swap usage')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Network traffic'),
+		    fields: ['netin','netout'],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Root Disk usage'),
+		    fields: ['roottotal','rootused'],
+		    fieldTitles: [gettext('Total'), gettext('Disk usage')],
+		    store: rrdstore
+		},
+	    ]
+	};
+
+	me.listeners = {
+	    activate: function() {
+		rrdstore.startUpdate();
+	    },
+	    destroy: function() {
+		rrdstore.stopUpdate();
+	    },
+	};
 
 	me.callParent();
     }
