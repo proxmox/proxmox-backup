@@ -25,6 +25,17 @@ Ext.define('PBS.Utils', {
 	return path.indexOf(PBS.Utils.dataStorePrefix) === 0;
     },
 
+    render_datetime_utc: function(datetime) {
+	let pad = (number) => number < 10 ? '0' + number : number;
+	return datetime.getUTCFullYear() +
+	    '-' + pad(datetime.getUTCMonth() + 1) +
+	    '-' + pad(datetime.getUTCDate()) +
+	    'T' + pad(datetime.getUTCHours()) +
+	    ':' + pad(datetime.getUTCMinutes()) +
+	    ':' + pad(datetime.getUTCSeconds()) +
+	    'Z';
+    },
+
     render_datastore_worker_id: function(id, what) {
 	const result = id.match(/^(\S+)_([^_\s]+)_([^_\s]+)$/);
 	if (result) {

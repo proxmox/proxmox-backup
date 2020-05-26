@@ -103,25 +103,13 @@ Ext.define('PBS.DataStoreContent', {
 
 	    let groups = this.getRecordGroups(records);
 
-	    let backup_time_to_string = function(backup_time) {
-		let pad = (number) => number < 10 ? '0' + number : number;
-		return backup_time.getUTCFullYear() +
-		    '-' + pad(backup_time.getUTCMonth() + 1) +
-		    '-' + pad(backup_time.getUTCDate()) +
-		    'T' + pad(backup_time.getUTCHours()) +
-		    ':' + pad(backup_time.getUTCMinutes()) +
-		    ':' + pad(backup_time.getUTCSeconds()) +
-		    'Z';
-	    };
-
 	    for (const item of records) {
 		let group = item.data["backup-type"] + "/" + item.data["backup-id"];
 		let children = groups[group].children;
 
 		let data = item.data;
 
-		data.text = Ext.Date.format(data["backup-time"], 'Y-m-d H:i:s');
-		data.text = group + '/' + backup_time_to_string(data["backup-time"]);
+		data.text = group + '/' + PBS.Utils.render_datetime_utc(data["backup-time"]);
 		data.leaf = true;
 		data.cls = 'no-leaf-icons';
 
