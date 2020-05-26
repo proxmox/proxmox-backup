@@ -618,6 +618,8 @@ async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
     use proxmox_backup::config::datastore;
+    use proxmox_backup::tools::disks::DiskManage;
+
 
     proxmox_backup::tools::runtime::block_in_place(move || {
 
@@ -680,6 +682,8 @@ async fn generate_host_stats() {
             }
         }
 
+        let disk_manager = DiskManage::new();
+
         match datastore::config() {
             Ok((config, _)) => {
                 let datastore_list: Vec<datastore::DataStoreConfig> =
@@ -688,12 +692,42 @@ async fn generate_host_stats() {
                 for config in datastore_list {
                     match disk_usage(std::path::Path::new(&config.path)) {
                         Ok((total, used, _avail)) => {
-                            let rrd_key = format!("datastore/{}", config.name);
+                            let rrd_key = format!("datastore/{}/total", config.name);
                             rrd_update_gauge(&rrd_key, total as f64);
+                            let rrd_key = format!("datastore/{}/used", config.name);
                             rrd_update_gauge(&rrd_key, used as f64);
                         }
                         Err(err) => {
                             eprintln!("read disk_usage on {:?} failed - {}", config.path, err);
+                        }
+                    }
+
+                    let path = std::path::Path::new(&config.path);
+
+                    match disk_manager.mount_info() {
+                        Ok(mountinfo) => {
+                            if let Some(device) = find_mounted_device(mountinfo, path) {
+                                if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
+                                    if let Ok(Some(stat)) = disk.read_stat() {
+                                        let rrd_key = format!("datastore/{}/read_ios", config.name);
+                                        rrd_update_derive(&rrd_key, stat.read_ios as f64);
+                                        let rrd_key = format!("datastore/{}/read_bytes", config.name);
+                                        rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
+                                        let rrd_key = format!("datastore/{}/read_ticks", config.name);
+                                        rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
+
+                                        let rrd_key = format!("datastore/{}/write_ios", config.name);
+                                        rrd_update_derive(&rrd_key, stat.write_ios as f64);
+                                        let rrd_key = format!("datastore/{}/write_bytes", config.name);
+                                        rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
+                                        let rrd_key = format!("datastore/{}/write_ticks", config.name);
+                                        rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("disk_manager mount_info() failed - {}", err);
                         }
                     }
                 }
@@ -719,4 +753,26 @@ fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
     let bsize = stat.f_bsize as u64;
 
     Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
+}
+
+pub fn find_mounted_device(
+    mountinfo: &proxmox::sys::linux::procfs::mountinfo::MountInfo,
+    path: &std::path::Path,
+) -> Option<proxmox::sys::linux::procfs::mountinfo::Device> {
+
+    let mut result = None;
+    let mut match_len = 0;
+
+    let root_path = std::path::Path::new("/");
+    for (_id, entry) in mountinfo {
+        if entry.root == root_path && path.starts_with(&entry.mount_point) {
+            let len = entry.mount_point.as_path().as_os_str().len();
+            if len > match_len {
+                match_len = len;
+                result = Some(entry.device);
+            }
+        }
+    }
+
+    result
 }
