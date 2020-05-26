@@ -423,6 +423,30 @@ impl Disk {
             .is_mounted
             .get_or_try_init(|| self.manager.is_devnum_mounted(self.devnum()?))?)
     }
+
+    /// Read block device stats
+    pub fn read_stat(&self) -> std::io::Result<Option<BlockDevStat>> {
+        if let Some(stat) = self.read_sys(Path::new("stat"))? {
+            let stat = unsafe { std::str::from_utf8_unchecked(&stat) };
+            let stat: Vec<u64> = stat.split_ascii_whitespace().map(|s| {
+                u64::from_str_radix(s, 10).unwrap_or(0)
+            }).collect();
+
+            if stat.len() < 8 { return Ok(None); }
+
+            return Ok(Some(BlockDevStat {
+                read_ios: stat[0],
+                read_merges: stat[1],
+                read_sectors: stat[2],
+                read_ticks: stat[3],
+                write_ios: stat[4],
+                write_merges: stat[5],
+                write_sectors: stat[6],
+                write_ticks: stat[7],
+            }));
+        }
+        Ok(None)
+    }
 }
 
 /// This is just a rough estimate for a "type" of disk.
@@ -438,4 +462,17 @@ pub enum DiskType {
 
     /// Some kind of USB disk, but we don't know more than that.
     Usb,
+}
+
+#[derive(Debug)]
+/// Represents the contents of the /sys/block/<dev>/stat file.
+pub struct BlockDevStat {
+    pub read_ios: u64,
+    pub read_merges: u64,
+    pub read_sectors: u64,
+    pub read_ticks: u64, //milliseconds
+    pub write_ios: u64,
+    pub write_merges: u64,
+    pub write_sectors: u64,
+    pub write_ticks: u64, //milliseconds
 }
