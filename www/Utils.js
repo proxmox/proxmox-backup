@@ -25,13 +25,27 @@ Ext.define('PBS.Utils', {
 	return path.indexOf(PBS.Utils.dataStorePrefix) === 0;
     },
 
+    render_datastore_worker_id: function(id, what) {
+	const result = id.match(/^(\S+)_([^_\s]+)_([^_\s]+)$/);
+	if (result) {
+	    let datastore = result[1], type = result[2], id = result[3];
+	    return `Datastore ${datastore} - ${what} ${type}/${id}`;
+	}
+	return what;
+    },
+
     constructor: function() {
 	var me = this;
 
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
 	    garbage_collection: ['Datastore', gettext('Garbage collect') ],
-	    backup: [ '', gettext('Backup') ],
+	    prune: (type, id) => {
+		return PBS.Utils.render_datastore_worker_id(id, gettext('Prune'));
+	    },
+	    backup: (type, id) => {
+		return PBS.Utils.render_datastore_worker_id(id, gettext('Backup'));
+	    },
 	    reader: [ '', gettext('Read datastore objects') ], // FIXME: better one
 	});
     }
