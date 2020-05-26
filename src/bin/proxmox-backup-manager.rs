@@ -260,11 +260,9 @@ fn task_mgmt_cli() -> CommandLineInterface {
             "remote-store": {
                 schema: DATASTORE_SCHEMA,
             },
-            delete: {
-                description: "Delete vanished backups. This remove the local copy if the remote backup was deleted.",
-                type: Boolean,
+            "remove-vanished": {
+                schema: REMOVE_VANISHED_BACKUPS_SCHEMA,
                 optional: true,
-                default: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -278,7 +276,7 @@ async fn pull_datastore(
     remote: String,
     remote_store: String,
     local_store: String,
-    delete: Option<bool>,
+    remove_vanished: Option<bool>,
     param: Value,
 ) -> Result<Value, Error> {
 
@@ -286,15 +284,12 @@ async fn pull_datastore(
 
     let mut client = connect()?;
 
-    let mut args = json!({
+    let args = json!({
         "store": local_store,
         "remote": remote,
         "remote-store": remote_store,
+        "remove-vanished": remove_vanished,
     });
-
-    if let Some(delete) = delete {
-        args["delete"] = delete.into();
-    }
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 
