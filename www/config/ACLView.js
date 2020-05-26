@@ -77,6 +77,7 @@ Ext.define('PBS.config.ACLView', {
 		params.exact = view.aclExact;
 	    }
 	    proxy.setExtraParams(params);
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
     },
 

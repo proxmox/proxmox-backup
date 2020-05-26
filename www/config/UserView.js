@@ -60,6 +60,10 @@ Ext.define('PBS.config.UserView', {
 	},
 
 	reload: function() { this.getView().getStore().rstore.load(); },
+
+	init: function(view) {
+	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
+	},
     },
 
     listeners: {
