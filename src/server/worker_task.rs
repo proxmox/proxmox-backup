@@ -418,10 +418,8 @@ impl WorkerTask {
         let logger = FileLogger::new(&path, to_stdout)?;
         nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
 
-        update_active_workers(Some(&upid))?;
-
         let worker = Arc::new(Self {
-            upid,
+            upid: upid.clone(),
             abort_requested: AtomicBool::new(false),
             data: Mutex::new(WorkerTaskData {
                 logger,
@@ -430,10 +428,14 @@ impl WorkerTask {
             }),
         });
 
-        let mut hash = WORKER_TASK_LIST.lock().unwrap();
+        // scope to drop the lock again after inserting
+        {
+            let mut hash = WORKER_TASK_LIST.lock().unwrap();
+            hash.insert(task_id, worker.clone());
+            super::set_worker_count(hash.len());
+        }
 
-        hash.insert(task_id, worker.clone());
-        super::set_worker_count(hash.len());
+        update_active_workers(Some(&upid))?;
 
         Ok(worker)
     }
