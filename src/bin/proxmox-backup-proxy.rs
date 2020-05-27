@@ -558,7 +558,7 @@ async fn schedule_datastore_sync_jobs() {
 
         if let Err(err) = WorkerTask::spawn(
             worker_type,
-            Some(job_config.store.clone()),
+            Some(job_id.clone()),
             &username.clone(),
             false,
             move |worker| async move {
