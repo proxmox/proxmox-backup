@@ -284,12 +284,15 @@ async fn pull_datastore(
 
     let mut client = connect()?;
 
-    let args = json!({
+    let mut args = json!({
         "store": local_store,
         "remote": remote,
         "remote-store": remote_store,
-        "remove-vanished": remove_vanished,
     });
+
+    if let Some(remove_vanished) = remove_vanished {
+        args["remove-vanished"] = Value::from(remove_vanished);
+    }
 
     let result = client.post("api2/json/pull", Some(args)).await?;
 
