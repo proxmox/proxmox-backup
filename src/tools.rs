@@ -474,6 +474,31 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
     Ok((path, components))
 }
 
+/// Helper to check result from std::process::Command output
+pub fn command_output(output: std::process::Output) -> Result<String, Error> {
+
+    if !output.status.success() {
+        match output.status.code() {
+            Some(code) => {
+                if code == 0 { return Ok(String::new()); }
+                if code != 1 {
+                    let msg = String::from_utf8(output.stderr)
+                        .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                        .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+
+                    bail!("status code: {} - {}", code, msg);
+                }
+            }
+            None => bail!("terminated by signal"),
+        }
+    }
+
+    let output = String::from_utf8(output.stdout)?;
+
+    Ok(output)
+}
+
+
 pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
     use nix::fcntl::{fcntl, FdFlag, F_GETFD, F_SETFD};
     let mut flags = FdFlag::from_bits(fcntl(fd, F_GETFD)?)

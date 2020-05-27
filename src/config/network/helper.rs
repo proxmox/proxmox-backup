@@ -149,23 +149,8 @@ pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> 
         .output()
         .map_err(|err| format_err!("failed to execute diff - {}", err))?;
 
-    if !output.status.success() {
-        match output.status.code() {
-            Some(code) => {
-                if code == 0 { return Ok(String::new()); }
-                if code != 1 {
-                    let msg = String::from_utf8(output.stderr)
-                        .map(|m| if m.is_empty() { String::from("no error message") } else { m })
-                        .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
-
-                   bail!("diff failed with status code: {} - {}", code, msg);
-                }
-            }
-            None => bail!("diff terminated by signal"),
-        }
-    }
-
-    let diff = String::from_utf8(output.stdout)?;
+    let diff = crate::tools::command_output(output)
+        .map_err(|err| format_err!("diff failed: {}", err))?;
 
     Ok(diff)
 }
