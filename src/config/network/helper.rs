@@ -149,7 +149,7 @@ pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> 
         .output()
         .map_err(|err| format_err!("failed to execute diff - {}", err))?;
 
-    let diff = crate::tools::command_output(output)
+    let diff = crate::tools::command_output(output, Some(|c| c == 0 || c == 1))
         .map_err(|err| format_err!("diff failed: {}", err))?;
 
     Ok(diff)
@@ -165,17 +165,14 @@ pub fn assert_ifupdown2_installed() -> Result<(), Error> {
 
 pub fn network_reload() -> Result<(), Error> {
 
-    let status = Command::new("/sbin/ifreload")
+    let output = Command::new("/sbin/ifreload")
         .arg("-a")
-        .status()
-        .map_err(|err| format_err!("failed to execute ifreload: - {}", err))?;
+        .output()
+        .map_err(|err| format_err!("failed to execute '/sbin/ifreload' - {}", err))?;
 
-    if !status.success() {
-        match status.code() {
-            Some(code) => bail!("ifreload failed with status code: {}", code),
-            None => bail!("ifreload terminated by signal")
-        }
-    }
+    crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("ifreload failed: {}", err))?;
+
 
     Ok(())
 }

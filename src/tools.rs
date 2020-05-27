@@ -475,13 +475,22 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 }
 
 /// Helper to check result from std::process::Command output
-pub fn command_output(output: std::process::Output) -> Result<String, Error> {
+///
+/// The exit_code_check() function should return true if the exit code
+/// is considered successful.
+pub fn command_output(
+    output: std::process::Output,
+    exit_code_check: Option<fn(i32) -> bool>
+) -> Result<String, Error> {
 
     if !output.status.success() {
         match output.status.code() {
             Some(code) => {
-                if code == 0 { return Ok(String::new()); }
-                if code != 1 {
+                let is_ok = match exit_code_check {
+                    Some(check_fn) => check_fn(code),
+                    None => code == 0,
+                };
+                if !is_ok {
                     let msg = String::from_utf8(output.stderr)
                         .map(|m| if m.is_empty() { String::from("no error message") } else { m })
                         .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
