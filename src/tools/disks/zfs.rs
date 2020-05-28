@@ -30,7 +30,7 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
         u64::from_str_radix(s, 10).unwrap_or(0)
     }).collect();
 
-    let ticks = stat[4]/1_000_000; // convert to milisec
+    let ticks = (stat[4] + stat[7])/1_000_000; // convert to milisec
 
     let stat = BlockDevStat {
         read_sectors: stat[0]>>9,
