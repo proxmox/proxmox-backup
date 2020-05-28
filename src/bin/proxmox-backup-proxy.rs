@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::ffi::OsString;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -7,6 +8,7 @@ use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
+use proxmox::sys::linux::procfs::mountinfo::{Device, MountInfo};
 
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
@@ -618,7 +620,7 @@ async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
     use proxmox_backup::config::datastore;
-    use proxmox_backup::tools::disks::DiskManage;
+    use proxmox_backup::tools::disks::{ DiskManage, zfs::zfs_pool_stats };
 
 
     proxmox_backup::tools::runtime::block_in_place(move || {
@@ -706,23 +708,40 @@ async fn generate_host_stats() {
 
                     match disk_manager.mount_info() {
                         Ok(mountinfo) => {
-                            if let Some(device) = find_mounted_device(mountinfo, path) {
-                                if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
-                                    if let Ok(Some(stat)) = disk.read_stat() {
-                                        let rrd_key = format!("datastore/{}/read_ios", config.name);
-                                        rrd_update_derive(&rrd_key, stat.read_ios as f64);
-                                        let rrd_key = format!("datastore/{}/read_bytes", config.name);
-                                        rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
-                                        let rrd_key = format!("datastore/{}/read_ticks", config.name);
-                                        rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
-
-                                        let rrd_key = format!("datastore/{}/write_ios", config.name);
-                                        rrd_update_derive(&rrd_key, stat.write_ios as f64);
-                                        let rrd_key = format!("datastore/{}/write_bytes", config.name);
-                                        rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
-                                        let rrd_key = format!("datastore/{}/write_ticks", config.name);
-                                        rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
+                            if let Some((fs_type, device, source)) = find_mounted_device(mountinfo, path) {
+                                let mut device_stat = None;
+                                match fs_type.as_str() {
+                                    "zfs" => {
+                                        if let Some(pool) = source {
+                                            match zfs_pool_stats(&pool) {
+                                                Ok(stat) => device_stat = stat,
+                                                Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
+                                            }
+                                        }
                                     }
+                                    _ => {
+                                        if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
+                                            match disk.read_stat() {
+                                                Ok(stat) => device_stat = stat,
+                                                Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
+                                            }
+                                        }
+                                    }
+                                }
+                                if let Some(stat) = device_stat {
+                                    let rrd_key = format!("datastore/{}/read_ios", config.name);
+                                    rrd_update_derive(&rrd_key, stat.read_ios as f64);
+                                    let rrd_key = format!("datastore/{}/read_bytes", config.name);
+                                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
+                                    let rrd_key = format!("datastore/{}/read_ticks", config.name);
+                                    rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
+
+                                    let rrd_key = format!("datastore/{}/write_ios", config.name);
+                                    rrd_update_derive(&rrd_key, stat.write_ios as f64);
+                                    let rrd_key = format!("datastore/{}/write_bytes", config.name);
+                                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
+                                    let rrd_key = format!("datastore/{}/write_ticks", config.name);
+                                    rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
                                 }
                             }
                         }
@@ -755,10 +774,11 @@ fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
     Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
 }
 
+// Returns (fs_type, device, mount_source)
 pub fn find_mounted_device(
-    mountinfo: &proxmox::sys::linux::procfs::mountinfo::MountInfo,
+    mountinfo: &MountInfo,
     path: &std::path::Path,
-) -> Option<proxmox::sys::linux::procfs::mountinfo::Device> {
+) -> Option<(String, Device, Option<OsString>)> {
 
     let mut result = None;
     let mut match_len = 0;
@@ -769,7 +789,7 @@ pub fn find_mounted_device(
             let len = entry.mount_point.as_path().as_os_str().len();
             if len > match_len {
                 match_len = len;
-                result = Some(entry.device);
+                result = Some((entry.fs_type.clone(), entry.device, entry.mount_source.clone()));
             }
         }
     }
