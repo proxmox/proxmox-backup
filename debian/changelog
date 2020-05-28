@@ -1,3 +1,21 @@
+rust-proxmox-backup (0.2.1-1) unstable; urgency=medium
+
+  * ui: move server RRD statistics to 'Server Status' panel
+
+  * ui/api: add more server statistics
+
+  * ui/api: add per-datastore usage and performance statistics over time
+
+  * ui: add initial remote config management panel
+
+  * remotes: save passwords as base64
+
+  * gather zpool io stats
+
+  * various fixes/improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 28 May 2020 17:39:33 +0200
+
 rust-proxmox-backup (0.2.0-1) unstable; urgency=medium
 
   * see git changelog (too many changes)
