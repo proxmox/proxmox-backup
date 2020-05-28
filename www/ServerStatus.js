@@ -125,8 +125,29 @@ Ext.define('PBS.ServerStatus', {
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk usage'),
-		    fields: ['roottotal','rootused'],
+		    fields: ['total','used'],
 		    fieldTitles: [gettext('Total'), gettext('Disk usage')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Root Disk Transfer Rate (bytes/second)'),
+		    fields: ['read_bytes','write_bytes'],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Root Disk Input/Output Operations per Second (IOPS)'),
+		    fields: ['read_ios','write_ios'],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Root Disk IO Delay (ms)'),
+		    fields: ['read_delay','write_delay'],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
 		    store: rrdstore
 		},
 	    ]

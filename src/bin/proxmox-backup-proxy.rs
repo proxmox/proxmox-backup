@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::ffi::OsString;
+use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -16,6 +17,7 @@ use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
+use proxmox_backup::tools::disks::{ DiskManage, zfs::zfs_pool_stats };
 
 fn main() {
     if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
@@ -620,7 +622,6 @@ async fn generate_host_stats() {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
     use proxmox_backup::config::datastore;
-    use proxmox_backup::tools::disks::{ DiskManage, zfs::zfs_pool_stats };
 
 
     proxmox_backup::tools::runtime::block_in_place(move || {
@@ -674,17 +675,9 @@ async fn generate_host_stats() {
             }
         }
 
-        match disk_usage(std::path::Path::new("/")) {
-            Ok((total, used, _avail)) => {
-                rrd_update_gauge("host/roottotal", total as f64);
-                rrd_update_gauge("host/rootused", used as f64);
-            }
-            Err(err) => {
-                eprintln!("read root disk_usage failed - {}", err);
-            }
-        }
-
         let disk_manager = DiskManage::new();
+
+        gather_disk_stats(disk_manager.clone(), Path::new("/"), "host");
 
         match datastore::config() {
             Ok((config, _)) => {
@@ -692,63 +685,10 @@ async fn generate_host_stats() {
                     config.convert_to_typed_array("datastore").unwrap_or(Vec::new());
 
                 for config in datastore_list {
-                    match disk_usage(std::path::Path::new(&config.path)) {
-                        Ok((total, used, _avail)) => {
-                            let rrd_key = format!("datastore/{}/total", config.name);
-                            rrd_update_gauge(&rrd_key, total as f64);
-                            let rrd_key = format!("datastore/{}/used", config.name);
-                            rrd_update_gauge(&rrd_key, used as f64);
-                        }
-                        Err(err) => {
-                            eprintln!("read disk_usage on {:?} failed - {}", config.path, err);
-                        }
-                    }
 
+                    let rrd_prefix = format!("datastore/{}", config.name);
                     let path = std::path::Path::new(&config.path);
-
-                    match disk_manager.mount_info() {
-                        Ok(mountinfo) => {
-                            if let Some((fs_type, device, source)) = find_mounted_device(mountinfo, path) {
-                                let mut device_stat = None;
-                                match fs_type.as_str() {
-                                    "zfs" => {
-                                        if let Some(pool) = source {
-                                            match zfs_pool_stats(&pool) {
-                                                Ok(stat) => device_stat = stat,
-                                                Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
-                                            }
-                                        }
-                                    }
-                                    _ => {
-                                        if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
-                                            match disk.read_stat() {
-                                                Ok(stat) => device_stat = stat,
-                                                Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
-                                            }
-                                        }
-                                    }
-                                }
-                                if let Some(stat) = device_stat {
-                                    let rrd_key = format!("datastore/{}/read_ios", config.name);
-                                    rrd_update_derive(&rrd_key, stat.read_ios as f64);
-                                    let rrd_key = format!("datastore/{}/read_bytes", config.name);
-                                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
-                                    let rrd_key = format!("datastore/{}/read_ticks", config.name);
-                                    rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
-
-                                    let rrd_key = format!("datastore/{}/write_ios", config.name);
-                                    rrd_update_derive(&rrd_key, stat.write_ios as f64);
-                                    let rrd_key = format!("datastore/{}/write_bytes", config.name);
-                                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
-                                    let rrd_key = format!("datastore/{}/write_ticks", config.name);
-                                    rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            eprintln!("disk_manager mount_info() failed - {}", err);
-                        }
-                    }
+                    gather_disk_stats(disk_manager.clone(), path, &rrd_prefix);
                 }
             }
             Err(err) => {
@@ -757,6 +697,66 @@ async fn generate_host_stats() {
         }
 
     });
+}
+
+
+fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str) {
+
+    match disk_usage(path) {
+        Ok((total, used, _avail)) => {
+            let rrd_key = format!("{}/total", rrd_prefix);
+            rrd_update_gauge(&rrd_key, total as f64);
+            let rrd_key = format!("{}/used", rrd_prefix);
+            rrd_update_gauge(&rrd_key, used as f64);
+        }
+        Err(err) => {
+            eprintln!("read disk_usage on {:?} failed - {}", path, err);
+        }
+    }
+
+    match disk_manager.mount_info() {
+        Ok(mountinfo) => {
+            if let Some((fs_type, device, source)) = find_mounted_device(mountinfo, path) {
+                let mut device_stat = None;
+                match fs_type.as_str() {
+                    "zfs" => {
+                        if let Some(pool) = source {
+                            match zfs_pool_stats(&pool) {
+                                Ok(stat) => device_stat = stat,
+                                Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
+                            }
+                        }
+                    }
+                    _ => {
+                        if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
+                            match disk.read_stat() {
+                                Ok(stat) => device_stat = stat,
+                                Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
+                            }
+                        }
+                    }
+                }
+                if let Some(stat) = device_stat {
+                    let rrd_key = format!("{}/read_ios", rrd_prefix);
+                    rrd_update_derive(&rrd_key, stat.read_ios as f64);
+                    let rrd_key = format!("{}/read_bytes", rrd_prefix);
+                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
+                    let rrd_key = format!("{}/read_ticks", rrd_prefix);
+                    rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
+
+                    let rrd_key = format!("{}/write_ios", rrd_prefix);
+                    rrd_update_derive(&rrd_key, stat.write_ios as f64);
+                    let rrd_key = format!("{}/write_bytes", rrd_prefix);
+                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
+                    let rrd_key = format!("{}/write_ticks", rrd_prefix);
+                    rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("disk_manager mount_info() failed - {}", err);
+        }
+    }
 }
 
 // Returns (total, used, avail)

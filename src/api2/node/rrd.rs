@@ -34,9 +34,11 @@ fn get_node_stats(
             "memtotal", "memused",
             "swaptotal", "swapused",
             "netin", "netout",
-            "roottotal", "rootused",
             "loadavg",
-        ],
+            "total", "used",
+            "read_ios", "read_bytes", "read_ticks",
+            "write_ios", "write_bytes", "write_ticks",
+         ],
         timeframe,
         cf,
     )
