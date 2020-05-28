@@ -75,4 +75,15 @@ Ext.define('PBS.window.RemoteEdit', {
 	    },
 	],
     },
+
+    getValues: function() {
+	let me = this;
+	let values = me.callParent(arguments);
+
+	if (values.password === '') {
+	    delete values.password;
+	}
+
+	return values;
+    },
 });
