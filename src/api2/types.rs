@@ -27,6 +27,8 @@ macro_rules! DNS_NAME { () => (concat!(r"(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL
 macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[:cntrl:]]+)") }
 macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
 
+macro_rules! USER_ID_REGEX_STR { () => (concat!(USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!())) }
+
 #[macro_export]
 macro_rules! PROXMOX_SAFE_ID_REGEX_STR {  () => (r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)") }
 
@@ -63,7 +65,7 @@ const_regex!{
 
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r"$");
 
-    pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!(), r"$");
+    pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_ID_REGEX_STR!(), r"$");
 
     pub PROXMOX_GROUP_ID_REGEX = concat!(r"^",  GROUP_NAME_REGEX_STR!(), r"$");
 
