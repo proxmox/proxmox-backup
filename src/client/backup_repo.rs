@@ -3,12 +3,8 @@ use std::fmt;
 use anyhow::{format_err, Error};
 
 use proxmox::api::schema::*;
-use proxmox::const_regex;
 
-const_regex! {
-    /// Regular expression to parse repository URLs
-    pub BACKUP_REPO_URL_REGEX = r"^(?:(?:([\w@]+)@)?([\w\-_.]+):)?(\w+)$";
-}
+use crate::api2::types::*;
 
 /// API schema format definition for repository URLs
 pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_REPO_URL_REGEX);
