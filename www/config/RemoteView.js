@@ -88,7 +88,7 @@ Ext.define('PBS.config.RemoteView', {
 	},
 	{
 	    xtype: 'proxmoxStdRemoveButton',
-	    baseurl: '/access/users/',
+	    baseurl: '/config/remote',
 	    callback: 'reload',
 	},
     ],
