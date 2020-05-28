@@ -477,24 +477,15 @@ pub const NETWORK_INTERFACES_FILENAME: &str = "/etc/network/interfaces";
 pub const NETWORK_INTERFACES_NEW_FILENAME: &str = "/etc/network/interfaces.new";
 pub const NETWORK_LOCKFILE: &str = "/var/lock/pve-network.lck";
 
-
 pub fn config() -> Result<(NetworkConfig, [u8;32]), Error> {
-    let content = std::fs::read(NETWORK_INTERFACES_NEW_FILENAME)
-        .or_else(|err| {
-            if err.kind() == std::io::ErrorKind::NotFound {
-                std::fs::read(NETWORK_INTERFACES_FILENAME)
-                    .or_else(|err| {
-                        if err.kind() == std::io::ErrorKind::NotFound {
-                            Ok(Vec::new())
-                        } else {
-                            bail!("unable to read '{}' - {}", NETWORK_INTERFACES_FILENAME, err);
-                         }
-                    })
-            } else {
-                bail!("unable to read '{}' - {}", NETWORK_INTERFACES_NEW_FILENAME, err);
-            }
-        })?;
 
+    let content = match proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_NEW_FILENAME)? {
+        Some(content) => content,
+        None => {
+            let content = proxmox::tools::fs::file_get_optional_contents(NETWORK_INTERFACES_FILENAME)?;
+            content.unwrap_or(Vec::new())
+        }
+    };
 
     let digest = openssl::sha::sha256(&content);
 

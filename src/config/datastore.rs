@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{Error};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
@@ -113,16 +113,9 @@ pub const DATASTORE_CFG_FILENAME: &str = "/etc/proxmox-backup/datastore.cfg";
 pub const DATASTORE_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.datastore.lck";
 
 pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
-    let content = match std::fs::read_to_string(DATASTORE_CFG_FILENAME) {
-        Ok(c) => c,
-        Err(err) => {
-            if err.kind() == std::io::ErrorKind::NotFound {
-                String::from("")
-            } else {
-                bail!("unable to read '{}' - {}", DATASTORE_CFG_FILENAME, err);
-            }
-        }
-    };
+
+    let content = proxmox::tools::fs::file_read_optional_string(DATASTORE_CFG_FILENAME)?;
+    let content = content.unwrap_or(String::from(""));
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(DATASTORE_CFG_FILENAME, &content)?;
