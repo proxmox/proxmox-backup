@@ -21,8 +21,24 @@ Ext.define('pve-rrd-node', {
 	'memused',
 	'swaptotal',
 	'swapused',
-	'roottotal',
-	'rootused',
+	'total',
+	'used',
+	'read_ios',
+	'read_bytes',
+        'write_ios',
+	'write_bytes',
+        'io_ticks',
+	{
+	    name: 'io_delay', calculate: function(data) {
+		let ios = 0;
+		if (data.read_ios !== undefined) { ios += data.read_ios; }
+		if (data.write_ios !== undefined) { ios += data.write_ios; }
+		if (ios == 0 || data.io_ticks === undefined) {
+		    return undefined;
+		}
+		return (data.io_ticks*1000.0)/ios;
+	    }
+	},
 	'loadavg',
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
     ]
@@ -146,8 +162,8 @@ Ext.define('PBS.ServerStatus', {
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk IO Delay (ms)'),
-		    fields: ['read_delay','write_delay'],
-		    fieldTitles: [gettext('Read'), gettext('Write')],
+		    fields: ['io_delay'],
+		    fieldTitles: [gettext('IO Delay')],
 		    store: rrdstore
 		},
 	    ]

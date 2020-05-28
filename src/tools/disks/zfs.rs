@@ -37,10 +37,7 @@ pub fn zfs_pool_stats(pool: &OsStr) -> Result<Option<BlockDevStat>, Error> {
         write_sectors: stat[1]>>9,
         read_ios: stat[2],
         write_ios: stat[3],
-        read_merges: 0, // there is no such info
-        write_merges: 0, // there is no such info
-        write_ticks: ticks,
-        read_ticks: ticks,
+        io_ticks: ticks,
     };
 
     Ok(Some(stat))

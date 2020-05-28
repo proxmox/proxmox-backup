@@ -5,24 +5,18 @@ Ext.define('pve-rrd-datastore', {
 	'total',
 	'read_ios',
 	'read_bytes',
-	'read_ticks',
 	'write_ios',
 	'write_bytes',
-	'write_ticks',
+        'io_ticks',
 	{
-	    name: 'read_delay', calculate: function(data) {
-		if (data.read_ios === undefined || data.read_ios === 0 || data.read_ticks == undefined) {
+	    name: 'io_delay', calculate: function(data) {
+		let ios = 0;
+		if (data.read_ios !== undefined) { ios += data.read_ios; }
+		if (data.write_ios !== undefined) { ios += data.write_ios; }
+		if (ios == 0 || data.io_ticks === undefined) {
 		    return undefined;
 		}
-		return (data.read_ticks*1000)/data.read_ios;
-	    }
-	},
-	{
-	    name: 'write_delay', calculate: function(data) {
-		if (data.write_ios === undefined || data.write_ios === 0 || data.write_ticks == undefined) {
-		    return undefined;
-		}
-		return (data.write_ticks*1000)/data.write_ios;
+		return (data.io_ticks*1000.0)/ios;
 	    }
 	},
 	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
@@ -85,9 +79,9 @@ Ext.define('PBS.DataStoreStatistic', {
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
-		    title: gettext('Delay (ms)'),
-		    fields: ['read_delay','write_delay'],
-		    fieldTitles: [gettext('Read'), gettext('Write')],
+		    title: gettext('IO Delay (ms)'),
+		    fields: ['io_delay'],
+		    fieldTitles: [gettext('IO Delay')],
 		    store: rrdstore
 		},
 	    ]

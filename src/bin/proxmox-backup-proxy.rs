@@ -741,15 +741,14 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
                     rrd_update_derive(&rrd_key, stat.read_ios as f64);
                     let rrd_key = format!("{}/read_bytes", rrd_prefix);
                     rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
-                    let rrd_key = format!("{}/read_ticks", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.read_ticks as f64)/1000.0);
 
                     let rrd_key = format!("{}/write_ios", rrd_prefix);
                     rrd_update_derive(&rrd_key, stat.write_ios as f64);
                     let rrd_key = format!("{}/write_bytes", rrd_prefix);
                     rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
-                    let rrd_key = format!("{}/write_ticks", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.write_ticks as f64)/1000.0);
+
+                    let rrd_key = format!("{}/io_ticks", rrd_prefix);
+                    rrd_update_derive(&rrd_key, (stat.io_ticks as f64)/1000.0);
                 }
             }
         }

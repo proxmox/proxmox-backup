@@ -875,8 +875,9 @@ fn get_rrd_stats(
         &rrd_dir,
         &[
             "total", "used",
-            "read_ios", "read_bytes", "read_ticks",
-            "write_ios", "write_bytes", "write_ticks",
+            "read_ios", "read_bytes",
+            "write_ios", "write_bytes",
+            "io_ticks",
         ],
         timeframe,
         cf,
