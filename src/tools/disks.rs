@@ -16,6 +16,8 @@ use proxmox::sys::error::io_err_other;
 use proxmox::sys::linux::procfs::MountInfo;
 use proxmox::{io_bail, io_format_err};
 
+pub mod zfs;
+
 bitflags! {
     /// Ways a device is being used.
     pub struct DiskUse: u32 {
