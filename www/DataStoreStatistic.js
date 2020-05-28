@@ -64,23 +64,30 @@ Ext.define('PBS.DataStoreStatistic', {
 	    items: [
 		{
 		    xtype: 'proxmoxRRDChart',
-		    title: gettext('Storage usage'),
+		    title: gettext('Storage usage (bytes)'),
 		    fields: ['total','used'],
 		    fieldTitles: [gettext('Total'), gettext('Storage usage')],
 		    store: rrdstore
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
-		    title: gettext('IOPS'),
-		    fields: ['read_ios','write_ios'],
-		    fieldTitles: [gettext('Read IOPS'), gettext('Write IOPS')],
+		    title: gettext('Transfer Rate (bytes/second)'),
+		    fields: ['read_bytes','write_bytes'],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
 		    store: rrdstore
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
-		    title: gettext('Delay'),
+		    title: gettext('Input/Output Operations per Second (IOPS)'),
+		    fields: ['read_ios','write_ios'],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
+		    store: rrdstore
+		},
+		{
+		    xtype: 'proxmoxRRDChart',
+		    title: gettext('Delay (ms)'),
 		    fields: ['read_delay','write_delay'],
-		    fieldTitles: [gettext('Read delay'), gettext('Write delay')],
+		    fieldTitles: [gettext('Read'), gettext('Write')],
 		    store: rrdstore
 		},
 	    ]
