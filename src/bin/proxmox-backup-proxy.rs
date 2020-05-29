@@ -710,10 +710,9 @@ async fn generate_host_stats(save: bool) {
     });
 }
 
-
 fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str, save: bool) {
 
-    match disk_usage(path) {
+    match proxmox_backup::tools::disks::disk_usage(path) {
         Ok((total, used, _avail)) => {
             let rrd_key = format!("{}/total", rrd_prefix);
             rrd_update_gauge(&rrd_key, total as f64, save);
@@ -725,84 +724,45 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
         }
     }
 
-    match disk_manager.mount_info() {
-        Ok(mountinfo) => {
-            if let Some((fs_type, device, source)) = find_mounted_device(mountinfo, path) {
-                let mut device_stat = None;
-                match fs_type.as_str() {
-                    "zfs" => {
-                        if let Some(pool) = source {
-                            match zfs_pool_stats(&pool) {
-                                Ok(stat) => device_stat = stat,
-                                Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
-                            }
-                        }
-                    }
-                    _ => {
-                        if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
-                            match disk.read_stat() {
-                                Ok(stat) => device_stat = stat,
-                                Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
-                            }
+    match disk_manager.find_mounted_device(path) {
+        Ok(None) => {},
+        Ok(Some((fs_type, device, source))) => {
+            let mut device_stat = None;
+            match fs_type.as_str() {
+                "zfs" => {
+                    if let Some(pool) = source {
+                        match zfs_pool_stats(&pool) {
+                            Ok(stat) => device_stat = stat,
+                            Err(err) => eprintln!("zfs_pool_stats({:?}) failed - {}", pool, err),
                         }
                     }
                 }
-                if let Some(stat) = device_stat {
-                    let rrd_key = format!("{}/read_ios", rrd_prefix);
-                    rrd_update_derive(&rrd_key, stat.read_ios as f64, save);
-                    let rrd_key = format!("{}/read_bytes", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64, save);
-
-                    let rrd_key = format!("{}/write_ios", rrd_prefix);
-                    rrd_update_derive(&rrd_key, stat.write_ios as f64, save);
-                    let rrd_key = format!("{}/write_bytes", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64, save);
-
-                    let rrd_key = format!("{}/io_ticks", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.io_ticks as f64)/1000.0, save);
+                _ => {
+                    if let Ok(disk) = disk_manager.clone().disk_by_dev_num(device.into_dev_t()) {
+                        match disk.read_stat() {
+                            Ok(stat) => device_stat = stat,
+                            Err(err) => eprintln!("disk.read_stat {:?} failed - {}", path, err),
+                        }
+                    }
                 }
+            }
+            if let Some(stat) = device_stat {
+                let rrd_key = format!("{}/read_ios", rrd_prefix);
+                rrd_update_derive(&rrd_key, stat.read_ios as f64, save);
+                let rrd_key = format!("{}/read_bytes", rrd_prefix);
+                rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64, save);
+
+                let rrd_key = format!("{}/write_ios", rrd_prefix);
+                rrd_update_derive(&rrd_key, stat.write_ios as f64, save);
+                let rrd_key = format!("{}/write_bytes", rrd_prefix);
+                rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64, save);
+
+                let rrd_key = format!("{}/io_ticks", rrd_prefix);
+                rrd_update_derive(&rrd_key, (stat.io_ticks as f64)/1000.0, save);
             }
         }
         Err(err) => {
-            eprintln!("disk_manager mount_info() failed - {}", err);
+            eprintln!("find_mounted_device failed - {}", err);
         }
     }
-}
-
-// Returns (total, used, avail)
-fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
-
-    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
-
-    use nix::NixPath;
-
-    let res = path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
-    nix::errno::Errno::result(res)?;
-
-    let bsize = stat.f_bsize as u64;
-
-    Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
-}
-
-// Returns (fs_type, device, mount_source)
-pub fn find_mounted_device(
-    mountinfo: &MountInfo,
-    path: &std::path::Path,
-) -> Option<(String, Device, Option<OsString>)> {
-
-    let mut result = None;
-    let mut match_len = 0;
-
-    let root_path = std::path::Path::new("/");
-    for (_id, entry) in mountinfo {
-        if entry.root == root_path && path.starts_with(&entry.mount_point) {
-            let len = entry.mount_point.as_path().as_os_str().len();
-            if len > match_len {
-                match_len = len;
-                result = Some((entry.fs_type.clone(), entry.device, entry.mount_source.clone()));
-            }
-        }
-    }
-
-    result
 }

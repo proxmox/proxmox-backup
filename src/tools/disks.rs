@@ -13,7 +13,7 @@ use libc::dev_t;
 use once_cell::sync::OnceCell;
 
 use proxmox::sys::error::io_err_other;
-use proxmox::sys::linux::procfs::MountInfo;
+use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
 
 pub mod zfs;
@@ -133,6 +133,28 @@ impl DiskManage {
 
                 Ok(mounted)
             })
+    }
+
+    /// Information about file system type and unsed device for a path
+    ///
+    /// Returns tuple (fs_type, device, mount_source)
+    pub fn find_mounted_device(
+        &self,
+        path: &std::path::Path,
+    ) -> Result<Option<(String, Device, Option<OsString>)>, Error> {
+
+        let stat = nix::sys::stat::stat(path)?;
+        let device = Device::from_dev_t(stat.st_dev);
+
+        let root_path = std::path::Path::new("/");
+
+        for (_id, entry) in self.mount_info()? {
+            if entry.root == root_path && entry.device == device {
+                return Ok(Some((entry.fs_type.clone(), entry.device, entry.mount_source.clone())));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Check whether a specific device node is mounted.
@@ -448,6 +470,21 @@ impl Disk {
         }
         Ok(None)
     }
+}
+
+/// Returns disk usage information (total, used, avail)
+pub fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
+
+    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
+
+    use nix::NixPath;
+
+    let res = path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
+    nix::errno::Errno::result(res)?;
+
+    let bsize = stat.f_bsize as u64;
+
+    Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
 }
 
 /// This is just a rough estimate for a "type" of disk.
