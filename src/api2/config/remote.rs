@@ -269,6 +269,8 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
         None => bail!("remote '{}' does not exist.", name),
     }
 
+    remote::save_config(&config)?;
+
     Ok(())
 }
 
