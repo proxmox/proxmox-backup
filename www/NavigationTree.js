@@ -37,6 +37,12 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
+			text: gettext('Sync Jobs'),
+			iconCls: 'fa fa-refresh',
+			path: 'pbsSyncJobView',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Data Store'),
 			iconCls: 'fa fa-archive',
 			path: 'pbsDataStoreConfig',

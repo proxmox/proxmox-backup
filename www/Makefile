@@ -11,6 +11,7 @@ JSSRC=							\
 	config/UserView.js				\
 	config/RemoteView.js				\
 	config/ACLView.js				\
+	config/SyncView.js				\
 	window/UserEdit.js				\
 	window/RemoteEdit.js				\
 	window/SyncJobEdit.js				\
