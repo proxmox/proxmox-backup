@@ -510,7 +510,7 @@ async fn schedule_datastore_sync_jobs() {
             }
         };
 
-        let worker_type = "sync";
+        let worker_type = "syncjob";
 
         let last = match lookup_last_worker(worker_type, &job_id) {
             Ok(Some(upid)) => {
