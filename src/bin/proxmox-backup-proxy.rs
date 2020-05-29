@@ -507,12 +507,15 @@ async fn schedule_datastore_sync_jobs() {
             }
         };
 
-        //fixme: if last_sync_job_still_running { continue; }
-
         let worker_type = "sync";
 
         let last = match lookup_last_worker(worker_type, &job_id) {
-            Ok(Some(upid)) => upid.starttime,
+            Ok(Some(upid)) => {
+                if proxmox_backup::server::worker_is_active_local(&upid) {
+                    continue;
+                }
+                upid.starttime
+            },
             Ok(None) => 0,
             Err(err) => {
                 eprintln!("lookup_last_job_start failed: {}", err);
