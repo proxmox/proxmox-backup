@@ -108,7 +108,7 @@ Ext.define('PBS.ServerStatus', {
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('CPU usage'),
 		    fields: ['cpu','iowait'],
-		    fieldTitles: [gettext('CPU usage'), gettext('IO delay')],
+		    fieldTitles: [gettext('CPU usage'), gettext('IO wait')],
 		    store: rrdstore
 		},
 		{
