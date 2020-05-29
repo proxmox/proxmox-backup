@@ -600,31 +600,36 @@ async fn schedule_datastore_sync_jobs() {
 
 async fn run_stat_generator() {
 
+    let mut count = 0;
     loop {
+        count += 1;
+        let save = if count > 6 { count = 0; true } else { false };
+
         let delay_target = Instant::now() +  Duration::from_secs(10);
 
-        generate_host_stats().await;
+        generate_host_stats(save).await;
 
         tokio::time::delay_until(tokio::time::Instant::from_std(delay_target)).await;
-    }
+
+     }
 
 }
 
-fn rrd_update_gauge(name: &str, value: f64) {
+fn rrd_update_gauge(name: &str, value: f64, save: bool) {
     use proxmox_backup::rrd;
-    if let Err(err) = rrd::update_value(name, value, rrd::DST::Gauge) {
+    if let Err(err) = rrd::update_value(name, value, rrd::DST::Gauge, save) {
         eprintln!("rrd::update_value '{}' failed - {}", name, err);
     }
 }
 
-fn rrd_update_derive(name: &str, value: f64) {
+fn rrd_update_derive(name: &str, value: f64, save: bool) {
     use proxmox_backup::rrd;
-    if let Err(err) = rrd::update_value(name, value, rrd::DST::Derive) {
+    if let Err(err) = rrd::update_value(name, value, rrd::DST::Derive, save) {
         eprintln!("rrd::update_value '{}' failed - {}", name, err);
     }
 }
 
-async fn generate_host_stats() {
+async fn generate_host_stats(save: bool) {
     use proxmox::sys::linux::procfs::{
         read_meminfo, read_proc_stat, read_proc_net_dev, read_loadavg};
     use proxmox_backup::config::datastore;
@@ -634,8 +639,8 @@ async fn generate_host_stats() {
 
         match read_proc_stat() {
             Ok(stat) => {
-                rrd_update_gauge("host/cpu", stat.cpu);
-                rrd_update_gauge("host/iowait", stat.iowait_percent);
+                rrd_update_gauge("host/cpu", stat.cpu, save);
+                rrd_update_gauge("host/iowait", stat.iowait_percent, save);
             }
             Err(err) => {
                 eprintln!("read_proc_stat failed - {}", err);
@@ -644,10 +649,10 @@ async fn generate_host_stats() {
 
         match read_meminfo() {
             Ok(meminfo) => {
-                rrd_update_gauge("host/memtotal", meminfo.memtotal as f64);
-                rrd_update_gauge("host/memused", meminfo.memused as f64);
-                rrd_update_gauge("host/swaptotal", meminfo.swaptotal as f64);
-                rrd_update_gauge("host/swapused", meminfo.swapused as f64);
+                rrd_update_gauge("host/memtotal", meminfo.memtotal as f64, save);
+                rrd_update_gauge("host/memused", meminfo.memused as f64, save);
+                rrd_update_gauge("host/swaptotal", meminfo.swaptotal as f64, save);
+                rrd_update_gauge("host/swapused", meminfo.swapused as f64, save);
             }
             Err(err) => {
                 eprintln!("read_meminfo failed - {}", err);
@@ -664,8 +669,8 @@ async fn generate_host_stats() {
                     netin += item.receive;
                     netout += item.send;
                 }
-                rrd_update_derive("host/netin", netin as f64);
-                rrd_update_derive("host/netout", netout as f64);
+                rrd_update_derive("host/netin", netin as f64, save);
+                rrd_update_derive("host/netout", netout as f64, save);
             }
             Err(err) => {
                 eprintln!("read_prox_net_dev failed - {}", err);
@@ -674,7 +679,7 @@ async fn generate_host_stats() {
 
         match read_loadavg() {
             Ok(loadavg) => {
-                rrd_update_gauge("host/loadavg", loadavg.0 as f64);
+                rrd_update_gauge("host/loadavg", loadavg.0 as f64, save);
             }
             Err(err) => {
                 eprintln!("read_loadavg failed - {}", err);
@@ -683,7 +688,7 @@ async fn generate_host_stats() {
 
         let disk_manager = DiskManage::new();
 
-        gather_disk_stats(disk_manager.clone(), Path::new("/"), "host");
+        gather_disk_stats(disk_manager.clone(), Path::new("/"), "host", save);
 
         match datastore::config() {
             Ok((config, _)) => {
@@ -694,7 +699,7 @@ async fn generate_host_stats() {
 
                     let rrd_prefix = format!("datastore/{}", config.name);
                     let path = std::path::Path::new(&config.path);
-                    gather_disk_stats(disk_manager.clone(), path, &rrd_prefix);
+                    gather_disk_stats(disk_manager.clone(), path, &rrd_prefix, save);
                 }
             }
             Err(err) => {
@@ -706,14 +711,14 @@ async fn generate_host_stats() {
 }
 
 
-fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str) {
+fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str, save: bool) {
 
     match disk_usage(path) {
         Ok((total, used, _avail)) => {
             let rrd_key = format!("{}/total", rrd_prefix);
-            rrd_update_gauge(&rrd_key, total as f64);
+            rrd_update_gauge(&rrd_key, total as f64, save);
             let rrd_key = format!("{}/used", rrd_prefix);
-            rrd_update_gauge(&rrd_key, used as f64);
+            rrd_update_gauge(&rrd_key, used as f64, save);
         }
         Err(err) => {
             eprintln!("read disk_usage on {:?} failed - {}", path, err);
@@ -744,17 +749,17 @@ fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &st
                 }
                 if let Some(stat) = device_stat {
                     let rrd_key = format!("{}/read_ios", rrd_prefix);
-                    rrd_update_derive(&rrd_key, stat.read_ios as f64);
+                    rrd_update_derive(&rrd_key, stat.read_ios as f64, save);
                     let rrd_key = format!("{}/read_bytes", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64);
+                    rrd_update_derive(&rrd_key, (stat.read_sectors*512) as f64, save);
 
                     let rrd_key = format!("{}/write_ios", rrd_prefix);
-                    rrd_update_derive(&rrd_key, stat.write_ios as f64);
+                    rrd_update_derive(&rrd_key, stat.write_ios as f64, save);
                     let rrd_key = format!("{}/write_bytes", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64);
+                    rrd_update_derive(&rrd_key, (stat.write_sectors*512) as f64, save);
 
                     let rrd_key = format!("{}/io_ticks", rrd_prefix);
-                    rrd_update_derive(&rrd_key, (stat.io_ticks as f64)/1000.0);
+                    rrd_update_derive(&rrd_key, (stat.io_ticks as f64)/1000.0, save);
                 }
             }
         }

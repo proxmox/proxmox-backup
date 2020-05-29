@@ -40,7 +40,7 @@ fn now() -> Result<f64, Error> {
     Ok(time.as_secs_f64())
 }
 
-pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
+pub fn update_value(rel_path: &str, value: f64, dst: DST, save: bool) -> Result<(), Error> {
 
     let mut path = PathBuf::from(PBS_RRD_BASEDIR);
     path.push(rel_path);
@@ -52,7 +52,7 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
 
     if let Some(rrd) = map.get_mut(rel_path) {
         rrd.update(now, value);
-        rrd.save(&path)?;
+        if save { rrd.save(&path)?; }
     } else {
         let mut rrd = match RRD::load(&path) {
             Ok(rrd) => rrd,
@@ -64,7 +64,7 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST) -> Result<(), Error> {
             },
         };
         rrd.update(now, value);
-        rrd.save(&path)?;
+        if save { rrd.save(&path)?; }
         map.insert(rel_path.into(), rrd);
     }
 
