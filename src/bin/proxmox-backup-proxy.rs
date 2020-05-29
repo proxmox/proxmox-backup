@@ -385,12 +385,15 @@ async fn schedule_datastore_prune() {
             }
         };
 
-        //fixme: if last_prune_job_stzill_running { continue; }
-
         let worker_type = "prune";
 
         let last = match lookup_last_worker(worker_type, &store) {
-            Ok(Some(upid)) => upid.starttime,
+            Ok(Some(upid)) => {
+                if proxmox_backup::server::worker_is_active_local(&upid) {
+                    continue;
+                }
+                upid.starttime
+            }
             Ok(None) => 0,
             Err(err) => {
                 eprintln!("lookup_last_job_start failed: {}", err);
