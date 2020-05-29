@@ -511,7 +511,7 @@ async fn schedule_datastore_sync_jobs() {
 
         let worker_type = "sync";
 
-        let last = match lookup_last_worker(worker_type, &job_config.store) {
+        let last = match lookup_last_worker(worker_type, &job_id) {
             Ok(Some(upid)) => upid.starttime,
             Ok(None) => 0,
             Err(err) => {
