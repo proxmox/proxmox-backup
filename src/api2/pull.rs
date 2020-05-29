@@ -1,4 +1,5 @@
 //! Sync datastore from remote server
+use std::sync::{Arc};
 
 use anyhow::{format_err, Error};
 
@@ -14,6 +15,52 @@ use crate::config::{
     acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ},
     cached_user_info::CachedUserInfo,
 };
+
+
+pub fn check_pull_privs(
+    username: &str,
+    store: &str,
+    remote: &str,
+    remote_store: &str,
+    delete: bool,
+) -> Result<(), Error> {
+
+    let user_info = CachedUserInfo::new()?;
+
+    user_info.check_privs(username, &["datastore", store], PRIV_DATASTORE_BACKUP, false)?;
+    user_info.check_privs(username, &["remote", remote, remote_store], PRIV_REMOTE_READ, false)?;
+
+    if delete {
+        user_info.check_privs(username, &["datastore", store], PRIV_DATASTORE_PRUNE, false)?;
+    }
+
+    Ok(())
+}
+
+pub async fn get_pull_parameters(
+    store: &str,
+    remote: &str,
+    remote_store: &str,
+) -> Result<(HttpClient, BackupRepository, Arc<DataStore>), Error> {
+
+    let tgt_store = DataStore::lookup_datastore(store)?;
+
+    let (remote_config, _digest) = remote::config()?;
+    let remote: remote::Remote = remote_config.lookup("remote", remote)?;
+
+    let options = HttpClientOptions::new()
+        .password(Some(remote.password.clone()))
+        .fingerprint(remote.fingerprint.clone());
+
+    let client = HttpClient::new(&remote.host, &remote.userid, options)?;
+    let _auth_info = client.login() // make sure we can auth
+        .await
+        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
+
+    let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote_store.to_string());
+
+    Ok((client, src_repo, tgt_store))
+}
 
 #[api(
     input: {
@@ -52,33 +99,12 @@ async fn pull (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let user_info = CachedUserInfo::new()?;
-
     let username = rpcenv.get_user().unwrap();
-    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
-    user_info.check_privs(&username, &["remote", &remote, &remote_store], PRIV_REMOTE_READ, false)?;
-
     let delete = remove_vanished.unwrap_or(true);
 
-    if delete {
-        user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_PRUNE, false)?;
-    }
+    check_pull_privs(&username, &store, &remote, &remote_store, delete)?;
 
-    let tgt_store = DataStore::lookup_datastore(&store)?;
-
-    let (remote_config, _digest) = remote::config()?;
-    let remote: remote::Remote = remote_config.lookup("remote", &remote)?;
-
-    let options = HttpClientOptions::new()
-        .password(Some(remote.password.clone()))
-        .fingerprint(remote.fingerprint.clone());
-
-    let client = HttpClient::new(&remote.host, &remote.userid, options)?;
-    let _auth_info = client.login() // make sure we can auth
-        .await
-        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
-
-    let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote_store);
+    let (client, src_repo, tgt_store) = get_pull_parameters(&store, &remote, &remote_store).await?;
 
     // fixme: set to_stdout to false?
     let upid_str = WorkerTask::spawn("sync", Some(store.clone()), &username.clone(), true, move |worker| async move {
