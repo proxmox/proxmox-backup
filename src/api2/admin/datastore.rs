@@ -130,8 +130,8 @@ fn list_groups(
         let group = info.backup_dir.group();
 
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
+        let owner = datastore.get_owner(group)?;
         if !list_all {
-            let owner = datastore.get_owner(group)?;
             if owner != username { continue; }
         }
 
@@ -141,6 +141,7 @@ fn list_groups(
             last_backup: info.backup_dir.backup_time().timestamp(),
             backup_count: list.len() as u64,
             files: info.files.clone(),
+            owner: Some(owner),
         };
         groups.push(result_item);
     }
@@ -329,8 +330,9 @@ pub fn list_snapshots (
         }
 
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
+        let owner = datastore.get_owner(group)?;
+
         if !list_all {
-            let owner = datastore.get_owner(group)?;
             if owner != username { continue; }
         }
 
@@ -340,6 +342,7 @@ pub fn list_snapshots (
             backup_time: info.backup_dir.backup_time().timestamp(),
             files: info.files,
             size: None,
+            owner: Some(owner),
         };
 
         if let Ok(index) = read_backup_index(&datastore, &info.backup_dir) {

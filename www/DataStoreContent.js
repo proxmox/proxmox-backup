@@ -9,6 +9,7 @@ Ext.define('pbs-data-store-snapshots', {
 	    dateFormat: 'timestamp'
 	},
 	'files',
+	'owner',
 	{ name: 'size', type: 'int' },
     ]
 });
@@ -125,6 +126,7 @@ Ext.define('PBS.DataStoreContent', {
 			group["backup-time"] = last_backup;
 			group.files = item.files;
 			group.size = item.size;
+			group.owner = item.owner;
 		    }
 		}
 		group.count = group.children.length;
@@ -157,67 +159,59 @@ Ext.define('PBS.DataStoreContent', {
 	}
     },
 
-    initComponent: function() {
-	var me = this;
+    columns: [
+	{
+	    xtype: 'treecolumn',
+	    header: gettext("Backup Group"),
+	    dataIndex: 'text',
+	    flex: 1
+	},
+	{
+	    xtype: 'datecolumn',
+	    header: gettext('Backup Time'),
+	    sortable: true,
+	    dataIndex: 'backup-time',
+	    format: 'Y-m-d H:i:s',
+	    width: 150
+	},
+	{
+	    header: gettext("Size"),
+	    sortable: true,
+	    dataIndex: 'size',
+	    renderer: Proxmox.Utils.format_size,
+	},
+	{
+	    xtype: 'numbercolumn',
+	    format: '0',
+	    header: gettext("Count"),
+	    sortable: true,
+	    dataIndex: 'count',
+	},
+	{
+	    header: gettext("Owner"),
+	    sortable: true,
+	    dataIndex: 'owner',
+	},
+	{
+	    header: gettext("Files"),
+	    sortable: false,
+	    dataIndex: 'files',
+	    flex: 2
+	},
+    ],
 
-	var sm = Ext.create('Ext.selection.RowModel', {});
-
-	var prune_btn = new Proxmox.button.Button({
+    tbar: [
+	{
+	    text: gettext('Reload'),
+	    iconCls: 'fa fa-refresh',
+	    handler: 'reload',
+	},
+	{
+	    xtype: 'proxmoxButton',
 	    text: gettext('Prune'),
 	    disabled: true,
-	    selModel: sm,
 	    enableFn: function(record) { return !record.data.leaf; },
 	    handler: 'onPrune',
-	});
-
-	Ext.apply(me, {
-	    selModel: sm,
-	    columns: [
-		{
-		    xtype: 'treecolumn',
-		    header: gettext("Backup Group"),
-		    dataIndex: 'text',
-		    flex: 1
-		},
-		{
-		    xtype: 'datecolumn',
-		    header: gettext('Backup Time'),
-		    sortable: true,
-		    dataIndex: 'backup-time',
-		    format: 'Y-m-d H:i:s',
-		    width: 150
-		},
-		{
-		    header: gettext("Size"),
-		    sortable: true,
-		    dataIndex: 'size',
-		    renderer: Proxmox.Utils.format_size,
-		},
-		{
-		    xtype: 'numbercolumn',
-		    format: '0',
-		    header: gettext("Count"),
-		    sortable: true,
-		    dataIndex: 'count',
-		},
-		{
-		    header: gettext("Files"),
-		    sortable: false,
-		    dataIndex: 'files',
-		    flex: 2
-		}
-	    ],
-
-	    tbar: [
-		{
-		    text: gettext('Reload'),
-		    iconCls: 'fa fa-refresh',
-		    handler: 'reload',
-		},
-		prune_btn
-	    ],
-	});
-
-	me.callParent();
-    },
+	}
+    ],
 });

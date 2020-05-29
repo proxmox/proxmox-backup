@@ -388,6 +388,9 @@ pub struct GroupListItem {
     pub backup_count: u64,
     /// List of contained archive files.
     pub files: Vec<String>,
+    /// The owner of group
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub owner: Option<String>,
 }
 
 #[api(
@@ -420,6 +423,9 @@ pub struct SnapshotListItem {
     /// Overall snapshot size (sum of all archive sizes).
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,
+    /// The owner of the snapshots group
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub owner: Option<String>,
 }
 
 #[api(
