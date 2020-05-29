@@ -60,7 +60,7 @@ pub fn list_sync_jobs(
             },
             schedule: {
                 optional: true,
-                schema: GC_SCHEDULE_SCHEMA,
+                schema: SYNC_SCHEDULE_SCHEMA,
             },
         },
     },
@@ -154,7 +154,7 @@ pub enum DeletableProperty {
             },
             schedule: {
                 optional: true,
-                schema: GC_SCHEDULE_SCHEMA,
+                schema: SYNC_SCHEDULE_SCHEMA,
             },
             delete: {
                 description: "List of properties to delete.",

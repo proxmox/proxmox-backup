@@ -46,7 +46,7 @@ lazy_static! {
         },
         schedule: {
             optional: true,
-            schema: GC_SCHEDULE_SCHEMA,
+            schema: SYNC_SCHEDULE_SCHEMA,
         },
     }
 )]

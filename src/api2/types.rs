@@ -291,6 +291,11 @@ pub const DATASTORE_SCHEMA: Schema = StringSchema::new("Datastore name.")
     .max_length(32)
     .schema();
 
+pub const SYNC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
+    "Run sync job at specified schedule.")
+    .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
+    .schema();
+
 pub const GC_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run garbage collection job at specified schedule.")
     .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
