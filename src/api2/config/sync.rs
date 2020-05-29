@@ -274,4 +274,4 @@ const ITEM_ROUTER: Router = Router::new()
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_SYNC_JOBS)
     .post(&API_METHOD_CREATE_SYNC_JOB)
-    .match_all("name", &ITEM_ROUTER);
+    .match_all("id", &ITEM_ROUTER);
