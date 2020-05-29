@@ -72,7 +72,7 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
 /// If the task is spanned from a different process, we simply return if
 /// that process is still running. This information is good enough to detect
 /// stale tasks...
-fn worker_is_active_local(upid: &UPID) -> bool {
+pub fn worker_is_active_local(upid: &UPID) -> bool {
     if (upid.pid == *MY_PID) && (upid.pstart == *MY_PID_PSTART) {
         WORKER_TASK_LIST.lock().unwrap().contains_key(&upid.task_id)
     } else {
