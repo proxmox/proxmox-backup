@@ -113,7 +113,7 @@ Ext.define('PBS.config.RemoteView', {
 	},
 	{
 	    header: gettext('User name'),
-	    width: 100,
+	    width: 200,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'userid',
@@ -123,6 +123,13 @@ Ext.define('PBS.config.RemoteView', {
 	    sortable: false,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'fingerprint',
+	    width: 200,
+	},
+	{
+	    header: gettext('Comment'),
+	    sortable: false,
+	    renderer: Ext.String.htmlEncode,
+	    dataIndex: 'comment',
 	    flex: 1,
 	},
     ],
