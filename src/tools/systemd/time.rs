@@ -296,6 +296,9 @@ mod test {
         test_value("mon 2:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR)?;
         test_value("mon 2:50", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR + 50*MIN)?;
 
+        test_value("daily", THURSDAY_00_00, THURSDAY_00_00 + DAY)?;
+        test_value("daily", THURSDAY_00_00+1, THURSDAY_00_00 + DAY)?;
+
         let n = test_value("5/2:0", THURSDAY_00_00, THURSDAY_00_00 + 5*HOUR)?;
         let n = test_value("5/2:0", n, THURSDAY_00_00 + 7*HOUR)?;
         let n = test_value("5/2:0", n, THURSDAY_00_00 + 9*HOUR)?;
