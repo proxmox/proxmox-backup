@@ -137,6 +137,7 @@ async fn pull_snapshot(
         })?;
 
         if manifest_blob.raw_data() == tmp_manifest_blob.raw_data() {
+            worker.log("nothing changed - skip sync");
             return Ok(()); // nothing changed
         }
     }
@@ -223,9 +224,11 @@ pub async fn pull_snapshot_from(
             }
             return Err(err);
         }
+        worker.log(format!("sync snapshot {:?} done", snapshot.relative_path()));
     } else {
         worker.log(format!("re-sync snapshot {:?}", snapshot.relative_path()));
-        pull_snapshot(worker, reader, tgt_store.clone(), &snapshot).await?
+        pull_snapshot(worker, reader, tgt_store.clone(), &snapshot).await?;
+        worker.log(format!("re-sync snapshot {:?} done", snapshot.relative_path()));
     }
 
     Ok(())
