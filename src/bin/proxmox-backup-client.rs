@@ -22,11 +22,6 @@ use proxmox_backup::client::*;
 use proxmox_backup::backup::*;
 use proxmox_backup::pxar::{ self, catalog::* };
 
-//use proxmox_backup::backup::image_index::*;
-//use proxmox_backup::config::datastore;
-//use proxmox_backup::pxar::encoder::*;
-//use proxmox_backup::backup::datastore::*;
-
 use serde_json::{json, Value};
 //use hyper::Body;
 use std::sync::{Arc, Mutex};
@@ -39,18 +34,10 @@ use tokio::sync::mpsc;
 const ENV_VAR_PBS_FINGERPRINT: &str = "PBS_FINGERPRINT";
 const ENV_VAR_PBS_PASSWORD: &str = "PBS_PASSWORD";
 
-proxmox::const_regex! {
-    BACKUPSPEC_REGEX = r"^([a-zA-Z0-9_-]+\.(?:pxar|img|conf|log)):(.+)$";
-}
 
 const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
     .format(&BACKUP_REPO_URL)
     .max_length(256)
-    .schema();
-
-const BACKUP_SOURCE_SCHEMA: Schema = StringSchema::new(
-    "Backup source specification ([<label>:<path>]).")
-    .format(&ApiStringFormat::Pattern(&BACKUPSPEC_REGEX))
     .schema();
 
 const KEYFILE_SCHEMA: Schema = StringSchema::new(
@@ -688,14 +675,6 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-fn parse_backupspec(value: &str) -> Result<(&str, &str), Error> {
-
-    if let Some(caps) = (BACKUPSPEC_REGEX.regex_obj)().captures(value) {
-        return Ok((caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str()));
-    }
-    bail!("unable to parse directory specification '{}'", value);
-}
-
 fn spawn_catalog_upload(
     client: Arc<BackupWriter>,
     crypt_config: Option<Arc<CryptConfig>>,
@@ -865,12 +844,12 @@ async fn create_backup(
 
     let mut upload_list = vec![];
 
-    enum BackupType { PXAR, IMAGE, CONFIG, LOGFILE };
-
     let mut upload_catalog = false;
 
     for backupspec in backupspec_list {
-        let (target, filename) = parse_backupspec(backupspec.as_str().unwrap())?;
+        let spec = parse_backup_specification(backupspec.as_str().unwrap())?;
+        let filename = &spec.config_string;
+        let target = &spec.archive_name;
 
         use std::os::unix::fs::FileTypeExt;
 
@@ -878,19 +857,15 @@ async fn create_backup(
             .map_err(|err| format_err!("unable to access '{}' - {}", filename, err))?;
         let file_type = metadata.file_type();
 
-        let extension = target.rsplit('.').next()
-            .ok_or_else(|| format_err!("missing target file extenion '{}'", target))?;
-
-        match extension {
-            "pxar" => {
+        match spec.spec_type {
+            BackupSpecificationType::PXAR => {
                 if !file_type.is_dir() {
                     bail!("got unexpected file type (expected directory)");
                 }
-                upload_list.push((BackupType::PXAR, filename.to_owned(), format!("{}.didx", target), 0));
+                upload_list.push((BackupSpecificationType::PXAR, filename.to_owned(), format!("{}.didx", target), 0));
                 upload_catalog = true;
             }
-            "img" => {
-
+            BackupSpecificationType::IMAGE => {
                 if !(file_type.is_file() || file_type.is_block_device()) {
                     bail!("got unexpected file type (expected file or block device)");
                 }
@@ -899,22 +874,19 @@ async fn create_backup(
 
                 if size == 0 { bail!("got zero-sized file '{}'", filename); }
 
-                upload_list.push((BackupType::IMAGE, filename.to_owned(), format!("{}.fidx", target), size));
+                upload_list.push((BackupSpecificationType::IMAGE, filename.to_owned(), format!("{}.fidx", target), size));
             }
-            "conf" => {
+            BackupSpecificationType::CONFIG => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupType::CONFIG, filename.to_owned(), format!("{}.blob", target), metadata.len()));
+                upload_list.push((BackupSpecificationType::CONFIG, filename.to_owned(), format!("{}.blob", target), metadata.len()));
             }
-            "log" => {
+            BackupSpecificationType::LOGFILE => {
                 if !file_type.is_file() {
                     bail!("got unexpected file type (expected regular file)");
                 }
-                upload_list.push((BackupType::LOGFILE, filename.to_owned(), format!("{}.blob", target), metadata.len()));
-            }
-            _ => {
-                bail!("got unknown archive extension '{}'", extension);
+                upload_list.push((BackupSpecificationType::LOGFILE, filename.to_owned(), format!("{}.blob", target), metadata.len()));
             }
         }
     }
@@ -967,21 +939,21 @@ async fn create_backup(
 
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
-            BackupType::CONFIG => {
+            BackupSpecificationType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum)?;
             }
-            BackupType::LOGFILE => { // fixme: remove - not needed anymore ?
+            BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum)?;
             }
-            BackupType::PXAR => {
+            BackupSpecificationType::PXAR => {
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
@@ -1000,7 +972,7 @@ async fn create_backup(
                 manifest.add_file(target, stats.size, stats.csum)?;
                 catalog.lock().unwrap().end_directory()?;
             }
-            BackupType::IMAGE => {
+            BackupSpecificationType::IMAGE => {
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_image(
                     &client,
