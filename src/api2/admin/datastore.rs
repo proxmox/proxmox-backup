@@ -44,7 +44,7 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
 
     let mut path = store.base_path();
     path.push(backup_dir.relative_path());
-    path.push("index.json.blob");
+    path.push(MANIFEST_BLOB_NAME);
 
     let raw_data = file_get_contents(&path)?;
     let index_size = raw_data.len() as u64;
@@ -61,7 +61,7 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
     }
 
     result.push(BackupContent {
-        filename: "index.json.blob".to_string(),
+        filename: MANIFEST_BLOB_NAME.to_string(),
         size: Some(index_size),
     });
 
@@ -805,7 +805,7 @@ fn upload_backup_log(
         let store = tools::required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
-        let file_name = "client.log.blob";
+        let file_name =  CLIENT_LOG_BLOB_NAME;
 
         let backup_type = tools::required_string_param(&param, "backup-type")?;
         let backup_id = tools::required_string_param(&param, "backup-id")?;

@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use crate::backup::BackupDir;
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
+pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 
 pub struct FileInfo {
     pub filename: String,
