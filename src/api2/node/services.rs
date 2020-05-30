@@ -256,7 +256,7 @@ fn stop_service(
     _param: Value,
  ) -> Result<Value, Error> {
 
-    log::info!("stoping service {}", service);
+    log::info!("stopping service {}", service);
 
     run_service_command(&service, "stop")
 }

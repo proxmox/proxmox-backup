@@ -29,7 +29,7 @@ pub const PXAR_QUOTA_PROJID: u64 = 0x161baf2d8772a72b;
 /// Marks item as hardlink
 /// compute_goodbye_hash(b"__PROXMOX_FORMAT_HARDLINK__");
 pub const PXAR_FORMAT_HARDLINK: u64 = 0x2c5e06f634f65b86;
-/// Marks the beginnig of the payload (actual content) of regular files
+/// Marks the beginning of the payload (actual content) of regular files
 pub const PXAR_PAYLOAD: u64 = 0x8b9e1d93d6dcffc9;
 /// Marks item as entry of goodbye table
 pub const PXAR_GOODBYE: u64 = 0xdfd35c5e8327c403;

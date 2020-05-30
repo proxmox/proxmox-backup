@@ -52,7 +52,7 @@ struct FixedWriterState {
 struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
-    file_counter: usize, // sucessfully uploaded files
+    file_counter: usize, // successfully uploaded files
     dynamic_writers: HashMap<usize, DynamicWriterState>,
     fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,

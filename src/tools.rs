@@ -127,7 +127,7 @@ pub fn lock_file<F: AsRawFd>(
 }
 
 /// Open or create a lock file (append mode). Then try to
-/// aquire a lock using `lock_file()`.
+/// acquire a lock using `lock_file()`.
 pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration) -> Result<File, Error> {
     let path = path.as_ref();
     let mut file = match OpenOptions::new().create(true).append(true).open(path) {
@@ -136,7 +136,7 @@ pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration) -> Result<Fi
     };
     match lock_file(&mut file, true, Some(timeout)) {
         Ok(_) => Ok(file),
-        Err(err) => bail!("Unable to aquire lock {:?} - {}", path, err),
+        Err(err) => bail!("Unable to acquire lock {:?} - {}", path, err),
     }
 }
 
@@ -441,7 +441,7 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
 
 /// Detect modified configuration files
 ///
-/// This function fails with a resonable error message if checksums do not match.
+/// This function fails with a reasonable error message if checksums do not match.
 pub fn detect_modified_configuration_file(digest1: &[u8;32], digest2: &[u8;32]) -> Result<(), Error> {
     if digest1 != digest2 {
 	bail!("detected modified configuration - file changed by other user? Try again.");

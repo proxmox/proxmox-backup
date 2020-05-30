@@ -107,7 +107,7 @@ pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> nix::Res
 }
 
 /// Scan through a directory with a regular expression. This is simply a shortcut filtering the
-/// results of `read_subdir`. Non-UTF8 comaptible file names are silently ignored.
+/// results of `read_subdir`. Non-UTF8 compatible file names are silently ignored.
 pub fn scan_subdir<'a, P: ?Sized + nix::NixPath>(
     dirfd: RawFd,
     path: &P,

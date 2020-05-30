@@ -1,6 +1,6 @@
 //! Inter-process reader-writer lock builder.
 //!
-//! This implemenation uses fcntl record locks with non-blocking
+//! This implementation uses fcntl record locks with non-blocking
 //! F_SETLK command (never blocks).
 //!
 //! We maintain a map of shared locks with time stamps, so you can get
@@ -127,9 +127,9 @@ impl ProcessLocker {
         Ok(())
     }
 
-    /// Try to aquire a shared lock
+    /// Try to acquire a shared lock
     ///
-    /// On sucess, this makes sure that no other process can get an exclusive lock for the file.
+    /// On success, this makes sure that no other process can get an exclusive lock for the file.
     pub fn try_shared_lock(locker: Arc<Mutex<Self>>) -> Result<ProcessLockSharedGuard, Error> {
 
         let mut data = locker.lock().unwrap();
@@ -168,7 +168,7 @@ impl ProcessLocker {
         result
     }
 
-    /// Try to aquire a exclusive lock
+    /// Try to acquire a exclusive lock
     ///
     /// Make sure the we are the only process which has locks for this file (shared or exclusive).
     pub fn try_exclusive_lock(locker: Arc<Mutex<Self>>) -> Result<ProcessLockExclusiveGuard, Error> {

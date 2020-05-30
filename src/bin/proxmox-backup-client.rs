@@ -2000,7 +2000,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
         if let Some(pipe) = pipe {
             nix::unistd::chdir(Path::new("/")).unwrap();
-            // Finish creation of deamon by redirecting filedescriptors.
+            // Finish creation of daemon by redirecting filedescriptors.
             let nullfd = nix::fcntl::open(
                 "/dev/null",
                 nix::fcntl::OFlag::O_RDWR,

@@ -343,7 +343,7 @@ impl HttpClient {
 
     /// Login
     ///
-    /// Login is done on demand, so this is onyl required if you need
+    /// Login is done on demand, so this is only required if you need
     /// access to authentication data in 'AuthInfo'.
     pub async fn login(&self) -> Result<AuthInfo, Error> {
         self.auth.listen().await

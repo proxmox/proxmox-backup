@@ -61,7 +61,7 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
     }
 }
 
-/// This function calls the provided `copy_func()` with the permutaion
+/// This function calls the provided `copy_func()` with the permutation
 /// info.
 ///
 /// ```
@@ -71,7 +71,7 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
 /// });
 /// ```
 ///
-/// This will produce the folowing output:
+/// This will produce the following output:
 ///
 /// ```no-compile
 /// Copy 3 to 0
@@ -81,7 +81,7 @@ fn copy_binary_search_tree_inner<F:  FnMut(usize, usize)>(
 /// Copy 4 to 2
 /// ```
 ///
-/// So this generates the following permuation: `[3,1,4,0,2]`.
+/// So this generates the following permutation: `[3,1,4,0,2]`.
 
 pub fn copy_binary_search_tree<F:  FnMut(usize, usize)>(
     n: usize,

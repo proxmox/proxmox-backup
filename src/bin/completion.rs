@@ -49,7 +49,7 @@ fn hello_command(
 }
 
 #[api(input: { properties: {} })]
-/// Quit command. Exit the programm.
+/// Quit command. Exit the program.
 ///
 /// Returns: nothing
 fn quit_command() -> Result<(), Error> {

@@ -149,7 +149,7 @@ impl Interface {
         Ok(())
     }
 
-    /// Write attributes not dependening on address family
+    /// Write attributes not depending on address family
     fn write_iface_attributes(&self, w: &mut dyn Write) -> Result<(), Error> {
 
         static EMPTY_LIST: Vec<String> = Vec::new();
@@ -187,7 +187,7 @@ impl Interface {
         Ok(())
     }
 
-    /// Write attributes dependening on address family inet (IPv4)
+    /// Write attributes depending on address family inet (IPv4)
     fn write_iface_attributes_v4(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
             if let Some(address) = &self.cidr {
@@ -211,7 +211,7 @@ impl Interface {
         Ok(())
     }
 
-    /// Write attributes dependening on address family inet6 (IPv6)
+    /// Write attributes depending on address family inet6 (IPv6)
     fn write_iface_attributes_v6(&self, w: &mut dyn Write, method: NetworkConfigMethod) -> Result<(), Error> {
         if method == NetworkConfigMethod::Static {
             if let Some(address) = &self.cidr6 {

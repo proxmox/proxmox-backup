@@ -107,7 +107,7 @@ async move {
     }
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
-    if !is_new { bail!("backup directorty already exists."); }
+    if !is_new { bail!("backup directory already exists."); }
 
     WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
         let mut env = BackupEnvironment::new(
@@ -151,7 +151,7 @@ async move {
 
             match (res, env.ensure_finished()) {
                 (Ok(_), Ok(())) => {
-                    env.log("backup finished sucessfully");
+                    env.log("backup finished successfully");
                     Ok(())
                 },
                 (Err(err), Ok(())) => {
@@ -378,7 +378,7 @@ fn dynamic_append (
 
         env.dynamic_writer_append_chunk(wid, offset, size, &digest)?;
 
-        env.debug(format!("sucessfully added chunk {} to dynamic index {} (offset {}, size {})", digest_str, wid, offset, size));
+        env.debug(format!("successfully added chunk {} to dynamic index {} (offset {}, size {})", digest_str, wid, offset, size));
     }
 
     Ok(Value::Null)
@@ -443,7 +443,7 @@ fn fixed_append (
 
         env.fixed_writer_append_chunk(wid, offset, size, &digest)?;
 
-        env.debug(format!("sucessfully added chunk {} to fixed index {} (offset {}, size {})", digest_str, wid, offset, size));
+        env.debug(format!("successfully added chunk {} to fixed index {} (offset {}, size {})", digest_str, wid, offset, size));
     }
 
     Ok(Value::Null)
@@ -498,7 +498,7 @@ fn close_dynamic_index (
 
     env.dynamic_writer_close(wid, chunk_count, size, csum)?;
 
-    env.log(format!("sucessfully closed dynamic index {}", wid));
+    env.log(format!("successfully closed dynamic index {}", wid));
 
     Ok(Value::Null)
 }
@@ -552,7 +552,7 @@ fn close_fixed_index (
 
     env.fixed_writer_close(wid, chunk_count, size, csum)?;
 
-    env.log(format!("sucessfully closed fixed index {}", wid));
+    env.log(format!("successfully closed fixed index {}", wid));
 
     Ok(Value::Null)
 }
@@ -566,7 +566,7 @@ fn finish_backup (
     let env: &BackupEnvironment = rpcenv.as_ref();
 
     env.finish_backup()?;
-    env.log("sucessfully finished backup");
+    env.log("successfully finished backup");
 
     Ok(Value::Null)
 }

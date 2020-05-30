@@ -338,7 +338,7 @@ pub enum DeletableProperty {
     autostart,
     /// Delete bridge ports (set to 'none')
     bridge_ports,
-    /// Delet bridge-vlan-aware flag
+    /// Delete bridge-vlan-aware flag
     bridge_vlan_aware,
     /// Delete bond-slaves (set to 'none')
     slaves,

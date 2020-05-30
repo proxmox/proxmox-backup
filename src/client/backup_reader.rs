@@ -138,7 +138,7 @@ impl BackupReader {
 
     /// Download a .blob file
     ///
-    /// This creates a temorary file in /tmp (using O_TMPFILE). The data is verified using
+    /// This creates a temporary file in /tmp (using O_TMPFILE). The data is verified using
     /// the provided manifest.
     pub async fn download_blob(
         &self,
@@ -164,7 +164,7 @@ impl BackupReader {
 
     /// Download dynamic index file
     ///
-    /// This creates a temorary file in /tmp (using O_TMPFILE). The index is verified using
+    /// This creates a temporary file in /tmp (using O_TMPFILE). The index is verified using
     /// the provided manifest.
     pub async fn download_dynamic_index(
         &self,
@@ -192,7 +192,7 @@ impl BackupReader {
 
     /// Download fixed index file
     ///
-    /// This creates a temorary file in /tmp (using O_TMPFILE). The index is verified using
+    /// This creates a temporary file in /tmp (using O_TMPFILE). The index is verified using
     /// the provided manifest.
     pub async fn download_fixed_index(
         &self,

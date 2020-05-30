@@ -4,7 +4,7 @@
 //! format used in the [casync](https://github.com/systemd/casync)
 //! toolkit (we are not 100\% binary compatible). It is a file archive
 //! format defined by 'Lennart Poettering', specially defined for
-//! efficent deduplication.
+//! efficient deduplication.
 
 //! Every archive contains items in the following order:
 //!  * `ENTRY`              -- containing general stat() data and related bits

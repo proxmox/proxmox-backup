@@ -77,7 +77,7 @@ Ext.define('PBS.DataStoreContent', {
 		} else if (btype === 'host') {
 		    cls = 'fa-building';
 		} else {
-		    console.warn(`got unkown backup-type '${btype}'`);
+		    console.warn(`got unknown backup-type '${btype}'`);
 		    continue; // FIXME: auto render? what do?
 		}
 

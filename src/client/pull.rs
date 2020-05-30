@@ -123,12 +123,12 @@ async fn try_client_log_download(
         .read(true)
         .open(&tmp_path)?;
 
-    // Note: be silent if there is no log - only log sucessful download
+    // Note: be silent if there is no log - only log successful download
     if let Ok(_) = reader.download(CLIENT_LOG_BLOB_NAME, tmpfile).await {
         if let Err(err) = std::fs::rename(&tmp_path, &path) {
             bail!("Atomic rename file {:?} failed - {}", path, err);
         }
-        worker.log(format!("got bakup log file {:?}", CLIENT_LOG_BLOB_NAME));
+        worker.log(format!("got backup log file {:?}", CLIENT_LOG_BLOB_NAME));
     }
 
     Ok(())

@@ -1117,7 +1117,7 @@ impl<'a, W: Write, C: BackupCatalogWriter> Encoder<'a, W, C> {
                 if pos != size {
                     // Note:: casync format cannot handle that
                     bail!(
-                        "detected shrinked file {:?} ({} < {})",
+                        "detected shrunk file {:?} ({} < {})",
                         self.full_path(),
                         pos,
                         size

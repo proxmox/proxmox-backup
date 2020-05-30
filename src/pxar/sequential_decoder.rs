@@ -84,7 +84,7 @@ impl<R: Read> SequentialDecoder<R> {
 
     pub(crate) fn read_link(&mut self, size: u64) -> Result<PathBuf, Error> {
         if size < (HEADER_SIZE + 2) {
-            bail!("dectected short link target.");
+            bail!("detected short link target.");
         }
         let target_len = size - HEADER_SIZE;
 
@@ -104,7 +104,7 @@ impl<R: Read> SequentialDecoder<R> {
 
     pub(crate) fn read_hardlink(&mut self, size: u64) -> Result<(PathBuf, u64), Error> {
         if size < (HEADER_SIZE + 8 + 2) {
-            bail!("dectected short hardlink header.");
+            bail!("detected short hardlink header.");
         }
         let offset: u64 = self.read_item()?;
         let target = self.read_link(size - 8)?;
@@ -121,7 +121,7 @@ impl<R: Read> SequentialDecoder<R> {
 
     pub(crate) fn read_filename(&mut self, size: u64) -> Result<OsString, Error> {
         if size < (HEADER_SIZE + 2) {
-            bail!("dectected short filename");
+            bail!("detected short filename");
         }
         let name_len = size - HEADER_SIZE;
 

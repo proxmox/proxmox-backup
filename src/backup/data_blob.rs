@@ -311,7 +311,7 @@ impl DataBlob {
     /// Verify digest and data length for unencrypted chunks.
     ///
     /// To do that, we need to decompress data first. Please note that
-    /// this is noth possible for encrypted chunks.
+    /// this is north possible for encrypted chunks.
     pub fn verify_unencrypted(
         &self,
         expected_chunk_size: usize,

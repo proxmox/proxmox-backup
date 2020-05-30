@@ -131,7 +131,7 @@ fn upgrade_to_backup_reader_protocol(
                     Either::Right((Ok(res), _)) => Ok(res),
                     Either::Right((Err(err), _)) => Err(err),
                 })
-                .map_ok(move |_| env.log("reader finished sucessfully"))
+                .map_ok(move |_| env.log("reader finished successfully"))
         })?;
 
         let response = Response::builder()

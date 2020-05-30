@@ -4,7 +4,7 @@ use std::io::Write;
 
 /// Log messages with timestamps into files
 ///
-/// Logs messages to file, and optionaly to standart output.
+/// Logs messages to file, and optionally to standard output.
 ///
 ///
 /// #### Example:

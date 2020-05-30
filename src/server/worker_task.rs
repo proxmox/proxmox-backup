@@ -277,7 +277,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                     } else {
                         match state {
                             None => {
-                                println!("Detected stoped UPID {}", upid_str);
+                                println!("Detected stopped UPID {}", upid_str);
                                 let status = upid_read_status(&upid)
                                     .unwrap_or_else(|_| String::from("unknown"));
                                 finish_list.push(TaskListInfo {

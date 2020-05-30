@@ -17,7 +17,7 @@ fn x509name_to_string(name: &openssl::x509::X509NameRef) -> Result<String, Error
 }
 
 #[api]
-/// Diplay node certificate information.
+/// Display node certificate information.
 fn cert_info() -> Result<(), Error> {
 
     let cert_path = PathBuf::from(configdir!("/proxy.pem"));

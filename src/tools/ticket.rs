@@ -1,4 +1,4 @@
-//! Generate and verify Authentification tickets
+//! Generate and verify Authentication tickets
 
 use anyhow::{bail, Error};
 use base64;

@@ -16,7 +16,7 @@ use std::io::Write;
 // tar: dyntest1/testfile7.dat: File shrank by 2833252864 bytes; padding with zeros
 
 // # pxar create test.pxar ./dyntest1/
-// Error: detected shrinked file "./dyntest1/testfile0.dat" (22020096 < 12679380992)
+// Error: detected shrunk file "./dyntest1/testfile0.dat" (22020096 < 12679380992)
 
 fn create_large_file(path: PathBuf) {
 

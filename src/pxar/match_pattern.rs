@@ -124,7 +124,7 @@ impl MatchPattern {
         Ok(Some((match_pattern, content_buffer, stat)))
     }
 
-    /// Interprete a byte buffer as a sinlge line containing a valid
+    /// Interpret a byte buffer as a sinlge line containing a valid
     /// `MatchPattern`.
     /// Pattern starting with `#` are interpreted as comments, returning `Ok(None)`.
     /// Pattern starting with '!' are interpreted as negative match pattern.

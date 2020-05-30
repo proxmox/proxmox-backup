@@ -149,14 +149,14 @@ fn test_broadcast_future() {
         .map_ok(|res| {
             CHECKSUM.fetch_add(res, Ordering::SeqCst);
         })
-        .map_err(|err| { panic!("got errror {}", err); })
+        .map_err(|err| { panic!("got error {}", err); })
         .map(|_| ());
 
     let receiver2 = sender.listen()
         .map_ok(|res| {
             CHECKSUM.fetch_add(res*2, Ordering::SeqCst);
         })
-        .map_err(|err| { panic!("got errror {}", err); })
+        .map_err(|err| { panic!("got error {}", err); })
         .map(|_| ());
 
     let mut rt = tokio::runtime::Runtime::new().unwrap();
