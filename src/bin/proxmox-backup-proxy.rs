@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::ffi::OsString;
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
@@ -9,7 +8,6 @@ use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
-use proxmox::sys::linux::procfs::mountinfo::{Device, MountInfo};
 
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
