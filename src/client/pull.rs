@@ -106,6 +106,34 @@ async fn pull_single_archive(
     Ok(())
 }
 
+// Note: The client.log.blob is uploaded after the backup, so it is
+// not mentioned in the manifest.
+async fn try_client_log_download(
+    worker: &WorkerTask,
+    reader: Arc<BackupReader>,
+    path: &std::path::Path,
+) -> Result<(), Error> {
+
+    let mut tmp_path = path.to_owned();
+    tmp_path.set_extension("tmp");
+
+    let tmpfile = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .read(true)
+        .open(&tmp_path)?;
+
+    // Note: be silent if there is no log - only log sucessful download
+    if let Ok(_) = reader.download(CLIENT_LOG_BLOB_NAME, tmpfile).await {
+        if let Err(err) = std::fs::rename(&tmp_path, &path) {
+            bail!("Atomic rename file {:?} failed - {}", path, err);
+        }
+        worker.log(format!("got bakup log file {:?}", CLIENT_LOG_BLOB_NAME));
+    }
+
+    Ok(())
+}
+
 async fn pull_snapshot(
     worker: &WorkerTask,
     reader: Arc<BackupReader>,
@@ -116,6 +144,10 @@ async fn pull_snapshot(
     let mut manifest_name = tgt_store.base_path();
     manifest_name.push(snapshot.relative_path());
     manifest_name.push(MANIFEST_BLOB_NAME);
+
+    let mut client_log_name = tgt_store.base_path();
+    client_log_name.push(snapshot.relative_path());
+    client_log_name.push(CLIENT_LOG_BLOB_NAME);
 
     let mut tmp_manifest_name = manifest_name.clone();
     tmp_manifest_name.set_extension("tmp");
@@ -137,7 +169,10 @@ async fn pull_snapshot(
         })?;
 
         if manifest_blob.raw_data() == tmp_manifest_blob.raw_data() {
-            worker.log("nothing changed - skip sync");
+            if !client_log_name.exists() {
+                try_client_log_download(worker, reader, &client_log_name).await?;
+            }
+            worker.log("no data changes");
             return Ok(()); // nothing changed
         }
     }
@@ -198,6 +233,10 @@ async fn pull_snapshot(
 
     if let Err(err) = std::fs::rename(&tmp_manifest_name, &manifest_name) {
         bail!("Atomic rename file {:?} failed - {}", manifest_name, err);
+    }
+
+    if !client_log_name.exists() {
+        try_client_log_download(worker, reader, &client_log_name).await?;
     }
 
     // cleanup - remove stale files

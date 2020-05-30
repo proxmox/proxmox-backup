@@ -11,7 +11,7 @@ use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
-use super::manifest::{MANIFEST_BLOB_NAME, BackupManifest};
+use super::manifest::{MANIFEST_BLOB_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
@@ -149,6 +149,7 @@ impl DataStore {
 
         let mut wanted_files = HashSet::new();
         wanted_files.insert(MANIFEST_BLOB_NAME.to_string());
+        wanted_files.insert(CLIENT_LOG_BLOB_NAME.to_string());
         manifest.files().iter().for_each(|item| { wanted_files.insert(item.filename.clone()); });
 
         for item in tools::fs::read_subdir(libc::AT_FDCWD, &full_path)? {
