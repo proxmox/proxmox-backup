@@ -1107,6 +1107,16 @@ fn dump_image<W: Write>(
     Ok(())
 }
 
+fn parse_archive_type(name: &str) -> (String, ArchiveType) {
+    if name.ends_with(".pxar") {
+        (format!("{}.didx", name), ArchiveType::DynamicIndex)
+    } else if name.ends_with(".img") {
+        (format!("{}.fidx", name), ArchiveType::FixedIndex)
+    } else {
+        (format!("{}.blob", name), ArchiveType::Blob)
+    }
+}
+
 #[api(
    input: {
        properties: {
@@ -1179,14 +1189,6 @@ async fn restore(param: Value) -> Result<Value, Error> {
         }
     };
 
-    let server_archive_name = if archive_name.ends_with(".pxar") {
-        format!("{}.didx", archive_name)
-    } else if archive_name.ends_with(".img") {
-        format!("{}.fidx", archive_name)
-    } else {
-        format!("{}.blob", archive_name)
-    };
-
     let client = BackupReader::start(
         client,
         crypt_config.clone(),
@@ -1199,7 +1201,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let manifest = client.download_manifest().await?;
 
-    if server_archive_name == MANIFEST_BLOB_NAME {
+    let (archive_name, archive_type) = parse_archive_type(archive_name);
+
+    if archive_name == MANIFEST_BLOB_NAME {
         let backup_index_data = manifest.into_json().to_string();
         if let Some(target) = target {
             replace_file(target, backup_index_data.as_bytes(), CreateOptions::new())?;
@@ -1210,9 +1214,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
-    } else if server_archive_name.ends_with(".blob") {
+    } else if archive_type == ArchiveType::Blob {
 
-        let mut reader = client.download_blob(&manifest, &server_archive_name).await?;
+        let mut reader = client.download_blob(&manifest, &archive_name).await?;
 
         if let Some(target) = target {
            let mut writer = std::fs::OpenOptions::new()
@@ -1229,9 +1233,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
-    } else if server_archive_name.ends_with(".didx") {
+    } else if archive_type == ArchiveType::DynamicIndex {
 
-        let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
+        let index = client.download_dynamic_index(&manifest, &archive_name).await?;
 
         let most_used = index.find_most_used_chunks(8);
 
@@ -1261,9 +1265,9 @@ async fn restore(param: Value) -> Result<Value, Error> {
             std::io::copy(&mut reader, &mut writer)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
-    } else if server_archive_name.ends_with(".fidx") {
+    } else if archive_type == ArchiveType::FixedIndex {
 
-        let index = client.download_fixed_index(&manifest, &server_archive_name).await?;
+        let index = client.download_fixed_index(&manifest, &archive_name).await?;
 
         let mut writer = if let Some(target) = target {
             std::fs::OpenOptions::new()
@@ -1280,9 +1284,6 @@ async fn restore(param: Value) -> Result<Value, Error> {
         };
 
         dump_image(client.clone(), crypt_config.clone(), index, &mut writer, verbose)?;
-
-     } else {
-        bail!("unknown archive file extension (expected .pxar of .img)");
     }
 
     Ok(Value::Null)
