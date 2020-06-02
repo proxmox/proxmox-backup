@@ -1108,7 +1108,9 @@ fn dump_image<W: Write>(
 }
 
 fn parse_archive_type(name: &str) -> (String, ArchiveType) {
-    if name.ends_with(".pxar") {
+    if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
+        (name.into(), archive_type(name).unwrap())
+    } else if name.ends_with(".pxar") {
         (format!("{}.didx", name), ArchiveType::DynamicIndex)
     } else if name.ends_with(".img") {
         (format!("{}.fidx", name), ArchiveType::FixedIndex)
