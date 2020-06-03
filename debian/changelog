@@ -1,3 +1,17 @@
+rust-proxmox-backup (0.2.2-1) unstable; urgency=medium
+
+  * proxmox-backup-client.rs: implement quiet flag
+
+  * client restore: don't add server file ending if already specified
+
+  * src/client/pull.rs: also download client.log.blob
+
+  * src/client/pull.rs: more verbose logging
+
+  * gui improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Jun 2020 10:37:12 +0200
+
 rust-proxmox-backup (0.2.1-1) unstable; urgency=medium
 
   * ui: move server RRD statistics to 'Server Status' panel
