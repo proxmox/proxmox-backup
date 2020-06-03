@@ -163,12 +163,11 @@ pub fn compute_next_event(
             if event.days.contains(day) {
                 t.changes.remove(TMChanges::WDAY);
             } else {
-                if let Some(n) = (day_num+1..6)
-                    .map(|d| WeekDays::from_bits(1<<d).unwrap())
-                    .find(|d| event.days.contains(*d))
+                if let Some(n) = ((day_num+1)..7)
+                    .find(|d| event.days.contains(WeekDays::from_bits(1<<d).unwrap()))
                 {
                     // try next day
-                    t.add_days((n.bits() as i32) - day_num, true);
+                    t.add_days(n - day_num, true);
                     continue;
                 } else {
                     // try next week
