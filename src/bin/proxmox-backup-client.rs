@@ -1365,6 +1365,12 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
             ("group", false, &StringSchema::new("Backup group.").schema()),
         ], [
             ("output-format", true, &OUTPUT_FORMAT),
+            (
+                "quiet",
+                true,
+                &BooleanSchema::new("Minimal output - only show removals.")
+                    .schema()
+            ),
             ("repository", true, &REPO_URL_SCHEMA),
         ])
     )
@@ -1392,9 +1398,12 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
+    let quiet = param["quiet"].as_bool().unwrap_or(false);
+
     param.as_object_mut().unwrap().remove("repository");
     param.as_object_mut().unwrap().remove("group");
     param.as_object_mut().unwrap().remove("output-format");
+    param.as_object_mut().unwrap().remove("quiet");
 
     param["backup-type"] = group.backup_type().into();
     param["backup-id"] = group.backup_id().into();
@@ -1409,18 +1418,33 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
         Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 
+    let render_prune_action = |v: &Value, _record: &Value| -> Result<String, Error> {
+        Ok(match v.as_bool() {
+            Some(true) => "keep",
+            Some(false) => "remove",
+            None => "unknown",
+        }.to_string())
+    };
+
     let options = default_table_format_options()
         .sortby("backup-type", false)
         .sortby("backup-id", false)
         .sortby("backup-time", false)
         .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
         .column(ColumnConfig::new("backup-time").renderer(tools::format::render_epoch).header("date"))
-        .column(ColumnConfig::new("keep"))
+        .column(ColumnConfig::new("keep").renderer(render_prune_action).header("action"))
         ;
 
     let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_PRUNE;
 
     let mut data = result["data"].take();
+
+    if quiet {
+        let list: Vec<Value> = data.as_array().unwrap().iter().filter(|item| {
+            item["keep"].as_bool() == Some(false)
+        }).map(|v| v.clone()).collect();
+        data = list.into();
+    }
 
     format_and_print_result_full(&mut data, info, &output_format, &options);
 
