@@ -73,7 +73,7 @@ impl BackupManifest {
         let info = self.lookup_file_info(name)?;
 
         if size != info.size {
-            bail!("wrong size for file '{}' ({} != {}", name, info.size, size);
+            bail!("wrong size for file '{}' ({} != {})", name, info.size, size);
         }
 
         if csum != &info.csum {
