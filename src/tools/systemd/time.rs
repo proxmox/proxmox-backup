@@ -296,6 +296,13 @@ mod test {
         test_value("mon 2:*", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR)?;
         test_value("mon 2:50", THURSDAY_00_00, THURSDAY_00_00 + 4*DAY + 2*HOUR + 50*MIN)?;
 
+        test_value("tue", THURSDAY_00_00, THURSDAY_00_00 + 5*DAY)?;
+        test_value("wed", THURSDAY_00_00, THURSDAY_00_00 + 6*DAY)?;
+        test_value("thu", THURSDAY_00_00, THURSDAY_00_00 + 7*DAY)?;
+        test_value("fri", THURSDAY_00_00, THURSDAY_00_00 + 1*DAY)?;
+        test_value("sat", THURSDAY_00_00, THURSDAY_00_00 + 2*DAY)?;
+        test_value("sun", THURSDAY_00_00, THURSDAY_00_00 + 3*DAY)?;
+
         test_value("daily", THURSDAY_00_00, THURSDAY_00_00 + DAY)?;
         test_value("daily", THURSDAY_00_00+1, THURSDAY_00_00 + DAY)?;
 
