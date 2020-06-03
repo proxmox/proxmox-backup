@@ -1,6 +1,5 @@
 use anyhow::{Error};
 use serde_json::Value;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
@@ -51,25 +50,22 @@ pub fn list_sync_jobs(
         }
     }
 
-    let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(epoch_now) => epoch_now.as_secs() as i64,
-        _ => 0i64,
-    };
-
     for job in &mut list {
+        let mut last = 0;
+        if let Some(task) = last_tasks.get(&job.id) {
+            job.last_run_upid = Some(task.upid_str.clone());
+            if let Some((endtime, status)) = &task.state {
+                job.last_run_state = Some(String::from(status));
+                job.last_run_endtime = Some(*endtime);
+                last = *endtime;
+            }
+        }
+
         job.next_run = (|| -> Option<i64> {
             let schedule = job.schedule.as_ref()?;
             let event = parse_calendar_event(&schedule).ok()?;
-            compute_next_event(&event, now, false).ok()
+            compute_next_event(&event, last, false).ok()
         })();
-
-        if let Some(task) = last_tasks.get(&job.id) {
-            job.last_run_upid = Some(task.upid_str.clone());
-            if let Some((endttime, status)) = &task.state {
-                job.last_run_state = Some(String::from(status));
-                job.last_run_endtime = Some(*endttime);
-            }
-        }
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();

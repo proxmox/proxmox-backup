@@ -114,7 +114,19 @@ Ext.define('PBS.config.SyncJobView', {
 	    return `<i class="fa fa-times critical"></i> ${gettext("Error")}:${value}`;
 	},
 
-	render_optional_timestamp: function(value) {
+	render_next_run: function(value, metadat, record) {
+	    if (!value) return '-';
+
+	    let now = new Date();
+	    let next = new Date(value*1000);
+
+	    if (next < now) {
+		return gettext('pending');
+	    }
+	    return Proxmox.Utils.render_timestamp(value);
+	},
+
+	render_optional_timestamp: function(value, metadata, record) {
 	    if (!value) return '-';
 	    return Proxmox.Utils.render_timestamp(value);
 	},
@@ -237,7 +249,7 @@ Ext.define('PBS.config.SyncJobView', {
 	    header: gettext('Next Run'),
 	    sortable: true,
 	    minWidth: 200,
-	    renderer: 'render_optional_timestamp',
+	    renderer: 'render_next_run',
 	    dataIndex: 'next-run',
 	},
 	{
