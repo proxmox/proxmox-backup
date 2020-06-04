@@ -601,7 +601,7 @@ async fn run_stat_generator() {
     let mut count = 0;
     loop {
         count += 1;
-        let save = if count > 6 { count = 0; true } else { false };
+        let save = if count >= 6 { count = 0; true } else { false };
 
         let delay_target = Instant::now() +  Duration::from_secs(10);
 
