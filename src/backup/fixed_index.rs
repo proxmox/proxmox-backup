@@ -198,7 +198,7 @@ impl FixedIndexReader {
         let mut csum = openssl::sha::Sha256::new();
         let mut chunk_end = 0;
         for pos in 0..self.index_length {
-            chunk_end = ((pos + 1) * self.chunk_size) as u64;
+            chunk_end = self.chunk_end(pos);
             let digest = self.chunk_digest(pos);
             csum.update(digest);
         }
