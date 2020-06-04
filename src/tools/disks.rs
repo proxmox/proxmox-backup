@@ -1,6 +1,6 @@
 //! Disk query/management utilities for.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -16,7 +16,8 @@ use proxmox::sys::error::io_err_other;
 use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
 
-pub mod zfs;
+mod zfs;
+pub use zfs::*;
 
 bitflags! {
     /// Ways a device is being used.
@@ -510,4 +511,43 @@ pub struct BlockDevStat {
     pub write_ios: u64,
     pub write_sectors: u64,
     pub io_ticks: u64, // milliseconds
+}
+
+/// Use lsblk to read partition type uuids.
+pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> {
+
+    const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
+
+    let mut command = std::process::Command::new(LSBLK_BIN_PATH);
+    command.args(&["--json", "-o", "path,parttype"]);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", LSBLK_BIN_PATH, err))?;
+
+    let output = crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("lsblk command failed: {}", err))?;
+
+    let mut res: HashMap<String, Vec<String>> = HashMap::new();
+
+    let output: serde_json::Value = output.parse()?;
+    match output["blockdevices"].as_array() {
+        Some(list) => {
+            for info in list {
+                let path = match info["path"].as_str() {
+                    Some(p) => p,
+                    None => continue,
+                };
+                let partition_type = match info["parttype"].as_str() {
+                    Some(t) => t.to_owned(),
+                    None => continue,
+                };
+                let devices = res.entry(partition_type).or_insert(Vec::new());
+                devices.push(path.to_string());
+            }
+        }
+        None => {
+
+        }
+    }
+    Ok(res)
 }

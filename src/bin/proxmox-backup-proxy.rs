@@ -15,7 +15,7 @@ use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
-use proxmox_backup::tools::disks::{ DiskManage, zfs::zfs_pool_stats };
+use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
 
 fn main() {
     if let Err(err) = proxmox_backup::tools::runtime::main(run()) {

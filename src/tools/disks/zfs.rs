@@ -1,6 +1,9 @@
 use std::path::PathBuf;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Error};
+use lazy_static::lazy_static;
+
 use nom::{
     error::VerboseError,
     bytes::complete::{take_while, take_while1, take_till, take_till1},
@@ -11,6 +14,15 @@ use nom::{
 };
 
 use super::*;
+
+lazy_static!{
+    static ref ZFS_UUIDS: HashSet<&'static str> = {
+        let mut set = HashSet::new();
+	set.insert("6a898cc3-1dd2-11b2-99a6-080020736631"); // apple
+	set.insert("516e7cba-6ecf-11d6-8ff8-00022d09712b"); // bsd
+        set
+    };
+}
 
 type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
 
@@ -154,7 +166,10 @@ pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
 }
 
 /// List devices used by zfs (or a specific zfs pool)
-pub fn zfs_devices(pool: Option<&OsStr>) -> Result<Vec<String>, Error> {
+pub fn zfs_devices(
+    partition_type_map: &HashMap<String, Vec<String>>,
+    pool: Option<&OsStr>,
+) -> Result<HashSet<String>, Error> {
 
     // Note: zpools list  output can include entries for 'special', 'cache' and 'logs'
     // and maybe other things.
@@ -172,17 +187,20 @@ pub fn zfs_devices(pool: Option<&OsStr>) -> Result<Vec<String>, Error> {
 
     let list = parse_zfs_list(&output)?;
 
-    let mut done = std::collections::HashSet::new();
-
-    let mut device_list = Vec::new();
+    let mut device_set = HashSet::new();
     for entry in list {
         for device in entry.devices {
-            if !done.contains(&device) {
-                device_list.push(device.clone());
-                done.insert(device);
-            }
+            device_set.insert(device.clone());
         }
     }
 
-    Ok(device_list)
+    for device_list in partition_type_map.iter()
+        .filter_map(|(uuid, list)| if ZFS_UUIDS.contains(uuid.as_str()) { Some(list) } else { None })
+    {
+        for device in device_list {
+            device_set.insert(device.clone());
+        }
+    }
+
+    Ok(device_set)
 }
