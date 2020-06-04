@@ -210,6 +210,7 @@ Ext.define('PBS.DataStoreContent', {
 	    xtype: 'proxmoxButton',
 	    text: gettext('Prune'),
 	    disabled: true,
+	    parentXType: 'pbsDataStoreContent',
 	    enableFn: function(record) { return !record.data.leaf; },
 	    handler: 'onPrune',
 	}
