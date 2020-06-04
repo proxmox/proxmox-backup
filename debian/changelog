@@ -1,3 +1,16 @@
+rust-proxmox-backup (0.2.3-1) unstable; urgency=medium
+
+  * tools/systemd/time: fix compute_next_event for weekdays
+
+  * improve display of 'next run' for sync jobs
+
+  * fix csum calculation for images which do not have a 'chunk_size' aligned
+    size
+
+  * add parser for zpool list output
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 04 Jun 2020 10:39:06 +0200
+
 rust-proxmox-backup (0.2.2-1) unstable; urgency=medium
 
   * proxmox-backup-client.rs: implement quiet flag
