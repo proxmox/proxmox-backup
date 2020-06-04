@@ -18,6 +18,8 @@ use proxmox::{io_bail, io_format_err};
 
 mod zfs;
 pub use zfs::*;
+mod lvm;
+pub use lvm::*;
 
 bitflags! {
     /// Ways a device is being used.
