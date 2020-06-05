@@ -43,12 +43,6 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
-			text: gettext('Data Store'),
-			iconCls: 'fa fa-archive',
-			path: 'pbsDataStoreConfig',
-			leaf: true
-		    },
-		    {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
@@ -61,7 +55,14 @@ Ext.define('PBS.store.NavigationStore', {
 		iconCls: 'fa fa-wrench',
 		path: 'pbsServerAdministration',
 		leaf: true
-	    }
+	    },
+	    {
+		text: gettext('Data Store'),
+		iconCls: 'fa fa-archive',
+		path: 'pbsDataStoreConfig',
+		expanded: true,
+		leaf: false
+	    },
 	]
     }
 });
@@ -87,19 +88,10 @@ Ext.define('PBS.view.main.NavigationTree', {
 	},
 
 	onLoad: function(store, records, success) {
+	    if (!success) return;
 	    var view = this.getView();
 
 	    let root = view.getStore().getRoot();
-
-	    if (!root.findChild('path', 'pbsDataStoreStatus', false)) {
-		root.appendChild({
-		    text: gettext('Data Store'),
-		    expanded: true,
-		    iconCls: 'fa fa-archive',
-		    path: 'pbsDataStoreStatus',
-		    leaf: false
-		});
-	    }
 
 	    // FIXME: newly added always get appended to the end..
 	    records.sort((a, b) => {
@@ -108,7 +100,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 		return 0;
 	    });
 
-	    var list = root.findChild('path', 'pbsDataStoreStatus', false);
+	    var list = root.findChild('path', 'pbsDataStoreConfig', false);
 	    var length = records.length;
 	    var lookup_hash = {};
 	    for (var i = 0; i < length; i++) {
