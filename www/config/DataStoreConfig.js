@@ -10,12 +10,15 @@ Ext.define('pbs-datastore-list', {
 
 Ext.define('pbs-data-store-config', {
     extend: 'Ext.data.Model',
-    fields: [ 'name', 'path', 'comment' ],
+    fields: [
+	'name', 'path', 'comment', 'gc-schedule', 'prune-schedule', 'keep-last',
+	'keep-hourly', 'keep-daily', 'keep-weekly', 'keep-monthly', 'keep-yearly',
+    ],
     proxy: {
         type: 'proxmox',
-	url: "/api2/json/config/datastore"
+	url: "/api2/json/config/datastore",
     },
-    idProperty: 'name'
+    idProperty: 'name',
 });
 
 Ext.define('PBS.DataStoreConfig', {
@@ -132,6 +135,53 @@ Ext.define('PBS.DataStoreConfig', {
 	    sortable: true,
 	    dataIndex: 'path',
 	    flex: 1,
+	},
+	{
+	    header: gettext('GC Schedule'),
+	    sortable: false,
+	    width: 120,
+	    dataIndex: 'gc-schedule',
+	},
+	{
+	    header: gettext('Prune Schedule'),
+	    sortable: false,
+	    width: 120,
+	    dataIndex: 'prune-schedule',
+	},
+	{
+	    header: gettext('Keep'),
+	    columns: [
+		{
+		    text: gettext('Last'),
+		    dataIndex: 'keep-last',
+		    width: 70,
+		},
+		{
+		    text: gettext('Hourly'),
+		    dataIndex: 'keep-hourly',
+		    width: 70,
+		},
+		{
+		    text: gettext('Daily'),
+		    dataIndex: 'keep-daily',
+		    width: 70,
+		},
+		{
+		    text: gettext('Weekly'),
+		    dataIndex: 'keep-weekly',
+		    width: 70,
+		},
+		{
+		    text: gettext('Monthly'),
+		    dataIndex: 'keep-monthly',
+		    width: 70,
+		},
+		{
+		    text: gettext('Yearly'),
+		    dataIndex: 'keep-yearly',
+		    width: 70,
+		},
+	    ]
 	},
 	{
 	    header: gettext('Comment'),
