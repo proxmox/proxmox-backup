@@ -12,17 +12,18 @@ JSSRC=							\
 	config/RemoteView.js				\
 	config/ACLView.js				\
 	config/SyncView.js				\
+	config/DataStoreConfig.js			\
 	window/UserEdit.js				\
 	window/RemoteEdit.js				\
 	window/SyncJobEdit.js				\
 	window/ACLEdit.js				\
+	window/DataStoreEdit.js				\
 	Utils.js					\
 	LoginView.js					\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
 	DataStorePrune.js				\
-	DataStoreConfig.js				\
 	DataStoreStatistic.js				\
 	DataStoreContent.js				\
 	DataStorePanel.js				\
