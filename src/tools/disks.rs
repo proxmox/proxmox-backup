@@ -20,6 +20,8 @@ mod zfs;
 pub use zfs::*;
 mod lvm;
 pub use lvm::*;
+mod smart;
+pub use smart::*;
 
 bitflags! {
     /// Ways a device is being used.
