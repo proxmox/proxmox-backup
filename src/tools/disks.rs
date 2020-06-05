@@ -436,17 +436,19 @@ impl Disk {
     /// another kernel driver like the device mapper.
     pub fn has_holders(&self) -> io::Result<bool> {
         Ok(*self
-            .info
-            .has_holders
-            .get_or_try_init(|| -> io::Result<bool> {
-                for entry in std::fs::read_dir(self.syspath())? {
-                    match entry?.file_name().as_bytes() {
-                        b"." | b".." => (),
-                        _ => return Ok(true),
-                    }
-                }
-                Ok(false)
-            })?)
+           .info
+           .has_holders
+           .get_or_try_init(|| -> io::Result<bool> {
+               let mut subdir = self.syspath().to_owned();
+               subdir.push("holders");
+               for entry in std::fs::read_dir(subdir)? {
+                   match entry?.file_name().as_bytes() {
+                       b"." | b".." => (),
+                       _ => return Ok(true),
+                   }
+               }
+               Ok(false)
+           })?)
     }
 
     /// Check if this disk is mounted.
