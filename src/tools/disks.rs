@@ -265,7 +265,12 @@ impl Disk {
 
     /// Convenience wrapper for reading a `/sys` file which contains just a simple `OsString`.
     fn read_sys_os_str<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<OsString>> {
-        Ok(self.read_sys(path.as_ref())?.map(OsString::from_vec))
+        Ok(self.read_sys(path.as_ref())?.map(|mut v| {
+            if Some(&b'\n') == v.last() {
+                v.pop();
+            }
+            OsString::from_vec(v)
+        }))
     }
 
     /// Convenience wrapper for reading a `/sys` file which contains just a simple utf-8 string.
@@ -400,8 +405,9 @@ impl Disk {
     /// Attempt to guess the disk type.
     pub fn guess_disk_type(&self) -> io::Result<DiskType> {
         Ok(match self.rotational()? {
+            Some(false) => DiskType::Ssd,
             Some(true) => DiskType::Hdd,
-            _ => match self.ata_rotation_rate_rpm() {
+            None => match self.ata_rotation_rate_rpm() {
                 Some(_) => DiskType::Hdd,
                 None => match self.bus() {
                     Some(bus) if bus == "usb" => DiskType::Usb,
@@ -490,6 +496,7 @@ pub fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
     Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
 }
 
+#[derive(Debug)]
 /// This is just a rough estimate for a "type" of disk.
 pub enum DiskType {
     /// We know nothing.
