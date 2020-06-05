@@ -562,3 +562,202 @@ pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> 
     }
     Ok(res)
 }
+
+#[derive(Debug, PartialEq)]
+pub enum DiskUsageType {
+    Unused,
+    Mounted,
+    LVM,
+    ZFS,
+    DeviceMapper,
+    Partitions,
+}
+
+#[derive(Debug)]
+pub struct DiskUsageInfo {
+    pub name: String,
+    pub used: DiskUsageType,
+    pub disk_type: DiskType,
+    pub vendor: Option<String>,
+    pub model: Option<String>,
+    pub wwn: Option<String>,
+    pub size: u64,
+    pub serial: Option<String>,
+    pub devpath: Option<std::path::PathBuf>,
+    pub gpt: bool,
+    pub rpm: Option<u64>,
+}
+
+fn scan_partitions(
+    disk_manager: Arc<DiskManage>,
+    lvm_devices: &HashSet<String>,
+    zfs_devices: &HashSet<String>,
+    device: &str,
+) -> Result<DiskUsageType, Error> {
+
+    let mut sys_path = std::path::PathBuf::from("/sys/block");
+    sys_path.push(device);
+
+    let mut used = DiskUsageType::Unused;
+
+    let mut found_lvm = false;
+    let mut found_zfs = false;
+    let mut found_mountpoints = false;
+    let mut found_dm = false;
+    let mut found_partitions = false;
+
+    for item in crate::tools::fs::read_subdir(libc::AT_FDCWD, &sys_path)? {
+        let item = item?;
+        let name = match item.file_name().to_str() {
+            Ok(name) => name,
+            Err(_) => continue, // skip non utf8 entries
+        };
+        if !name.starts_with(device) { continue; }
+
+        found_partitions = true;
+
+        let mut part_path = sys_path.clone();
+        part_path.push(name);
+
+        let data = disk_manager.clone().disk_by_sys_path(&part_path)?;
+
+        if lvm_devices.contains(name) {
+            found_lvm = true;
+        }
+
+        if data.is_mounted()? {
+            found_mountpoints = true;
+        }
+
+        if data.has_holders()? {
+            found_dm = true;
+        }
+
+        if zfs_devices.contains(name) {
+            found_zfs = true;
+        }
+    }
+
+    if found_mountpoints {
+        used = DiskUsageType::Mounted;
+    } else if found_lvm {
+        used = DiskUsageType::LVM;
+    } else if found_zfs {
+        used = DiskUsageType::ZFS;
+    } else if found_dm {
+        used = DiskUsageType::DeviceMapper;
+    } else if found_partitions {
+        used = DiskUsageType::Partitions;
+    }
+
+    Ok(used)
+}
+
+pub fn get_disks(
+    // filter - list of device names (without leading /dev)
+    disks: Option<Vec<String>>,
+    // do no include data from smartctl
+    no_smart: bool,
+) -> Result<HashMap<String, DiskUsageInfo>, Error> {
+
+    let disk_manager = DiskManage::new();
+
+    let partition_type_map = get_partition_type_info()?;
+
+    let zfs_devices = zfs_devices(&partition_type_map, None)?;
+
+    let lvm_devices = get_lvm_devices(&partition_type_map)?;
+
+    // fixme: ceph journals/volumes
+
+    lazy_static::lazy_static!{
+        static ref ISCSI_PATH_REGEX: regex::Regex =
+            regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
+        static ref BLOCKDEV_REGEX: regex::Regex =
+            regex::Regex::new(r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$").unwrap();
+    }
+
+    let mut result = HashMap::new();
+
+    for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEV_REGEX)? {
+        let item = item?;
+
+        let name = item.file_name().to_str().unwrap().to_string();
+
+        if let Some(ref disks) = disks {
+            if !disks.contains(&name) { continue; }
+        }
+
+        let sys_path = format!("/sys/block/{}", name);
+
+        if let Ok(target) = std::fs::read_link(&sys_path) {
+            if let Some(target) = target.to_str() {
+                if ISCSI_PATH_REGEX.is_match(target) { continue; } // skip iSCSI devices
+            }
+        }
+
+        let data = disk_manager.clone().disk_by_sys_path(&sys_path)?;
+
+        let size = match data.size() {
+            Ok(size) => size,
+            Err(_) => continue, // skip devices with unreadable size
+        };
+
+        let disk_type = match data.guess_disk_type() {
+            Ok(disk_type) => disk_type,
+            Err(_) => continue, // skip devices with undetectable type
+        };
+
+        let mut usage = DiskUsageType::Unused;
+
+        if lvm_devices.contains(&name) {
+            usage = DiskUsageType::LVM;
+        }
+
+        match data.is_mounted() {
+            Ok(true) => usage = DiskUsageType::Mounted,
+            Ok(false) => {},
+            Err(_) => continue, // skip devices with undetectable mount status
+        }
+
+        if zfs_devices.contains(&name) {
+            usage = DiskUsageType::ZFS;
+        }
+
+        let vendor = data.vendor().unwrap_or(None).
+            map(|s| s.to_string_lossy().trim().to_string());
+
+        let model = data.model().map(|s| s.to_string_lossy().into_owned());
+
+        let serial = data.serial().map(|s| s.to_string_lossy().into_owned());
+
+        let devpath =  data.device_path().map(|p| p.to_owned());
+
+        let wwn = data.wwn().map(|s| s.to_string_lossy().into_owned());
+
+        if usage != DiskUsageType::Mounted {
+            match scan_partitions(disk_manager.clone(), &lvm_devices, &zfs_devices, &name) {
+                Ok(part_usage) => {
+                    if part_usage != DiskUsageType::Unused {
+                        usage = part_usage;
+                    }
+                },
+                Err(_) => continue, // skip devices if scan_partitions fail
+            };
+        }
+
+        let info = DiskUsageInfo {
+            name: name.clone(),
+            vendor, model, serial, devpath, size, wwn, disk_type,
+            used: usage,
+            gpt: data.has_gpt(),
+            rpm: data.ata_rotation_rate_rpm(),
+        };
+
+        println!("GOT {:?}", info);
+
+        result.insert(name, info);
+    }
+
+    Ok(result)
+}
