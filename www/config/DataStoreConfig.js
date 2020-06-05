@@ -38,6 +38,23 @@ Ext.define('PBS.DataStoreConfig', {
 	    }).show();
 	},
 
+	editDataStore: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+	    if (selection.length < 1) return;
+
+	    let name = encodeURIComponent(selection[0].data.name);
+	    Ext.create('PBS.DataStoreEdit', {
+		name: name,
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 	garbageCollect: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -87,7 +104,13 @@ Ext.define('PBS.DataStoreConfig', {
 	    text: gettext('Create'),
 	    handler: 'createDataStore',
 	},
-	// edit/remove button
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Edit'),
+	    disabled: true,
+	    handler: 'editDataStore',
+	},
+	// remove_btn
 	'-',
 	{
 	    xtype: 'proxmoxButton',
@@ -121,5 +144,6 @@ Ext.define('PBS.DataStoreConfig', {
 
     listeners: {
 	activate: 'reload',
+	itemdblclick: 'editDataStore',
     },
 });
