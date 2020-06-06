@@ -12,9 +12,12 @@ use anyhow::{format_err, Error};
 use libc::dev_t;
 use once_cell::sync::OnceCell;
 
+use ::serde::{Deserialize, Serialize};
+
 use proxmox::sys::error::io_err_other;
 use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
+use proxmox::api::api;
 
 mod zfs;
 pub use zfs::*;
@@ -500,7 +503,9 @@ pub fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
     Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
 }
 
-#[derive(Debug)]
+#[api()]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all="lowercase")]
 /// This is just a rough estimate for a "type" of disk.
 pub enum DiskType {
     /// We know nothing.
@@ -565,30 +570,63 @@ pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> 
     Ok(res)
 }
 
-#[derive(Debug, PartialEq)]
+#[api()]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="lowercase")]
 pub enum DiskUsageType {
+    /// Disk is not used (as far we can tell)
     Unused,
+    /// Disk is mounted
     Mounted,
+    /// Disk is used by LVM
     LVM,
+    /// Disk is used by ZFS
     ZFS,
+    /// Disk is used by device-mapper
     DeviceMapper,
+    /// Disk has partitions
     Partitions,
 }
 
-#[derive(Debug)]
+#[api(
+    properties: {
+        used: {
+            type: DiskUsageType,
+        },
+        "disk-type": {
+            type: DiskType,
+        },
+        status: {
+            type: SmartStatus,
+        }
+    }
+)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Information about how a Disk is used
 pub struct DiskUsageInfo {
+    /// Disk name (/sys/block/<name>)
     pub name: String,
     pub used: DiskUsageType,
     pub disk_type: DiskType,
     pub status: SmartStatus,
+    /// Disk wearout
     pub wearout: Option<f64>,
+    /// Vendor
     pub vendor: Option<String>,
+    /// Model
     pub model: Option<String>,
+    /// WWN
     pub wwn: Option<String>,
+    /// Disk size
     pub size: u64,
+    /// Serisal number
     pub serial: Option<String>,
-    pub devpath: Option<std::path::PathBuf>,
+    /// Linux device path (/dev/xxx)
+    pub devpath: Option<String>,
+    /// Set if disk contains a GPT partition table
     pub gpt: bool,
+    /// RPM
     pub rpm: Option<u64>,
 }
 
@@ -735,7 +773,8 @@ pub fn get_disks(
 
         let serial = disk.serial().map(|s| s.to_string_lossy().into_owned());
 
-        let devpath =  disk.device_path().map(|p| p.to_owned());
+        let devpath =  disk.device_path().map(|p| p.to_owned())
+            .map(|p| p.to_string_lossy().to_string());
 
         let wwn = disk.wwn().map(|s| s.to_string_lossy().into_owned());
 
