@@ -106,6 +106,12 @@ impl DiskManage {
         })
     }
 
+    /// Get a `Disk` for a name in `/sys/block/<name>`.
+    pub fn disk_by_name(self: Arc<Self>, name: &str) -> io::Result<Disk> {
+        let syspath = format!("/sys/block/{}", name);
+        self.disk_by_sys_path(&syspath)
+    }
+
     /// Gather information about mounted disks:
     fn mounted_devices(&self) -> Result<&HashSet<dev_t>, Error> {
         use std::os::unix::fs::MetadataExt;
