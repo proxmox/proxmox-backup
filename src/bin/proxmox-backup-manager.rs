@@ -306,6 +306,7 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
         .insert("datastore", datastore_commands())
+        .insert("disk", disk_commands())
         .insert("dns", dns_commands())
         .insert("network", network_commands())
         .insert("user", user_commands())
