@@ -7,8 +7,8 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
 
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-use crate::tools::disks::{DiskUsageInfo, get_disks};
+use crate::config::acl::{PRIV_SYS_AUDIT};
+use crate::tools::disks::{DiskUsageInfo, DiskUsageType, get_disks};
 
 #[api(
     input: {
@@ -18,7 +18,11 @@ use crate::tools::disks::{DiskUsageInfo, get_disks};
 		type: bool,
 		optional: true,
 		default: false,
-            }
+            },
+            "usage-type": {
+                type: DiskUsageType,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -35,12 +39,19 @@ use crate::tools::disks::{DiskUsageInfo, get_disks};
 /// List local disks
 pub fn list_disks(
     skipsmart: bool,
+    usage_type: Option<DiskUsageType>,
 ) -> Result<Vec<DiskUsageInfo>, Error> {
 
     let mut list = Vec::new();
 
     for (_, info) in get_disks(None, skipsmart)? {
-        list.push(info);
+        if let Some(ref usage_type) = usage_type {
+            if info.used == *usage_type {
+                list.push(info);
+            }
+        } else {
+            list.push(info);
+        }
     }
 
     Ok(list)
