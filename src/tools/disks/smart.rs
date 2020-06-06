@@ -102,6 +102,7 @@ pub fn get_smart_data(
 
     // ATA devices
     if let Some(list) = output["ata_smart_attributes"]["table"].as_array() {
+        let wearout_id = lookup_vendor_wearout_id(disk);
         for item in list {
             let id = match item["id"].as_u64() {
                 Some(id) => id,
@@ -137,6 +138,10 @@ pub fn get_smart_data(
                 Some(v) => v,
                 None => continue, // skip attributes without threshold entry
             };
+
+            if id == wearout_id {
+                wearout = Some(normalized);
+            }
 
             attributes.push(SmartAttribute {
                 name,
@@ -183,4 +188,35 @@ pub fn get_smart_data(
 
 
     Ok(SmartData { status, wearout, attributes })
+}
+
+fn lookup_vendor_wearout_id(disk: &super::Disk) -> u64 {
+
+    static VENDOR_MAP: &[(&str, u64)] = &[
+        ("kingston", 231),
+        ("samsung", 177),
+        ("intel", 233),
+        ("sandisk", 233),
+        ("crucial", 202),
+    ];
+
+    let result = 233; // default
+    let model = match disk.model() {
+        Some(model) => {
+            if let Some(model) = model.to_str() {
+                model.to_lowercase()
+            } else {
+                return result;
+            }
+        }
+        None => return result,
+    };
+
+    for (vendor, attr_id) in VENDOR_MAP {
+        if model.contains(vendor) {
+            return *attr_id;
+        }
+    }
+
+    result
 }
