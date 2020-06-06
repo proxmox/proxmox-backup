@@ -10,8 +10,10 @@ mod journal;
 mod services;
 mod status;
 mod rrd;
+pub mod disks;
 
 pub const SUBDIRS: SubdirMap = &[
+    ("disks", &disks::ROUTER),
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),

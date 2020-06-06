@@ -11,10 +11,15 @@ use crate::tools::disks::{
     get_disks, get_smart_data,
 };
 
+use crate::api2::types::NODE_SCHEMA;
+
 #[api(
     protected: true,
     input: {
         properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
             skipsmart: {
 		description: "Skip smart checks.",
 		type: bool,
@@ -63,6 +68,9 @@ pub fn list_disks(
     protected: true,
     input: {
         properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
             disk: {
 		description: "Block device name.",
 		type: String,
