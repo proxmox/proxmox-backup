@@ -190,7 +190,7 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
         "system" => {
             if components_len == 1 { return Ok(()); }
             match components[1] {
-                "log" | "status" | "tasks" | "time" => {
+                "disks" | "log" | "status" | "tasks" | "time" => {
                     if components_len == 2 { return Ok(()); }
                 }
                 "services" => { // /system/services/{service}
