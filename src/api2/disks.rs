@@ -1,16 +1,18 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error};
 
-use serde_json::{json, Value};
-
-use proxmox::api::{api, RpcEnvironment, Permission, UserInformation};
+use proxmox::api::{api, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
-use proxmox::{http_err, list_subdirs_api_method};
+use proxmox::{list_subdirs_api_method};
 
 use crate::config::acl::{PRIV_SYS_AUDIT};
-use crate::tools::disks::{DiskUsageInfo, DiskUsageType, get_disks};
+use crate::tools::disks::{
+    DiskUsageInfo, DiskUsageType, DiskManage, SmartData,
+    get_disks, get_smart_data,
+};
 
 #[api(
+    protected: true,
     input: {
         properties: {
             skipsmart: {
@@ -57,12 +59,51 @@ pub fn list_disks(
     Ok(list)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            disk: {
+		description: "Block device name.",
+		type: String,
+            },
+            healthonly: {
+                description: "If true returns only the health status.",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        type: SmartData,
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Get SMART attributes and health of a disk.
+pub fn smart_status(
+    disk: String,
+    healthonly: Option<bool>,
+) -> Result<SmartData, Error> {
+
+    let healthonly = healthonly.unwrap_or(false);
+
+    let manager = DiskManage::new();
+    let disk = manager.disk_by_name(&disk)?;
+    get_smart_data(&disk, healthonly)
+}
+
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
 //    ("lvm", &lvm::ROUTER),
     (
         "list", &Router::new()
             .get(&API_METHOD_LIST_DISKS)
+    ),
+    (
+        "smart", &Router::new()
+            .get(&API_METHOD_SMART_STATUS)
     ),
 ]);
 
