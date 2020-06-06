@@ -26,6 +26,13 @@ pub use lvm::*;
 mod smart;
 pub use smart::*;
 
+lazy_static::lazy_static!{
+    static ref ISCSI_PATH_REGEX: regex::Regex =
+        regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
+    static ref BLOCKDEV_REGEX: regex::Regex =
+        regex::Regex::new(r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$").unwrap();
+}
+
 bitflags! {
     /// Ways a device is being used.
     pub struct DiskUse: u32 {
@@ -303,7 +310,7 @@ impl Disk {
     /// Get the disk's size in bytes.
     pub fn size(&self) -> io::Result<u64> {
         Ok(*self.info.size.get_or_try_init(|| {
-            self.read_sys_u64("size")?.ok_or_else(|| {
+            self.read_sys_u64("size")?.map(|s| s*512).ok_or_else(|| {
                 io_format_err!(
                     "failed to get disk size from {:?}",
                     self.syspath().join("size"),
@@ -718,13 +725,6 @@ pub fn get_disks(
 
     // fixme: ceph journals/volumes
 
-    lazy_static::lazy_static!{
-        static ref ISCSI_PATH_REGEX: regex::Regex =
-            regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
-        static ref BLOCKDEV_REGEX: regex::Regex =
-            regex::Regex::new(r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$").unwrap();
-    }
-
     let mut result = HashMap::new();
 
     for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEV_REGEX)? {
@@ -818,4 +818,22 @@ pub fn get_disks(
     }
 
     Ok(result)
+}
+
+pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
+    let mut list = Vec::new();
+
+    let dir = match crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEV_REGEX) {
+        Ok(dir) => dir,
+        Err(_) => return list,
+    };
+
+    for item in dir {
+        if let Ok(item) = item {
+            let name = item.file_name().to_str().unwrap().to_string();
+            list.push(name);
+        }
+    }
+
+    list
 }
