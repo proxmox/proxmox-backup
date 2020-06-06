@@ -8,6 +8,7 @@ mod subscription;
 pub mod types;
 pub mod version;
 pub mod pull;
+pub mod disks;
 
 use proxmox::api::router::SubdirMap;
 use proxmox::api::Router;
@@ -20,6 +21,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("admin", &admin::ROUTER),
     ("backup", &backup::ROUTER),
     ("config", &config::ROUTER),
+    ("disks", &disks::ROUTER),
     ("nodes", &NODES_ROUTER),
     ("pull", &pull::ROUTER),
     ("reader", &reader::ROUTER),
