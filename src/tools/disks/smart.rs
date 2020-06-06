@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
@@ -72,7 +72,7 @@ pub struct SmartData {
 
 /// Read smartctl data for a disk (/dev/XXX).
 pub fn get_smart_data(
-    disk: &str,
+    disk: &super::Disk,
     health_only: bool,
 ) -> Result<SmartData, Error> {
 
@@ -81,7 +81,12 @@ pub fn get_smart_data(
     let mut command = std::process::Command::new(SMARTCTL_BIN_PATH);
     command.arg("-H");
     if !health_only { command.args(&["-A", "-j"]); }
-    command.arg(disk);
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+    command.arg(disk_path);
 
     let output = command.output()
         .map_err(|err| format_err!("failed to execute '{}' - {}", SMARTCTL_BIN_PATH, err))?;
