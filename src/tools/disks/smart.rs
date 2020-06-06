@@ -202,13 +202,7 @@ fn lookup_vendor_wearout_id(disk: &super::Disk) -> u64 {
 
     let result = 233; // default
     let model = match disk.model() {
-        Some(model) => {
-            if let Some(model) = model.to_str() {
-                model.to_lowercase()
-            } else {
-                return result;
-            }
-        }
+        Some(model) => model.to_string_lossy().to_lowercase(),
         None => return result,
     };
 
