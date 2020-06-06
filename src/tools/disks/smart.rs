@@ -65,9 +65,9 @@ pub struct SmartAttribute {
 #[derive(Debug, Serialize, Deserialize)]
 /// Data from smartctl
 pub struct SmartData {
-    status: SmartStatus,
-    wearout: Option<f64>,
-    attributes: Vec<SmartAttribute>,
+    pub status: SmartStatus,
+    pub wearout: Option<f64>,
+    pub attributes: Vec<SmartAttribute>,
 }
 
 /// Read smartctl data for a disk (/dev/XXX).

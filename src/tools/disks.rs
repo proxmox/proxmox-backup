@@ -580,6 +580,8 @@ pub struct DiskUsageInfo {
     pub name: String,
     pub used: DiskUsageType,
     pub disk_type: DiskType,
+    pub status: SmartStatus,
+    pub wearout: Option<f64>,
     pub vendor: Option<String>,
     pub model: Option<String>,
     pub wwn: Option<String>,
@@ -698,14 +700,14 @@ pub fn get_disks(
             }
         }
 
-        let data = disk_manager.clone().disk_by_sys_path(&sys_path)?;
+        let disk = disk_manager.clone().disk_by_sys_path(&sys_path)?;
 
-        let size = match data.size() {
+        let size = match disk.size() {
             Ok(size) => size,
             Err(_) => continue, // skip devices with unreadable size
         };
 
-        let disk_type = match data.guess_disk_type() {
+        let disk_type = match disk.guess_disk_type() {
             Ok(disk_type) => disk_type,
             Err(_) => continue, // skip devices with undetectable type
         };
@@ -716,7 +718,7 @@ pub fn get_disks(
             usage = DiskUsageType::LVM;
         }
 
-        match data.is_mounted() {
+        match disk.is_mounted() {
             Ok(true) => usage = DiskUsageType::Mounted,
             Ok(false) => {},
             Err(_) => continue, // skip devices with undetectable mount status
@@ -726,16 +728,16 @@ pub fn get_disks(
             usage = DiskUsageType::ZFS;
         }
 
-        let vendor = data.vendor().unwrap_or(None).
+        let vendor = disk.vendor().unwrap_or(None).
             map(|s| s.to_string_lossy().trim().to_string());
 
-        let model = data.model().map(|s| s.to_string_lossy().into_owned());
+        let model = disk.model().map(|s| s.to_string_lossy().into_owned());
 
-        let serial = data.serial().map(|s| s.to_string_lossy().into_owned());
+        let serial = disk.serial().map(|s| s.to_string_lossy().into_owned());
 
-        let devpath =  data.device_path().map(|p| p.to_owned());
+        let devpath =  disk.device_path().map(|p| p.to_owned());
 
-        let wwn = data.wwn().map(|s| s.to_string_lossy().into_owned());
+        let wwn = disk.wwn().map(|s| s.to_string_lossy().into_owned());
 
         if usage != DiskUsageType::Mounted {
             match scan_partitions(disk_manager.clone(), &lvm_devices, &zfs_devices, &name) {
@@ -748,15 +750,24 @@ pub fn get_disks(
             };
         }
 
+        let mut  status = SmartStatus::Unknown;
+        let mut wearout = None;
+
+        if !no_smart {
+            if let Ok(smart) = get_smart_data(&disk, false) {
+                status = smart.status;
+                wearout = smart.wearout;
+            }
+        }
+
         let info = DiskUsageInfo {
             name: name.clone(),
             vendor, model, serial, devpath, size, wwn, disk_type,
+            status, wearout,
             used: usage,
-            gpt: data.has_gpt(),
-            rpm: data.ata_rotation_rate_rpm(),
+            gpt: disk.has_gpt(),
+            rpm: disk.ata_rotation_rate_rpm(),
         };
-
-        println!("GOT {:?}", info);
 
         result.insert(name, info);
     }
