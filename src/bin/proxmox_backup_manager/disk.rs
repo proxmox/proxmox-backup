@@ -85,12 +85,51 @@ fn smart_attributes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     Ok(Value::Null)
 }
 
+#[api(
+   input: {
+        properties: {
+            disk: {
+                schema: BLOCKDEVICE_NAME_SCHEMA,
+            },
+            uuid: {
+                description: "UUID for the GPT table.",
+                type: String,
+                optional: true,
+                max_length: 36,
+            },
+        },
+   },
+)]
+/// Initialize empty Disk with GPT
+async fn initialize_disk(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::API_METHOD_INITIALIZE_DISK;
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    crate::wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(Value::Null)
+}
+
 pub fn disk_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
         .insert("list", CliCommand::new(&API_METHOD_LIST_DISKS))
         .insert("smart-attributes",
                 CliCommand::new(&API_METHOD_SMART_ATTRIBUTES)
+                .arg_param(&["disk"])
+                .completion_cb("disk", complete_disk_name)
+        )
+        .insert("initialize",
+                CliCommand::new(&API_METHOD_INITIALIZE_DISK)
                 .arg_param(&["disk"])
                 .completion_cb("disk", complete_disk_name)
         );

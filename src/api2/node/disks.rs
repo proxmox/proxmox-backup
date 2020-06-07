@@ -1,17 +1,19 @@
-use anyhow::{Error};
+use anyhow::{bail, Error};
+use serde_json::{json, Value};
 
-use proxmox::api::{api, Permission};
+use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{list_subdirs_api_method};
 
-use crate::config::acl::{PRIV_SYS_AUDIT};
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
     DiskUsageInfo, DiskUsageType, DiskManage, SmartData,
-    get_disks, get_smart_data,
+    get_disks, get_smart_data, get_disk_usage_info, inititialize_gpt_disk,
 };
+use crate::server::WorkerTask;
 
-use crate::api2::types::{NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
+use crate::api2::types::{UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
 #[api(
     protected: true,
@@ -101,9 +103,71 @@ pub fn smart_status(
     get_smart_data(&disk, healthonly)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            disk: {
+                schema: BLOCKDEVICE_NAME_SCHEMA,
+            },
+            uuid: {
+                description: "UUID for the GPT table.",
+                type: String,
+                optional: true,
+                max_length: 36,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Initialize empty Disk with GPT
+pub fn initialize_disk(
+    disk: String,
+    uuid: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
+    let username = rpcenv.get_user().unwrap();
+
+    let info = get_disk_usage_info(&disk, true)?;
+
+    if info.used != DiskUsageType::Unused {
+        bail!("disk '{}' is already in use.", disk);
+    }
+
+    let upid_str = WorkerTask::new_thread(
+        "diskinit", Some(disk.clone()), &username.clone(), to_stdout, move |worker|
+        {
+            worker.log(format!("initialize disk {}", disk));
+
+            let disk_manager = DiskManage::new();
+            let disk_info = disk_manager.disk_by_node(&disk)?;
+
+            inititialize_gpt_disk(&disk_info, uuid.as_deref())?;
+
+            Ok(())
+        })?;
+
+    Ok(json!(upid_str))
+}
+
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
-//    ("lvm", &lvm::ROUTER),
+    //    ("lvm", &lvm::ROUTER),
+    (
+        "initgpt", &Router::new()
+            .post(&API_METHOD_INITIALIZE_DISK)
+    ),
     (
         "list", &Router::new()
             .get(&API_METHOD_LIST_DISKS)

@@ -32,6 +32,24 @@ async fn view_task_result(
     Ok(())
 }
 
+// Note: local worker already printf logs to stdout, so there is no need
+// to fetch/display logs. We just wait for the worker to finish.
+pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
+
+    let upid: proxmox_backup::server::UPID = upid_str.parse()?;
+
+    let sleep_duration = core::time::Duration::new(0, 100_000_000);
+
+    loop {
+        if proxmox_backup::server::worker_is_active_local(&upid) {
+            tokio::time::delay_for(sleep_duration).await;
+        } else {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn connect() -> Result<HttpClient, Error> {
 
     let uid = nix::unistd::Uid::current();

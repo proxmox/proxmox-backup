@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bitflags::bitflags;
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use libc::dev_t;
 use once_cell::sync::OnceCell;
 
@@ -708,6 +708,23 @@ fn scan_partitions(
     Ok(used)
 }
 
+
+/// Get disk usage information for a single disk
+pub fn get_disk_usage_info(
+    disk: &str,
+    no_smart: bool,
+) -> Result<DiskUsageInfo, Error> {
+    let mut filter = Vec::new();
+    filter.push(disk.to_string());
+    let mut map = get_disks(Some(filter), no_smart)?;
+    if let Some(info) = map.remove(disk) {
+        return Ok(info);
+    } else {
+        bail!("failed to get disk usage info - internal error"); // should not happen
+    }
+}
+
+/// Get disk usage information for multiple disks
 pub fn get_disks(
     // filter - list of device names (without leading /dev)
     disks: Option<Vec<String>>,
@@ -820,6 +837,32 @@ pub fn get_disks(
     Ok(result)
 }
 
+/// Initialize disk by writing a GPT partition table
+pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Error> {
+
+    const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+
+    let uuid = uuid.unwrap_or("R"); // R .. random disk GUID
+
+    let mut command = std::process::Command::new(SGDISK_BIN_PATH);
+    command.arg(disk_path);
+    command.args(&["-U", uuid]);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", SGDISK_BIN_PATH, err))?;
+
+    crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("sgdisk command failed: {}", err))?;
+
+    Ok(())
+}
+
+/// Block device name completion helper
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
 
