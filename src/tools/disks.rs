@@ -19,6 +19,8 @@ use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
 use proxmox::api::api;
 
+use crate::api2::types::BLOCKDEVICE_NAME_REGEX;
+
 mod zfs;
 pub use zfs::*;
 mod lvm;
@@ -29,8 +31,6 @@ pub use smart::*;
 lazy_static::lazy_static!{
     static ref ISCSI_PATH_REGEX: regex::Regex =
         regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
-    static ref BLOCKDEV_REGEX: regex::Regex =
-        regex::Regex::new(r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$").unwrap();
 }
 
 bitflags! {
@@ -727,7 +727,7 @@ pub fn get_disks(
 
     let mut result = HashMap::new();
 
-    for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEV_REGEX)? {
+    for item in crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX)? {
         let item = item?;
 
         let name = item.file_name().to_str().unwrap().to_string();
@@ -823,7 +823,7 @@ pub fn get_disks(
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
 
-    let dir = match crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEV_REGEX) {
+    let dir = match crate::tools::fs::scan_subdir(libc::AT_FDCWD, "/sys/block", &BLOCKDEVICE_NAME_REGEX) {
         Ok(dir) => dir,
         Err(_) => return list,
     };

@@ -11,7 +11,7 @@ use crate::tools::disks::{
     get_disks, get_smart_data,
 };
 
-use crate::api2::types::NODE_SCHEMA;
+use crate::api2::types::{NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
 #[api(
     protected: true,
@@ -72,8 +72,7 @@ pub fn list_disks(
                 schema: NODE_SCHEMA,
             },
             disk: {
-		description: "Block device name.",
-		type: String,
+                schema: BLOCKDEVICE_NAME_SCHEMA,
             },
             healthonly: {
                 description: "If true returns only the health status.",

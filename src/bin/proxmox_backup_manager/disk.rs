@@ -48,8 +48,7 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
     input: {
         properties: {
             disk: {
-		description: "Block device name.",
-		type: String,
+                schema: BLOCKDEVICE_NAME_SCHEMA,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,

@@ -74,6 +74,8 @@ const_regex!{
     pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
+
+    pub BLOCKDEVICE_NAME_REGEX = r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$";
 }
 
 pub const SYSTEMD_DATETIME_FORMAT: ApiStringFormat =
@@ -133,6 +135,8 @@ pub const CIDR_V6_FORMAT: ApiStringFormat =
 pub const CIDR_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&CIDR_REGEX);
 
+pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
 
 pub const PASSWORD_SCHEMA: Schema = StringSchema::new("Password.")
     .format(&PASSWORD_FORMAT)
@@ -353,6 +357,11 @@ pub const PROXMOX_GROUP_ID_SCHEMA: Schema = StringSchema::new("Group ID")
     .max_length(64)
     .schema();
 
+pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name (/sys/block/<name>).")
+    .format(&BLOCKDEVICE_NAME_FORMAT)
+    .min_length(3)
+    .max_length(64)
+    .schema();
 
 // Complex type definitions
 
