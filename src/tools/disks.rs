@@ -32,6 +32,7 @@ pub const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
 pub const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
 pub const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
 pub const MKFS_BIN_PATH: &str = "/sbin/mkfs";
+pub const BLKID_BIN_PATH: &str = "/sbin/blkid";
 
 lazy_static::lazy_static!{
     static ref ISCSI_PATH_REGEX: regex::Regex =
@@ -909,4 +910,33 @@ pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<S
     }
 
     list
+}
+
+/// Read the FS UUID (parse blkid output)
+///
+/// Note: Calling blkid is more reliable than using the udev ID_FS_UUID property.
+pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+
+    let mut command = std::process::Command::new(BLKID_BIN_PATH);
+    command.args(&["-o", "export"]);
+    command.arg(disk_path);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", BLKID_BIN_PATH, err))?;
+
+    let output = crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("blkid command failed: {}", err))?;
+
+    for line in output.lines() {
+        if line.starts_with("UUID=") {
+            return Ok(line[5..].to_string());
+        }
+    }
+
+    bail!("get_fs_uuid failed - missing UUID");
 }
