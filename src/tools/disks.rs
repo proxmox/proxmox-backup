@@ -837,6 +837,29 @@ pub fn get_disks(
     Ok(result)
 }
 
+/// Try to reload the partition table
+pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
+
+    const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+
+    let mut command = std::process::Command::new(BLOCKDEV_BIN_PATH);
+    command.arg("--rereadpt");
+    command.arg(disk_path);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", BLOCKDEV_BIN_PATH, err))?;
+
+    crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("re-read partition table failed: {}", err))?;
+
+    Ok(())
+}
+
 /// Initialize disk by writing a GPT partition table
 pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Error> {
 
