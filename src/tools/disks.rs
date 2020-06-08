@@ -8,7 +8,6 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use bitflags::bitflags;
 use anyhow::{bail, format_err, Error};
 use libc::dev_t;
 use once_cell::sync::OnceCell;
@@ -29,32 +28,13 @@ pub use lvm::*;
 mod smart;
 pub use smart::*;
 
+pub const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
+pub const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
+pub const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
+
 lazy_static::lazy_static!{
     static ref ISCSI_PATH_REGEX: regex::Regex =
         regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
-}
-
-bitflags! {
-    /// Ways a device is being used.
-    pub struct DiskUse: u32 {
-        /// Currently mounted.
-        const MOUNTED = 0x0000_0001;
-
-        /// Currently used as member of a device-mapper device.
-        const DEVICE_MAPPER = 0x0000_0002;
-
-        /// Contains partitions.
-        const PARTITIONS = 0x0001_0000;
-
-        /// The disk has a partition type which belongs to an LVM PV.
-        const LVM = 0x0002_0000;
-
-        /// The disk has a partition type which belongs to a zpool.
-        const ZFS = 0x0004_0000;
-
-        /// The disk is used by ceph.
-        const CEPH = 0x0008_0000;
-    }
 }
 
 /// Disk management context.
@@ -544,8 +524,6 @@ pub struct BlockDevStat {
 /// Use lsblk to read partition type uuids.
 pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> {
 
-    const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
-
     let mut command = std::process::Command::new(LSBLK_BIN_PATH);
     command.args(&["--json", "-o", "path,parttype"]);
 
@@ -842,8 +820,6 @@ pub fn get_disks(
 /// Try to reload the partition table
 pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
 
-    const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
-
     let disk_path = match disk.device_path() {
         Some(path) => path,
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
@@ -864,8 +840,6 @@ pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
 
 /// Initialize disk by writing a GPT partition table
 pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Error> {
-
-    const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
 
     let disk_path = match disk.device_path() {
         Some(path) => path,
