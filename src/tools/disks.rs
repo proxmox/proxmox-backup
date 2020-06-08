@@ -893,6 +893,68 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
     Ok(())
 }
 
+/// Create a single linux partition using the whole available space
+pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+
+    let mut command = std::process::Command::new(SGDISK_BIN_PATH);
+    command.args(&["-n1", "-t1:8300"]);
+    command.arg(disk_path);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", SGDISK_BIN_PATH, err))?;
+
+    crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("sgdisk command failed: {}", err))?;
+
+    let mut partitions = disk.partitions()?;
+
+    match partitions.remove(&1) {
+        Some(partition) => Ok(partition),
+        None => bail!("unable to lookup device partition"),
+    }
+}
+
+#[api()]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="lowercase")]
+pub enum FileSystemType {
+    /// Linux Ext4
+    Ext4,
+    /// XFS
+    Xfs,
+}
+
+/// Create a file system on a disk or disk partition
+pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Error> {
+
+    let disk_path = match disk.device_path() {
+        Some(path) => path,
+        None => bail!("disk {:?} has no node in /dev", disk.syspath()),
+    };
+
+    let fs_type = match fs_type {
+        FileSystemType::Ext4 => "ext4",
+        FileSystemType::Xfs => "xfs",
+    };
+
+    let mut command = std::process::Command::new(MKFS_BIN_PATH);
+    command.args(&["-t", fs_type]);
+    command.arg(disk_path);
+
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute '{}' - {}", MKFS_BIN_PATH, err))?;
+
+    crate::tools::command_output(output, None)
+        .map_err(|err| format_err!("mkfs {} failed: {}", fs_type, err))?;
+
+    Ok(())
+}
+
 /// Block device name completion helper
 pub fn complete_disk_name(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     let mut list = Vec::new();
