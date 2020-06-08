@@ -1,4 +1,5 @@
 use std::collections::{HashSet, HashMap};
+use std::os::unix::fs::MetadataExt;
 
 use anyhow::{format_err, Error};
 use serde_json::Value;
@@ -12,10 +13,10 @@ lazy_static!{
     };
 }
 
-/// Get list of devices used by LVM (pvs).
+/// Get set of devices used by LVM (pvs).
 pub fn get_lvm_devices(
     partition_type_map: &HashMap<String, Vec<String>>,
-) -> Result<HashSet<String>, Error> {
+) -> Result<HashSet<u64>, Error> {
 
     const PVS_BIN_PATH: &str = "/sbin/pvs";
 
@@ -28,13 +29,14 @@ pub fn get_lvm_devices(
     let output = crate::tools::command_output(output, None)
         .map_err(|err| format_err!("pvs command failed: {}", err))?;
 
-    let mut device_set: HashSet<String> = HashSet::new();
+    let mut device_set: HashSet<u64> = HashSet::new();
 
     for device_list in partition_type_map.iter()
         .filter_map(|(uuid, list)| if LVM_UUIDS.contains(uuid.as_str()) { Some(list) } else { None })
     {
         for device in device_list {
-            device_set.insert(device.clone());
+            let meta = std::fs::metadata(device)?;
+            device_set.insert(meta.rdev());
         }
     }
 
@@ -44,7 +46,8 @@ pub fn get_lvm_devices(
         Some(list) => {
             for info in list {
                 if let Some(pv_name) = info["pv_name"].as_str() {
-                    device_set.insert(pv_name.to_string());
+                    let meta = std::fs::metadata(pv_name)?;
+                    device_set.insert(meta.rdev());
                 }
             }
         }

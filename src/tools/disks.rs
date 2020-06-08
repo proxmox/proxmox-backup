@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -82,8 +83,6 @@ impl DiskManage {
 
     /// Get a `Disk` from a device node (eg. `/dev/sda`).
     pub fn disk_by_node<P: AsRef<Path>>(self: Arc<Self>, devnode: P) -> io::Result<Disk> {
-        use std::os::unix::fs::MetadataExt;
-
         let devnode = devnode.as_ref();
 
         let meta = std::fs::metadata(devnode)?;
@@ -121,8 +120,6 @@ impl DiskManage {
 
     /// Gather information about mounted disks:
     fn mounted_devices(&self) -> Result<&HashSet<dev_t>, Error> {
-        use std::os::unix::fs::MetadataExt;
-
         self.mounted_devices
             .get_or_try_init(|| -> Result<_, Error> {
                 let mut mounted = HashSet::new();
@@ -645,8 +642,8 @@ pub struct DiskUsageInfo {
 
 fn scan_partitions(
     disk_manager: Arc<DiskManage>,
-    lvm_devices: &HashSet<String>,
-    zfs_devices: &HashSet<String>,
+    lvm_devices: &HashSet<u64>,
+    zfs_devices: &HashSet<u64>,
     device: &str,
 ) -> Result<DiskUsageType, Error> {
 
@@ -676,7 +673,9 @@ fn scan_partitions(
 
         let data = disk_manager.clone().disk_by_sys_path(&part_path)?;
 
-        if lvm_devices.contains(name) {
+        let devnum = data.devnum()?;
+
+        if lvm_devices.contains(&devnum) {
             found_lvm = true;
         }
 
@@ -688,9 +687,9 @@ fn scan_partitions(
             found_dm = true;
         }
 
-        if zfs_devices.contains(name) {
+         if zfs_devices.contains(&devnum) {
             found_zfs = true;
-        }
+         }
     }
 
     if found_mountpoints {
@@ -763,6 +762,8 @@ pub fn get_disks(
 
         let disk = disk_manager.clone().disk_by_sys_path(&sys_path)?;
 
+        let devnum = disk.devnum()?;
+
         let size = match disk.size() {
             Ok(size) => size,
             Err(_) => continue, // skip devices with unreadable size
@@ -775,7 +776,7 @@ pub fn get_disks(
 
         let mut usage = DiskUsageType::Unused;
 
-        if lvm_devices.contains(&name) {
+        if lvm_devices.contains(&devnum) {
             usage = DiskUsageType::LVM;
         }
 
@@ -785,7 +786,7 @@ pub fn get_disks(
             Err(_) => continue, // skip devices with undetectable mount status
         }
 
-        if zfs_devices.contains(&name) {
+        if zfs_devices.contains(&devnum) {
             usage = DiskUsageType::ZFS;
         }
 
@@ -798,6 +799,7 @@ pub fn get_disks(
 
         let devpath =  disk.device_path().map(|p| p.to_owned())
             .map(|p| p.to_string_lossy().to_string());
+
 
         let wwn = disk.wwn().map(|s| s.to_string_lossy().into_owned());
 

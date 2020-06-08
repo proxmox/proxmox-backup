@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::collections::{HashMap, HashSet};
+use std::os::unix::fs::MetadataExt;
 
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
@@ -168,11 +169,13 @@ pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
     }
 }
 
-/// List devices used by zfs (or a specific zfs pool)
+/// Get set of devices used by zfs (or a specific zfs pool)
+///
+/// The set is indexed by using the unix raw device number (dev_t is u64)
 pub fn zfs_devices(
     partition_type_map: &HashMap<String, Vec<String>>,
     pool: Option<&OsStr>,
-) -> Result<HashSet<String>, Error> {
+) -> Result<HashSet<u64>, Error> {
 
     // Note: zpools list  output can include entries for 'special', 'cache' and 'logs'
     // and maybe other things.
@@ -193,7 +196,8 @@ pub fn zfs_devices(
     let mut device_set = HashSet::new();
     for entry in list {
         for device in entry.devices {
-            device_set.insert(device.clone());
+            let meta = std::fs::metadata(device)?;
+            device_set.insert(meta.rdev());
         }
     }
 
@@ -201,7 +205,8 @@ pub fn zfs_devices(
         .filter_map(|(uuid, list)| if ZFS_UUIDS.contains(uuid.as_str()) { Some(list) } else { None })
     {
         for device in device_list {
-            device_set.insert(device.clone());
+            let meta = std::fs::metadata(device)?;
+            device_set.insert(meta.rdev());
         }
     }
 
