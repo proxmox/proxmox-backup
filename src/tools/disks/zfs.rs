@@ -153,6 +153,9 @@ fn parse_pool_status(i: &str) -> IResult<&str, ZFSPoolStatus> {
 /// Note: This does not reveal any details on how the pool uses the devices, because
 /// the zpool list output format is not really defined...
 pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
+    if i.is_empty() {
+        return Ok(Vec::new());
+    }
     match all_consuming(many1(parse_pool_status))(i) {
         Err(nom::Err::Error(err)) |
         Err(nom::Err::Failure(err)) => {
