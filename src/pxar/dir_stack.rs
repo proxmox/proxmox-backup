@@ -10,7 +10,7 @@ use nix::sys::stat::{mkdirat, Mode};
 use proxmox::sys::error::SysError;
 use pxar::Metadata;
 
-use crate::pxar::tools::{assert_relative_path, perms_from_metadata};
+use crate::pxar::tools::{assert_single_path_component, perms_from_metadata};
 
 pub struct PxarDir {
     file_name: OsString,
@@ -95,7 +95,7 @@ impl PxarDirStack {
     }
 
     pub fn push(&mut self, file_name: OsString, metadata: Metadata) -> Result<(), Error> {
-        assert_relative_path(&file_name)?;
+        assert_single_path_component(&file_name)?;
         self.path.push(&file_name);
         self.dirs.push(PxarDir::new(file_name, metadata));
         Ok(())

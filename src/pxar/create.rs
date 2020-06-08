@@ -21,7 +21,7 @@ use proxmox::tools::fd::RawFdNum;
 
 use crate::pxar::catalog::BackupCatalogWriter;
 use crate::pxar::flags;
-use crate::pxar::tools::assert_relative_path;
+use crate::pxar::tools::assert_single_path_component;
 use crate::tools::{acl, fs, xattr, Fd};
 
 fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
@@ -230,7 +230,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
             }
 
             let os_file_name = OsStr::from_bytes(file_name_bytes);
-            assert_relative_path(os_file_name)?;
+            assert_single_path_component(os_file_name)?;
             let full_path = self.path.join(os_file_name);
 
             let stat = match nix::sys::stat::fstatat(

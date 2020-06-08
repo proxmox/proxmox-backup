@@ -24,10 +24,21 @@ pub fn assert_relative_path<S: AsRef<OsStr> + ?Sized>(path: &S) -> Result<(), Er
     assert_relative_path_do(Path::new(path))
 }
 
+/// Make sure path is a single component and not '.' or '..'.
+pub fn assert_single_path_component<S: AsRef<OsStr> + ?Sized>(path: &S) -> Result<(), Error> {
+    assert_single_path_component_do(Path::new(path))
+}
+
 fn assert_relative_path_do(path: &Path) -> Result<(), Error> {
     if !path.is_relative() {
         bail!("bad absolute file name in archive: {:?}", path);
     }
+
+    Ok(())
+}
+
+fn assert_single_path_component_do(path: &Path) -> Result<(), Error> {
+    assert_relative_path_do(path)?;
 
     let mut components = path.components();
     match components.next() {
