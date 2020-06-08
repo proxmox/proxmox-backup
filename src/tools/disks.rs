@@ -31,6 +31,7 @@ pub use smart::*;
 pub const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
 pub const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
 pub const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
+pub const MKFS_BIN_PATH: &str = "/sbin/mkfs";
 
 lazy_static::lazy_static!{
     static ref ISCSI_PATH_REGEX: regex::Regex =
@@ -475,6 +476,36 @@ impl Disk {
              }));
         }
         Ok(None)
+    }
+
+    /// List device partitions
+    pub fn partitions(&self) -> Result<HashMap<u64, Disk>, Error> {
+
+        let sys_path = self.syspath();
+        let device = self.sysname().to_string_lossy().to_string();
+
+        let mut map = HashMap::new();
+
+        for item in crate::tools::fs::read_subdir(libc::AT_FDCWD, sys_path)? {
+            let item = item?;
+            let name = match item.file_name().to_str() {
+                Ok(name) => name,
+                Err(_) => continue, // skip non utf8 entries
+            };
+
+            if !name.starts_with(&device) { continue; }
+
+            let mut part_path = sys_path.to_owned();
+            part_path.push(name);
+
+            let disk_part = self.manager.clone().disk_by_sys_path(&part_path)?;
+
+            if let Some(partition) = disk_part.read_sys_u64("partition")? {
+                map.insert(partition, disk_part);
+            }
+        }
+
+        Ok(map)
     }
 }
 
