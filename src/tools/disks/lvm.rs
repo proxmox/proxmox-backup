@@ -14,6 +14,8 @@ lazy_static!{
 }
 
 /// Get set of devices used by LVM (pvs).
+///
+/// The set is indexed by using the unix raw device number (dev_t is u64)
 pub fn get_lvm_devices(
     partition_type_map: &HashMap<String, Vec<String>>,
 ) -> Result<HashSet<u64>, Error> {
