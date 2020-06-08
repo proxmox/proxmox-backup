@@ -151,7 +151,7 @@ pub fn initialize_disk(
             worker.log(format!("initialize disk {}", disk));
 
             let disk_manager = DiskManage::new();
-            let disk_info = disk_manager.disk_by_node(&disk)?;
+            let disk_info = disk_manager.disk_by_name(&disk)?;
 
             inititialize_gpt_disk(&disk_info, uuid.as_deref())?;
 
