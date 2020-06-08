@@ -32,6 +32,7 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("used"))
+        .column(ColumnConfig::new("gpt"))
         .column(ColumnConfig::new("disk-type"))
         .column(ColumnConfig::new("size"))
         .column(ColumnConfig::new("model"))
