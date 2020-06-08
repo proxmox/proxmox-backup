@@ -259,7 +259,7 @@ impl Disk {
     }
 
     /// Convenience wrapper for reading a `/sys` file which contains just a simple `OsString`.
-    fn read_sys_os_str<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<OsString>> {
+    pub fn read_sys_os_str<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<OsString>> {
         Ok(self.read_sys(path.as_ref())?.map(|mut v| {
             if Some(&b'\n') == v.last() {
                 v.pop();
@@ -269,7 +269,7 @@ impl Disk {
     }
 
     /// Convenience wrapper for reading a `/sys` file which contains just a simple utf-8 string.
-    fn read_sys_str<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<String>> {
+    pub fn read_sys_str<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<String>> {
         Ok(match self.read_sys(path.as_ref())? {
             Some(data) => Some(String::from_utf8(data).map_err(io_err_other)?),
             None => None,
@@ -277,7 +277,7 @@ impl Disk {
     }
 
     /// Convenience wrapper for unsigned integer `/sys` values up to 64 bit.
-    fn read_sys_u64<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<u64>> {
+    pub fn read_sys_u64<P: AsRef<Path>>(&self, path: P) -> io::Result<Option<u64>> {
         Ok(match self.read_sys_str(path)? {
             Some(data) => Some(data.trim().parse().map_err(io_err_other)?),
             None => None,
