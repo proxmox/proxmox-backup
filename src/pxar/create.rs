@@ -90,7 +90,7 @@ struct Archiver<'a, 'b> {
     feature_flags: u64,
     fs_feature_flags: u64,
     fs_magic: i64,
-    excludes: &'a [MatchEntry],
+    patterns: &'a [MatchEntry],
     callback: &'a mut dyn FnMut(&Path) -> Result<(), Error>,
     catalog: Option<&'b mut dyn BackupCatalogWriter>,
     path: PathBuf,
@@ -106,7 +106,7 @@ type Encoder<'a, 'b> = pxar::encoder::Encoder<'a, &'b mut dyn pxar::encoder::Seq
 pub fn create_archive<T, F>(
     source_dir: Dir,
     mut writer: T,
-    mut excludes: Vec<MatchEntry>,
+    mut patterns: Vec<MatchEntry>,
     feature_flags: u64,
     mut device_set: Option<HashSet<u64>>,
     skip_lost_and_found: bool,
@@ -142,7 +142,7 @@ where
     let mut encoder = Encoder::new(writer, &metadata)?;
 
     if skip_lost_and_found {
-        excludes.push(MatchEntry::parse_pattern(
+        patterns.push(MatchEntry::parse_pattern(
             "**/lost+found",
             PatternFlag::PATH_NAME,
             MatchType::Exclude,
@@ -154,7 +154,7 @@ where
         fs_feature_flags,
         fs_magic,
         callback: &mut callback,
-        excludes: &excludes,
+        patterns: &patterns,
         catalog,
         path: PathBuf::new(),
         entry_counter: 0,
@@ -163,6 +163,18 @@ where
         device_set,
         hardlinks: HashMap::new(),
     };
+
+    if !patterns.is_empty() {
+        let content = generate_pxar_excludes_cli(&patterns);
+        let mut file = encoder.create_file(
+            &Metadata::default(),
+            ".pxarexclude-cli",
+            content.len() as u64,
+        )?;
+
+        use std::io::Write;
+        file.write_all(&content)?;
+    }
 
     archiver.archive_dir_contents(&mut encoder, source_dir)?;
     encoder.finish()?;
@@ -222,8 +234,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 continue;
             }
 
-            // FIXME: deal with `.pxarexclude-cli`
-
             if file_name_bytes == b".pxarexclude" {
                 // FIXME: handle this file!
                 continue;
@@ -244,7 +254,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
             };
 
             if self
-                .excludes
+                .patterns
                 .matches(full_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
                 == Some(MatchType::Exclude)
             {
@@ -294,7 +304,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic)?;
 
         if self
-            .excludes
+            .patterns
             .matches(self.path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
             == Some(MatchType::Exclude)
         {
@@ -766,4 +776,33 @@ fn process_acl(
     metadata.acl.default = acl_default;
 
     Ok(())
+}
+
+/// Note that our pattern lists are "positive". `MatchType::Include` means the file is included.
+/// Since we are generating an *exclude* list, we need to invert this, so includes get a `'!'`
+/// prefix.
+fn generate_pxar_excludes_cli(patterns: &[MatchEntry]) -> Vec<u8> {
+    use pathpatterns::{MatchFlag, MatchPattern};
+
+    let mut content = Vec::new();
+
+    for pattern in patterns {
+        match pattern.match_type() {
+            MatchType::Include => content.push(b'!'),
+            MatchType::Exclude => (),
+        }
+
+        match pattern.pattern() {
+            MatchPattern::Literal(lit) => content.extend(lit),
+            MatchPattern::Pattern(pat) => content.extend(pat.pattern().to_bytes()),
+        }
+
+        if pattern.match_flags() == MatchFlag::MATCH_DIRECTORIES && content.last() != Some(&b'/') {
+            content.push(b'/');
+        }
+
+        content.push(b'\n');
+    }
+
+    content
 }

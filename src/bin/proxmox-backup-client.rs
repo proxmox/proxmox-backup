@@ -821,10 +821,10 @@ async fn create_backup(
     let empty = Vec::new();
     let exclude_args = param["exclude"].as_array().unwrap_or(&empty);
 
-    let mut exclude_list = Vec::with_capacity(exclude_args.len());
+    let mut pattern_list = Vec::with_capacity(exclude_args.len());
     for entry in exclude_args {
         let entry = entry.as_str().ok_or_else(|| format_err!("Invalid pattern string slice"))?;
-        exclude_list.push(
+        pattern_list.push(
             MatchEntry::parse_pattern(entry, PatternFlag::PATH_NAME, MatchType::Exclude)
                 .map_err(|err| format_err!("invalid exclude pattern entry: {}", err))?
         );
@@ -971,7 +971,7 @@ async fn create_backup(
                     skip_lost_and_found,
                     crypt_config.clone(),
                     catalog.clone(),
-                    exclude_list.clone(),
+                    pattern_list.clone(),
                     entries_max as usize,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum)?;

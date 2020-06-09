@@ -43,7 +43,7 @@ impl PxarBackupStream {
         _verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        exclude_pattern: Vec<MatchEntry>,
+        patterns: Vec<MatchEntry>,
         entries_max: usize,
     ) -> Result<Self, Error> {
         let (tx, rx) = std::sync::mpsc::sync_channel(10);
@@ -66,7 +66,7 @@ impl PxarBackupStream {
                     if let Err(err) = crate::pxar::create_archive(
                         dir,
                         writer,
-                        exclude_pattern,
+                        patterns,
                         crate::pxar::flags::DEFAULT,
                         device_set,
                         skip_lost_and_found,
@@ -93,7 +93,7 @@ impl PxarBackupStream {
         verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
-        exclude_pattern: Vec<MatchEntry>,
+        patterns: Vec<MatchEntry>,
         entries_max: usize,
     ) -> Result<Self, Error> {
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
@@ -106,7 +106,7 @@ impl PxarBackupStream {
             verbose,
             skip_lost_and_found,
             catalog,
-            exclude_pattern,
+            patterns,
             entries_max,
         )
     }
