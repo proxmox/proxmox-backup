@@ -18,6 +18,7 @@ use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 lazy_static! {
     pub static ref SERVICE_CONFIG: SectionConfig = init_service();
     pub static ref TIMER_CONFIG: SectionConfig = init_timer();
+    pub static ref MOUNT_CONFIG: SectionConfig = init_mount();
 }
 
 fn init_service() -> SectionConfig {
@@ -78,6 +79,35 @@ fn init_timer() -> SectionConfig {
     config
 }
 
+fn init_mount() -> SectionConfig {
+
+    let mut config = SectionConfig::with_systemd_syntax(&SYSTEMD_SECTION_NAME_SCHEMA);
+
+    match SystemdUnitSection::API_SCHEMA {
+        Schema::Object(ref obj_schema) =>  {
+            let plugin = SectionConfigPlugin::new("Unit".to_string(), None, obj_schema);
+            config.register_plugin(plugin);
+        }
+        _ => unreachable!(),
+    };
+    match SystemdInstallSection::API_SCHEMA {
+        Schema::Object(ref obj_schema) =>  {
+            let plugin = SectionConfigPlugin::new("Install".to_string(), None, obj_schema);
+            config.register_plugin(plugin);
+        }
+        _ => unreachable!(),
+    };
+    match SystemdMountSection::API_SCHEMA {
+        Schema::Object(ref obj_schema) =>  {
+            let plugin = SectionConfigPlugin::new("Mount".to_string(), None, obj_schema);
+            config.register_plugin(plugin);
+        }
+        _ => unreachable!(),
+    };
+
+    config
+}
+
 fn parse_systemd_config(config: &SectionConfig, filename: &str) -> Result<SectionConfigData, Error> {
 
     let raw = proxmox::tools::fs::file_get_contents(filename)?;
@@ -116,4 +146,8 @@ pub fn save_systemd_service(filename: &str, data: &SectionConfigData) -> Result<
 
 pub fn save_systemd_timer(filename: &str, data: &SectionConfigData) -> Result<(), Error> {
     save_systemd_config(&TIMER_CONFIG, filename, data)
+}
+
+pub fn save_systemd_mount(filename: &str, data: &SectionConfigData) -> Result<(), Error> {
+    save_systemd_config(&MOUNT_CONFIG, filename, data)
 }

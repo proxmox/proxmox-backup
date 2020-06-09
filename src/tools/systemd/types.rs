@@ -9,6 +9,7 @@ pub const SYSTEMD_SECTION_NAME_SCHEMA: Schema = StringSchema::new(
         EnumEntry::new("Unit", "Unit"),
         EnumEntry::new("Timer", "Timer"),
         EnumEntry::new("Install", "Install"),
+        EnumEntry::new("Mount", "Mount"),
         EnumEntry::new("Service", "Service")]))
     .schema();
 
@@ -183,6 +184,47 @@ pub struct SystemdInstallSection {
     pub WantedBy: Option<Vec<String>>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub RequiredBy: Option<Vec<String>>,
+}
+
+#[api(
+    properties: {
+        "TimeoutSec": {
+            schema: SYSTEMD_TIMESPAN_ARRAY_SCHEMA,
+            optional: true,
+        },
+    }
+)]
+#[derive(Serialize, Deserialize, Default)]
+#[allow(non_snake_case)]
+/// Systemd Service Section
+pub struct SystemdMountSection {
+    /// absolute path of a device node, file or other resource to mount
+    pub What: String,
+    /// absolute path of a file or directory for the mount point
+    pub Where: String,
+    /// Takes a string for the file system type. See mount(8) for details.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub Type: Option<String>,
+    /// Mount options to use when mounting. This takes a comma-separated list of options.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub Options: Option<String>,
+    /// If true, parsing of the options specified in Options= is relaxed, and unknown mount options are tolerated.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub SloppyOptions: Option<bool>,
+    /// Use lazy unmount
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub LazyUnmount: Option<bool>,
+    /// Use forces unmount
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub ForceUnmount: Option<bool>,
+    /// Directories of mount points (and any parent directories) are
+    /// automatically created if needed. Takes an access mode in octal
+    /// notation. Defaults to 0755.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub DirectoryMode: Option<String>,
+    /// Configures the time to wait for the mount command to finish.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub TimeoutSec: Option<String>,
 }
 
 #[api()]
