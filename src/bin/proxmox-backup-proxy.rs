@@ -711,11 +711,11 @@ async fn generate_host_stats(save: bool) {
 fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str, save: bool) {
 
     match proxmox_backup::tools::disks::disk_usage(path) {
-        Ok((total, used, _avail)) => {
+        Ok(status) => {
             let rrd_key = format!("{}/total", rrd_prefix);
-            rrd_update_gauge(&rrd_key, total as f64, save);
+            rrd_update_gauge(&rrd_key, status.total as f64, save);
             let rrd_key = format!("{}/used", rrd_prefix);
-            rrd_update_gauge(&rrd_key, used as f64, save);
+            rrd_update_gauge(&rrd_key, status.used as f64, save);
         }
         Err(err) => {
             eprintln!("read disk_usage on {:?} failed - {}", path, err);

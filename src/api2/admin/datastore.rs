@@ -382,25 +382,8 @@ pub fn status(
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<StorageStatus, Error> {
-
     let datastore = DataStore::lookup_datastore(&store)?;
-
-    let base_path = datastore.base_path();
-
-    let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
-
-    use nix::NixPath;
-
-    let res = base_path.with_nix_path(|cstr| unsafe { libc::statfs64(cstr.as_ptr(), &mut stat) })?;
-    nix::errno::Errno::result(res)?;
-
-    let bsize = stat.f_bsize as u64;
-
-    Ok(StorageStatus {
-        total: stat.f_blocks*bsize,
-        used: (stat.f_blocks-stat.f_bfree)*bsize,
-        avail: stat.f_bavail*bsize,
-    })
+    crate::tools::disks::disk_usage(&datastore.base_path())
 }
 
 #[macro_export]

@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::path::Path;
 
 use anyhow::{Error, format_err, bail};
 use serde_json::{json, Value};
@@ -60,6 +61,7 @@ fn get_usage(
 
     let meminfo: procfs::ProcFsMemInfo = procfs::read_meminfo()?;
     let kstat: procfs::ProcFsStat = procfs::read_proc_stat()?;
+    let disk_usage = crate::tools::disks::disk_usage(Path::new("/"))?;
 
     Ok(json!({
         "memory": {
@@ -68,6 +70,11 @@ fn get_usage(
             "free": meminfo.memfree,
         },
         "cpu": kstat.cpu,
+        "root": {
+            "total": disk_usage.total,
+            "used": disk_usage.used,
+            "free": disk_usage.avail,
+        }
     }))
 }
 

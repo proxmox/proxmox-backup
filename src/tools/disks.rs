@@ -19,7 +19,7 @@ use proxmox::sys::linux::procfs::{MountInfo, mountinfo::Device};
 use proxmox::{io_bail, io_format_err};
 use proxmox::api::api;
 
-use crate::api2::types::BLOCKDEVICE_NAME_REGEX;
+use crate::api2::types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
 
 mod zfs;
 pub use zfs::*;
@@ -511,7 +511,7 @@ impl Disk {
 }
 
 /// Returns disk usage information (total, used, avail)
-pub fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
+pub fn disk_usage(path: &std::path::Path) -> Result<StorageStatus, Error> {
 
     let mut stat: libc::statfs64 = unsafe { std::mem::zeroed() };
 
@@ -522,7 +522,11 @@ pub fn disk_usage(path: &std::path::Path) -> Result<(u64, u64, u64), Error> {
 
     let bsize = stat.f_bsize as u64;
 
-    Ok((stat.f_blocks*bsize, (stat.f_blocks-stat.f_bfree)*bsize, stat.f_bavail*bsize))
+    Ok(StorageStatus{
+        total: stat.f_blocks*bsize,
+        used: (stat.f_blocks-stat.f_bfree)*bsize,
+        avail: stat.f_bavail*bsize,
+    })
 }
 
 #[api()]
