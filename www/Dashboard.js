@@ -194,6 +194,10 @@ Ext.define('PBS.Dashboard', {
 	    ]
 	},
 	{
+	    xtype: 'pbsDatastoresStatistics',
+	    height: 250,
+	},
+	{
 	    xtype: 'container',
 	    height: 250,
 	    layout: {

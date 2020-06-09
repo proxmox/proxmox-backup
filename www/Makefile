@@ -18,6 +18,7 @@ JSSRC=							\
 	window/SyncJobEdit.js				\
 	window/ACLEdit.js				\
 	window/DataStoreEdit.js				\
+	dashboard/DataStoreStatistics.js		\
 	Utils.js					\
 	LoginView.js					\
 	VersionInfo.js					\
