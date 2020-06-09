@@ -5,6 +5,7 @@ pub mod config;
 pub mod node;
 pub mod reader;
 mod subscription;
+pub mod status;
 pub mod types;
 pub mod version;
 pub mod pull;
