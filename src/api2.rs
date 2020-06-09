@@ -24,6 +24,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("nodes", &NODES_ROUTER),
     ("pull", &pull::ROUTER),
     ("reader", &reader::ROUTER),
+    ("status", &status::ROUTER),
     ("subscription", &subscription::ROUTER),
     ("version", &version::ROUTER),
 ];
