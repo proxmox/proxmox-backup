@@ -71,6 +71,43 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST, save: bool) -> Result<
     Ok(())
 }
 
+/// extracts the lists of the given items and a list of timestamps
+pub fn extract_lists(
+    base: &str,
+    items: &[&str],
+    timeframe: RRDTimeFrameResolution,
+    mode: RRDMode,
+) -> Result<(Vec<u64>, HashMap<String, Vec<Option<f64>>>), Error> {
+
+    let now = now()?;
+
+    let map = RRD_CACHE.read().unwrap();
+
+    let mut result = HashMap::new();
+
+    let mut times = Vec::new();
+
+    for name in items.iter() {
+        let rrd = match map.get(&format!("{}/{}", base, name)) {
+            Some(rrd) => rrd,
+            None => continue,
+        };
+        let (start, reso, list) = rrd.extract_data(now, timeframe, mode);
+
+        result.insert(name.to_string(), list);
+
+        if times.len() == 0 {
+            let mut t = start;
+            for _ in 0..RRD_DATA_ENTRIES {
+                times.push(t);
+                t += reso;
+            }
+        }
+    }
+
+    Ok((times, result))
+}
+
 pub fn extract_data(
     base: &str,
     items: &[&str],
