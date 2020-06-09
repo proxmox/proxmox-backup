@@ -83,7 +83,7 @@ Ext.define('PBS.Dashboard', {
 
 	    let cpu = res.cpu,
 	        mem = res.memory,
-	        hd = 0;
+	        root = res.root;
 
 	    var cpuPanel = me.lookup('cpu');
 	    cpuPanel.updateValue(cpu);
@@ -91,8 +91,8 @@ Ext.define('PBS.Dashboard', {
 	    var memPanel = me.lookup('mem');
 	    memPanel.updateValue(mem.used / mem.total);
 
-	    //var hdPanel = me.lookup('hd');
-	    //hdPanel.updateValue(hd);
+	    var hdPanel = me.lookup('root');
+	    hdPanel.updateValue(root.used / root.total);
 	},
 
 	init: function(view) {
@@ -188,8 +188,8 @@ Ext.define('PBS.Dashboard', {
 		    reference: 'mem'
 		},
 		{
-		    title: gettext('Storage'),
-		    reference: 'hd'
+		    title: gettext('Root Disk'),
+		    reference: 'root'
 		}
 	    ]
 	},
