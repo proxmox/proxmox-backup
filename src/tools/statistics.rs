@@ -70,11 +70,11 @@ where
     let mean_x = mean(x)?;
     let mean_y = mean(y)?;
 
-    let covariance = sum(&(0..len_x).map(|i| {
+    let covariance: f64 = (0..len_x).map(|i| {
         let x = x[i].to_f64().unwrap_or(0.0);
         let y = y[i].to_f64().unwrap_or(0.0);
         (x - mean_x)*(y - mean_y)
-    }).collect::<Vec<f64>>());
+    }).sum();
 
     Some(covariance/(len_x as f64))
 }
