@@ -23,7 +23,6 @@ use pxar::{EntryKind, Metadata};
 
 use crate::backup::catalog::{self, DirEntryAttribute};
 
-// FIXME: Remove looku_self() calls by putting Directory into the dir stack
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
@@ -289,7 +288,8 @@ async fn restore_command(target: String, pattern: Option<String>) -> Result<(), 
     Shell::with(move |shell| shell.restore(PathBuf::from(target), pattern)).await
 }
 
-/// FIXME: Should we use this to fix `step()`?
+/// TODO: Should we use this to fix `step()`? Make path resolution behave more like described in
+/// the path_resolution(7) man page.
 ///
 /// The `Path` type's component iterator does not tell us anything about trailing slashes or
 /// trailing `Component::CurDir` entries. Since we only support regular paths we'll roll our own

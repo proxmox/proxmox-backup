@@ -61,7 +61,7 @@ impl Session {
         verbose: bool,
         mountpoint: &Path,
     ) -> Result<Self, Error> {
-        // FIXME: Add a buffered ReadAt layer!
+        // TODO: Add a buffered/caching ReadAt layer?
         let file = std::fs::File::open(archive_path)?;
         let file_size = file.metadata()?.len();
         let reader: Reader = Arc::new(accessor::sync::FileReader::new(file));
