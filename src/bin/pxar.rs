@@ -335,7 +335,7 @@ fn create_archive(
         pattern_list,
         feature_flags,
         device_set,
-        true,
+        false,
         |path| {
             if verbose {
                 println!("{:?}", path);
