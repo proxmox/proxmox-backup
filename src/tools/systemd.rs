@@ -7,6 +7,8 @@ pub mod time;
 
 use anyhow::{bail, Error};
 
+pub const SYSTEMCTL_BIN_PATH: &str = "/usr/bin/systemctl";
+
 /// Escape strings for usage in systemd unit names
 pub fn escape_unit(mut unit: &str, is_path: bool) -> String {
 
@@ -71,4 +73,47 @@ pub fn unescape_unit(text: &str) -> Result<String, Error> {
     let text = String::from_utf8(data)?;
 
     Ok(text)
+}
+
+pub fn reload_daemon() -> Result<(), Error> {
+
+    let mut command = std::process::Command::new(SYSTEMCTL_BIN_PATH);
+    command.arg("daemon-reload");
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
+}
+
+pub fn enable_unit(unit: &str) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new(SYSTEMCTL_BIN_PATH);
+    command.arg("enable");
+    command.arg(unit);
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
+}
+
+pub fn start_unit(unit: &str) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new(SYSTEMCTL_BIN_PATH);
+    command.arg("start");
+    command.arg(unit);
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
+}
+
+pub fn stop_unit(unit: &str) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new(SYSTEMCTL_BIN_PATH);
+    command.arg("stop");
+    command.arg(unit);
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
 }
