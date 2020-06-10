@@ -52,9 +52,11 @@ pub(crate) mod create;
 pub(crate) mod dir_stack;
 pub(crate) mod extract;
 pub(crate) mod metadata;
-pub mod flags;
 pub mod fuse;
 pub(crate) mod tools;
+
+mod flags;
+pub use flags::Flags;
 
 pub use create::create_archive;
 pub use extract::extract_archive;

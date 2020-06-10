@@ -14,17 +14,13 @@ use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 use proxmox::{c_result, c_try};
 
-use crate::pxar::flags;
+use crate::pxar::Flags;
 use crate::pxar::tools::perms_from_metadata;
 use crate::tools::{acl, fs, xattr};
 
 //
 // utility functions
 //
-
-fn flags_contain(flags: u64, test_flag: u64) -> bool {
-    0 != (flags & test_flag)
-}
 
 fn allow_notsupp<E: SysError>(err: E) -> Result<(), E> {
     if err.is_errno(Errno::EOPNOTSUPP) {
@@ -70,7 +66,7 @@ fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
 //
 
 pub fn apply_at(
-    flags: u64,
+    flags: Flags,
     metadata: &Metadata,
     parent: RawFd,
     file_name: &CStr,
@@ -86,7 +82,7 @@ pub fn apply_at(
 }
 
 pub fn apply_with_path<T: AsRef<Path>>(
-    flags: u64,
+    flags: Flags,
     metadata: &Metadata,
     fd: RawFd,
     file_name: T,
@@ -99,7 +95,7 @@ pub fn apply_with_path<T: AsRef<Path>>(
     )
 }
 
-pub fn apply(flags: u64, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {
+pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
     let c_proc_path = c_proc_path.as_ptr();
 
@@ -156,12 +152,12 @@ pub fn apply(flags: u64, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Re
 }
 
 fn add_fcaps(
-    flags: u64,
+    flags: Flags,
     c_proc_path: *const libc::c_char,
     metadata: &Metadata,
     skip_xattrs: &mut bool,
 ) -> Result<(), Error> {
-    if *skip_xattrs || !flags_contain(flags, flags::WITH_FCAPS) {
+    if *skip_xattrs || !flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
     }
     let fcaps = match metadata.fcaps.as_ref() {
@@ -185,12 +181,12 @@ fn add_fcaps(
 }
 
 fn apply_xattrs(
-    flags: u64,
+    flags: Flags,
     c_proc_path: *const libc::c_char,
     metadata: &Metadata,
     skip_xattrs: &mut bool,
 ) -> Result<(), Error> {
-    if *skip_xattrs || !flags_contain(flags, flags::WITH_XATTRS) {
+    if *skip_xattrs || !flags.contains(Flags::WITH_XATTRS) {
         return Ok(());
     }
 
@@ -221,11 +217,11 @@ fn apply_xattrs(
 }
 
 fn apply_acls(
-    flags: u64,
+    flags: Flags,
     c_proc_path: *const libc::c_char,
     metadata: &Metadata,
 ) -> Result<(), Error> {
-    if !flags_contain(flags, flags::WITH_ACL) || metadata.acl.is_empty() {
+    if !flags.contains(Flags::WITH_ACL) || metadata.acl.is_empty() {
         return Ok(());
     }
 
@@ -309,8 +305,8 @@ fn apply_acls(
     Ok(())
 }
 
-fn apply_quota_project_id(flags: u64, fd: RawFd, metadata: &Metadata) -> Result<(), Error> {
-    if !flags_contain(flags, flags::WITH_QUOTA_PROJID) {
+fn apply_quota_project_id(flags: Flags, fd: RawFd, metadata: &Metadata) -> Result<(), Error> {
+    if !flags.contains(Flags::WITH_QUOTA_PROJID) {
         return Ok(());
     }
 

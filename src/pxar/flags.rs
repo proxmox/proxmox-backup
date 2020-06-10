@@ -3,317 +3,332 @@
 //! Flags for known supported features for a given filesystem can be derived
 //! from the superblocks magic number.
 
-// FIXME: use bitflags!() here!
+use bitflags::bitflags;
 
-/// FAT-style 2s time granularity
-pub const WITH_2SEC_TIME: u64                   = 0x40;
-/// Preserve read only flag of files
-pub const WITH_READ_ONLY: u64                   = 0x80;
-/// Preserve unix permissions
-pub const WITH_PERMISSIONS: u64                 = 0x100;
-/// Include symbolik links
-pub const WITH_SYMLINKS: u64                    = 0x200;
-/// Include device nodes
-pub const WITH_DEVICE_NODES: u64                = 0x400;
-/// Include FIFOs
-pub const WITH_FIFOS: u64                       = 0x800;
-/// Include Sockets
-pub const WITH_SOCKETS: u64                     = 0x1000;
+bitflags! {
+    pub struct Flags: u64 {
+        /// FAT-style 2s time granularity
+        const WITH_2SEC_TIME                   = 0x40;
+        /// Preserve read only flag of files
+        const WITH_READ_ONLY                   = 0x80;
+        /// Preserve unix permissions
+        const WITH_PERMISSIONS                 = 0x100;
+        /// Include symbolik links
+        const WITH_SYMLINKS                    = 0x200;
+        /// Include device nodes
+        const WITH_DEVICE_NODES                = 0x400;
+        /// Include FIFOs
+        const WITH_FIFOS                       = 0x800;
+        /// Include Sockets
+        const WITH_SOCKETS                     = 0x1000;
 
-/// Preserve DOS file flag `HIDDEN`
-pub const WITH_FLAG_HIDDEN: u64                 = 0x2000;
-/// Preserve DOS file flag `SYSTEM`
-pub const WITH_FLAG_SYSTEM: u64                 = 0x4000;
-/// Preserve DOS file flag `ARCHIVE`
-pub const WITH_FLAG_ARCHIVE: u64                = 0x8000;
+        /// Preserve DOS file flag `HIDDEN`
+        const WITH_FLAG_HIDDEN                 = 0x2000;
+        /// Preserve DOS file flag `SYSTEM`
+        const WITH_FLAG_SYSTEM                 = 0x4000;
+        /// Preserve DOS file flag `ARCHIVE`
+        const WITH_FLAG_ARCHIVE                = 0x8000;
 
-// chattr() flags
-/// Linux file attribute `APPEND`
-pub const WITH_FLAG_APPEND: u64                 = 0x10000;
-/// Linux file attribute `NOATIME`
-pub const WITH_FLAG_NOATIME: u64                = 0x20000;
-/// Linux file attribute `COMPR`
-pub const WITH_FLAG_COMPR: u64                  = 0x40000;
-/// Linux file attribute `NOCOW`
-pub const WITH_FLAG_NOCOW: u64                  = 0x80000;
-/// Linux file attribute `NODUMP`
-pub const WITH_FLAG_NODUMP: u64                 = 0x0010_0000;
-/// Linux file attribute `DIRSYNC`
-pub const WITH_FLAG_DIRSYNC: u64                = 0x0020_0000;
-/// Linux file attribute `IMMUTABLE`
-pub const WITH_FLAG_IMMUTABLE: u64              = 0x0040_0000;
-/// Linux file attribute `SYNC`
-pub const WITH_FLAG_SYNC: u64                   = 0x0080_0000;
-/// Linux file attribute `NOCOMP`
-pub const WITH_FLAG_NOCOMP: u64                 = 0x0100_0000;
-/// Linux file attribute `PROJINHERIT`
-pub const WITH_FLAG_PROJINHERIT: u64            = 0x0200_0000;
-
-
-/// Preserve BTRFS subvolume flag
-pub const WITH_SUBVOLUME: u64                   = 0x0400_0000;
-/// Preserve BTRFS read-only subvolume flag
-pub const WITH_SUBVOLUME_RO: u64                = 0x0800_0000;
-
-/// Preserve Extended Attribute metadata
-pub const WITH_XATTRS: u64                      = 0x1000_0000;
-/// Preserve Access Control List metadata
-pub const WITH_ACL: u64                         = 0x2000_0000;
-/// Preserve SELinux security context
-pub const WITH_SELINUX: u64                     = 0x4000_0000;
-/// Preserve "security.capability" xattr
-pub const WITH_FCAPS: u64                       = 0x8000_0000;
-
-/// Preserve XFS/ext4/ZFS project quota ID
-pub const WITH_QUOTA_PROJID: u64                = 0x0001_0000_0000;
-
-/// Support ".pxarexclude" files
-pub const EXCLUDE_FILE: u64                     = 0x1000_0000_0000_0000;
-/// Exclude submounts
-pub const EXCLUDE_SUBMOUNTS: u64                = 0x4000_0000_0000_0000;
-/// Exclude entries with chattr flag NODUMP
-pub const EXCLUDE_NODUMP: u64                   = 0x8000_0000_0000_0000;
-
-/// Definitions of typical feature flags for the *pxar* encoder/decoder.
-/// By this expensive syscalls for unsupported features are avoided.
-
-/// All chattr file attributes
-pub const WITH_CHATTR: u64 =
-    WITH_FLAG_APPEND|
-    WITH_FLAG_NOATIME|
-    WITH_FLAG_COMPR|
-    WITH_FLAG_NOCOW|
-    WITH_FLAG_NODUMP|
-    WITH_FLAG_DIRSYNC|
-    WITH_FLAG_IMMUTABLE|
-    WITH_FLAG_SYNC|
-    WITH_FLAG_NOCOMP|
-    WITH_FLAG_PROJINHERIT;
-
-/// All FAT file attributes
-pub const WITH_FAT_ATTRS: u64 =
-    WITH_FLAG_HIDDEN|
-    WITH_FLAG_SYSTEM|
-    WITH_FLAG_ARCHIVE;
-
-/// All bits that may also be exposed via fuse
-pub const WITH_FUSE: u64 =
-    WITH_2SEC_TIME|
-    WITH_READ_ONLY|
-    WITH_PERMISSIONS|
-    WITH_SYMLINKS|
-    WITH_DEVICE_NODES|
-    WITH_FIFOS|
-    WITH_SOCKETS|
-    WITH_FAT_ATTRS|
-    WITH_CHATTR|
-    WITH_XATTRS;
+        // chattr() flags
+        /// Linux file attribute `APPEND`
+        const WITH_FLAG_APPEND                 = 0x10000;
+        /// Linux file attribute `NOATIME`
+        const WITH_FLAG_NOATIME                = 0x20000;
+        /// Linux file attribute `COMPR`
+        const WITH_FLAG_COMPR                  = 0x40000;
+        /// Linux file attribute `NOCOW`
+        const WITH_FLAG_NOCOW                  = 0x80000;
+        /// Linux file attribute `NODUMP`
+        const WITH_FLAG_NODUMP                 = 0x0010_0000;
+        /// Linux file attribute `DIRSYNC`
+        const WITH_FLAG_DIRSYNC                = 0x0020_0000;
+        /// Linux file attribute `IMMUTABLE`
+        const WITH_FLAG_IMMUTABLE              = 0x0040_0000;
+        /// Linux file attribute `SYNC`
+        const WITH_FLAG_SYNC                   = 0x0080_0000;
+        /// Linux file attribute `NOCOMP`
+        const WITH_FLAG_NOCOMP                 = 0x0100_0000;
+        /// Linux file attribute `PROJINHERIT`
+        const WITH_FLAG_PROJINHERIT            = 0x0200_0000;
 
 
-/// Default feature flags for encoder/decoder
-pub const DEFAULT: u64 =
-    WITH_SYMLINKS|
-    WITH_DEVICE_NODES|
-    WITH_FIFOS|
-    WITH_SOCKETS|
-    WITH_FLAG_HIDDEN|
-    WITH_FLAG_SYSTEM|
-    WITH_FLAG_ARCHIVE|
-    WITH_FLAG_APPEND|
-    WITH_FLAG_NOATIME|
-    WITH_FLAG_COMPR|
-    WITH_FLAG_NOCOW|
-    //WITH_FLAG_NODUMP|
-    WITH_FLAG_DIRSYNC|
-    WITH_FLAG_IMMUTABLE|
-    WITH_FLAG_SYNC|
-    WITH_FLAG_NOCOMP|
-    WITH_FLAG_PROJINHERIT|
-    WITH_SUBVOLUME|
-    WITH_SUBVOLUME_RO|
-    WITH_XATTRS|
-    WITH_ACL|
-    WITH_SELINUX|
-    WITH_FCAPS|
-    WITH_QUOTA_PROJID|
-    EXCLUDE_NODUMP|
-    EXCLUDE_FILE;
+        /// Preserve BTRFS subvolume flag
+        const WITH_SUBVOLUME                   = 0x0400_0000;
+        /// Preserve BTRFS read-only subvolume flag
+        const WITH_SUBVOLUME_RO                = 0x0800_0000;
 
-// form /usr/include/linux/fs.h
-const FS_APPEND_FL: u32 =      0x0000_0020;
-const FS_NOATIME_FL: u32 =     0x0000_0080;
-const FS_COMPR_FL: u32 =       0x0000_0004;
-const FS_NOCOW_FL: u32 =       0x0080_0000;
-const FS_NODUMP_FL: u32 =      0x0000_0040;
-const FS_DIRSYNC_FL: u32 =     0x0001_0000;
-const FS_IMMUTABLE_FL: u32 =   0x0000_0010;
-const FS_SYNC_FL: u32 =        0x0000_0008;
-const FS_NOCOMP_FL: u32 =      0x0000_0400;
-const FS_PROJINHERIT_FL: u32 = 0x2000_0000;
+        /// Preserve Extended Attribute metadata
+        const WITH_XATTRS                      = 0x1000_0000;
+        /// Preserve Access Control List metadata
+        const WITH_ACL                         = 0x2000_0000;
+        /// Preserve SELinux security context
+        const WITH_SELINUX                     = 0x4000_0000;
+        /// Preserve "security.capability" xattr
+        const WITH_FCAPS                       = 0x8000_0000;
 
-static CHATTR_MAP: [(u64, u32); 10] = [
-    ( WITH_FLAG_APPEND,      FS_APPEND_FL      ),
-    ( WITH_FLAG_NOATIME,     FS_NOATIME_FL     ),
-    ( WITH_FLAG_COMPR,       FS_COMPR_FL       ),
-    ( WITH_FLAG_NOCOW,       FS_NOCOW_FL       ),
-    ( WITH_FLAG_NODUMP,      FS_NODUMP_FL      ),
-    ( WITH_FLAG_DIRSYNC,     FS_DIRSYNC_FL     ),
-    ( WITH_FLAG_IMMUTABLE,   FS_IMMUTABLE_FL   ),
-    ( WITH_FLAG_SYNC,        FS_SYNC_FL        ),
-    ( WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
-    ( WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
-];
+        /// Preserve XFS/ext4/ZFS project quota ID
+        const WITH_QUOTA_PROJID                = 0x0001_0000_0000;
 
-pub fn feature_flags_from_chattr(attr: u32) -> u64 {
+        /// Support ".pxarexclude" files
+        const EXCLUDE_FILE                     = 0x1000_0000_0000_0000;
+        /// Exclude submounts
+        const EXCLUDE_SUBMOUNTS                = 0x4000_0000_0000_0000;
+        /// Exclude entries with chattr flag NODUMP
+        const EXCLUDE_NODUMP                   = 0x8000_0000_0000_0000;
 
-    let mut flags = 0u64;
+        // Definitions of typical feature flags for the *pxar* encoder/decoder.
+        // By this expensive syscalls for unsupported features are avoided.
 
-    for (fe_flag, fs_flag) in &CHATTR_MAP {
-        if (attr & fs_flag) != 0 { flags |= fe_flag; }
+        /// All chattr file attributes
+        const WITH_CHATTR =
+            Flags::WITH_FLAG_APPEND.bits() |
+            Flags::WITH_FLAG_NOATIME.bits() |
+            Flags::WITH_FLAG_COMPR.bits() |
+            Flags::WITH_FLAG_NOCOW.bits() |
+            Flags::WITH_FLAG_NODUMP.bits() |
+            Flags::WITH_FLAG_DIRSYNC.bits() |
+            Flags::WITH_FLAG_IMMUTABLE.bits() |
+            Flags::WITH_FLAG_SYNC.bits() |
+            Flags::WITH_FLAG_NOCOMP.bits() |
+            Flags::WITH_FLAG_PROJINHERIT.bits();
+
+        /// All FAT file attributes
+        const WITH_FAT_ATTRS =
+            Flags::WITH_FLAG_HIDDEN.bits() |
+            Flags::WITH_FLAG_SYSTEM.bits() |
+            Flags::WITH_FLAG_ARCHIVE.bits();
+
+        /// All bits that may also be exposed via fuse
+        const WITH_FUSE =
+            Flags::WITH_2SEC_TIME.bits() |
+            Flags::WITH_READ_ONLY.bits() |
+            Flags::WITH_PERMISSIONS.bits() |
+            Flags::WITH_SYMLINKS.bits() |
+            Flags::WITH_DEVICE_NODES.bits() |
+            Flags::WITH_FIFOS.bits() |
+            Flags::WITH_SOCKETS.bits() |
+            Flags::WITH_FAT_ATTRS.bits() |
+            Flags::WITH_CHATTR.bits() |
+            Flags::WITH_XATTRS.bits();
+
+
+        /// Default feature flags for encoder/decoder
+        const DEFAULT =
+            Flags::WITH_SYMLINKS.bits() |
+            Flags::WITH_DEVICE_NODES.bits() |
+            Flags::WITH_FIFOS.bits() |
+            Flags::WITH_SOCKETS.bits() |
+            Flags::WITH_FLAG_HIDDEN.bits() |
+            Flags::WITH_FLAG_SYSTEM.bits() |
+            Flags::WITH_FLAG_ARCHIVE.bits() |
+            Flags::WITH_FLAG_APPEND.bits() |
+            Flags::WITH_FLAG_NOATIME.bits() |
+            Flags::WITH_FLAG_COMPR.bits() |
+            Flags::WITH_FLAG_NOCOW.bits() |
+            //WITH_FLAG_NODUMP.bits() |
+            Flags::WITH_FLAG_DIRSYNC.bits() |
+            Flags::WITH_FLAG_IMMUTABLE.bits() |
+            Flags::WITH_FLAG_SYNC.bits() |
+            Flags::WITH_FLAG_NOCOMP.bits() |
+            Flags::WITH_FLAG_PROJINHERIT.bits() |
+            Flags::WITH_SUBVOLUME.bits() |
+            Flags::WITH_SUBVOLUME_RO.bits() |
+            Flags::WITH_XATTRS.bits() |
+            Flags::WITH_ACL.bits() |
+            Flags::WITH_SELINUX.bits() |
+            Flags::WITH_FCAPS.bits() |
+            Flags::WITH_QUOTA_PROJID.bits() |
+            Flags::EXCLUDE_NODUMP.bits() |
+            Flags::EXCLUDE_FILE.bits();
     }
-
-    flags
 }
 
-// from /usr/include/linux/msdos_fs.h
-const ATTR_HIDDEN: u32 =      2;
-const ATTR_SYS: u32 =         4;
-const ATTR_ARCH: u32 =       32;
-
-static FAT_ATTR_MAP: [(u64, u32); 3] = [
-    ( WITH_FLAG_HIDDEN,  ATTR_HIDDEN ),
-    ( WITH_FLAG_SYSTEM,  ATTR_SYS    ),
-    ( WITH_FLAG_ARCHIVE, ATTR_ARCH   ),
-];
-
-pub fn feature_flags_from_fat_attr(attr: u32) -> u64 {
-
-    let mut flags = 0u64;
-
-    for (fe_flag, fs_flag) in &FAT_ATTR_MAP {
-        if (attr & fs_flag) != 0 { flags |= fe_flag; }
+impl Default for Flags {
+    fn default() -> Flags {
+        Flags::DEFAULT
     }
-
-    flags
 }
 
+impl Flags {
+    /// Get a set of feature flags from file attributes.
+    pub fn from_chattr(attr: u32) -> Flags {
+        // form /usr/include/linux/fs.h
+        const FS_APPEND_FL: u32 =      0x0000_0020;
+        const FS_NOATIME_FL: u32 =     0x0000_0080;
+        const FS_COMPR_FL: u32 =       0x0000_0004;
+        const FS_NOCOW_FL: u32 =       0x0080_0000;
+        const FS_NODUMP_FL: u32 =      0x0000_0040;
+        const FS_DIRSYNC_FL: u32 =     0x0001_0000;
+        const FS_IMMUTABLE_FL: u32 =   0x0000_0010;
+        const FS_SYNC_FL: u32 =        0x0000_0008;
+        const FS_NOCOMP_FL: u32 =      0x0000_0400;
+        const FS_PROJINHERIT_FL: u32 = 0x2000_0000;
 
-/// Return the supported *pxar* feature flags based on the magic number of the filesystem.
-pub fn feature_flags_from_magic(magic: i64) -> u64 {
-    use proxmox::sys::linux::magic::*;
-    match magic {
-        MSDOS_SUPER_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_FAT_ATTRS
-        },
-        EXT4_SUPER_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS|
-            WITH_FLAG_APPEND|
-            WITH_FLAG_NOATIME|
-            WITH_FLAG_NODUMP|
-            WITH_FLAG_DIRSYNC|
-            WITH_FLAG_IMMUTABLE|
-            WITH_FLAG_SYNC|
-            WITH_XATTRS|
-            WITH_ACL|
-            WITH_SELINUX|
-            WITH_FCAPS|
-            WITH_QUOTA_PROJID
-        },
-        XFS_SUPER_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS|
-            WITH_FLAG_APPEND|
-            WITH_FLAG_NOATIME|
-            WITH_FLAG_NODUMP|
-            WITH_FLAG_IMMUTABLE|
-            WITH_FLAG_SYNC|
-            WITH_XATTRS|
-            WITH_ACL|
-            WITH_SELINUX|
-            WITH_FCAPS|
-            WITH_QUOTA_PROJID
-        },
-        ZFS_SUPER_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS|
-            WITH_FLAG_APPEND|
-            WITH_FLAG_NOATIME|
-            WITH_FLAG_NODUMP|
-            WITH_FLAG_DIRSYNC|
-            WITH_FLAG_IMMUTABLE|
-            WITH_FLAG_SYNC|
-            WITH_XATTRS|
-            WITH_ACL|
-            WITH_SELINUX|
-            WITH_FCAPS|
-            WITH_QUOTA_PROJID
-        },
-        BTRFS_SUPER_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS|
-            WITH_FLAG_APPEND|
-            WITH_FLAG_NOATIME|
-            WITH_FLAG_COMPR|
-            WITH_FLAG_NOCOW|
-            WITH_FLAG_NODUMP|
-            WITH_FLAG_DIRSYNC|
-            WITH_FLAG_IMMUTABLE|
-            WITH_FLAG_SYNC|
-            WITH_FLAG_NOCOMP|
-            WITH_XATTRS|
-            WITH_ACL|
-            WITH_SELINUX|
-            WITH_SUBVOLUME|
-            WITH_SUBVOLUME_RO|
-            WITH_FCAPS
-        },
-        TMPFS_MAGIC => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS|
-            WITH_ACL|
-            WITH_SELINUX
-        },
-        // FUSE mounts are special as the supported feature set
-        // is not clear a priori.
-        FUSE_SUPER_MAGIC => {
-            WITH_FUSE
-        },
-        _ => {
-            WITH_2SEC_TIME|
-            WITH_READ_ONLY|
-            WITH_PERMISSIONS|
-            WITH_SYMLINKS|
-            WITH_DEVICE_NODES|
-            WITH_FIFOS|
-            WITH_SOCKETS
-        },
+        const CHATTR_MAP: [(Flags, u32); 10] = [
+            ( Flags::WITH_FLAG_APPEND,      FS_APPEND_FL      ),
+            ( Flags::WITH_FLAG_NOATIME,     FS_NOATIME_FL     ),
+            ( Flags::WITH_FLAG_COMPR,       FS_COMPR_FL       ),
+            ( Flags::WITH_FLAG_NOCOW,       FS_NOCOW_FL       ),
+            ( Flags::WITH_FLAG_NODUMP,      FS_NODUMP_FL      ),
+            ( Flags::WITH_FLAG_DIRSYNC,     FS_DIRSYNC_FL     ),
+            ( Flags::WITH_FLAG_IMMUTABLE,   FS_IMMUTABLE_FL   ),
+            ( Flags::WITH_FLAG_SYNC,        FS_SYNC_FL        ),
+            ( Flags::WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
+            ( Flags::WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
+        ];
+
+        let mut flags = Flags::empty();
+
+        for (fe_flag, fs_flag) in &CHATTR_MAP {
+            if (attr & fs_flag) != 0 {
+                flags |= *fe_flag;
+            }
+        }
+
+        flags
+    }
+
+    /// Get a set of feature flags from FAT attributes.
+    pub fn from_fat_attr(attr: u32) -> Flags {
+        // from /usr/include/linux/msdos_fs.h
+        const ATTR_HIDDEN: u32 =      2;
+        const ATTR_SYS: u32 =         4;
+        const ATTR_ARCH: u32 =       32;
+
+        const FAT_ATTR_MAP: [(Flags, u32); 3] = [
+            ( Flags::WITH_FLAG_HIDDEN,  ATTR_HIDDEN ),
+            ( Flags::WITH_FLAG_SYSTEM,  ATTR_SYS    ),
+            ( Flags::WITH_FLAG_ARCHIVE, ATTR_ARCH   ),
+        ];
+
+        let mut flags = Flags::empty();
+
+        for (fe_flag, fs_flag) in &FAT_ATTR_MAP {
+            if (attr & fs_flag) != 0 {
+                flags |= *fe_flag;
+            }
+        }
+
+        flags
+    }
+
+    /// Return the supported *pxar* feature flags based on the magic number of the filesystem.
+    pub fn from_magic(magic: i64) -> Flags {
+        use proxmox::sys::linux::magic::*;
+        match magic {
+            MSDOS_SUPER_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_FAT_ATTRS
+            },
+            EXT4_SUPER_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS |
+                Flags::WITH_FLAG_APPEND |
+                Flags::WITH_FLAG_NOATIME |
+                Flags::WITH_FLAG_NODUMP |
+                Flags::WITH_FLAG_DIRSYNC |
+                Flags::WITH_FLAG_IMMUTABLE |
+                Flags::WITH_FLAG_SYNC |
+                Flags::WITH_XATTRS |
+                Flags::WITH_ACL |
+                Flags::WITH_SELINUX |
+                Flags::WITH_FCAPS |
+                Flags::WITH_QUOTA_PROJID
+            },
+            XFS_SUPER_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS |
+                Flags::WITH_FLAG_APPEND |
+                Flags::WITH_FLAG_NOATIME |
+                Flags::WITH_FLAG_NODUMP |
+                Flags::WITH_FLAG_IMMUTABLE |
+                Flags::WITH_FLAG_SYNC |
+                Flags::WITH_XATTRS |
+                Flags::WITH_ACL |
+                Flags::WITH_SELINUX |
+                Flags::WITH_FCAPS |
+                Flags::WITH_QUOTA_PROJID
+            },
+            ZFS_SUPER_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS |
+                Flags::WITH_FLAG_APPEND |
+                Flags::WITH_FLAG_NOATIME |
+                Flags::WITH_FLAG_NODUMP |
+                Flags::WITH_FLAG_DIRSYNC |
+                Flags::WITH_FLAG_IMMUTABLE |
+                Flags::WITH_FLAG_SYNC |
+                Flags::WITH_XATTRS |
+                Flags::WITH_ACL |
+                Flags::WITH_SELINUX |
+                Flags::WITH_FCAPS |
+                Flags::WITH_QUOTA_PROJID
+            },
+            BTRFS_SUPER_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS |
+                Flags::WITH_FLAG_APPEND |
+                Flags::WITH_FLAG_NOATIME |
+                Flags::WITH_FLAG_COMPR |
+                Flags::WITH_FLAG_NOCOW |
+                Flags::WITH_FLAG_NODUMP |
+                Flags::WITH_FLAG_DIRSYNC |
+                Flags::WITH_FLAG_IMMUTABLE |
+                Flags::WITH_FLAG_SYNC |
+                Flags::WITH_FLAG_NOCOMP |
+                Flags::WITH_XATTRS |
+                Flags::WITH_ACL |
+                Flags::WITH_SELINUX |
+                Flags::WITH_SUBVOLUME |
+                Flags::WITH_SUBVOLUME_RO |
+                Flags::WITH_FCAPS
+            },
+            TMPFS_MAGIC => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS |
+                Flags::WITH_ACL |
+                Flags::WITH_SELINUX
+            },
+            // FUSE mounts are special as the supported feature set
+            // is not clear a priori.
+            FUSE_SUPER_MAGIC => {
+                Flags::WITH_FUSE
+            },
+            _ => {
+                Flags::WITH_2SEC_TIME |
+                Flags::WITH_READ_ONLY |
+                Flags::WITH_PERMISSIONS |
+                Flags::WITH_SYMLINKS |
+                Flags::WITH_DEVICE_NODES |
+                Flags::WITH_FIFOS |
+                Flags::WITH_SOCKETS
+            },
+        }
     }
 }

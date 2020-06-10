@@ -15,12 +15,12 @@ use proxmox::api::cli::*;
 use proxmox::api::api;
 
 use proxmox_backup::tools;
-use proxmox_backup::pxar::{flags, fuse, format_single_line_entry, ENCODER_MAX_ENTRIES};
+use proxmox_backup::pxar::{fuse, format_single_line_entry, ENCODER_MAX_ENTRIES, Flags};
 
 fn extract_archive_from_reader<R: std::io::Read>(
     reader: &mut R,
     target: &str,
-    feature_flags: u64,
+    feature_flags: Flags,
     allow_existing_dirs: bool,
     verbose: bool,
     match_list: &[MatchEntry],
@@ -120,24 +120,24 @@ fn extract_archive(
     no_fifos: bool,
     no_sockets: bool,
 ) -> Result<(), Error> {
-    let mut feature_flags = flags::DEFAULT;
+    let mut feature_flags = Flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= flags::WITH_XATTRS;
+        feature_flags ^= Flags::WITH_XATTRS;
     }
     if no_fcaps {
-        feature_flags ^= flags::WITH_FCAPS;
+        feature_flags ^= Flags::WITH_FCAPS;
     }
     if no_acls {
-        feature_flags ^= flags::WITH_ACL;
+        feature_flags ^= Flags::WITH_ACL;
     }
     if no_device_nodes {
-        feature_flags ^= flags::WITH_DEVICE_NODES;
+        feature_flags ^= Flags::WITH_DEVICE_NODES;
     }
     if no_fifos {
-        feature_flags ^= flags::WITH_FIFOS;
+        feature_flags ^= Flags::WITH_FIFOS;
     }
     if no_sockets {
-        feature_flags ^= flags::WITH_SOCKETS;
+        feature_flags ^= Flags::WITH_SOCKETS;
     }
 
     let pattern = pattern.unwrap_or_else(Vec::new);
@@ -308,24 +308,24 @@ fn create_archive(
         .open(archive)?;
 
     let writer = std::io::BufWriter::with_capacity(1024 * 1024, file);
-    let mut feature_flags = flags::DEFAULT;
+    let mut feature_flags = Flags::DEFAULT;
     if no_xattrs {
-        feature_flags ^= flags::WITH_XATTRS;
+        feature_flags ^= Flags::WITH_XATTRS;
     }
     if no_fcaps {
-        feature_flags ^= flags::WITH_FCAPS;
+        feature_flags ^= Flags::WITH_FCAPS;
     }
     if no_acls {
-        feature_flags ^= flags::WITH_ACL;
+        feature_flags ^= Flags::WITH_ACL;
     }
     if no_device_nodes {
-        feature_flags ^= flags::WITH_DEVICE_NODES;
+        feature_flags ^= Flags::WITH_DEVICE_NODES;
     }
     if no_fifos {
-        feature_flags ^= flags::WITH_FIFOS;
+        feature_flags ^= Flags::WITH_FIFOS;
     }
     if no_sockets {
-        feature_flags ^= flags::WITH_SOCKETS;
+        feature_flags ^= Flags::WITH_SOCKETS;
     }
 
     let writer = pxar::encoder::sync::StandardWriter::new(writer);

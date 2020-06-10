@@ -29,7 +29,7 @@ fn run_test(dir_name: &str) -> Result<(), Error> {
         dir,
         writer,
         Vec::new(),
-        flags::DEFAULT,
+        Flags::DEFAULT,
         None,
         false,
         |_| Ok(()),

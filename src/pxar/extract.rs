@@ -20,20 +20,19 @@ use proxmox::c_result;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::pxar::dir_stack::PxarDirStack;
-use crate::pxar::flags;
+use crate::pxar::Flags;
 use crate::pxar::metadata;
 
 struct Extractor<'a> {
-    /// FIXME: use bitflags!() for feature_flags
-    feature_flags: u64,
+    feature_flags: Flags,
     allow_existing_dirs: bool,
     callback: &'a mut dyn FnMut(&Path),
     dir_stack: PxarDirStack,
 }
 
 impl<'a> Extractor<'a> {
-    fn with_flag(&self, flag: u64) -> bool {
-        flag == (self.feature_flags & flag)
+    fn contains_flags(&self, flag: Flags) -> bool {
+        self.feature_flags.contains(flag)
     }
 }
 
@@ -41,7 +40,7 @@ pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
     destination: &Path,
     match_list: &[MatchEntry],
-    feature_flags: u64,
+    feature_flags: Flags,
     allow_existing_dirs: bool,
     mut callback: F,
 ) -> Result<(), Error>
@@ -164,7 +163,7 @@ where
                 extractor.extract_hardlink(&file_name, metadata, link.as_os_str())
             }
             (true, EntryKind::Device(dev)) => {
-                if extractor.with_flag(flags::WITH_DEVICE_NODES) {
+                if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
                     extractor.callback(entry.path());
                     extractor.extract_device(&file_name, metadata, dev)
                 } else {
@@ -172,7 +171,7 @@ where
                 }
             }
             (true, EntryKind::Fifo) => {
-                if extractor.with_flag(flags::WITH_FIFOS) {
+                if extractor.contains_flags(Flags::WITH_FIFOS) {
                     extractor.callback(entry.path());
                     extractor.extract_special(&file_name, metadata, 0)
                 } else {
@@ -180,7 +179,7 @@ where
                 }
             }
             (true, EntryKind::Socket) => {
-                if extractor.with_flag(flags::WITH_SOCKETS) {
+                if extractor.contains_flags(Flags::WITH_SOCKETS) {
                     extractor.callback(entry.path());
                     extractor.extract_special(&file_name, metadata, 0)
                 } else {

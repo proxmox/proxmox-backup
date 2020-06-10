@@ -20,7 +20,7 @@ use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 
 use crate::pxar::catalog::BackupCatalogWriter;
-use crate::pxar::flags;
+use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
 use crate::tools::{acl, fs, xattr, Fd};
 
@@ -86,9 +86,8 @@ struct HardLinkInfo {
 }
 
 struct Archiver<'a, 'b> {
-    /// FIXME: use bitflags!() for feature_flags
-    feature_flags: u64,
-    fs_feature_flags: u64,
+    feature_flags: Flags,
+    fs_feature_flags: Flags,
     fs_magic: i64,
     patterns: &'a [MatchEntry],
     callback: &'a mut dyn FnMut(&Path) -> Result<(), Error>,
@@ -107,7 +106,7 @@ pub fn create_archive<T, F>(
     source_dir: Dir,
     mut writer: T,
     mut patterns: Vec<MatchEntry>,
-    feature_flags: u64,
+    feature_flags: Flags,
     mut device_set: Option<HashSet<u64>>,
     skip_lost_and_found: bool,
     mut callback: F,
@@ -123,7 +122,7 @@ where
         bail!("refusing to backup a virtual file system");
     }
 
-    let fs_feature_flags = flags::feature_flags_from_magic(fs_magic);
+    let fs_feature_flags = Flags::from_magic(fs_magic);
 
     let stat = nix::sys::stat::fstat(source_dir.as_raw_fd())?;
     let metadata = get_metadata(
@@ -176,7 +175,9 @@ struct FileListEntry {
 }
 
 impl<'a, 'b> Archiver<'a, 'b> {
-    fn flags(&self) -> u64 {
+    /// Get the currently effective feature flags. (Requested flags masked by the file system
+    /// feature flags).
+    fn flags(&self) -> Flags {
         self.feature_flags & self.fs_feature_flags
     }
 
@@ -447,7 +448,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let mut skip_contents = false;
         if old_st_dev != stat.st_dev {
             self.fs_magic = detect_fs_type(dir.as_raw_fd())?;
-            self.fs_feature_flags = flags::feature_flags_from_magic(self.fs_magic);
+            self.fs_feature_flags = Flags::from_magic(self.fs_magic);
             self.current_st_dev = stat.st_dev;
 
             if is_virtual_file_system(self.fs_magic) {
@@ -511,7 +512,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 }
 
-fn get_metadata(fd: RawFd, stat: &FileStat, flags: u64, fs_magic: i64) -> Result<Metadata, Error> {
+fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Result<Metadata, Error> {
     // required for some of these
     let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
 
@@ -543,8 +544,8 @@ fn errno_is_unsupported(errno: Errno) -> bool {
     }
 }
 
-fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: u64) -> Result<(), Error> {
-    if 0 == (flags & flags::WITH_FCAPS) {
+fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags) -> Result<(), Error> {
+    if flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
     }
 
@@ -564,9 +565,9 @@ fn get_xattr_fcaps_acl(
     meta: &mut Metadata,
     fd: RawFd,
     proc_path: &Path,
-    flags: u64,
+    flags: Flags,
 ) -> Result<(), Error> {
-    if 0 == (flags & flags::WITH_XATTRS) {
+    if flags.contains(Flags::WITH_XATTRS) {
         return Ok(());
     }
 
@@ -617,7 +618,7 @@ fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
         Err(err) => bail!("failed to read file attributes: {}", err),
     }
 
-    metadata.stat.flags |= flags::feature_flags_from_chattr(attr as u32);
+    metadata.stat.flags |= Flags::from_chattr(attr as u32).bits();
 
     Ok(())
 }
@@ -639,7 +640,7 @@ fn get_fat_attr(metadata: &mut Metadata, fd: RawFd, fs_magic: i64) -> Result<(),
         Err(err) => bail!("failed to read fat attributes: {}", err),
     }
 
-    metadata.stat.flags |= flags::feature_flags_from_fat_attr(attr);
+    metadata.stat.flags |= Flags::from_fat_attr(attr).bits();
 
     Ok(())
 }
@@ -648,14 +649,14 @@ fn get_fat_attr(metadata: &mut Metadata, fd: RawFd, fs_magic: i64) -> Result<(),
 fn get_quota_project_id(
     metadata: &mut Metadata,
     fd: RawFd,
-    flags: u64,
+    flags: Flags,
     magic: i64,
 ) -> Result<(), Error> {
     if !(metadata.is_dir() || metadata.is_regular_file()) {
         return Ok(());
     }
 
-    if 0 == (flags & flags::WITH_QUOTA_PROJID) {
+    if flags.contains(Flags::WITH_QUOTA_PROJID) {
         return Ok(());
     }
 
@@ -689,8 +690,8 @@ fn get_quota_project_id(
     Ok(())
 }
 
-fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: u64) -> Result<(), Error> {
-    if 0 == (flags & flags::WITH_ACL) {
+fn get_acl(metadata: &mut Metadata, proc_path: &Path, flags: Flags) -> Result<(), Error> {
+    if flags.contains(Flags::WITH_ACL) {
         return Ok(());
     }
 

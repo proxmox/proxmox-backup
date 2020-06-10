@@ -25,7 +25,7 @@ use crate::backup::catalog::{self, DirEntryAttribute};
 
 // FIXME: Remove looku_self() calls by putting Directory into the dir stack
 use crate::pxar::dir_stack::PxarDirStack;
-use crate::pxar::flags;
+use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
 use crate::pxar::metadata;
 
@@ -977,7 +977,7 @@ impl Shell {
         let pxar_dir_stack = PxarDirStack::new(rootdir, root_meta);
 
         let mut extractor = ExtractorState::new(
-            flags::DEFAULT,
+            Flags::DEFAULT,
             &mut self.catalog,
             dir_stack,
             pxar_dir_stack,
@@ -1010,14 +1010,14 @@ struct ExtractorState<'a> {
     pxar_dir_stack: PxarDirStack,
 
     catalog: &'a mut CatalogReader,
-    feature_flags: u64,
+    feature_flags: Flags,
     match_list: &'a [MatchEntry],
     accessor: &'a Accessor,
 }
 
 impl<'a> ExtractorState<'a> {
     pub fn new(
-        feature_flags: u64,
+        feature_flags: Flags,
         catalog: &'a mut CatalogReader,
         dir_stack: Vec<PathStackEntry>,
         pxar_dir_stack: PxarDirStack,
@@ -1198,7 +1198,7 @@ impl<'a> ExtractorState<'a> {
                 }
 
                 metadata::apply_with_path(
-                    flags::DEFAULT,
+                    Flags::DEFAULT,
                     entry.metadata(),
                     file.as_raw_fd(),
                     entry.file_name(),

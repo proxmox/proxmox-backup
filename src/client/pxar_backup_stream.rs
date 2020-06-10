@@ -67,7 +67,7 @@ impl PxarBackupStream {
                         dir,
                         writer,
                         patterns,
-                        crate::pxar::flags::DEFAULT,
+                        crate::pxar::Flags::DEFAULT,
                         device_set,
                         skip_lost_and_found,
                         |_| Ok(()),
