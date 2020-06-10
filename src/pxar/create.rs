@@ -164,19 +164,7 @@ where
         hardlinks: HashMap::new(),
     };
 
-    if !patterns.is_empty() {
-        let content = generate_pxar_excludes_cli(&patterns);
-        let mut file = encoder.create_file(
-            &Metadata::default(),
-            ".pxarexclude-cli",
-            content.len() as u64,
-        )?;
-
-        use std::io::Write;
-        file.write_all(&content)?;
-    }
-
-    archiver.archive_dir_contents(&mut encoder, source_dir)?;
+    archiver.archive_dir_contents(&mut encoder, source_dir, true)?;
     encoder.finish()?;
     Ok(())
 }
@@ -200,16 +188,26 @@ impl<'a, 'b> Archiver<'a, 'b> {
         }
     }
 
-    fn archive_dir_contents(&mut self, encoder: &mut Encoder, mut dir: Dir) -> Result<(), Error> {
+    fn archive_dir_contents(
+        &mut self,
+        encoder: &mut Encoder,
+        mut dir: Dir,
+        is_root: bool,
+    ) -> Result<(), Error> {
         let entry_counter = self.entry_counter;
 
-        let file_list = self.generate_directory_file_list(&mut dir)?;
+        let file_list = self.generate_directory_file_list(&mut dir, is_root)?;
 
         let dir_fd = dir.as_raw_fd();
 
         let old_path = std::mem::take(&mut self.path);
         for file_entry in file_list {
-            (self.callback)(Path::new(OsStr::from_bytes(file_entry.name.to_bytes())))?;
+            let file_name = file_entry.name.to_bytes();
+            if is_root && file_name == b".pxarexclude-cli" {
+                self.encode_pxarexclude_cli(encoder, &file_entry.name)?;
+                continue;
+            }
+            (self.callback)(Path::new(OsStr::from_bytes(file_name)))?;
             self.path = file_entry.path;
             self.add_entry(encoder, dir_fd, &file_entry.name, &file_entry.stat)
                 .map_err(|err| self.wrap_err(err))?;
@@ -220,10 +218,44 @@ impl<'a, 'b> Archiver<'a, 'b> {
         Ok(())
     }
 
-    fn generate_directory_file_list(&mut self, dir: &mut Dir) -> Result<Vec<FileListEntry>, Error> {
+    fn encode_pxarexclude_cli(
+        &mut self,
+        encoder: &mut Encoder,
+        file_name: &CStr,
+    ) -> Result<(), Error> {
+        let content = generate_pxar_excludes_cli(&self.patterns);
+
+        if let Some(ref mut catalog) = self.catalog {
+            catalog.add_file(file_name, content.len() as u64, 0)?;
+        }
+
+        let mut metadata = Metadata::default();
+        metadata.stat.mode = pxar::format::mode::IFREG | 0o600;
+
+        let mut file = encoder.create_file(&metadata, ".pxarexclude-cli", content.len() as u64)?;
+
+        use std::io::Write;
+        file.write_all(&content)?;
+
+        Ok(())
+    }
+
+    fn generate_directory_file_list(
+        &mut self,
+        dir: &mut Dir,
+        is_root: bool,
+    ) -> Result<Vec<FileListEntry>, Error> {
         let dir_fd = dir.as_raw_fd();
 
         let mut file_list = Vec::new();
+
+        if is_root && !self.patterns.is_empty() {
+            file_list.push(FileListEntry {
+                name: CString::new(".pxarexclude-cli").unwrap(),
+                path: PathBuf::new(),
+                stat: unsafe { std::mem::zeroed() },
+            });
+        }
 
         for file in dir.iter() {
             let file = file?;
@@ -231,6 +263,10 @@ impl<'a, 'b> Archiver<'a, 'b> {
             let file_name = file.file_name().to_owned();
             let file_name_bytes = file_name.to_bytes();
             if file_name_bytes == b"." || file_name_bytes == b".." {
+                continue;
+            }
+
+            if is_root && file_name_bytes == b".pxarexclude-cli" {
                 continue;
             }
 
@@ -424,7 +460,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let result = if skip_contents {
             Ok(())
         } else {
-            self.archive_dir_contents(&mut encoder, dir)
+            self.archive_dir_contents(&mut encoder, dir, false)
         };
 
         self.fs_magic = old_fs_magic;
