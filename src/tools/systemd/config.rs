@@ -126,6 +126,10 @@ pub fn parse_systemd_timer(filename: &str) -> Result<SectionConfigData, Error> {
     parse_systemd_config(&TIMER_CONFIG, filename)
 }
 
+pub fn parse_systemd_mount(filename: &str) -> Result<SectionConfigData, Error> {
+    parse_systemd_config(&MOUNT_CONFIG, filename)
+}
+
 fn save_systemd_config(config: &SectionConfig, filename: &str, data: &SectionConfigData) -> Result<(), Error> {
     let raw = config.write(filename, &data)?;
 

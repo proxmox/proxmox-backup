@@ -927,6 +927,15 @@ impl std::fmt::Display for FileSystemType {
     }
 }
 
+impl std::str::FromStr for FileSystemType {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use serde::de::IntoDeserializer;
+        Self::deserialize(s.into_deserializer())
+    }
+}
+
 /// Create a file system on a disk or disk partition
 pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Error> {
 

@@ -15,6 +15,8 @@ use crate::server::WorkerTask;
 
 use crate::api2::types::{UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
+pub mod directory;
+
 #[api(
     protected: true,
     input: {
