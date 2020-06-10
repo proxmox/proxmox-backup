@@ -8,12 +8,10 @@ use anyhow::{bail, format_err, Error};
 use chrono::offset::{TimeZone, Local};
 
 use pathpatterns::{MatchList, MatchType};
-use proxmox::sys::error::io_err_other;
 use proxmox::tools::io::ReadExt;
 
 use crate::backup::file_formats::PROXMOX_CATALOG_FILE_MAGIC_1_0;
 use crate::pxar::catalog::BackupCatalogWriter;
-use crate::tools::runtime::block_on;
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
@@ -396,32 +394,6 @@ impl <W: Write> BackupCatalogWriter for CatalogWriter<W> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
         dir.entries.push(DirEntry { name, attr: DirEntryAttribute::Socket });
-        Ok(())
-    }
-}
-
-// fixme: move to somehere else?
-/// Implement Write to tokio mpsc channel Sender
-pub struct SenderWriter(tokio::sync::mpsc::Sender<Result<Vec<u8>, Error>>);
-
-impl SenderWriter {
-    pub fn new(sender: tokio::sync::mpsc::Sender<Result<Vec<u8>, Error>>) -> Self {
-        Self(sender)
-    }
-}
-
-impl Write for SenderWriter {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        block_on(async move {
-            self.0
-                .send(Ok(buf.to_vec()))
-                .await
-                .map_err(io_err_other)
-                .and(Ok(buf.len()))
-        })
-    }
-
-    fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
     }
 }
