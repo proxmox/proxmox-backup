@@ -8,6 +8,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, UserInformation, Subd
 use crate::api2::types::{DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution};
 use crate::backup::{DataStore};
 use crate::config::datastore;
+use crate::tools::epoch_now_f64;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::acl::{
@@ -90,58 +91,69 @@ fn datastore_status(
         });
 
         let rrd_dir = format!("datastore/{}", store);
+        let now = epoch_now_f64()?;
+        let rrd_resolution = RRDTimeFrameResolution::Month;
+        let rrd_mode = RRDMode::Average;
 
-        let (times, lists) = crate::rrd::extract_lists(
+        let total_res = crate::rrd::extract_cached_data(
             &rrd_dir,
-            &[ "total", "used", ],
-            RRDTimeFrameResolution::Month,
-            RRDMode::Average,
-        )?;
+            "total",
+            now,
+            rrd_resolution,
+            rrd_mode,
+        );
 
-        if !lists.contains_key("total") || !lists.contains_key("used") {
-            // we do not have the info, so we can skip calculating
-            continue;
-        }
+        let used_res = crate::rrd::extract_cached_data(
+            &rrd_dir,
+            "used",
+            now,
+            rrd_resolution,
+            rrd_mode,
+        );
 
-        let mut usage_list: Vec<f64> = Vec::new();
-        let mut time_list: Vec<u64> = Vec::new();
-        let mut history = Vec::new();
+        match (total_res, used_res) {
+            (Some((start, reso, total_list)), Some((_, _, used_list))) => {
+                let mut usage_list: Vec<f64> = Vec::new();
+                let mut time_list: Vec<u64> = Vec::new();
+                let mut history = Vec::new();
 
-        for (idx, used) in lists["used"].iter().enumerate() {
-            let total = if idx < lists["total"].len() {
-                lists["total"][idx]
-            } else {
-                None
-            };
+                for (idx, used) in used_list.iter().enumerate() {
+                    let total = if idx < total_list.len() {
+                        total_list[idx]
+                    } else {
+                        None
+                    };
 
-            match (total, used) {
-                (Some(total), Some(used)) if total != 0.0 => {
-                    time_list.push(times[idx]);
-                    let usage = used/total;
-                    usage_list.push(usage);
-                    history.push(json!(usage));
-                },
-                _ => {
-                    history.push(json!(null))
+                    match (total, used) {
+                        (Some(total), Some(used)) if total != 0.0 => {
+                            time_list.push(start + (idx as u64)*reso);
+                            let usage = used/total;
+                            usage_list.push(usage);
+                            history.push(json!(usage));
+                        },
+                        _ => {
+                            history.push(json!(null))
+                        }
+                    }
                 }
-            }
-        }
 
-        entry["history"] = history.into();
+                entry["history"] = history.into();
 
-        // we skip the calculation for datastores with not enough data
-        if usage_list.len() >= 7 {
-            if let Some((a,b)) = linear_regression(&time_list, &usage_list) {
-                if b != 0.0 {
-                    let estimate = (1.0 - a) / b;
-                    entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
+                // we skip the calculation for datastores with not enough data
+                if usage_list.len() >= 7 {
+                    if let Some((a,b)) = linear_regression(&time_list, &usage_list) {
+                        if b != 0.0 {
+                            let estimate = (1.0 - a) / b;
+                            entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
+                        }
+                    }
                 }
-            }
+            },
+            _ => {},
         }
 
         list.push(entry);
     }
-
 
     Ok(list.into())
 }
