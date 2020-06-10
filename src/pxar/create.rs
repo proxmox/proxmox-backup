@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
+use std::io::{self, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::path::{Path, PathBuf};
@@ -16,6 +17,7 @@ use pathpatterns::{MatchEntry, MatchList, MatchType, PatternFlag};
 use pxar::Metadata;
 use pxar::encoder::LinkOffset;
 
+use proxmox::c_str;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
 
@@ -85,11 +87,24 @@ struct HardLinkInfo {
     st_ino: u64,
 }
 
+/// In case we want to collect them or redirect them we can just add this here:
+struct ErrorReporter;
+
+impl std::io::Write for ErrorReporter {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        std::io::stderr().write(data)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        std::io::stderr().flush()
+    }
+}
+
 struct Archiver<'a, 'b> {
     feature_flags: Flags,
     fs_feature_flags: Flags,
     fs_magic: i64,
-    patterns: &'a [MatchEntry],
+    patterns: Vec<MatchEntry>,
     callback: &'a mut dyn FnMut(&Path) -> Result<(), Error>,
     catalog: Option<&'b mut dyn BackupCatalogWriter>,
     path: PathBuf,
@@ -98,6 +113,7 @@ struct Archiver<'a, 'b> {
     current_st_dev: libc::dev_t,
     device_set: Option<HashSet<u64>>,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, LinkOffset)>,
+    errors: ErrorReporter,
 }
 
 type Encoder<'a, 'b> = pxar::encoder::Encoder<'a, &'b mut dyn pxar::encoder::SeqWrite>;
@@ -153,7 +169,7 @@ where
         fs_feature_flags,
         fs_magic,
         callback: &mut callback,
-        patterns: &patterns,
+        patterns,
         catalog,
         path: PathBuf::new(),
         entry_counter: 0,
@@ -161,6 +177,7 @@ where
         current_st_dev: stat.st_dev,
         device_set,
         hardlinks: HashMap::new(),
+        errors: ErrorReporter,
     };
 
     archiver.archive_dir_contents(&mut encoder, source_dir, true)?;
@@ -197,17 +214,23 @@ impl<'a, 'b> Archiver<'a, 'b> {
     ) -> Result<(), Error> {
         let entry_counter = self.entry_counter;
 
+        let old_patterns_count = self.patterns.len();
+        self.read_pxar_excludes(dir.as_raw_fd())?;
+
         let file_list = self.generate_directory_file_list(&mut dir, is_root)?;
 
         let dir_fd = dir.as_raw_fd();
 
         let old_path = std::mem::take(&mut self.path);
+
         for file_entry in file_list {
             let file_name = file_entry.name.to_bytes();
+
             if is_root && file_name == b".pxarexclude-cli" {
                 self.encode_pxarexclude_cli(encoder, &file_entry.name)?;
                 continue;
             }
+
             (self.callback)(Path::new(OsStr::from_bytes(file_name)))?;
             self.path = file_entry.path;
             self.add_entry(encoder, dir_fd, &file_entry.name, &file_entry.stat)
@@ -215,6 +238,76 @@ impl<'a, 'b> Archiver<'a, 'b> {
         }
         self.path = old_path;
         self.entry_counter = entry_counter;
+        self.patterns.truncate(old_patterns_count);
+
+        Ok(())
+    }
+
+    /// openat() wrapper which allows but logs `EACCES` and turns `ENOENT` into `None`.
+    fn open_file(
+        &mut self,
+        parent: RawFd,
+        file_name: &CStr,
+        oflags: OFlag,
+    ) -> Result<Option<Fd>, Error> {
+        match Fd::openat(
+            &unsafe { RawFdNum::from_raw_fd(parent) },
+            file_name,
+            oflags,
+            Mode::empty(),
+        ) {
+            Ok(fd) => Ok(Some(fd)),
+            Err(nix::Error::Sys(Errno::ENOENT)) => Ok(None),
+            Err(nix::Error::Sys(Errno::EACCES)) => {
+                write!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
+                Ok(None)
+            }
+            Err(other) => Err(Error::from(other)),
+        }
+    }
+
+    fn read_pxar_excludes(&mut self, parent: RawFd) -> Result<(), Error> {
+        let fd = self.open_file(
+            parent,
+            c_str!(".pxarexclude"),
+            OFlag::O_RDONLY | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
+        )?;
+
+        let old_pattern_count = self.patterns.len();
+
+        if let Some(fd) = fd {
+            let file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
+
+            use io::BufRead;
+            for line in io::BufReader::new(file).lines() {
+                let line = match line {
+                    Ok(line) => line,
+                    Err(err) => {
+                        let _ = write!(
+                            self.errors,
+                            "ignoring .pxarexclude after read error in {:?}: {}",
+                            self.path,
+                            err,
+                        );
+                        self.patterns.truncate(old_pattern_count);
+                        return Ok(());
+                    }
+                };
+
+                let line = line.trim();
+
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, MatchType::Exclude) {
+                    Ok(pattern) => self.patterns.push(pattern),
+                    Err(err) => {
+                        let _ = write!(self.errors, "bad pattern in {:?}: {}", self.path, err);
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
@@ -234,8 +327,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
         metadata.stat.mode = pxar::format::mode::IFREG | 0o600;
 
         let mut file = encoder.create_file(&metadata, ".pxarexclude-cli", content.len() as u64)?;
-
-        use std::io::Write;
         file.write_all(&content)?;
 
         Ok(())
@@ -272,7 +363,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
             }
 
             if file_name_bytes == b".pxarexclude" {
-                // FIXME: handle this file!
                 continue;
             }
 
@@ -315,6 +405,11 @@ impl<'a, 'b> Archiver<'a, 'b> {
         Ok(file_list)
     }
 
+    fn report_vanished_file(&mut self) -> Result<(), Error> {
+        write!(self.errors, "warning: file vanished while reading: {:?}", self.path)?;
+        Ok(())
+    }
+
     fn add_entry(
         &mut self,
         encoder: &mut Encoder,
@@ -331,12 +426,19 @@ impl<'a, 'b> Archiver<'a, 'b> {
             OFlag::empty()
         };
 
-        let fd = Fd::openat(
-            &unsafe { RawFdNum::from_raw_fd(parent) },
+        let fd = self.open_file(
+            parent,
             c_file_name,
             open_mode | OFlag::O_RDONLY | OFlag::O_NOFOLLOW | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
-            Mode::empty(),
         )?;
+
+        let fd = match fd {
+            Some(fd) => fd,
+            None => {
+                self.report_vanished_file()?;
+                return Ok(());
+            }
+        };
 
         let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic)?;
 
