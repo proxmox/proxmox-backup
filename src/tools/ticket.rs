@@ -7,6 +7,8 @@ use openssl::pkey::{PKey, Public, Private};
 use openssl::sign::{Signer, Verifier};
 use openssl::hash::MessageDigest;
 
+use crate::tools::epoch_now_u64;
+
 pub const TICKET_LIFETIME: i64 = 3600*2; // 2 hours
 
 
@@ -17,8 +19,7 @@ pub fn assemble_rsa_ticket(
     secret_data: Option<&str>,
 ) -> Result<String, Error> {
 
-    let epoch = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
+    let epoch = epoch_now_u64()?;
 
     let timestamp = format!("{:08X}", epoch);
 
@@ -101,8 +102,7 @@ pub fn verify_rsa_ticket(
     }
 
     let timestamp = i64::from_str_radix(parts.pop_back().unwrap(), 16)?;
-    let now = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH)?.as_secs() as i64;
+    let now = epoch_now_u64()? as i64;
 
     let age = now - timestamp;
     if age < min_age {

@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
+use crate::tools::epoch_now_u64;
+
 fn compute_csrf_secret_digest(
     timestamp: i64,
     secret: &[u8],
@@ -29,8 +31,7 @@ pub fn assemble_csrf_prevention_token(
     username: &str,
 ) -> String {
 
-    let epoch = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let epoch = epoch_now_u64().unwrap() as i64;
 
     let digest = compute_csrf_secret_digest(epoch, secret, username);
 
@@ -67,8 +68,7 @@ pub fn verify_csrf_prevention_token(
             bail!("invalid signature.");
         }
 
-        let now = std::time::SystemTime::now().duration_since(
-            std::time::SystemTime::UNIX_EPOCH)?.as_secs() as i64;
+        let now = epoch_now_u64()? as i64;
 
         let age = now - ttime;
         if age < min_age {

@@ -19,7 +19,7 @@ use super::read_chunk::ReadChunk;
 use super::Chunker;
 use super::IndexFile;
 use super::{DataBlob, DataChunkBuilder};
-use crate::tools;
+use crate::tools::{self, epoch_now_u64};
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
@@ -479,9 +479,7 @@ impl DynamicIndexWriter {
             panic!("got unexpected header size");
         }
 
-        let ctime = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)?
-            .as_secs();
+        let ctime = epoch_now_u64()?;
 
         let uuid = Uuid::generate();
 

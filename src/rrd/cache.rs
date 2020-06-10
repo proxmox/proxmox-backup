@@ -1,4 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::sync::{RwLock};
@@ -10,6 +9,7 @@ use serde_json::{json, Value};
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
+use crate::tools::epoch_now_f64;
 
 use super::*;
 
@@ -35,11 +35,6 @@ pub fn create_rrdb_dir() -> Result<(), Error> {
     Ok(())
 }
 
-fn now() -> Result<f64, Error> {
-    let time = SystemTime::now().duration_since(UNIX_EPOCH)?;
-    Ok(time.as_secs_f64())
-}
-
 pub fn update_value(rel_path: &str, value: f64, dst: DST, save: bool) -> Result<(), Error> {
 
     let mut path = PathBuf::from(PBS_RRD_BASEDIR);
@@ -48,7 +43,7 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST, save: bool) -> Result<
     std::fs::create_dir_all(path.parent().unwrap())?;
 
     let mut map = RRD_CACHE.write().unwrap();
-    let now = now()?;
+    let now = epoch_now_f64()?;
 
     if let Some(rrd) = map.get_mut(rel_path) {
         rrd.update(now, value);
@@ -115,7 +110,7 @@ pub fn extract_data(
     mode: RRDMode,
 ) -> Result<Value, Error> {
 
-    let now = now()?;
+    let now = epoch_now_f64()?;
 
     let map = RRD_CACHE.read().unwrap();
 

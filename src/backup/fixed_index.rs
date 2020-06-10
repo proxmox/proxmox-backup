@@ -5,7 +5,7 @@ use std::io::{Seek, SeekFrom};
 use super::chunk_stat::*;
 use super::chunk_store::*;
 use super::IndexFile;
-use crate::tools;
+use crate::tools::{self, epoch_now_u64};
 
 use chrono::{Local, TimeZone};
 use std::fs::File;
@@ -290,9 +290,7 @@ impl FixedIndexWriter {
             panic!("got unexpected header size");
         }
 
-        let ctime = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)?
-            .as_secs();
+        let ctime = epoch_now_u64()?;
 
         let uuid = Uuid::generate();
 
