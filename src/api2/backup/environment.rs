@@ -430,8 +430,6 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        state.finished = true;
-
         if state.dynamic_writers.len() != 0 {
             bail!("found open index writer - unable to finish backup");
         }
@@ -439,6 +437,8 @@ impl BackupEnvironment {
         if state.file_counter == 0 {
             bail!("backup does not contain valid files (file count == 0)");
         }
+
+        state.finished = true;
 
         Ok(())
     }
