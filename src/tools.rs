@@ -480,7 +480,7 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 /// is considered successful.
 pub fn command_output(
     output: std::process::Output,
-    exit_code_check: Option<fn(i32) -> bool>
+    exit_code_check: Option<fn(i32) -> bool>,
 ) -> Result<String, Error> {
 
     if !output.status.success() {
@@ -507,6 +507,19 @@ pub fn command_output(
     Ok(output)
 }
 
+pub fn run_command(
+    mut command: std::process::Command,
+    exit_code_check: Option<fn(i32) -> bool>,
+) -> Result<String, Error> {
+
+   let output = command.output()
+        .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
+
+    let output = crate::tools::command_output(output, exit_code_check)
+        .map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
+
+    Ok(output)
+}
 
 pub fn fd_change_cloexec(fd: RawFd, on: bool) -> Result<(), Error> {
     use nix::fcntl::{fcntl, FdFlag, F_GETFD, F_SETFD};

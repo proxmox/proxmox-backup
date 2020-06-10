@@ -563,11 +563,7 @@ pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> 
     let mut command = std::process::Command::new(LSBLK_BIN_PATH);
     command.args(&["--json", "-o", "path,parttype"]);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", LSBLK_BIN_PATH, err))?;
-
-    let output = crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("lsblk command failed: {}", err))?;
+    let output = crate::tools::run_command(command, None)?;
 
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -865,11 +861,7 @@ pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
     command.arg("--rereadpt");
     command.arg(disk_path);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", BLOCKDEV_BIN_PATH, err))?;
-
-    crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("re-read partition table failed: {}", err))?;
+    crate::tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -888,11 +880,7 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
     command.arg(disk_path);
     command.args(&["-U", uuid]);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", SGDISK_BIN_PATH, err))?;
-
-    crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("sgdisk command failed: {}", err))?;
+    crate::tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -909,11 +897,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
     command.args(&["-n1", "-t1:8300"]);
     command.arg(disk_path);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", SGDISK_BIN_PATH, err))?;
-
-    crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("sgdisk command failed: {}", err))?;
+    crate::tools::run_command(command, None)?;
 
     let mut partitions = disk.partitions()?;
 
@@ -924,13 +908,23 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all="lowercase")]
 pub enum FileSystemType {
     /// Linux Ext4
     Ext4,
     /// XFS
     Xfs,
+}
+
+impl std::fmt::Display for FileSystemType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            FileSystemType::Ext4 => "ext4",
+            FileSystemType::Xfs => "xfs",
+        };
+        write!(f, "{}", text)
+    }
 }
 
 /// Create a file system on a disk or disk partition
@@ -941,20 +935,13 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
     };
 
-    let fs_type = match fs_type {
-        FileSystemType::Ext4 => "ext4",
-        FileSystemType::Xfs => "xfs",
-    };
+    let fs_type = fs_type.to_string();
 
     let mut command = std::process::Command::new(MKFS_BIN_PATH);
-    command.args(&["-t", fs_type]);
+    command.args(&["-t", &fs_type]);
     command.arg(disk_path);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", MKFS_BIN_PATH, err))?;
-
-    crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("mkfs {} failed: {}", fs_type, err))?;
+    crate::tools::run_command(command, None)?;
 
     Ok(())
 }
@@ -992,11 +979,7 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
     command.args(&["-o", "export"]);
     command.arg(disk_path);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", BLKID_BIN_PATH, err))?;
-
-    let output = crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("blkid command failed: {}", err))?;
+    let output = crate::tools::run_command(command, None)?;
 
     for line in output.lines() {
         if line.starts_with("UUID=") {
