@@ -18,6 +18,7 @@ use proxmox::try_block;
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 
 use crate::api2::types::*;
+use crate::api2::node::rrd::create_value_from_rrd;
 use crate::backup::*;
 use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
@@ -855,10 +856,8 @@ fn get_rrd_stats(
     _param: Value,
 ) -> Result<Value, Error> {
 
-    let rrd_dir = format!("datastore/{}", store);
-
-    crate::rrd::extract_data(
-        &rrd_dir,
+    create_value_from_rrd(
+        &format!("datastore/{}", store),
         &[
             "total", "used",
             "read_ios", "read_bytes",

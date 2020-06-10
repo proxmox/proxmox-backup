@@ -9,7 +9,7 @@ mod syslog;
 mod journal;
 mod services;
 mod status;
-mod rrd;
+pub(crate) mod rrd;
 pub mod disks;
 
 pub const SUBDIRS: SubdirMap = &[

@@ -4,7 +4,6 @@ use std::sync::{RwLock};
 
 use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
-use serde_json::{json, Value};
 
 use proxmox::tools::fs::{create_path, CreateOptions};
 
@@ -103,41 +102,18 @@ pub fn extract_lists(
     Ok((times, result))
 }
 
-pub fn extract_data(
+pub fn extract_cached_data(
     base: &str,
-    items: &[&str],
+    name: &str,
+    now: f64,
     timeframe: RRDTimeFrameResolution,
     mode: RRDMode,
-) -> Result<Value, Error> {
-
-    let now = epoch_now_f64()?;
+) -> Option<(u64, u64, Vec<Option<f64>>)> {
 
     let map = RRD_CACHE.read().unwrap();
 
-    let mut result = Vec::new();
-
-    for name in items.iter() {
-        let rrd = match map.get(&format!("{}/{}", base, name)) {
-            Some(rrd) => rrd,
-            None => continue,
-        };
-        let (start, reso, list) = rrd.extract_data(now, timeframe, mode);
-        let mut t = start;
-        for index in 0..RRD_DATA_ENTRIES {
-            if result.len() <= index {
-                if let Some(value) = list[index] {
-                    result.push(json!({ "time": t, *name: value }));
-                } else {
-                    result.push(json!({ "time": t }));
-                }
-            } else {
-                if let Some(value) = list[index] {
-                    result[index][name] = value.into();
-                }
-            }
-            t += reso;
-        }
+    match map.get(&format!("{}/{}", base, name)) {
+        Some(rrd) => Some(rrd.extract_data(now, timeframe, mode)),
+        None => None,
     }
-
-    Ok(result.into())
 }

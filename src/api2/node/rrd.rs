@@ -1,9 +1,47 @@
 use anyhow::Error;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use proxmox::api::{api, Router};
 
 use crate::api2::types::*;
+use crate::tools::epoch_now_f64;
+use crate::rrd::{extract_cached_data, RRD_DATA_ENTRIES};
+
+pub fn create_value_from_rrd(
+    basedir: &str,
+    list: &[&str],
+    timeframe: RRDTimeFrameResolution,
+    cf: RRDMode,
+) -> Result<Value, Error> {
+
+    let mut result = Vec::new();
+    let now = epoch_now_f64()?;
+
+    for name in list {
+        let (start, reso, list) = match extract_cached_data(basedir, name, now, timeframe, cf) {
+            Some(result) => result,
+            None => continue,
+        };
+
+        let mut t = start;
+        for index in 0..RRD_DATA_ENTRIES {
+            if result.len() <= index {
+                if let Some(value) = list[index] {
+                    result.push(json!({ "time": t, *name: value }));
+                } else {
+                    result.push(json!({ "time": t }));
+                }
+            } else {
+                if let Some(value) = list[index] {
+                    result[index][name] = value.into();
+                }
+            }
+            t += reso;
+        }
+    }
+
+    Ok(result.into())
+}
 
 #[api(
     input: {
@@ -27,7 +65,7 @@ fn get_node_stats(
     _param: Value,
 ) -> Result<Value, Error> {
 
-    crate::rrd::extract_data(
+    create_value_from_rrd(
         "host",
         &[
             "cpu", "iowait",
