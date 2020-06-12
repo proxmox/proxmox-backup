@@ -369,7 +369,7 @@ pub fn list_tasks(
 
     rpcenv["total"] = Value::from(count);
 
-    Ok(result.into())
+    Ok(result)
 }
 
 #[sortable]
