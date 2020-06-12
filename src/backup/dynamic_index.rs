@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::fs::File;
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::ops::Range;
@@ -11,6 +10,7 @@ use anyhow::{bail, format_err, Error};
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::uuid::Uuid;
 use proxmox::tools::vec;
+use proxmox::tools::mmap::Mmap;
 
 use super::chunk_stat::ChunkStat;
 use super::chunk_store::ChunkStore;
@@ -38,34 +38,27 @@ proxmox::static_assert_size!(DynamicIndexHeader, 4096);
 //     pub data: DynamicIndexHeaderData,
 // }
 
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub struct DynamicEntry {
+    end: u64,
+    digest: [u8; 32],
+}
+
 pub struct DynamicIndexReader {
     _file: File,
     pub size: usize,
-    index: *const u8,
-    index_entries: usize,
+    index: Mmap<DynamicEntry>,
     pub uuid: [u8; 16],
     pub ctime: u64,
     pub index_csum: [u8; 32],
-}
-
-// `index` is mmap()ed which cannot be thread-local so should be sendable
-// FIXME: Introduce an mmap wrapper type for this?
-unsafe impl Send for DynamicIndexReader {}
-unsafe impl Sync for DynamicIndexReader {}
-
-impl Drop for DynamicIndexReader {
-    fn drop(&mut self) {
-        if let Err(err) = self.unmap() {
-            eprintln!("Unable to unmap dynamic index - {}", err);
-        }
-    }
 }
 
 impl DynamicIndexReader {
     pub fn open(path: &Path) -> Result<Self, Error> {
         File::open(path)
             .map_err(Error::from)
-            .and_then(|file| Self::new(file))
+            .and_then(Self::new)
             .map_err(|err| format_err!("Unable to open dynamic index {:?} - {}", path, err))
     }
 
@@ -76,6 +69,7 @@ impl DynamicIndexReader {
             bail!("unable to get shared lock - {}", err);
         }
 
+        // FIXME: This is NOT OUR job! Check the callers of this method and remove this!
         file.seek(SeekFrom::Start(0))?;
 
         let header_size = std::mem::size_of::<DynamicIndexHeader>();
@@ -95,126 +89,85 @@ impl DynamicIndexReader {
         let size = stat.st_size as usize;
 
         let index_size = size - header_size;
-        if (index_size % 40) != 0 {
+        let index_count = index_size / 40;
+        if index_count * 40 != index_size {
             bail!("got unexpected file size");
         }
 
-        let data = unsafe {
-            nix::sys::mman::mmap(
-                std::ptr::null_mut(),
-                index_size,
+        let index = unsafe {
+            Mmap::map_fd(
+                rawfd,
+                header_size as u64,
+                index_count,
                 nix::sys::mman::ProtFlags::PROT_READ,
                 nix::sys::mman::MapFlags::MAP_PRIVATE,
-                rawfd,
-                header_size as i64,
-            )
-        }? as *const u8;
+            )?
+        };
 
         Ok(Self {
             _file: file,
             size,
-            index: data,
-            index_entries: index_size / 40,
+            index,
             ctime,
             uuid: header.uuid,
             index_csum: header.index_csum,
         })
     }
 
-    fn unmap(&mut self) -> Result<(), Error> {
-        if self.index == std::ptr::null_mut() {
-            return Ok(());
-        }
-
-        if let Err(err) = unsafe {
-            nix::sys::mman::munmap(self.index as *mut std::ffi::c_void, self.index_entries * 40)
-        } {
-            bail!("unmap dynamic index failed - {}", err);
-        }
-
-        self.index = std::ptr::null_mut();
-
-        Ok(())
-    }
-
     #[allow(clippy::cast_ptr_alignment)]
     pub fn chunk_info(&self, pos: usize) -> Result<ChunkReadInfo, Error> {
-        if pos >= self.index_entries {
+        if pos >= self.index.len() {
             bail!("chunk index out of range");
         }
         let start = if pos == 0 {
             0
         } else {
-            unsafe { *(self.index.add((pos - 1) * 40) as *const u64) }
+            u64::from_le(self.index[pos - 1].end)
         };
 
-        let end = unsafe { *(self.index.add(pos * 40) as *const u64) };
-
-        let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                self.index.add(pos * 40 + 8),
-                (*digest.as_mut_ptr()).as_mut_ptr(),
-                32,
-            );
-        }
+        let end = u64::from_le(self.index[pos].end);
 
         Ok(ChunkReadInfo {
             range: start..end,
-            digest: unsafe { digest.assume_init() },
+            digest: self.index[pos].digest.clone(),
         })
     }
 
     #[inline]
     #[allow(clippy::cast_ptr_alignment)]
     fn chunk_end(&self, pos: usize) -> u64 {
-        if pos >= self.index_entries {
+        if pos >= self.index.len() {
             panic!("chunk index out of range");
         }
-        unsafe { *(self.index.add(pos * 40) as *const u64) }
+        u64::from_le(self.index[pos].end)
     }
 
     #[inline]
     fn chunk_digest(&self, pos: usize) -> &[u8; 32] {
-        if pos >= self.index_entries {
+        if pos >= self.index.len() {
             panic!("chunk index out of range");
         }
-        let slice = unsafe { std::slice::from_raw_parts(self.index.add(pos * 40 + 8), 32) };
-        slice.try_into().unwrap()
+        &self.index[pos].digest
     }
 
     /// Compute checksum and data size
     pub fn compute_csum(&self) -> ([u8; 32], u64) {
         let mut csum = openssl::sha::Sha256::new();
-        let mut chunk_end = 0;
-        for pos in 0..self.index_entries {
-            chunk_end = self.chunk_end(pos);
-            let digest = self.chunk_digest(pos);
-            csum.update(&chunk_end.to_le_bytes());
-            csum.update(digest);
+        for entry in &self.index {
+            csum.update(&entry.end.to_ne_bytes());
+            csum.update(&entry.digest);
         }
         let csum = csum.finish();
 
-        (csum, chunk_end)
+        (
+            csum,
+            self.index
+                .last()
+                .map(|entry| entry.end)
+                .unwrap_or(0))
     }
 
-    /*
-    pub fn dump_pxar(&self, mut writer: Box<dyn Write>) -> Result<(), Error> {
-
-        for pos in 0..self.index_entries {
-            let _end = self.chunk_end(pos);
-            let digest = self.chunk_digest(pos);
-            //println!("Dump {:08x}", end );
-            let chunk = self.store.read_chunk(digest)?;
-            // fimxe: handle encrypted chunks
-            let data = chunk.decode(None)?;
-            writer.write_all(&data)?;
-        }
-
-        Ok(())
-    }
-    */
-
+    // TODO: can we use std::slice::binary_search with Mmap now?
     fn binary_search(
         &self,
         start_idx: usize,
@@ -243,11 +196,11 @@ impl DynamicIndexReader {
 
 impl IndexFile for DynamicIndexReader {
     fn index_count(&self) -> usize {
-        self.index_entries
+        self.index.len()
     }
 
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]> {
-        if pos >= self.index_entries {
+        if pos >= self.index.len() {
             None
         } else {
             Some(unsafe { std::mem::transmute(self.chunk_digest(pos).as_ptr()) })
@@ -255,10 +208,10 @@ impl IndexFile for DynamicIndexReader {
     }
 
     fn index_bytes(&self) -> u64 {
-        if self.index_entries == 0 {
+        if self.index.is_empty() {
             0
         } else {
-            self.chunk_end((self.index_entries - 1) as usize)
+            self.chunk_end(self.index.len() - 1)
         }
     }
 }
@@ -309,7 +262,7 @@ impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, CachedChunk> for C
 
 impl<S: ReadChunk> BufferedDynamicReader<S> {
     pub fn new(index: DynamicIndexReader, store: S) -> Self {
-        let archive_size = index.chunk_end(index.index_entries - 1);
+        let archive_size = index.index_bytes();
         Self {
             store,
             index,
@@ -359,7 +312,7 @@ impl<S: ReadChunk> crate::tools::BufferedRead for BufferedDynamicReader<S> {
 
         // optimization for sequential read
         if buffer_len > 0
-            && ((self.buffered_chunk_idx + 1) < index.index_entries)
+            && ((self.buffered_chunk_idx + 1) < index.index.len())
             && (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
         {
             let next_idx = self.buffered_chunk_idx + 1;
@@ -375,7 +328,7 @@ impl<S: ReadChunk> crate::tools::BufferedRead for BufferedDynamicReader<S> {
             || (offset < self.buffered_chunk_start)
             || (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
         {
-            let end_idx = index.index_entries - 1;
+            let end_idx = index.index.len() - 1;
             let end = index.chunk_end(end_idx);
             let idx = index.binary_search(0, 0, end_idx, end, offset)?;
             self.buffer_chunk(idx)?;

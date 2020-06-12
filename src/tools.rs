@@ -622,4 +622,3 @@ pub fn epoch_now_f64() -> Result<f64, SystemTimeError> {
 pub fn epoch_now_u64() -> Result<u64, SystemTimeError> {
     Ok(epoch_now()?.as_secs())
 }
-
