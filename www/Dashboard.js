@@ -59,14 +59,10 @@ Ext.define('PBS.Dashboard', {
 
 
 	updateSubscription: function(store, records, success) {
-	    if (!success) {
-		return;
-	    }
-	    var me = this;
-	    var viewmodel = me.getViewModel();
-
-	    var subStatus = 2; // 2 = all good, 1 = different leves, 0 = none
-	    var subLevel = "";
+	    if (!success) { return; }
+	    let me = this;
+	    let subStatus = records[0].data.status === 'Active' ? 2 : 0; // 2 = all good, 1 = different leves, 0 = none
+	    me.lookup('subscription').setSubStatus(subStatus);
 	},
 
 	updateUsageStats: function(store, records, success) {
@@ -261,60 +257,76 @@ Ext.define('PBS.Dashboard', {
 	    title: 'Subscription',
 	    height: 166,
 	    reference: 'subscription',
-	    xtype: 'pmgSubscriptionInfo',
+	    xtype: 'pbsSubscriptionInfo',
 	},
     ]
 });
 
-Ext.define('PMG.dashboard.SubscriptionInfo', {
+Ext.define('PBS.dashboard.SubscriptionInfo', {
     extend: 'Ext.panel.Panel',
-    xtype: 'pmgSubscriptionInfo',
-
-    data: {
-	icon: 'question-circle',
-	message: gettext('Unknown')
-    },
+    xtype: 'pbsSubscriptionInfo',
 
     style: {
 	cursor: 'pointer'
     },
 
+    layout: {
+	type: 'hbox',
+	align: 'middle',
+    },
+
+    items: [
+	{
+	    xtype: 'box',
+	    itemId: 'icon',
+	    data: {
+		icon: 'question-circle',
+	    },
+	    width: 100,
+	    tpl: '<center><i class="fa fa-3x fa-{icon}"></i></center>',
+	},
+	{
+	    flex: 1,
+	    xtype: 'box',
+	    data: {
+		message: gettext('Unknown'),
+	    },
+	    itemId: 'message',
+	    tpl: '<center>{message}</center>',
+	},
+    ],
+
     setSubStatus: function(status) {
 	var me = this;
-	var data = {};
+	let icon = '';
+	let message = '';
 
 	switch (status) {
 	    case 2:
-		data.icon = 'check green';
-		data.message = gettext('Your subscription status is valid.');
+		icon = 'check good';
+		message = gettext('Your subscription status is valid.');
 		break;
 	    case 1:
-		data.icon = 'exclamation-triangle yellow';
-		data.message = gettext('Warning: Your subscription levels are not the same.');
+		icon = 'exclamation-triangle warning';
+		message = gettext('Warning: Your subscription levels are not the same.');
 		break;
 	    case 0:
-		data.icon = 'times-circle red';
-		data.message = gettext('You have at least one node without subscription.');
+		icon = 'times-circle critical';
+		message = gettext('This node does not have a subscription.');
 		break;
 	    default:
 		throw 'invalid subscription status';
 	}
-	me.update(data);
+	me.getComponent('icon').update({ icon });
+	me.getComponent('message').update({ message });
     },
-    tpl: [
-	'<table style="height: 100%;" class="dash">',
-	'<tr><td class="center">',
-	'<i class="fa fa-3x fa-{icon}"></i>',
-	'</td><td class="center">{message}</td></tr>',
-	'</table>'
-    ],
 
     listeners: {
 	click: {
 	    element: 'body',
 	    fn: function() {
 		var mainview = this.component.up('mainview');
-		mainview.getController().redirectTo('pmgSubscription');
+		mainview.getController().redirectTo('pbsSubscription');
 	    }
 	}
     }
