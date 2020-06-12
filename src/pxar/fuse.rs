@@ -26,6 +26,8 @@ use pxar::accessor::{self, EntryRangeInfo, ReadAt};
 use proxmox_fuse::requests::{self, FuseRequest};
 use proxmox_fuse::{EntryParam, Fuse, ReplyBufState, Request, ROOT_ID};
 
+use crate::tools::xattr;
+
 /// We mark inodes for regular files this way so we know how to access them.
 const NON_DIRECTORY_INODE: u64 = 1u64 << 63;
 
@@ -594,18 +596,29 @@ impl SessionImpl {
     }
 
     async fn listxattrs(&self, inode: u64) -> Result<Vec<pxar::format::XAttr>, Error> {
-        // FIXME: Special cases:
-        //     b"security.capability
-        //     b"system.posix_acl_access
-        //     b"system.posix_acl_default
-
         let lookup = self.get_lookup(inode)?;
-        Ok(self
+        let metadata = self
             .open_entry(&lookup)
             .await?
             .into_entry()
-            .into_metadata()
-            .xattrs)
+            .into_metadata();
+
+        let mut xattrs = metadata.xattrs;
+
+        use pxar::format::XAttr;
+
+        if let Some(fcaps) = metadata.fcaps {
+            xattrs.push(XAttr::new(xattr::xattr_name_fcaps().to_bytes(), fcaps.data));
+        }
+
+        // TODO: Special cases:
+        //     b"system.posix_acl_access
+        //     b"system.posix_acl_default
+        //
+        // For these we need to be able to create posix acl format entries, at that point we could
+        // just ditch libacl as well...
+
+        Ok(xattrs)
     }
 
     async fn listxattrs_into(
@@ -627,12 +640,6 @@ impl SessionImpl {
     async fn getxattr(&self, inode: u64, xattr: &OsStr) -> Result<pxar::format::XAttr, Error> {
         // TODO: pxar::Accessor could probably get a more optimized method to fetch a specific
         // xattr for an entry...
-
-        // FIXME: Special cases:
-        //     b"security.capability
-        //     b"system.posix_acl_access
-        //     b"system.posix_acl_default
-
         let xattrs = self.listxattrs(inode).await?;
         for entry in xattrs {
             if entry.name().to_bytes() == xattr.as_bytes() {
