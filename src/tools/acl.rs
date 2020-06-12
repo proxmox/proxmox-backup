@@ -12,6 +12,7 @@ use std::ptr;
 
 use libc::{c_char, c_int, c_uint, c_void};
 use nix::errno::Errno;
+use nix::NixPath;
 
 // from: acl/include/acl.h
 pub const ACL_UNDEFINED_ID: u32 = 0xffffffff;
@@ -49,8 +50,7 @@ pub const ACL_EA_VERSION: u32 = 0x0002;
 #[link(name = "acl")]
 extern "C" {
     fn acl_get_file(path: *const c_char, acl_type: ACLType) -> *mut c_void;
-    // FIXME: remove 'pub' after the cleanup
-    pub(crate) fn acl_set_file(path: *const c_char, acl_type: ACLType, acl: *mut c_void) -> c_int;
+    fn acl_set_file(path: *const c_char, acl_type: ACLType, acl: *mut c_void) -> c_int;
     fn acl_get_fd(fd: RawFd) -> *mut c_void;
     fn acl_get_entry(acl: *const c_void, entry_id: c_int, entry: *mut *mut c_void) -> c_int;
     fn acl_create_entry(acl: *mut *mut c_void, entry: *mut *mut c_void) -> c_int;
@@ -69,8 +69,7 @@ extern "C" {
 
 #[derive(Debug)]
 pub struct ACL {
-    // FIXME: remove 'pub' after the cleanup
-    pub(crate) ptr: *mut c_void,
+    ptr: *mut c_void,
 }
 
 impl Drop for ACL {
@@ -102,14 +101,11 @@ impl ACL {
         Ok(ACL { ptr })
     }
 
-    pub fn set_file<P: AsRef<Path>>(&self, path: P, acl_type: ACLType) -> Result<(), nix::errno::Errno> {
-        let path_cstr = CString::new(path.as_ref().as_os_str().as_bytes()).unwrap();
-        let res = unsafe { acl_set_file(path_cstr.as_ptr(), acl_type, self.ptr) };
-        if res < 0 {
-            return Err(Errno::last());
-        }
- 
-        Ok(())
+    pub fn set_file<P: NixPath + ?Sized>(&self, path: &P, acl_type: ACLType) -> nix::Result<()> {
+        path.with_nix_path(|path| {
+            Errno::result(unsafe { acl_set_file(path.as_ptr(), acl_type, self.ptr) })
+        })?
+        .map(drop)
     }
 
     pub fn get_fd(fd: RawFd) -> Result<ACL, nix::errno::Errno> {

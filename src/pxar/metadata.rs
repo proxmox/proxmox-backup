@@ -10,12 +10,12 @@ use nix::sys::stat::Mode;
 
 use pxar::Metadata;
 
+use proxmox::c_result;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
-use proxmox::{c_result, c_try};
 
-use crate::pxar::Flags;
 use crate::pxar::tools::perms_from_metadata;
+use crate::pxar::Flags;
 use crate::tools::{acl, fs, xattr};
 
 //
@@ -97,7 +97,6 @@ pub fn apply_with_path<T: AsRef<Path>>(
 
 pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
-    let c_proc_path = c_proc_path.as_ptr();
 
     if metadata.stat.flags != 0 {
         todo!("apply flags!");
@@ -106,7 +105,7 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
     unsafe {
         // UID and GID first, as this fails if we lose access anyway.
         c_result!(libc::chown(
-            c_proc_path,
+            c_proc_path.as_ptr(),
             metadata.stat.uid,
             metadata.stat.gid
         ))
@@ -115,23 +114,25 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
     }
 
     let mut skip_xattrs = false;
-    apply_xattrs(flags, c_proc_path, metadata, &mut skip_xattrs)?;
-    add_fcaps(flags, c_proc_path, metadata, &mut skip_xattrs)?;
-    apply_acls(flags, c_proc_path, metadata)?;
+    apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
+    add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
+    apply_acls(flags, &c_proc_path, metadata)?;
     apply_quota_project_id(flags, fd, metadata)?;
 
     // Finally mode and time. We may lose access with mode, but the changing the mode also
     // affects times.
     if !metadata.is_symlink() {
-        c_result!(unsafe { libc::chmod(c_proc_path, perms_from_metadata(metadata)?.bits()) })
-            .map(drop)
-            .or_else(allow_notsupp)?;
+        c_result!(unsafe {
+            libc::chmod(c_proc_path.as_ptr(), perms_from_metadata(metadata)?.bits())
+        })
+        .map(drop)
+        .or_else(allow_notsupp)?;
     }
 
     let res = c_result!(unsafe {
         libc::utimensat(
             libc::AT_FDCWD,
-            c_proc_path,
+            c_proc_path.as_ptr(),
             nsec_to_update_timespec(metadata.stat.mtime).as_ptr(),
             0,
         )
@@ -216,11 +217,7 @@ fn apply_xattrs(
     Ok(())
 }
 
-fn apply_acls(
-    flags: Flags,
-    c_proc_path: *const libc::c_char,
-    metadata: &Metadata,
-) -> Result<(), Error> {
+fn apply_acls(flags: Flags, c_proc_path: &CStr, metadata: &Metadata) -> Result<(), Error> {
     if !flags.contains(Flags::WITH_ACL) || metadata.acl.is_empty() {
         return Ok(());
     }
@@ -270,7 +267,7 @@ fn apply_acls(
         bail!("Error while restoring ACL - ACL invalid");
     }
 
-    c_try!(unsafe { acl::acl_set_file(c_proc_path, acl::ACL_TYPE_ACCESS, acl.ptr,) });
+    acl.set_file(c_proc_path, acl::ACL_TYPE_ACCESS)?;
     drop(acl);
 
     // acl type default:
@@ -299,7 +296,7 @@ fn apply_acls(
             bail!("Error while restoring ACL - ACL invalid");
         }
 
-        c_try!(unsafe { acl::acl_set_file(c_proc_path, acl::ACL_TYPE_DEFAULT, acl.ptr,) });
+        acl.set_file(c_proc_path, acl::ACL_TYPE_DEFAULT)?;
     }
 
     Ok(())
