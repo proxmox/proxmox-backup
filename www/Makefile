@@ -19,6 +19,9 @@ JSSRC=							\
 	window/ACLEdit.js				\
 	window/DataStoreEdit.js				\
 	dashboard/DataStoreStatistics.js		\
+	dashboard/LongestTasks.js			\
+	dashboard/RunningTasks.js			\
+	dashboard/TaskSummary.js			\
 	Utils.js					\
 	LoginView.js					\
 	VersionInfo.js					\
