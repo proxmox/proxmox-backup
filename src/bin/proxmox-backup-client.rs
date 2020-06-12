@@ -849,8 +849,6 @@ async fn create_backup(
 
     let mut upload_list = vec![];
 
-    let mut upload_catalog = false;
-
     for backupspec in backupspec_list {
         let spec = parse_backup_specification(backupspec.as_str().unwrap())?;
         let filename = &spec.config_string;
@@ -868,7 +866,6 @@ async fn create_backup(
                     bail!("got unexpected file type (expected directory)");
                 }
                 upload_list.push((BackupSpecificationType::PXAR, filename.to_owned(), format!("{}.didx", target), 0));
-                upload_catalog = true;
             }
             BackupSpecificationType::IMAGE => {
                 if !(file_type.is_file() || file_type.is_block_device()) {
@@ -940,7 +937,8 @@ async fn create_backup(
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
     let mut manifest = BackupManifest::new(snapshot);
 
-    let (catalog, catalog_result_rx) = spawn_catalog_upload(client.clone(), crypt_config.clone())?;
+    let mut catalog = None;
+    let mut catalog_result_tx = None;
 
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
@@ -959,6 +957,14 @@ async fn create_backup(
                 manifest.add_file(target, stats.size, stats.csum)?;
             }
             BackupSpecificationType::PXAR => {
+                // start catalog upload on first use
+                if catalog.is_none() {
+                    let (cat, res) = spawn_catalog_upload(client.clone(), crypt_config.clone())?;
+                    catalog = Some(cat);
+                    catalog_result_tx = Some(res);
+                }
+                let catalog = catalog.as_ref().unwrap();
+
                 println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
@@ -994,7 +1000,7 @@ async fn create_backup(
     }
 
     // finalize and upload catalog
-    if upload_catalog {
+    if let Some(catalog) = catalog {
         let mutex = Arc::try_unwrap(catalog)
             .map_err(|_| format_err!("unable to get catalog (still used)"))?;
         let mut catalog = mutex.into_inner().unwrap();
@@ -1003,9 +1009,10 @@ async fn create_backup(
 
         drop(catalog); // close upload stream
 
-        let stats = catalog_result_rx.await??;
-
-        manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum)?;
+        if let Some(catalog_result_rx) = catalog_result_tx {
+            let stats = catalog_result_rx.await??;
+            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum)?;
+        }
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
