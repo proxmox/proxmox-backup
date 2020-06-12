@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Error;
@@ -51,4 +53,18 @@ impl ReadChunk for LocalChunkReader {
 
         Ok(raw_data)
     }
+}
+
+pub trait AsyncReadChunk {
+    /// Returns the encoded chunk data
+    fn read_raw_chunk<'a>(
+        &'a mut self,
+        digest: &'a [u8; 32],
+    ) -> Pin<Box<dyn Future<Output = Result<DataBlob, Error>> + Send + 'a>>;
+
+    /// Returns the decoded chunk data
+    fn read_chunk<'a>(
+        &'a mut self,
+        digest: &'a [u8; 32],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Error>> + Send + 'a>>;
 }

@@ -31,8 +31,33 @@ use proxmox::api::api;
 use proxmox_backup::tools;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::client::*;
-use proxmox_backup::backup::*;
 use proxmox_backup::pxar::catalog::*;
+use proxmox_backup::backup::{
+    archive_type,
+    encrypt_key_with_passphrase,
+    load_and_decrypt_key,
+    store_key_config,
+    verify_chunk_size,
+    ArchiveType,
+    BackupDir,
+    BackupGroup,
+    BackupManifest,
+    BufferedDynamicReader,
+    CatalogReader,
+    CatalogWriter,
+    CATALOG_NAME,
+    ChunkStream,
+    CryptConfig,
+    DataBlob,
+    DynamicIndexReader,
+    FixedChunkStream,
+    FixedIndexReader,
+    IndexFile,
+    KeyConfig,
+    MANIFEST_BLOB_NAME,
+    ReadChunk,
+    Shell,
+};
 
 const ENV_VAR_PBS_FINGERPRINT: &str = "PBS_FINGERPRINT";
 const ENV_VAR_PBS_PASSWORD: &str = "PBS_PASSWORD";

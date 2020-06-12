@@ -34,7 +34,7 @@ async fn pull_index_chunks<I: IndexFile>(
             continue;
         }
         //worker.log(format!("sync {} chunk {}", pos, proxmox::tools::digest_to_hex(digest)));
-        let chunk = chunk_reader.read_raw_chunk(&digest)?;
+        let chunk = chunk_reader.read_raw_chunk(&digest).await?;
 
         target.insert_chunk(&chunk, &digest)?;
     }
