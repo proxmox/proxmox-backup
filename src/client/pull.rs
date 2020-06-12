@@ -47,13 +47,13 @@ async fn download_manifest(
     filename: &std::path::Path,
 ) -> Result<std::fs::File, Error> {
 
-    let tmp_manifest_file = std::fs::OpenOptions::new()
+    let mut tmp_manifest_file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .read(true)
         .open(&filename)?;
 
-    let mut tmp_manifest_file = reader.download(MANIFEST_BLOB_NAME, tmp_manifest_file).await?;
+    reader.download(MANIFEST_BLOB_NAME, &mut tmp_manifest_file).await?;
 
     tmp_manifest_file.seek(SeekFrom::Start(0))?;
 
@@ -77,13 +77,13 @@ async fn pull_single_archive(
     tmp_path.set_extension("tmp");
 
     worker.log(format!("sync archive {}", archive_name));
-    let tmpfile = std::fs::OpenOptions::new()
+    let mut tmpfile = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .read(true)
         .open(&tmp_path)?;
 
-    let tmpfile = reader.download(archive_name, tmpfile).await?;
+    reader.download(archive_name, &mut tmpfile).await?;
 
     match archive_type(archive_name)? {
         ArchiveType::DynamicIndex => {
@@ -124,7 +124,7 @@ async fn try_client_log_download(
         .open(&tmp_path)?;
 
     // Note: be silent if there is no log - only log successful download
-    if let Ok(_) = reader.download(CLIENT_LOG_BLOB_NAME, tmpfile).await {
+    if let Ok(()) = reader.download(CLIENT_LOG_BLOB_NAME, tmpfile).await {
         if let Err(err) = std::fs::rename(&tmp_path, &path) {
             bail!("Atomic rename file {:?} failed - {}", path, err);
         }

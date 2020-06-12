@@ -2199,7 +2199,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         true,
     ).await?;
 
-    let tmpfile = std::fs::OpenOptions::new()
+    let mut tmpfile = std::fs::OpenOptions::new()
         .write(true)
         .read(true)
         .custom_flags(libc::O_TMPFILE)
@@ -2216,7 +2216,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         Arc::new(BufferedDynamicReadAt::new(reader));
     let decoder = proxmox_backup::pxar::fuse::Accessor::new(reader, archive_size).await?;
 
-    let tmpfile = client.download(CATALOG_NAME, tmpfile).await?;
+    client.download(CATALOG_NAME, &mut tmpfile).await?;
     let index = DynamicIndexReader::new(tmpfile)
         .map_err(|err| format_err!("unable to read catalog index - {}", err))?;
 

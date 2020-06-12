@@ -91,7 +91,7 @@ impl BackupReader {
         &self,
         file_name: &str,
         output: W,
-    ) -> Result<W, Error> {
+    ) -> Result<(), Error> {
         let path = "download";
         let param = json!({ "file-name": file_name });
         self.h2.download(path, Some(param), output).await
@@ -103,7 +103,7 @@ impl BackupReader {
     pub async fn speedtest<W: Write + Send>(
         &self,
         output: W,
-    ) -> Result<W, Error> {
+    ) -> Result<(), Error> {
         self.h2.download("speedtest", None, output).await
     }
 
@@ -112,7 +112,7 @@ impl BackupReader {
         &self,
         digest: &[u8; 32],
         output: W,
-    ) -> Result<W, Error> {
+    ) -> Result<(), Error> {
         let path = "chunk";
         let param = json!({ "digest": digest_to_hex(digest) });
         self.h2.download(path, Some(param), output).await
@@ -127,7 +127,8 @@ impl BackupReader {
 
         use std::convert::TryFrom;
 
-        let raw_data = self.download(MANIFEST_BLOB_NAME, Vec::with_capacity(64*1024)).await?;
+        let mut raw_data = Vec::with_capacity(64 * 1024);
+        self.download(MANIFEST_BLOB_NAME, &mut raw_data).await?;
         let blob = DataBlob::from_raw(raw_data)?;
         blob.verify_crc()?;
         let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
@@ -146,13 +147,13 @@ impl BackupReader {
         name: &str,
     ) -> Result<DataBlobReader<File>, Error> {
 
-        let tmpfile = std::fs::OpenOptions::new()
+        let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
             .custom_flags(libc::O_TMPFILE)
             .open("/tmp")?;
 
-        let mut tmpfile = self.download(name, tmpfile).await?;
+        self.download(name, &mut tmpfile).await?;
 
         let (csum, size) = compute_file_csum(&mut tmpfile)?;
         manifest.verify_file(name, &csum, size)?;
@@ -172,13 +173,13 @@ impl BackupReader {
         name: &str,
     ) -> Result<DynamicIndexReader, Error> {
 
-        let tmpfile = std::fs::OpenOptions::new()
+        let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
             .custom_flags(libc::O_TMPFILE)
             .open("/tmp")?;
 
-        let tmpfile = self.download(name, tmpfile).await?;
+        self.download(name, &mut tmpfile).await?;
 
         let index = DynamicIndexReader::new(tmpfile)
             .map_err(|err| format_err!("unable to read dynamic index '{}' - {}", name, err))?;
@@ -200,13 +201,13 @@ impl BackupReader {
         name: &str,
     ) -> Result<FixedIndexReader, Error> {
 
-        let tmpfile = std::fs::OpenOptions::new()
+        let mut tmpfile = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
             .custom_flags(libc::O_TMPFILE)
             .open("/tmp")?;
 
-        let tmpfile = self.download(name, tmpfile).await?;
+        self.download(name, &mut tmpfile).await?;
 
         let index = FixedIndexReader::new(tmpfile)
             .map_err(|err| format_err!("unable to read fixed index '{}' - {}", name, err))?;

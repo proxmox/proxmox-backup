@@ -44,8 +44,8 @@ async fn run() -> Result<(), Error> {
 
     let mut bytes = 0;
     for _ in 0..100 {
-        let writer = DummyWriter { bytes: 0 };
-        let writer = client.speedtest(writer).await?;
+        let mut writer = DummyWriter { bytes: 0 };
+        client.speedtest(&mut writer).await?;
         println!("Received {} bytes", writer.bytes);
         bytes += writer.bytes;
     }

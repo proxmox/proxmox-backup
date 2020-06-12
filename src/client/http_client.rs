@@ -466,7 +466,7 @@ impl HttpClient {
         &mut self,
         path: &str,
         output: &mut (dyn Write + Send),
-    ) ->  Result<(), Error> {
+    ) -> Result<(), Error> {
         let mut req = Self::request_builder(&self.server, "GET", path, None).unwrap();
 
         let client = self.client.clone();
@@ -707,7 +707,7 @@ impl H2Client {
         path: &str,
         param: Option<Value>,
         mut output: W,
-    ) -> Result<W, Error> {
+    ) -> Result<(), Error> {
         let request = Self::request_builder("localhost", "GET", path, param, None).unwrap();
 
         let response_future = self.send_request(request, None).await?;
@@ -727,7 +727,7 @@ impl H2Client {
             output.write_all(&chunk)?;
         }
 
-        Ok(output)
+        Ok(())
     }
 
     pub async fn upload(
