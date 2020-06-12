@@ -123,7 +123,12 @@ table:not(.x-grid-item-selected) tr.x-grid-row.disabled {
 
 /* fix action column icons */
 .x-action-col-icon {
-    font-size: 14px;
+    font-size: 13px;
+    height: 13px;
+}
+
+.x-grid-cell-inner-action-col {
+    padding: 6px 10px 5px;
 }
 
 .x-action-col-icon:before {
