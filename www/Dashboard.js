@@ -95,6 +95,36 @@ Ext.define('PBS.Dashboard', {
 	    hdPanel.updateValue(root.used / root.total);
 	},
 
+	updateTasks: function(store, records, success) {
+	    if (!success) return;
+	    let me = this;
+
+	    records.sort((a, b) => a.data.duration - b.data.duration);
+	    let top10 = records.slice(-10);
+	    me.lookup('longesttasks').updateTasks(top10);
+
+	    let data = {
+		backup: {  error: 0, warning: 0, ok: 0, },
+		prune: { error: 0, warning: 0, ok: 0, },
+		garbage_collection: { error: 0, warning: 0, ok: 0, },
+		sync: {  error: 0, warning: 0, ok: 0, },
+	    };
+
+	    records.forEach(record => {
+		let type = record.data.worker_type;
+		if (type === 'syncjob') {
+		    type = 'sync';
+		}
+
+		if (data[type] && record.data.status) {
+		    let parsed = Proxmox.Utils.parse_task_status(record.data.status);
+		    data[type][parsed]++;
+		}
+	    });
+
+	    me.lookup('tasksummary').updateTasks(data);
+	},
+
 	init: function(view) {
 	    var me = this;
 	    var sp = Ext.state.Manager.getProvider();
@@ -142,6 +172,22 @@ Ext.define('PBS.Dashboard', {
 		},
 		listeners: {
 		    load: 'updateSubscription'
+		}
+	    },
+	    tasks: {
+		storeid: 'dash-tasks',
+		type: 'update',
+		interval: 15000,
+		autoStart: true,
+		autoLoad: true,
+		autoDestroy: true,
+		model: 'proxmox-tasks',
+		proxy: {
+		    type: 'proxmox',
+		    url: '/api2/json/status/tasks'
+		},
+		listeners: {
+		    load: 'updateTasks'
 		}
 	    },
 	}
@@ -198,21 +244,24 @@ Ext.define('PBS.Dashboard', {
 	    height: 250,
 	},
 	{
-	    xtype: 'container',
+	    xtype: 'pbsLongestTasks',
+	    reference: 'longesttasks',
 	    height: 250,
-	    layout: {
-		type: 'vbox',
-		align: 'stretch'
-	    },
-	    items: [
-		{
-		    iconCls: 'fa fa-ticket',
-		    title: 'Subscription',
-		    reference: 'subscription',
-		    xtype: 'pmgSubscriptionInfo',
-		    height: 110
-		}
-	    ]
+	},
+	{
+	    xtype: 'pbsRunningTasks',
+	    height: 250,
+	},
+	{
+	    xtype: 'pbsTaskSummary',
+	    reference: 'tasksummary',
+	},
+	{
+	    iconCls: 'fa fa-ticket',
+	    title: 'Subscription',
+	    height: 166,
+	    reference: 'subscription',
+	    xtype: 'pmgSubscriptionInfo',
 	},
     ]
 });
