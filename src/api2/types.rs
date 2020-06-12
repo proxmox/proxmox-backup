@@ -599,6 +599,27 @@ pub struct TaskListItem {
     pub status: Option<String>,
 }
 
+impl From<crate::server::TaskListInfo> for TaskListItem {
+    fn from(info: crate::server::TaskListInfo) -> Self {
+        let (endtime, status) = info
+            .state
+            .map_or_else(|| (None, None), |(a,b)| (Some(a), Some(b)));
+
+        TaskListItem {
+            upid: info.upid_str,
+            node: "localhost".to_string(),
+            pid: info.upid.pid as i64,
+            pstart: info.upid.pstart,
+            starttime: info.upid.starttime,
+            worker_type: info.upid.worker_type,
+            worker_id: info.upid.worker_id,
+            user: info.upid.username,
+            endtime,
+            status,
+        }
+    }
+}
+
 #[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

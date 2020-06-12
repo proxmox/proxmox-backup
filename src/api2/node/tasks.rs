@@ -323,21 +323,9 @@ pub fn list_tasks(
 
     let mut count = 0;
 
-    for info in list.iter() {
+    for info in list {
         if !list_all && info.upid.username != username { continue; }
 
-        let mut entry = TaskListItem {
-            upid: info.upid_str.clone(),
-            node: "localhost".to_string(),
-            pid: info.upid.pid as i64,
-            pstart: info.upid.pstart,
-            starttime: info.upid.starttime,
-            worker_type: info.upid.worker_type.clone(),
-            worker_id: info.upid.worker_id.clone(),
-            user: info.upid.username.clone(),
-            endtime: None,
-            status: None,
-        };
 
         if let Some(username) = userfilter {
             if !info.upid.username.contains(username) { continue; }
@@ -367,9 +355,6 @@ pub fn list_tasks(
             if errors && state.1 == "OK" {
                 continue;
             }
-
-            entry.endtime = Some(state.0);
-            entry.status = Some(state.1.clone());
         }
 
         if (count as u64) < start {
@@ -379,12 +364,12 @@ pub fn list_tasks(
             count += 1;
         }
 
-        if (result.len() as u64) < limit { result.push(entry); };
+        if (result.len() as u64) < limit { result.push(info.into()); };
     }
 
     rpcenv["total"] = Value::from(count);
 
-    Ok(result)
+    Ok(result.into())
 }
 
 #[sortable]
