@@ -39,6 +39,7 @@ use proxmox_backup::backup::{
     store_key_config,
     verify_chunk_size,
     ArchiveType,
+    AsyncReadChunk,
     BackupDir,
     BackupGroup,
     BackupManifest,
@@ -55,7 +56,6 @@ use proxmox_backup::backup::{
     IndexFile,
     KeyConfig,
     MANIFEST_BLOB_NAME,
-    ReadChunk,
     Shell,
 };
 
@@ -1099,7 +1099,7 @@ fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<Str
     result
 }
 
-fn dump_image<W: Write>(
+async fn dump_image<W: Write>(
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
     index: FixedIndexReader,
@@ -1119,7 +1119,7 @@ fn dump_image<W: Write>(
 
     for pos in 0..index.index_count() {
         let digest = index.index_digest(pos).unwrap();
-        let raw_data = chunk_reader.read_chunk(&digest)?;
+        let raw_data = chunk_reader.read_chunk(&digest).await?;
         writer.write_all(&raw_data)?;
         bytes += raw_data.len();
         if verbose {
@@ -1323,7 +1323,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?
         };
 
-        dump_image(client.clone(), crypt_config.clone(), index, &mut writer, verbose)?;
+        dump_image(client.clone(), crypt_config.clone(), index, &mut writer, verbose).await?;
     }
 
     Ok(Value::Null)
