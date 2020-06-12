@@ -3,15 +3,31 @@ use proxmox::list_subdirs_api_method;
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, UserInformation, SubdirMap};
+use proxmox::api::{
+    api,
+    ApiMethod,
+    Permission,
+    Router,
+    RpcEnvironment,
+    SubdirMap,
+    UserInformation,
+};
 
-use crate::api2::types::{DATASTORE_SCHEMA, RRDMode, RRDTimeFrameResolution};
+use crate::api2::types::{
+    DATASTORE_SCHEMA,
+    RRDMode,
+    RRDTimeFrameResolution,
+    TaskListItem
+};
+
+use crate::server;
 use crate::backup::{DataStore};
 use crate::config::datastore;
 use crate::tools::epoch_now_f64;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::acl::{
+    PRIV_SYS_AUDIT,
     PRIV_DATASTORE_AUDIT,
     PRIV_DATASTORE_BACKUP,
 };
@@ -158,8 +174,51 @@ fn datastore_status(
     Ok(list.into())
 }
 
+#[api(
+    input: {
+        properties: {
+            since: {
+                type: u64,
+                description: "Only list tasks since this UNIX epoch.",
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        description: "A list of tasks.",
+        type: Array,
+        items: { type: TaskListItem },
+    },
+    access: {
+        description: "Users can only see there own tasks, unless the have Sys.Audit on /system/tasks.",
+        permission: &Permission::Anybody,
+    },
+)]
+/// List tasks.
+pub fn list_tasks(
+    _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<TaskListItem>, Error> {
+
+    let username = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&username, &["system", "tasks"]);
+
+    let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
+
+    // TODO: replace with call that gets all task since 'since' epoch
+    let list: Vec<TaskListItem> = server::read_task_list()?
+        .into_iter()
+        .map(TaskListItem::from)
+        .filter(|entry| list_all || entry.user == username)
+        .collect();
+
+    Ok(list.into())
+}
+
 const SUBDIRS: SubdirMap = &[
     ("datastore-usage", &Router::new().get(&API_METHOD_DATASTORE_STATUS)),
+    ("tasks", &Router::new().get(&API_METHOD_LIST_TASKS)),
 ];
 
 pub const ROUTER: Router = Router::new()
