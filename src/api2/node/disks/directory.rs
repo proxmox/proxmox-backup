@@ -1,4 +1,5 @@
 use anyhow::{Error};
+use serde_json::json;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
@@ -152,15 +153,15 @@ fn create_datastore_disk(
             let uuid = get_fs_uuid(&partition)?;
             let uuid_path = format!("/dev/disk/by-uuid/{}", uuid);
 
-            let mount_unit_name = create_datastore_mount_unit(&name, filesystem, &uuid_path)?;
-
-            if add_datastore {
-                unimplemented!(); // fixme
-            }
+            let (mount_unit_name, mount_point) = create_datastore_mount_unit(&name, filesystem, &uuid_path)?;
 
             systemd::reload_daemon()?;
             systemd::enable_unit(&mount_unit_name)?;
             systemd::start_unit(&mount_unit_name)?;
+
+            if add_datastore {
+                crate::api2::config::datastore::create_datastore(json!({ "name": name, "path": mount_point }))?
+            }
 
             Ok(())
         })?;
@@ -177,7 +178,7 @@ fn create_datastore_mount_unit(
     datastore_name: &str,
     fs_type: FileSystemType,
     what: &str,
-) -> Result<String, Error> {
+) -> Result<(String, String), Error> {
 
     let mount_point = format!("/mnt/datastore/{}", datastore_name);
     let mut mount_unit_name = systemd::escape_unit(&mount_point, true);
@@ -197,7 +198,7 @@ fn create_datastore_mount_unit(
 
     let mount = SystemdMountSection {
         What: what.to_string(),
-        Where: mount_point,
+        Where: mount_point.clone(),
         Type: Some(fs_type.to_string()),
         Options: Some(String::from("defaults")),
         ..Default::default()
@@ -210,5 +211,5 @@ fn create_datastore_mount_unit(
 
     systemd::config::save_systemd_mount(&mount_unit_path, &config)?;
 
-    Ok(mount_unit_name)
+    Ok((mount_unit_name, mount_point))
 }
