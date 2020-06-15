@@ -141,7 +141,7 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
 
 pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> {
 
-    let output = Command::new("/usr/bin/diff")
+    let output = Command::new("diff")
         .arg("-b")
         .arg("-u")
         .arg(filename)
@@ -165,10 +165,10 @@ pub fn assert_ifupdown2_installed() -> Result<(), Error> {
 
 pub fn network_reload() -> Result<(), Error> {
 
-    let output = Command::new("/sbin/ifreload")
+    let output = Command::new("ifreload")
         .arg("-a")
         .output()
-        .map_err(|err| format_err!("failed to execute '/sbin/ifreload' - {}", err))?;
+        .map_err(|err| format_err!("failed to execute 'ifreload' - {}", err))?;
 
     crate::tools::command_output(output, None)
         .map_err(|err| format_err!("ifreload failed: {}", err))?;

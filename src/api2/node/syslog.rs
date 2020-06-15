@@ -27,7 +27,7 @@ fn dump_journal(
     let start = start.unwrap_or(0);
     let mut count: u64 = 0;
 
-    let mut child = Command::new("/bin/journalctl")
+    let mut child = Command::new("journalctl")
         .args(&args)
         .stdout(Stdio::piped())
         .spawn()?;

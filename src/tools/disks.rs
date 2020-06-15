@@ -32,12 +32,6 @@ pub use lvm::*;
 mod smart;
 pub use smart::*;
 
-pub const SGDISK_BIN_PATH: &str = "/usr/sbin/sgdisk";
-pub const LSBLK_BIN_PATH: &str = "/usr/bin/lsblk";
-pub const BLOCKDEV_BIN_PATH: &str = "/sbin/blockdev";
-pub const MKFS_BIN_PATH: &str = "/sbin/mkfs";
-pub const BLKID_BIN_PATH: &str = "/sbin/blkid";
-
 lazy_static::lazy_static!{
     static ref ISCSI_PATH_REGEX: regex::Regex =
         regex::Regex::new(r"host[^/]*/session[^/]*").unwrap();
@@ -564,7 +558,7 @@ pub struct BlockDevStat {
 /// Use lsblk to read partition type uuids.
 pub fn get_partition_type_info() -> Result<HashMap<String, Vec<String>>, Error> {
 
-    let mut command = std::process::Command::new(LSBLK_BIN_PATH);
+    let mut command = std::process::Command::new("lsblk");
     command.args(&["--json", "-o", "path,parttype"]);
 
     let output = crate::tools::run_command(command, None)?;
@@ -861,7 +855,7 @@ pub fn reread_partition_table(disk: &Disk) -> Result<(), Error> {
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
     };
 
-    let mut command = std::process::Command::new(BLOCKDEV_BIN_PATH);
+    let mut command = std::process::Command::new("blockdev");
     command.arg("--rereadpt");
     command.arg(disk_path);
 
@@ -880,7 +874,7 @@ pub fn inititialize_gpt_disk(disk: &Disk, uuid: Option<&str>) -> Result<(), Erro
 
     let uuid = uuid.unwrap_or("R"); // R .. random disk GUID
 
-    let mut command = std::process::Command::new(SGDISK_BIN_PATH);
+    let mut command = std::process::Command::new("sgdisk");
     command.arg(disk_path);
     command.args(&["-U", uuid]);
 
@@ -897,7 +891,7 @@ pub fn create_single_linux_partition(disk: &Disk) -> Result<Disk, Error> {
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
     };
 
-    let mut command = std::process::Command::new(SGDISK_BIN_PATH);
+    let mut command = std::process::Command::new("sgdisk");
     command.args(&["-n1", "-t1:8300"]);
     command.arg(disk_path);
 
@@ -950,7 +944,7 @@ pub fn create_file_system(disk: &Disk, fs_type: FileSystemType) -> Result<(), Er
 
     let fs_type = fs_type.to_string();
 
-    let mut command = std::process::Command::new(MKFS_BIN_PATH);
+    let mut command = std::process::Command::new("mkfs");
     command.args(&["-t", &fs_type]);
     command.arg(disk_path);
 
@@ -988,7 +982,7 @@ pub fn get_fs_uuid(disk: &Disk) -> Result<String, Error> {
         None => bail!("disk {:?} has no node in /dev", disk.syspath()),
     };
 
-    let mut command = std::process::Command::new(BLKID_BIN_PATH);
+    let mut command = std::process::Command::new("blkid");
     command.args(&["-o", "export"]);
     command.arg(disk_path);
 

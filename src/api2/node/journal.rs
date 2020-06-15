@@ -94,7 +94,7 @@ fn get_journal(
 
     let mut lines: Vec<String> = vec![];
 
-    let mut child = Command::new("/usr/bin/mini-journalreader")
+    let mut child = Command::new("mini-journalreader")
         .args(&args)
         .stdout(Stdio::piped())
         .spawn()?;

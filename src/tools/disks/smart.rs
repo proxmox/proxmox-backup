@@ -76,7 +76,7 @@ pub fn get_smart_data(
     health_only: bool,
 ) -> Result<SmartData, Error> {
 
-    const SMARTCTL_BIN_PATH: &str = "/usr/sbin/smartctl";
+    const SMARTCTL_BIN_PATH: &str = "smartctl";
 
     let mut command = std::process::Command::new(SMARTCTL_BIN_PATH);
     command.arg("-H");

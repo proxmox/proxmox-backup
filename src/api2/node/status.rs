@@ -102,7 +102,7 @@ fn reboot_or_shutdown(command: NodePowerCommand) -> Result<(), Error> {
         NodePowerCommand::Shutdown => "poweroff",
     };
 
-    let output = Command::new("/bin/systemctl")
+    let output = Command::new("systemctl")
         .arg(systemctl_command)
         .output()
         .map_err(|err| format_err!("failed to execute systemctl - {}", err))?;

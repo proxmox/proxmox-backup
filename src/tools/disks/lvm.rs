@@ -20,7 +20,7 @@ pub fn get_lvm_devices(
     partition_type_map: &HashMap<String, Vec<String>>,
 ) -> Result<HashSet<u64>, Error> {
 
-    const PVS_BIN_PATH: &str = "/sbin/pvs";
+    const PVS_BIN_PATH: &str = "pvs";
 
     let mut command = std::process::Command::new(PVS_BIN_PATH);
     command.args(&["--reportformat", "json", "--noheadings", "--readonly", "-o", "pv_name"]);
