@@ -622,3 +622,11 @@ pub fn epoch_now_f64() -> Result<f64, SystemTimeError> {
 pub fn epoch_now_u64() -> Result<u64, SystemTimeError> {
     Ok(epoch_now()?.as_secs())
 }
+
+pub fn setup_safe_path_env() {
+    std::env::set_var("PATH", "/sbin:/bin:/usr/sbin:/usr/bin");
+    // Make %ENV safer - as suggested by https://perldoc.perl.org/perlsec.html
+    for name in &["IFS", "CDPATH", "ENV", "BASH_ENV"] {
+        std::env::remove_var(name);
+    }
+}

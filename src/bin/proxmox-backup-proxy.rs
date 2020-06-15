@@ -18,6 +18,8 @@ use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
 
 fn main() {
+    proxmox_backup::tools::setup_safe_path_env();
+
     if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
         eprintln!("Error: {}", err);
         std::process::exit(-1);

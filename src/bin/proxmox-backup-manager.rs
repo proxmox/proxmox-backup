@@ -321,6 +321,8 @@ async fn pull_datastore(
 
 fn main() {
 
+    proxmox_backup::tools::setup_safe_path_env();
+
     let cmd_def = CliCommandMap::new()
         .insert("acl", acl_commands())
         .insert("datastore", datastore_commands())
