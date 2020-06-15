@@ -41,8 +41,15 @@ proxmox::static_assert_size!(DynamicIndexHeader, 4096);
 #[derive(Clone, Debug)]
 #[repr(C)]
 pub struct DynamicEntry {
-    end: u64,
+    end_le: u64,
     digest: [u8; 32],
+}
+
+impl DynamicEntry {
+    #[inline]
+    pub fn end(&self) -> u64 {
+        u64::from_le(self.end_le)
+    }
 }
 
 pub struct DynamicIndexReader {
@@ -122,10 +129,10 @@ impl DynamicIndexReader {
         let start = if pos == 0 {
             0
         } else {
-            u64::from_le(self.index[pos - 1].end)
+            self.index[pos - 1].end()
         };
 
-        let end = u64::from_le(self.index[pos].end);
+        let end = self.index[pos].end();
 
         Ok(ChunkReadInfo {
             range: start..end,
@@ -139,7 +146,7 @@ impl DynamicIndexReader {
         if pos >= self.index.len() {
             panic!("chunk index out of range");
         }
-        u64::from_le(self.index[pos].end)
+        self.index[pos].end()
     }
 
     #[inline]
@@ -154,7 +161,7 @@ impl DynamicIndexReader {
     pub fn compute_csum(&self) -> ([u8; 32], u64) {
         let mut csum = openssl::sha::Sha256::new();
         for entry in &self.index {
-            csum.update(&entry.end.to_ne_bytes());
+            csum.update(&entry.end_le.to_ne_bytes());
             csum.update(&entry.digest);
         }
         let csum = csum.finish();
@@ -163,8 +170,9 @@ impl DynamicIndexReader {
             csum,
             self.index
                 .last()
-                .map(|entry| entry.end)
-                .unwrap_or(0))
+                .map(|entry| entry.end())
+                .unwrap_or(0)
+        )
     }
 
     // TODO: can we use std::slice::binary_search with Mmap now?
