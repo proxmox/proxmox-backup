@@ -25,11 +25,7 @@ pub fn get_lvm_devices(
     let mut command = std::process::Command::new(PVS_BIN_PATH);
     command.args(&["--reportformat", "json", "--noheadings", "--readonly", "-o", "pv_name"]);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", PVS_BIN_PATH, err))?;
-
-    let output = crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("pvs command failed: {}", err))?;
+    let output = crate::tools::run_command(command, None)?;
 
     let mut device_set: HashSet<u64> = HashSet::new();
 

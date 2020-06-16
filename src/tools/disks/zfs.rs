@@ -185,11 +185,7 @@ pub fn zfs_devices(
 
     if let Some(pool) = pool { command.arg(pool); }
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '/sbin/zpool' - {}", err))?;
-
-    let output = crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("zpool list command failed: {}", err))?;
+    let output = crate::tools::run_command(command, None)?;
 
     let list = parse_zfs_list(&output)?;
 

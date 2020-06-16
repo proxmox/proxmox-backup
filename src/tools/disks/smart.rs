@@ -88,11 +88,7 @@ pub fn get_smart_data(
     };
     command.arg(disk_path);
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute '{}' - {}", SMARTCTL_BIN_PATH, err))?;
-
-    let output = crate::tools::command_output(output, None)
-        .map_err(|err| format_err!("smartctl command failed: {}", err))?;
+    let output = crate::tools::run_command(command, None)?;
 
     let output: serde_json::Value = output.parse()?;
 
