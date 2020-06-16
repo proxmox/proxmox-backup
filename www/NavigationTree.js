@@ -54,7 +54,24 @@ Ext.define('PBS.store.NavigationStore', {
 		text: gettext('Administration'),
 		iconCls: 'fa fa-wrench',
 		path: 'pbsServerAdministration',
-		leaf: true
+		expanded: true,
+		leaf: false,
+		children: [
+		    {
+			text: gettext('Disks'),
+			iconCls: 'fa fa-hdd-o',
+			path: 'pmxDiskList',
+			leaf: false,
+			children: [
+			    {
+				text: Proxmox.Utils.directoryText,
+				iconCls: 'fa fa-folder',
+				path: 'pbsDirectoryList',
+				leaf: true,
+			    },
+			]
+		    }
+		]
 	    },
 	    {
 		text: gettext('Data Store'),

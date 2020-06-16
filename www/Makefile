@@ -18,11 +18,13 @@ JSSRC=							\
 	window/SyncJobEdit.js				\
 	window/ACLEdit.js				\
 	window/DataStoreEdit.js				\
+	window/CreateDirectory.js			\
 	dashboard/DataStoreStatistics.js		\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\
 	dashboard/TaskSummary.js			\
 	Utils.js					\
+	DirectoryList.js				\
 	LoginView.js					\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
