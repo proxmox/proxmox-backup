@@ -518,7 +518,10 @@ impl <R: Read + Seek> CatalogReader<R> {
                     self.dump_dir(&path, pos)?;
                 }
                 CatalogEntryType::File => {
-                    let dt = Local.timestamp(mtime as i64, 0);
+                    let dt = Local
+                        .timestamp_opt(mtime as i64, 0)
+                        .single() // chrono docs say timestamp_opt can only be None or Single!
+                        .unwrap_or_else(|| Local.timestamp(0, 0));
 
                     println!(
                         "{} {:?} {} {}",
