@@ -27,7 +27,7 @@ lazy_static!{
 
 type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ZFSPoolUsage {
     pub size: u64,
     pub alloc: u64,
@@ -36,7 +36,7 @@ pub struct ZFSPoolUsage {
     pub frag: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ZFSPoolStatus {
     pub name: String,
     pub health: String,
@@ -235,4 +235,73 @@ pub fn zfs_devices(
     }
 
     Ok(device_set)
+}
+
+#[test]
+fn test_zfs_parse_list() -> Result<(), Error> {
+
+    let output = "";
+
+    let data = parse_zfs_list(&output)?;
+    let expect = Vec::new();
+
+    assert_eq!(data, expect);
+
+    let output = "btest	427349245952	405504	427348840448	-	-	0	0	1.00	ONLINE	-\n";
+    let data = parse_zfs_list(&output)?;
+    let expect = vec![
+        ZFSPoolStatus {
+            name: "btest".to_string(),
+            health: "ONLINE".to_string(),
+            devices: Vec::new(),
+            usage: Some(ZFSPoolUsage {
+                size: 427349245952,
+                alloc: 405504,
+                free: 427348840448,
+                dedup: 1.0,
+                frag: 0,
+            }),
+        }];
+
+    assert_eq!(data, expect);
+
+    let output = r###"rpool    535260299264      402852388864      132407910400      -          -          22         75         1.00      ONLINE   -
+            /dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3    498216206336      392175546368      106040659968      -          -          22         78         -          ONLINE
+special                                                                                             -         -         -            -             -         -         -         -   -
+            /dev/sda2          37044092928       10676842496       26367250432       -          -          63         28         -          ONLINE
+logs                                                                                                 -         -         -            -             -         -         -         -   -
+            /dev/sda3          4831838208         1445888 4830392320         -          -          0          0          -          ONLINE
+
+"###;
+
+    let data = parse_zfs_list(&output)?;
+    let expect = vec![
+        ZFSPoolStatus {
+            name: String::from("rpool"),
+            health: String::from("ONLINE"),
+            devices: vec![String::from("/dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3")],
+            usage: Some(ZFSPoolUsage {
+                size: 535260299264,
+                alloc:402852388864 ,
+                free: 132407910400,
+                dedup: 1.0,
+                frag: 22,
+            }),
+        },
+        ZFSPoolStatus {
+            name: String::from("special"),
+            health: String::from("-"),
+            devices: vec![String::from("/dev/sda2")],
+            usage: None,
+        },
+        ZFSPoolStatus {
+            name: String::from("logs"),
+            health: String::from("-"),
+            devices: vec![String::from("/dev/sda3")],
+            usage: None,
+        },
+    ];
+
+    assert_eq!(data, expect);
+    Ok(())
 }
