@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use nom::{
     error::VerboseError,
     bytes::complete::{take_while, take_while1, take_till, take_till1},
-    combinator::{map_res, all_consuming, recognize},
+    combinator::{map_res, all_consuming, recognize, opt},
     sequence::{preceded, tuple},
     character::complete::{space1, digit1, char, line_ending},
     multi::{many0, many1},
@@ -32,11 +32,14 @@ pub struct ZFSPoolUsage {
     total: u64,
     used: u64,
     free: u64,
+    dedup: f64,
+    fragmentation: u64,
 }
 
 #[derive(Debug)]
 pub struct ZFSPoolStatus {
     name: String,
+    health: String,
     usage: Option<ZFSPoolUsage>,
     devices: Vec<String>,
 }
@@ -91,11 +94,25 @@ fn multispace1(i: &str)  -> IResult<&str, &str> {
     take_while1(|c| c == ' ' || c == '\t')(i)
 }
 
+/// Recognizes one or more non-whitespace-characters
+fn notspace1(i: &str)  -> IResult<&str, &str> {
+    take_while1(|c| !(c == ' ' || c == '\t' || c == '\n'))(i)
+}
+
 fn parse_optional_u64(i: &str) -> IResult<&str, Option<u64>> {
     if i.starts_with('-') {
         Ok((&i[1..], None))
     } else {
         let (i, value) = map_res(recognize(digit1), str::parse)(i)?;
+        Ok((i, Some(value)))
+    }
+}
+
+fn parse_optional_f64(i: &str) -> IResult<&str, Option<f64>> {
+    if i.starts_with('-') {
+        Ok((&i[1..], None))
+    } else {
+        let (i, value) = nom::number::complete::double(i)?;
         Ok((i, Some(value)))
     }
 }
@@ -111,24 +128,38 @@ fn parse_pool_device(i: &str) -> IResult<&str, String> {
 }
 
 fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
-    let (i, (text, total, used, free, _, _eol)) = tuple((
-        take_while1(|c| char::is_alphanumeric(c)),
-        preceded(multispace1, parse_optional_u64),
-        preceded(multispace1, parse_optional_u64),
-        preceded(multispace1, parse_optional_u64),
-        preceded(space1, take_till(|c| c == '\n')),
+    // name, size, allocated, free, checkpoint, expandsize, fragmentation, capacity, dedupratio, health, altroot.
+
+    let (i, (text, total, used, free, _, _,
+             fragmentation, _, dedup, health,
+             _, _eol)) = tuple((
+        take_while1(|c| char::is_alphanumeric(c)), // name
+        preceded(multispace1, parse_optional_u64), // size
+        preceded(multispace1, parse_optional_u64), // allocated
+        preceded(multispace1, parse_optional_u64), // free
+        preceded(multispace1, notspace1), // checkpoint
+        preceded(multispace1, notspace1), // expandsize
+        preceded(multispace1, parse_optional_u64), // fragmentation
+        preceded(multispace1, notspace1), // capacity
+        preceded(multispace1, parse_optional_f64), // dedup
+        preceded(multispace1, notspace1), // health
+        opt(preceded(space1, take_till(|c| c == '\n'))), // skip rest
         line_ending,
     ))(i)?;
 
-    let status = if let (Some(total), Some(used), Some(free)) = (total, used, free)  {
+    let status = if let (Some(total), Some(used), Some(free), Some(fragmentation), Some(dedup)) = (total, used, free, fragmentation, dedup)  {
         ZFSPoolStatus {
             name: text.into(),
-            usage: Some(ZFSPoolUsage { total, used, free }),
+            health: health.into(),
+            usage: Some(ZFSPoolUsage { total, used, free, fragmentation, dedup }),
             devices: Vec::new(),
         }
     } else {
          ZFSPoolStatus {
-            name: text.into(), usage: None, devices: Vec::new(),
+             name: text.into(),
+             health: health.into(),
+             usage: None,
+             devices: Vec::new(),
          }
     };
 
