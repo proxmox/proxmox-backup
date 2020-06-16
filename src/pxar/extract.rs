@@ -1,7 +1,7 @@
 //! Code for extraction of pxar contents onto the file system.
 
 use std::convert::TryFrom;
-use std::ffi::{CStr, CString, OsStr};
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
@@ -22,19 +22,6 @@ use proxmox::tools::fs::{create_path, CreateOptions};
 use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::Flags;
 use crate::pxar::metadata;
-
-struct Extractor<'a> {
-    feature_flags: Flags,
-    allow_existing_dirs: bool,
-    callback: &'a mut dyn FnMut(&Path),
-    dir_stack: PxarDirStack,
-}
-
-impl<'a> Extractor<'a> {
-    fn contains_flags(&self, flag: Flags) -> bool {
-        self.feature_flags.contains(flag)
-    }
-}
 
 pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
@@ -74,12 +61,12 @@ where
     )
     .map_err(|err| format_err!("unable to open target directory {:?}: {}", destination, err,))?;
 
-    let mut extractor = Extractor {
-        feature_flags,
+    let mut extractor = Extractor::new(
+        dir,
+        root.metadata().clone(),
         allow_existing_dirs,
-        callback: &mut callback,
-        dir_stack: PxarDirStack::new(dir, root.metadata().clone()),
-    };
+        feature_flags,
+    );
 
     let mut match_stack = Vec::new();
     let mut current_match = true;
@@ -112,22 +99,10 @@ where
         };
         match (did_match, entry.kind()) {
             (_, EntryKind::Directory) => {
-                extractor.callback(entry.path());
+                callback(entry.path());
 
-                extractor
-                    .dir_stack
-                    .push(file_name_os.to_owned(), metadata.clone())?;
-
-                if current_match && match_result != Some(MatchType::Exclude) {
-                    // We're currently in a positive match and this directory does not match an
-                    // exclude entry, so make sure it is created:
-                    let _ = extractor
-                        .dir_stack
-                        .last_dir_fd(extractor.allow_existing_dirs)
-                        .map_err(|err| {
-                            format_err!("error creating entry {:?}: {}", file_name_os, err)
-                        })?;
-                }
+                let create = current_match && match_result != Some(MatchType::Exclude);
+                extractor.enter_directory(file_name_os.to_owned(), metadata.clone(), create)?;
 
                 // We're starting a new directory, push our old matching state and replace it with
                 // our new one:
@@ -138,33 +113,28 @@ where
             }
             (_, EntryKind::GoodbyeTable) => {
                 // go up a directory
-                let dir = extractor
-                    .dir_stack
-                    .pop()
-                    .map_err(|err| format_err!("unexpected end of directory entry: {}", err))?
-                    .ok_or_else(|| format_err!("broken pxar archive (directory stack underrun)"))?;
+                extractor
+                    .leave_directory()
+                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
+
                 // We left a directory, also get back our previous matching state. This is in sync
                 // with `dir_stack` so this should never be empty except for the final goodbye
                 // table, in which case we get back to the default of `true`.
                 current_match = match_stack.pop().unwrap_or(true);
 
-                if let Some(fd) = dir.try_as_raw_fd() {
-                    metadata::apply(extractor.feature_flags, dir.metadata(), fd, &file_name)
-                } else {
-                    Ok(())
-                }
+                Ok(())
             }
             (true, EntryKind::Symlink(link)) => {
-                extractor.callback(entry.path());
+                callback(entry.path());
                 extractor.extract_symlink(&file_name, metadata, link.as_ref())
             }
             (true, EntryKind::Hardlink(link)) => {
-                extractor.callback(entry.path());
+                callback(entry.path());
                 extractor.extract_hardlink(&file_name, metadata, link.as_os_str())
             }
             (true, EntryKind::Device(dev)) => {
                 if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
-                    extractor.callback(entry.path());
+                    callback(entry.path());
                     extractor.extract_device(&file_name, metadata, dev)
                 } else {
                     Ok(())
@@ -172,7 +142,7 @@ where
             }
             (true, EntryKind::Fifo) => {
                 if extractor.contains_flags(Flags::WITH_FIFOS) {
-                    extractor.callback(entry.path());
+                    callback(entry.path());
                     extractor.extract_special(&file_name, metadata, 0)
                 } else {
                     Ok(())
@@ -180,7 +150,7 @@ where
             }
             (true, EntryKind::Socket) => {
                 if extractor.contains_flags(Flags::WITH_SOCKETS) {
-                    extractor.callback(entry.path());
+                    callback(entry.path());
                     extractor.extract_special(&file_name, metadata, 0)
                 } else {
                     Ok(())
@@ -206,13 +176,72 @@ where
     Ok(())
 }
 
-impl<'a> Extractor<'a> {
-    fn parent_fd(&mut self) -> Result<RawFd, Error> {
-        self.dir_stack.last_dir_fd(self.allow_existing_dirs)
+/// Common state for file extraction.
+pub(crate) struct Extractor {
+    feature_flags: Flags,
+    allow_existing_dirs: bool,
+    dir_stack: PxarDirStack,
+}
+
+impl Extractor {
+    /// Create a new extractor state for a target directory.
+    pub fn new(
+        root_dir: Dir,
+        metadata: Metadata,
+        allow_existing_dirs: bool,
+        feature_flags: Flags,
+    ) -> Self {
+        Self {
+            dir_stack: PxarDirStack::new(root_dir, metadata),
+            allow_existing_dirs,
+            feature_flags,
+        }
     }
 
-    fn callback(&mut self, path: &Path) {
-        (self.callback)(path)
+    /// When encountering a directory during extraction, this is used to keep track of it. If
+    /// `create` is true it is immediately created and its metadata will be updated once we leave
+    /// it. If `create` is false it will only be created if it is going to have any actual content.
+    pub fn enter_directory(
+        &mut self,
+        file_name: OsString,
+        metadata: Metadata,
+        create: bool,
+    ) -> Result<(), Error> {
+        self.dir_stack.push(file_name, metadata)?;
+
+        if create {
+            self.dir_stack.create_last_dir(self.allow_existing_dirs)?;
+        }
+
+        Ok(())
+    }
+
+    /// When done with a directory we need to make sure we're
+    pub fn leave_directory(&mut self) -> Result<(), Error> {
+        let dir = self
+            .dir_stack
+            .pop()
+            .map_err(|err| format_err!("unexpected end of directory entry: {}", err))?
+            .ok_or_else(|| format_err!("broken pxar archive (directory stack underrun)"))?;
+
+        if let Some(fd) = dir.try_as_raw_fd() {
+            metadata::apply(
+                self.feature_flags,
+                dir.metadata(),
+                fd,
+                &CString::new(dir.file_name().as_bytes())?,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn contains_flags(&self, flag: Flags) -> bool {
+        self.feature_flags.contains(flag)
+    }
+
+    fn parent_fd(&mut self) -> Result<RawFd, Error> {
+        self.dir_stack.last_dir_fd(self.allow_existing_dirs)
     }
 
     fn extract_symlink(

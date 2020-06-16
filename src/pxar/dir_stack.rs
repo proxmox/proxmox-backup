@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 
@@ -73,6 +73,10 @@ impl PxarDir {
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
     }
+
+    pub fn file_name(&self) -> &OsStr {
+        &self.file_name
+    }
 }
 
 pub struct PxarDirStack {
@@ -128,6 +132,11 @@ impl PxarDirStack {
         }
 
         Ok(fd)
+    }
+
+    pub fn create_last_dir(&mut self, allow_existing_dirs: bool) -> Result<(), Error> {
+        let _: RawFd = self.last_dir_fd(allow_existing_dirs)?;
+        Ok(())
     }
 
     pub fn root_dir_fd(&self) -> Result<RawFd, Error> {
