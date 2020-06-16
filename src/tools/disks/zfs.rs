@@ -11,7 +11,7 @@ use nom::{
     combinator::{map_res, all_consuming, recognize, opt},
     sequence::{preceded, tuple},
     character::complete::{space1, digit1, char, line_ending},
-    multi::{many0, many1},
+    multi::{many0},
 };
 
 use super::*;
@@ -185,10 +185,7 @@ fn parse_pool_status(i: &str) -> IResult<&str, ZFSPoolStatus> {
 /// Note: This does not reveal any details on how the pool uses the devices, because
 /// the zpool list output format is not really defined...
 pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
-    if i.is_empty() {
-        return Ok(Vec::new());
-    }
-    match all_consuming(many1(parse_pool_status))(i) {
+    match all_consuming(many0(parse_pool_status))(i) {
         Err(nom::Err::Error(err)) |
         Err(nom::Err::Failure(err)) => {
             bail!("unable to parse zfs list output - {}", nom::error::convert_error(i, err));
