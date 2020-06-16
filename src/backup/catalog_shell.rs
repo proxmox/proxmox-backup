@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::future::Future;
 use std::io::Write;
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
-use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
@@ -17,16 +15,13 @@ use nix::sys::stat::Mode;
 use pathpatterns::{MatchEntry, MatchList, MatchPattern, MatchType, PatternFlag};
 use proxmox::api::api;
 use proxmox::api::cli::{self, CliCommand, CliCommandMap, CliHelper, CommandLineInterface};
-use proxmox::c_result;
 use proxmox::tools::fs::{create_path, CreateOptions};
 use pxar::{EntryKind, Metadata};
 
 use crate::backup::catalog::{self, DirEntryAttribute};
-
-use crate::pxar::dir_stack::PxarDirStack;
 use crate::pxar::Flags;
 use crate::pxar::fuse::{Accessor, FileEntry};
-use crate::pxar::metadata;
+use crate::tools::runtime::block_in_place;
 
 type CatalogReader = crate::backup::CatalogReader<std::fs::File>;
 
@@ -974,13 +969,13 @@ impl Shell {
             .entry()
             .metadata()
             .clone();
-        let pxar_dir_stack = PxarDirStack::new(rootdir, root_meta);
+
+        let extractor = crate::pxar::extract::Extractor::new(rootdir, root_meta, true, Flags::DEFAULT);
 
         let mut extractor = ExtractorState::new(
-            Flags::DEFAULT,
             &mut self.catalog,
             dir_stack,
-            pxar_dir_stack,
+            extractor,
             &match_list,
             &self.accessor,
         )?;
@@ -1007,20 +1002,18 @@ struct ExtractorState<'a> {
     read_dir: <Vec<catalog::DirEntry> as IntoIterator>::IntoIter,
     read_dir_stack: Vec<<Vec<catalog::DirEntry> as IntoIterator>::IntoIter>,
 
-    pxar_dir_stack: PxarDirStack,
+    extractor: crate::pxar::extract::Extractor,
 
     catalog: &'a mut CatalogReader,
-    feature_flags: Flags,
     match_list: &'a [MatchEntry],
     accessor: &'a Accessor,
 }
 
 impl<'a> ExtractorState<'a> {
     pub fn new(
-        feature_flags: Flags,
         catalog: &'a mut CatalogReader,
         dir_stack: Vec<PathStackEntry>,
-        pxar_dir_stack: PxarDirStack,
+        extractor: crate::pxar::extract::Extractor,
         match_list: &'a [MatchEntry],
         accessor: &'a Accessor,
     ) -> Result<Self, Error> {
@@ -1040,10 +1033,9 @@ impl<'a> ExtractorState<'a> {
             read_dir,
             read_dir_stack: Vec::new(),
 
-            pxar_dir_stack,
+            extractor,
 
             catalog,
-            feature_flags,
             match_list,
             accessor,
         })
@@ -1088,23 +1080,12 @@ impl<'a> ExtractorState<'a> {
             .pop()
             .ok_or_else(|| format_err!("internal iterator error (dir_stack)"))?;
 
-        let dir = self
-            .pxar_dir_stack
-            .pop()?
-            .ok_or_else(|| format_err!("internal iterator error (pxar_dir_stack)"))?;
-
         self.path_len = self
             .path_len_stack
             .pop()
             .ok_or_else(|| format_err!("internal iterator error (path_len_stack)"))?;
 
-        self.path.push(0);
-        let dirname = CStr::from_bytes_with_nul(&self.path[(self.path_len + 1)..])?;
-
-        if let Some(fd) = dir.try_as_raw_fd() {
-            // the directory was created, so apply the metadata:
-            metadata::apply(self.feature_flags, dir.metadata(), fd, dirname)?;
-        }
+        self.extractor.leave_directory()?;
 
         Ok(LoopState::Continue)
     }
@@ -1127,12 +1108,8 @@ impl<'a> ExtractorState<'a> {
         Shell::walk_pxar_archive(&self.accessor, &mut self.dir_stack).await?;
         let dir_pxar = self.dir_stack.last().unwrap().pxar.as_ref().unwrap();
         let dir_meta = dir_pxar.entry().metadata().clone();
-        self.pxar_dir_stack
-            .push(dir_pxar.file_name().to_os_string(), dir_meta)?;
-
-        if self.matches && match_result != Some(MatchType::Exclude) {
-            todo!("create this directory");
-        }
+        let create = self.matches && match_result != Some(MatchType::Exclude);
+        self.extractor.enter_directory(dir_pxar.file_name().to_os_string(), dir_meta, create)?;
 
         Ok(())
     }
@@ -1180,31 +1157,15 @@ impl<'a> ExtractorState<'a> {
     async fn extract_file(&mut self, entry: FileEntry) -> Result<(), Error> {
         match entry.kind() {
             pxar::EntryKind::File { size, .. } => {
+                let file_name = CString::new(entry.file_name().as_bytes())?;
                 let mut contents = entry.contents().await?;
-
-                let parent = self.pxar_dir_stack.last_dir_fd(true)?;
-                let mut file = tokio::fs::File::from_std(unsafe {
-                    std::fs::File::from_raw_fd(nix::fcntl::openat(
-                        parent,
-                        entry.file_name(),
-                        OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
-                        Mode::from_bits(0o600).unwrap(),
-                    )?)
-                });
-
-                let extracted = tokio::io::copy(&mut contents, &mut file).await?;
-                if *size != extracted {
-                    bail!("extracted {} bytes of a file of {} bytes", extracted, size);
-                }
-
-                metadata::apply_with_path(
-                    Flags::DEFAULT,
+                self.extractor.async_extract_file(
+                    &file_name,
                     entry.metadata(),
-                    file.as_raw_fd(),
-                    entry.file_name(),
-                )?;
-
-                Ok(())
+                    *size,
+                    &mut contents,
+                )
+                .await
             }
             _ => {
                 bail!(
@@ -1220,9 +1181,14 @@ impl<'a> ExtractorState<'a> {
         entry: FileEntry,
         catalog_attr: DirEntryAttribute,
     ) -> Result<(), Error> {
+        let file_name = CString::new(entry.file_name().as_bytes())?;
         match (catalog_attr, entry.kind()) {
             (DirEntryAttribute::Symlink, pxar::EntryKind::Symlink(symlink)) => {
-                self.extract_symlink(entry.file_name(), symlink.as_os_str(), entry.metadata())
+                block_in_place(|| self.extractor.extract_symlink(
+                    &file_name,
+                    entry.metadata(),
+                    symlink.as_os_str(),
+                ))
             }
             (DirEntryAttribute::Symlink, _) => {
                 bail!(
@@ -1232,7 +1198,7 @@ impl<'a> ExtractorState<'a> {
             }
 
             (DirEntryAttribute::Hardlink, pxar::EntryKind::Hardlink(hardlink)) => {
-                self.extract_hardlink(entry.file_name(), hardlink.as_os_str(), entry.metadata())
+                block_in_place(|| self.extractor.extract_hardlink(&file_name, hardlink.as_os_str()))
             }
             (DirEntryAttribute::Hardlink, _) => {
                 bail!(
@@ -1242,18 +1208,18 @@ impl<'a> ExtractorState<'a> {
             }
 
             (ref attr, pxar::EntryKind::Device(device)) => {
-                self.extract_device(attr.clone(), entry.file_name(), device, entry.metadata())
+                self.extract_device(attr.clone(), &file_name, device, entry.metadata())
             }
 
             (DirEntryAttribute::Fifo, pxar::EntryKind::Fifo) => {
-                self.extract_node(entry.file_name(), 0, entry.metadata())
+                block_in_place(|| self.extractor.extract_special(&file_name, entry.metadata(), 0))
             }
             (DirEntryAttribute::Fifo, _) => {
                 bail!("catalog fifo {:?} not a fifo in the archive", self.path());
             }
 
             (DirEntryAttribute::Socket, pxar::EntryKind::Socket) => {
-                self.extract_node(entry.file_name(), 0, entry.metadata())
+                block_in_place(|| self.extractor.extract_special(&file_name, entry.metadata(), 0))
             }
             (DirEntryAttribute::Socket, _) => {
                 bail!(
@@ -1266,50 +1232,10 @@ impl<'a> ExtractorState<'a> {
         }
     }
 
-    fn extract_symlink(
-        &mut self,
-        file_name: &OsStr,
-        target: &OsStr,
-        metadata: &Metadata,
-    ) -> Result<(), Error> {
-        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
-        nix::unistd::symlinkat(target, Some(parent), file_name)?;
-
-        metadata::apply_at(
-            self.feature_flags,
-            metadata,
-            parent,
-            &CString::new(file_name.as_bytes())?,
-        )?;
-
-        Ok(())
-    }
-
-    fn extract_hardlink(
-        &mut self,
-        file_name: &OsStr,
-        target: &OsStr,
-        _metadata: &Metadata,
-    ) -> Result<(), Error> {
-        crate::pxar::tools::assert_relative_path(target)?;
-
-        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
-        let root = self.pxar_dir_stack.root_dir_fd()?;
-        nix::unistd::linkat(
-            Some(root),
-            target,
-            Some(parent),
-            file_name,
-            nix::unistd::LinkatFlags::NoSymlinkFollow,
-        )?;
-
-        Ok(())
-    }
-
     fn extract_device(
         &mut self,
         attr: DirEntryAttribute,
-        file_name: &OsStr,
+        file_name: &CStr,
         device: &pxar::format::Device,
         metadata: &Metadata,
     ) -> Result<(), Error> {
@@ -1338,29 +1264,6 @@ impl<'a> ExtractorState<'a> {
                 );
             }
         }
-        self.extract_node(file_name, device.to_dev_t(), metadata)
-    }
-
-    fn extract_node(
-        &mut self,
-        file_name: &OsStr,
-        device: libc::dev_t,
-        metadata: &Metadata,
-    ) -> Result<(), Error> {
-        let mode = metadata.stat.mode;
-        let mode = u32::try_from(mode).map_err(|_| {
-            format_err!(
-                "device node's mode contains illegal bits: 0x{:x} (0o{:o})",
-                mode,
-                mode,
-            )
-        })?;
-
-        let parent = self.pxar_dir_stack.last_dir_fd(true)?;
-        let file_name = CString::new(file_name.as_bytes())?;
-        unsafe { c_result!(libc::mknodat(parent, file_name.as_ptr(), mode, device)) }
-            .map_err(|err| format_err!("failed to create device node: {}", err))?;
-
-        metadata::apply_at(self.feature_flags, metadata, parent, &file_name)
+        block_in_place(|| self.extractor.extract_special(file_name, metadata, device.to_dev_t()))
     }
 }

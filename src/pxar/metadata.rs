@@ -1,7 +1,5 @@
 use std::ffi::{CStr, CString};
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
-use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
 use nix::errno::Errno;
@@ -79,20 +77,6 @@ pub fn apply_at(
     )?;
 
     apply(flags, metadata, fd.as_raw_fd(), file_name)
-}
-
-pub fn apply_with_path<T: AsRef<Path>>(
-    flags: Flags,
-    metadata: &Metadata,
-    fd: RawFd,
-    file_name: T,
-) -> Result<(), Error> {
-    apply(
-        flags,
-        metadata,
-        fd,
-        &CString::new(file_name.as_ref().as_os_str().as_bytes())?,
-    )
 }
 
 pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {

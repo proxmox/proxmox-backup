@@ -130,7 +130,7 @@ where
             }
             (true, EntryKind::Hardlink(link)) => {
                 callback(entry.path());
-                extractor.extract_hardlink(&file_name, metadata, link.as_os_str())
+                extractor.extract_hardlink(&file_name, link.as_os_str())
             }
             (true, EntryKind::Device(dev)) => {
                 if extractor.contains_flags(Flags::WITH_DEVICE_NODES) {
@@ -244,7 +244,7 @@ impl Extractor {
         self.dir_stack.last_dir_fd(self.allow_existing_dirs)
     }
 
-    fn extract_symlink(
+    pub fn extract_symlink(
         &mut self,
         file_name: &CStr,
         metadata: &Metadata,
@@ -255,10 +255,9 @@ impl Extractor {
         metadata::apply_at(self.feature_flags, metadata, parent, file_name)
     }
 
-    fn extract_hardlink(
+    pub fn extract_hardlink(
         &mut self,
         file_name: &CStr,
-        _metadata: &Metadata, // for now we don't use this because hardlinks don't need it...
         link: &OsStr,
     ) -> Result<(), Error> {
         crate::pxar::tools::assert_relative_path(link)?;
@@ -277,7 +276,7 @@ impl Extractor {
         Ok(())
     }
 
-    fn extract_device(
+    pub fn extract_device(
         &mut self,
         file_name: &CStr,
         metadata: &Metadata,
@@ -286,7 +285,7 @@ impl Extractor {
         self.extract_special(file_name, metadata, device.to_dev_t())
     }
 
-    fn extract_special(
+    pub fn extract_special(
         &mut self,
         file_name: &CStr,
         metadata: &Metadata,
@@ -307,7 +306,7 @@ impl Extractor {
         metadata::apply_at(self.feature_flags, metadata, parent, file_name)
     }
 
-    fn extract_file(
+    pub fn extract_file(
         &mut self,
         file_name: &CStr,
         metadata: &Metadata,
@@ -325,6 +324,31 @@ impl Extractor {
         };
 
         let extracted = io::copy(&mut *contents, &mut file)?;
+        if size != extracted {
+            bail!("extracted {} bytes of a file of {} bytes", extracted, size);
+        }
+
+        metadata::apply(self.feature_flags, metadata, file.as_raw_fd(), file_name)
+    }
+
+    pub async fn async_extract_file<T: tokio::io::AsyncRead + Unpin>(
+        &mut self,
+        file_name: &CStr,
+        metadata: &Metadata,
+        size: u64,
+        contents: &mut T,
+    ) -> Result<(), Error> {
+        let parent = self.parent_fd()?;
+        let mut file = tokio::fs::File::from_std(unsafe {
+            std::fs::File::from_raw_fd(nix::fcntl::openat(
+                parent,
+                file_name,
+                OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                Mode::from_bits(0o600).unwrap(),
+            )?)
+        });
+
+        let extracted = tokio::io::copy(&mut *contents, &mut file).await?;
         if size != extracted {
             bail!("extracted {} bytes of a file of {} bytes", extracted, size);
         }
