@@ -1,9 +1,20 @@
-use anyhow::Error;
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
-use proxmox_backup::tools::disks::*;
+use proxmox_backup::tools::disks::{
+    SmartAttribute,
+    complete_disk_name,
+};
+
+use proxmox_backup::api2::node::disks::{
+    zfs::DISK_LIST_SCHEMA,
+    zfs::ZFS_ASHIFT_SCHEMA,
+    zfs::ZfsRaidLevel,
+    zfs::ZfsCompressionType,
+};
+
 use proxmox_backup::api2::{self, types::* };
 
 #[api(
@@ -120,6 +131,113 @@ async fn initialize_disk(
     Ok(Value::Null)
 }
 
+#[api(
+   input: {
+        properties: {
+           name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            devices: {
+                schema: DISK_LIST_SCHEMA,
+            },
+            raidlevel: {
+                type: ZfsRaidLevel,
+            },
+            ashift: {
+                schema: ZFS_ASHIFT_SCHEMA,
+                optional: true,
+            },
+            compression: {
+                type: ZfsCompressionType,
+                optional: true,
+            },
+            "add-datastore": {
+                description: "Configure a datastore using the zpool.",
+                type: bool,
+                optional: true,
+            },
+       },
+   },
+)]
+/// create a zfs pool
+async fn create_zpool(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::zfs::API_METHOD_CREATE_ZPOOL;
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    crate::wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(Value::Null)
+}
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// Local zfs pools.
+fn list_zpools(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::zfs::API_METHOD_LIST_ZPOOLS;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let render_usage = |value: &Value, record: &Value| -> Result<String, Error> {
+        let value = value.as_u64().unwrap_or(0);
+        let size = match record["size"].as_u64() {
+            Some(size) => size,
+            None => bail!("missing size property"),
+        };
+        if size == 0 {
+            bail!("got zero size");
+        }
+        Ok(format!("{:.2} %", (value as f64)/(size as f64)))
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("size"))
+        .column(ColumnConfig::new("alloc").right_align(true).renderer(render_usage))
+        .column(ColumnConfig::new("health"));
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
+pub fn zpool_commands() -> CommandLineInterface {
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&API_METHOD_LIST_ZPOOLS))
+        .insert("create",
+                CliCommand::new(&API_METHOD_CREATE_ZPOOL)
+                .arg_param(&["name"])
+                .completion_cb("devices", complete_disk_name) // fixme: comlete the list
+        );
+
+    cmd_def.into()
+}
+
+
 pub fn disk_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
@@ -129,6 +247,7 @@ pub fn disk_commands() -> CommandLineInterface {
                 .arg_param(&["disk"])
                 .completion_cb("disk", complete_disk_name)
         )
+        .insert("zpool", zpool_commands())
         .insert("initialize",
                 CliCommand::new(&API_METHOD_INITIALIZE_DISK)
                 .arg_param(&["disk"])

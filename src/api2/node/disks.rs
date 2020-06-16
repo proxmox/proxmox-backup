@@ -16,6 +16,7 @@ use crate::server::WorkerTask;
 use crate::api2::types::{UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
 pub mod directory;
+pub mod zfs;
 
 #[api(
     protected: true,
@@ -166,6 +167,7 @@ pub fn initialize_disk(
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     //    ("lvm", &lvm::ROUTER),
+    ("zfs", &zfs::ROUTER),
     (
         "initgpt", &Router::new()
             .post(&API_METHOD_INITIALIZE_DISK)
