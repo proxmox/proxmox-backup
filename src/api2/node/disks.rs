@@ -167,6 +167,7 @@ pub fn initialize_disk(
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     //    ("lvm", &lvm::ROUTER),
+    ("directory", &directory::ROUTER),
     ("zfs", &zfs::ROUTER),
     (
         "initgpt", &Router::new()
