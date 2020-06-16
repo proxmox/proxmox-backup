@@ -29,19 +29,19 @@ type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
 
 #[derive(Debug)]
 pub struct ZFSPoolUsage {
-    total: u64,
-    used: u64,
-    free: u64,
-    dedup: f64,
-    fragmentation: u64,
+    pub size: u64,
+    pub alloc: u64,
+    pub free: u64,
+    pub dedup: f64,
+    pub frag: u64,
 }
 
 #[derive(Debug)]
 pub struct ZFSPoolStatus {
-    name: String,
-    health: String,
-    usage: Option<ZFSPoolUsage>,
-    devices: Vec<String>,
+    pub name: String,
+    pub health: String,
+    pub usage: Option<ZFSPoolUsage>,
+    pub devices: Vec<String>,
 }
 
 /// Returns kernel IO-stats for zfs pools
@@ -130,8 +130,8 @@ fn parse_pool_device(i: &str) -> IResult<&str, String> {
 fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
     // name, size, allocated, free, checkpoint, expandsize, fragmentation, capacity, dedupratio, health, altroot.
 
-    let (i, (text, total, used, free, _, _,
-             fragmentation, _, dedup, health,
+    let (i, (text, size, alloc, free, _, _,
+             frag, _, dedup, health,
              _, _eol)) = tuple((
         take_while1(|c| char::is_alphanumeric(c)), // name
         preceded(multispace1, parse_optional_u64), // size
@@ -147,11 +147,11 @@ fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
         line_ending,
     ))(i)?;
 
-    let status = if let (Some(total), Some(used), Some(free), Some(fragmentation), Some(dedup)) = (total, used, free, fragmentation, dedup)  {
+    let status = if let (Some(size), Some(alloc), Some(free), Some(frag), Some(dedup)) = (size, alloc, free, frag, dedup)  {
         ZFSPoolStatus {
             name: text.into(),
             health: health.into(),
-            usage: Some(ZFSPoolUsage { total, used, free, fragmentation, dedup }),
+            usage: Some(ZFSPoolUsage { size, alloc, free, frag, dedup }),
             devices: Vec::new(),
         }
     } else {
@@ -169,7 +169,7 @@ fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
 fn parse_pool_status(i: &str) -> IResult<&str, ZFSPoolStatus> {
 
     let (i, mut stat) = parse_pool_header(i)?;
-    let (i, devices) = many1(parse_pool_device)(i)?;
+    let (i, devices) = many0(parse_pool_device)(i)?;
 
     for device_path in devices.into_iter().filter(|n| n.starts_with("/dev/")) {
         stat.devices.push(device_path);
