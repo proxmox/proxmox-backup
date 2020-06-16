@@ -1187,7 +1187,7 @@ impl<'a> ExtractorState<'a> {
                     std::fs::File::from_raw_fd(nix::fcntl::openat(
                         parent,
                         entry.file_name(),
-                        OFlag::O_CREAT | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                        OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
                         Mode::from_bits(0o600).unwrap(),
                     )?)
                 });
