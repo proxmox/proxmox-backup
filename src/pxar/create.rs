@@ -486,7 +486,15 @@ impl<'a, 'b> Archiver<'a, 'b> {
             }
             mode::IFDIR => {
                 let dir = Dir::from_fd(fd.into_raw_fd())?;
-                self.add_directory(encoder, dir, c_file_name, &metadata, stat)
+
+                if let Some(ref mut catalog) = self.catalog {
+                    catalog.start_directory(c_file_name)?;
+                }
+                let result = self.add_directory(encoder, dir, c_file_name, &metadata, stat);
+                if let Some(ref mut catalog) = self.catalog {
+                    catalog.end_directory()?;
+                }
+                result
             }
             mode::IFSOCK => {
                 if let Some(ref mut catalog) = self.catalog {
