@@ -55,7 +55,7 @@ impl ReadChunk for LocalChunkReader {
     }
 }
 
-pub trait AsyncReadChunk {
+pub trait AsyncReadChunk: Send {
     /// Returns the encoded chunk data
     fn read_raw_chunk<'a>(
         &'a mut self,
