@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::api;

@@ -1,7 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::os::unix::fs::MetadataExt;
 
-use anyhow::{format_err, Error};
+use anyhow::{Error};
 use serde_json::Value;
 use lazy_static::lazy_static;
 
