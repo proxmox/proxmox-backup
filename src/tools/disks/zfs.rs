@@ -184,7 +184,7 @@ fn parse_pool_status(i: &str) -> IResult<&str, ZFSPoolStatus> {
 ///
 /// Note: This does not reveal any details on how the pool uses the devices, because
 /// the zpool list output format is not really defined...
-pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
+fn parse_zpool_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
     match all_consuming(many0(parse_pool_status))(i) {
         Err(nom::Err::Error(err)) |
         Err(nom::Err::Failure(err)) => {
@@ -197,25 +197,36 @@ pub fn parse_zfs_list(i: &str) -> Result<Vec<ZFSPoolStatus>, Error> {
     }
 }
 
-/// Get set of devices used by zfs (or a specific zfs pool)
+/// Run zpool list and return parsed output
 ///
-/// The set is indexed by using the unix raw device number (dev_t is u64)
-pub fn zfs_devices(
-    partition_type_map: &HashMap<String, Vec<String>>,
-    pool: Option<&OsStr>,
-) -> Result<HashSet<u64>, Error> {
+/// Devices are only included when run with verbose flags
+/// set. Without, device lists are empty.
+pub fn zpool_list(pool: Option<String>, verbose: bool) -> Result<Vec<ZFSPoolStatus>, Error> {
 
-    // Note: zpools list  output can include entries for 'special', 'cache' and 'logs'
+    // Note: zpools list verbose output can include entries for 'special', 'cache' and 'logs'
     // and maybe other things.
 
-    let mut command = std::process::Command::new("/sbin/zpool");
-    command.args(&["list", "-H", "-v", "-p", "-P"]);
+    let mut command = std::process::Command::new("zpool");
+    command.args(&["list", "-H", "-p", "-P"]);
+
+    if verbose { command.arg("-v"); }
 
     if let Some(pool) = pool { command.arg(pool); }
 
     let output = crate::tools::run_command(command, None)?;
 
-    let list = parse_zfs_list(&output)?;
+    parse_zpool_list(&output)
+}
+
+/// Get set of devices used by zfs (or a specific zfs pool)
+///
+/// The set is indexed by using the unix raw device number (dev_t is u64)
+pub fn zfs_devices(
+    partition_type_map: &HashMap<String, Vec<String>>,
+    pool: Option<String>,
+) -> Result<HashSet<u64>, Error> {
+
+    let list = zpool_list(pool, true)?;
 
     let mut device_set = HashSet::new();
     for entry in list {

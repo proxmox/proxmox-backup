@@ -17,6 +17,7 @@ use proxmox::api::router::Router;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
+    zpool_list,
     DiskUsageType,
 };
 
@@ -127,12 +128,7 @@ pub struct ZpoolListItem {
 /// List zfs pools.
 pub fn list_zpools() -> Result<Vec<ZpoolListItem>, Error> {
 
-    let mut command = std::process::Command::new("/sbin/zpool");
-    command.args(&["list", "-H", "-p", "-P"]);
-
-    let output = crate::tools::run_command(command, None)?;
-
-    let data = crate::tools::disks::parse_zfs_list(&output)?;
+    let data = zpool_list(None, false)?;
 
     let mut list = Vec::new();
 
