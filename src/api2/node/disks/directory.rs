@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::{bail, Error};
 use serde_json::json;
 use ::serde::{Deserialize, Serialize};
 
@@ -8,8 +8,8 @@ use proxmox::api::router::Router;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
-    DiskManage, FileSystemType,
-    create_file_system, create_single_linux_partition, get_fs_uuid,
+    DiskManage, FileSystemType, DiskUsageType,
+    create_file_system, create_single_linux_partition, get_fs_uuid, get_disk_usage_info,
 };
 use crate::tools::systemd::{self, types::*};
 
@@ -134,6 +134,12 @@ pub fn create_datastore_disk(
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let username = rpcenv.get_user().unwrap();
+
+    let info = get_disk_usage_info(&disk, true)?;
+
+    if info.used != DiskUsageType::Unused {
+        bail!("disk '{}' is already in use.", disk);
+    }
 
     let upid_str = WorkerTask::new_thread(
         "dircreate", Some(name.clone()), &username.clone(), to_stdout, move |worker|
