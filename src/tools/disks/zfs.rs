@@ -256,13 +256,13 @@ fn test_zfs_parse_list() -> Result<(), Error> {
 
     let output = "";
 
-    let data = parse_zfs_list(&output)?;
+    let data = parse_zpool_list(&output)?;
     let expect = Vec::new();
 
     assert_eq!(data, expect);
 
     let output = "btest	427349245952	405504	427348840448	-	-	0	0	1.00	ONLINE	-\n";
-    let data = parse_zfs_list(&output)?;
+    let data = parse_zpool_list(&output)?;
     let expect = vec![
         ZFSPoolStatus {
             name: "btest".to_string(),
@@ -279,16 +279,17 @@ fn test_zfs_parse_list() -> Result<(), Error> {
 
     assert_eq!(data, expect);
 
-    let output = r###"rpool    535260299264      402852388864      132407910400      -          -          22         75         1.00      ONLINE   -
+    let output = "\
+rpool    535260299264      402852388864      132407910400      -          -          22         75         1.00      ONLINE   -
             /dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3    498216206336      392175546368      106040659968      -          -          22         78         -          ONLINE
 special                                                                                             -         -         -            -             -         -         -         -   -
             /dev/sda2          37044092928       10676842496       26367250432       -          -          63         28         -          ONLINE
 logs                                                                                                 -         -         -            -             -         -         -         -   -
             /dev/sda3          4831838208         1445888 4830392320         -          -          0          0          -          ONLINE
 
-"###;
+";
 
-    let data = parse_zfs_list(&output)?;
+    let data = parse_zpool_list(&output)?;
     let expect = vec![
         ZFSPoolStatus {
             name: String::from("rpool"),
@@ -317,5 +318,47 @@ logs                                                                            
     ];
 
     assert_eq!(data, expect);
+
+    let output = "\
+btest	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
+	mirror	213674622976	438272	213674184704	-	-	0	0	-	ONLINE
+	/dev/sda1	-	-	-	-	-	-	-	-	ONLINE
+	/dev/sda2	-	-	-	-	-	-	-	-	ONLINE
+	mirror	213674622976	323584	213674299392	-	-	0	0	-	ONLINE
+	/dev/sda3	-	-	-	-	-	-	-	-	ONLINE
+	/dev/sda4	-	-	-	-	-	-	-	-	ONLINE
+logs               -      -      -        -         -      -      -      -  -
+	/dev/sda5	213674622976	0	213674622976	-	-	0	0	-	ONLINE
+";
+
+    let data = parse_zpool_list(&output)?;
+    let expect = vec![
+        ZFSPoolStatus {
+            name: String::from("btest"),
+            health: String::from("ONLINE"),
+            usage: Some(ZFSPoolUsage {
+                size: 427349245952,
+                alloc: 761856,
+                free: 427348484096,
+                dedup: 1.0,
+                frag: 0,
+            }),
+            devices: vec![
+                String::from("/dev/sda1"),
+                String::from("/dev/sda2"),
+                String::from("/dev/sda3"),
+                String::from("/dev/sda4"),
+            ]
+        },
+        ZFSPoolStatus {
+            name: String::from("logs"),
+            health: String::from("-"),
+            usage: None,
+            devices: vec![String::from("/dev/sda5")],
+        },
+    ];
+
+    assert_eq!(data, expect);
+
     Ok(())
 }
