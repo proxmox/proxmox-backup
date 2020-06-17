@@ -4,6 +4,7 @@ use serde_json::Value;
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::tools::disks::{
+    FileSystemType,
     SmartAttribute,
     complete_disk_name,
 };
@@ -237,6 +238,92 @@ pub fn zpool_commands() -> CommandLineInterface {
     cmd_def.into()
 }
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List systemd datastore mount units.
+fn list_datastore_mounts(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::directory::API_METHOD_LIST_DATASTORE_MOUNTS;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("path"))
+        .column(ColumnConfig::new("device"))
+        .column(ColumnConfig::new("filesystem"))
+        .column(ColumnConfig::new("options"));
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(Value::Null)
+}
+
+#[api(
+   input: {
+        properties: {
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+            disk: {
+                schema: BLOCKDEVICE_NAME_SCHEMA,
+            },
+            "add-datastore": {
+                description: "Configure a datastore using the directory.",
+                type: bool,
+                optional: true,
+            },
+            filesystem: {
+                type: FileSystemType,
+                optional: true,
+            },
+        },
+   },
+)]
+/// Create a Filesystem on an unused disk. Will be mounted under '/mnt/datastore/<name>'.
+async fn create_datastore_disk(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    param["node"] = "localhost".into();
+
+    let info = &api2::node::disks::directory::API_METHOD_CREATE_DATASTORE_DISK;
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    crate::wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(Value::Null)
+}
+
+pub fn filesystem_commands() -> CommandLineInterface {
+
+    let cmd_def = CliCommandMap::new()
+        .insert("list", CliCommand::new(&API_METHOD_LIST_DATASTORE_MOUNTS))
+        .insert("create",
+                CliCommand::new(&API_METHOD_CREATE_DATASTORE_DISK)
+                .arg_param(&["name"])
+                .completion_cb("disk", complete_disk_name)
+        );
+
+    cmd_def.into()
+}
 
 pub fn disk_commands() -> CommandLineInterface {
 
@@ -247,6 +334,7 @@ pub fn disk_commands() -> CommandLineInterface {
                 .arg_param(&["disk"])
                 .completion_cb("disk", complete_disk_name)
         )
+        .insert("fs", filesystem_commands())
         .insert("zpool", zpool_commands())
         .insert("initialize",
                 CliCommand::new(&API_METHOD_INITIALIZE_DISK)

@@ -62,7 +62,7 @@ pub struct DatastoreMountInfo {
     },
 )]
 /// List systemd datastore mount units.
-fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
+pub fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
 
     lazy_static::lazy_static! {
         static ref MOUNT_NAME_REGEX: regex::Regex = regex::Regex::new(r"^mnt-datastore-(.+)\.mount$").unwrap();
@@ -123,7 +123,7 @@ fn  list_datastore_mounts() -> Result<Vec<DatastoreMountInfo>, Error> {
     },
 )]
 /// Create a Filesystem on an unused disk. Will be mounted under '/mnt/datastore/<name>'.".
-fn create_datastore_disk(
+pub fn create_datastore_disk(
     name: String,
     disk: String,
     add_datastore: Option<bool>,
