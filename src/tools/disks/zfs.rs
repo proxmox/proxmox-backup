@@ -132,7 +132,7 @@ fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
 
     let (i, (text, size, alloc, free, _, _,
              frag, _, dedup, health,
-             _, _eol)) = tuple((
+             _altroot, _eol)) = tuple((
         take_while1(|c| char::is_alphanumeric(c)), // name
         preceded(multispace1, parse_optional_u64), // size
         preceded(multispace1, parse_optional_u64), // allocated
@@ -143,7 +143,7 @@ fn parse_pool_header(i: &str) -> IResult<&str, ZFSPoolStatus> {
         preceded(multispace1, notspace1), // capacity
         preceded(multispace1, parse_optional_f64), // dedup
         preceded(multispace1, notspace1), // health
-        opt(preceded(space1, take_till(|c| c == '\n'))), // skip rest
+        opt(preceded(multispace1, notspace1)), // optional altroot
         line_ending,
     ))(i)?;
 
