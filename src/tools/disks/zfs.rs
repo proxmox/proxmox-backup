@@ -10,7 +10,7 @@ use nom::{
     bytes::complete::{take_while, take_while1, take_till, take_till1},
     combinator::{map_res, all_consuming, recognize, opt},
     sequence::{preceded, tuple},
-    character::complete::{space1, digit1, char, line_ending},
+    character::complete::{digit1, char, line_ending},
     multi::{many0},
 };
 
