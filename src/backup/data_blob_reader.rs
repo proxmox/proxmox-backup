@@ -19,6 +19,10 @@ pub struct DataBlobReader<R: Read> {
     state: BlobReaderState<R>,
 }
 
+// zstd_safe::DCtx is not sync but we are, since
+// the only public interface is on mutable reference
+unsafe impl<R: Read> Sync for DataBlobReader<R> {}
+
 impl <R: Read> DataBlobReader<R> {
 
     pub fn new(mut reader: R, config: Option<Arc<CryptConfig>>) -> Result<Self, Error> {
