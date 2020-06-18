@@ -503,6 +503,9 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
 /// Basic information about archive files inside a backup snapshot.
 pub struct BackupContent {
     pub filename: String,
+    /// Info if file is encrypted (or empty if we do not have that info)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub encrypted: Option<bool>,
     /// Archive size (from backup manifest).
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,

@@ -57,12 +57,14 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
     for item in manifest.files() {
         result.push(BackupContent {
             filename: item.filename.clone(),
+            encrypted: item.encrypted,
             size: Some(item.size),
         });
     }
 
     result.push(BackupContent {
         filename: MANIFEST_BLOB_NAME.to_string(),
+        encrypted: Some(false),
         size: Some(index_size),
     });
 
@@ -213,7 +215,7 @@ pub fn list_snapshot_files(
 
     for file in info.files {
         if file_set.contains(&file) { continue; }
-        files.push(BackupContent { filename: file, size: None });
+        files.push(BackupContent { filename: file, size: None, encrypted: None });
     }
 
     Ok(files)

@@ -11,6 +11,7 @@ pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 
 pub struct FileInfo {
     pub filename: String,
+    pub encrypted: Option<bool>,
     pub size: u64,
     pub csum: [u8; 32],
 }
@@ -48,9 +49,9 @@ impl BackupManifest {
         Self { files: Vec::new(), snapshot }
     }
 
-    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32]) -> Result<(), Error> {
+    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], encrypted: Option<bool>) -> Result<(), Error> {
         let _archive_type = archive_type(&filename)?; // check type
-        self.files.push(FileInfo { filename, size, csum });
+        self.files.push(FileInfo { filename, size, csum, encrypted });
         Ok(())
     }
 
@@ -90,11 +91,18 @@ impl BackupManifest {
             "backup-time": self.snapshot.backup_time().timestamp(),
             "files": self.files.iter()
                 .fold(Vec::new(), |mut acc, info| {
-                    acc.push(json!({
+                    let mut value = json!({
                         "filename": info.filename,
+                        "encrypted": info.encrypted,
                         "size": info.size,
                         "csum": proxmox::tools::digest_to_hex(&info.csum),
-                    }));
+                    });
+
+                    if let Some(encrypted) = info.encrypted {
+                        value["encrypted"] = encrypted.into();
+                    }
+
+                    acc.push(value);
                     acc
                 })
         })
@@ -134,7 +142,8 @@ impl TryFrom<Value> for BackupManifest {
                 let csum = required_string_property(item, "csum")?;
                 let csum = proxmox::tools::hex_to_digest(csum)?;
                 let size = required_integer_property(item, "size")? as u64;
-                manifest.add_file(filename, size, csum)?;
+                let encrypted = item["encrypted"].as_bool();
+                manifest.add_file(filename, size, csum, encrypted)?;
             }
 
             if manifest.files().is_empty() {

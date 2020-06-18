@@ -950,6 +950,8 @@ async fn create_backup(
         }
     };
 
+    let is_encrypted = Some(crypt_config.is_some());
+
     let client = BackupWriter::start(
         client,
         repo.store(),
@@ -972,14 +974,14 @@ async fn create_backup(
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum)?;
+                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum)?;
+                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
@@ -1005,7 +1007,7 @@ async fn create_backup(
                     pattern_list.clone(),
                     entries_max as usize,
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum)?;
+                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
                 catalog.lock().unwrap().end_directory()?;
             }
             BackupSpecificationType::IMAGE => {
@@ -1019,7 +1021,7 @@ async fn create_backup(
                     verbose,
                     crypt_config.clone(),
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum)?;
+                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
         }
     }
@@ -1036,7 +1038,7 @@ async fn create_backup(
 
         if let Some(catalog_result_rx) = catalog_result_tx {
             let stats = catalog_result_rx.await??;
-            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum)?;
+            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum, is_encrypted)?;
         }
     }
 
@@ -1046,7 +1048,7 @@ async fn create_backup(
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, None, false, false)
             .await?;
-        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum)?;
+        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, is_encrypted)?;
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*
