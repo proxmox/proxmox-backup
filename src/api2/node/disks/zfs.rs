@@ -1,5 +1,5 @@
 use anyhow::{bail, Error};
-use serde_json::json;
+use serde_json::{json, Value};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{
@@ -17,7 +17,7 @@ use proxmox::api::router::Router;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::tools::disks::{
-    zpool_list,
+    zpool_list, zpool_status, parse_zpool_status_config_tree, vdev_list_to_tree,
     DiskUsageType,
 };
 
@@ -147,6 +147,57 @@ pub fn list_zpools() -> Result<Vec<ZpoolListItem>, Error> {
     }
 
     Ok(list)
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "zpool vdev tree with status",
+        properties: {
+
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Get zpool status details.
+pub fn zpool_details(
+    name: String,
+) -> Result<Value, Error> {
+
+    let key_value_list = zpool_status(&name)?;
+
+    let config = match key_value_list.iter().find(|(k, _)| k == "config") {
+        Some((_, v)) => v,
+        None =>  bail!("got zpool status without config key"),
+    };
+
+    let vdev_list = parse_zpool_status_config_tree(config)?;
+    let mut tree = vdev_list_to_tree(&vdev_list);
+
+    for (k, v) in key_value_list {
+        if k != "config" {
+            tree[k] = v.into();
+        }
+    }
+
+    tree["name"] = tree.as_object_mut().unwrap()
+        .remove("pool")
+        .unwrap_or(Value::Null);
+
+
+    Ok(tree)
 }
 
 #[api(
@@ -308,6 +359,10 @@ pub fn create_zpool(
     Ok(upid_str)
 }
 
+pub const POOL_ROUTER: Router = Router::new()
+    .get(&API_METHOD_ZPOOL_DETAILS);
+
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_ZPOOLS)
-    .post(&API_METHOD_CREATE_ZPOOL);
+    .post(&API_METHOD_CREATE_ZPOOL)
+    .match_all("name", &POOL_ROUTER);
