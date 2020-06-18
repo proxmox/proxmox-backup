@@ -31,20 +31,29 @@ pub struct ZFSPoolVDevState {
     pub msg: Option<String>,
 }
 
+fn expand_tab_length(input: &str) -> usize {
+    input.chars().map(|c| if c == '\t' { 8 } else { 1 }).sum()
+}
+
 fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
 
     let (n, indent) = multispace0(i)?;
-    if (indent.len() & 1) != 0 {
+
+    let indent_len = expand_tab_length(indent);
+
+    if (indent_len & 1) != 0 {
         return Err(parse_failure(n, "wrong indent length"));
     }
     let i = n;
+
+    let indent_level = (indent_len as u64)/2;
 
     let (i, vdev_name) =  notspace1(i)?;
 
     if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // sepecial device
         let vdev = ZFSPoolVDevState {
             name: vdev_name.to_string(),
-            lvl: (indent.len() as u64)/2,
+            lvl: indent_level,
             state: None,
             read: None,
             write: None,
@@ -63,7 +72,7 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
 
     let vdev = ZFSPoolVDevState {
         name: vdev_name.to_string(),
-        lvl: (indent.len() as u64)/2,
+        lvl: indent_level,
         state: Some(state.to_string()),
         read: Some(read),
         write: Some(write),
