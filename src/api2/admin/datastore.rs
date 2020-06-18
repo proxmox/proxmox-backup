@@ -1,7 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::http::request::Parts;
 use hyper::{header, Body, Response, StatusCode};
@@ -23,7 +23,7 @@ use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::server::WorkerTask;
-use crate::tools;
+use crate::tools::{self, WrappedReaderStream};
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
     PRIV_DATASTORE_MODIFY,
@@ -775,6 +775,118 @@ fn download_file(
 }
 
 #[sortable]
+pub const API_METHOD_DOWNLOAD_FILE_DECODED: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&download_file_decoded),
+    &ObjectSchema::new(
+        "Download single decoded file from backup snapshot. Only works if it's not encrypted.",
+        &sorted!([
+            ("store", false, &DATASTORE_SCHEMA),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+            ("file-name", false, &BACKUP_ARCHIVE_NAME_SCHEMA),
+        ]),
+    )
+).access(None, &Permission::Privilege(
+    &["datastore", "{store}"],
+    PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+    true)
+);
+
+fn download_file_decoded(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+
+    async move {
+        let store = tools::required_string_param(&param, "store")?;
+        let datastore = DataStore::lookup_datastore(store)?;
+
+        let username = rpcenv.get_user().unwrap();
+        let user_info = CachedUserInfo::new()?;
+        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+
+        let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
+
+        let backup_type = tools::required_string_param(&param, "backup-type")?;
+        let backup_id = tools::required_string_param(&param, "backup-id")?;
+        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+        let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
+        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+
+        let files = read_backup_index(&datastore, &backup_dir)?;
+        for file in files {
+            if file.filename == file_name && file.encrypted == Some(true) {
+                bail!("cannot decode '{}' - is encrypted", file_name);
+            }
+        }
+
+        println!("Download {} from {} ({}/{})", file_name, store, backup_dir, file_name);
+
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(&file_name);
+
+        let extension = file_name.rsplitn(2, '.').next().unwrap();
+
+        let body = match extension {
+            "didx" => {
+                let index = DynamicIndexReader::open(&path)
+                    .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+                let chunk_reader = LocalChunkReader::new(datastore, None);
+                let reader = AsyncIndexReader::new(index, chunk_reader);
+                Body::wrap_stream(reader
+                    .map_err(move |err| {
+                        eprintln!("error during streaming of '{:?}' - {}", path, err);
+                        err
+                    }))
+            },
+            "fidx" => {
+                let index = FixedIndexReader::open(&path)
+                    .map_err(|err| format_err!("unable to read fixed index '{:?}' - {}", &path, err))?;
+
+                let chunk_reader = LocalChunkReader::new(datastore, None);
+                let reader = AsyncIndexReader::new(index, chunk_reader);
+                Body::wrap_stream(reader
+                    .map_err(move |err| {
+                        eprintln!("error during streaming of '{:?}' - {}", path, err);
+                        err
+                    }))
+            },
+            "blob" => {
+                let file = std::fs::File::open(&path)
+                    .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))?;
+
+                Body::wrap_stream(
+                    WrappedReaderStream::new(DataBlobReader::new(file, None)?)
+                        .map_err(move |err| {
+                            eprintln!("error during streaming of '{:?}' - {}", path, err);
+                            err
+                        })
+                )
+            },
+            extension => {
+                bail!("cannot download '{}' files", extension);
+            },
+        };
+
+        // fixme: set other headers ?
+        Ok(Response::builder()
+           .status(StatusCode::OK)
+           .header(header::CONTENT_TYPE, "application/octet-stream")
+           .body(body)
+           .unwrap())
+    }.boxed()
+}
+
+#[sortable]
 pub const API_METHOD_UPLOAD_BACKUP_LOG: ApiMethod = ApiMethod::new(
     &ApiHandler::AsyncHttp(&upload_backup_log),
     &ObjectSchema::new(
@@ -889,6 +1001,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "download",
         &Router::new()
             .download(&API_METHOD_DOWNLOAD_FILE)
+    ),
+    (
+        "download-decoded",
+        &Router::new()
+            .download(&API_METHOD_DOWNLOAD_FILE_DECODED)
     ),
     (
         "files",
