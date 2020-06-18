@@ -25,6 +25,8 @@ mod zfs;
 pub use zfs::*;
 mod zpool_status;
 pub use zpool_status::*;
+mod zpool_list;
+pub use zpool_list::*;
 mod lvm;
 pub use lvm::*;
 mod smart;
