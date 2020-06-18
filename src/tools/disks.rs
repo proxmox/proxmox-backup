@@ -23,6 +23,8 @@ use crate::api2::types::{BLOCKDEVICE_NAME_REGEX, StorageStatus};
 
 mod zfs;
 pub use zfs::*;
+mod zpool_status;
+pub use zpool_status::*;
 mod lvm;
 pub use lvm::*;
 mod smart;
