@@ -11,6 +11,30 @@ Ext.define('pbs-data-store-snapshots', {
 	'files',
 	'owner',
 	{ name: 'size', type: 'int' },
+	{
+	    name: 'encrypted',
+	    type: 'string',
+	    calculate: function(data) {
+		let encrypted = 0;
+		let files = 0;
+		data.files.forEach(file => {
+		    if (file.filename === 'index.json.blob') return; // is never encrypted
+		    if (file.encrypted) {
+			encrypted++;
+		    }
+		    files++;
+		});
+
+		if (encrypted === 0) {
+		    return Proxmox.Utils.noText;
+		} else if (encrypted < files) {
+		    return gettext('Partial');
+		} else if (encrypted === files) {
+		    return Proxmox.Utils.yesText;
+		}
+		return Proxmox.Utils.unknowText;
+	    }
+	}
     ]
 });
 
@@ -127,7 +151,13 @@ Ext.define('PBS.DataStoreContent', {
 			group.files = item.files;
 			group.size = item.size;
 			group.owner = item.owner;
+			if (group.encrypted !== undefined && group.encrypted !== item.encrypted) {
+			    group.encrypted = gettext('Mixed');
+			} else {
+			    group.encrypted = item.encrypted;
+			}
 		    }
+
 		}
 		group.count = group.children.length;
 		children.push(group);
@@ -193,12 +223,24 @@ Ext.define('PBS.DataStoreContent', {
 	    dataIndex: 'owner',
 	},
 	{
+	    header: gettext('Encrypted'),
+	    dataIndex: 'encrypted',
+	},
+	{
 	    header: gettext("Files"),
 	    sortable: false,
 	    dataIndex: 'files',
 	    renderer: function(files) {
 		return files.map((file) => {
-		    return file.filename;
+		    let icon = '';
+		    let size = '';
+		    if (file.encrypted) {
+			icon = '<i class="fa fa-lock"></i> ';
+		    }
+		    if (file.size)  {
+			size = ` (${Proxmox.Utils.format_size(file.size)})`;
+		    }
+		    return `${icon}${file.filename}${size}`;
 		}).join(', ');
 	    },
 	    flex: 2
