@@ -1,36 +1,19 @@
-use anyhow::{bail, Error};
+use anyhow::{Error};
 use serde_json::{json, Value};
 use ::serde::{Deserialize, Serialize};
 
-use nom::{
-    error::VerboseError,
-    bytes::complete::{tag, take_while, take_while1},
-    combinator::{map_res, all_consuming, recognize, opt},
-    sequence::{preceded},
-    character::complete::{digit1, line_ending},
-    multi::{many0},
+use crate::tools::nom::{
+    parse_complete, parse_failure, multispace0, multispace1, notspace1, parse_u64, IResult,
 };
 
-type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
+use nom::{
+    bytes::complete::{tag, take_while, take_while1},
+    combinator::{opt},
+    sequence::{preceded},
+    character::complete::{line_ending},
+    multi::{many0,many1},
+};
 
-/// Recognizes zero or more spaces and tabs (but not carage returns or line feeds)
-fn multispace0(i: &str) -> IResult<&str, &str> {
-    take_while(|c| c == ' ' || c == '\t')(i)
-}
-
-// Recognizes one or more spaces and tabs (but not carage returns or line feeds)
-fn multispace1(i: &str) -> IResult<&str, &str> {
-    take_while1(|c| c == ' ' || c == '\t')(i)
-}
-
-/// Recognizes one or more non-whitespace-characters
-fn notspace1(i: &str) -> IResult<&str, &str> {
-    take_while1(|c| !(c == ' ' || c == '\t' || c == '\n'))(i)
-}
-
-fn parse_u64(i: &str) -> IResult<&str, u64> {
-    map_res(recognize(digit1), str::parse)(i)
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ZFSPoolVDevState {
@@ -46,7 +29,12 @@ pub struct ZFSPoolVDevState {
 
 fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
 
-    let (i, indent) = multispace0(i)?;
+    let (n, indent) = multispace0(i)?;
+    if (indent.len() & 1) != 0 {
+        return Err(parse_failure(n, "wrong indent length"));
+    }
+    let i = n;
+
     let (i, vdev_name) =  notspace1(i)?;
     let (i, state) = preceded(multispace1, notspace1)(i)?;
     let (i, read) = preceded(multispace1, parse_u64)(i)?;
@@ -81,7 +69,7 @@ fn parse_zpool_status_tree(i: &str) -> IResult<&str, Vec<ZFSPoolVDevState>> {
     let (i, _) = line_ending(i)?;
 
     // parse vdev list
-    many0(parse_zpool_status_vdev)(i)
+    many1(parse_zpool_status_vdev)(i)
 }
 
 fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
@@ -127,29 +115,11 @@ fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
 }
 
 pub fn parse_zpool_status_config_tree(i: &str) -> Result<Vec<ZFSPoolVDevState>, Error> {
-    match all_consuming(parse_zpool_status_tree)(&i) {
-        Err(nom::Err::Error(err)) |
-        Err(nom::Err::Failure(err)) => {
-            bail!("unable to parse zfs status config tree - {}", nom::error::convert_error(&i, err));
-        }
-        Err(err) => {
-            bail!("unable to parse zfs status config tree: {}", err);
-        }
-        Ok((_, data)) => Ok(data),
-    }
+    parse_complete("zfs status config tree", i, parse_zpool_status_tree)
 }
 
 fn parse_zpool_status(i: &str) -> Result<Vec<(String, String)>, Error> {
-    match all_consuming(many0(parse_zpool_status_field))(i) {
-        Err(nom::Err::Error(err)) |
-        Err(nom::Err::Failure(err)) => {
-            bail!("unable to parse zfs status output - {}", nom::error::convert_error(i, err));
-        }
-        Err(err) => {
-            bail!("unable to parse zfs status output - {}", err);
-        }
-        Ok((_, data)) => Ok(data),
-    }
+    parse_complete("zfs status output", i, many0(parse_zpool_status_field))
 }
 
 pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Value {
@@ -265,7 +235,7 @@ config:
 
         NAME        STATE     READ WRITE CKSUM
         tank        DEGRADED     0     0     0
-          mirror-0  DEGRADED     0     0     0
+         mirror-0  DEGRADED     0     0     0
             c1t0d0  ONLINE       0     0     0
             c1t2d0  ONLINE       0     0     0
             c1t1d0  UNAVAIL      0     0     0  cannot open

@@ -5,22 +5,18 @@ use lazy_static::lazy_static;
 
 use super::time::*;
 
+use crate::tools::nom::{
+    parse_complete, parse_u64, parse_error, IResult,
+};
+
 use nom::{
-    error::{context, ParseError, VerboseError},
+    error::{context},
     bytes::complete::{tag, take_while1},
     combinator::{map_res, all_consuming, opt, recognize},
     sequence::{pair, preceded, tuple},
     character::complete::{alpha1, space0, digit1},
     multi::separated_nonempty_list,
 };
-
-type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
-
-fn parse_error<'a>(i: &'a str, context: &'static str) -> nom::Err<VerboseError<&'a str>> {
-    let err = VerboseError { errors: Vec::new() };
-    let err = VerboseError::add_context(i, context, err);
-    nom::Err::Error(err)
-}
 
 lazy_static! {
     pub static ref TIME_SPAN_UNITS: HashMap<&'static str, f64> = {
@@ -100,11 +96,7 @@ fn parse_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, u32> {
     }
 }
 
-fn parse_u64(i: &str) -> IResult<&str, u64> {
-    map_res(recognize(digit1), str::parse)(i)
-}
-
-fn parse_weekday(i: &str) -> IResult<&str, WeekDays, VerboseError<&str>> {
+fn parse_weekday(i: &str) -> IResult<&str, WeekDays> {
     let (i, text) = alpha1(i)?;
 
     match text.to_ascii_lowercase().as_str() {
@@ -192,20 +184,7 @@ fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
 }
 
 pub fn parse_calendar_event(i: &str) -> Result<CalendarEvent, Error> {
-    match all_consuming(parse_calendar_event_incomplete)(i) {
-        Err(nom::Err::Error(VerboseError { errors })) |
-        Err(nom::Err::Failure(VerboseError { errors })) => {
-            if errors.is_empty() {
-                bail!("unable to parse calendar event");
-            } else {
-                bail!("unable to parse calendar event at '{}': {:?}", errors[0].0, errors[0].1);
-            }
-        }
-        Err(err) => {
-            bail!("unable to parse calendar event: {}", err);
-        }
-        Ok((_, ce)) => Ok(ce),
-    }
+    parse_complete("calendar event", i, parse_calendar_event_incomplete)
 }
 
 fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> {

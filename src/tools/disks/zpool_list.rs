@@ -1,8 +1,11 @@
 use anyhow::{bail, Error};
 
+use crate::tools::nom::{
+    multispace0, multispace1, notspace1, IResult,
+};
+
 use nom::{
-    error::VerboseError,
-    bytes::complete::{take_while, take_while1, take_till, take_till1},
+    bytes::complete::{take_while1, take_till, take_till1},
     combinator::{map_res, all_consuming, recognize, opt},
     sequence::{preceded, tuple},
     character::complete::{digit1, char, line_ending},
@@ -26,22 +29,6 @@ pub struct ZFSPoolInfo {
     pub devices: Vec<String>,
 }
 
-type IResult<I, O, E = VerboseError<I>> = Result<(I, O), nom::Err<E>>;
-
-/// Recognizes zero or more spaces and tabs (but not carage returns or line feeds)
-fn multispace0(i: &str)  -> IResult<&str, &str> {
-    take_while(|c| c == ' ' || c == '\t')(i)
-}
-
-/// Recognizes one or more spaces and tabs (but not carage returns or line feeds)
-fn multispace1(i: &str)  -> IResult<&str, &str> {
-    take_while1(|c| c == ' ' || c == '\t')(i)
-}
-
-/// Recognizes one or more non-whitespace-characters
-fn notspace1(i: &str)  -> IResult<&str, &str> {
-    take_while1(|c| !(c == ' ' || c == '\t' || c == '\n'))(i)
-}
 
 fn parse_optional_u64(i: &str) -> IResult<&str, Option<u64>> {
     if i.starts_with('-') {

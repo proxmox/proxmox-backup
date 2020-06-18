@@ -33,6 +33,7 @@ pub mod ticket;
 pub mod timer;
 pub mod statistics;
 pub mod systemd;
+pub mod nom;
 
 mod wrapped_reader_stream;
 pub use wrapped_reader_stream::*;
