@@ -743,12 +743,16 @@ fn download_file(
         path.push(backup_dir.relative_path());
         path.push(&file_name);
 
-        let file = tokio::fs::File::open(path)
+        let file = tokio::fs::File::open(&path)
             .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
             .await?;
 
         let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
+            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()))
+            .map_err(move |err| {
+                eprintln!("error during streaming of '{:?}' - {}", &path, err);
+                err
+            });
         let body = Body::wrap_stream(payload);
 
         // fixme: set other headers ?
