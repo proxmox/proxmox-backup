@@ -363,9 +363,7 @@ impl<S: ReadChunk> std::io::Read for BufferedDynamicReader<S> {
             data.len()
         };
 
-        unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr(), buf.as_mut_ptr(), n);
-        }
+        buf[0..n].copy_from_slice(&data[0..n]);
 
         self.read_offset += n as u64;
 
