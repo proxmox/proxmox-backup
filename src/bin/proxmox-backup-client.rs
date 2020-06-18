@@ -445,7 +445,11 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        Ok(tools::format::render_backup_file_list(&item.files))
+        let mut filenames = Vec::new();
+        for file in &item.files {
+            filenames.push(file.filename.to_string());
+        }
+        Ok(tools::format::render_backup_file_list(&filenames[..]))
     };
 
     let options = default_table_format_options()

@@ -196,6 +196,11 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Files"),
 	    sortable: false,
 	    dataIndex: 'files',
+	    renderer: function(files) {
+		return files.map((file) => {
+		    return file.filename;
+		}).join(', ');
+	    },
 	    flex: 2
 	},
     ],

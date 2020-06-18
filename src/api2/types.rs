@@ -428,7 +428,7 @@ pub struct SnapshotListItem {
     pub backup_id: String,
     pub backup_time: i64,
     /// List of contained archive files.
-    pub files: Vec<String>,
+    pub files: Vec<BackupContent>,
     /// Overall snapshot size (sum of all archive sizes).
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,

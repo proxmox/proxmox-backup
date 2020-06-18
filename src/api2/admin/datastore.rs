@@ -71,6 +71,25 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
     Ok(result)
 }
 
+fn get_all_snapshot_files(
+    store: &DataStore,
+    info: &BackupInfo,
+) -> Result<Vec<BackupContent>, Error> {
+    let mut files = read_backup_index(&store, &info.backup_dir)?;
+
+    let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
+        acc.insert(item.filename.clone());
+        acc
+    });
+
+    for file in &info.files {
+        if file_set.contains(file) { continue; }
+        files.push(BackupContent { filename: file.to_string(), size: None, encrypted: None });
+    }
+
+    Ok(files)
+}
+
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
 
     let mut group_hash = HashMap::new();
@@ -204,21 +223,9 @@ pub fn list_snapshot_files(
     let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ)) != 0;
     if !allowed { check_backup_owner(&datastore, snapshot.group(), &username)?; }
 
-    let mut files = read_backup_index(&datastore, &snapshot)?;
-
     let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
 
-    let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
-        acc.insert(item.filename.clone());
-        acc
-    });
-
-    for file in info.files {
-        if file_set.contains(&file) { continue; }
-        files.push(BackupContent { filename: file, size: None, encrypted: None });
-    }
-
-    Ok(files)
+    get_all_snapshot_files(&datastore, &info)
 }
 
 #[api(
@@ -339,24 +346,27 @@ pub fn list_snapshots (
             if owner != username { continue; }
         }
 
-        let mut result_item = SnapshotListItem {
+        let mut size = None;
+
+        let files = match get_all_snapshot_files(&datastore, &info) {
+            Ok(files) => {
+                size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
+                files
+            },
+            Err(err) => {
+                eprintln!("error during snapshot file listing: '{}'", err);
+                info.files.iter().map(|x| BackupContent { filename: x.to_string(), size: None, encrypted: None }).collect()
+            },
+        };
+
+        let result_item = SnapshotListItem {
             backup_type: group.backup_type().to_string(),
             backup_id: group.backup_id().to_string(),
             backup_time: info.backup_dir.backup_time().timestamp(),
-            files: info.files,
-            size: None,
+            files,
+            size,
             owner: Some(owner),
         };
-
-        if let Ok(index) = read_backup_index(&datastore, &info.backup_dir) {
-            let mut backup_size = 0;
-            for item in index.iter() {
-                if let Some(item_size) = item.size {
-                    backup_size += item_size;
-                }
-            }
-            result_item.size = Some(backup_size);
-        }
 
         snapshots.push(result_item);
     }
