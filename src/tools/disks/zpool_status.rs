@@ -19,10 +19,14 @@ use nom::{
 pub struct ZFSPoolVDevState {
     pub name: String,
     pub lvl: u64,
-    pub state: String,
-    pub read: u64,
-    pub write: u64,
-    pub cksum: u64,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub state: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub read: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub write: Option<u64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub cksum: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub msg: Option<String>,
 }
@@ -36,6 +40,20 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
     let i = n;
 
     let (i, vdev_name) =  notspace1(i)?;
+
+    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // sepecial device
+        let vdev = ZFSPoolVDevState {
+            name: vdev_name.to_string(),
+            lvl: (indent.len() as u64)/2,
+            state: None,
+            read: None,
+            write: None,
+            cksum: None,
+            msg: None,
+        };
+        return Ok((n, vdev));
+    }
+
     let (i, state) = preceded(multispace1, notspace1)(i)?;
     let (i, read) = preceded(multispace1, parse_u64)(i)?;
     let (i, write) = preceded(multispace1, parse_u64)(i)?;
@@ -46,8 +64,10 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
     let vdev = ZFSPoolVDevState {
         name: vdev_name.to_string(),
         lvl: (indent.len() as u64)/2,
-        state: state.to_string(),
-        read, write, cksum,
+        state: Some(state.to_string()),
+        read: Some(read),
+        write: Some(write),
+        cksum: Some(cksum),
         msg: msg.map(String::from),
     };
 
@@ -118,8 +138,9 @@ pub fn parse_zpool_status_config_tree(i: &str) -> Result<Vec<ZFSPoolVDevState>, 
     parse_complete("zfs status config tree", i, parse_zpool_status_tree)
 }
 
-fn parse_zpool_status(i: &str) -> Result<Vec<(String, String)>, Error> {
-    parse_complete("zfs status output", i, many0(parse_zpool_status_field))
+fn parse_zpool_status(input: &str) -> Result<Vec<(String, String)>, Error> {
+    let input = input.replace('\t', "        "); // important!
+    parse_complete("zfs status output", &input, many0(parse_zpool_status_field))
 }
 
 pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Value {
@@ -235,7 +256,7 @@ config:
 
         NAME        STATE     READ WRITE CKSUM
         tank        DEGRADED     0     0     0
-         mirror-0  DEGRADED     0     0     0
+          mirror-0  DEGRADED     0     0     0
             c1t0d0  ONLINE       0     0     0
             c1t2d0  ONLINE       0     0     0
             c1t1d0  UNAVAIL      0     0     0  cannot open
@@ -251,8 +272,44 @@ errors: No known data errors
         println!("{} => {}", k,v);
         if k == "config" {
             let vdev_list = parse_zpool_status_config_tree(&v)?;
-            let tree = vdev_list_to_tree(&vdev_list);
-            println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
+            let _tree = vdev_list_to_tree(&vdev_list);
+            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_zpool_status_parser2() -> Result<(), Error> {
+
+    // Note: this input create TABS
+    let output = r###"  pool: btest
+ state: ONLINE
+  scan: none requested
+config:
+
+	NAME           STATE     READ WRITE CKSUM
+	btest          ONLINE       0     0     0
+	  mirror-0     ONLINE       0     0     0
+	    /dev/sda1  ONLINE       0     0     0
+	    /dev/sda2  ONLINE       0     0     0
+	  mirror-1     ONLINE       0     0     0
+	    /dev/sda3  ONLINE       0     0     0
+	    /dev/sda4  ONLINE       0     0     0
+	logs
+	  /dev/sda5    ONLINE       0     0     0
+
+errors: No known data errors
+"###;
+
+    let key_value_list = parse_zpool_status(&output)?;
+    for (k, v) in key_value_list {
+        println!("{} => {}", k,v);
+        if k == "config" {
+            let vdev_list = parse_zpool_status_config_tree(&v)?;
+            let _tree = vdev_list_to_tree(&vdev_list);
+            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
         }
     }
 
