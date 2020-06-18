@@ -200,3 +200,6 @@ pub use datastore::*;
 
 mod catalog_shell;
 pub use catalog_shell::*;
+
+mod async_index_reader;
+pub use async_index_reader::*;
