@@ -3,7 +3,8 @@ use serde_json::{json, Value};
 use ::serde::{Deserialize, Serialize};
 
 use crate::tools::nom::{
-    parse_complete, parse_failure, multispace0, multispace1, notspace1, parse_u64, IResult,
+    parse_complete, parse_error, parse_failure,
+    multispace0, multispace1, notspace1, parse_u64, IResult,
 };
 
 use nom::{
@@ -101,6 +102,30 @@ fn parse_zpool_status_tree(i: &str) -> IResult<&str, Vec<ZFSPoolVDevState>> {
     many1(parse_zpool_status_vdev)(i)
 }
 
+fn space_indented_line(indent: usize) -> impl Fn(&str) -> IResult<&str, &str> {
+    move |i| {
+        let mut len = 0;
+        let mut n = i;
+        loop {
+            if n.starts_with('\t') {
+                len += 8;
+                n = &n[1..];
+            } else if n.starts_with(' ') {
+                len += 1;
+                n = &n[1..];
+            } else {
+                break;
+            }
+            if len >= indent { break; }
+        };
+        if len != indent {
+            return Err(parse_error(i, "not correctly indented"));
+        }
+
+        take_while1(|c| c != '\n')(n)
+    }
+}
+
 fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
     let (i, prefix) = take_while1(|c| c != ':')(i)?;
     let (i, _) = tag(":")(i)?;
@@ -111,9 +136,11 @@ fn parse_zpool_status_field(i: &str) -> IResult<&str, (String, String)> {
 
     let field = prefix.trim().to_string();
 
-    let indent = (0..prefix.len()+2).fold(String::new(), |mut acc, _| { acc.push(' '); acc });
+    let prefix_len = expand_tab_length(prefix);
 
-    let parse_continuation = opt(preceded(tag(indent.as_str()), take_while1(|c| c != '\n')));
+    let indent: usize = prefix_len + 2;
+
+    let parse_continuation = opt(space_indented_line(indent));
 
     let mut value = value.to_string();
 
@@ -148,7 +175,6 @@ pub fn parse_zpool_status_config_tree(i: &str) -> Result<Vec<ZFSPoolVDevState>, 
 }
 
 fn parse_zpool_status(input: &str) -> Result<Vec<(String, String)>, Error> {
-    let input = input.replace('\t', "        "); // important!
     parse_complete("zfs status output", &input, many0(parse_zpool_status_field))
 }
 
