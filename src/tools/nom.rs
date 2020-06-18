@@ -41,6 +41,7 @@ pub fn parse_u64(i: &str) -> IResult<&str, u64> {
     map_res(recognize(digit1), str::parse)(i)
 }
 
+/// Parse complete input, generate vervose error message with line numbers
 pub fn parse_complete<'a, F, O>(what: &str, i: &'a str, parser: F) -> Result<O, Error>
     where F: Fn(&'a str) -> IResult<&'a str, O>,
 {
@@ -55,4 +56,24 @@ pub fn parse_complete<'a, F, O>(what: &str, i: &'a str, parser: F) -> Result<O, 
         Ok((_, data)) => Ok(data),
     }
 
+}
+
+/// Parse complete input, generate simple error message (use this for sinple line input).
+pub fn parse_complete_line<'a, F, O>(what: &str, i: &'a str, parser: F) -> Result<O, Error>
+    where F: Fn(&'a str) -> IResult<&'a str, O>,
+{
+    match all_consuming(parser)(i) {
+        Err(nom::Err::Error(VerboseError { errors })) |
+        Err(nom::Err::Failure(VerboseError { errors })) => {
+            if errors.is_empty() {
+                bail!("unable to parse {}", what);
+            } else {
+                bail!("unable to parse {} at '{}' - {:?}", what, errors[0].0, errors[0].1);
+            }
+        }
+        Err(err) => {
+            bail!("unable to parse {} - {}", what, err);
+        }
+        Ok((_, data)) => Ok(data),
+    }
 }

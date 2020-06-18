@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Error};
+use anyhow::{Error};
 use lazy_static::lazy_static;
 
 use super::time::*;
 
 use crate::tools::nom::{
-    parse_complete, parse_u64, parse_error, IResult,
+    parse_complete_line, parse_u64, parse_error, IResult,
 };
 
 use nom::{
     error::{context},
     bytes::complete::{tag, take_while1},
-    combinator::{map_res, all_consuming, opt, recognize},
+    combinator::{map_res, opt, recognize},
     sequence::{pair, preceded, tuple},
     character::complete::{alpha1, space0, digit1},
     multi::separated_nonempty_list,
@@ -184,7 +184,7 @@ fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
 }
 
 pub fn parse_calendar_event(i: &str) -> Result<CalendarEvent, Error> {
-    parse_complete("calendar event", i, parse_calendar_event_incomplete)
+    parse_complete_line("calendar event", i, parse_calendar_event_incomplete)
 }
 
 fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> {
@@ -269,10 +269,7 @@ fn parse_time_unit(i: &str) ->  IResult<&str, &str> {
 
 
 pub fn parse_time_span(i: &str) -> Result<TimeSpan, Error> {
-    match all_consuming(parse_time_span_incomplete)(i) {
-        Err(err) => bail!("unable to parse time span: {}", err),
-        Ok((_, ts)) => Ok(ts),
-    }
+    parse_complete_line("time span", i, parse_time_span_incomplete)
 }
 
 fn parse_time_span_incomplete(mut i: &str) -> IResult<&str, TimeSpan> {
