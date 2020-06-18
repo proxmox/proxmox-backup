@@ -50,21 +50,7 @@ impl RemoteChunkReader {
 
 impl ReadChunk for RemoteChunkReader {
     fn read_raw_chunk(&mut self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
-        let mut chunk_data = Vec::with_capacity(4 * 1024 * 1024);
-
-        //tokio::task::block_in_place(|| futures::executor::block_on(self.client.download_chunk(&digest, &mut chunk_data)))?;
-        block_on(async {
-            // download_chunk returns the writer back to us, but we need to return a 'static value
-            self.client
-                .download_chunk(&digest, &mut chunk_data)
-                .await
-                .map(drop)
-        })?;
-
-        let chunk = DataBlob::from_raw(chunk_data)?;
-        chunk.verify_crc()?;
-
-        Ok(chunk)
+        block_on(Self::read_raw_chunk(self, digest))
     }
 
     fn read_chunk(&mut self, digest: &[u8; 32]) -> Result<Vec<u8>, Error> {
