@@ -194,13 +194,21 @@ where
     use serde_json::Map;
     use std::mem::replace;
 
-    let mut stack = Vec::<(Map<String, Value>, u64, Vec<Value>)>::new(); // (node, level, children)
-    // hold current node and the children of the current parent (as that's where we insert)
-    let mut cur_node = Map::<String, Value>::new();
-    let mut cur_level = 0;
-    let mut children_of_parent = Vec::new();
+    struct StackItem {
+        node: Map<String, Value>,
+        level: u64,
+        children_of_parent: Vec<Value>,
+    }
 
-    cur_node.insert("name".to_string(), Value::String("root".to_string()));
+    let mut stack = Vec::<StackItem>::new();
+    // hold current node and the children of the current parent (as that's where we insert)
+    let mut cur = StackItem {
+        node: Map::<String, Value>::new(),
+        level: 0,
+        children_of_parent: Vec::new(),
+    };
+
+    cur.node.insert("name".to_string(), Value::String("root".to_string()));
 
     for item in items {
         let (node, node_level) = to_node(&item);
@@ -213,48 +221,46 @@ where
         node.insert("leaf".to_string(), Value::Bool(true));
 
         // if required, go back up (possibly multiple levels):
-        while vdev_level < cur_level {
-            children_of_parent.push(Value::Object(cur_node));
+        while vdev_level < cur.level {
+            cur.children_of_parent.push(Value::Object(cur.node));
             let mut prev = stack.pop().unwrap();
-            prev.0.insert("children".to_string(), Value::Array(children_of_parent));
-            prev.0.insert("leaf".to_string(), Value::Bool(false));
-            cur_node = prev.0;
-            cur_level = prev.1;
-            children_of_parent = prev.2;
+            prev.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
+            prev.node.insert("leaf".to_string(), Value::Bool(false));
+            cur = prev;
 
-            if vdev_level > cur_level {
+            if vdev_level > cur.level {
                 // when we encounter misimatching levels like "0, 2, 1" instead of "0, 1, 2, 1"
                 bail!("broken indentation between levels");
             }
         }
 
-        if vdev_level > cur_level {
+        if vdev_level > cur.level {
             // indented further, push our current state and start a new "map"
-            stack.push((
-                replace(&mut cur_node, node),
-                replace(&mut cur_level, vdev_level),
-                replace(&mut children_of_parent, Vec::new()),
-            ));
+            stack.push(StackItem {
+                node: replace(&mut cur.node, node),
+                level: replace(&mut cur.level, vdev_level),
+                children_of_parent: replace(&mut cur.children_of_parent, Vec::new()),
+            });        cur.children_of_parent = prev.children_of_parent;
+
         } else {
             // same indentation level, add to children of the previous level:
-            children_of_parent.push(Value::Object(
-                replace(&mut cur_node, node),
+            cur.children_of_parent.push(Value::Object(
+                replace(&mut cur.node, node),
             ));
         }
     }
 
     while !stack.is_empty() {
-        children_of_parent.push(Value::Object(cur_node));
+        cur.children_of_parent.push(Value::Object(cur.node));
         let mut prev = stack.pop().unwrap();
-        prev.0.insert("children".to_string(), Value::Array(children_of_parent));
+        prev.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
         if !stack.is_empty() {
-            prev.0.insert("leaf".to_string(), Value::Bool(false));
+            prev.node.insert("leaf".to_string(), Value::Bool(false));
         }
-        cur_node = prev.0;
-        children_of_parent = prev.2;
+        cur = prev;
     }
 
-    Ok(Value::Object(cur_node))
+    Ok(Value::Object(cur.node))
 }
 
 #[test]
