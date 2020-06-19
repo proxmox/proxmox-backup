@@ -215,8 +215,7 @@ where
         // if required, go back up (possibly multiple levels):
         while vdev_level < cur_level {
             children_of_parent.push(Value::Object(cur_node));
-            let mut prev = // could be better with rust issue #372 resolved...
-                stack.pop().ok_or_else(|| format_err!("broken item list: stack underrun"))?;
+            let mut prev = stack.pop().unwrap();
             prev.0.insert("children".to_string(), Value::Array(children_of_parent));
             prev.0.insert("leaf".to_string(), Value::Bool(false));
             cur_node = prev.0;
@@ -246,8 +245,7 @@ where
 
     while !stack.is_empty() {
         children_of_parent.push(Value::Object(cur_node));
-        let mut prev = // could be better with rust issue #372 resolved...
-            stack.pop().ok_or_else(|| format_err!("broken item list: stack underrun"))?;
+        let mut prev = stack.pop().unwrap();
         prev.0.insert("children".to_string(), Value::Array(children_of_parent));
         if !stack.is_empty() {
             prev.0.insert("leaf".to_string(), Value::Bool(false));
