@@ -182,6 +182,21 @@ pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Result<Value, Error>
     indented_list_to_tree(vdev_list, |vdev, node| {
         node.insert("name".to_string(), Value::String(vdev.name.clone()));
         node.insert("lvl".to_string(), Value::Number(vdev.lvl.into()));
+        if let Some(ref state) = vdev.state {
+            node.insert("state".to_string(), Value::String(state.clone()));
+        }
+       if let Some(ref msg) = vdev.msg {
+            node.insert("msg".to_string(), Value::String(msg.clone()));
+        }
+        if let Some(read) = vdev.read {
+            node.insert("read".to_string(), Value::Number(read.into()));
+        }
+        if let Some(write) = vdev.write {
+            node.insert("write".to_string(), Value::Number(write.into()));
+        }
+        if let Some(cksum) = vdev.cksum {
+            node.insert("cksum".to_string(), Value::Number(cksum.into()));
+        }
         vdev.lvl
     })
 }
