@@ -212,6 +212,15 @@ impl BackupDir {
     }
 }
 
+impl std::fmt::Display for BackupDir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let backup_type = self.group.backup_type();
+        let id = self.group.backup_id();
+        let time = Self::backup_time_to_string(self.backup_time);
+        write!(f, "{}/{}/{}", backup_type, id, time)
+    }
+}
+
 impl From<(BackupGroup, i64)> for BackupDir {
     fn from((group, timestamp): (BackupGroup, i64)) -> Self {
         Self { group, backup_time: Utc.timestamp(timestamp, 0) }

@@ -1,7 +1,6 @@
 use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 
-use chrono::{TimeZone, Local};
 use anyhow::{bail, Error};
 use futures::*;
 use hyper::http::request::Parts;
@@ -748,8 +747,7 @@ fn download_file(
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
 
-        println!("Download {} from {} ({}/{}/{}/{})", file_name, store,
-                 backup_type, backup_id, Local.timestamp(backup_time, 0), file_name);
+        println!("Download {} from {} ({}/{})", file_name, store, backup_dir, file_name);
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
