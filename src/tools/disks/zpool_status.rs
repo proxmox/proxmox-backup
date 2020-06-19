@@ -179,25 +179,9 @@ fn parse_zpool_status(input: &str) -> Result<Vec<(String, String)>, Error> {
 }
 
 pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Result<Value, Error> {
-    indented_list_to_tree(vdev_list, |vdev, node| {
-        node.insert("name".to_string(), Value::String(vdev.name.clone()));
-        node.insert("lvl".to_string(), Value::Number(vdev.lvl.into()));
-        if let Some(ref state) = vdev.state {
-            node.insert("state".to_string(), Value::String(state.clone()));
-        }
-       if let Some(ref msg) = vdev.msg {
-            node.insert("msg".to_string(), Value::String(msg.clone()));
-        }
-        if let Some(read) = vdev.read {
-            node.insert("read".to_string(), Value::Number(read.into()));
-        }
-        if let Some(write) = vdev.write {
-            node.insert("write".to_string(), Value::Number(write.into()));
-        }
-        if let Some(cksum) = vdev.cksum {
-            node.insert("cksum".to_string(), Value::Number(cksum.into()));
-        }
-        vdev.lvl
+    indented_list_to_tree(vdev_list, |vdev| {
+        let node = serde_json::to_value(vdev).unwrap();
+        (node, vdev.lvl)
     })
 }
 
@@ -205,7 +189,7 @@ fn indented_list_to_tree<'a, T, F, I>(items: I, to_node: F) -> Result<Value, Err
 where
     T: 'a,
     I: IntoIterator<Item = &'a T>,
-    F: Fn(&T, &mut serde_json::Map<String, Value>) -> u64,
+    F: Fn(&T) -> (Value, u64),
 {
     use serde_json::Map;
     use std::mem::replace;
@@ -219,8 +203,13 @@ where
     cur_node.insert("name".to_string(), Value::String("root".to_string()));
 
     for item in items {
-        let mut node = Map::new();
-        let vdev_level = 1 + to_node(&item, &mut node);
+        let (node, node_level) = to_node(&item);
+        let vdev_level = 1 + node_level;
+        let mut node = match node {
+            Value::Object(map) => map,
+            _ => bail!("to_node returned wrong type"),
+        };
+
         node.insert("leaf".to_string(), Value::Bool(true));
 
         // if required, go back up (possibly multiple levels):
