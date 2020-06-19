@@ -184,7 +184,7 @@ pub fn zpool_details(
     };
 
     let vdev_list = parse_zpool_status_config_tree(config)?;
-    let mut tree = vdev_list_to_tree(&vdev_list);
+    let mut tree = vdev_list_to_tree(&vdev_list)?;
 
     for (k, v) in key_value_list {
         if k != "config" {

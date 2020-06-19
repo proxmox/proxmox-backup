@@ -1,6 +1,6 @@
-use anyhow::{Error};
-use serde_json::{json, Value};
-use ::serde::{Deserialize, Serialize};
+use anyhow::{bail, format_err, Error};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::tools::nom::{
     parse_complete, parse_error, parse_failure,
@@ -178,93 +178,171 @@ fn parse_zpool_status(input: &str) -> Result<Vec<(String, String)>, Error> {
     parse_complete("zfs status output", &input, many0(parse_zpool_status_field))
 }
 
-pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Value {
+pub fn vdev_list_to_tree(vdev_list: &[ZFSPoolVDevState]) -> Result<Value, Error> {
+    indented_list_to_tree(vdev_list, |vdev, node| {
+        node.insert("name".to_string(), Value::String(vdev.name.clone()));
+        node.insert("lvl".to_string(), Value::Number(vdev.lvl.into()));
+        vdev.lvl
+    })
+}
 
-    #[derive(Debug)]
-    struct TreeNode<'a> {
-        vdev: &'a ZFSPoolVDevState,
-        children: Vec<usize>
-    }
+fn indented_list_to_tree<'a, T, F, I>(items: I, to_node: F) -> Result<Value, Error>
+where
+    T: 'a,
+    I: IntoIterator<Item = &'a T>,
+    F: Fn(&T, &mut serde_json::Map<String, Value>) -> u64,
+{
+    use serde_json::Map;
+    use std::mem::replace;
 
-    fn node_to_json(node_idx: usize, nodes: &[TreeNode]) -> Value {
-        let node = &nodes[node_idx];
-        let mut v = serde_json::to_value(node.vdev).unwrap();
-        if node.children.is_empty() {
-            v["leaf"] = true.into();
+    let mut stack = Vec::<(Map<String, Value>, u64, Vec<Value>)>::new(); // (node, level, children)
+    // hold current node and the children of the current parent (as that's where we insert)
+    let mut cur_node = Map::<String, Value>::new();
+    let mut cur_level = 0;
+    let mut children_of_parent = Vec::new();
+
+    cur_node.insert("name".to_string(), Value::String("root".to_string()));
+
+    for item in items {
+        let mut node = Map::new();
+        let vdev_level = 1 + to_node(&item, &mut node);
+        node.insert("leaf".to_string(), Value::Bool(true));
+
+        // if required, go back up (possibly multiple levels):
+        while vdev_level < cur_level {
+            children_of_parent.push(Value::Object(cur_node));
+            let mut prev = // could be better with rust issue #372 resolved...
+                stack.pop().ok_or_else(|| format_err!("broken item list: stack underrun"))?;
+            prev.0.insert("children".to_string(), Value::Array(children_of_parent));
+            prev.0.insert("leaf".to_string(), Value::Bool(false));
+            cur_node = prev.0;
+            cur_level = prev.1;
+            children_of_parent = prev.2;
+
+            if vdev_level > cur_level {
+                // when we encounter misimatching levels like "0, 2, 1" instead of "0, 1, 2, 1"
+                bail!("broken indentation between levels");
+            }
+        }
+
+        if vdev_level > cur_level {
+            // indented further, push our current state and start a new "map"
+            stack.push((
+                replace(&mut cur_node, node),
+                replace(&mut cur_level, vdev_level),
+                replace(&mut children_of_parent, Vec::new()),
+            ));
         } else {
-            v["leaf"] = false.into();
-            v["children"] = json!([]);
-            for child in node.children .iter(){
-                let c = node_to_json(*child, nodes);
-                v["children"].as_array_mut().unwrap().push(c);
-            }
+            // same indentation level, add to children of the previous level:
+            children_of_parent.push(Value::Object(
+                replace(&mut cur_node, node),
+            ));
         }
-        v
     }
 
-    let mut nodes: Vec<TreeNode> = vdev_list.into_iter().map(|vdev| {
-        TreeNode {
-            vdev: vdev,
-            children: Vec::new(),
+    while !stack.is_empty() {
+        children_of_parent.push(Value::Object(cur_node));
+        let mut prev = // could be better with rust issue #372 resolved...
+            stack.pop().ok_or_else(|| format_err!("broken item list: stack underrun"))?;
+        prev.0.insert("children".to_string(), Value::Array(children_of_parent));
+        if !stack.is_empty() {
+            prev.0.insert("leaf".to_string(), Value::Bool(false));
         }
-    }).collect();
-
-    let mut stack: Vec<usize> = Vec::new();
-
-    let mut root_children: Vec<usize> = Vec::new();
-
-    for idx in 0..nodes.len() {
-
-        if stack.is_empty() {
-            root_children.push(idx);
-            stack.push(idx);
-            continue;
-        }
-
-        let node_lvl = nodes[idx].vdev.lvl;
-
-        let stacked_node = &mut nodes[*(stack.last().unwrap())];
-        let last_lvl = stacked_node.vdev.lvl;
-
-        if node_lvl > last_lvl {
-            stacked_node.children.push(idx);
-        } else if node_lvl == last_lvl {
-            stack.pop();
-            match stack.last() {
-                Some(parent) => nodes[*parent].children.push(idx),
-                None => root_children.push(idx),
-            }
-        } else {
-            loop {
-                if stack.is_empty() {
-                    root_children.push(idx);
-                    break;
-                }
-
-                let stacked_node = &mut nodes[*(stack.last().unwrap())];
-                if node_lvl <= stacked_node.vdev.lvl {
-                    stack.pop();
-                } else {
-                    stacked_node.children.push(idx);
-                    break;
-                }
-            }
-        }
-
-        stack.push(idx);
+        cur_node = prev.0;
+        children_of_parent = prev.2;
     }
 
-    let mut result = json!({
-        "name": "root",
-        "children": json!([]),
-    });
+    Ok(Value::Object(cur_node))
+}
 
-    for child in root_children {
-        let c = node_to_json(child, &nodes);
-        result["children"].as_array_mut().unwrap().push(c);
-    }
+#[test]
+fn test_vdev_list_to_tree() {
+    const DEFAULT: ZFSPoolVDevState = ZFSPoolVDevState {
+        name: String::new(),
+        lvl: 0,
+        state: None,
+        read: None,
+        write: None,
+        cksum: None,
+        msg: None,
+    };
 
-    result
+    let input = vec![
+        //ZFSPoolVDevState { name: "root".to_string(), lvl: 0, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev1".to_string(), lvl: 1, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev1-disk1".to_string(), lvl: 2, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev1-disk2".to_string(), lvl: 2, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev2".to_string(), lvl: 1, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev2-g1".to_string(), lvl: 2, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev2-g1-d1".to_string(), lvl: 3, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev2-g1-d2".to_string(), lvl: 3, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev2-g2".to_string(), lvl: 2, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev3".to_string(), lvl: 1, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev4".to_string(), lvl: 1, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev4-g1".to_string(), lvl: 2, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev4-g1-d1".to_string(), lvl: 3, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev4-g1-d1-x1".to_string(), lvl: 4, ..DEFAULT },
+        ZFSPoolVDevState { name: "vdev4-g2".to_string(), lvl: 2, ..DEFAULT }, // up by 2
+    ];
+
+    const EXPECTED: &str = "{\
+        \"children\":[{\
+            \"children\":[{\
+                \"leaf\":true,\
+                \"lvl\":2,\"name\":\"vdev1-disk1\"\
+            },{\
+                \"leaf\":true,\
+                \"lvl\":2,\"name\":\"vdev1-disk2\"\
+            }],\
+            \"leaf\":false,\
+            \"lvl\":1,\"name\":\"vdev1\"\
+        },{\
+            \"children\":[{\
+                \"children\":[{\
+                    \"leaf\":true,\
+                    \"lvl\":3,\"name\":\"vdev2-g1-d1\"\
+                },{\
+                    \"leaf\":true,\
+                    \"lvl\":3,\"name\":\"vdev2-g1-d2\"\
+                }],\
+                \"leaf\":false,\
+                \"lvl\":2,\"name\":\"vdev2-g1\"\
+            },{\
+                \"leaf\":true,\
+                \"lvl\":2,\"name\":\"vdev2-g2\"\
+            }],\
+            \"leaf\":false,\
+            \"lvl\":1,\"name\":\"vdev2\"\
+        },{\
+            \"leaf\":true,\
+            \"lvl\":1,\"name\":\"vdev3\"\
+        },{\
+            \"children\":[{\
+                \"children\":[{\
+                    \"children\":[{\
+                        \"leaf\":true,\
+                        \"lvl\":4,\"name\":\"vdev4-g1-d1-x1\"\
+                    }],\
+                    \"leaf\":false,\
+                    \"lvl\":3,\"name\":\"vdev4-g1-d1\"\
+                }],\
+                \"leaf\":false,\
+                \"lvl\":2,\"name\":\"vdev4-g1\"\
+            },{\
+                \"leaf\":true,\
+                \"lvl\":2,\"name\":\"vdev4-g2\"\
+            }],\
+            \"leaf\":false,\
+            \"lvl\":1,\"name\":\"vdev4\"\
+        }],\
+        \"name\":\"root\"\
+    }";
+    let expected: Value = serde_json::from_str(EXPECTED)
+        .expect("failed to parse expected json value");
+
+    let tree = vdev_list_to_tree(&input)
+        .expect("failed to turn valid vdev list into a tree");
+    assert_eq!(tree, expected);
 }
 
 pub fn zpool_status(pool: &str) -> Result<Vec<(String, String)>, Error> {
