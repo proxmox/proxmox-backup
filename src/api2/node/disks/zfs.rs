@@ -194,7 +194,7 @@ pub fn zpool_details(
 
     tree["name"] = tree.as_object_mut().unwrap()
         .remove("pool")
-        .unwrap_or(Value::Null);
+        .unwrap_or_else(|| name.into());
 
 
     Ok(tree)
