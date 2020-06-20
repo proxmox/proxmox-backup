@@ -1,6 +1,8 @@
+use std::mem::replace;
+
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::tools::nom::{
     parse_complete, parse_error, parse_failure,
@@ -191,9 +193,6 @@ where
     I: IntoIterator<Item = &'a T>,
     F: Fn(&T) -> (Value, u64),
 {
-    use serde_json::Map;
-    use std::mem::replace;
-
     struct StackItem {
         node: Map<String, Value>,
         level: u64,
