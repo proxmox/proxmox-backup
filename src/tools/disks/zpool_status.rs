@@ -222,10 +222,10 @@ where
         // if required, go back up (possibly multiple levels):
         while vdev_level < cur.level {
             cur.children_of_parent.push(Value::Object(cur.node));
-            let mut prev = stack.pop().unwrap();
-            prev.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
-            prev.node.insert("leaf".to_string(), Value::Bool(false));
-            cur = prev;
+            let mut parent = stack.pop().unwrap();
+            parent.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
+            parent.node.insert("leaf".to_string(), Value::Bool(false));
+            cur = parent;
 
             if vdev_level > cur.level {
                 // when we encounter misimatching levels like "0, 2, 1" instead of "0, 1, 2, 1"
@@ -250,12 +250,10 @@ where
 
     while !stack.is_empty() {
         cur.children_of_parent.push(Value::Object(cur.node));
-        let mut prev = stack.pop().unwrap();
-        prev.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
-        if !stack.is_empty() {
-            prev.node.insert("leaf".to_string(), Value::Bool(false));
-        }
-        cur = prev;
+        let mut parent = stack.pop().unwrap();
+        parent.node.insert("children".to_string(), Value::Array(cur.children_of_parent));
+        parent.node.insert("leaf".to_string(), Value::Bool(false));
+        cur = parent;
     }
 
     Ok(Value::Object(cur.node))
@@ -341,8 +339,9 @@ fn test_vdev_list_to_tree() {
             \"leaf\":false,\
             \"lvl\":1,\"name\":\"vdev4\"\
         }],\
-        \"name\":\"root\"\
-    }";
+        \"name\":\"root\",\
+        \"leaf\":false\
+   }";
     let expected: Value = serde_json::from_str(EXPECTED)
         .expect("failed to parse expected json value");
 
