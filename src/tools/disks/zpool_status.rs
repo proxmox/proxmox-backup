@@ -240,8 +240,7 @@ where
                 node: replace(&mut cur.node, node),
                 level: replace(&mut cur.level, vdev_level),
                 children_of_parent: replace(&mut cur.children_of_parent, Vec::new()),
-            });        cur.children_of_parent = prev.children_of_parent;
-
+            });
         } else {
             // same indentation level, add to children of the previous level:
             cur.children_of_parent.push(Value::Object(
