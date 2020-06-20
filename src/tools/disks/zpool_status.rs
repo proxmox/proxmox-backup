@@ -207,8 +207,6 @@ where
         children_of_parent: Vec::new(),
     };
 
-    cur.node.insert("name".to_string(), Value::String("root".to_string()));
-
     for item in items {
         let (node, node_level) = to_node(&item);
         let vdev_level = 1 + node_level;
@@ -339,7 +337,6 @@ fn test_vdev_list_to_tree() {
             \"leaf\":false,\
             \"lvl\":1,\"name\":\"vdev4\"\
         }],\
-        \"name\":\"root\",\
         \"leaf\":false\
    }";
     let expected: Value = serde_json::from_str(EXPECTED)
