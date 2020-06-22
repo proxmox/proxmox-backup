@@ -2,7 +2,7 @@
 Description=Proxmox Backup API Proxy Server
 Wants=network-online.target
 After=network.target
-Requires=proxmox-backup.service
+Wants=proxmox-backup.service
 After=proxmox-backup.service
 
 [Service]

@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -e
+
+#DEBHELPER#
+
+case "$1" in
+    configure)
+	# modeled after dh_systemd_start output
+	systemctl --system daemon-reload >/dev/null || true
+	if [ -n "$2" ]; then
+		_dh_action=try-restart
+	else
+		_dh_action=start
+	fi
+	deb-systemd-invoke $_dh_action proxmox-backup.service >/dev/null || true
+
+	if [ -n "$2" ]; then
+		_dh_action=try-reload-or-restart
+	else
+		_dh_action=start
+	fi
+	deb-systemd-invoke $_dh_action proxmox-backup-proxy.service >/dev/null || true
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+exit 0

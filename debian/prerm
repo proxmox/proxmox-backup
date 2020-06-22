@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+
+#DEBHELPER#
+
+# modeled after dh_systemd_start output
+if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
+    deb-systemd-invoke stop 'proxmox-backup-banner.service' 'proxmox-backup-proxy.service' 'proxmox-backup.service' >/dev/null || true
+fi
