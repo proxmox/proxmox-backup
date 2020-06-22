@@ -2,6 +2,7 @@
 
 use std::ffi::CString;
 use std::future::Future;
+use std::io::{Read, Write};
 use std::os::raw::{c_char, c_int};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
@@ -94,7 +95,7 @@ impl Reloader {
         }
 
         // Synchronisation pipe:
-        let (pin, pout) = super::pipe()?;
+        let (pold, pnew) = super::socketpair()?;
 
         // Start ourselves in the background:
         use nix::unistd::{fork, ForkResult};
@@ -103,21 +104,31 @@ impl Reloader {
                 // Double fork so systemd can supervise us without nagging...
                 match fork() {
                     Ok(ForkResult::Child) => {
-                        std::mem::drop(pin);
+                        std::mem::drop(pold);
                         // At this point we call pre-exec helpers. We must be certain that if they fail for
                         // whatever reason we can still call `_exit()`, so use catch_unwind.
                         match std::panic::catch_unwind(move || {
-                            let mut pout = unsafe {
-                                std::fs::File::from_raw_fd(pout.into_raw_fd())
+                            let mut pnew = unsafe {
+                                std::fs::File::from_raw_fd(pnew.into_raw_fd())
                             };
                             let pid = nix::unistd::Pid::this();
-                            if let Err(e) = unsafe { pout.write_host_value(pid.as_raw()) } {
+                            if let Err(e) = unsafe { pnew.write_host_value(pid.as_raw()) } {
                                 log::error!("failed to send new server PID to parent: {}", e);
                                 unsafe {
                                     libc::_exit(-1);
                                 }
                             }
-                            std::mem::drop(pout);
+
+                            let mut ok = [0u8];
+                            if let Err(e) = pnew.read_exact(&mut ok) {
+                                log::error!("parent vanished before notifying systemd: {}", e);
+                                unsafe {
+                                    libc::_exit(-1);
+                                }
+                            }
+                            assert_eq!(ok[0], 1, "reload handshake should have sent a 1 byte");
+
+                            std::mem::drop(pnew);
                             self.do_reexec(new_args)
                         })
                         {
@@ -127,7 +138,7 @@ impl Reloader {
                         }
                     }
                     Ok(ForkResult::Parent { child }) => {
-                        std::mem::drop((pin, pout));
+                        std::mem::drop((pold, pnew));
                         log::debug!("forked off a new server (second pid: {})", child);
                     }
                     Err(e) => log::error!("fork() failed, restart delayed: {}", e),
@@ -139,11 +150,11 @@ impl Reloader {
             }
             Ok(ForkResult::Parent { child }) => {
                 log::debug!("forked off a new server (first pid: {}), waiting for 2nd pid", child);
-                std::mem::drop(pout);
-                let mut pin = unsafe {
-                    std::fs::File::from_raw_fd(pin.into_raw_fd())
+                std::mem::drop(pnew);
+                let mut pold = unsafe {
+                    std::fs::File::from_raw_fd(pold.into_raw_fd())
                 };
-                let child = nix::unistd::Pid::from_raw(match unsafe { pin.read_le_value() } {
+                let child = nix::unistd::Pid::from_raw(match unsafe { pold.read_le_value() } {
                     Ok(v) => v,
                     Err(e) => {
                         log::error!("failed to receive pid of double-forked child process: {}", e);
@@ -155,6 +166,12 @@ impl Reloader {
                 if let Err(e) = systemd_notify(SystemdNotify::MainPid(child)) {
                     log::error!("failed to notify systemd about the new main pid: {}", e);
                 }
+
+                // notify child that it is now the new main process:
+                if let Err(e) = pold.write_all(&[1u8]) {
+                    log::error!("child vanished during reload: {}", e);
+                }
+
                 Ok(())
             }
             Err(e) => {
