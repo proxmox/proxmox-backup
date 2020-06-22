@@ -31,6 +31,7 @@ pub trait Reloadable: Sized {
 #[derive(Default)]
 pub struct Reloader {
     pre_exec: Vec<PreExecEntry>,
+    self_exe: CString,
 }
 
 // Currently we only need environment variables for storage, but in theory we could also add
@@ -41,10 +42,17 @@ struct PreExecEntry {
 }
 
 impl Reloader {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Result<Self, Error> {
+        Ok(Self {
             pre_exec: Vec::new(),
-        }
+
+            // Get the path to our executable as CString
+            self_exe: CString::new(
+                std::fs::read_link("/proc/self/exe")?
+                    .into_os_string()
+                    .as_bytes()
+            )?
+        })
     }
 
     /// Restore an object from an environment variable of the given name, or, if none exists, uses
@@ -78,13 +86,6 @@ impl Reloader {
     }
 
     pub fn fork_restart(self) -> Result<(), Error> {
-        // Get the path to our executable as CString
-        let exe = CString::new(
-            std::fs::read_link("/proc/self/exe")?
-                .into_os_string()
-                .as_bytes()
-        )?;
-
         // Get our parameters as Vec<CString>
         let args = std::env::args_os();
         let mut new_args = Vec::with_capacity(args.len());
@@ -117,10 +118,11 @@ impl Reloader {
                                 }
                             }
                             std::mem::drop(pout);
-                            self.do_exec(exe, new_args)
+                            self.do_reexec(new_args)
                         })
                         {
-                            Ok(_) => eprintln!("do_exec returned unexpectedly!"),
+                            Ok(Ok(())) => eprintln!("do_reexec returned!"),
+                            Ok(Err(err)) => eprintln!("do_reexec failed: {}", err),
                             Err(_) => eprintln!("panic in re-exec"),
                         }
                     }
@@ -162,12 +164,13 @@ impl Reloader {
         }
     }
 
-    fn do_exec(self, exe: CString, args: Vec<CString>) -> Result<(), Error> {
+    fn do_reexec(self, args: Vec<CString>) -> Result<(), Error> {
+        let exe = self.self_exe.clone();
         self.pre_exec()?;
         nix::unistd::setsid()?;
         let args: Vec<&std::ffi::CStr> = args.iter().map(|s| s.as_ref()).collect();
         nix::unistd::execvp(&exe, &args)?;
-        Ok(())
+        panic!("exec misbehaved");
     }
 }
 
@@ -223,7 +226,7 @@ where
     F: FnOnce(tokio::net::TcpListener, NotifyReady) -> Result<S, Error>,
     S: Future<Output = ()>,
 {
-    let mut reloader = Reloader::new();
+    let mut reloader = Reloader::new()?;
 
     let listener: tokio::net::TcpListener = reloader.restore(
         "PROXMOX_BACKUP_LISTEN_FD",
