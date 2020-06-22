@@ -9,18 +9,11 @@ case "$1" in
 	# modeled after dh_systemd_start output
 	systemctl --system daemon-reload >/dev/null || true
 	if [ -n "$2" ]; then
-		_dh_action=try-restart
-	else
-		_dh_action=start
-	fi
-	deb-systemd-invoke $_dh_action proxmox-backup.service >/dev/null || true
-
-	if [ -n "$2" ]; then
 		_dh_action=try-reload-or-restart
 	else
 		_dh_action=start
 	fi
-	deb-systemd-invoke $_dh_action proxmox-backup-proxy.service >/dev/null || true
+	deb-systemd-invoke $_dh_action proxmox-backup.service proxmox-backup-proxy.service >/dev/null || true
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
