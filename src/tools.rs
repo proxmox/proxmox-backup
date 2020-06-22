@@ -553,11 +553,26 @@ pub fn fail_on_shutdown() -> Result<(), Error> {
     Ok(())
 }
 
-// wrap nix::unistd::pipe2 + O_CLOEXEC into something returning guarded file descriptors
+/// safe wrapper for `nix::unistd::pipe2` defaulting to `O_CLOEXEC` and guarding the file
+/// descriptors.
 pub fn pipe() -> Result<(Fd, Fd), Error> {
     let (pin, pout) = nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC)?;
     Ok((Fd(pin), Fd(pout)))
 }
+
+/// safe wrapper for `nix::sys::socket::socketpair` defaulting to `O_CLOEXEC` and guarding the file
+/// descriptors.
+pub fn socketpair() -> Result<(Fd, Fd), Error> {
+    use nix::sys::socket;
+    let (pa, pb) = socket::socketpair(
+        socket::AddressFamily::Unix,
+        socket::SockType::Stream,
+        None,
+        socket::SockFlag::SOCK_CLOEXEC,
+    )?;
+    Ok((Fd(pa), Fd(pb)))
+}
+
 
 /// An easy way to convert types to Any
 ///
