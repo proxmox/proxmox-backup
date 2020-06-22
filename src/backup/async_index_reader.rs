@@ -5,7 +5,7 @@ use std::pin::Pin;
 use anyhow::Error;
 use futures::future::FutureExt;
 use futures::ready;
-use tokio::{io::AsyncRead, stream::Stream};
+use tokio::io::AsyncRead;
 
 use proxmox::sys::error::io_err_other;
 use proxmox::io_format_err;
@@ -125,62 +125,3 @@ I: IndexFile + Unpin
         }
     }
 }
-
-impl<S, I> Stream for AsyncIndexReader<S, I>
-where
-    S: AsyncReadChunk + Unpin + 'static,
-    I: IndexFile + Unpin
-{
-    type Item = Result<Vec<u8>, std::io::Error>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let this = Pin::get_mut(self);
-        loop {
-            match &mut this.state {
-                AsyncIndexReaderState::NoData => {
-                    if this.current_chunk_idx >= this.index.index_count()  {
-                        return Poll::Ready(None);
-                    }
-
-                    let digest = this
-                        .index
-                        .index_digest(this.current_chunk_idx)
-                        .ok_or(io_format_err!("could not get digest"))?
-                        .clone();
-
-                    let mut store = match this.store.take() {
-                        Some(store) => store,
-                        None => {
-                            return Poll::Ready(Some(Err(io_format_err!("could not find store"))));
-                        },
-                    };
-
-                    let future = async move {
-                        store.read_chunk(&digest)
-                            .await
-                            .map(move |x| (store, x))
-                    };
-
-                    this.state = AsyncIndexReaderState::WaitForData(future.boxed());
-                },
-                AsyncIndexReaderState::WaitForData(ref mut future) => {
-                    match ready!(future.as_mut().poll(cx)) {
-                        Ok((store, chunk_data)) => {
-                            this.state = AsyncIndexReaderState::NoData;
-                            this.store = Some(store);
-                            this.current_chunk_idx += 1;
-                            return Poll::Ready(Some(Ok(chunk_data.clone())));
-                        },
-                        Err(err) => {
-                            return Poll::Ready(Some(Err(io_err_other(err))));
-                        },
-                    }
-                },
-                _ => {
-                    return Poll::Ready(Some(Err(io_format_err!("invalid state in stream"))));
-                },
-            }
-        }
-    }
-}
-

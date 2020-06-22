@@ -23,7 +23,7 @@ use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::server::WorkerTask;
-use crate::tools::{self, WrappedReaderStream};
+use crate::tools::{self, AsyncReaderStream, WrappedReaderStream};
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
     PRIV_DATASTORE_MODIFY,
@@ -842,7 +842,7 @@ fn download_file_decoded(
 
                 let chunk_reader = LocalChunkReader::new(datastore, None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
-                Body::wrap_stream(reader
+                Body::wrap_stream(AsyncReaderStream::new(reader)
                     .map_err(move |err| {
                         eprintln!("error during streaming of '{:?}' - {}", path, err);
                         err
@@ -854,7 +854,7 @@ fn download_file_decoded(
 
                 let chunk_reader = LocalChunkReader::new(datastore, None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
-                Body::wrap_stream(reader
+                Body::wrap_stream(AsyncReaderStream::with_buffer_size(reader, 4*1024*1024)
                     .map_err(move |err| {
                         eprintln!("error during streaming of '{:?}' - {}", path, err);
                         err
