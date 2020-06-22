@@ -3,12 +3,13 @@
 use std::ffi::CString;
 use std::future::Future;
 use std::io::{Read, Write};
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_uchar, c_int};
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::UnwindSafe;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
 
@@ -16,6 +17,11 @@ use proxmox::tools::io::{ReadExt, WriteExt};
 
 use crate::server;
 use crate::tools::{fd_change_cloexec, self};
+
+#[link(name = "systemd")]
+extern "C" {
+    fn sd_journal_stream_fd(identifier: *const c_uchar, priority: c_int, level_prefix: c_int) -> c_int;
+}
 
 // Unfortunately FnBox is nightly-only and Box<FnOnce> is unusable, so just use Box<Fn>...
 pub type BoxedStoreFunc = Box<dyn FnMut() -> Result<String, Error> + UnwindSafe + Send>;
@@ -32,7 +38,7 @@ pub trait Reloadable: Sized {
 #[derive(Default)]
 pub struct Reloader {
     pre_exec: Vec<PreExecEntry>,
-    self_exe: CString,
+    self_exe: PathBuf,
 }
 
 // Currently we only need environment variables for storage, but in theory we could also add
@@ -47,12 +53,8 @@ impl Reloader {
         Ok(Self {
             pre_exec: Vec::new(),
 
-            // Get the path to our executable as CString
-            self_exe: CString::new(
-                std::fs::read_link("/proc/self/exe")?
-                    .into_os_string()
-                    .as_bytes()
-            )?
+            // Get the path to our executable as PathBuf
+            self_exe: std::fs::read_link("/proc/self/exe")?,
         })
     }
 
@@ -129,6 +131,25 @@ impl Reloader {
                             assert_eq!(ok[0], 1, "reload handshake should have sent a 1 byte");
 
                             std::mem::drop(pnew);
+
+                            // Try to reopen STDOUT/STDERR journald streams to get correct PID in logs
+                            let ident = CString::new(self.self_exe.file_name().unwrap().as_bytes()).unwrap();
+                            let ident = ident.as_bytes();
+                            let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_INFO, 1) };
+                            if fd >= 0 && fd != 1 {
+                                let fd = proxmox::tools::fd::Fd(fd); // add drop handler
+                                nix::unistd::dup2(fd.as_raw_fd(), 1)?;
+                            } else {
+                                log::error!("failed to update STDOUT journal redirection ({})", fd);
+                            }
+                            let fd = unsafe { sd_journal_stream_fd(ident.as_ptr(), libc::LOG_ERR, 1) };
+                            if fd >= 0 && fd != 2 {
+                                let fd = proxmox::tools::fd::Fd(fd); // add drop handler
+                                nix::unistd::dup2(fd.as_raw_fd(), 2)?;
+                            } else {
+                                log::error!("failed to update STDERR journal redirection ({})", fd);
+                            }
+
                             self.do_reexec(new_args)
                         })
                         {
@@ -182,7 +203,7 @@ impl Reloader {
     }
 
     fn do_reexec(self, args: Vec<CString>) -> Result<(), Error> {
-        let exe = self.self_exe.clone();
+        let exe = CString::new(self.self_exe.as_os_str().as_bytes())?;
         self.pre_exec()?;
         nix::unistd::setsid()?;
         let args: Vec<&std::ffi::CStr> = args.iter().map(|s| s.as_ref()).collect();
