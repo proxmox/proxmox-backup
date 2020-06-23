@@ -47,6 +47,7 @@ struct FixedWriterState {
     chunk_count: u64,
     small_chunk_count: usize, // allow 0..1 small chunks (last chunk may be smaller)
     upload_stat: UploadStatistic,
+    incremental: bool,
 }
 
 struct SharedBackupState {
@@ -237,7 +238,7 @@ impl BackupEnvironment {
     }
 
     /// Store the writer with an unique ID
-    pub fn register_fixed_writer(&self, index: FixedIndexWriter, name: String, size: usize, chunk_size: u32) -> Result<usize, Error> {
+    pub fn register_fixed_writer(&self, index: FixedIndexWriter, name: String, size: usize, chunk_size: u32, incremental: bool) -> Result<usize, Error> {
         let mut state = self.state.lock().unwrap();
 
         state.ensure_unfinished()?;
@@ -245,7 +246,7 @@ impl BackupEnvironment {
         let uid = state.next_uid();
 
         state.fixed_writers.insert(uid, FixedWriterState {
-            index, name, chunk_count: 0, size, chunk_size, small_chunk_count: 0, upload_stat: UploadStatistic::new(),
+            index, name, chunk_count: 0, size, chunk_size, small_chunk_count: 0, upload_stat: UploadStatistic::new(), incremental,
         });
 
         Ok(uid)
@@ -379,21 +380,22 @@ impl BackupEnvironment {
             bail!("fixed writer '{}' close failed - received wrong number of chunk ({} != {})", data.name, data.chunk_count, chunk_count);
         }
 
-        let expected_count = data.index.index_length();
+        if !data.incremental {
+            let expected_count = data.index.index_length();
 
-        if chunk_count != (expected_count as u64) {
-            bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, expected_count, chunk_count);
-        }
+            if chunk_count != (expected_count as u64) {
+                bail!("fixed writer '{}' close failed - unexpected chunk count ({} != {})", data.name, expected_count, chunk_count);
+            }
 
-        if size != (data.size as u64) {
-            bail!("fixed writer '{}' close failed - unexpected file size ({} != {})", data.name, data.size, size);
+            if size != (data.size as u64) {
+                bail!("fixed writer '{}' close failed - unexpected file size ({} != {})", data.name, data.size, size);
+            }
         }
 
         let uuid = data.index.uuid;
-
         let expected_csum = data.index.close()?;
 
-        println!("server checksum {:?} client: {:?}", expected_csum, csum);
+        println!("server checksum: {:?} client: {:?} (incremental: {})", expected_csum, csum, data.incremental);
         if csum != expected_csum {
             bail!("fixed writer '{}' close failed - got unexpected checksum", data.name);
         }

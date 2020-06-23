@@ -284,6 +284,8 @@ pub const API_METHOD_CREATE_FIXED_INDEX: ApiMethod = ApiMethod::new(
              .minimum(1)
              .schema()
             ),
+            ("reuse-csum", true, &StringSchema::new("If set, compare last backup's \
+                csum and reuse index for incremental backup if it matches.").schema()),
         ]),
     )
 );
@@ -298,6 +300,7 @@ fn create_fixed_index(
 
     let name = tools::required_string_param(&param, "archive-name")?.to_owned();
     let size = tools::required_integer_param(&param, "size")? as usize;
+    let reuse_csum = param["reuse-csum"].as_str();
 
     let archive_name = name.clone();
     if !archive_name.ends_with(".fidx") {
@@ -305,12 +308,49 @@ fn create_fixed_index(
     }
 
     let mut path = env.backup_dir.relative_path();
-    path.push(archive_name);
+    path.push(&archive_name);
 
     let chunk_size = 4096*1024; // todo: ??
 
-    let index = env.datastore.create_fixed_writer(&path, size, chunk_size)?;
-    let wid = env.register_fixed_writer(index, name, size, chunk_size as u32)?;
+    // do incremental backup if csum is set
+    let mut reader = None;
+    let mut incremental = false;
+    if let Some(csum) = reuse_csum {
+        incremental = true;
+        let last_backup = match &env.last_backup {
+            Some(info) => info,
+            None => {
+                bail!("cannot reuse index - no previous backup exists");
+            }
+        };
+
+        let mut last_path = last_backup.backup_dir.relative_path();
+        last_path.push(&archive_name);
+
+        let index = match env.datastore.open_fixed_reader(last_path) {
+            Ok(index) => index,
+            Err(_) => {
+                bail!("cannot reuse index - no previous backup exists for archive");
+            }
+        };
+
+        let (old_csum, _) = index.compute_csum();
+        let old_csum = proxmox::tools::digest_to_hex(&old_csum);
+        if old_csum != csum {
+            bail!("expected csum ({}) doesn't match last backup's ({}), cannot do incremental backup",
+                csum, old_csum);
+        }
+
+        reader = Some(index);
+    }
+
+    let mut writer = env.datastore.create_fixed_writer(&path, size, chunk_size)?;
+
+    if let Some(reader) = reader {
+        writer.clone_data_from(&reader)?;
+    }
+
+    let wid = env.register_fixed_writer(writer, name, size, chunk_size as u32, incremental)?;
 
     env.log(format!("created new fixed index {} ({:?})", wid, path));
 
@@ -518,15 +558,15 @@ pub const API_METHOD_CLOSE_FIXED_INDEX: ApiMethod = ApiMethod::new(
             (
                 "chunk-count",
                 false,
-                &IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks.")
-                    .minimum(1)
+                &IntegerSchema::new("Chunk count. This is used to verify that the server got all chunks. Ignored for incremental backups.")
+                    .minimum(0)
                     .schema()
             ),
             (
                 "size",
                 false,
-                &IntegerSchema::new("File size. This is used to verify that the server got all data.")
-                    .minimum(1)
+                &IntegerSchema::new("File size. This is used to verify that the server got all data. Ignored for incremental backups.")
+                    .minimum(0)
                     .schema()
             ),
             ("csum", false, &StringSchema::new("Digest list checksum.").schema()),

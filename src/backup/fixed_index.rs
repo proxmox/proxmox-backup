@@ -467,6 +467,18 @@ impl FixedIndexWriter {
 
         Ok(())
     }
+
+    pub fn clone_data_from(&mut self, reader: &FixedIndexReader) -> Result<(), Error> {
+        if self.index_length != reader.index_count() {
+            bail!("clone_data_from failed - index sizes not equal");
+        }
+
+        for i in 0..self.index_length {
+            self.add_digest(i, reader.index_digest(i).unwrap())?;
+        }
+
+        Ok(())
+    }
 }
 
 pub struct BufferedFixedReader<S> {
