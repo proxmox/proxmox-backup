@@ -41,6 +41,13 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         _ => unreachable!(),
     };
 
+    let render_wearout = |value: &Value, _record: &Value| -> Result<String, Error> {
+        match value.as_f64() {
+            Some(value) => Ok(format!("{:.2} %", if value <= 100.0 { 100.0 - value   } else { 0.0 })),
+            None => Ok(String::from("-")),
+        }
+    };
+
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("used"))
@@ -48,7 +55,7 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         .column(ColumnConfig::new("disk-type"))
         .column(ColumnConfig::new("size"))
         .column(ColumnConfig::new("model"))
-        .column(ColumnConfig::new("wearout"))
+        .column(ColumnConfig::new("wearout").renderer(render_wearout))
         .column(ColumnConfig::new("status"))
         ;
 
