@@ -214,6 +214,43 @@ Ext.define('PBS.DataStoreContent', {
 		},
 		files: data.files,
 	    }).show();
+	},
+
+	openPxarBrowser: function() {
+	    let me = this;
+	    let view = me.getView();
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+
+	    let encrypted = false;
+	    data.files.forEach(file => {
+		if (file.filename === 'catalog.pcat1.didx' && file.encrypted) {
+		    encrypted = true;
+		}
+	    });
+
+	    if (encrypted) {
+		Ext.Msg.alert(
+		    gettext('Cannot open Catalog'),
+		    gettext('Only unencrypted Backups can be opened on the server. Please use the client with the decryption key instead.'),
+		);
+		return;
+	    }
+
+	    let id = data['backup-id'];
+	    let time = data['backup-time'];
+	    let type = data['backup-type'];
+	    let timetext = PBS.Utils.render_datetime_utc(data["backup-time"]);
+
+	    Ext.create('PBS.window.FileBrowser', {
+		title: `${type}/${id}/${timetext}`,
+		datastore: view.datastore,
+		'backup-id': id,
+		'backup-time': (time.getTime()/1000).toFixed(0),
+		'backup-type': type,
+	    }).show();
 	}
     },
 
@@ -305,6 +342,16 @@ Ext.define('PBS.DataStoreContent', {
 	    handler: 'openBackupFileDownloader',
 	    enableFn: function(record) {
 		return !!record.data.leaf;
+	    },
+	},
+	{
+	    xtype: "proxmoxButton",
+	    text: gettext('PXAR File Browser'),
+	    disabled: true,
+	    handler: 'openPxarBrowser',
+	    parentXType: 'pbsDataStoreContent',
+	    enableFn: function(record) {
+		return !!record.data.leaf && record.data.files.some(el => el.filename.endsWith('pxar.didx'));
 	    },
 	}
     ],
