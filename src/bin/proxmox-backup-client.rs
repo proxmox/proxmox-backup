@@ -488,7 +488,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot = BackupDir::parse(path)?;
+    let snapshot: BackupDir = path.parse()?;
 
     let mut client = connect(repo.host(), repo.user())?;
 
@@ -568,7 +568,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot = BackupDir::parse(path)?;
+    let snapshot: BackupDir = path.parse()?;
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
@@ -646,7 +646,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot = BackupDir::parse(path)?;
+    let snapshot: BackupDir = path.parse()?;
 
     let output_format = get_output_format(&param);
 
@@ -1217,7 +1217,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         let group = BackupGroup::parse(path)?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
-        let snapshot = BackupDir::parse(path)?;
+        let snapshot: BackupDir = path.parse()?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
@@ -1364,7 +1364,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
     let snapshot = tools::required_string_param(&param, "snapshot")?;
-    let snapshot = BackupDir::parse(snapshot)?;
+    let snapshot: BackupDir = snapshot.parse()?;
 
     let mut client = connect(repo.host(), repo.user())?;
 
@@ -1672,9 +1672,9 @@ async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<St
         _ => return result,
     };
 
-    let snapshot = match param.get("snapshot") {
+    let snapshot: BackupDir = match param.get("snapshot") {
         Some(path) => {
-            match BackupDir::parse(path) {
+            match path.parse() {
                 Ok(v) => v,
                 _ => return result,
             }
@@ -2058,7 +2058,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         let group = BackupGroup::parse(path)?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
-        let snapshot = BackupDir::parse(path)?;
+        let snapshot: BackupDir = path.parse()?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
@@ -2176,7 +2176,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         let group = BackupGroup::parse(path)?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
-        let snapshot = BackupDir::parse(path)?;
+        let snapshot: BackupDir = path.parse()?;
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 

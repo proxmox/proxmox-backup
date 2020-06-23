@@ -188,16 +188,6 @@ impl BackupDir {
         self.backup_time
     }
 
-    pub fn parse(path: &str) -> Result<Self, Error> {
-
-        let cap = SNAPSHOT_PATH_REGEX.captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
-
-        let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
-        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Utc>>()?;
-        Ok(BackupDir::from((group, backup_time.timestamp())))
-    }
-
     pub fn relative_path(&self) ->  PathBuf  {
 
         let mut relative_path = self.group.group_path();
@@ -209,6 +199,21 @@ impl BackupDir {
 
     pub fn backup_time_to_string(backup_time: DateTime<Utc>) -> String {
         backup_time.to_rfc3339_opts(SecondsFormat::Secs, true)
+    }
+}
+impl std::str::FromStr for BackupDir {
+    type Err = Error;
+
+    /// Parse a snapshot path
+    ///
+    /// This parses strings like `host/elsa/2020-06-15T05:18:33Z".
+    fn from_str(path: &str) -> Result<Self, Self::Err> {
+        let cap = SNAPSHOT_PATH_REGEX.captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
+
+        let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
+        let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Utc>>()?;
+        Ok(BackupDir::from((group, backup_time.timestamp())))
     }
 }
 
