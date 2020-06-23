@@ -195,6 +195,25 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	    win.on('destroy', this.reload, this);
 	    win.show();
+	},
+
+	openBackupFileDownloader: function() {
+	    let me = this;
+	    let view = me.getView();
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+
+	    Ext.create('PBS.window.BackupFileDownloader', {
+		baseurl: `/api2/json/admin/datastore/${view.datastore}`,
+		params: {
+		    'backup-id': data['backup-id'],
+		    'backup-type': data['backup-type'],
+		    'backup-time': (data['backup-time'].getTime()/1000).toFixed(0),
+		},
+		files: data.files,
+	    }).show();
 	}
     },
 
@@ -277,6 +296,16 @@ Ext.define('PBS.DataStoreContent', {
 	    parentXType: 'pbsDataStoreContent',
 	    enableFn: function(record) { return !record.data.leaf; },
 	    handler: 'onPrune',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Download Files'),
+	    disabled: true,
+	    parentXType: 'pbsDataStoreContent',
+	    handler: 'openBackupFileDownloader',
+	    enableFn: function(record) {
+		return !!record.data.leaf;
+	    },
 	}
     ],
 });

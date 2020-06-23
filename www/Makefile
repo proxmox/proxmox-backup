@@ -19,6 +19,7 @@ JSSRC=							\
 	window/ACLEdit.js				\
 	window/DataStoreEdit.js				\
 	window/CreateDirectory.js			\
+	window/BackupFileDownloader.js			\
 	dashboard/DataStoreStatistics.js		\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\
