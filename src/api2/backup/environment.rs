@@ -310,7 +310,13 @@ impl BackupEnvironment {
 
         self.log(format!("Upload size: {} ({}%)", upload_stat.size, (upload_stat.size*100)/size));
 
-        let client_side_duplicates = chunk_count - upload_stat.count;
+        // account for zero chunk, which might be uploaded but never used
+        let client_side_duplicates = if chunk_count < upload_stat.count {
+            0
+        } else {
+            chunk_count - upload_stat.count
+        };
+
         let server_side_duplicates = upload_stat.duplicates;
 
         if (client_side_duplicates + server_side_duplicates) > 0 {
