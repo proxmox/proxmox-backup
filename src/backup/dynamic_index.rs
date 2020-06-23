@@ -1,9 +1,11 @@
 use std::fs::File;
-use std::io::{BufWriter, Seek, SeekFrom, Write};
+use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
+use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
 
@@ -394,6 +396,42 @@ impl<S: ReadChunk> std::io::Seek for BufferedDynamicReader<S> {
         Ok(self.read_offset)
     }
 }
+
+/// This is a workaround until we have cleaned up the chunk/reader/... infrastructure for better
+/// async use!
+///
+/// Ideally BufferedDynamicReader gets replaced so the LruCache maps to `BroadcastFuture<Chunk>`,
+/// so that we can properly access it from multiple threads simultaneously while not issuing
+/// duplicate simultaneous reads over http.
+#[derive(Clone)]
+pub struct LocalDynamicReadAt<R: ReadChunk> {
+    inner: Arc<Mutex<BufferedDynamicReader<R>>>,
+}
+
+impl<R: ReadChunk> LocalDynamicReadAt<R> {
+    pub fn new(inner: BufferedDynamicReader<R>) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(inner)),
+        }
+    }
+}
+
+impl<R: ReadChunk> pxar::accessor::ReadAt for LocalDynamicReadAt<R> {
+    fn poll_read_at(
+        self: Pin<&Self>,
+        _cx: &mut Context,
+        buf: &mut [u8],
+        offset: u64,
+    ) -> Poll<io::Result<usize>> {
+        use std::io::Read;
+        tokio::task::block_in_place(move || {
+            let mut reader = self.inner.lock().unwrap();
+            reader.seek(SeekFrom::Start(offset))?;
+            Poll::Ready(Ok(reader.read(buf)?))
+        })
+    }
+}
+
 
 /// Create dynamic index files (`.dixd`)
 pub struct DynamicIndexWriter {
