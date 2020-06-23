@@ -70,6 +70,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Schedule'),
 		xtype: 'proxmoxtextfield',
 		name: 'schedule',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
 
@@ -78,6 +81,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Comment'),
 		xtype: 'proxmoxtextfield',
 		name: 'comment',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
     },
