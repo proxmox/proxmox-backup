@@ -55,11 +55,15 @@ Ext.define('PBS.DataStoreContent', {
 
 	    this.store = Ext.create('Ext.data.Store', {
 		model: 'pbs-data-store-snapshots',
-		sorters: 'backup-group',
 		groupField: 'backup-group',
 	    });
 	    this.store.on('load', this.onLoad, this);
 
+	    view.getStore().setSorters([
+		'backup-group',
+		'text',
+		'backup-time'
+	    ]);
 	    Proxmox.Utils.monStoreErrors(view, view.store, true);
 	    this.reload(); // initial load
 	},
