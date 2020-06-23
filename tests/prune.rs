@@ -30,7 +30,7 @@ fn create_info(
     partial: bool,
 ) -> BackupInfo {
 
-    let backup_dir = BackupDir::parse(snapshot).unwrap();
+    let backup_dir: BackupDir = snapshot.parse().unwrap();
 
     let mut files = Vec::new();
 
