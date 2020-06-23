@@ -17,6 +17,7 @@ pub trait ReadChunk {
     fn read_chunk(&mut self, digest: &[u8; 32]) -> Result<Vec<u8>, Error>;
 }
 
+#[derive(Clone)]
 pub struct LocalChunkReader {
     store: Arc<DataStore>,
     crypt_config: Option<Arc<CryptConfig>>,
