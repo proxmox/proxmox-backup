@@ -298,6 +298,18 @@ pub fn create_zpool(
         bail!("{:?} needs at least {} disks.", raidlevel, min_disks);
     }
 
+    // check if the default path does exist already and bail if it does
+    // otherwise we get an error on mounting
+    let mut default_path = std::path::PathBuf::from("/");
+    default_path.push(&name);
+
+    match std::fs::metadata(&default_path) {
+        Err(_) => {}, // path does not exist
+        Ok(_) => {
+            bail!("path {:?} already exists", default_path);
+        }
+    }
+
      let upid_str = WorkerTask::new_thread(
         "zfscreate", Some(name.clone()), &username.clone(), to_stdout, move |worker|
         {
