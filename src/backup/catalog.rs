@@ -15,7 +15,7 @@ use crate::pxar::catalog::BackupCatalogWriter;
 
 #[repr(u8)]
 #[derive(Copy,Clone,PartialEq)]
-enum CatalogEntryType {
+pub(crate) enum CatalogEntryType {
     Directory = b'd',
     File = b'f',
     Symlink = b'l',
@@ -41,6 +41,21 @@ impl TryFrom<u8> for CatalogEntryType {
             b's' => CatalogEntryType::Socket,
             _ => bail!("invalid CatalogEntryType value '{}'", char::from(value)),
         })
+    }
+}
+
+impl From<&DirEntryAttribute> for CatalogEntryType {
+    fn from(value: &DirEntryAttribute) -> Self {
+        match value {
+            DirEntryAttribute::Directory { .. } => CatalogEntryType::Directory,
+            DirEntryAttribute::File { .. } => CatalogEntryType::File,
+            DirEntryAttribute::Symlink => CatalogEntryType::Symlink,
+            DirEntryAttribute::Hardlink => CatalogEntryType::Hardlink,
+            DirEntryAttribute::BlockDevice => CatalogEntryType::BlockDevice,
+            DirEntryAttribute::CharDevice => CatalogEntryType::CharDevice,
+            DirEntryAttribute::Fifo => CatalogEntryType::Fifo,
+            DirEntryAttribute::Socket => CatalogEntryType::Socket,
+        }
     }
 }
 
