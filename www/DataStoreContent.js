@@ -13,7 +13,7 @@ Ext.define('pbs-data-store-snapshots', {
 	{ name: 'size', type: 'int' },
 	{
 	    name: 'encrypted',
-	    type: 'string',
+	    type: 'boolean',
 	    calculate: function(data) {
 		let encrypted = 0;
 		let files = 0;
@@ -26,13 +26,12 @@ Ext.define('pbs-data-store-snapshots', {
 		});
 
 		if (encrypted === 0) {
-		    return Proxmox.Utils.noText;
+		    return 0;
 		} else if (encrypted < files) {
-		    return gettext('Partial');
-		} else if (encrypted === files) {
-		    return Proxmox.Utils.yesText;
+		    return 1;
+		} else {
+		    return 2;
 		}
-		return Proxmox.Utils.unknowText;
 	    }
 	}
     ]
@@ -144,20 +143,26 @@ Ext.define('PBS.DataStoreContent', {
 	    let children = [];
 	    for (const [_key, group] of Object.entries(groups)) {
 		let last_backup = 0;
+		let encrypted = 0;
 		for (const item of group.children) {
+		    if (item.encrypted > 0) {
+			encrypted++;
+		    }
 		    if (item["backup-time"] > last_backup) {
 			last_backup = item["backup-time"];
 			group["backup-time"] = last_backup;
 			group.files = item.files;
 			group.size = item.size;
 			group.owner = item.owner;
-			if (group.encrypted !== undefined && group.encrypted !== item.encrypted) {
-			    group.encrypted = gettext('Mixed');
-			} else {
-			    group.encrypted = item.encrypted;
-			}
 		    }
 
+		}
+		if (encrypted === 0) {
+		    group.encrypted = 0;
+		} else if (encrypted < group.children.length) {
+		    group.encrypted = 1;
+		} else {
+		    group.encrypted = 2;
 		}
 		group.count = group.children.length;
 		children.push(group);
@@ -225,6 +230,14 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    header: gettext('Encrypted'),
 	    dataIndex: 'encrypted',
+	    renderer: function(value) {
+		switch (value) {
+		    case 0: return Proxmox.Utils.noText;
+		    case 1: return gettext('Mixed');
+		    case 2: return Proxmox.Utils.yesText;
+		    default: Proxmox.Utils.unknownText;
+		}
+	    }
 	},
 	{
 	    header: gettext("Files"),
