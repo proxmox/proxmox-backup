@@ -1,4 +1,6 @@
 use std::collections::{HashSet, HashMap};
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -14,6 +16,9 @@ use proxmox::api::schema::*;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::try_block;
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
+
+use pxar::accessor::aio::Accessor;
+use pxar::EntryKind;
 
 use crate::api2::types::*;
 use crate::api2::node::rrd::create_value_from_rrd;
@@ -1053,6 +1058,106 @@ fn catalog(
     Ok(res.into())
 }
 
+#[sortable]
+pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&pxar_file_download),
+    &ObjectSchema::new(
+        "Download single file from pxar file of a bacup snapshot. Only works if it's not encrypted.",
+        &sorted!([
+            ("store", false, &DATASTORE_SCHEMA),
+            ("backup-type", false, &BACKUP_TYPE_SCHEMA),
+            ("backup-id", false,  &BACKUP_ID_SCHEMA),
+            ("backup-time", false, &BACKUP_TIME_SCHEMA),
+            ("filepath", false, &StringSchema::new("Base64 encoded path").schema()),
+        ]),
+    )
+).access(None, &Permission::Privilege(
+    &["datastore", "{store}"],
+    PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP,
+    true)
+);
+
+fn pxar_file_download(
+    _parts: Parts,
+    _req_body: Body,
+    param: Value,
+    _info: &ApiMethod,
+    rpcenv: Box<dyn RpcEnvironment>,
+) -> ApiResponseFuture {
+
+    async move {
+        let store = tools::required_string_param(&param, "store")?;
+        let datastore = DataStore::lookup_datastore(&store)?;
+
+        let username = rpcenv.get_user().unwrap();
+        let user_info = CachedUserInfo::new()?;
+        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+
+        let filepath = tools::required_string_param(&param, "filepath")?.to_owned();
+
+        let backup_type = tools::required_string_param(&param, "backup-type")?;
+        let backup_id = tools::required_string_param(&param, "backup-id")?;
+        let backup_time = tools::required_integer_param(&param, "backup-time")?;
+
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+        let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
+        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+
+        let mut components = base64::decode(&filepath)?;
+        if components.len() > 0 && components[0] == '/' as u8 {
+            components.remove(0);
+        }
+
+        let mut split = components.splitn(2, |c| *c == '/' as u8);
+        let pxar_name = split.next().unwrap();
+        let file_path = split.next().ok_or(format_err!("filepath looks strange '{}'", filepath))?;
+
+        path.push(OsStr::from_bytes(&pxar_name));
+
+        let index = DynamicIndexReader::open(&path)
+            .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+        let chunk_reader = LocalChunkReader::new(datastore, None);
+        let reader = BufferedDynamicReader::new(index, chunk_reader);
+        let archive_size = reader.archive_size();
+        let reader = LocalDynamicReadAt::new(reader);
+
+        let decoder = Accessor::new(reader, archive_size).await?;
+        let root = decoder.open_root().await?;
+        let file = root
+            .lookup(OsStr::from_bytes(file_path)).await?
+            .ok_or(format_err!("error opening '{:?}'", file_path))?;
+
+        let file = match file.kind() {
+            EntryKind::File { .. } => file,
+            EntryKind::Hardlink(_) => {
+                decoder.follow_hardlink(&file).await?
+            },
+            // TODO symlink
+            other => bail!("cannot download file of type {:?}", other),
+        };
+
+        let body = Body::wrap_stream(
+            AsyncReaderStream::new(file.contents().await?)
+                .map_err(move |err| {
+                    eprintln!("error during streaming of '{:?}' - {}", filepath, err);
+                    err
+                })
+        );
+
+        // fixme: set other headers ?
+        Ok(Response::builder()
+           .status(StatusCode::OK)
+           .header(header::CONTENT_TYPE, "application/octet-stream")
+           .body(body)
+           .unwrap())
+    }.boxed()
+}
+
 #[api(
     input: {
         properties: {
@@ -1129,6 +1234,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "prune",
         &Router::new()
             .post(&API_METHOD_PRUNE)
+    ),
+    (
+        "pxar-file-download",
+        &Router::new()
+            .download(&API_METHOD_PXAR_FILE_DOWNLOAD)
     ),
     (
         "rrd",
