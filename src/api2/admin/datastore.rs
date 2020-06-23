@@ -953,6 +953,112 @@ fn upload_backup_log(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+            "filepath": {
+                description: "Base64 encoded path.",
+                type: String,
+            }
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true),
+    },
+)]
+/// Get the entries of the given path of the catalog
+fn catalog(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
+    filepath: String,
+    _param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let username = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+    let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+
+    let mut path = datastore.base_path();
+    path.push(backup_dir.relative_path());
+    path.push(CATALOG_NAME);
+
+    let index = DynamicIndexReader::open(&path)
+        .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+    let chunk_reader = LocalChunkReader::new(datastore, None);
+    let reader = BufferedDynamicReader::new(index, chunk_reader);
+
+    let mut catalog_reader = CatalogReader::new(reader);
+    let mut current = catalog_reader.root()?;
+    let mut components = vec![];
+
+
+    if filepath != "root" {
+        components = base64::decode(filepath)?;
+        if components.len() > 0 && components[0] == '/' as u8 {
+            components.remove(0);
+        }
+        for component in components.split(|c| *c == '/' as u8) {
+            if let Some(entry) = catalog_reader.lookup(&current, component)? {
+                current = entry;
+            } else {
+                bail!("path {:?} not found in catalog", &String::from_utf8_lossy(&components));
+            }
+        }
+    }
+
+    let mut res = Vec::new();
+
+    for direntry in catalog_reader.read_dir(&current)? {
+        let mut components = components.clone();
+        components.push('/' as u8);
+        components.extend(&direntry.name);
+        let path = base64::encode(components);
+        let text = String::from_utf8_lossy(&direntry.name);
+        let mut entry = json!({
+            "filepath": path,
+            "text": text,
+            "type": CatalogEntryType::from(&direntry.attr).to_string(),
+            "leaf": true,
+        });
+        match direntry.attr {
+            DirEntryAttribute::Directory { start: _ } => {
+                entry["leaf"] = false.into();
+            },
+            DirEntryAttribute::File { size, mtime } => {
+                entry["size"] = size.into();
+                entry["mtime"] = mtime.into();
+            },
+            _ => {},
+        }
+        res.push(entry);
+    }
+
+    Ok(res.into())
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
             timeframe: {
                 type: RRDTimeFrameResolution,
             },
@@ -988,6 +1094,11 @@ fn get_rrd_stats(
 
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
+    (
+        "catalog",
+        &Router::new()
+            .get(&API_METHOD_CATALOG)
+    ),
     (
         "download",
         &Router::new()
