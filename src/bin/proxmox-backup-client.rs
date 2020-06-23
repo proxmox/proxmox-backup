@@ -427,8 +427,8 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let client = connect(repo.host(), repo.user())?;
 
-    let group = if let Some(path) = param["group"].as_str() {
-        Some(BackupGroup::parse(path)?)
+    let group: Option<BackupGroup> = if let Some(path) = param["group"].as_str() {
+        Some(path.parse()?)
     } else {
         None
     };
@@ -1214,7 +1214,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
-        let group = BackupGroup::parse(path)?;
+        let group: BackupGroup = path.parse()?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
@@ -1438,7 +1438,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
     let group = tools::required_string_param(&param, "group")?;
-    let group = BackupGroup::parse(group)?;
+    let group: BackupGroup = group.parse()?;
 
     let output_format = get_output_format(&param);
 
@@ -2055,7 +2055,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
     let path = tools::required_string_param(&param, "snapshot")?;
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
-        let group = BackupGroup::parse(path)?;
+        let group: BackupGroup = path.parse()?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;
@@ -2173,7 +2173,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
     let (backup_type, backup_id, backup_time) = if path.matches('/').count() == 1 {
-        let group = BackupGroup::parse(path)?;
+        let group: BackupGroup = path.parse()?;
         api_datastore_latest_snapshot(&client, repo.store(), group).await?
     } else {
         let snapshot: BackupDir = path.parse()?;

@@ -59,17 +59,6 @@ impl BackupGroup {
         &self.backup_id
     }
 
-    pub fn parse(path: &str) -> Result<Self, Error> {
-
-        let cap = GROUP_PATH_REGEX.captures(path)
-            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
-
-        Ok(Self {
-            backup_type: cap.get(1).unwrap().as_str().to_owned(),
-            backup_id: cap.get(2).unwrap().as_str().to_owned(),
-        })
-    }
-
     pub fn group_path(&self) ->  PathBuf  {
 
         let mut relative_path = PathBuf::new();
@@ -152,6 +141,23 @@ impl BackupGroup {
     }
 }
 
+impl std::str::FromStr for BackupGroup {
+    type Err = Error;
+
+    /// Parse a backup group path
+    ///
+    /// This parses strings like `vm/100".
+    fn from_str(path: &str) -> Result<Self, Self::Err> {
+        let cap = GROUP_PATH_REGEX.captures(path)
+            .ok_or_else(|| format_err!("unable to parse backup group path '{}'", path))?;
+
+        Ok(Self {
+            backup_type: cap.get(1).unwrap().as_str().to_owned(),
+            backup_id: cap.get(2).unwrap().as_str().to_owned(),
+        })
+    }
+}
+
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
@@ -201,6 +207,7 @@ impl BackupDir {
         backup_time.to_rfc3339_opts(SecondsFormat::Secs, true)
     }
 }
+
 impl std::str::FromStr for BackupDir {
     type Err = Error;
 
