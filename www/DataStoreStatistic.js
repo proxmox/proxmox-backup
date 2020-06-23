@@ -13,8 +13,10 @@ Ext.define('pve-rrd-datastore', {
 		let ios = 0;
 		if (data.read_ios !== undefined) { ios += data.read_ios; }
 		if (data.write_ios !== undefined) { ios += data.write_ios; }
-		if (ios == 0 || data.io_ticks === undefined) {
+		if (data.io_ticks === undefined) {
 		    return undefined;
+		} else if (ios === 0) {
+		    return 0;
 		}
 		return (data.io_ticks*1000.0)/ios;
 	    }
