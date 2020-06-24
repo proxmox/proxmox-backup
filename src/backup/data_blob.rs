@@ -167,7 +167,7 @@ impl DataBlob {
     }
 
     /// Decode blob data
-    pub fn decode(self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
+    pub fn decode(&self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
 
         let magic = self.magic();
 
@@ -311,7 +311,9 @@ impl DataBlob {
     /// Verify digest and data length for unencrypted chunks.
     ///
     /// To do that, we need to decompress data first. Please note that
-    /// this is not possible for encrypted chunks.
+    /// this is not possible for encrypted chunks. This function simply return Ok
+    /// for encrypted chunks.
+    /// Note: This does not call verify_crc
     pub fn verify_unencrypted(
         &self,
         expected_chunk_size: usize,
@@ -320,22 +322,18 @@ impl DataBlob {
 
         let magic = self.magic();
 
-        let verify_raw_data = |data: &[u8]| {
-            if expected_chunk_size != data.len() {
-                bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
-            }
-            let digest = openssl::sha::sha256(data);
-            if &digest != expected_digest {
-                bail!("detected chunk with wrong digest.");
-            }
-            Ok(())
-        };
+        if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
+            return Ok(());
+        }
 
-        if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
-            let data = zstd::block::decompress(&self.raw_data[12..], 16*1024*1024)?;
-            verify_raw_data(&data)?;
-        } else if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
-            verify_raw_data(&self.raw_data[12..])?;
+        let data = self.decode(None)?;
+
+        if expected_chunk_size != data.len() {
+            bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
+        }
+        let digest = openssl::sha::sha256(&data);
+        if &digest != expected_digest {
+            bail!("detected chunk with wrong digest.");
         }
 
         Ok(())
