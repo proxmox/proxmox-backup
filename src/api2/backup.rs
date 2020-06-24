@@ -296,8 +296,6 @@ fn create_fixed_index(
 
     let env: &BackupEnvironment = rpcenv.as_ref();
 
-    println!("PARAM: {:?}", param);
-
     let name = tools::required_string_param(&param, "archive-name")?.to_owned();
     let size = tools::required_integer_param(&param, "size")? as usize;
 
