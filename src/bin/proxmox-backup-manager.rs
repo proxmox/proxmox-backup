@@ -319,6 +319,40 @@ async fn pull_datastore(
     Ok(Value::Null)
 }
 
+#[api(
+   input: {
+        properties: {
+            "store": {
+                schema: DATASTORE_SCHEMA,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// Verify backups
+async fn verify(
+    store: String,
+    param: Value,
+) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let mut client = connect()?;
+
+    let args = json!({});
+
+    let path = format!("api2/json/admin/datastore/{}/verify", store);
+
+    let result = client.post(&path, Some(args)).await?;
+
+    view_task_result(client, result, &output_format).await?;
+
+    Ok(Value::Null)
+}
+
 fn main() {
 
     proxmox_backup::tools::setup_safe_path_env();
@@ -342,7 +376,15 @@ fn main() {
                 .completion_cb("local-store", config::datastore::complete_datastore_name)
                 .completion_cb("remote", config::remote::complete_remote_name)
                 .completion_cb("remote-store", complete_remote_datastore_name)
+        )
+        .insert(
+            "verify",
+            CliCommand::new(&API_METHOD_VERIFY)
+                .arg_param(&["store"])
+                .completion_cb("store", config::datastore::complete_datastore_name)
         );
+
+
 
     let mut rpcenv = CliEnvironment::new();
     rpcenv.set_user(Some(String::from("root@pam")));
