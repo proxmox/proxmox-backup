@@ -213,6 +213,8 @@ pub fn upid_read_status(upid: &UPID) -> Result<String, Error> {
             Some(rest) => {
                 if rest == "OK" {
                     status = String::from(rest);
+                } else if rest.starts_with("WARNINGS: ") {
+                    status = String::from(rest);
                 } else if rest.starts_with("ERROR: ") {
                     status = String::from(&rest[7..]);
                 }
@@ -234,7 +236,7 @@ pub struct TaskListInfo {
     pub upid_str: String,
     /// Task `(endtime, status)` if already finished
     ///
-    /// The `status` ise iether `unknown`, `OK`, or `ERROR: ...`
+    /// The `status` is either `unknown`, `OK`, `WARN`, or `ERROR: ...`
     pub state: Option<(i64, String)>, // endtime, status
 }
 
@@ -385,6 +387,7 @@ impl std::fmt::Display for WorkerTask {
 struct WorkerTaskData {
     logger: FileLogger,
     progress: f64, // 0..1
+    warn_count: u64,
     pub abort_listeners: Vec<oneshot::Sender<()>>,
 }
 
@@ -424,6 +427,7 @@ impl WorkerTask {
             data: Mutex::new(WorkerTaskData {
                 logger,
                 progress: 0.0,
+                warn_count: 0,
                 abort_listeners: vec![],
             }),
         });
@@ -507,8 +511,11 @@ impl WorkerTask {
     /// Log task result, remove task from running list
     pub fn log_result(&self, result: &Result<(), Error>) {
 
+        let warn_count = self.data.lock().unwrap().warn_count;
         if let Err(err) = result {
             self.log(&format!("TASK ERROR: {}", err));
+        } else if warn_count > 0 {
+            self.log(format!("TASK WARNINGS: {}", warn_count));
         } else {
             self.log("TASK OK");
         }
@@ -522,6 +529,13 @@ impl WorkerTask {
     pub fn log<S: AsRef<str>>(&self, msg: S) {
         let mut data = self.data.lock().unwrap();
         data.logger.log(msg);
+    }
+
+    /// Log a message as warning.
+    pub fn warn<S: AsRef<str>>(&self, msg: S) {
+        let mut data = self.data.lock().unwrap();
+        data.logger.log(format!("WARN: {}", msg.as_ref()));
+        data.warn_count += 1;
     }
 
     /// Set progress indicator
