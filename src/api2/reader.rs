@@ -17,6 +17,7 @@ use crate::server::{WorkerTask, H2Service};
 use crate::tools;
 use crate::config::acl::PRIV_DATASTORE_READ;
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::api2::helpers;
 
 mod environment;
 use environment::*;
@@ -187,26 +188,9 @@ fn download_file(
         path.push(env.backup_dir.relative_path());
         path.push(&file_name);
 
-        let path2 = path.clone();
-        let path3 = path.clone();
+        env.log(format!("download {:?}", path.clone()));
 
-        let file = tokio::fs::File::open(path)
-            .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
-            .await?;
-
-        env.log(format!("download {:?}", path3));
-
-        let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
-
-        let body = Body::wrap_stream(payload);
-
-        // fixme: set other headers ?
-        Ok(Response::builder()
-           .status(StatusCode::OK)
-           .header(header::CONTENT_TYPE, "application/octet-stream")
-           .body(body)
-           .unwrap())
+        helpers::create_download_response(path).await
     }.boxed()
 }
 

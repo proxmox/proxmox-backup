@@ -9,6 +9,7 @@ pub mod status;
 pub mod types;
 pub mod version;
 pub mod pull;
+mod helpers;
 
 use proxmox::api::router::SubdirMap;
 use proxmox::api::Router;
