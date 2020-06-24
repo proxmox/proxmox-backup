@@ -6,7 +6,7 @@ use std::os::unix::io::RawFd;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
+use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
 use chrono::{Local, DateTime, Utc, TimeZone};
@@ -27,6 +27,7 @@ use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::api::cli::*;
 use proxmox::api::api;
+use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use proxmox_backup::tools;
 use proxmox_backup::api2::types::*;
@@ -2029,19 +2030,26 @@ impl BufferedDynamicReadAt {
     }
 }
 
-impl pxar::accessor::ReadAt for BufferedDynamicReadAt {
-    fn poll_read_at(
-        self: Pin<&Self>,
+impl ReadAt for BufferedDynamicReadAt {
+    fn start_read_at<'a>(
+        self: Pin<&'a Self>,
         _cx: &mut Context,
-        buf: &mut [u8],
+        buf: &'a mut [u8],
         offset: u64,
-    ) -> Poll<io::Result<usize>> {
+    ) -> MaybeReady<io::Result<usize>, ReadAtOperation<'a>> {
         use std::io::Read;
-        tokio::task::block_in_place(move || {
+        MaybeReady::Ready(tokio::task::block_in_place(move || {
             let mut reader = self.inner.lock().unwrap();
             reader.seek(SeekFrom::Start(offset))?;
-            Poll::Ready(Ok(reader.read(buf)?))
-        })
+            Ok(reader.read(buf)?)
+        }))
+    }
+
+    fn poll_complete<'a>(
+        self: Pin<&'a Self>,
+        _op: ReadAtOperation<'a>,
+    ) -> MaybeReady<io::Result<usize>, ReadAtOperation<'a>> {
+        panic!("LocalDynamicReadAt::start_read_at returned Pending");
     }
 }
 
