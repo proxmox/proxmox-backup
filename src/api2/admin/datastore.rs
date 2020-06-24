@@ -394,6 +394,90 @@ pub fn status(
     crate::tools::disks::disk_usage(&datastore.base_path())
 }
 
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+                optional: true,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+                optional: true,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true), // fixme
+    },
+)]
+/// Verify backups.
+///
+/// This function can verify a single backup snapshot, all backup from a backup group,
+/// or all backups in the datastore.
+pub fn verify(
+    store: String,
+    backup_type: Option<String>,
+    backup_id: Option<String>,
+    backup_time: Option<i64>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let what;
+
+    let mut backup_dir = None;
+    let mut backup_group = None;
+
+    match (backup_type, backup_id, backup_time) {
+        (Some(backup_type), Some(backup_id), Some(backup_time)) => {
+            let dir = BackupDir::new(backup_type, backup_id, backup_time);
+            what = format!("{}:{}", store, dir);
+            backup_dir = Some(dir);
+        }
+        (Some(backup_type), Some(backup_id), None) => {
+            let group = BackupGroup::new(backup_type, backup_id);
+            what = format!("{}:{}", store, group);
+            backup_group = Some(group);
+        }
+        (None, None, None) => {
+            what = store.clone();
+        }
+        _ => bail!("parameters do not spefify a backup group or snapshot"),
+    }
+
+    let username = rpcenv.get_user().unwrap();
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
+    let upid_str = WorkerTask::new_thread(
+        "verify", Some(what.clone()), &username, to_stdout, move |worker|
+        {
+            let success = if let Some(backup_dir) = backup_dir {
+                verify_backup_dir(&datastore, &backup_dir, &worker)
+            } else if let Some(backup_group) = backup_group {
+                verify_backup_group(&datastore, &backup_group, &worker)
+            } else {
+                verify_all_backups(&datastore, &worker)
+            };
+            if !success {
+                bail!("verfication failed - please check the log for details");
+            }
+            Ok(())
+        })?;
+
+    Ok(json!(upid_str))
+}
+
 #[macro_export]
 macro_rules! add_common_prune_prameters {
     ( [ $( $list1:tt )* ] ) => {
@@ -1260,6 +1344,11 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "upload-backup-log",
         &Router::new()
             .upload(&API_METHOD_UPLOAD_BACKUP_LOG)
+    ),
+    (
+        "verify",
+        &Router::new()
+            .post(&API_METHOD_VERIFY)
     ),
 ];
 

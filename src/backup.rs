@@ -198,6 +198,9 @@ pub use prune::*;
 mod datastore;
 pub use datastore::*;
 
+mod verify;
+pub use verify::*;
+
 mod catalog_shell;
 pub use catalog_shell::*;
 
