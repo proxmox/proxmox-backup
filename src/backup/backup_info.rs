@@ -141,6 +141,14 @@ impl BackupGroup {
     }
 }
 
+impl std::fmt::Display for BackupGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let backup_type = self.backup_type();
+        let id = self.backup_id();
+        write!(f, "{}/{}", backup_type, id)
+    }
+}
+
 impl std::str::FromStr for BackupGroup {
     type Err = Error;
 
