@@ -429,6 +429,10 @@ impl ChunkStore {
         full_path
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn base_path(&self) -> PathBuf {
         self.base.clone()
     }
