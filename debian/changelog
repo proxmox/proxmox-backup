@@ -1,3 +1,13 @@
+rust-proxmox-backup (0.3.0-1) unstable; urgency=medium
+
+  * support incrtemental backups mode
+
+  * new disk management
+
+  * single file restore for container backups
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 24 Jun 2020 10:12:57 +0200
+
 rust-proxmox-backup (0.2.3-1) unstable; urgency=medium
 
   * tools/systemd/time: fix compute_next_event for weekdays
