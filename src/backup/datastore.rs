@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
@@ -132,6 +133,10 @@ impl DataStore {
                 _ => bail!("cannot open index file of unknown type: {:?}", filename),
             };
         Ok(out)
+    }
+
+    pub fn name(&self) -> &str {
+        self.chunk_store.name()
     }
 
     pub fn base_path(&self) -> PathBuf {
@@ -469,5 +474,29 @@ impl DataStore {
         digest: &[u8; 32],
     ) -> Result<(bool, u64), Error> {
         self.chunk_store.insert_chunk(chunk, digest)
+    }
+
+    pub fn verify_stored_chunk(&self, digest: &[u8; 32], expected_chunk_size: u64) -> Result<(), Error> {
+        let blob = self.chunk_store.read_chunk(digest)?;
+        blob.verify_crc()?;
+        blob.verify_unencrypted(expected_chunk_size as usize, digest)?;
+        Ok(())
+    }
+
+    pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<(DataBlob, u64), Error> {
+        let mut path = self.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(filename);
+
+        let raw_data = proxmox::tools::fs::file_get_contents(&path)?;
+        let raw_size = raw_data.len() as u64;
+        let blob = DataBlob::from_raw(raw_data)?;
+        Ok((blob, raw_size))
+    }
+
+    pub fn load_manifest(&self, backup_dir: &BackupDir) -> Result<(BackupManifest, u64), Error> {
+        let (blob, raw_size) = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
+        let manifest = BackupManifest::try_from(blob)?;
+        Ok((manifest, raw_size))
     }
 }

@@ -1,5 +1,4 @@
 use std::collections::{HashSet, HashMap};
-use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -12,7 +11,7 @@ use proxmox::api::{
     RpcEnvironment, RpcEnvironmentType, Permission, UserInformation};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
-use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::try_block;
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 
@@ -42,15 +41,7 @@ fn check_backup_owner(store: &DataStore, group: &BackupGroup, userid: &str) -> R
 
 fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
 
-    let mut path = store.base_path();
-    path.push(backup_dir.relative_path());
-    path.push(MANIFEST_BLOB_NAME);
-
-    let raw_data = file_get_contents(&path)?;
-    let index_size = raw_data.len() as u64;
-    let blob = DataBlob::from_raw(raw_data)?;
-
-    let manifest = BackupManifest::try_from(blob)?;
+    let (manifest, index_size) = store.load_manifest(backup_dir)?;
 
     let mut result = Vec::new();
     for item in manifest.files() {
