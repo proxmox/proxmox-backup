@@ -261,16 +261,15 @@ async fn api_datastore_latest_snapshot(
     Ok((group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time))
 }
 
-
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
+    previous_manifest: Option<Arc<BackupManifest>>,
     dir_path: P,
     archive_name: &str,
     chunk_size: Option<usize>,
     device_set: Option<HashSet<u64>>,
     verbose: bool,
     skip_lost_and_found: bool,
-    crypt_config: Option<Arc<CryptConfig>>,
     catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
     exclude_pattern: Vec<MatchEntry>,
     entries_max: usize,
@@ -300,7 +299,7 @@ async fn backup_directory<P: AsRef<Path>>(
     });
 
     let stats = client
-        .upload_stream(archive_name, stream, "dynamic", None, crypt_config)
+        .upload_stream(previous_manifest, archive_name, stream, "dynamic", None)
         .await?;
 
     Ok(stats)
@@ -308,12 +307,12 @@ async fn backup_directory<P: AsRef<Path>>(
 
 async fn backup_image<P: AsRef<Path>>(
     client: &BackupWriter,
+    previous_manifest: Option<Arc<BackupManifest>>,
     image_path: P,
     archive_name: &str,
     image_size: u64,
     chunk_size: Option<usize>,
     _verbose: bool,
-    crypt_config: Option<Arc<CryptConfig>>,
 ) -> Result<BackupStats, Error> {
 
     let path = image_path.as_ref().to_owned();
@@ -326,7 +325,7 @@ async fn backup_image<P: AsRef<Path>>(
     let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
 
     let stats = client
-        .upload_stream(archive_name, stream, "fixed", Some(image_size), crypt_config)
+        .upload_stream(previous_manifest, archive_name, stream, "fixed", Some(image_size))
         .await?;
 
     Ok(stats)
@@ -709,8 +708,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 }
 
 fn spawn_catalog_upload(
-    client: Arc<BackupWriter>,
-    crypt_config: Option<Arc<CryptConfig>>,
+    client: Arc<BackupWriter>
 ) -> Result<
         (
             Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
@@ -728,7 +726,7 @@ fn spawn_catalog_upload(
 
     tokio::spawn(async move {
         let catalog_upload_result = client
-            .upload_stream(CATALOG_NAME, catalog_chunk_stream, "dynamic", None, crypt_config)
+            .upload_stream(None, CATALOG_NAME, catalog_chunk_stream, "dynamic", None)
             .await;
 
         if let Err(ref err) = catalog_upload_result {
@@ -959,12 +957,19 @@ async fn create_backup(
 
     let client = BackupWriter::start(
         client,
+        crypt_config.clone(),
         repo.store(),
         backup_type,
         &backup_id,
         backup_time,
         verbose,
     ).await?;
+
+    let previous_manifest = if let Ok(previous_manifest) = client.download_previous_manifest().await {
+        Some(Arc::new(previous_manifest))
+    } else {
+        None
+    };
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
     let mut manifest = BackupManifest::new(snapshot);
@@ -977,21 +982,21 @@ async fn create_backup(
             BackupSpecificationType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
+                    .upload_blob_from_file(&filename, &target, true, Some(true))
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, crypt_config.clone(), true)
+                    .upload_blob_from_file(&filename, &target, true, Some(true))
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
                 if catalog.is_none() {
-                    let (cat, res) = spawn_catalog_upload(client.clone(), crypt_config.clone())?;
+                    let (cat, res) = spawn_catalog_upload(client.clone())?;
                     catalog = Some(cat);
                     catalog_result_tx = Some(res);
                 }
@@ -1001,13 +1006,13 @@ async fn create_backup(
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
                     &client,
+                    previous_manifest.clone(),
                     &filename,
                     &target,
                     chunk_size_opt,
                     devices.clone(),
                     verbose,
                     skip_lost_and_found,
-                    crypt_config.clone(),
                     catalog.clone(),
                     pattern_list.clone(),
                     entries_max as usize,
@@ -1019,12 +1024,12 @@ async fn create_backup(
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_image(
                     &client,
-                    &filename,
+                    previous_manifest.clone(),
+                     &filename,
                     &target,
                     size,
                     chunk_size_opt,
                     verbose,
-                    crypt_config.clone(),
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
             }
@@ -1051,7 +1056,7 @@ async fn create_backup(
         let target = "rsa-encrypted.key";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client
-            .upload_blob_from_data(rsa_encrypted_key, target, None, false, false)
+            .upload_blob_from_data(rsa_encrypted_key, target, false, None)
             .await?;
         manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, is_encrypted)?;
 
@@ -1071,7 +1076,7 @@ async fn create_backup(
     println!("Upload index.json to '{:?}'", repo);
     let manifest = serde_json::to_string_pretty(&manifest)?.into();
     client
-        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, crypt_config.clone(), true, true)
+        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, Some(true))
         .await?;
 
     client.finish().await?;

@@ -10,7 +10,7 @@ use proxmox::api::{ApiResponseFuture, ApiHandler, ApiMethod, Router, RpcEnvironm
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
-use crate::tools::{self, WrappedReaderStream};
+use crate::tools;
 use crate::server::{WorkerTask, H2Service};
 use crate::backup::*;
 use crate::api2::types::*;
@@ -199,7 +199,6 @@ pub const BACKUP_API_SUBDIRS: SubdirMap = &[
     ),
     (
         "dynamic_index", &Router::new()
-            .download(&API_METHOD_DYNAMIC_CHUNK_INDEX)
             .post(&API_METHOD_CREATE_DYNAMIC_INDEX)
             .put(&API_METHOD_DYNAMIC_APPEND)
     ),
@@ -222,9 +221,12 @@ pub const BACKUP_API_SUBDIRS: SubdirMap = &[
     ),
     (
         "fixed_index", &Router::new()
-            .download(&API_METHOD_FIXED_CHUNK_INDEX)
             .post(&API_METHOD_CREATE_FIXED_INDEX)
             .put(&API_METHOD_FIXED_APPEND)
+    ),
+    (
+        "previous", &Router::new()
+            .download(&API_METHOD_DOWNLOAD_PREVIOUS)
     ),
     (
         "speedtest", &Router::new()
@@ -610,20 +612,17 @@ fn finish_backup (
 }
 
 #[sortable]
-pub const API_METHOD_DYNAMIC_CHUNK_INDEX: ApiMethod = ApiMethod::new(
-    &ApiHandler::AsyncHttp(&dynamic_chunk_index),
+pub const API_METHOD_DOWNLOAD_PREVIOUS: ApiMethod = ApiMethod::new(
+    &ApiHandler::AsyncHttp(&download_previous),
     &ObjectSchema::new(
-        r###"
-Download the dynamic chunk index from the previous backup.
-Simply returns an empty list if this is the first backup.
-"### ,
+        "Download archive from previous backup.",
         &sorted!([
             ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA)
         ]),
     )
 );
 
-fn dynamic_chunk_index(
+fn download_previous(
     _parts: Parts,
     _req_body: Body,
     param: Value,
@@ -636,130 +635,16 @@ fn dynamic_chunk_index(
 
         let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
 
-        if !archive_name.ends_with(".didx") {
-            bail!("wrong archive extension: '{}'", archive_name);
-        }
-
-        let empty_response = {
-            Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())?
-        };
-
         let last_backup = match &env.last_backup {
             Some(info) => info,
-            None => return Ok(empty_response),
+            None => bail!("no previous backup"),
         };
 
-        let mut path = last_backup.backup_dir.relative_path();
+        env.log(format!("download '{}' from previous backup.", archive_name));
+
+        let mut path = env.datastore.snapshot_path(&last_backup.backup_dir);
         path.push(&archive_name);
 
-        let index = match env.datastore.open_dynamic_reader(path) {
-            Ok(index) => index,
-            Err(_) => {
-                env.log(format!("there is no last backup for archive '{}'", archive_name));
-                return Ok(empty_response);
-            }
-        };
-
-        env.log(format!("download last backup index for archive '{}'", archive_name));
-
-        let count = index.index_count();
-        for pos in 0..count {
-            let info = index.chunk_info(pos)?;
-            let size = info.size() as u32;
-            env.register_chunk(info.digest, size)?;
-        }
-
-        let reader = DigestListEncoder::new(Box::new(index));
-
-        let stream = WrappedReaderStream::new(reader);
-
-        // fixme: set size, content type?
-        let response = http::Response::builder()
-            .status(200)
-            .body(Body::wrap_stream(stream))?;
-
-        Ok(response)
-    }.boxed()
-}
-
-#[sortable]
-pub const API_METHOD_FIXED_CHUNK_INDEX: ApiMethod = ApiMethod::new(
-    &ApiHandler::AsyncHttp(&fixed_chunk_index),
-    &ObjectSchema::new(
-        r###"
-Download the fixed chunk index from the previous backup.
-Simply returns an empty list if this is the first backup.
-"### ,
-        &sorted!([
-            ("archive-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA)
-        ]),
-    )
-);
-
-fn fixed_chunk_index(
-    _parts: Parts,
-    _req_body: Body,
-    param: Value,
-    _info: &ApiMethod,
-    rpcenv: Box<dyn RpcEnvironment>,
-) -> ApiResponseFuture {
-
-    async move {
-        let env: &BackupEnvironment = rpcenv.as_ref();
-
-        let archive_name = tools::required_string_param(&param, "archive-name")?.to_owned();
-
-        if !archive_name.ends_with(".fidx") {
-            bail!("wrong archive extension: '{}'", archive_name);
-        }
-
-        let empty_response = {
-            Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())?
-        };
-
-        let last_backup = match &env.last_backup {
-            Some(info) => info,
-            None => return Ok(empty_response),
-        };
-
-        let mut path = last_backup.backup_dir.relative_path();
-        path.push(&archive_name);
-
-        let index = match env.datastore.open_fixed_reader(path) {
-            Ok(index) => index,
-            Err(_) => {
-                env.log(format!("there is no last backup for archive '{}'", archive_name));
-                return Ok(empty_response);
-            }
-        };
-
-        env.log(format!("download last backup index for archive '{}'", archive_name));
-
-        let count = index.index_count();
-        let image_size = index.index_bytes();
-        for pos in 0..count {
-            let digest = index.index_digest(pos).unwrap();
-            // Note: last chunk can be smaller
-            let start = (pos*index.chunk_size) as u64;
-            let mut end = start + index.chunk_size as u64;
-            if end > image_size { end = image_size; }
-            let size = (end - start) as u32;
-            env.register_chunk(*digest, size)?;
-        }
-
-        let reader = DigestListEncoder::new(Box::new(index));
-
-        let stream = WrappedReaderStream::new(reader);
-
-        // fixme: set size, content type?
-        let response = http::Response::builder()
-            .status(200)
-            .body(Body::wrap_stream(stream))?;
-
-        Ok(response)
+        crate::api2::helpers::create_download_response(path).await
     }.boxed()
 }
