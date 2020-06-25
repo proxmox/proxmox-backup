@@ -26,6 +26,7 @@ JSSRC=							\
 	dashboard/RunningTasks.js			\
 	dashboard/TaskSummary.js			\
 	Utils.js					\
+	ZFSList.js					\
 	DirectoryList.js				\
 	LoginView.js					\
 	VersionInfo.js					\

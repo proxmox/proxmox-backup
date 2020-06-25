@@ -69,6 +69,12 @@ Ext.define('PBS.store.NavigationStore', {
 				path: 'pbsDirectoryList',
 				leaf: true,
 			    },
+			    {
+				text: "ZFS",
+				iconCls: 'fa fa-th-large',
+				path: 'pbsZFSList',
+				leaf: true,
+			    },
 			]
 		    }
 		]
