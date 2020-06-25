@@ -434,7 +434,7 @@ pub fn verify(
 ) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let what;
+    let worker_id;
 
     let mut backup_dir = None;
     let mut backup_group = None;
@@ -442,16 +442,16 @@ pub fn verify(
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             let dir = BackupDir::new(backup_type, backup_id, backup_time);
-            what = format!("{}:{}", store, dir);
+            worker_id = format!("{}_{}", store, dir);
             backup_dir = Some(dir);
         }
         (Some(backup_type), Some(backup_id), None) => {
             let group = BackupGroup::new(backup_type, backup_id);
-            what = format!("{}:{}", store, group);
+            worker_id = format!("{}_{}", store, group);
             backup_group = Some(group);
         }
         (None, None, None) => {
-            what = store.clone();
+            worker_id = store.clone();
         }
         _ => bail!("parameters do not spefify a backup group or snapshot"),
     }
@@ -460,14 +460,14 @@ pub fn verify(
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let upid_str = WorkerTask::new_thread(
-        "verify", Some(what.clone()), &username, to_stdout, move |worker|
+        "verify", Some(worker_id.clone()), &username, to_stdout, move |worker|
         {
             let success = if let Some(backup_dir) = backup_dir {
-                verify_backup_dir(&datastore, &backup_dir, &worker)
+                verify_backup_dir(&datastore, &backup_dir, &worker)?
             } else if let Some(backup_group) = backup_group {
-                verify_backup_group(&datastore, &backup_group, &worker)
+                verify_backup_group(&datastore, &backup_group, &worker)?
             } else {
-                verify_all_backups(&datastore, &worker)
+                verify_all_backups(&datastore, &worker)?
             };
             if !success {
                 bail!("verfication failed - please check the log for details");

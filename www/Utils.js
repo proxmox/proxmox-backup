@@ -38,8 +38,9 @@ Ext.define('PBS.Utils', {
 	    let datastore = result[1], type = result[2], id = result[3];
 	    return `Datastore ${datastore} - ${what} ${type}/${id}`;
 	}
-	return what;
+	return `Datastore ${id} - ${what}`;
     },
+
     render_datastore_time_worker_id: function(id, what) {
 	const res = id.match(/^(\S+)_([^_\s]+)_([^_\s]+)_([^_\s]+)$/);
 	if (res) {
@@ -61,6 +62,9 @@ Ext.define('PBS.Utils', {
 	    syncjob: [gettext('Sync Job'), gettext('Remote Sync') ],
 	    prune: (type, id) => {
 		return PBS.Utils.render_datastore_worker_id(id, gettext('Prune'));
+	    },
+	    verify: (type, id) => {
+		return PBS.Utils.render_datastore_worker_id(id, gettext('Verify'));
 	    },
 	    backup: (type, id) => {
 		return PBS.Utils.render_datastore_worker_id(id, gettext('Backup'));
