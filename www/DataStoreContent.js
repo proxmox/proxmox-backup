@@ -64,7 +64,7 @@ Ext.define('PBS.DataStoreContent', {
 		'text',
 		'backup-time'
 	    ]);
-	    Proxmox.Utils.monStoreErrors(view, view.store, true);
+	    Proxmox.Utils.monStoreErrors(view, this.store);
 	    this.reload(); // initial load
 	},
 
@@ -122,10 +122,11 @@ Ext.define('PBS.DataStoreContent', {
 	    return groups;
 	},
 
-	onLoad: function(store, records, success) {
+	onLoad: function(store, records, success, operation) {
 	    let view = this.getView();
 
 	    if (!success) {
+		Proxmox.Utils.setErrorMask(view, Proxmox.Utils.getResponseErrorMessage(operation.getError()));
 		return;
 	    }
 
@@ -176,6 +177,7 @@ Ext.define('PBS.DataStoreContent', {
 		expanded: true,
 		children: children
 	    });
+	    Proxmox.Utils.setErrorMask(view, false);
 	},
 
 	onPrune: function() {
