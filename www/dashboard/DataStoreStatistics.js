@@ -2,7 +2,19 @@ Ext.define('pbs-datastore-statistics', {
     extend: 'Ext.data.Model',
 
     fields: [
-	'store', 'total', 'used', 'avail', 'estimated-full-date', 'history',
+	'store', 'total', 'used', 'avail', 'estimated-full-date',
+	{
+	    name: 'history',
+	    convert: function(values) {
+		let last = null;
+		return values.map(v => {
+		    if (v !== undefined && v !== null) {
+			last = v;
+		    }
+		    return last;
+		});
+	    }
+	},
 	{
 	    name: 'usage',
 	    calculate: function(data) {
