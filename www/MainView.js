@@ -72,10 +72,15 @@ Ext.define('PBS.MainView', {
 		let datastore = PBS.Utils.getDataStoreFromPath(path);
 		obj = contentpanel.add({
 		    xtype: 'pbsDataStorePanel',
+		    nodename: 'localhost',
 		    datastore,
 		});
 	    } else {
-		obj = contentpanel.add({ xtype: path, border: false });
+		obj = contentpanel.add({
+		    xtype: path,
+		    nodename: 'localhost',
+		    border: false
+		});
 	    }
 
 	    var treelist = me.lookupReference('navtree');
