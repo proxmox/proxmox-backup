@@ -41,7 +41,7 @@ pub fn parse_u64(i: &str) -> IResult<&str, u64> {
     map_res(recognize(digit1), str::parse)(i)
 }
 
-/// Parse complete input, generate vervose error message with line numbers
+/// Parse complete input, generate verbose error message with line numbers
 pub fn parse_complete<'a, F, O>(what: &str, i: &'a str, parser: F) -> Result<O, Error>
     where F: Fn(&'a str) -> IResult<&'a str, O>,
 {
