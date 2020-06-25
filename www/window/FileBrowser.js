@@ -142,8 +142,13 @@ Ext.define("PBS.window.FileBrowser", {
 		'backup-type': view['backup-type'],
 		'backup-time': view['backup-time'],
 	    });
-	    store.load();
-	    store.getRoot().expand();
+	    store.load(() => {
+		let root = store.getRoot();
+		root.expand(); // always expand invisible root node
+		if (root.childNodes.length === 1) {
+		    root.firstChild.expand();
+		}
+	    });
 	},
 
 	control: {
