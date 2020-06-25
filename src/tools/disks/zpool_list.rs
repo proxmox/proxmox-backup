@@ -181,7 +181,7 @@ fn test_zfs_parse_list() -> Result<(), Error> {
     assert_eq!(data, expect);
 
     let output = "\
-rpool    535260299264      402852388864      132407910400      -          -          22         75         1.00      ONLINE   -
+rpool	535260299264      402852388864      132407910400      -          -          22         75         1.00      ONLINE   -
             /dev/disk/by-id/ata-Crucial_CT500MX200SSD1_154210EB4078-part3    498216206336      392175546368      106040659968      -          -          22         78         -          ONLINE
 special                                                                                             -         -         -            -             -         -         -         -   -
             /dev/sda2          37044092928       10676842496       26367250432       -          -          63         28         -          ONLINE
