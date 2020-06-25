@@ -52,7 +52,7 @@ Ext.define("PBS.window.FileBrowser", {
     extend: "Ext.window.Window",
 
     width: 800,
-    height: 400,
+    height: 600,
 
     modal: true,
 
