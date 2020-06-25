@@ -56,10 +56,16 @@ Ext.define('PBS.LongestTasks', {
 	type: 'diff',
 	autoDestroy: true,
 	autoDestroyRstore: true,
-	sorters: {
-	    property: 'duration',
-	    direction: 'DESC',
-	},
+	sorters: [
+	    {
+		property: 'duration',
+		direction: 'DESC',
+	    },
+	    {
+		property: 'upid',
+		direction: 'ASC',
+	    },
+	],
 	rstore: {
 	    storeid: 'proxmox-tasks-dash',
 	    type: 'store',
