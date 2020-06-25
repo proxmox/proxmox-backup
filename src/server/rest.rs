@@ -323,7 +323,7 @@ fn get_index(username: Option<String>, token: Option<String>, template: &Handleb
 
     if let Some(query_str) = parts.uri.query() {
         for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
-            if k == "debug" && v == "1" || v == "true" {
+            if k == "debug" && v != "0" && v != "false" {
                 debug = true;
             }
         }
