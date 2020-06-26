@@ -1,5 +1,4 @@
 use anyhow::{bail, format_err, Error};
-use std::convert::TryInto;
 use std::io::{Seek, SeekFrom};
 
 use super::chunk_stat::*;
@@ -148,15 +147,6 @@ impl FixedIndexReader {
     }
 
     #[inline]
-    fn chunk_digest(&self, pos: usize) -> &[u8; 32] {
-        if pos >= self.index_length {
-            panic!("chunk index out of range");
-        }
-        let slice = unsafe { std::slice::from_raw_parts(self.index.add(pos * 32), 32) };
-        slice.try_into().unwrap()
-    }
-
-    #[inline]
     fn chunk_end(&self, pos: usize) -> u64 {
         if pos >= self.index_length {
             panic!("chunk index out of range");
@@ -168,20 +158,6 @@ impl FixedIndexReader {
         } else {
             end
         }
-    }
-
-    /// Compute checksum and data size
-    pub fn compute_csum(&self) -> ([u8; 32], u64) {
-        let mut csum = openssl::sha::Sha256::new();
-        let mut chunk_end = 0;
-        for pos in 0..self.index_length {
-            chunk_end = self.chunk_end(pos);
-            let digest = self.chunk_digest(pos);
-            csum.update(digest);
-        }
-        let csum = csum.finish();
-
-        (csum, chunk_end)
     }
 
     pub fn print_info(&self) {

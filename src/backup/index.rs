@@ -22,6 +22,21 @@ pub trait IndexFile {
     fn index_bytes(&self) -> u64;
     fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo>;
 
+    /// Compute index checksum and size
+    fn compute_csum(&self) -> ([u8; 32], u64) {
+        let mut csum = openssl::sha::Sha256::new();
+        let mut chunk_end = 0;
+        for pos in 0..self.index_count() {
+            let info = self.chunk_info(pos).unwrap();
+            chunk_end = info.range.end;
+            csum.update(&chunk_end.to_le_bytes());
+            csum.update(&info.digest);
+        }
+        let csum = csum.finish();
+
+        (csum, chunk_end)
+    }
+
     /// Returns most often used chunks
     fn find_most_used_chunks(&self, max: usize) -> HashMap<[u8; 32], usize> {
         let mut map = HashMap::new();

@@ -141,24 +141,6 @@ impl DynamicIndexReader {
         &self.index[pos].digest
     }
 
-    /// Compute checksum and data size
-    pub fn compute_csum(&self) -> ([u8; 32], u64) {
-        let mut csum = openssl::sha::Sha256::new();
-        for entry in &self.index {
-            csum.update(&entry.end_le.to_ne_bytes());
-            csum.update(&entry.digest);
-        }
-        let csum = csum.finish();
-
-        (
-            csum,
-            self.index
-                .last()
-                .map(|entry| entry.end())
-                .unwrap_or(0)
-        )
-    }
-
     // TODO: can we use std::slice::binary_search with Mmap now?
     fn binary_search(
         &self,
