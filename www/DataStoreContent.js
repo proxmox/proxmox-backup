@@ -199,6 +199,34 @@ Ext.define('PBS.DataStoreContent', {
 	    win.show();
 	},
 
+	onForget: function() {
+	    var view = this.getView();
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+	    if (!data.leaf) return;
+
+	    if (!view.datastore) return;
+
+	    console.log(data);
+
+	    Proxmox.Utils.API2Request({
+		params: {
+		    "backup-type": data["backup-type"],
+		    "backup-id": data["backup-id"],
+		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		},
+		url: `/admin/datastore/${view.datastore}/snapshots`,
+		method: 'DELETE',
+		waitMsgTarget: view,
+		failure: function(response, opts) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+		callback: this.reload.bind(this),
+	    });
+	},
+
 	openBackupFileDownloader: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -335,6 +363,21 @@ Ext.define('PBS.DataStoreContent', {
 	    parentXType: 'pbsDataStoreContent',
 	    enableFn: function(record) { return !record.data.leaf; },
 	    handler: 'onPrune',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Forget'),
+	    disabled: true,
+	    parentXType: 'pbsDataStoreContent',
+	    handler: 'onForget',
+	    confirmMsg: function(record) {
+		console.log(record);
+		let name = record.data.text;
+		return Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${name}'`);
+	    },
+	    enableFn: function(record) {
+		return !!record.data.leaf;
+	    },
 	},
 	{
 	    xtype: 'proxmoxButton',
