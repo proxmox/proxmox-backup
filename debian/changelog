@@ -1,6 +1,14 @@
+rust-proxmox-backup (0.4.0-1) unstable; urgency=medium
+
+  * change api for incremental backups mode
+
+  * zfs disk management gui
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 26 Jun 2020 10:43:27 +0200
+
 rust-proxmox-backup (0.3.0-1) unstable; urgency=medium
 
-  * support incrtemental backups mode
+  * support incremental backups mode
 
   * new disk management
 
