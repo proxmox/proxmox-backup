@@ -20,6 +20,7 @@ pub trait IndexFile {
     fn index_count(&self) -> usize;
     fn index_digest(&self, pos: usize) -> Option<&[u8; 32]>;
     fn index_bytes(&self) -> u64;
+    fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo>;
 
     /// Returns most often used chunks
     fn find_most_used_chunks(&self, max: usize) -> HashMap<[u8; 32], usize> {

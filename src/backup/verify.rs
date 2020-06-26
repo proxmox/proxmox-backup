@@ -34,6 +34,25 @@ fn verify_blob(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo) -
     Ok(())
 }
 
+fn verify_index_chunks(
+    datastore: &DataStore,
+    index: Box<dyn IndexFile>,
+    worker: &WorkerTask,
+) -> Result<(), Error> {
+
+    for pos in 0..index.index_count() {
+
+        worker.fail_on_abort()?;
+        crate::tools::fail_on_shutdown()?;
+
+        let info = index.chunk_info(pos).unwrap();
+        let size = info.range.end - info.range.start;
+        datastore.verify_stored_chunk(&info.digest, size)?;
+    }
+
+    Ok(())
+}
+
 fn verify_fixed_index(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo, worker: &WorkerTask) -> Result<(), Error> {
 
     let mut path = backup_dir.relative_path();
@@ -50,17 +69,7 @@ fn verify_fixed_index(datastore: &DataStore, backup_dir: &BackupDir, info: &File
         bail!("wrong index checksum");
     }
 
-    for pos in 0..index.index_count() {
-
-        worker.fail_on_abort()?;
-        crate::tools::fail_on_shutdown()?;
-
-        let (start, end, digest) = index.chunk_info(pos).unwrap();
-        let size = end - start;
-        datastore.verify_stored_chunk(&digest, size)?;
-    }
-
-    Ok(())
+    verify_index_chunks(datastore, Box::new(index), worker)
 }
 
 fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo, worker: &WorkerTask) -> Result<(), Error> {
@@ -78,17 +87,7 @@ fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &Fi
         bail!("wrong index checksum");
     }
 
-    for pos in 0..index.index_count() {
-
-        worker.fail_on_abort()?;
-        crate::tools::fail_on_shutdown()?;
-
-        let chunk_info = index.chunk_info(pos).unwrap();
-        let size = chunk_info.range.end - chunk_info.range.start;
-        datastore.verify_stored_chunk(&chunk_info.digest, size)?;
-    }
-
-    Ok(())
+    verify_index_chunks(datastore, Box::new(index), worker)
 }
 
 /// Verify a single backup snapshot

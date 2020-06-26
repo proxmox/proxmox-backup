@@ -4,7 +4,7 @@ use std::io::{Seek, SeekFrom};
 
 use super::chunk_stat::*;
 use super::chunk_store::*;
-use super::IndexFile;
+use super::{IndexFile, ChunkReadInfo};
 use crate::tools::{self, epoch_now_u64};
 
 use chrono::{Local, TimeZone};
@@ -147,29 +147,6 @@ impl FixedIndexReader {
         Ok(())
     }
 
-    pub fn chunk_info(&self, pos: usize) -> Result<(u64, u64, [u8; 32]), Error> {
-        if pos >= self.index_length {
-            bail!("chunk index out of range");
-        }
-        let start = (pos * self.chunk_size) as u64;
-        let mut end = start + self.chunk_size as u64;
-
-        if end > self.size {
-            end = self.size;
-        }
-
-        let mut digest = std::mem::MaybeUninit::<[u8; 32]>::uninit();
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                self.index.add(pos * 32),
-                (*digest.as_mut_ptr()).as_mut_ptr(),
-                32,
-            );
-        }
-
-        Ok((start, end, unsafe { digest.assume_init() }))
-    }
-
     #[inline]
     fn chunk_digest(&self, pos: usize) -> &[u8; 32] {
         if pos >= self.index_length {
@@ -233,6 +210,25 @@ impl IndexFile for FixedIndexReader {
 
     fn index_bytes(&self) -> u64 {
         self.size
+    }
+
+    fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo> {
+        if pos >= self.index_length {
+            return None;
+        }
+
+        let start = (pos * self.chunk_size) as u64;
+        let mut end = start + self.chunk_size as u64;
+
+        if end > self.size {
+            end = self.size;
+        }
+
+        let digest = self.index_digest(pos).unwrap();
+        Some(ChunkReadInfo {
+            range: start..end,
+            digest: *digest,
+        })
     }
 }
 
@@ -511,18 +507,17 @@ impl<S: ReadChunk> BufferedFixedReader<S> {
 
     fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
         let index = &self.index;
-        let (start, end, digest) = index.chunk_info(idx)?;
+        let info = match index.chunk_info(idx) {
+            Some(info) => info,
+            None => bail!("chunk index out of range"),
+        };
 
         // fixme: avoid copy
 
-        let data = self.store.read_chunk(&digest)?;
-
-        if (end - start) != data.len() as u64 {
-            bail!(
-                "read chunk with wrong size ({} != {}",
-                (end - start),
-                data.len()
-            );
+        let data = self.store.read_chunk(&info.digest)?;
+        let size = info.range.end - info.range.start;
+        if size != data.len() as u64 {
+            bail!("read chunk with wrong size ({} != {}", size, data.len());
         }
 
         self.read_buffer.clear();
@@ -530,8 +525,7 @@ impl<S: ReadChunk> BufferedFixedReader<S> {
 
         self.buffered_chunk_idx = idx;
 
-        self.buffered_chunk_start = start as u64;
-        //println!("BUFFER {} {}",  self.buffered_chunk_start, end);
+        self.buffered_chunk_start = info.range.start as u64;
         Ok(())
     }
 }

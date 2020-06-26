@@ -124,25 +124,6 @@ impl DynamicIndexReader {
         })
     }
 
-    #[allow(clippy::cast_ptr_alignment)]
-    pub fn chunk_info(&self, pos: usize) -> Result<ChunkReadInfo, Error> {
-        if pos >= self.index.len() {
-            bail!("chunk index out of range");
-        }
-        let start = if pos == 0 {
-            0
-        } else {
-            self.index[pos - 1].end()
-        };
-
-        let end = self.index[pos].end();
-
-        Ok(ChunkReadInfo {
-            range: start..end,
-            digest: self.index[pos].digest.clone(),
-        })
-    }
-
     #[inline]
     #[allow(clippy::cast_ptr_alignment)]
     fn chunk_end(&self, pos: usize) -> u64 {
@@ -225,6 +206,21 @@ impl IndexFile for DynamicIndexReader {
             self.chunk_end(self.index.len() - 1)
         }
     }
+
+    #[allow(clippy::cast_ptr_alignment)]
+    fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo> {
+        if pos >= self.index.len() {
+            return None;
+        }
+        let start = if pos == 0 { 0 } else { self.index[pos - 1].end() };
+
+        let end = self.index[pos].end();
+
+        Some(ChunkReadInfo {
+            range: start..end,
+            digest: self.index[pos].digest.clone(),
+        })
+    }
 }
 
 struct CachedChunk {
@@ -264,7 +260,10 @@ struct ChunkCacher<'a, S> {
 
 impl<'a, S: ReadChunk> crate::tools::lru_cache::Cacher<usize, CachedChunk> for ChunkCacher<'a, S> {
     fn fetch(&mut self, index: usize) -> Result<Option<CachedChunk>, Error> {
-        let info = self.index.chunk_info(index)?;
+        let info = match self.index.chunk_info(index) {
+            Some(info) => info,
+            None => bail!("chunk index out of range"),
+        };
         let range = info.range;
         let data = self.store.read_chunk(&info.digest)?;
         CachedChunk::new(range, data).map(Some)
