@@ -2,7 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd};
 use std::path::{Path, PathBuf};
@@ -20,6 +20,7 @@ use pxar::encoder::LinkOffset;
 use proxmox::c_str;
 use proxmox::sys::error::SysError;
 use proxmox::tools::fd::RawFdNum;
+use proxmox::tools::vec;
 
 use crate::pxar::catalog::BackupCatalogWriter;
 use crate::pxar::Flags;
@@ -35,6 +36,7 @@ fn detect_fs_type(fd: RawFd) -> Result<i64, Error> {
     Ok(fs_stat.f_type)
 }
 
+#[rustfmt::skip]
 pub fn is_virtual_file_system(magic: i64) -> bool {
     use proxmox::sys::linux::magic::*;
 
@@ -114,6 +116,7 @@ struct Archiver<'a, 'b> {
     device_set: Option<HashSet<u64>>,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, LinkOffset)>,
     errors: ErrorReporter,
+    file_copy_buffer: Vec<u8>,
 }
 
 type Encoder<'a, 'b> = pxar::encoder::Encoder<'a, &'b mut dyn pxar::encoder::SeqWrite>;
@@ -178,6 +181,7 @@ where
         device_set,
         hardlinks: HashMap::new(),
         errors: ErrorReporter,
+        file_copy_buffer: vec::undefined(4 * 1024 * 1024),
     };
 
     archiver.archive_dir_contents(&mut encoder, source_dir, true)?;
@@ -410,6 +414,24 @@ impl<'a, 'b> Archiver<'a, 'b> {
         Ok(())
     }
 
+    fn report_file_shrunk_while_reading(&mut self) -> Result<(), Error> {
+        write!(
+            self.errors,
+            "warning: file size shrunk while reading: {:?}, file will be padded with zeros!",
+            self.path,
+        )?;
+        Ok(())
+    }
+
+    fn report_file_grew_while_reading(&mut self) -> Result<(), Error> {
+        write!(
+            self.errors,
+            "warning: file size increased while reading: {:?}, file will be truncated!",
+            self.path,
+        )?;
+        Ok(())
+    }
+
     fn add_entry(
         &mut self,
         encoder: &mut Encoder,
@@ -591,8 +613,29 @@ impl<'a, 'b> Archiver<'a, 'b> {
         file_size: u64,
     ) -> Result<LinkOffset, Error> {
         let mut file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
-        let offset = encoder.add_file(metadata, file_name, file_size, &mut file)?;
-        Ok(offset)
+        let mut remaining = file_size;
+        let mut out = encoder.create_file(metadata, file_name, file_size)?;
+        while remaining != 0 {
+            let mut got = file.read(&mut self.file_copy_buffer[..])?;
+            if got as u64 > remaining {
+                self.report_file_grew_while_reading()?;
+                got = remaining as usize;
+            }
+            out.write_all(&self.file_copy_buffer[..got])?;
+            remaining -= got as u64;
+        }
+        if remaining > 0 {
+            self.report_file_shrunk_while_reading()?;
+            let to_zero = remaining.min(self.file_copy_buffer.len() as u64) as usize;
+            vec::clear(&mut self.file_copy_buffer[..to_zero]);
+            while remaining != 0 {
+                let fill = remaining.min(self.file_copy_buffer.len() as u64) as usize;
+                out.write_all(&self.file_copy_buffer[..fill])?;
+                remaining -= fill as u64;
+            }
+        }
+
+        Ok(out.file_offset())
     }
 
     fn add_symlink(
