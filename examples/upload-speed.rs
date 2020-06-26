@@ -17,7 +17,7 @@ async fn upload_speed() -> Result<usize, Error> {
 
     let backup_time = chrono::Utc::now();
 
-    let client = BackupWriter::start(client, datastore, "host", "speedtest", backup_time, false).await?;
+    let client = BackupWriter::start(client, None, datastore, "host", "speedtest", backup_time, false).await?;
 
     println!("start upload speed test");
     let res = client.upload_speedtest().await?;
