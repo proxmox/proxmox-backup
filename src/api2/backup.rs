@@ -640,11 +640,33 @@ fn download_previous(
             None => bail!("no previous backup"),
         };
 
-        env.log(format!("download '{}' from previous backup.", archive_name));
-
         let mut path = env.datastore.snapshot_path(&last_backup.backup_dir);
         path.push(&archive_name);
 
+        {
+            let index: Option<Box<dyn IndexFile>> = match archive_type(&archive_name)? {
+                ArchiveType::FixedIndex => {
+                    let index = env.datastore.open_fixed_reader(&path)?;
+                    Some(Box::new(index))
+                }
+                ArchiveType::DynamicIndex => {
+                    let index = env.datastore.open_dynamic_reader(&path)?;
+                    Some(Box::new(index))
+                }
+                _ => { None }
+            };
+            if let Some(index) = index {
+                env.log(format!("register chunks in '{}' from previous backup.", archive_name));
+
+                for pos in 0..index.index_count() {
+                    let info = index.chunk_info(pos).unwrap();
+                    let size = info.range.end - info.range.start;
+                    env.register_chunk(info.digest, size as u32)?;
+                }
+            }
+        }
+
+        env.log(format!("download '{}' from previous backup.", archive_name));
         crate::api2::helpers::create_download_response(path).await
     }.boxed()
 }
