@@ -43,7 +43,6 @@ fn verify_index_chunks(
     for pos in 0..index.index_count() {
 
         worker.fail_on_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         let info = index.chunk_info(pos).unwrap();
         let size = info.range.end - info.range.start;
@@ -124,7 +123,6 @@ pub fn verify_backup_dir(datastore: &DataStore, backup_dir: &BackupDir, worker: 
         });
 
         worker.fail_on_abort()?;
-        crate::tools::fail_on_shutdown()?;
 
         if let Err(err) = result {
             worker.log(format!("verify {}:{}/{} failed: {}", datastore.name(), backup_dir, info.filename, err));
