@@ -434,7 +434,7 @@ impl BackupWriter {
         self.h2.download("previous", Some(param), &mut tmpfile).await?;
 
         let index = DynamicIndexReader::new(tmpfile)
-            .map_err(|err| format_err!("unable to read fixed index '{}' - {}", archive_name, err))?;
+            .map_err(|err| format_err!("unable to read dynmamic index '{}' - {}", archive_name, err))?;
         // Note: do not use values stored in index (not trusted) - instead, computed them again
         let (csum, size) = index.compute_csum();
         manifest.verify_file(archive_name, &csum, size)?;
