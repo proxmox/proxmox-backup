@@ -1,3 +1,13 @@
+rust-proxmox-backup (0.5.0-1) unstable; urgency=medium
+
+  * partially revert commit 1f82f9b7b5d231da22a541432d5617cb303c0000
+
+  * ui: allow to Forget (delete) backup snapshots
+
+  * pxar: deal with files changing size during archiving
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Jun 2020 13:00:54 +0200
+
 rust-proxmox-backup (0.4.0-1) unstable; urgency=medium
 
   * change api for incremental backups mode
