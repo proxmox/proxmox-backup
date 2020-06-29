@@ -189,6 +189,19 @@ impl IndexFile for DynamicIndexReader {
         }
     }
 
+    fn compute_csum(&self) -> ([u8; 32], u64) {
+        let mut csum = openssl::sha::Sha256::new();
+        let mut chunk_end = 0;
+        for pos in 0..self.index_count() {
+            let info = self.chunk_info(pos).unwrap();
+            chunk_end = info.range.end;
+            csum.update(&chunk_end.to_le_bytes());
+            csum.update(&info.digest);
+        }
+        let csum = csum.finish();
+        (csum, chunk_end)
+    }
+
     #[allow(clippy::cast_ptr_alignment)]
     fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo> {
         if pos >= self.index.len() {

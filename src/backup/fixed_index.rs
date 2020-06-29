@@ -206,6 +206,19 @@ impl IndexFile for FixedIndexReader {
             digest: *digest,
         })
     }
+
+    fn compute_csum(&self) -> ([u8; 32], u64) {
+        let mut csum = openssl::sha::Sha256::new();
+        let mut chunk_end = 0;
+        for pos in 0..self.index_count() {
+            let info = self.chunk_info(pos).unwrap();
+            chunk_end = info.range.end;
+            csum.update(&info.digest);
+        }
+        let csum = csum.finish();
+
+        (csum, chunk_end)
+    }
 }
 
 pub struct FixedIndexWriter {
