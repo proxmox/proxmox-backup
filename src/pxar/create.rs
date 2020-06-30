@@ -248,11 +248,15 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 
     /// openat() wrapper which allows but logs `EACCES` and turns `ENOENT` into `None`.
+    ///
+    /// The `existed` flag is set when iterating through a directory to note that we know the file
+    /// is supposed to exist and we should warn if it doesnt'.
     fn open_file(
         &mut self,
         parent: RawFd,
         file_name: &CStr,
         oflags: OFlag,
+        existed: bool,
     ) -> Result<Option<Fd>, Error> {
         match Fd::openat(
             &unsafe { RawFdNum::from_raw_fd(parent) },
@@ -261,7 +265,12 @@ impl<'a, 'b> Archiver<'a, 'b> {
             Mode::empty(),
         ) {
             Ok(fd) => Ok(Some(fd)),
-            Err(nix::Error::Sys(Errno::ENOENT)) => Ok(None),
+            Err(nix::Error::Sys(Errno::ENOENT)) => {
+                if existed {
+                    self.report_vanished_file()?;
+                }
+                Ok(None)
+            }
             Err(nix::Error::Sys(Errno::EACCES)) => {
                 writeln!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
                 Ok(None)
@@ -275,6 +284,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
             parent,
             c_str!(".pxarexclude"),
             OFlag::O_RDONLY | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
+            false,
         )?;
 
         let old_pattern_count = self.patterns.len();
@@ -452,14 +462,12 @@ impl<'a, 'b> Archiver<'a, 'b> {
             parent,
             c_file_name,
             open_mode | OFlag::O_RDONLY | OFlag::O_NOFOLLOW | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
+            true,
         )?;
 
         let fd = match fd {
             Some(fd) => fd,
-            None => {
-                self.report_vanished_file()?;
-                return Ok(());
-            }
+            None => return Ok(()),
         };
 
         let metadata = get_metadata(fd.as_raw_fd(), &stat, self.flags(), self.fs_magic)?;
