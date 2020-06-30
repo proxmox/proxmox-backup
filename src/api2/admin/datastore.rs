@@ -441,13 +441,13 @@ pub fn verify(
 
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
+            worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_time);
             let dir = BackupDir::new(backup_type, backup_id, backup_time);
-            worker_id = format!("{}_{}", store, dir);
             backup_dir = Some(dir);
         }
         (Some(backup_type), Some(backup_id), None) => {
+            worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
             let group = BackupGroup::new(backup_type, backup_id);
-            worker_id = format!("{}_{}", store, group);
             backup_group = Some(group);
         }
         (None, None, None) => {
