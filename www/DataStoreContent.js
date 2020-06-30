@@ -199,6 +199,45 @@ Ext.define('PBS.DataStoreContent', {
 	    win.show();
 	},
 
+	onVerify: function() {
+	    var view = this.getView();
+
+	    if (!view.datastore) return;
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+
+	    let params;
+
+	    if (data.leaf) {
+		params = {
+		    "backup-type": data["backup-type"],
+		    "backup-id": data["backup-id"],
+		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		};
+	    } else {
+		params = {
+		    "backup-type": data.backup_type,
+		    "backup-id": data.backup_id,
+		};
+	    }
+
+	    Proxmox.Utils.API2Request({
+		params: params,
+		url: `/admin/datastore/${view.datastore}/verify`,
+		method: 'POST',
+		failure: function(response) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+		success: function(response, options) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
+	},
+
 	onForget: function() {
 	    var view = this.getView();
 
@@ -355,6 +394,14 @@ Ext.define('PBS.DataStoreContent', {
 	    text: gettext('Reload'),
 	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Verify'),
+	    disabled: true,
+	    parentXType: 'pbsDataStoreContent',
+	    enableFn: function(record) { return !!record.data; },
+	    handler: 'onVerify',
 	},
 	{
 	    xtype: 'proxmoxButton',
