@@ -58,6 +58,27 @@ Ext.define('PBS.DataStoreConfig', {
 	    }).show();
 	},
 
+	onVerify: function() {
+	    var view = this.getView();
+
+	    let rec = view.selModel.getSelection()[0];
+	    if (!(rec && rec.data)) return;
+	    let data = rec.data;
+
+	    Proxmox.Utils.API2Request({
+		url: `/admin/datastore/${data.name}/verify`,
+		method: 'POST',
+		failure: function(response) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+		success: function(response, options) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
+	},
+
 	garbageCollect: function() {
 	    let me = this;
 	    let view = me.getView();
@@ -115,6 +136,12 @@ Ext.define('PBS.DataStoreConfig', {
 	},
 	// remove_btn
 	'-',
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Verify'),
+	    disabled: true,
+	    handler: 'onVerify',
+	},
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Start GC'),
