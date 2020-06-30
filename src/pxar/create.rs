@@ -263,7 +263,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
             Ok(fd) => Ok(Some(fd)),
             Err(nix::Error::Sys(Errno::ENOENT)) => Ok(None),
             Err(nix::Error::Sys(Errno::EACCES)) => {
-                write!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
+                writeln!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
                 Ok(None)
             }
             Err(other) => Err(Error::from(other)),
@@ -287,7 +287,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 let line = match line {
                     Ok(line) => line,
                     Err(err) => {
-                        let _ = write!(
+                        let _ = writeln!(
                             self.errors,
                             "ignoring .pxarexclude after read error in {:?}: {}",
                             self.path,
@@ -307,7 +307,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, MatchType::Exclude) {
                     Ok(pattern) => self.patterns.push(pattern),
                     Err(err) => {
-                        let _ = write!(self.errors, "bad pattern in {:?}: {}", self.path, err);
+                        let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
                     }
                 }
             }
@@ -410,12 +410,12 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 
     fn report_vanished_file(&mut self) -> Result<(), Error> {
-        write!(self.errors, "warning: file vanished while reading: {:?}", self.path)?;
+        writeln!(self.errors, "warning: file vanished while reading: {:?}", self.path)?;
         Ok(())
     }
 
     fn report_file_shrunk_while_reading(&mut self) -> Result<(), Error> {
-        write!(
+        writeln!(
             self.errors,
             "warning: file size shrunk while reading: {:?}, file will be padded with zeros!",
             self.path,
@@ -424,7 +424,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 
     fn report_file_grew_while_reading(&mut self) -> Result<(), Error> {
-        write!(
+        writeln!(
             self.errors,
             "warning: file size increased while reading: {:?}, file will be truncated!",
             self.path,
