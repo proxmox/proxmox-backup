@@ -79,6 +79,7 @@ Ext.define('PBS.DataStoreContent', {
 	    let url = `/api2/json/admin/datastore/${view.datastore}/snapshots`;
 	    this.store.setProxy({
 		type: 'proxmox',
+		timeout: 300*1000, // 5 minutes, we should make that api call faster
 		url:  url
 	    });
 
