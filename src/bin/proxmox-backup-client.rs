@@ -60,16 +60,19 @@ use proxmox_backup::backup::{
     Shell,
 };
 
+mod proxmox_backup_client;
+use proxmox_backup_client::*;
+
 const ENV_VAR_PBS_FINGERPRINT: &str = "PBS_FINGERPRINT";
 const ENV_VAR_PBS_PASSWORD: &str = "PBS_PASSWORD";
 
 
-const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
+pub const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
     .format(&BACKUP_REPO_URL)
     .max_length(256)
     .schema();
 
-const KEYFILE_SCHEMA: Schema = StringSchema::new(
+pub const KEYFILE_SCHEMA: Schema = StringSchema::new(
     "Path to encryption key. All data will be encrypted using this key.")
     .schema();
 
@@ -84,7 +87,7 @@ fn get_default_repository() -> Option<String> {
     std::env::var("PBS_REPOSITORY").ok()
 }
 
-fn extract_repository_from_value(
+pub fn extract_repository_from_value(
     param: &Value,
 ) -> Result<BackupRepository, Error> {
 
@@ -2429,6 +2432,10 @@ fn main() {
         .completion_cb("keyfile", tools::complete_file_name)
         .completion_cb("chunk-size", complete_chunk_size);
 
+    let benchmark_cmd_def = CliCommand::new(&API_METHOD_BENCHMARK)
+        .completion_cb("repository", complete_repository)
+        .completion_cb("keyfile", tools::complete_file_name);
+
     let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
         .arg_param(&["snapshot", "logfile"])
         .completion_cb("snapshot", complete_backup_snapshot)
@@ -2518,7 +2525,8 @@ fn main() {
         .insert("key", key_mgmt_cli())
         .insert("mount", mount_cmd_def)
         .insert("catalog", catalog_mgmt_cli())
-        .insert("task", task_mgmt_cli());
+        .insert("task", task_mgmt_cli())
+        .insert("benchmark", benchmark_cmd_def);
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
