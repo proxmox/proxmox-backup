@@ -40,7 +40,7 @@ Ext.define('PBS.DataStorePanel', {
 
     initComponent: function() {
 	let me = this;
-	me.title = `${gettext("Data Store")}: ${me.datastore}`;
+	me.title = `${gettext("Datastore")}: ${me.datastore}`;
 	me.callParent();
     },
 });

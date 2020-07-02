@@ -80,7 +80,7 @@ Ext.define('PBS.store.NavigationStore', {
 		]
 	    },
 	    {
-		text: gettext('Data Store'),
+		text: gettext('Datastore'),
 		iconCls: 'fa fa-archive',
 		path: 'pbsDataStoreConfig',
 		expanded: true,

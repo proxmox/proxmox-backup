@@ -25,7 +25,7 @@ Ext.define('PBS.DataStoreConfig', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsDataStoreConfig',
 
-    title: gettext('Data Store Configuration'),
+    title: gettext('Datastore Configuration'),
 
     controller: {
 	xclass: 'Ext.app.ViewController',

@@ -16,7 +16,7 @@ Ext.define('PBS.form.DataStoreSelector', {
     listConfig: {
 	columns: [
 	    {
-		header: gettext('DataStore'),
+		header: gettext('Datastore'),
 		sortable: true,
 		dataIndex: 'store',
 		renderer: Ext.String.htmlEncode,
