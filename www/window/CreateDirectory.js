@@ -39,7 +39,7 @@ Ext.define('PBS.window.CreateDirectory', {
 	{
 	    xtype: 'proxmoxcheckbox',
 	    name: 'add-datastore',
-	    fieldLabel: gettext('Add Data Store'),
+	    fieldLabel: gettext('Add as Datastore'),
 	    value: '1',
 	},
     ],

@@ -28,7 +28,7 @@ Ext.define('PBS.window.CreateZFS', {
 		{
 		    xtype: 'proxmoxcheckbox',
 		    name: 'add-datastore',
-		    fieldLabel: gettext('Add Datastore'),
+		    fieldLabel: gettext('Add as Datastore'),
 		    value: '1'
 		}
 	    ],
