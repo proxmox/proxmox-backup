@@ -12,7 +12,7 @@ use futures::select;
 use futures::future::FutureExt;
 
 use proxmox::{sortable, identity};
-use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*};
+use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
 
 
 use proxmox_backup::tools;
@@ -26,7 +26,6 @@ use proxmox_backup::backup::{
 };
 
 use proxmox_backup::client::*;
-use proxmox::api::cli::*;
 
 use crate::{
     REPO_URL_SCHEMA,
