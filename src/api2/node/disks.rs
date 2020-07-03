@@ -26,10 +26,10 @@ pub mod zfs;
                 schema: NODE_SCHEMA,
             },
             skipsmart: {
-		description: "Skip smart checks.",
-		type: bool,
-		optional: true,
-		default: false,
+                description: "Skip smart checks.",
+                type: bool,
+                optional: true,
+                default: false,
             },
             "usage-type": {
                 type: DiskUsageType,
