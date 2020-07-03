@@ -3,11 +3,14 @@ Architecture: any
 Depends: fonts-font-awesome,
          libjs-extjs (>= 6.0.1),
          libzstd1 (>= 1.3.8),
+         lvm2,
          proxmox-backup-docs,
          proxmox-mini-journalreader,
          proxmox-widget-toolkit (>= 2.2-4),
+         smartmontools,
          ${misc:Depends},
          ${shlibs:Depends},
+Recommends: zfsutils-linux,
 Description: Proxmox Backup Server daemon with tools and GUI
  This package contains the Proxmox Backup Server daemons and related
  tools. This includes a web-based graphical user interface.
