@@ -23,7 +23,8 @@ Ext.define('PBS.window.CreateZFS', {
 		    xtype: 'proxmoxtextfield',
 		    name: 'name',
 		    fieldLabel: gettext('Name'),
-		    allowBlank: false
+		    minLength: 3,
+		    allowBlank: false,
 		},
 		{
 		    xtype: 'proxmoxcheckbox',
