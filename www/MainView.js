@@ -205,7 +205,8 @@ Ext.define('PBS.MainView', {
 		    baseCls: 'x-plain',
 		},
 		{
-		    flex: 1
+		    flex: 1,
+		    baseCls: 'x-plain',
 		},
 		{
 		    baseCls: 'x-plain',
