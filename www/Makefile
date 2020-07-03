@@ -19,6 +19,7 @@ JSSRC=							\
 	window/ACLEdit.js				\
 	window/DataStoreEdit.js				\
 	window/CreateDirectory.js			\
+	window/ZFSCreate.js				\
 	window/FileBrowser.js				\
 	window/BackupFileDownloader.js			\
 	dashboard/DataStoreStatistics.js		\
