@@ -200,6 +200,11 @@ Ext.define('PBS.MainView', {
 		    xtype: 'versioninfo'
 		},
 		{
+		    padding: 5,
+		    html: '<a href="https://bugzilla.proxmox.com" target="_blank">BETA</a>',
+		    baseCls: 'x-plain',
+		},
+		{
 		    flex: 1
 		},
 		{
