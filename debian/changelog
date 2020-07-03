@@ -1,3 +1,21 @@
+rust-proxmox-backup (0.6.0-1) unstable; urgency=medium
+
+  * make ReadChunk not require mutable self.
+
+  * ui: increase timeout for snapshot listing
+
+  * ui: consistently spell Datastore without space between words
+
+  * ui: disk create: sync and improve 'add-datastore' checkbox label
+
+  * proxmox-backup-client: add benchmark command
+
+  * pxar: fixup 'vanished-file' logic a bit
+
+  * ui: add verify button
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 03 Jul 2020 09:45:52 +0200
+
 rust-proxmox-backup (0.5.0-1) unstable; urgency=medium
 
   * partially revert commit 1f82f9b7b5d231da22a541432d5617cb303c0000
