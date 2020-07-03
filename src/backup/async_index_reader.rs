@@ -36,7 +36,7 @@ impl<S: AsyncReadChunk, I: IndexFile> AsyncIndexReader<S, I> {
         Self {
             store: Some(store),
             index,
-            read_buffer: Vec::with_capacity(1024*1024),
+            read_buffer: Vec::with_capacity(1024 * 1024),
             current_chunk_idx: 0,
             current_chunk_digest: [0u8; 32],
             state: AsyncIndexReaderState::NoData,
@@ -44,9 +44,10 @@ impl<S: AsyncReadChunk, I: IndexFile> AsyncIndexReader<S, I> {
     }
 }
 
-impl<S, I> AsyncRead for AsyncIndexReader<S, I> where
-S: AsyncReadChunk + Unpin + Sync + 'static,
-I: IndexFile + Unpin
+impl<S, I> AsyncRead for AsyncIndexReader<S, I>
+where
+    S: AsyncReadChunk + Unpin + Sync + 'static,
+    I: IndexFile + Unpin,
 {
     fn poll_read(
         self: Pin<&mut Self>,
@@ -57,7 +58,7 @@ I: IndexFile + Unpin
         loop {
             match &mut this.state {
                 AsyncIndexReaderState::NoData => {
-                    if this.current_chunk_idx >= this.index.index_count()  {
+                    if this.current_chunk_idx >= this.index.index_count() {
                         return Poll::Ready(Ok(0));
                     }
 
@@ -67,7 +68,7 @@ I: IndexFile + Unpin
                         .ok_or(io_format_err!("could not get digest"))?
                         .clone();
 
-                    if digest  == this.current_chunk_digest {
+                    if digest == this.current_chunk_digest {
                         this.state = AsyncIndexReaderState::HaveData(0);
                         continue;
                     }
@@ -78,7 +79,7 @@ I: IndexFile + Unpin
                         Some(store) => store,
                         None => {
                             return Poll::Ready(Err(io_format_err!("could not find store")));
-                        },
+                        }
                     };
 
                     let future = async move {
@@ -88,7 +89,7 @@ I: IndexFile + Unpin
                     };
 
                     this.state = AsyncIndexReaderState::WaitForData(future.boxed());
-                },
+                }
                 AsyncIndexReaderState::WaitForData(ref mut future) => {
                     match ready!(future.as_mut().poll(cx)) {
                         Ok((store, mut chunk_data)) => {
@@ -96,12 +97,12 @@ I: IndexFile + Unpin
                             this.read_buffer.append(&mut chunk_data);
                             this.state = AsyncIndexReaderState::HaveData(0);
                             this.store = Some(store);
-                        },
+                        }
                         Err(err) => {
                             return Poll::Ready(Err(io_err_other(err)));
-                        },
+                        }
                     };
-                },
+                }
                 AsyncIndexReaderState::HaveData(offset) => {
                     let offset = *offset;
                     let len = this.read_buffer.len();
@@ -111,7 +112,7 @@ I: IndexFile + Unpin
                         buf.len()
                     };
 
-                    buf[0..n].copy_from_slice(&this.read_buffer[offset..offset+n]);
+                    buf[0..n].copy_from_slice(&this.read_buffer[offset..(offset + n)]);
                     if offset + n == len {
                         this.state = AsyncIndexReaderState::NoData;
                         this.current_chunk_idx += 1;
@@ -120,7 +121,7 @@ I: IndexFile + Unpin
                     }
 
                     return Poll::Ready(Ok(n));
-                },
+                }
             }
         }
     }
