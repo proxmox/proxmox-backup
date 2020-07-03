@@ -75,7 +75,7 @@ Ext.define('PBS.window.CreateZFS', {
 		    xtype: 'pmxMultiDiskSelector',
 		    name: 'devices',
 		    nodename: 'localhost',
-		    typeParam: 'usage-type',
+		    typeParameter: 'usage-type',
 		    valueField: 'name',
 		    height: 200,
 		    emptyText: gettext('No Disks unused'),
