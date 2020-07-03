@@ -117,8 +117,7 @@ Ext.define('PBS.admin.ZFSList', {
 	    text: gettext('Detail'),
 	    xtype: 'proxmoxButton',
 	    disabled: true,
-	    handler: function() {
-	    }
+	    handler: 'openDetailWindow',
 	}
     ],
 
