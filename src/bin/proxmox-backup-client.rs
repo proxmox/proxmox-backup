@@ -1119,7 +1119,7 @@ async fn dump_image<W: Write>(
 
     let most_used = index.find_most_used_chunks(8);
 
-    let mut chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
 
     // Note: we avoid using BufferedFixedReader, because that add an additional buffer/copy
     // and thus slows down reading. Instead, directly use RemoteChunkReader

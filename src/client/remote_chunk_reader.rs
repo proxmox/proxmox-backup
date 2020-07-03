@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Error;
 
@@ -14,7 +14,7 @@ pub struct RemoteChunkReader {
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
     cache_hint: HashMap<[u8; 32], usize>,
-    cache: HashMap<[u8; 32], Vec<u8>>,
+    cache: Mutex<HashMap<[u8; 32], Vec<u8>>>,
 }
 
 impl RemoteChunkReader {
@@ -30,11 +30,11 @@ impl RemoteChunkReader {
             client,
             crypt_config,
             cache_hint,
-            cache: HashMap::new(),
+            cache: Mutex::new(HashMap::new()),
         }
     }
 
-    pub async fn read_raw_chunk(&mut self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
+    pub async fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
         let mut chunk_data = Vec::with_capacity(4 * 1024 * 1024);
 
         self.client
@@ -49,12 +49,12 @@ impl RemoteChunkReader {
 }
 
 impl ReadChunk for RemoteChunkReader {
-    fn read_raw_chunk(&mut self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
+    fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
         block_on(Self::read_raw_chunk(self, digest))
     }
 
-    fn read_chunk(&mut self, digest: &[u8; 32]) -> Result<Vec<u8>, Error> {
-        if let Some(raw_data) = self.cache.get(digest) {
+    fn read_chunk(&self, digest: &[u8; 32]) -> Result<Vec<u8>, Error> {
+        if let Some(raw_data) = (*self.cache.lock().unwrap()).get(digest) {
             return Ok(raw_data.to_vec());
         }
 
@@ -66,7 +66,7 @@ impl ReadChunk for RemoteChunkReader {
 
         let use_cache = self.cache_hint.contains_key(digest);
         if use_cache {
-            self.cache.insert(*digest, raw_data.to_vec());
+            (*self.cache.lock().unwrap()).insert(*digest, raw_data.to_vec());
         }
 
         Ok(raw_data)
@@ -75,18 +75,18 @@ impl ReadChunk for RemoteChunkReader {
 
 impl AsyncReadChunk for RemoteChunkReader {
     fn read_raw_chunk<'a>(
-        &'a mut self,
+        &'a self,
         digest: &'a [u8; 32],
     ) -> Pin<Box<dyn Future<Output = Result<DataBlob, Error>> + Send + 'a>> {
         Box::pin(Self::read_raw_chunk(self, digest))
     }
 
     fn read_chunk<'a>(
-        &'a mut self,
+        &'a self,
         digest: &'a [u8; 32],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Error>> + Send + 'a>> {
         Box::pin(async move {
-            if let Some(raw_data) = self.cache.get(digest) {
+            if let Some(raw_data) = (*self.cache.lock().unwrap()).get(digest) {
                 return Ok(raw_data.to_vec());
             }
 
@@ -98,7 +98,7 @@ impl AsyncReadChunk for RemoteChunkReader {
 
             let use_cache = self.cache_hint.contains_key(digest);
             if use_cache {
-                self.cache.insert(*digest, raw_data.to_vec());
+                (*self.cache.lock().unwrap()).insert(*digest, raw_data.to_vec());
             }
 
             Ok(raw_data)

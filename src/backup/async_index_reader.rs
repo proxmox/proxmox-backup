@@ -45,7 +45,7 @@ impl<S: AsyncReadChunk, I: IndexFile> AsyncIndexReader<S, I> {
 }
 
 impl<S, I> AsyncRead for AsyncIndexReader<S, I> where
-S: AsyncReadChunk + Unpin + 'static,
+S: AsyncReadChunk + Unpin + Sync + 'static,
 I: IndexFile + Unpin
 {
     fn poll_read(
@@ -74,7 +74,7 @@ I: IndexFile + Unpin
 
                     this.current_chunk_digest = digest;
 
-                    let mut store = match this.store.take() {
+                    let store = match this.store.take() {
                         Some(store) => store,
                         None => {
                             return Poll::Ready(Err(io_format_err!("could not find store")));
