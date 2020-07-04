@@ -45,3 +45,6 @@ override_dh_installsystemd:
 # TODO: remove once available (Debian 11 ?)
 override_dh_dwz:
 	dh_dwz --no-dwz-multifile
+
+override_dh_compress:
+	dh_compress -X.pdf
