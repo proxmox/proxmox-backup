@@ -111,7 +111,7 @@ Software Stack
 License
 -------
 
-Copyright (C) 2020 Proxmox Server Solutions GmbH
+Copyright (C) 2019-2020 Proxmox Server Solutions GmbH
 
 This software is written by Proxmox Server Solutions GmbH <support@proxmox.com>
 
