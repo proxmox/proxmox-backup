@@ -11,8 +11,6 @@ published by the Free Software Foundation; with no Invariant Sections, no
 Front-Cover Texts, and no Back-Cover Texts. A copy of the license is included
 in the section entitled "GNU Free Documentation License".
 
-.. todolist::
-
 
 .. toctree::
    :maxdepth: 3
@@ -35,6 +33,15 @@ in the section entitled "GNU Free Documentation License".
    backup-protocol.rst
    glossary.rst
    GFDL.rst
+
+.. only:: html and devbuild
+
+    .. toctree::
+       :maxdepth: 2
+       :caption: Developer Appendix
+
+       todos.rst
+
 
 * :ref:`genindex`
 

@@ -1,11 +1,5 @@
 include ../defines.mk
 
-ifeq ($(BUILD_MODE), release)
-COMPILEDIR := ../target/release
-else
-COMPILEDIR := ../target/debug
-endif
-
 GENERATED_SYNOPSIS := 						\
 	proxmox-backup-client/synopsis.rst			\
 	proxmox-backup-client/catalog-shell-synopsis.rst 	\
@@ -25,6 +19,15 @@ MANUAL_PAGES := 			\
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 BUILDDIR      = output
+
+ifeq ($(BUILD_MODE), release)
+COMPILEDIR := ../target/release
+SPHINXOPTS    += -t release
+else
+COMPILEDIR := ../target/debug
+SPHINXOPTS    += -t devbuild
+endif
+
 
 # Sphinx internal variables.
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
