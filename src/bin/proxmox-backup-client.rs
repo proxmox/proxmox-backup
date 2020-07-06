@@ -65,6 +65,11 @@ pub const KEYFILE_SCHEMA: Schema = StringSchema::new(
     "Path to encryption key. All data will be encrypted using this key.")
     .schema();
 
+pub const ENCRYPTION_SCHEMA: Schema = BooleanSchema::new(
+    "Explicitly enable or disable encryption. \
+     (Allows disabling encryption when a default key file is present.)")
+    .schema();
+
 const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new(
     "Chunk size in KB. Must be a power of 2.")
     .minimum(64)
@@ -659,6 +664,37 @@ fn spawn_catalog_upload(
     Ok((catalog, catalog_result_rx))
 }
 
+fn keyfile_parameters(param: &Value) -> Result<Option<PathBuf>, Error> {
+    Ok(match (param.get("keyfile"), param.get("encryption")) {
+        // no parameters:
+        (None, None) => key::optional_default_key_path()?,
+
+        // just --encryption=false
+        (None, Some(Value::Bool(false))) => None,
+
+        // just --encryption=true
+        (None, Some(Value::Bool(true))) => match key::optional_default_key_path()? {
+            None => bail!("--encryption=false without --keyfile and no default key file available"),
+            Some(path) => Some(path),
+        }
+
+        // just --keyfile
+        (Some(Value::String(keyfile)), None) => Some(PathBuf::from(keyfile)),
+
+        // --keyfile and --encryption=false
+        (Some(Value::String(_)), Some(Value::Bool(false))) => {
+            bail!("--keyfile and --encryption=false are mutually exclusive");
+        }
+
+        // --keyfile and --encryption=true
+        (Some(Value::String(keyfile)), Some(Value::Bool(true))) => Some(PathBuf::from(keyfile)),
+
+        // wrong value types:
+        (Some(_), _) => bail!("bad --keyfile parameter"),
+        (_, Some(_)) => bail!("bad --encryption parameter"),
+    })
+}
+
 #[api(
    input: {
        properties: {
@@ -683,6 +719,10 @@ fn spawn_catalog_upload(
            },
            keyfile: {
                schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+           encryption: {
+               schema: ENCRYPTION_SCHEMA,
                optional: true,
            },
            "skip-lost-and-found": {
@@ -754,10 +794,7 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let keyfile = match param["keyfile"].as_str() {
-        Some(path) => Some(PathBuf::from(path)),
-        None => key::optional_default_key_path()?,
-    };
+    let keyfile = keyfile_parameters(&param)?;
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -1122,6 +1159,10 @@ We do not extraxt '.pxar' archives when writing to standard output.
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
+           encryption: {
+               schema: ENCRYPTION_SCHEMA,
+               optional: true,
+           },
        }
    }
 )]
@@ -1152,10 +1193,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let keyfile = match param["keyfile"].as_str() {
-        Some(path) => Some(PathBuf::from(path)),
-        None => key::optional_default_key_path()?,
-    };
+    let keyfile = keyfile_parameters(&param)?;
 
     let crypt_config = match keyfile {
         None => None,
@@ -1285,6 +1323,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
+           encryption: {
+               schema: ENCRYPTION_SCHEMA,
+               optional: true,
+           },
        }
    }
 )]
@@ -1299,10 +1341,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(repo.host(), repo.user())?;
 
-    let keyfile = match param["keyfile"].as_str() {
-        Some(path) => Some(PathBuf::from(path)),
-        None => key::optional_default_key_path()?,
-    };
+    let keyfile = keyfile_parameters(&param)?;
 
     let crypt_config = match keyfile {
         None => None,
