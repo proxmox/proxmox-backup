@@ -53,6 +53,16 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     bail!("no password input mechanism available");
 }
 
+/// Convenience helper to get the default key file path only if it exists.
+pub fn optional_default_key_path() -> Result<Option<PathBuf>, Error> {
+    let path = default_encryption_key_path()?;
+    Ok(if path.exists() {
+        Some(path)
+    } else {
+        None
+    })
+}
+
 #[api(
     default: "scrypt",
 )]

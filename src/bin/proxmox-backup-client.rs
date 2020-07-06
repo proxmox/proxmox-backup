@@ -754,7 +754,10 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
+    let keyfile = match param["keyfile"].as_str() {
+        Some(path) => Some(PathBuf::from(path)),
+        None => key::optional_default_key_path()?,
+    };
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -1149,7 +1152,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
+    let keyfile = match param["keyfile"].as_str() {
+        Some(path) => Some(PathBuf::from(path)),
+        None => key::optional_default_key_path()?,
+    };
 
     let crypt_config = match keyfile {
         None => None,
@@ -1293,7 +1299,10 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(repo.host(), repo.user())?;
 
-    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
+    let keyfile = match param["keyfile"].as_str() {
+        Some(path) => Some(PathBuf::from(path)),
+        None => key::optional_default_key_path()?,
+    };
 
     let crypt_config = match keyfile {
         None => None,
