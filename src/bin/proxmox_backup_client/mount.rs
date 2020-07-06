@@ -30,7 +30,6 @@ use proxmox_backup::client::*;
 use crate::{
     REPO_URL_SCHEMA,
     extract_repository_from_value,
-    get_encryption_key_password,
     complete_pxar_archive_name,
     complete_group_or_snapshot,
     complete_repository,
@@ -119,7 +118,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+            let (key, _) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };

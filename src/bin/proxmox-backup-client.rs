@@ -14,9 +14,7 @@ use tokio::sync::mpsc;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use proxmox::{sortable, identity};
 use proxmox::tools::fs::{file_get_contents, file_get_json, replace_file, CreateOptions, image_size};
-use proxmox::sys::linux::tty;
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
 use proxmox::api::schema::*;
 use proxmox::api::cli::*;
@@ -29,9 +27,7 @@ use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
 use proxmox_backup::backup::{
     archive_type,
-    encrypt_key_with_passphrase,
     load_and_decrypt_key,
-    store_key_config,
     verify_chunk_size,
     ArchiveType,
     AsyncReadChunk,
@@ -49,7 +45,6 @@ use proxmox_backup::backup::{
     FixedChunkStream,
     FixedIndexReader,
     IndexFile,
-    KeyConfig,
     MANIFEST_BLOB_NAME,
     Shell,
 };
@@ -861,7 +856,7 @@ async fn create_backup(
     let (crypt_config, rsa_encrypted_key) = match keyfile {
         None => (None, None),
         Some(path) => {
-            let (key, created) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+            let (key, created) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
 
             let crypt_config = CryptConfig::new(key)?;
 
@@ -1159,7 +1154,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+            let (key, _) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -1303,7 +1298,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _created) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+            let (key, _created) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
@@ -1668,69 +1663,6 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
-fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
-
-    // fixme: implement other input methods
-
-    use std::env::VarError::*;
-    match std::env::var("PBS_ENCRYPTION_PASSWORD") {
-        Ok(p) => return Ok(p.as_bytes().to_vec()),
-        Err(NotUnicode(_)) => bail!("PBS_ENCRYPTION_PASSWORD contains bad characters"),
-        Err(NotPresent) => {
-            // Try another method
-        }
-    }
-
-    // If we're on a TTY, query the user for a password
-    if tty::stdin_isatty() {
-        return Ok(tty::read_password("Encryption Key Password: ")?);
-    }
-
-    bail!("no password input mechanism available");
-}
-
-fn key_create(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let path = tools::required_string_param(&param, "path")?;
-    let path = PathBuf::from(path);
-
-    let kdf = param["kdf"].as_str().unwrap_or("scrypt");
-
-    let key = proxmox::sys::linux::random_data(32)?;
-
-    if kdf == "scrypt" {
-        // always read passphrase from tty
-        if !tty::stdin_isatty() {
-            bail!("unable to read passphrase - no tty");
-        }
-
-        let password = tty::read_and_verify_password("Encryption Key Password: ")?;
-
-        let key_config = encrypt_key_with_passphrase(&key, &password)?;
-
-        store_key_config(&path, false, key_config)?;
-
-        Ok(Value::Null)
-    } else if kdf == "none" {
-        let created =  Local.timestamp(Local::now().timestamp(), 0);
-
-        store_key_config(&path, false, KeyConfig {
-            kdf: None,
-            created,
-            modified: created,
-            data: key,
-        })?;
-
-        Ok(Value::Null)
-    } else {
-        unreachable!();
-    }
-}
-
 fn master_pubkey_path() -> Result<PathBuf, Error> {
     let base = BaseDirectories::with_prefix("proxmox-backup")?;
 
@@ -1739,176 +1671,6 @@ fn master_pubkey_path() -> Result<PathBuf, Error> {
 
     Ok(path)
 }
-
-fn key_import_master_pubkey(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let path = tools::required_string_param(&param, "path")?;
-    let path = PathBuf::from(path);
-
-    let pem_data = file_get_contents(&path)?;
-
-    if let Err(err) = openssl::pkey::PKey::public_key_from_pem(&pem_data) {
-        bail!("Unable to decode PEM data - {}", err);
-    }
-
-    let target_path = master_pubkey_path()?;
-
-    replace_file(&target_path, &pem_data, CreateOptions::new())?;
-
-    println!("Imported public master key to {:?}", target_path);
-
-    Ok(Value::Null)
-}
-
-fn key_create_master_key(
-    _param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    // we need a TTY to query the new password
-    if !tty::stdin_isatty() {
-        bail!("unable to create master key - no tty");
-    }
-
-    let rsa = openssl::rsa::Rsa::generate(4096)?;
-    let pkey = openssl::pkey::PKey::from_rsa(rsa)?;
-
-
-    let password = String::from_utf8(tty::read_and_verify_password("Master Key Password: ")?)?;
-
-    let pub_key: Vec<u8> = pkey.public_key_to_pem()?;
-    let filename_pub = "master-public.pem";
-    println!("Writing public master key to {}", filename_pub);
-    replace_file(filename_pub, pub_key.as_slice(), CreateOptions::new())?;
-
-    let cipher = openssl::symm::Cipher::aes_256_cbc();
-    let priv_key: Vec<u8> = pkey.private_key_to_pem_pkcs8_passphrase(cipher, password.as_bytes())?;
-
-    let filename_priv = "master-private.pem";
-    println!("Writing private master key to {}", filename_priv);
-    replace_file(filename_priv, priv_key.as_slice(), CreateOptions::new())?;
-
-    Ok(Value::Null)
-}
-
-fn key_change_passphrase(
-    param: Value,
-    _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
-
-    let path = tools::required_string_param(&param, "path")?;
-    let path = PathBuf::from(path);
-
-    let kdf = param["kdf"].as_str().unwrap_or("scrypt");
-
-    // we need a TTY to query the new password
-    if !tty::stdin_isatty() {
-        bail!("unable to change passphrase - no tty");
-    }
-
-    let (key, created) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
-
-    if kdf == "scrypt" {
-
-        let password = tty::read_and_verify_password("New Password: ")?;
-
-        let mut new_key_config = encrypt_key_with_passphrase(&key, &password)?;
-        new_key_config.created = created; // keep original value
-
-        store_key_config(&path, true, new_key_config)?;
-
-        Ok(Value::Null)
-    } else if kdf == "none" {
-        let modified =  Local.timestamp(Local::now().timestamp(), 0);
-
-        store_key_config(&path, true, KeyConfig {
-            kdf: None,
-            created, // keep original value
-            modified,
-            data: key.to_vec(),
-        })?;
-
-        Ok(Value::Null)
-    } else {
-        unreachable!();
-    }
-}
-
-fn key_mgmt_cli() -> CliCommandMap {
-
-    const KDF_SCHEMA: Schema =
-        StringSchema::new("Key derivation function. Choose 'none' to store the key unecrypted.")
-        .format(&ApiStringFormat::Enum(&[
-            EnumEntry::new("scrypt", "SCrypt"),
-            EnumEntry::new("none", "Do not encrypt the key")]))
-        .default("scrypt")
-        .schema();
-
-    #[sortable]
-    const API_METHOD_KEY_CREATE: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&key_create),
-        &ObjectSchema::new(
-            "Create a new encryption key.",
-            &sorted!([
-                ("path", false, &StringSchema::new("File system path.").schema()),
-                ("kdf", true, &KDF_SCHEMA),
-            ]),
-        )
-    );
-
-    let key_create_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE)
-        .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
-
-    #[sortable]
-    const API_METHOD_KEY_CHANGE_PASSPHRASE: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&key_change_passphrase),
-        &ObjectSchema::new(
-            "Change the passphrase required to decrypt the key.",
-            &sorted!([
-                ("path", false, &StringSchema::new("File system path.").schema()),
-                ("kdf", true, &KDF_SCHEMA),
-            ]),
-        )
-    );
-
-    let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_KEY_CHANGE_PASSPHRASE)
-        .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
-
-    const API_METHOD_KEY_CREATE_MASTER_KEY: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&key_create_master_key),
-        &ObjectSchema::new("Create a new 4096 bit RSA master pub/priv key pair.", &[])
-    );
-
-    let key_create_master_key_cmd_def = CliCommand::new(&API_METHOD_KEY_CREATE_MASTER_KEY);
-
-    #[sortable]
-    const API_METHOD_KEY_IMPORT_MASTER_PUBKEY: ApiMethod = ApiMethod::new(
-        &ApiHandler::Sync(&key_import_master_pubkey),
-        &ObjectSchema::new(
-            "Import a new RSA public key and use it as master key. The key is expected to be in '.pem' format.",
-            &sorted!([ ("path", false, &StringSchema::new("File system path.").schema()) ]),
-        )
-    );
-
-    let key_import_master_pubkey_cmd_def = CliCommand::new(&API_METHOD_KEY_IMPORT_MASTER_PUBKEY)
-        .arg_param(&["path"])
-        .completion_cb("path", tools::complete_file_name);
-
-    CliCommandMap::new()
-        .insert("create", key_create_cmd_def)
-        .insert("create-master-key", key_create_master_key_cmd_def)
-        .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
-        .insert("change-passphrase", key_change_passphrase_cmd_def)
-}
-
 
 use proxmox_backup::client::RemoteChunkReader;
 /// This is a workaround until we have cleaned up the chunk/reader/... infrastructure for better
@@ -2027,7 +1789,7 @@ fn main() {
         .insert("snapshots", snapshots_cmd_def)
         .insert("files", files_cmd_def)
         .insert("status", status_cmd_def)
-        .insert("key", key_mgmt_cli())
+        .insert("key", key::cli())
         .insert("mount", mount_cmd_def())
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli())

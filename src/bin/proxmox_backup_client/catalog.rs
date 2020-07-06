@@ -16,7 +16,6 @@ use crate::{
     REPO_URL_SCHEMA,
     extract_repository_from_value,
     record_repository,
-    get_encryption_key_password,
     load_and_decrypt_key,
     api_datastore_latest_snapshot,
     complete_repository,
@@ -36,7 +35,7 @@ use crate::{
     Shell,
 };
 
-
+use crate::key::get_encryption_key_password;
 
 #[api(
    input: {
