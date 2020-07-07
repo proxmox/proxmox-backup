@@ -56,29 +56,40 @@ extern {
 ///
 /// This makes sure that tokio's worker threads are marked for us so that we know whether we
 /// can/need to use `block_in_place` in our `block_on` helper.
-pub fn get_runtime() -> Arc<Runtime> {
+pub fn get_runtime_with_builder<F: Fn() -> runtime::Builder>(get_builder: F) -> Arc<Runtime> {
 
     let mut guard = RUNTIME.lock().unwrap();
 
     if let Some(rt) = guard.upgrade() { return rt; }
 
-    let rt = Arc::new(
-        runtime::Builder::new()
-            .on_thread_stop(|| {
-                // avoid openssl bug: https://github.com/openssl/openssl/issues/6214
-                // call OPENSSL_thread_stop to avoid race with openssl cleanup handlers
-                unsafe { OPENSSL_thread_stop(); }
-            })
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .expect("failed to spawn tokio runtime")
-    );
+    let mut builder = get_builder();
+    builder.on_thread_stop(|| {
+        // avoid openssl bug: https://github.com/openssl/openssl/issues/6214
+        // call OPENSSL_thread_stop to avoid race with openssl cleanup handlers
+        unsafe { OPENSSL_thread_stop(); }
+    });
+
+    let runtime = builder.build().expect("failed to spawn tokio runtime");
+    let rt = Arc::new(runtime);
 
     *guard = Arc::downgrade(&rt.clone());
 
     rt
 }
+
+/// Get or create the current main tokio runtime.
+///
+/// This calls get_runtime_with_builder() using the tokio default threaded scheduler
+pub fn get_runtime() -> Arc<Runtime> {
+
+    get_runtime_with_builder(|| {
+        let mut builder = runtime::Builder::new();
+        builder.threaded_scheduler();
+        builder.enable_all();
+        builder
+    })
+}
+
 
 /// Block on a synchronous piece of code.
 pub fn block_in_place<R>(fut: impl FnOnce() -> R) -> R {
