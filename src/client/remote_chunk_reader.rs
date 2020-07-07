@@ -10,11 +10,12 @@ use crate::backup::{AsyncReadChunk, CryptConfig, DataBlob, ReadChunk};
 use crate::tools::runtime::block_on;
 
 /// Read chunks from remote host using ``BackupReader``
+#[derive(Clone)]
 pub struct RemoteChunkReader {
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
     cache_hint: HashMap<[u8; 32], usize>,
-    cache: Mutex<HashMap<[u8; 32], Vec<u8>>>,
+    cache: Arc<Mutex<HashMap<[u8; 32], Vec<u8>>>>,
 }
 
 impl RemoteChunkReader {
@@ -30,7 +31,7 @@ impl RemoteChunkReader {
             client,
             crypt_config,
             cache_hint,
-            cache: Mutex::new(HashMap::new()),
+            cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
