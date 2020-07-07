@@ -1,3 +1,9 @@
+rust-proxmox-backup (0.8.0-1) unstable; urgency=medium
+
+  * implement  get_runtime_with_builder
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 07 Jul 2020 10:15:26 +0200
+
 rust-proxmox-backup (0.7.0-1) unstable; urgency=medium
 
   *  implement clone for RemoteChunkReader
