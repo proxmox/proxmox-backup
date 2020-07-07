@@ -6,12 +6,40 @@
 //! See the Wikipedia Artikel for [Authenticated
 //! encryption](https://en.wikipedia.org/wiki/Authenticated_encryption)
 //! for a short introduction.
-use anyhow::{bail, Error};
-use openssl::pkcs5::pbkdf2_hmac;
-use openssl::hash::MessageDigest;
-use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
+
 use std::io::Write;
+
+use anyhow::{bail, Error};
 use chrono::{Local, TimeZone, DateTime};
+use openssl::hash::MessageDigest;
+use openssl::pkcs5::pbkdf2_hmac;
+use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
+use serde::{Deserialize, Serialize};
+
+use proxmox::api::api;
+
+#[api(default: "encrypt")]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+/// Defines whether data is encrypted (using an AEAD cipher), only signed, or neither.
+pub enum CryptMode {
+    /// Don't encrypt.
+    None,
+    /// Encrypt.
+    Encrypt,
+    /// Only sign.
+    SignOnly,
+}
+
+impl CryptMode {
+    /// Maps values other than `None` to `SignOnly`.
+    pub fn sign_only(self) -> Self {
+        match self {
+            CryptMode::None => CryptMode::None,
+            _ => CryptMode::SignOnly,
+        }
+    }
+}
 
 /// Encryption Configuration with secret key
 ///
@@ -26,7 +54,6 @@ pub struct CryptConfig {
     id_pkey: openssl::pkey::PKey<openssl::pkey::Private>,
     // The private key used by the cipher.
     enc_key: [u8; 32],
-
 }
 
 impl CryptConfig {

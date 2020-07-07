@@ -5,6 +5,8 @@ use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
+use crate::backup::CryptMode;
+
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     if name.starts_with('.') {
@@ -496,6 +498,10 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
         "filename": {
             schema: BACKUP_ARCHIVE_NAME_SCHEMA,
         },
+        "crypt-mode": {
+            type: CryptMode,
+            optional: true,
+        },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -503,9 +509,9 @@ pub const PRUNE_SCHEMA_KEEP_YEARLY: Schema = IntegerSchema::new(
 /// Basic information about archive files inside a backup snapshot.
 pub struct BackupContent {
     pub filename: String,
-    /// Info if file is encrypted (or empty if we do not have that info)
+    /// Info if file is encrypted, signed, or neither.
     #[serde(skip_serializing_if="Option::is_none")]
-    pub encrypted: Option<bool>,
+    pub crypt_mode: Option<CryptMode>,
     /// Archive size (from backup manifest).
     #[serde(skip_serializing_if="Option::is_none")]
     pub size: Option<u64>,

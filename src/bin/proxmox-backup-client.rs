@@ -35,11 +35,12 @@ use proxmox_backup::backup::{
     BackupGroup,
     BackupManifest,
     BufferedDynamicReader,
+    CATALOG_NAME,
     CatalogReader,
     CatalogWriter,
-    CATALOG_NAME,
     ChunkStream,
     CryptConfig,
+    CryptMode,
     DataBlob,
     DynamicIndexReader,
     FixedChunkStream,
@@ -664,34 +665,41 @@ fn spawn_catalog_upload(
     Ok((catalog, catalog_result_rx))
 }
 
-fn keyfile_parameters(param: &Value) -> Result<Option<PathBuf>, Error> {
-    Ok(match (param.get("keyfile"), param.get("encryption")) {
+fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Error> {
+    let keyfile = match param.get("keyfile") {
+        Some(Value::String(keyfile)) => Some(keyfile),
+        Some(_) => bail!("bad --keyfile parameter type"),
+        None => None,
+    };
+
+    let crypt_mode: Option<CryptMode> = match param.get("crypt-mode") {
+        Some(mode) => Some(serde_json::from_value(mode.clone())?),
+        None => None,
+    };
+
+    Ok(match (keyfile, crypt_mode) {
         // no parameters:
-        (None, None) => key::optional_default_key_path()?,
+        (None, None) => (key::optional_default_key_path()?, CryptMode::Encrypt),
 
-        // just --encryption=false
-        (None, Some(Value::Bool(false))) => None,
+        // just --crypt-mode=none
+        (None, Some(CryptMode::None)) => (None, CryptMode::None),
 
-        // just --encryption=true
-        (None, Some(Value::Bool(true))) => match key::optional_default_key_path()? {
-            None => bail!("--encryption=false without --keyfile and no default key file available"),
-            Some(path) => Some(path),
+        // just --crypt-mode other than none
+        (None, Some(crypt_mode)) => match key::optional_default_key_path()? {
+            None => bail!("--crypt-mode without --keyfile and no default key file available"),
+            Some(path) => (Some(path), crypt_mode),
         }
 
         // just --keyfile
-        (Some(Value::String(keyfile)), None) => Some(PathBuf::from(keyfile)),
+        (Some(keyfile), None) => (Some(PathBuf::from(keyfile)), CryptMode::Encrypt),
 
-        // --keyfile and --encryption=false
-        (Some(Value::String(_)), Some(Value::Bool(false))) => {
-            bail!("--keyfile and --encryption=false are mutually exclusive");
+        // --keyfile and --crypt-mode=none
+        (Some(_), Some(CryptMode::None)) => {
+            bail!("--keyfile and --crypt-mode=none are mutually exclusive");
         }
 
-        // --keyfile and --encryption=true
-        (Some(Value::String(keyfile)), Some(Value::Bool(true))) => Some(PathBuf::from(keyfile)),
-
-        // wrong value types:
-        (Some(_), _) => bail!("bad --keyfile parameter"),
-        (_, Some(_)) => bail!("bad --encryption parameter"),
+        // --keyfile and --crypt-mode other than none
+        (Some(keyfile), Some(crypt_mode)) => (Some(PathBuf::from(keyfile)), crypt_mode),
     })
 }
 
@@ -794,7 +802,7 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let keyfile = keyfile_parameters(&param)?;
+    let (keyfile, crypt_mode) = keyfile_parameters(&param)?;
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -912,8 +920,6 @@ async fn create_backup(
         }
     };
 
-    let is_encrypted = Some(crypt_config.is_some());
-
     let client = BackupWriter::start(
         client,
         crypt_config.clone(),
@@ -941,16 +947,16 @@ async fn create_backup(
             BackupSpecificationType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, true, Some(true))
+                    .upload_blob_from_file(&filename, &target, true, crypt_mode)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
+                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, true, Some(true))
+                    .upload_blob_from_file(&filename, &target, true, crypt_mode)
                     .await?;
-                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
+                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
@@ -976,7 +982,7 @@ async fn create_backup(
                     pattern_list.clone(),
                     entries_max as usize,
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
+                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
                 catalog.lock().unwrap().end_directory()?;
             }
             BackupSpecificationType::IMAGE => {
@@ -990,7 +996,7 @@ async fn create_backup(
                     chunk_size_opt,
                     verbose,
                 ).await?;
-                manifest.add_file(target, stats.size, stats.csum, is_encrypted)?;
+                manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
         }
     }
@@ -1007,7 +1013,7 @@ async fn create_backup(
 
         if let Some(catalog_result_rx) = catalog_result_tx {
             let stats = catalog_result_rx.await??;
-            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum, is_encrypted)?;
+            manifest.add_file(CATALOG_NAME.to_owned(), stats.size, stats.csum, crypt_mode)?;
         }
     }
 
@@ -1015,9 +1021,9 @@ async fn create_backup(
         let target = "rsa-encrypted.key";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client
-            .upload_blob_from_data(rsa_encrypted_key, target, false, None)
+            .upload_blob_from_data(rsa_encrypted_key, target, false, CryptMode::None)
             .await?;
-        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, is_encrypted)?;
+        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, crypt_mode)?;
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*
@@ -1035,7 +1041,7 @@ async fn create_backup(
     println!("Upload index.json to '{:?}'", repo);
     let manifest = serde_json::to_string_pretty(&manifest)?.into();
     client
-        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, Some(true))
+        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, crypt_mode.sign_only())
         .await?;
 
     client.finish().await?;
@@ -1193,7 +1199,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let keyfile = keyfile_parameters(&param)?;
+    let (keyfile, _crypt_mode) = keyfile_parameters(&param)?;
 
     let crypt_config = match keyfile {
         None => None,
@@ -1341,7 +1347,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(repo.host(), repo.user())?;
 
-    let keyfile = keyfile_parameters(&param)?;
+    let (keyfile, crypt_mode) = keyfile_parameters(&param)?;
 
     let crypt_config = match keyfile {
         None => None,
@@ -1354,7 +1360,19 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let data = file_get_contents(logfile)?;
 
-    let blob = DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?;
+    let blob = match crypt_mode {
+        CryptMode::None => DataBlob::encode(&data, None, true)?,
+        CryptMode::Encrypt => {
+            DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?
+        }
+        CryptMode::SignOnly => DataBlob::create_signed(
+            &data,
+            crypt_config
+                .ok_or_else(|| format_err!("cannot sign without crypt config"))?
+                .as_ref(),
+            true,
+        )?,
+    };
 
     let raw_data = blob.into_inner();
 

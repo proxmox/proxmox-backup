@@ -3,7 +3,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use chrono::{DateTime, Utc};
 use futures::*;
 use futures::stream::Stream;
@@ -163,21 +163,17 @@ impl BackupWriter {
         data: Vec<u8>,
         file_name: &str,
         compress: bool,
-        crypt_or_sign: Option<bool>,
-     ) -> Result<BackupStats, Error> {
-
-        let blob = if let Some(ref crypt_config) = self.crypt_config {
-            if let Some(encrypt) = crypt_or_sign {
-                if encrypt {
-                    DataBlob::encode(&data, Some(crypt_config), compress)?
-                } else {
-                    DataBlob::create_signed(&data, crypt_config, compress)?
-                }
-            } else {
-                DataBlob::encode(&data, None, compress)?
-            }
-        } else {
-            DataBlob::encode(&data, None, compress)?
+        crypt_mode: CryptMode,
+    ) -> Result<BackupStats, Error> {
+        let blob = match (crypt_mode, &self.crypt_config) {
+             (CryptMode::None, _) => DataBlob::encode(&data, None, compress)?,
+             (_, None) => bail!("requested encryption/signing without a crypt config"),
+             (CryptMode::Encrypt, Some(crypt_config)) => {
+                 DataBlob::encode(&data, Some(crypt_config), compress)?
+             }
+             (CryptMode::SignOnly, Some(crypt_config)) => {
+                 DataBlob::create_signed(&data, crypt_config, compress)?
+             }
         };
 
         let raw_data = blob.into_inner();
@@ -194,7 +190,7 @@ impl BackupWriter {
         src_path: P,
         file_name: &str,
         compress: bool,
-        crypt_or_sign: Option<bool>,
+        crypt_mode: CryptMode,
      ) -> Result<BackupStats, Error> {
 
         let src_path = src_path.as_ref();
@@ -209,7 +205,7 @@ impl BackupWriter {
             .await
             .map_err(|err| format_err!("unable to read file {:?} - {}", src_path, err))?;
 
-        self.upload_blob_from_data(contents, file_name, compress, crypt_or_sign).await
+        self.upload_blob_from_data(contents, file_name, compress, crypt_mode).await
     }
 
     pub async fn upload_stream(

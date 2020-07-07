@@ -52,14 +52,14 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
     for item in manifest.files() {
         result.push(BackupContent {
             filename: item.filename.clone(),
-            encrypted: item.encrypted,
+            crypt_mode: Some(item.crypt_mode),
             size: Some(item.size),
         });
     }
 
     result.push(BackupContent {
         filename: MANIFEST_BLOB_NAME.to_string(),
-        encrypted: Some(false),
+        crypt_mode: None,
         size: Some(index_size),
     });
 
@@ -79,7 +79,11 @@ fn get_all_snapshot_files(
 
     for file in &info.files {
         if file_set.contains(file) { continue; }
-        files.push(BackupContent { filename: file.to_string(), size: None, encrypted: None });
+        files.push(BackupContent {
+            filename: file.to_string(),
+            size: None,
+            crypt_mode: None,
+        });
     }
 
     Ok(files)
@@ -350,7 +354,15 @@ pub fn list_snapshots (
             },
             Err(err) => {
                 eprintln!("error during snapshot file listing: '{}'", err);
-                info.files.iter().map(|x| BackupContent { filename: x.to_string(), size: None, encrypted: None }).collect()
+                info
+                    .files
+                    .iter()
+                    .map(|x| BackupContent {
+                        filename: x.to_string(),
+                        size: None,
+                        crypt_mode: None,
+                    })
+                    .collect()
             },
         };
 
@@ -902,7 +914,7 @@ fn download_file_decoded(
 
         let files = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
-            if file.filename == file_name && file.encrypted == Some(true) {
+            if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", file_name);
             }
         }

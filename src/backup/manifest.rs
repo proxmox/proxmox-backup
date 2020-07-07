@@ -4,14 +4,14 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::backup::BackupDir;
+use crate::backup::{BackupDir, CryptMode};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 
 pub struct FileInfo {
     pub filename: String,
-    pub encrypted: Option<bool>,
+    pub crypt_mode: CryptMode,
     pub size: u64,
     pub csum: [u8; 32],
 }
@@ -49,9 +49,9 @@ impl BackupManifest {
         Self { files: Vec::new(), snapshot }
     }
 
-    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], encrypted: Option<bool>) -> Result<(), Error> {
+    pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], crypt_mode: CryptMode) -> Result<(), Error> {
         let _archive_type = archive_type(&filename)?; // check type
-        self.files.push(FileInfo { filename, size, csum, encrypted });
+        self.files.push(FileInfo { filename, size, csum, crypt_mode });
         Ok(())
     }
 
@@ -91,18 +91,12 @@ impl BackupManifest {
             "backup-time": self.snapshot.backup_time().timestamp(),
             "files": self.files.iter()
                 .fold(Vec::new(), |mut acc, info| {
-                    let mut value = json!({
+                    acc.push(json!({
                         "filename": info.filename,
-                        "encrypted": info.encrypted,
+                        "crypt-mode": info.crypt_mode,
                         "size": info.size,
                         "csum": proxmox::tools::digest_to_hex(&info.csum),
-                    });
-
-                    if let Some(encrypted) = info.encrypted {
-                        value["encrypted"] = encrypted.into();
-                    }
-
-                    acc.push(value);
+                    }));
                     acc
                 })
         })
@@ -142,8 +136,8 @@ impl TryFrom<Value> for BackupManifest {
                 let csum = required_string_property(item, "csum")?;
                 let csum = proxmox::tools::hex_to_digest(csum)?;
                 let size = required_integer_property(item, "size")? as u64;
-                let encrypted = item["encrypted"].as_bool();
-                manifest.add_file(filename, size, csum, encrypted)?;
+                let crypt_mode: CryptMode = serde_json::from_value(item["crypt-mode"].clone())?;
+                manifest.add_file(filename, size, csum, crypt_mode)?;
             }
 
             if manifest.files().is_empty() {
