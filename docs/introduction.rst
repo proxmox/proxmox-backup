@@ -105,6 +105,32 @@ Software Stack
 .. todo:: Eplain why we use Rust (and Flutter)
 	  
 
+Getting Help
+------------
+
+Community Support Forum
+~~~~~~~~~~~~~~~~~~~~~~~
+
+We always encourage our users to discuss and share their knowledge using the
+`Proxmox Community Forum`_. The forum is moderated by the Proxmox support team.
+The large user base is spread out all over the world. Needless to say that such
+a large forum is a great place to get information.
+
+Mailing Lists
+~~~~~~~~~~~~~
+
+Proxmox Backup Server is fully open-source and contributions are welcome! Here
+is the primary communication channel for developers:
+:Mailing list for developers: `PBS Development List`_
+
+Bug Tracker
+~~~~~~~~~~~
+
+Proxmox runs a public bug tracker at `<https://bugzilla.proxmox.com>`_. If an
+issue appears, file your report there. An issue can be a bug as well as a
+request for a new feature or enhancement. The bug tracker helps to keep track
+of the issue and will send a notification once it has been solved.
+
 License
 -------
 

@@ -11,8 +11,10 @@
 .. _Container: https://en.wikipedia.org/wiki/Container_(virtualization)
 .. _Zstandard: https://en.wikipedia.org/wiki/Zstandard
 .. _Proxmox: https://www.proxmox.com
+.. _Proxmox Community Forum: https://forum.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
 .. _Proxmox Backup: https://www.proxmox.com/proxmox-backup
+.. _PBS Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
 .. _Rust: https://www.rust-lang.org/
 .. _SHA-256: https://en.wikipedia.org/wiki/SHA-2
