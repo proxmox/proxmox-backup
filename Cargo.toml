@@ -1,6 +1,6 @@
 [package]
 name = "proxmox-backup"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Dietmar Maurer <dietmar@proxmox.com>"]
 edition = "2018"
 license = "AGPL-3"
