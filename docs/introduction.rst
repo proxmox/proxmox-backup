@@ -53,7 +53,7 @@ Main Features
 :Incremental backups: Changes between backups are typically low. Reading and
    sending only the delta reduces storage and network impact of backups.
 
-:Data Integrity: The built in `SHA-256`_ checksum algorithm assures the
+:Data Integrity: The built-in `SHA-256`_ checksum algorithm assures the
    accuracy and consistency of your backups.
 
 :Remote Sync: It is possible to efficiently synchronize data to remote
@@ -63,16 +63,17 @@ Main Features
    several gigabytes of data per second.
 
 :Encryption: Backups can be encrypted on the client-side using AES-256 in
-   GCM_ mode. This authenticated encryption mode (AE_) provides very
-   high performance on modern hardware.
+   Galois/Counter Mode (GCM_) mode. This authenticated encryption (AE_) mde
+   provides very high performance on modern hardware.
 
-:Web interface: Manage Proxmox backups with the integrated web-based user
-   interface.
+:Web interface: Manage the Proxmox Backup Server with the integrated web-based
+   user interface.
 
 :Open Source: No secrets. Proxmox Backup Server is free and open-source
- software. The source code is licensed under AGPL, v3.
+   software. The source code is licensed under AGPL, v3.
 
-:Support: Enterprise support is available from `Proxmox`_.
+:Support: Enterprise support will be available from `Proxmox`_ once the beta
+   phase is over.
 
 
 Reasons for Data Backup?
