@@ -1,10 +1,6 @@
 Introduction
 ============
 
-This documentation is written in :term:`reStructuredText` and formatted with
-:term:`Sphinx`.
-
-
 What is Proxmox Backup Server
 -----------------------------
 
