@@ -3,10 +3,10 @@ use std::convert::TryInto;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
-const MAX_BLOB_SIZE: usize = 128*1024*1024;
-
 use super::file_formats::*;
-use super::CryptConfig;
+use super::{CryptConfig, CryptMode};
+
+const MAX_BLOB_SIZE: usize = 128*1024*1024;
 
 /// Encoded data chunk with digest and positional information
 pub struct ChunkInfo {
@@ -164,6 +164,21 @@ impl DataBlob {
         blob.set_crc(blob.compute_crc());
 
         Ok(blob)
+    }
+
+    /// Get the encryption mode for this blob.
+    pub fn crypt_mode(&self) -> Result<CryptMode, Error> {
+        let magic = self.magic();
+
+        Ok(if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 || magic == &COMPRESSED_BLOB_MAGIC_1_0 {
+            CryptMode::None
+        } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
+            CryptMode::Encrypt
+        } else if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 || magic == &AUTHENTICATED_BLOB_MAGIC_1_0 {
+            CryptMode::SignOnly
+        } else {
+            bail!("Invalid blob magic number.");
+        })
     }
 
     /// Decode blob data
