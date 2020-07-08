@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::backup::{BackupDir, CryptMode};
+use crate::backup::{BackupDir, CryptMode, CryptConfig};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
@@ -84,8 +84,41 @@ impl BackupManifest {
         Ok(())
     }
 
-    pub fn into_json(self) -> Value {
-        json!({
+    pub fn signature(&self, crypt_config: &CryptConfig) -> [u8; 32] {
+
+        let mut data = String::new();
+
+        data.push_str(self.snapshot.group().backup_type());
+        data.push('\n');
+        data.push_str(self.snapshot.group().backup_id());
+        data.push('\n');
+        data.push_str(&format!("{}", self.snapshot.backup_time().timestamp()));
+        data.push('\n');
+        data.push('\n');
+
+        for info in self.files.iter() {
+            data.push_str(&info.filename);
+            data.push('\n');
+            data.push_str(match info.crypt_mode {
+                CryptMode::None => "None",
+                CryptMode::SignOnly => "SignOnly",
+                CryptMode::Encrypt => "Encrypt",
+            });
+            data.push('\n');
+            data.push_str(&format!("{}", info.size));
+            data.push('\n');
+            data.push_str(&proxmox::tools::digest_to_hex(&info.csum));
+            data.push('\n');
+
+            data.push('\n');
+        }
+
+        crypt_config.compute_auth_tag(data.as_bytes())
+    }
+
+    pub fn into_json(self, crypt_config: Option<&CryptConfig>) -> Value {
+
+        let mut manifest = json!({
             "backup-type": self.snapshot.group().backup_type(),
             "backup-id": self.snapshot.group().backup_id(),
             "backup-time": self.snapshot.backup_time().timestamp(),
@@ -99,7 +132,14 @@ impl BackupManifest {
                     }));
                     acc
                 })
-        })
+        });
+
+        if let Some(crypt_config) = crypt_config {
+            let sig = self.signature(crypt_config);
+            manifest["signature"] = proxmox::tools::digest_to_hex(&sig).into();
+        }
+
+        manifest
     }
 
 }

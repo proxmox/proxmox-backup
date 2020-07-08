@@ -82,7 +82,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         true,
     ).await?;
 
-    let manifest = client.download_manifest().await?;
+    let (manifest, _) = client.download_manifest().await?;
 
     let index = client.download_dynamic_index(&manifest, CATALOG_NAME).await?;
 
@@ -181,7 +181,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         .custom_flags(libc::O_TMPFILE)
         .open("/tmp")?;
 
-    let manifest = client.download_manifest().await?;
+    let (manifest, _) = client.download_manifest().await?;
 
     let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
     let most_used = index.find_most_used_chunks(8);

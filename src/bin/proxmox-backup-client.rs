@@ -1081,7 +1081,7 @@ async fn create_backup(
     }
 
     // create manifest (index.json)
-    let manifest = manifest.into_json();
+    let manifest = manifest.into_json(crypt_config.as_ref().map(Arc::as_ref));
 
     println!("Upload index.json to '{:?}'", repo);
     let manifest = serde_json::to_string_pretty(&manifest)?.into();
@@ -1272,18 +1272,17 @@ async fn restore(param: Value) -> Result<Value, Error> {
         true,
     ).await?;
 
-    let manifest = client.download_manifest().await?;
+    let (manifest, backup_index_data) = client.download_manifest().await?;
 
     let (archive_name, archive_type) = parse_archive_type(archive_name);
 
     if archive_name == MANIFEST_BLOB_NAME {
-        let backup_index_data = manifest.into_json().to_string();
         if let Some(target) = target {
-            replace_file(target, backup_index_data.as_bytes(), CreateOptions::new())?;
+            replace_file(target, &backup_index_data, CreateOptions::new())?;
         } else {
             let stdout = std::io::stdout();
             let mut writer = stdout.lock();
-            writer.write_all(backup_index_data.as_bytes())
+            writer.write_all(&backup_index_data)
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
