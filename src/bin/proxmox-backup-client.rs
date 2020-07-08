@@ -66,11 +66,6 @@ pub const KEYFILE_SCHEMA: Schema = StringSchema::new(
     "Path to encryption key. All data will be encrypted using this key.")
     .schema();
 
-pub const ENCRYPTION_SCHEMA: Schema = BooleanSchema::new(
-    "Explicitly enable or disable encryption. \
-     (Allows disabling encryption when a default key file is present.)")
-    .schema();
-
 const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new(
     "Chunk size in KB. Must be a power of 2.")
     .minimum(64)
@@ -729,8 +724,8 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
-           encryption: {
-               schema: ENCRYPTION_SCHEMA,
+           "crypt-mode": {
+               type: CryptMode,
                optional: true,
            },
            "skip-lost-and-found": {
@@ -1170,8 +1165,8 @@ We do not extraxt '.pxar' archives when writing to standard output.
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
-           encryption: {
-               schema: ENCRYPTION_SCHEMA,
+           "crypt-mode": {
+               type: CryptMode,
                optional: true,
            },
        }
@@ -1334,8 +1329,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
-           encryption: {
-               schema: ENCRYPTION_SCHEMA,
+           "crypt-mode": {
+               type: CryptMode,
                optional: true,
            },
        }
