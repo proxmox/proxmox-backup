@@ -402,12 +402,13 @@ Ext.define('PBS.DataStoreContent', {
 	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Verify'),
 	    disabled: true,
 	    parentXType: 'pbsDataStoreContent',
-	    enableFn: function(record) { return !!record.data; },
+	    enableFn: (rec) => !!rec.data && rec.data.size !== null,
 	    handler: 'onVerify',
 	},
 	{
@@ -415,7 +416,7 @@ Ext.define('PBS.DataStoreContent', {
 	    text: gettext('Prune'),
 	    disabled: true,
 	    parentXType: 'pbsDataStoreContent',
-	    enableFn: function(record) { return !record.data.leaf; },
+	    enableFn: (rec) => !rec.data.leaf,
 	    handler: 'onPrune',
 	},
 	{
@@ -424,24 +425,22 @@ Ext.define('PBS.DataStoreContent', {
 	    disabled: true,
 	    parentXType: 'pbsDataStoreContent',
 	    handler: 'onForget',
+	    dangerous: true,
 	    confirmMsg: function(record) {
-		console.log(record);
+		//console.log(record);
 		let name = record.data.text;
 		return Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${name}'`);
 	    },
-	    enableFn: function(record) {
-		return !!record.data.leaf;
-	    },
+	    enableFn: (rec) => !!rec.data.leaf && rec.data.size !== null,
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Download Files'),
 	    disabled: true,
 	    parentXType: 'pbsDataStoreContent',
 	    handler: 'openBackupFileDownloader',
-	    enableFn: function(record) {
-		return !!record.data.leaf;
-	    },
+	    enableFn: (rec) => !!rec.data.leaf && rec.data.size !== null,
 	},
 	{
 	    xtype: "proxmoxButton",
@@ -450,7 +449,7 @@ Ext.define('PBS.DataStoreContent', {
 	    handler: 'openPxarBrowser',
 	    parentXType: 'pbsDataStoreContent',
 	    enableFn: function(record) {
-		return !!record.data.leaf && record.data.files.some(el => el.filename.endsWith('pxar.didx'));
+		return !!record.data.leaf && record.size !== null && record.data.files.some(el => el.filename.endsWith('pxar.didx'));
 	    },
 	}
     ],
