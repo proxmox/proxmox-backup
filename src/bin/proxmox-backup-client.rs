@@ -1040,8 +1040,13 @@ async fn create_backup(
 
     println!("Upload index.json to '{:?}'", repo);
     let manifest = serde_json::to_string_pretty(&manifest)?.into();
+    // manifests are never encrypted
+    let manifest_crypt_mode = match crypt_mode {
+        CryptMode::None => CryptMode::None,
+        _ => CryptMode::SignOnly,
+    };
     client
-        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, crypt_mode.sign_only())
+        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, manifest_crypt_mode)
         .await?;
 
     client.finish().await?;

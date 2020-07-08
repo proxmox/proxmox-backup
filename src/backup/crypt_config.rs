@@ -31,16 +31,6 @@ pub enum CryptMode {
     SignOnly,
 }
 
-impl CryptMode {
-    /// Maps values other than `None` to `SignOnly`.
-    pub fn sign_only(self) -> Self {
-        match self {
-            CryptMode::None => CryptMode::None,
-            _ => CryptMode::SignOnly,
-        }
-    }
-}
-
 /// Encryption Configuration with secret key
 ///
 /// This structure stores the secret key and provides helpers for
