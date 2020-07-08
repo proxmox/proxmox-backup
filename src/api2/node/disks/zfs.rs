@@ -41,6 +41,9 @@ pub const ZFS_ASHIFT_SCHEMA: Schema = IntegerSchema::new(
     .default(12)
     .schema();
 
+pub const ZPOOL_NAME_SCHEMA: Schema =StringSchema::new("ZFS Pool Name")
+    .format(&ApiStringFormat::Pattern(&ZPOOL_NAME_REGEX))
+    .schema();
 
 #[api(
     default: "On",
@@ -157,7 +160,7 @@ pub fn list_zpools() -> Result<Vec<ZpoolListItem>, Error> {
                 schema: NODE_SCHEMA,
             },
             name: {
-                schema: DATASTORE_SCHEMA,
+                schema: ZPOOL_NAME_SCHEMA,
             },
         },
     },
