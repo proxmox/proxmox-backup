@@ -10,7 +10,7 @@ Ext.define('pbs-data-store-snapshots', {
 	},
 	'files',
 	'owner',
-	{ name: 'size', type: 'int' },
+	{ name: 'size', type: 'int', allowNull: true, },
 	{
 	    name: 'encrypted',
 	    type: 'boolean',
@@ -343,7 +343,13 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Size"),
 	    sortable: true,
 	    dataIndex: 'size',
-	    renderer: Proxmox.Utils.format_size,
+	    renderer: (v, meta, record) => {
+		if (v === undefined || v === null) {
+		    meta.tdCls = "x-grid-row-loading";
+		    return '';
+		}
+		return Proxmox.Utils.format_size(v);
+	    },
 	},
 	{
 	    xtype: 'numbercolumn',
