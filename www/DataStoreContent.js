@@ -154,7 +154,7 @@ Ext.define('PBS.DataStoreContent', {
 		    if (item.encrypted > 0) {
 			encrypted++;
 		    }
-		    if (item["backup-time"] > last_backup) {
+		    if (item["backup-time"] > last_backup && item.size !== null) {
 			last_backup = item["backup-time"];
 			group["backup-time"] = last_backup;
 			group.files = item.files;
