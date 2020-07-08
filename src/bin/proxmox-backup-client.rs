@@ -677,13 +677,13 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
 
     Ok(match (keyfile, crypt_mode) {
         // no parameters:
-        (None, None) => (key::optional_default_key_path()?, CryptMode::Encrypt),
+        (None, None) => (key::find_default_encryption_key()?, CryptMode::Encrypt),
 
         // just --crypt-mode=none
         (None, Some(CryptMode::None)) => (None, CryptMode::None),
 
         // just --crypt-mode other than none
-        (None, Some(crypt_mode)) => match key::optional_default_key_path()? {
+        (None, Some(crypt_mode)) => match key::find_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
             Some(path) => (Some(path), crypt_mode),
         }

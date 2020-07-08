@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, format_err, Context, Error};
 
 use serde::{Deserialize, Serialize};
 use chrono::{Local, TimeZone, DateTime};
@@ -146,8 +146,18 @@ pub fn encrypt_key_with_passphrase(
     })
 }
 
-pub fn load_and_decrypt_key(path: &std::path::Path, passphrase: &dyn Fn() -> Result<Vec<u8>, Error>) -> Result<([u8;32], DateTime<Local>), Error> {
+pub fn load_and_decrypt_key(
+    path: &std::path::Path,
+    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+) -> Result<([u8;32], DateTime<Local>), Error> {
+    do_load_and_decrypt_key(path, passphrase)
+        .with_context(|| format!("failed to load decryption key from {:?}", path))
+}
 
+fn do_load_and_decrypt_key(
+    path: &std::path::Path,
+    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+) -> Result<([u8;32], DateTime<Local>), Error> {
     let raw = file_get_contents(&path)?;
     let data = String::from_utf8(raw)?;
 

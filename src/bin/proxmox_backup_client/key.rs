@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Context, Error};
 use chrono::{Local, TimeZone};
 use serde::{Deserialize, Serialize};
 use xdg::BaseDirectories;
@@ -15,6 +15,8 @@ use proxmox_backup::backup::{
 };
 use proxmox_backup::tools;
 
+pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
+
 pub fn master_pubkey_path() -> Result<PathBuf, Error> {
     let base = BaseDirectories::with_prefix("proxmox-backup")?;
 
@@ -24,13 +26,19 @@ pub fn master_pubkey_path() -> Result<PathBuf, Error> {
     Ok(path)
 }
 
-pub fn default_encryption_key_path() -> Result<PathBuf, Error> {
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+pub fn find_default_encryption_key() -> Result<Option<PathBuf>, Error> {
+    BaseDirectories::with_prefix("proxmox-backup")
+        .map(|base| base.find_config_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME))
+        .with_context(|| "error searching for default encryption key file")
+}
 
-    // usually $HOME/.config/proxmox-backup/encryption-key.json
-    let path = base.place_config_file("encryption-key.json")?;
-
-    Ok(path)
+pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
+    BaseDirectories::with_prefix("proxmox-backup")
+        .map_err(Error::from)
+        .and_then(|base| {
+            base.place_config_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME).map_err(Error::from)
+        })
+        .with_context(|| "failed to place default encryption key file in xdg home")
 }
 
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
@@ -51,16 +59,6 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     }
 
     bail!("no password input mechanism available");
-}
-
-/// Convenience helper to get the default key file path only if it exists.
-pub fn optional_default_key_path() -> Result<Option<PathBuf>, Error> {
-    let path = default_encryption_key_path()?;
-    Ok(if path.exists() {
-        Some(path)
-    } else {
-        None
-    })
 }
 
 #[api(
@@ -103,7 +101,7 @@ impl Default for Kdf {
 fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => default_encryption_key_path()?,
+        None => place_default_encryption_key()?,
     };
 
     let kdf = kdf.unwrap_or_default();
@@ -160,7 +158,8 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => default_encryption_key_path()?,
+        None => find_default_encryption_key()?
+            .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
     };
 
     let kdf = kdf.unwrap_or_default();
