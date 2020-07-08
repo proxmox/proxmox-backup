@@ -743,7 +743,10 @@ pub fn get_disks(
 
     let partition_type_map = get_partition_type_info()?;
 
-    let zfs_devices = zfs_devices(&partition_type_map, None)?;
+    let zfs_devices = zfs_devices(&partition_type_map, None).or_else(|err| -> Result<HashSet<u64>, Error> {
+        eprintln!("error getting zfs devices: {}", err);
+        Ok(HashSet::new())
+    })?;
 
     let lvm_devices = get_lvm_devices(&partition_type_map)?;
 
