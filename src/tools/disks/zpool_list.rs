@@ -221,7 +221,7 @@ logs                                                                            
     assert_eq!(data, expect);
 
     let output = "\
-btest	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
+b-test	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
 	mirror	213674622976	438272	213674184704	-	-	0	0	-	ONLINE
 	/dev/sda1	-	-	-	-	-	-	-	-	ONLINE
 	/dev/sda2	-	-	-	-	-	-	-	-	ONLINE
@@ -235,7 +235,7 @@ logs               -      -      -        -         -      -      -      -  -
     let data = parse_zpool_list(&output)?;
     let expect = vec![
         ZFSPoolInfo {
-            name: String::from("btest"),
+            name: String::from("b-test"),
             health: String::from("ONLINE"),
             usage: Some(ZFSPoolUsage {
                 size: 427349245952,
@@ -256,6 +256,32 @@ logs               -      -      -        -         -      -      -      -  -
             health: String::from("-"),
             usage: None,
             devices: vec![String::from("/dev/sda5")],
+        },
+    ];
+
+    assert_eq!(data, expect);
+
+    let output = "\
+b.test	427349245952	761856	427348484096	-	-	0	0	1.00	ONLINE	-
+	mirror	213674622976	438272	213674184704	-	-	0	0	-	ONLINE
+	/dev/sda1	-	-	-	-	-	-	-	-	ONLINE
+";
+
+    let data = parse_zpool_list(&output)?;
+    let expect = vec![
+        ZFSPoolInfo {
+            name: String::from("b.test"),
+            health: String::from("ONLINE"),
+            usage: Some(ZFSPoolUsage {
+                size: 427349245952,
+                alloc: 761856,
+                free: 427348484096,
+                dedup: 1.0,
+                frag: 0,
+            }),
+            devices: vec![
+                String::from("/dev/sda1"),
+            ]
         },
     ];
 
