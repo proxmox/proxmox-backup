@@ -163,17 +163,12 @@ impl BackupWriter {
         data: Vec<u8>,
         file_name: &str,
         compress: bool,
-        crypt_mode: CryptMode,
+        encrypt: bool,
     ) -> Result<BackupStats, Error> {
-        let blob = match (crypt_mode, &self.crypt_config) {
-             (CryptMode::None, _) => DataBlob::encode(&data, None, compress)?,
-             (_, None) => bail!("requested encryption/signing without a crypt config"),
-             (CryptMode::Encrypt, Some(crypt_config)) => {
-                 DataBlob::encode(&data, Some(crypt_config), compress)?
-             }
-             (CryptMode::SignOnly, Some(crypt_config)) => {
-                 DataBlob::create_signed(&data, crypt_config, compress)?
-             }
+        let blob = match (encrypt, &self.crypt_config) {
+             (false, _) => DataBlob::encode(&data, None, compress)?,
+             (true, None) => bail!("requested encryption without a crypt config"),
+             (true, Some(crypt_config)) => DataBlob::encode(&data, Some(crypt_config), compress)?,
         };
 
         let raw_data = blob.into_inner();
@@ -190,8 +185,8 @@ impl BackupWriter {
         src_path: P,
         file_name: &str,
         compress: bool,
-        crypt_mode: CryptMode,
-     ) -> Result<BackupStats, Error> {
+        encrypt: bool,
+    ) -> Result<BackupStats, Error> {
 
         let src_path = src_path.as_ref();
 
@@ -205,23 +200,28 @@ impl BackupWriter {
             .await
             .map_err(|err| format_err!("unable to read file {:?} - {}", src_path, err))?;
 
-        self.upload_blob_from_data(contents, file_name, compress, crypt_mode).await
+        self.upload_blob_from_data(contents, file_name, compress, encrypt).await
     }
 
     pub async fn upload_stream(
         &self,
-        crypt_mode: CryptMode,
         previous_manifest: Option<Arc<BackupManifest>>,
         archive_name: &str,
         stream: impl Stream<Item = Result<bytes::BytesMut, Error>>,
         prefix: &str,
         fixed_size: Option<u64>,
+        compress: bool,
+        encrypt: bool,
     ) -> Result<BackupStats, Error> {
         let known_chunks = Arc::new(Mutex::new(HashSet::new()));
 
         let mut param = json!({ "archive-name": archive_name });
         if let Some(size) = fixed_size {
             param["size"] = size.into();
+        }
+
+        if encrypt && self.crypt_config.is_none() {
+            bail!("requested encryption without a crypt config");
         }
 
         let index_path = format!("{}_index", prefix);
@@ -249,8 +249,8 @@ impl BackupWriter {
                 stream,
                 &prefix,
                 known_chunks.clone(),
-                self.crypt_config.clone(),
-                crypt_mode,
+                if encrypt { self.crypt_config.clone() } else { None },
+                compress,
                 self.verbose,
             )
             .await?;
@@ -476,7 +476,7 @@ impl BackupWriter {
         prefix: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
         crypt_config: Option<Arc<CryptConfig>>,
-        crypt_mode: CryptMode,
+        compress: bool,
         verbose: bool,
     ) -> impl Future<Output = Result<(usize, usize, std::time::Duration, usize, [u8; 32]), Error>> {
 
@@ -507,10 +507,10 @@ impl BackupWriter {
                 let offset = stream_len.fetch_add(chunk_len, Ordering::SeqCst) as u64;
 
                 let mut chunk_builder = DataChunkBuilder::new(data.as_ref())
-                    .compress(true);
+                    .compress(compress);
 
                 if let Some(ref crypt_config) = crypt_config {
-                    chunk_builder = chunk_builder.crypt_config(crypt_config, crypt_mode);
+                    chunk_builder = chunk_builder.crypt_config(crypt_config);
                 }
 
                 let mut known_chunks = known_chunks.lock().unwrap();

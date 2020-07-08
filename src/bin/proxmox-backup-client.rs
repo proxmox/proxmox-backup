@@ -263,7 +263,6 @@ pub async fn api_datastore_latest_snapshot(
 
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
-    crypt_mode: CryptMode,
     previous_manifest: Option<Arc<BackupManifest>>,
     dir_path: P,
     archive_name: &str,
@@ -274,6 +273,8 @@ async fn backup_directory<P: AsRef<Path>>(
     catalog: Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
     exclude_pattern: Vec<MatchEntry>,
     entries_max: usize,
+    compress: bool,
+    encrypt: bool,
 ) -> Result<BackupStats, Error> {
 
     let pxar_stream = PxarBackupStream::open(
@@ -300,7 +301,7 @@ async fn backup_directory<P: AsRef<Path>>(
     });
 
     let stats = client
-        .upload_stream(crypt_mode, previous_manifest, archive_name, stream, "dynamic", None)
+        .upload_stream(previous_manifest, archive_name, stream, "dynamic", None, compress, encrypt)
         .await?;
 
     Ok(stats)
@@ -308,12 +309,13 @@ async fn backup_directory<P: AsRef<Path>>(
 
 async fn backup_image<P: AsRef<Path>>(
     client: &BackupWriter,
-    crypt_mode: CryptMode,
     previous_manifest: Option<Arc<BackupManifest>>,
     image_path: P,
     archive_name: &str,
     image_size: u64,
     chunk_size: Option<usize>,
+    compress: bool,
+    encrypt: bool,
     _verbose: bool,
 ) -> Result<BackupStats, Error> {
 
@@ -327,7 +329,7 @@ async fn backup_image<P: AsRef<Path>>(
     let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
 
     let stats = client
-        .upload_stream(crypt_mode, previous_manifest, archive_name, stream, "fixed", Some(image_size))
+        .upload_stream(previous_manifest, archive_name, stream, "fixed", Some(image_size), compress, encrypt)
         .await?;
 
     Ok(stats)
@@ -638,7 +640,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
 fn spawn_catalog_upload(
     client: Arc<BackupWriter>,
-    crypt_mode: CryptMode,
+    encrypt: bool,
 ) -> Result<
         (
             Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
@@ -656,7 +658,7 @@ fn spawn_catalog_upload(
 
     tokio::spawn(async move {
         let catalog_upload_result = client
-            .upload_stream(crypt_mode, None, CATALOG_NAME, catalog_chunk_stream, "dynamic", None)
+            .upload_stream(None, CATALOG_NAME, catalog_chunk_stream, "dynamic", None, true, encrypt)
             .await;
 
         if let Err(ref err) = catalog_upload_result {
@@ -986,21 +988,21 @@ async fn create_backup(
             BackupSpecificationType::CONFIG => {
                 println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, true, crypt_mode)
+                    .upload_blob_from_file(&filename, &target, true, crypt_mode == CryptMode::Encrypt)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
                 println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = client
-                    .upload_blob_from_file(&filename, &target, true, crypt_mode)
+                    .upload_blob_from_file(&filename, &target, true, crypt_mode == CryptMode::Encrypt)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
                 if catalog.is_none() {
-                    let (cat, res) = spawn_catalog_upload(client.clone(), crypt_mode)?;
+                    let (cat, res) = spawn_catalog_upload(client.clone(), crypt_mode == CryptMode::Encrypt)?;
                     catalog = Some(cat);
                     catalog_result_tx = Some(res);
                 }
@@ -1010,7 +1012,6 @@ async fn create_backup(
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
                     &client,
-                    crypt_mode,
                     previous_manifest.clone(),
                     &filename,
                     &target,
@@ -1021,6 +1022,8 @@ async fn create_backup(
                     catalog.clone(),
                     pattern_list.clone(),
                     entries_max as usize,
+                    true,
+                    crypt_mode == CryptMode::Encrypt,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
                 catalog.lock().unwrap().end_directory()?;
@@ -1029,12 +1032,13 @@ async fn create_backup(
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_image(
                     &client,
-                    crypt_mode,
                     previous_manifest.clone(),
                      &filename,
                     &target,
                     size,
                     chunk_size_opt,
+                    true,
+                    crypt_mode == CryptMode::Encrypt,
                     verbose,
                 ).await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
@@ -1062,7 +1066,7 @@ async fn create_backup(
         let target = "rsa-encrypted.key";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client
-            .upload_blob_from_data(rsa_encrypted_key, target, false, CryptMode::None)
+            .upload_blob_from_data(rsa_encrypted_key, target, false, false)
             .await?;
         manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, crypt_mode)?;
 
@@ -1081,13 +1085,12 @@ async fn create_backup(
 
     println!("Upload index.json to '{:?}'", repo);
     let manifest = serde_json::to_string_pretty(&manifest)?.into();
-    // manifests are never encrypted
-    let manifest_crypt_mode = match crypt_mode {
-        CryptMode::None => CryptMode::None,
-        _ => CryptMode::SignOnly,
-    };
+
+    // manifests are never encrypted, but include a signature
+    // fixme: sign manifest
+
     client
-        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, manifest_crypt_mode)
+        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, false)
         .await?;
 
     client.finish().await?;
@@ -1414,18 +1417,10 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let data = file_get_contents(logfile)?;
 
+    // fixme: howto sign log?
     let blob = match crypt_mode {
-        CryptMode::None => DataBlob::encode(&data, None, true)?,
-        CryptMode::Encrypt => {
-            DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?
-        }
-        CryptMode::SignOnly => DataBlob::create_signed(
-            &data,
-            crypt_config
-                .ok_or_else(|| format_err!("cannot sign without crypt config"))?
-                .as_ref(),
-            true,
-        )?,
+        CryptMode::None | CryptMode::SignOnly => DataBlob::encode(&data, None, true)?,
+        CryptMode::Encrypt => DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?,
     };
 
     let raw_data = blob.into_inner();

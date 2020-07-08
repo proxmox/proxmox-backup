@@ -17,12 +17,6 @@ pub const ENCRYPTED_BLOB_MAGIC_1_0: [u8; 8] = [123, 103, 133, 190, 34, 45, 76, 2
 // openssl::sha::sha256(b"Proxmox Backup zstd compressed encrypted blob v1.0")[0..8]
 pub const ENCR_COMPR_BLOB_MAGIC_1_0: [u8; 8] = [230, 89, 27, 191, 11, 191, 216, 11];
 
-//openssl::sha::sha256(b"Proxmox Backup authenticated blob v1.0")[0..8]
-pub const AUTHENTICATED_BLOB_MAGIC_1_0: [u8; 8] = [31, 135, 238, 226, 145, 206, 5, 2];
-
-//openssl::sha::sha256(b"Proxmox Backup zstd compressed authenticated blob v1.0")[0..8]
-pub const AUTH_COMPR_BLOB_MAGIC_1_0: [u8; 8] = [126, 166, 15, 190, 145, 31, 169, 96];
-
 // openssl::sha::sha256(b"Proxmox Backup fixed sized chunk index v1.0")[0..8]
 pub const FIXED_SIZED_CHUNK_INDEX_1_0: [u8; 8] = [47, 127, 65, 237, 145, 253, 15, 205];
 
@@ -50,19 +44,6 @@ pub struct DataBlobHeader {
     pub crc: [u8; 4],
 }
 
-/// Authenticated data blob binary storage format
-///
-/// The ``DataBlobHeader`` for authenticated blobs additionally contains
-/// a 16 byte HMAC tag, followed by the data:
-///
-/// (MAGIC || CRC32 || TAG || Data).
-#[derive(Endian)]
-#[repr(C,packed)]
-pub struct AuthenticatedDataBlobHeader {
-    pub head: DataBlobHeader,
-    pub tag: [u8; 32],
-}
-
 /// Encrypted data blob binary storage format
 ///
 /// The ``DataBlobHeader`` for encrypted blobs additionally contains
@@ -87,8 +68,6 @@ pub fn header_size(magic: &[u8; 8]) -> usize {
         &COMPRESSED_BLOB_MAGIC_1_0 => std::mem::size_of::<DataBlobHeader>(),
         &ENCRYPTED_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
         &ENCR_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<EncryptedDataBlobHeader>(),
-        &AUTHENTICATED_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
-        &AUTH_COMPR_BLOB_MAGIC_1_0 => std::mem::size_of::<AuthenticatedDataBlobHeader>(),
         _ => panic!("unknown blob magic"),
     }
 }

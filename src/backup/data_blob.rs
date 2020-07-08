@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use std::convert::TryInto;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
@@ -174,8 +174,6 @@ impl DataBlob {
             CryptMode::None
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             CryptMode::Encrypt
-        } else if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 || magic == &AUTHENTICATED_BLOB_MAGIC_1_0 {
-            CryptMode::SignOnly
         } else {
             bail!("Invalid blob magic number.");
         })
@@ -209,73 +207,9 @@ impl DataBlob {
             } else {
                 bail!("unable to decrypt blob - missing CryptConfig");
             }
-        } else if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 || magic == &AUTHENTICATED_BLOB_MAGIC_1_0 {
-            let header_len = std::mem::size_of::<AuthenticatedDataBlobHeader>();
-            let head = unsafe {
-                (&self.raw_data[..header_len]).read_le_value::<AuthenticatedDataBlobHeader>()?
-            };
-
-            let data_start = std::mem::size_of::<AuthenticatedDataBlobHeader>();
-
-            // Note: only verify if we have a crypt config
-            if let Some(config) = config  {
-                let signature = config.compute_auth_tag(&self.raw_data[data_start..]);
-                if signature != head.tag {
-                    bail!("verifying blob signature failed");
-                }
-            }
-
-            if magic == &AUTH_COMPR_BLOB_MAGIC_1_0 {
-                let data = zstd::block::decompress(&self.raw_data[data_start..], 16*1024*1024)?;
-                Ok(data)
-            } else {
-                Ok(self.raw_data[data_start..].to_vec())
-            }
         } else {
             bail!("Invalid blob magic number.");
         }
-    }
-
-    /// Create a signed DataBlob, optionally compressed
-    pub fn create_signed(
-        data: &[u8],
-        config: &CryptConfig,
-        compress: bool,
-    ) -> Result<Self, Error> {
-
-        if data.len() > MAX_BLOB_SIZE {
-            bail!("data blob too large ({} bytes).", data.len());
-        }
-
-        let compr_data;
-        let (_compress, data, magic) = if compress {
-            compr_data = zstd::block::compress(data, 1)?;
-            // Note: We only use compression if result is shorter
-            if compr_data.len() < data.len() {
-                (true, &compr_data[..], AUTH_COMPR_BLOB_MAGIC_1_0)
-            } else {
-                (false, data, AUTHENTICATED_BLOB_MAGIC_1_0)
-            }
-        } else {
-            (false, data, AUTHENTICATED_BLOB_MAGIC_1_0)
-        };
-
-        let header_len = std::mem::size_of::<AuthenticatedDataBlobHeader>();
-        let mut raw_data = Vec::with_capacity(data.len() + header_len);
-
-        let head = AuthenticatedDataBlobHeader {
-            head: DataBlobHeader { magic, crc: [0; 4] },
-            tag: config.compute_auth_tag(data),
-        };
-        unsafe {
-            raw_data.write_le_value(head)?;
-        }
-        raw_data.extend_from_slice(data);
-
-        let mut blob = DataBlob { raw_data };
-        blob.set_crc(blob.compute_crc());
-
-        Ok(blob)
     }
 
     /// Load blob from ``reader``
@@ -306,14 +240,6 @@ impl DataBlob {
 
             Ok(blob)
         } else if magic == COMPRESSED_BLOB_MAGIC_1_0 || magic == UNCOMPRESSED_BLOB_MAGIC_1_0 {
-
-            let blob = DataBlob { raw_data: data };
-
-            Ok(blob)
-        } else if magic == AUTH_COMPR_BLOB_MAGIC_1_0 || magic == AUTHENTICATED_BLOB_MAGIC_1_0 {
-            if data.len() < std::mem::size_of::<AuthenticatedDataBlobHeader>() {
-                bail!("authenticated blob too small ({} bytes).", data.len());
-            }
 
             let blob = DataBlob { raw_data: data };
 
@@ -362,7 +288,6 @@ impl DataBlob {
 /// we always compute the correct one.
 pub struct DataChunkBuilder<'a, 'b> {
     config: Option<&'b CryptConfig>,
-    crypt_mode: CryptMode,
     orig_data: &'a [u8],
     digest_computed: bool,
     digest: [u8; 32],
@@ -376,7 +301,6 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
         Self {
             orig_data,
             config: None,
-            crypt_mode: CryptMode::None,
             digest_computed: false,
             digest: [0u8; 32],
             compress: true,
@@ -393,18 +317,12 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
     /// Set encryption Configuration
     ///
-    /// If set, chunks are encrypted or signed
-    pub fn crypt_config(mut self, value: &'b CryptConfig, crypt_mode: CryptMode) -> Self {
+    /// If set, chunks are encrypted
+    pub fn crypt_config(mut self, value: &'b CryptConfig) -> Self {
         if self.digest_computed {
             panic!("unable to set crypt_config after compute_digest().");
         }
-        if crypt_mode == CryptMode::None {
-            self.config = None;
-        } else {
-            self.config = Some(value);
-        }
-
-        self.crypt_mode = crypt_mode;
+        self.config = Some(value);
         self
     }
 
@@ -438,25 +356,13 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
             self.compute_digest();
         }
 
-        let chunk = match self.crypt_mode {
-            CryptMode::None | CryptMode::Encrypt => {
-                DataBlob::encode(self.orig_data, self.config, self.compress)?
-            }
-            CryptMode::SignOnly => DataBlob::create_signed(
-                self.orig_data,
-                self.config
-                    .ok_or_else(|| format_err!("cannot sign without crypt config"))?,
-                self.compress,
-            )?,
-        };
-
+        let chunk = DataBlob::encode(self.orig_data, self.config, self.compress)?;
         Ok((chunk, self.digest))
     }
 
     /// Create a chunk filled with zeroes
     pub fn build_zero_chunk(
         crypt_config: Option<&CryptConfig>,
-        crypt_mode: CryptMode,
         chunk_size: usize,
         compress: bool,
     ) -> Result<(DataBlob, [u8; 32]), Error> {
@@ -465,7 +371,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
         zero_bytes.resize(chunk_size, 0u8);
         let mut chunk_builder = DataChunkBuilder::new(&zero_bytes).compress(compress);
         if let Some(ref crypt_config) = crypt_config {
-            chunk_builder = chunk_builder.crypt_config(crypt_config, crypt_mode);
+            chunk_builder = chunk_builder.crypt_config(crypt_config);
         }
 
         chunk_builder.build()

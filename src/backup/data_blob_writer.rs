@@ -8,8 +8,6 @@ use super::*;
 enum BlobWriterState<W: Write> {
     Uncompressed { csum_writer: ChecksumWriter<W> },
     Compressed { compr: zstd::stream::write::Encoder<ChecksumWriter<W>> },
-    Signed { csum_writer: ChecksumWriter<W> },
-    SignedCompressed { compr: zstd::stream::write::Encoder<ChecksumWriter<W>> },
     Encrypted { crypt_writer: CryptWriter<ChecksumWriter<W>> },
     EncryptedCompressed { compr: zstd::stream::write::Encoder<CryptWriter<ChecksumWriter<W>>> },
 }
@@ -40,33 +38,6 @@ impl <W: Write + Seek> DataBlobWriter<W> {
         let csum_writer = ChecksumWriter::new(writer, None);
         let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
         Ok(Self { state: BlobWriterState::Compressed { compr }})
-    }
-
-    pub fn new_signed(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
-        writer.seek(SeekFrom::Start(0))?;
-        let head = AuthenticatedDataBlobHeader {
-            head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: [0; 4] },
-            tag: [0u8; 32],
-        };
-        unsafe {
-            writer.write_le_value(head)?;
-        }
-        let csum_writer = ChecksumWriter::new(writer, Some(config));
-        Ok(Self { state:  BlobWriterState::Signed { csum_writer }})
-    }
-
-    pub fn new_signed_compressed(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
-        writer.seek(SeekFrom::Start(0))?;
-        let head = AuthenticatedDataBlobHeader {
-            head: DataBlobHeader { magic: AUTH_COMPR_BLOB_MAGIC_1_0, crc: [0; 4] },
-            tag: [0u8; 32],
-        };
-        unsafe {
-            writer.write_le_value(head)?;
-        }
-        let csum_writer = ChecksumWriter::new(writer, Some(config));
-        let compr = zstd::stream::write::Encoder::new(csum_writer, 1)?;
-        Ok(Self { state: BlobWriterState::SignedCompressed { compr }})
     }
 
     pub fn new_encrypted(mut writer: W, config: Arc<CryptConfig>) -> Result<Self, Error> {
@@ -129,37 +100,6 @@ impl <W: Write + Seek> DataBlobWriter<W> {
 
                 Ok(writer)
             }
-            BlobWriterState::Signed { csum_writer } => {
-                let (mut writer, crc, tag) = csum_writer.finish()?;
-
-                let head = AuthenticatedDataBlobHeader {
-                    head: DataBlobHeader { magic: AUTHENTICATED_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
-                    tag: tag.unwrap(),
-                };
-
-                writer.seek(SeekFrom::Start(0))?;
-                unsafe {
-                    writer.write_le_value(head)?;
-                }
-
-                Ok(writer)
-            }
-            BlobWriterState::SignedCompressed { compr } => {
-                let csum_writer = compr.finish()?;
-                let (mut writer, crc, tag) = csum_writer.finish()?;
-
-                let head = AuthenticatedDataBlobHeader {
-                    head: DataBlobHeader { magic: AUTH_COMPR_BLOB_MAGIC_1_0, crc: crc.to_le_bytes() },
-                    tag: tag.unwrap(),
-                };
-
-                writer.seek(SeekFrom::Start(0))?;
-                unsafe {
-                    writer.write_le_value(head)?;
-                }
-
-                Ok(writer)
-            }
             BlobWriterState::Encrypted { crypt_writer } => {
                 let (csum_writer, iv, tag) = crypt_writer.finish()?;
                 let (mut writer, crc, _) = csum_writer.finish()?;
@@ -203,12 +143,6 @@ impl <W: Write + Seek> Write for DataBlobWriter<W> {
             BlobWriterState::Compressed { ref mut compr } => {
                 compr.write(buf)
             }
-            BlobWriterState::Signed { ref mut csum_writer } => {
-                csum_writer.write(buf)
-            }
-            BlobWriterState::SignedCompressed { ref mut compr } => {
-               compr.write(buf)
-            }
             BlobWriterState::Encrypted { ref mut crypt_writer } => {
                 crypt_writer.write(buf)
             }
@@ -226,13 +160,7 @@ impl <W: Write + Seek> Write for DataBlobWriter<W> {
             BlobWriterState::Compressed { ref mut compr } => {
                 compr.flush()
             }
-            BlobWriterState::Signed { ref mut csum_writer } => {
-                csum_writer.flush()
-            }
-            BlobWriterState::SignedCompressed { ref mut compr } => {
-                compr.flush()
-            }
-            BlobWriterState::Encrypted { ref mut crypt_writer } => {
+             BlobWriterState::Encrypted { ref mut crypt_writer } => {
                crypt_writer.flush()
             }
             BlobWriterState::EncryptedCompressed { ref mut compr } => {
