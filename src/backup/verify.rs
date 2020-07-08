@@ -101,7 +101,7 @@ fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &Fi
 pub fn verify_backup_dir(datastore: &DataStore, backup_dir: &BackupDir, worker: &WorkerTask) -> Result<bool, Error> {
 
     let manifest = match datastore.load_manifest(&backup_dir) {
-        Ok((manifest, _)) => manifest,
+        Ok((manifest, _crypt_mode, _)) => manifest,
         Err(err) => {
             worker.log(format!("verify {}:{} - manifest load error: {}", datastore.name(), backup_dir, err));
             return Ok(false);
