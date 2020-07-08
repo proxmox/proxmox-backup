@@ -430,3 +430,38 @@ errors: No known data errors
 
     Ok(())
 }
+
+#[test]
+fn test_zpool_status_parser3() -> Result<(), Error> {
+
+    let output = r###"  pool: bt-est
+ state: ONLINE
+  scan: none requested
+config:
+
+	NAME           STATE     READ WRITE CKSUM
+	bt-est          ONLINE       0     0     0
+	  mirror-0     ONLINE       0     0     0
+	    /dev/sda1  ONLINE       0     0     0
+	    /dev/sda2  ONLINE       0     0     0
+	  mirror-1     ONLINE       0     0     0
+	    /dev/sda3  ONLINE       0     0     0
+	    /dev/sda4  ONLINE       0     0     0
+	logs
+	  /dev/sda5    ONLINE       0     0     0
+
+errors: No known data errors
+"###;
+
+    let key_value_list = parse_zpool_status(&output)?;
+    for (k, v) in key_value_list {
+        println!("{} => {}", k,v);
+        if k == "config" {
+            let vdev_list = parse_zpool_status_config_tree(&v)?;
+            let _tree = vdev_list_to_tree(&vdev_list);
+            //println!("TREE1 {}", serde_json::to_string_pretty(&tree)?);
+        }
+    }
+
+    Ok(())
+}
