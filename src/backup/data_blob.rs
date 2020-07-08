@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use std::convert::TryInto;
 
 use proxmox::tools::io::{ReadExt, WriteExt};
@@ -362,6 +362,7 @@ impl DataBlob {
 /// we always compute the correct one.
 pub struct DataChunkBuilder<'a, 'b> {
     config: Option<&'b CryptConfig>,
+    crypt_mode: CryptMode,
     orig_data: &'a [u8],
     digest_computed: bool,
     digest: [u8; 32],
@@ -375,6 +376,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
         Self {
             orig_data,
             config: None,
+            crypt_mode: CryptMode::None,
             digest_computed: false,
             digest: [0u8; 32],
             compress: true,
@@ -391,12 +393,18 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
 
     /// Set encryption Configuration
     ///
-    /// If set, chunks are encrypted.
-    pub fn crypt_config(mut self, value: &'b CryptConfig) -> Self {
+    /// If set, chunks are encrypted or signed
+    pub fn crypt_config(mut self, value: &'b CryptConfig, crypt_mode: CryptMode) -> Self {
         if self.digest_computed {
             panic!("unable to set crypt_config after compute_digest().");
         }
-        self.config = Some(value);
+        if crypt_mode == CryptMode::None {
+            self.config = None;
+        } else {
+            self.config = Some(value);
+        }
+
+        self.crypt_mode = crypt_mode;
         self
     }
 
@@ -430,11 +438,17 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
             self.compute_digest();
         }
 
-        let chunk = DataBlob::encode(
-            self.orig_data,
-            self.config,
-            self.compress,
-        )?;
+        let chunk = match self.crypt_mode {
+            CryptMode::None | CryptMode::Encrypt => {
+                DataBlob::encode(self.orig_data, self.config, self.compress)?
+            }
+            CryptMode::SignOnly => DataBlob::create_signed(
+                self.orig_data,
+                self.config
+                    .ok_or_else(|| format_err!("cannot sign without crypt config"))?,
+                self.compress,
+            )?,
+        };
 
         Ok((chunk, self.digest))
     }
@@ -442,6 +456,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
     /// Create a chunk filled with zeroes
     pub fn build_zero_chunk(
         crypt_config: Option<&CryptConfig>,
+        crypt_mode: CryptMode,
         chunk_size: usize,
         compress: bool,
     ) -> Result<(DataBlob, [u8; 32]), Error> {
@@ -450,7 +465,7 @@ impl <'a, 'b> DataChunkBuilder<'a, 'b> {
         zero_bytes.resize(chunk_size, 0u8);
         let mut chunk_builder = DataChunkBuilder::new(&zero_bytes).compress(compress);
         if let Some(ref crypt_config) = crypt_config {
-            chunk_builder = chunk_builder.crypt_config(crypt_config);
+            chunk_builder = chunk_builder.crypt_config(crypt_config, crypt_mode);
         }
 
         chunk_builder.build()

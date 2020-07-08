@@ -256,6 +256,7 @@ pub async fn api_datastore_latest_snapshot(
 
 async fn backup_directory<P: AsRef<Path>>(
     client: &BackupWriter,
+    crypt_mode: CryptMode,
     previous_manifest: Option<Arc<BackupManifest>>,
     dir_path: P,
     archive_name: &str,
@@ -292,7 +293,7 @@ async fn backup_directory<P: AsRef<Path>>(
     });
 
     let stats = client
-        .upload_stream(previous_manifest, archive_name, stream, "dynamic", None)
+        .upload_stream(crypt_mode, previous_manifest, archive_name, stream, "dynamic", None)
         .await?;
 
     Ok(stats)
@@ -300,6 +301,7 @@ async fn backup_directory<P: AsRef<Path>>(
 
 async fn backup_image<P: AsRef<Path>>(
     client: &BackupWriter,
+    crypt_mode: CryptMode,
     previous_manifest: Option<Arc<BackupManifest>>,
     image_path: P,
     archive_name: &str,
@@ -318,7 +320,7 @@ async fn backup_image<P: AsRef<Path>>(
     let stream = FixedChunkStream::new(stream, chunk_size.unwrap_or(4*1024*1024));
 
     let stats = client
-        .upload_stream(previous_manifest, archive_name, stream, "fixed", Some(image_size))
+        .upload_stream(crypt_mode, previous_manifest, archive_name, stream, "fixed", Some(image_size))
         .await?;
 
     Ok(stats)
@@ -628,7 +630,8 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 }
 
 fn spawn_catalog_upload(
-    client: Arc<BackupWriter>
+    client: Arc<BackupWriter>,
+    crypt_mode: CryptMode,
 ) -> Result<
         (
             Arc<Mutex<CatalogWriter<crate::tools::StdChannelWriter>>>,
@@ -646,7 +649,7 @@ fn spawn_catalog_upload(
 
     tokio::spawn(async move {
         let catalog_upload_result = client
-            .upload_stream(None, CATALOG_NAME, catalog_chunk_stream, "dynamic", None)
+            .upload_stream(crypt_mode, None, CATALOG_NAME, catalog_chunk_stream, "dynamic", None)
             .await;
 
         if let Err(ref err) = catalog_upload_result {
@@ -956,7 +959,7 @@ async fn create_backup(
             BackupSpecificationType::PXAR => {
                 // start catalog upload on first use
                 if catalog.is_none() {
-                    let (cat, res) = spawn_catalog_upload(client.clone())?;
+                    let (cat, res) = spawn_catalog_upload(client.clone(), crypt_mode)?;
                     catalog = Some(cat);
                     catalog_result_tx = Some(res);
                 }
@@ -966,6 +969,7 @@ async fn create_backup(
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
                     &client,
+                    crypt_mode,
                     previous_manifest.clone(),
                     &filename,
                     &target,
@@ -984,6 +988,7 @@ async fn create_backup(
                 println!("Upload image '{}' to '{:?}' as {}", filename, repo, target);
                 let stats = backup_image(
                     &client,
+                    crypt_mode,
                     previous_manifest.clone(),
                      &filename,
                     &target,

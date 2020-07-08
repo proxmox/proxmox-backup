@@ -210,6 +210,7 @@ impl BackupWriter {
 
     pub async fn upload_stream(
         &self,
+        crypt_mode: CryptMode,
         previous_manifest: Option<Arc<BackupManifest>>,
         archive_name: &str,
         stream: impl Stream<Item = Result<bytes::BytesMut, Error>>,
@@ -249,6 +250,7 @@ impl BackupWriter {
                 &prefix,
                 known_chunks.clone(),
                 self.crypt_config.clone(),
+                crypt_mode,
                 self.verbose,
             )
             .await?;
@@ -474,6 +476,7 @@ impl BackupWriter {
         prefix: &str,
         known_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
         crypt_config: Option<Arc<CryptConfig>>,
+        crypt_mode: CryptMode,
         verbose: bool,
     ) -> impl Future<Output = Result<(usize, usize, std::time::Duration, usize, [u8; 32]), Error>> {
 
@@ -507,7 +510,7 @@ impl BackupWriter {
                     .compress(true);
 
                 if let Some(ref crypt_config) = crypt_config {
-                    chunk_builder = chunk_builder.crypt_config(crypt_config);
+                    chunk_builder = chunk_builder.crypt_config(crypt_config, crypt_mode);
                 }
 
                 let mut known_chunks = known_chunks.lock().unwrap();
