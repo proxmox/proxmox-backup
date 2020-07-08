@@ -46,8 +46,9 @@ Ext.define('PBS.window.BackupFileDownloader', {
 	    let me = this;
 	    let combo = me.lookup('file');
 	    let rec = combo.getStore().findRecord('filename', value, 0, false, true, true);
-	    let canDownload = !rec.data.encrypted;
+	    let canDownload = rec.data['crypt-mode'] !== 'encrypt';
 	    me.lookup('encryptedHint').setVisible(!canDownload);
+	    me.lookup('signedHint').setVisible(rec.data['crypt-mode'] === 'sign-only');
 	    me.lookup('downloadBtn').setDisabled(!canDownload);
 	},
 
@@ -88,7 +89,7 @@ Ext.define('PBS.window.BackupFileDownloader', {
 	    emptyText: gettext('No file selected'),
 	    fieldLabel: gettext('File'),
 	    store: {
-		fields: ['filename', 'size', 'encrypted',],
+		fields: ['filename', 'size', 'crypt-mode',],
 		idProperty: ['filename'],
 	    },
 	    listConfig: {
@@ -107,11 +108,24 @@ Ext.define('PBS.window.BackupFileDownloader', {
 		    },
 		    {
 			text: gettext('Encrypted'),
-			dataIndex: 'encrypted',
-			renderer: Proxmox.Utils.format_boolean,
+			dataIndex: 'crypt-mode',
+			renderer: function(value) {
+			    let mode = -1;
+			    if (value !== undefined) {
+				mode = PBS.Utils.cryptmap.indexOf(value);
+			    }
+			    return PBS.Utils.cryptText[mode] || Proxmox.Utils.unknownText;
+			}
 		    },
 		],
 	    },
+	},
+	{
+	    xtype: 'displayfield',
+	    userCls: 'pmx-hint',
+	    reference: 'signedHint',
+	    hidden: true,
+	    value: gettext('Note: Signatures of signed files will not be verified on the server. Please use the client to do this.'),
 	},
 	{
 	    xtype: 'displayfield',

@@ -13,6 +13,39 @@ Ext.define('PBS.Utils', {
 
     dataStorePrefix: 'DataStore-',
 
+    cryptmap: [
+	'none',
+	'mixed',
+	'sign-only',
+	'encrypt',
+    ],
+
+    cryptText: [
+	Proxmox.Utils.noText,
+	gettext('Mixed'),
+	gettext('Signed'),
+	gettext('Encrypted'),
+    ],
+
+    cryptIconCls: [
+	'',
+	'',
+	'certificate',
+	'lock',
+    ],
+
+    calculateCryptMode: function(signed, encrypted, files) {
+	if (files === encrypted) {
+	    return PBS.Utils.cryptmap.indexOf('encrypt');
+	} else if (files === signed) {
+	    return PBS.Utils.cryptmap.indexOf('sign-only');
+	} else if ((signed+encrypted) === 0) {
+	    return PBS.Utils.cryptmap.indexOf('none');
+	} else {
+	    return PBS.Utils.cryptmap.indexOf('mixed');
+	}
+    },
+
     getDataStoreFromPath: function(path) {
 	return path.slice(PBS.Utils.dataStorePrefix.length);
     },

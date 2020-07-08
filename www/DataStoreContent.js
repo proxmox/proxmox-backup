@@ -12,26 +12,28 @@ Ext.define('pbs-data-store-snapshots', {
 	'owner',
 	{ name: 'size', type: 'int', allowNull: true, },
 	{
-	    name: 'encrypted',
+	    name: 'crypt-mode',
 	    type: 'boolean',
 	    calculate: function(data) {
 		let encrypted = 0;
+		let crypt = {
+		    none: 0,
+		    mixed: 0,
+		    'sign-only': 0,
+		    encrypt: 0,
+		};
+		let signed = 0;
 		let files = 0;
 		data.files.forEach(file => {
 		    if (file.filename === 'index.json.blob') return; // is never encrypted
-		    if (file.encrypted) {
-			encrypted++;
+		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
+		    if (mode !== -1) {
+			crypt[file['crypt-mode']]++;
 		    }
 		    files++;
 		});
 
-		if (encrypted === 0) {
-		    return 0;
-		} else if (encrypted < files) {
-		    return 1;
-		} else {
-		    return 2;
-		}
+		return PBS.Utils.calculateCryptMode(crypt['sign-only'], crypt.encrypt, files);
 	    }
 	}
     ]
@@ -149,11 +151,14 @@ Ext.define('PBS.DataStoreContent', {
 	    let children = [];
 	    for (const [_key, group] of Object.entries(groups)) {
 		let last_backup = 0;
-		let encrypted = 0;
+		let crypt = {
+		    none: 0,
+		    mixed: 0,
+		    'sign-only': 0,
+		    encrypt: 0
+		};
 		for (const item of group.children) {
-		    if (item.encrypted > 0) {
-			encrypted++;
-		    }
+		    crypt[PBS.Utils.cryptmap[item['crypt-mode']]]++;
 		    if (item["backup-time"] > last_backup && item.size !== null) {
 			last_backup = item["backup-time"];
 			group["backup-time"] = last_backup;
@@ -163,14 +168,8 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 
 		}
-		if (encrypted === 0) {
-		    group.encrypted = 0;
-		} else if (encrypted < group.children.length) {
-		    group.encrypted = 1;
-		} else {
-		    group.encrypted = 2;
-		}
 		group.count = group.children.length;
+		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt['sign-only'], crypt.encrypt, group.count);
 		children.push(group);
 	    }
 
@@ -296,7 +295,7 @@ Ext.define('PBS.DataStoreContent', {
 
 	    let encrypted = false;
 	    data.files.forEach(file => {
-		if (file.filename === 'catalog.pcat1.didx' && file.encrypted) {
+		if (file.filename === 'catalog.pcat1.didx' && file['crypt-mode'] === 'encrypt') {
 		    encrypted = true;
 		}
 	    });
@@ -365,15 +364,8 @@ Ext.define('PBS.DataStoreContent', {
 	},
 	{
 	    header: gettext('Encrypted'),
-	    dataIndex: 'encrypted',
-	    renderer: function(value) {
-		switch (value) {
-		    case 0: return Proxmox.Utils.noText;
-		    case 1: return gettext('Mixed');
-		    case 2: return Proxmox.Utils.yesText;
-		    default: Proxmox.Utils.unknownText;
-		}
-	    }
+	    dataIndex: 'crypt-mode',
+	    renderer: value => PBS.Utils.cryptText[value] || Proxmox.Utils.unknownText,
 	},
 	{
 	    header: gettext("Files"),
@@ -383,8 +375,10 @@ Ext.define('PBS.DataStoreContent', {
 		return files.map((file) => {
 		    let icon = '';
 		    let size = '';
-		    if (file.encrypted) {
-			icon = '<i class="fa fa-lock"></i> ';
+		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
+		    let iconCls = PBS.Utils.cryptIconCls[mode] || '';
+		    if (iconCls !== '') {
+			icon = `<i class="fa fa-${iconCls}"></i> `;
 		    }
 		    if (file.size)  {
 			size = ` (${Proxmox.Utils.format_size(file.size)})`;
