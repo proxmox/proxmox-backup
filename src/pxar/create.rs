@@ -452,10 +452,10 @@ impl<'a, 'b> Archiver<'a, 'b> {
         use pxar::format::mode;
 
         let file_mode = stat.st_mode & libc::S_IFMT;
-        let open_mode = if !(file_mode == libc::S_IFREG || file_mode == libc::S_IFDIR) {
-            OFlag::O_PATH
-        } else {
+        let open_mode = if file_mode == libc::S_IFREG || file_mode == libc::S_IFDIR {
             OFlag::empty()
+        } else {
+            OFlag::O_PATH
         };
 
         let fd = self.open_file(
