@@ -136,7 +136,17 @@ impl TryFrom<Value> for BackupManifest {
                 let csum = required_string_property(item, "csum")?;
                 let csum = proxmox::tools::hex_to_digest(csum)?;
                 let size = required_integer_property(item, "size")? as u64;
-                let crypt_mode: CryptMode = serde_json::from_value(item["crypt-mode"].clone())?;
+
+                let mut crypt_mode = CryptMode::None;
+
+                if let Some(true) = item["encrypted"].as_bool() { // compatible to < 0.8.0
+                    crypt_mode = CryptMode::Encrypt;
+                }
+
+                if let Some(mode) = item.get("crypt-mode") {
+                    crypt_mode = serde_json::from_value(mode.clone())?;
+                }
+
                 manifest.add_file(filename, size, csum, crypt_mode)?;
             }
 
