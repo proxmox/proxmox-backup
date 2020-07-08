@@ -64,7 +64,7 @@ fn parse_zpool_list_header(i: &str) -> IResult<&str, ZFSPoolInfo> {
     let (i, (text, size, alloc, free, _, _,
              frag, _, dedup, health,
              _altroot, _eol)) = tuple((
-        take_while1(|c| char::is_alphanumeric(c)), // name
+        take_while1(|c| char::is_alphanumeric(c) || c == '-' || c == ':' || c == '_' || c == '.'), // name
         preceded(multispace1, parse_optional_u64), // size
         preceded(multispace1, parse_optional_u64), // allocated
         preceded(multispace1, parse_optional_u64), // free
