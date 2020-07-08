@@ -76,7 +76,7 @@ We recommend to configure this repository in ``/etc/apt/sources.list``.
 
   # PBS pbs-no-subscription repository provided by proxmox.com,
   # NOT recommended for production use
-  deb http://download.proxmox.com/debian/bps buster pbs-no-subscription
+  deb http://download.proxmox.com/debian/pbs buster pbs-no-subscription
 
   # security updates
   deb http://security.debian.org/debian-security buster/updates main contrib
@@ -98,5 +98,5 @@ adding the following line:
 .. code-block:: sources.list
   :caption: sources.list entry for ``pbstest``
 
-  deb http://download.proxmox.com/debian/bps buster pbstest
+  deb http://download.proxmox.com/debian/pbs buster pbstest
 
