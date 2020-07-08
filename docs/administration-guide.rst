@@ -13,16 +13,16 @@ Backup Content
 
 When doing deduplication, there are different strategies to get
 optimal results in terms of performance and/or deduplication rates.
-Depending on the type of data, one can split data into *fixed* or *variable*
+Depending on the type of data, it can be split into *fixed* or *variable*
 sized chunks.
 
-Fixed sized chunking needs almost no CPU performance, and is used to
+Fixed sized chunking requires minimal CPU power, and is used to
 backup virtual machine images.
 
 Variable sized chunking needs more CPU power, but is essential to get
 good deduplication rates for file archives.
 
-The backup server supports both strategies.
+The Proxmox Backup Server supports both strategies.
 
 
 File Archives: ``<name>.pxar``
@@ -31,7 +31,7 @@ File Archives: ``<name>.pxar``
 .. see https://moinakg.wordpress.com/2013/06/22/high-performance-content-defined-chunking/
 
 A file archive stores a full directory tree. Content is stored using
-the :ref:`pxar-format`, split into variable sized chunks. The format
+the :ref:`pxar-format`, split into variable-sized chunks. The format
 is optimized to achieve good deduplication rates.
 
 
@@ -39,7 +39,7 @@ Image Archives: ``<name>.img``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is used for virtual machine images and other large binary
-data. Content is split into fixed sized chunks.
+data. Content is split into fixed-sized chunks.
 
 
 Binary Data (BLOBs)
@@ -56,7 +56,7 @@ Catalog File: ``catalog.pcat1``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The catalog file is an index for file archives. It contains
-the list of files and is used to speed-up search operations.
+the list of files and is used to speed up search operations.
 
 
 The Manifest: ``index.json``
@@ -74,12 +74,12 @@ The backup server groups backups by *type*, where *type* is one of:
 
 ``vm``
     This type is used for :term:`virtual machine`\ s. Typically
-    contains the virtual machine's configuration and an image archive
+    consists of the virtual machine's configuration file and an image archive
     for each disk.
 
 ``ct``
-    This type is used for :term:`container`\ s. Contains the container's
-    configuration and a single file archive for the container content.
+    This type is used for :term:`container`\ s. Consists of the container's
+    configuration and a single file archive for the filesystem content.
 
 ``host``
     This type is used for backups created from within the backed up machine.
@@ -90,7 +90,7 @@ The backup server groups backups by *type*, where *type* is one of:
 Backup ID
 ~~~~~~~~~
 
-An unique ID. Usually the virtual machine or container ID. ``host``
+A unique ID. Usually the virtual machine or container ID. ``host``
 type backups normally use the hostname.
 
 
@@ -122,6 +122,13 @@ uniquely identifies a specific backup within a datastore.
 As you can see, the time format is RFC3399_ with Coordinated
 Universal Time (UTC_, identified by the trailing *Z*).
 
+Backup Server Management
+------------------------
+
+The command line tool to configure and manage the backup server is called
+:command:`proxmox-backup-manager`.
+
+
 
 :term:`DataStore`
 ~~~~~~~~~~~~~~~~~
@@ -134,20 +141,13 @@ Datastores are identified by a simple *ID*. You can configure it
 when setting up the backup server.
 
 
-Backup Server Management
-------------------------
-
-The command line tool to configure and manage the backup server is called
-:command:`proxmox-backup-manager`.
-
 
 Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A :term:`datastore` is a place to store backups. You can configure
-multiple datastores. At least one datastore needs to be
-configured. The datastore is identified by a simple `name` and points
-to a directory.
+You can configure multiple datastores. Minimum one datastore needs to be
+configured. The datastore is identified by a simple `name` and points to a
+directory on the filesystem.
 
 The following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
 
@@ -179,17 +179,56 @@ Finally, it is possible to remove the datastore configuration:
 File Layout
 ^^^^^^^^^^^
 
-.. todo:: Add datastore file layout example
+After creating a datastore, the following default layout will appear:
+
+.. code-block:: console
+  # ls -arilh /backup/disk1/store1
+  276493 -rw-r--r-- 1 backup backup       0 Jul  8 12:35 .lock
+  276490 drwxr-x--- 1 backup backup 1064960 Jul  8 12:35 .chunks
+
+`.lock` is an empty file used for process locking.
+
+The `.chunks` directory contains folders, starting from `0000` and taking hexadecimal values until `ffff`. These
+directories will store the chunked data after a backup operation has been executed.
+
+.. code-block:: console
+ # ls -arilh /backup/disk1/store1/.chunks
+ 545824 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 ffff
+ 545823 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffe
+ 415621 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffd
+ 415620 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffc
+ 353187 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffb
+ 344995 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffa
+ 144079 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fff9
+ 144078 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fff8
+ 144077 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fff7
+ ...
+ 403180 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 000c
+ 403179 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 000b
+ 403177 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 000a
+ 402530 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0009
+ 402513 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0008
+ 402509 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0007
+ 276509 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0006
+ 276508 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0005
+ 276507 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0004
+ 276501 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0003
+ 276499 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0002
+ 276498 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0001
+ 276494 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 0000
+ 276489 drwxr-xr-x 3 backup backup 4.0K Jul  8 12:35 ..
+ 276490 drwxr-x--- 1 backup backup 1.1M Jul  8 12:35 .
+
 
 
 User Management
 ~~~~~~~~~~~~~~~
 
-Proxmox Backup support several authentication realms, and you need to
+Proxmox Backup Server supports several authentication realms, and you need to
 choose the realm when you add a new user. Possible realms are:
 
 :pam: Linux PAM standard authentication. Use this if you want to
-      authenticate as Linux system user (Users needs to exist on the
+      authenticate as Linux system user (Users need to exist on the
       system).
 
 :pbs: Proxmox Backup Server realm. This type stores hashed passwords in
@@ -216,8 +255,8 @@ normally want to add other users with less privileges:
 
   # proxmox-backup-manager user create john@pbs --email john@example.com
 
-The create command lets you specify many option like ``--email`` or
-``--password``, but you can update or change any of them using the
+The create command lets you specify many options like ``--email`` or
+``--password``. You can update or change any of them using the
 update command later:
 
 .. code-block:: console
@@ -225,11 +264,10 @@ update command later:
   # proxmox-backup-manager user update john@pbs --firstname John --lastname Smith
   # proxmox-backup-manager user update john@pbs --comment "An example user."
 
-
 .. todo:: Mention how to set password without passing plaintext password as cli argument.
 
 
-The resulting use list looks like this:
+The resulting user list looks like this:
 
 .. code-block:: console
 
@@ -242,16 +280,16 @@ The resulting use list looks like this:
   │ root@pam │      1 │        │           │          │                  │ Superuser        │
   └──────────┴────────┴────────┴───────────┴──────────┴──────────────────┴──────────────────┘
 
-Newly created users do not have an permissions. Please read the next
+Newly created users do not have any permissions. Please read the next
 section to learn how to set access permissions.
 
-If you want to disable an user account, you can do that by setting ``--enable`` to ``0``
+If you want to disable a user account, you can do that by setting ``--enable`` to ``0``
 
 .. code-block:: console
 
   # proxmox-backup-manager user update john@pbs --enable 0
 
-Or completely remove the users with:
+Or completely remove the user with:
 
 .. code-block:: console
 
@@ -261,19 +299,19 @@ Or completely remove the users with:
 Access Control
 ~~~~~~~~~~~~~~
 
-Users do not have any permission by default. Instead you need to
-specify what is allowed and what not. You can do this by assigning
+By default new users do not have any permission. Instead you need to
+specify what is allowed and what is not. You can do this by assigning
 roles to users on specific objects like datastores or remotes. The
 following roles exist:
+
+**NoAccess**
+  Disable Access - nothing is allowed.
 
 **Admin**
   The Administrator can do anything.
 
 **Audit**
   An Auditor can view things, but is not allowed to change settings.
-
-**NoAccess**
-  Disable Access - nothing is allowed.
 
 **DatastoreAdmin**
   Can do anything on datastores.
@@ -301,7 +339,6 @@ following roles exist:
   Is allowed to read data from a remote.
 
 
-
 Backup Client usage
 -------------------
 
@@ -316,8 +353,8 @@ on the backup server.
 
   [[username@]server:]datastore
 
-The default value for ``username`` ist ``root``. If no server is specified, the
-default is the local host (``localhost``).
+The default value for ``username`` ist ``root``.  If no server is specified,
+the default is the local host (``localhost``).
 
 You can pass the repository with the ``--repository`` command
 line option, or by setting the ``PBS_REPOSITORY`` environment
@@ -381,7 +418,7 @@ This section explains how to create a backup from within the machine. This can
 be a physical host, a virtual machine, or a container. Such backups may contain file
 and image archives. There are no restrictions in this case.
 
-.. note:: If you want to backup virtual machines or containers on Proxmov VE, see :ref:`pve-integration`.
+.. note:: If you want to backup virtual machines or containers on Proxmox VE, see :ref:`pve-integration`.
 
 For the following example you need to have a backup server set up, working
 credentials and need to know the repository name.
