@@ -80,10 +80,9 @@ impl CryptConfig {
     /// chunk digest values do not clash with values computed for
     /// other sectret keys.
     pub fn compute_digest(&self, data: &[u8]) -> [u8; 32] {
-        // FIXME: use HMAC-SHA256 instead??
         let mut hasher = openssl::sha::Sha256::new();
-        hasher.update(&self.id_key);
         hasher.update(data);
+        hasher.update(&self.id_key); // at the end, to avoid length extensions attacks
         hasher.finish()
     }
 
@@ -220,7 +219,7 @@ impl CryptConfig {
         created: DateTime<Local>,
     ) -> Result<Vec<u8>, Error> {
 
-         let modified = Local.timestamp(Local::now().timestamp(), 0);
+        let modified = Local.timestamp(Local::now().timestamp(), 0);
         let key_config = super::KeyConfig { kdf: None, created, modified, data: self.enc_key.to_vec() };
         let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
 
