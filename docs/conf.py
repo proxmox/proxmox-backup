@@ -112,7 +112,7 @@ exclude_patterns = [
     'pxar/man1.rst',
     'epilog.rst',
     'pbs-copyright.rst',
-    'sysadmin.rst',
+    'local-zfs.rst'
     'package-repositories.rst',
 ]
 

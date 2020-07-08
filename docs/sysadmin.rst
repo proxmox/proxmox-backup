@@ -1,5 +1,5 @@
 Host System Administration
---------------------------
+==========================
 
 `Proxmox Backup`_ is based on the famous Debian_ Linux
 distribution. That means that you have access to the whole world of
@@ -23,8 +23,4 @@ either explain things which are different on `Proxmox Backup`_, or
 tasks which are commonly used on `Proxmox Backup`_. For other topics,
 please refer to the standard Debian documentation.
 
-ZFS
-~~~
-
-.. todo:: Add local ZFS admin guide (local.zfs.adoc)
-
+.. include:: local-zfs.rst

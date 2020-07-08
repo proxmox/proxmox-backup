@@ -19,6 +19,7 @@ in the section entitled "GNU Free Documentation License".
    introduction.rst
    installation.rst
    administration-guide.rst
+   sysadmin.rst
 
 .. raw:: latex
 

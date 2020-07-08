@@ -1,9 +1,8 @@
-Administration Guide
-====================
+Backup Management
+=================
 
-The administration guide.
-
-.. todo:: either add a bit more explanation or remove the previous sentence
+.. The administration guide.
+ .. todo:: either add a bit more explanation or remove the previous sentence
 
 Terminology
 -----------
@@ -182,6 +181,7 @@ File Layout
 After creating a datastore, the following default layout will appear:
 
 .. code-block:: console
+
   # ls -arilh /backup/disk1/store1
   276493 -rw-r--r-- 1 backup backup       0 Jul  8 12:35 .lock
   276490 drwxr-x--- 1 backup backup 1064960 Jul  8 12:35 .chunks
@@ -192,6 +192,7 @@ The `.chunks` directory contains folders, starting from `0000` and taking hexade
 directories will store the chunked data after a backup operation has been executed.
 
 .. code-block:: console
+
  # ls -arilh /backup/disk1/store1/.chunks
  545824 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 ffff
  545823 drwxr-x--- 2 backup backup 4.0K Jul  8 12:35 fffe
@@ -933,7 +934,3 @@ After that you should be able to see storage status with:
 .. include:: command-line-tools.rst
 
 .. include:: services.rst
-
-.. include host system admin at the end
-
-.. include:: sysadmin.rst
