@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, format_err, Context, Error};
+use anyhow::{bail, format_err, Error};
 use chrono::{Local, TimeZone};
 use serde::{Deserialize, Serialize};
-use xdg::BaseDirectories;
 
 use proxmox::api::api;
 use proxmox::api::cli::{CliCommand, CliCommandMap};
@@ -16,29 +15,22 @@ use proxmox_backup::backup::{
 use proxmox_backup::tools;
 
 pub const DEFAULT_ENCRYPTION_KEY_FILE_NAME: &str = "encryption-key.json";
+pub const MASTER_PUBKEY_FILE_NAME: &str = "master-public.pem";
 
-pub fn master_pubkey_path() -> Result<PathBuf, Error> {
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
+pub fn find_master_pubkey() -> Result<Option<PathBuf>, Error> {
+    super::find_xdg_file(MASTER_PUBKEY_FILE_NAME, "main public key file")
+}
 
-    // usually $HOME/.config/proxmox-backup/master-public.pem
-    let path = base.place_config_file("master-public.pem")?;
-
-    Ok(path)
+pub fn place_master_pubkey() -> Result<PathBuf, Error> {
+    super::place_xdg_file(MASTER_PUBKEY_FILE_NAME, "main public key file")
 }
 
 pub fn find_default_encryption_key() -> Result<Option<PathBuf>, Error> {
-    BaseDirectories::with_prefix("proxmox-backup")
-        .map(|base| base.find_config_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME))
-        .with_context(|| "error searching for default encryption key file")
+    super::find_xdg_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME, "default encryption key file")
 }
 
 pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
-    BaseDirectories::with_prefix("proxmox-backup")
-        .map_err(Error::from)
-        .and_then(|base| {
-            base.place_config_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME).map_err(Error::from)
-        })
-        .with_context(|| "failed to place default encryption key file in xdg home")
+    super::place_xdg_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME, "default encryption key file")
 }
 
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
@@ -216,7 +208,7 @@ fn import_master_pubkey(path: String) -> Result<(), Error> {
         bail!("Unable to decode PEM data - {}", err);
     }
 
-    let target_path = master_pubkey_path()?;
+    let target_path = place_master_pubkey()?;
 
     replace_file(&target_path, &pem_data, CreateOptions::new())?;
 

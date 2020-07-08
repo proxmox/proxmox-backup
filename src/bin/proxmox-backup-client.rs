@@ -677,7 +677,10 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
 
     Ok(match (keyfile, crypt_mode) {
         // no parameters:
-        (None, None) => (key::find_default_encryption_key()?, CryptMode::Encrypt),
+        (None, None) => match key::find_default_encryption_key()? {
+            Some(key) => (Some(key), CryptMode::Encrypt),
+            None => (None, CryptMode::None),
+        },
 
         // just --crypt-mode=none
         (None, Some(CryptMode::None)) => (None, CryptMode::None),
@@ -906,14 +909,14 @@ async fn create_backup(
 
             let crypt_config = CryptConfig::new(key)?;
 
-            let path = master_pubkey_path()?;
-            if path.exists() {
-                let pem_data = file_get_contents(&path)?;
-                let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
-                let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
-                (Some(Arc::new(crypt_config)), Some(enc_key))
-            } else {
-                (Some(Arc::new(crypt_config)), None)
+            match key::find_master_pubkey()? {
+                Some(ref path) if path.exists() => {
+                    let pem_data = file_get_contents(path)?;
+                    let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
+                    let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
+                    (Some(Arc::new(crypt_config)), Some(enc_key))
+                }
+                _ => (Some(Arc::new(crypt_config)), None),
             }
         }
     };
@@ -1732,15 +1735,6 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     }
 
     result
-}
-
-fn master_pubkey_path() -> Result<PathBuf, Error> {
-    let base = BaseDirectories::with_prefix("proxmox-backup")?;
-
-    // usually $HOME/.config/proxmox-backup/master-public.pem
-    let path = base.place_config_file("master-public.pem")?;
-
-    Ok(path)
 }
 
 use proxmox_backup::client::RemoteChunkReader;
