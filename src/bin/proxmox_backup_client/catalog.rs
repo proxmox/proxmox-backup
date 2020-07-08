@@ -16,7 +16,6 @@ use crate::{
     REPO_URL_SCHEMA,
     extract_repository_from_value,
     record_repository,
-    load_and_decrypt_key,
     api_datastore_latest_snapshot,
     complete_repository,
     complete_backup_snapshot,
@@ -34,6 +33,8 @@ use crate::{
     IndexFile,
     Shell,
 };
+
+use proxmox_backup::backup::load_and_decrypt_key;
 
 use crate::key::get_encryption_key_password;
 

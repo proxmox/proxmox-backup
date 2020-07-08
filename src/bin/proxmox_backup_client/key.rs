@@ -33,6 +33,12 @@ pub fn place_default_encryption_key() -> Result<PathBuf, Error> {
     super::place_xdg_file(DEFAULT_ENCRYPTION_KEY_FILE_NAME, "default encryption key file")
 }
 
+pub fn read_optional_default_encryption_key() -> Result<Option<Vec<u8>>, Error> {
+    find_default_encryption_key()?
+        .map(file_get_contents)
+        .transpose()
+}
+
 pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
     // fixme: implement other input methods
 

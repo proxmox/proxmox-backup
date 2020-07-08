@@ -158,10 +158,14 @@ fn do_load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
 ) -> Result<([u8;32], DateTime<Local>), Error> {
-    let raw = file_get_contents(&path)?;
-    let data = String::from_utf8(raw)?;
+    decrypt_key(&file_get_contents(&path)?, passphrase)
+}
 
-    let key_config: KeyConfig = serde_json::from_str(&data)?;
+pub fn decrypt_key(
+    mut keydata: &[u8],
+    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+) -> Result<([u8;32], DateTime<Local>), Error> {
+    let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
 
     let raw_data = key_config.data;
     let created = key_config.created;

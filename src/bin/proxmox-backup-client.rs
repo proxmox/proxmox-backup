@@ -1,5 +1,7 @@
 use std::collections::{HashSet, HashMap};
-use std::io::{self, Write, Seek, SeekFrom};
+use std::convert::TryFrom;
+use std::io::{self, Read, Write, Seek, SeekFrom};
+use std::os::unix::io::{FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -27,7 +29,7 @@ use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
 use proxmox_backup::backup::{
     archive_type,
-    load_and_decrypt_key,
+    decrypt_key,
     verify_chunk_size,
     ArchiveType,
     AsyncReadChunk,
@@ -64,6 +66,11 @@ pub const REPO_URL_SCHEMA: Schema = StringSchema::new("Repository URL.")
 
 pub const KEYFILE_SCHEMA: Schema = StringSchema::new(
     "Path to encryption key. All data will be encrypted using this key.")
+    .schema();
+
+pub const KEYFD_SCHEMA: Schema = IntegerSchema::new(
+    "Pass an encryption key via an already opened file descriptor.")
+    .minimum(0)
     .schema();
 
 const CHUNK_SIZE_SCHEMA: Schema = IntegerSchema::new(
@@ -663,10 +670,22 @@ fn spawn_catalog_upload(
     Ok((catalog, catalog_result_rx))
 }
 
-fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Error> {
+fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Error> {
     let keyfile = match param.get("keyfile") {
         Some(Value::String(keyfile)) => Some(keyfile),
         Some(_) => bail!("bad --keyfile parameter type"),
+        None => None,
+    };
+
+    let key_fd = match param.get("keyfd") {
+        Some(Value::Number(key_fd)) => Some(
+            RawFd::try_from(key_fd
+                .as_i64()
+                .ok_or_else(|| format_err!("bad key fd: {:?}", key_fd))?
+            )
+            .map_err(|err| format_err!("bad key fd: {:?}: {}", key_fd, err))?
+        ),
+        Some(_) => bail!("bad --keyfd parameter type"),
         None => None,
     };
 
@@ -675,9 +694,24 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
         None => None,
     };
 
-    Ok(match (keyfile, crypt_mode) {
+    let keydata = match (keyfile, key_fd) {
+        (None, None) => None,
+        (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
+        (Some(keyfile), None) => Some(file_get_contents(keyfile)?),
+        (None, Some(fd)) => {
+            let input = unsafe { std::fs::File::from_raw_fd(fd) };
+            let mut data = Vec::new();
+            let _len: usize = { input }.read_to_end(&mut data)
+                .map_err(|err| {
+                    format_err!("error reading encryption key from fd {}: {}", fd, err)
+                })?;
+            Some(data)
+        }
+    };
+
+    Ok(match (keydata, crypt_mode) {
         // no parameters:
-        (None, None) => match key::find_default_encryption_key()? {
+        (None, None) => match key::read_optional_default_encryption_key()? {
             Some(key) => (Some(key), CryptMode::Encrypt),
             None => (None, CryptMode::None),
         },
@@ -686,21 +720,21 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
         (None, Some(CryptMode::None)) => (None, CryptMode::None),
 
         // just --crypt-mode other than none
-        (None, Some(crypt_mode)) => match key::find_default_encryption_key()? {
+        (None, Some(crypt_mode)) => match key::read_optional_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
-            Some(path) => (Some(path), crypt_mode),
+            Some(key) => (Some(key), crypt_mode),
         }
 
         // just --keyfile
-        (Some(keyfile), None) => (Some(PathBuf::from(keyfile)), CryptMode::Encrypt),
+        (Some(key), None) => (Some(key), CryptMode::Encrypt),
 
         // --keyfile and --crypt-mode=none
         (Some(_), Some(CryptMode::None)) => {
-            bail!("--keyfile and --crypt-mode=none are mutually exclusive");
+            bail!("--keyfile/--keyfd and --crypt-mode=none are mutually exclusive");
         }
 
         // --keyfile and --crypt-mode other than none
-        (Some(keyfile), Some(crypt_mode)) => (Some(PathBuf::from(keyfile)), crypt_mode),
+        (Some(key), Some(crypt_mode)) => (Some(key), crypt_mode),
     })
 }
 
@@ -728,6 +762,10 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<PathBuf>, CryptMode), Err
            },
            keyfile: {
                schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+           "keyfd": {
+               schema: KEYFD_SCHEMA,
                optional: true,
            },
            "crypt-mode": {
@@ -803,7 +841,7 @@ async fn create_backup(
         verify_chunk_size(size)?;
     }
 
-    let (keyfile, crypt_mode) = keyfile_parameters(&param)?;
+    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
 
     let backup_id = param["backup-id"].as_str().unwrap_or(&proxmox::tools::nodename());
 
@@ -902,10 +940,10 @@ async fn create_backup(
 
     println!("Starting protocol: {}", start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false));
 
-    let (crypt_config, rsa_encrypted_key) = match keyfile {
+    let (crypt_config, rsa_encrypted_key) = match keydata {
         None => (None, None),
-        Some(path) => {
-            let (key, created) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
+        Some(key) => {
+            let (key, created) = decrypt_key(&key, &key::get_encryption_key_password)?;
 
             let crypt_config = CryptConfig::new(key)?;
 
@@ -1173,6 +1211,10 @@ We do not extraxt '.pxar' archives when writing to standard output.
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
+           "keyfd": {
+               schema: KEYFD_SCHEMA,
+               optional: true,
+           },
            "crypt-mode": {
                type: CryptMode,
                optional: true,
@@ -1207,12 +1249,12 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let target = tools::required_string_param(&param, "target")?;
     let target = if target == "-" { None } else { Some(target) };
 
-    let (keyfile, _crypt_mode) = keyfile_parameters(&param)?;
+    let (keydata, _crypt_mode) = keyfile_parameters(&param)?;
 
-    let crypt_config = match keyfile {
+    let crypt_config = match keydata {
         None => None,
-        Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
+        Some(key) => {
+            let (key, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -1337,6 +1379,10 @@ async fn restore(param: Value) -> Result<Value, Error> {
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
+           "keyfd": {
+               schema: KEYFD_SCHEMA,
+               optional: true,
+           },
            "crypt-mode": {
                type: CryptMode,
                optional: true,
@@ -1355,12 +1401,12 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(repo.host(), repo.user())?;
 
-    let (keyfile, crypt_mode) = keyfile_parameters(&param)?;
+    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
 
-    let crypt_config = match keyfile {
+    let crypt_config = match keydata {
         None => None,
-        Some(path) => {
-            let (key, _created) = load_and_decrypt_key(&path, &key::get_encryption_key_password)?;
+        Some(key) => {
+            let (key, _created) = decrypt_key(&key, &key::get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
@@ -1763,7 +1809,6 @@ impl ReadAt for BufferedDynamicReadAt {
         buf: &'a mut [u8],
         offset: u64,
     ) -> MaybeReady<io::Result<usize>, ReadAtOperation<'a>> {
-        use std::io::Read;
         MaybeReady::Ready(tokio::task::block_in_place(move || {
             let mut reader = self.inner.lock().unwrap();
             reader.seek(SeekFrom::Start(offset))?;
