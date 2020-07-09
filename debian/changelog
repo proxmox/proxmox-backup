@@ -1,3 +1,11 @@
+rust-proxmox-backup (0.8.4-1) unstable; urgency=medium
+
+  * add TaskButton in header
+
+  * simpler lost+found pattern
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Jul 2020 14:28:24 +0200
+
 rust-proxmox-backup (0.8.3-1) unstable; urgency=medium
 
   * get_disks: don't fail on zfs_devices
