@@ -79,24 +79,6 @@ fn test_compressed_blob_writer() -> Result<(), Error> {
 }
 
 #[test]
-fn test_signed_blob_writer() -> Result<(), Error> {
-    let tmp = Cursor::new(Vec::<u8>::new());
-    let mut blob_writer = DataBlobWriter::new_signed(tmp, CRYPT_CONFIG.clone())?;
-    blob_writer.write_all(&TEST_DATA)?;
-
-    verify_test_blob(blob_writer.finish()?)
-}
-
-#[test]
-fn test_signed_compressed_blob_writer() -> Result<(), Error> {
-    let tmp = Cursor::new(Vec::<u8>::new());
-    let mut blob_writer = DataBlobWriter::new_signed_compressed(tmp, CRYPT_CONFIG.clone())?;
-    blob_writer.write_all(&TEST_DATA)?;
-
-    verify_test_blob(blob_writer.finish()?)
-}
-
-#[test]
 fn test_encrypted_blob_writer() -> Result<(), Error> {
     let tmp = Cursor::new(Vec::<u8>::new());
     let mut blob_writer = DataBlobWriter::new_encrypted(tmp, CRYPT_CONFIG.clone())?;
