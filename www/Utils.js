@@ -34,8 +34,14 @@ Ext.define('PBS.Utils', {
 	'lock',
     ],
 
-    calculateCryptMode: function(signed, encrypted, files) {
-	if (files === encrypted) {
+    calculateCryptMode: function(data) {
+	let mixed = data.mixed;
+	let encrypted = data.encrypt;
+	let signed = data['sign-only'];
+	let files = data.count;
+	if (mixed > 0) {
+	    return PBS.Utils.cryptmap.indexOf('mixed');
+	} else if (files === encrypted) {
 	    return PBS.Utils.cryptmap.indexOf('encrypt');
 	} else if (files === signed) {
 	    return PBS.Utils.cryptmap.indexOf('sign-only');

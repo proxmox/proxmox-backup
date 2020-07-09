@@ -21,19 +21,19 @@ Ext.define('pbs-data-store-snapshots', {
 		    mixed: 0,
 		    'sign-only': 0,
 		    encrypt: 0,
+		    count: 0,
 		};
 		let signed = 0;
-		let files = 0;
 		data.files.forEach(file => {
 		    if (file.filename === 'index.json.blob') return; // is never encrypted
 		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
 		    if (mode !== -1) {
 			crypt[file['crypt-mode']]++;
 		    }
-		    files++;
+		    crypt.count++;
 		});
 
-		return PBS.Utils.calculateCryptMode(crypt['sign-only'], crypt.encrypt, files);
+		return PBS.Utils.calculateCryptMode(crypt);
 	    }
 	}
     ]
@@ -155,7 +155,7 @@ Ext.define('PBS.DataStoreContent', {
 		    none: 0,
 		    mixed: 0,
 		    'sign-only': 0,
-		    encrypt: 0
+		    encrypt: 0,
 		};
 		for (const item of group.children) {
 		    crypt[PBS.Utils.cryptmap[item['crypt-mode']]]++;
@@ -169,7 +169,8 @@ Ext.define('PBS.DataStoreContent', {
 
 		}
 		group.count = group.children.length;
-		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt['sign-only'], crypt.encrypt, group.count);
+		crypt.count = group.count;
+		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt);
 		children.push(group);
 	    }
 
