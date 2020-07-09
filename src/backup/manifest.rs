@@ -3,22 +3,56 @@ use std::convert::TryFrom;
 use std::path::Path;
 
 use serde_json::{json, Value};
+use ::serde::{Deserialize, Serialize};
 
 use crate::backup::{BackupDir, CryptMode, CryptConfig};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 
+mod hex_csum {
+    use serde::{self, Deserialize, Serializer, Deserializer};
+
+    pub fn serialize<S>(
+        csum: &[u8; 32],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = proxmox::tools::digest_to_hex(csum);
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<[u8; 32], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        proxmox::tools::hex_to_digest(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
 pub struct FileInfo {
     pub filename: String,
     pub crypt_mode: CryptMode,
     pub size: u64,
+    #[serde(with = "hex_csum")]
     pub csum: [u8; 32],
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
 pub struct BackupManifest {
-    snapshot: BackupDir,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
     files: Vec<FileInfo>,
+    pub unprotected: Value,
 }
 
 #[derive(PartialEq)]
@@ -46,7 +80,13 @@ pub fn archive_type<P: AsRef<Path>>(
 impl BackupManifest {
 
     pub fn new(snapshot: BackupDir) -> Self {
-        Self { files: Vec::new(), snapshot }
+        Self {
+            backup_type: snapshot.group().backup_type().into(),
+            backup_id: snapshot.group().backup_id().into(),
+            backup_time: snapshot.backup_time().timestamp(),
+            files: Vec::new(),
+            unprotected: json!({}),
+        }
     }
 
     pub fn add_file(&mut self, filename: String, size: u64, csum: [u8; 32], crypt_mode: CryptMode) -> Result<(), Error> {
@@ -84,65 +124,97 @@ impl BackupManifest {
         Ok(())
     }
 
-    pub fn signature(&self, crypt_config: &CryptConfig) -> [u8; 32] {
+    // Generate cannonical json
+    fn to_canonical_json(value: &Value, output: &mut String) -> Result<(), Error> {
+        match value {
+            Value::Null => bail!("got unexpected null value"),
+            Value::String(_) => {
+                output.push_str(&serde_json::to_string(value)?);
+             },
+            Value::Number(_) => {
+                output.push_str(&serde_json::to_string(value)?);
+            }
+            Value::Bool(_) => {
+                output.push_str(&serde_json::to_string(value)?);
+             },
+            Value::Array(list) => {
+                output.push('[');
+                for (i, item) in list.iter().enumerate() {
+                    if i != 0 { output.push(','); }
+                    Self::to_canonical_json(item, output)?;
+                }
+                output.push(']');
+              }
+            Value::Object(map) => {
+                output.push('{');
+                let mut keys: Vec<String> = map.keys().map(|s| s.clone()).collect();
+                keys.sort();
+                for (i, key) in keys.iter().enumerate() {
+                    let item = map.get(key).unwrap();
+                    if i != 0 { output.push(','); }
 
-        let mut data = String::new();
-
-        data.push_str(self.snapshot.group().backup_type());
-        data.push('\n');
-        data.push_str(self.snapshot.group().backup_id());
-        data.push('\n');
-        data.push_str(&format!("{}", self.snapshot.backup_time().timestamp()));
-        data.push('\n');
-        data.push('\n');
-
-        for info in self.files.iter() {
-            data.push_str(&info.filename);
-            data.push('\n');
-            data.push_str(match info.crypt_mode {
-                CryptMode::None => "None",
-                CryptMode::SignOnly => "SignOnly",
-                CryptMode::Encrypt => "Encrypt",
-            });
-            data.push('\n');
-            data.push_str(&format!("{}", info.size));
-            data.push('\n');
-            data.push_str(&proxmox::tools::digest_to_hex(&info.csum));
-            data.push('\n');
-
-            data.push('\n');
+                    output.push_str(&serde_json::to_string(&Value::String(key.clone()))?);
+                    output.push(':');
+                    Self::to_canonical_json(item, output)?;
+                }
+                output.push('}');
+            }
         }
-
-        crypt_config.compute_auth_tag(data.as_bytes())
+        Ok(())
     }
 
-    pub fn into_json(self, crypt_config: Option<&CryptConfig>) -> Value {
+    /// Compute manifest signature
+    ///
+    /// By generating a HMAC SHA256 over the canonical json
+    /// representation, The 'unpreotected' property is excluded.
+    pub fn signature(&self, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
 
-        let mut manifest = json!({
-            "backup-type": self.snapshot.group().backup_type(),
-            "backup-id": self.snapshot.group().backup_id(),
-            "backup-time": self.snapshot.backup_time().timestamp(),
-            "files": self.files.iter()
-                .fold(Vec::new(), |mut acc, info| {
-                    acc.push(json!({
-                        "filename": info.filename,
-                        "crypt-mode": info.crypt_mode,
-                        "size": info.size,
-                        "csum": proxmox::tools::digest_to_hex(&info.csum),
-                    }));
-                    acc
-                })
-        });
+        let mut signed_data = serde_json::to_value(&self)?;
+
+        signed_data.as_object_mut().unwrap().remove("unprotected"); // exclude
+
+        let mut canonical = String::new();
+        Self::to_canonical_json(&signed_data, &mut canonical)?;
+
+        let sig = crypt_config.compute_auth_tag(canonical.as_bytes());
+
+        Ok(sig)
+    }
+
+    /// Converts the Manifest into json string, and add a signature if there is a crypt_config.
+    pub fn into_string(self, crypt_config: Option<&CryptConfig>) -> Result<String, Error> {
+
+        let mut manifest = serde_json::to_value(&self)?;
 
         if let Some(crypt_config) = crypt_config {
-            let sig = self.signature(crypt_config);
+            let sig = self.signature(crypt_config)?;
             manifest["signature"] = proxmox::tools::digest_to_hex(&sig).into();
         }
 
-        manifest
+        let manifest = serde_json::to_string_pretty(&manifest).unwrap().into();
+        Ok(manifest)
     }
 
+    /// Try to read the manifest. This verifies the signature if there is a crypt_config.
+    pub fn from_data(data: &[u8], crypt_config: Option<&CryptConfig>) -> Result<BackupManifest, Error> {
+        let json: Value = serde_json::from_slice(data)?;
+        let signature = json["signature"].as_str().map(String::from);
+        let manifest = BackupManifest::try_from(json)?;
+
+        if let Some(ref crypt_config) = crypt_config {
+            if let Some(signature) = signature {
+                let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(crypt_config)?);
+                if signature != expected_signature {
+                    bail!("wrong signature in manifest");
+                }
+            } else {
+                // not signed: warn/fail?
+            }
+        }
+        Ok(manifest)
+    }
 }
+
 impl TryFrom<super::DataBlob> for BackupManifest {
     type Error = Error;
 
@@ -198,4 +270,46 @@ impl TryFrom<Value> for BackupManifest {
         }).map_err(|err: Error| format_err!("unable to parse backup manifest - {}", err))
 
     }
+}
+
+#[test]
+fn test_manifest_signature() -> Result<(), Error> {
+
+    use crate::backup::{KeyDerivationConfig};
+
+    let pw = b"test";
+
+    let kdf = KeyDerivationConfig::Scrypt {
+        n: 65536,
+        r: 8,
+        p: 1,
+        salt: Vec::new(),
+    };
+
+    let testkey = kdf.derive_key(pw)?;
+
+    let crypt_config = CryptConfig::new(testkey)?;
+
+    let snapshot: BackupDir = "host/elsa/2020-06-26T13:56:05Z".parse()?;
+
+    let mut manifest = BackupManifest::new(snapshot);
+
+    manifest.add_file("test1.img.fidx".into(), 200, [1u8; 32], CryptMode::Encrypt)?;
+    manifest.add_file("abc.blob".into(), 200, [2u8; 32], CryptMode::None)?;
+
+    manifest.unprotected["note"] = "This is not protected by the signature.".into();
+
+    let text = manifest.into_string(Some(&crypt_config))?;
+
+    let manifest: Value = serde_json::from_str(&text)?;
+    let signature = manifest["signature"].as_str().unwrap().to_string();
+
+    assert_eq!(signature, "d7b446fb7db081662081d4b40fedd858a1d6307a5aff4ecff7d5bf4fd35679e9");
+
+    let manifest = BackupManifest::try_from(manifest)?;
+    let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(&crypt_config)?);
+
+    assert_eq!(signature, expected_signature);
+
+    Ok(())
 }

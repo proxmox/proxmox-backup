@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{format_err, Error};
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::fs::File;
 use std::sync::Arc;
@@ -127,29 +127,13 @@ impl BackupReader {
     /// The manifest signature is verified if we have a crypt_config.
     pub async fn download_manifest(&self) -> Result<(BackupManifest, Vec<u8>), Error> {
 
-        use std::convert::TryFrom;
-
         let mut raw_data = Vec::with_capacity(64 * 1024);
         self.download(MANIFEST_BLOB_NAME, &mut raw_data).await?;
         let blob = DataBlob::from_raw(raw_data)?;
         blob.verify_crc()?;
         let data = blob.decode(None)?;
-        let json: Value = serde_json::from_slice(&data[..])?;
 
-        let signature = json["signature"].as_str().map(String::from);
-
-        let manifest = BackupManifest::try_from(json)?;
-
-        if let Some(ref crypt_config) = self.crypt_config {
-            if let Some(signature) = signature {
-                let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(crypt_config));
-                if signature != expected_signature {
-                    bail!("wrong signature in manifest");
-                }
-            } else {
-                // warn/fail?
-            }
-        }
+        let manifest = BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
 
         Ok((manifest, data))
     }

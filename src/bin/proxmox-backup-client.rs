@@ -1081,16 +1081,14 @@ async fn create_backup(
     }
 
     // create manifest (index.json)
-    let manifest = manifest.into_json(crypt_config.as_ref().map(Arc::as_ref));
+    // manifests are never encrypted, but include a signature
+    let manifest = manifest.into_string(crypt_config.as_ref().map(Arc::as_ref))
+        .map_err(|err| format_err!("unable to format manifest - {}", err))?;
+
 
     println!("Upload index.json to '{:?}'", repo);
-    let manifest = serde_json::to_string_pretty(&manifest)?.into();
-
-    // manifests are never encrypted, but include a signature
-    // fixme: sign manifest
-
     client
-        .upload_blob_from_data(manifest, MANIFEST_BLOB_NAME, true, false)
+        .upload_blob_from_data(manifest.into_bytes(), MANIFEST_BLOB_NAME, true, false)
         .await?;
 
     client.finish().await?;
