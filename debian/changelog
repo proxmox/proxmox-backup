@@ -1,3 +1,17 @@
+rust-proxmox-backup (0.8.1-1) unstable; urgency=medium
+
+  * remove authhenticated data blobs (not needed)
+
+  * add signature to manifest
+
+  * improve docs
+
+  * client: introduce --keyfd parameter
+
+  * ui improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Jul 2020 10:01:25 +0200
+
 rust-proxmox-backup (0.8.0-1) unstable; urgency=medium
 
   * implement  get_runtime_with_builder
