@@ -161,7 +161,7 @@ where
 
     if skip_lost_and_found {
         patterns.push(MatchEntry::parse_pattern(
-            "**/lost+found",
+            "lost+found",
             PatternFlag::PATH_NAME,
             MatchType::Exclude,
         )?);
