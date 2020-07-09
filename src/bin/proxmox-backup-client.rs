@@ -1082,7 +1082,7 @@ async fn create_backup(
 
     // create manifest (index.json)
     // manifests are never encrypted, but include a signature
-    let manifest = manifest.into_string(crypt_config.as_ref().map(Arc::as_ref))
+    let manifest = manifest.to_string(crypt_config.as_ref().map(Arc::as_ref))
         .map_err(|err| format_err!("unable to format manifest - {}", err))?;
 
 

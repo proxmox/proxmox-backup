@@ -186,7 +186,7 @@ impl BackupManifest {
     }
 
     /// Converts the Manifest into json string, and add a signature if there is a crypt_config.
-    pub fn into_string(self, crypt_config: Option<&CryptConfig>) -> Result<String, Error> {
+    pub fn to_string(&self, crypt_config: Option<&CryptConfig>) -> Result<String, Error> {
 
         let mut manifest = serde_json::to_value(&self)?;
 
@@ -262,7 +262,7 @@ fn test_manifest_signature() -> Result<(), Error> {
 
     manifest.unprotected["note"] = "This is not protected by the signature.".into();
 
-    let text = manifest.into_string(Some(&crypt_config))?;
+    let text = manifest.to_string(Some(&crypt_config))?;
 
     let manifest: Value = serde_json::from_str(&text)?;
     let signature = manifest["signature"].as_str().unwrap().to_string();
