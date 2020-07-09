@@ -102,8 +102,30 @@ Therefore, ensure that you perform regular backups and run restore tests.
 Software Stack
 --------------
 
-.. todo:: Eplain why we use Rust (and Flutter)
-	  
+Proxmox Backup Server consists of multiple components:
+
+* server-daemon providing, among others, a RESTfull API, super-fast
+  asynchronous tasks, lightweight usage statistic collection, scheduling
+  events, strict separation of privileged and unprivileged execution
+  environments, ...
+* JavaScript management webinterface
+* management CLI tool for the server (`proxmox-backup-manager`)
+* client CLI tool (`proxmox-backup-client`) to access the server easily from
+  any `Linux amd64` environment.
+
+Everything besides the web interface are written in the Rust programming
+language.
+
+ "The Rust programming language helps you write faster, more reliable software.
+ High-level ergonomics and low-level control are often at odds in programming
+ language design; Rust challenges that conflict. Through balancing powerful
+ technical capacity and a great developer experience, Rust gives you the option
+ to control low-level details (such as memory usage) without all the hassle
+ traditionally associated with such control."
+
+ -- `The Rust Programming Language <https://doc.rust-lang.org/book/ch00-00-introduction.html>`_
+
+.. todo:: further explain the software stack
 
 Getting Help
 ------------
