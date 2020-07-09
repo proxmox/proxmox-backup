@@ -146,7 +146,12 @@ Datastore Configuration
 
 You can configure multiple datastores. Minimum one datastore needs to be
 configured. The datastore is identified by a simple `name` and points to a
-directory on the filesystem.
+directory on the filesystem. Each datastore also has associated retention
+settings of how many backup snapshots for each interval of ``hourly``,
+``daily``, ``weekly``, ``monthly``, ``yearly`` as well as an time independent
+number of backups to keep in that store. :ref:`Pruning <pruning>` and
+:ref:`garbage collection <garbage-collection>` can also be configured to run
+periodically based on a configured :term:`schedule` per datastore.
 
 The following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
 
@@ -164,6 +169,30 @@ To list existing datastores run:
   ╞════════╪══════════════════════╪═════════════════════════════╡
   │ store1 │ /backup/disk1/store1 │ This is my default storage. │
   └────────┴──────────────────────┴─────────────────────────────┘
+
+You can change settings of a datastore, for example to set a prune and garbage
+collection schedule or retention settings using ``update`` subcommand and view
+a datastore with the ``show`` subcommand:
+
+.. code-block:: console
+
+  # proxmox-backup-manager datastore update store1 --keep-last 7 --prune-schedule daily --gc-schedule 'Tue 04:27'
+  # proxmox-backup-manager datastore show store1
+  ┌────────────────┬─────────────────────────────┐
+  │ Name           │ Value                       │
+  ╞════════════════╪═════════════════════════════╡
+  │ name           │ store1                      │
+  ├────────────────┼─────────────────────────────┤
+  │ path           │ /backup/disk1/store1        │
+  ├────────────────┼─────────────────────────────┤
+  │ comment        │ This is my default storage. │
+  ├────────────────┼─────────────────────────────┤
+  │ gc-schedule    │ Tue 04:27                   │
+  ├────────────────┼─────────────────────────────┤
+  │ keep-last      │ 7                           │
+  ├────────────────┼─────────────────────────────┤
+  │ prune-schedule │ daily                       │
+  └────────────────┴─────────────────────────────┘
 
 Finally, it is possible to remove the datastore configuration:
 
@@ -821,6 +850,8 @@ To remove the ticket, issue a logout:
 
   # proxmox-backup-client logout
 
+
+.. _pruning:
 
 Pruning and Removing Backups
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
