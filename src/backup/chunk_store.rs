@@ -80,8 +80,9 @@ impl ChunkStore {
 
         let default_options = CreateOptions::new();
 
-        if let Err(err) = create_path(&base, Some(default_options.clone()), Some(options.clone())) {
-            bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err);
+        match create_path(&base, Some(default_options.clone()), Some(options.clone())) {
+            Err(err) => bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err),
+            Ok(res) => if ! res  { nix::unistd::chown(&base, Some(uid), Some(gid))? },
         }
 
         if let Err(err) = create_dir(&chunk_dir, options.clone()) {
