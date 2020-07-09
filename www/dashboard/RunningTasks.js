@@ -54,20 +54,8 @@ Ext.define('PBS.RunningTasks', {
     store: {
 	type: 'diff',
 	autoDestroy: true,
-	autoDestroyRstore: true,
 	sorters: 'starttime',
-	rstore: {
-	    type: 'update',
-	    autoStart: true,
-	    interval: 3000,
-	    storeid: 'pbs-running-tasks-dash',
-	    model: 'proxmox-tasks',
-	    proxy: {
-		type: 'proxmox',
-		// maybe separate api call?
-		url: '/api2/json/nodes/localhost/tasks?running=1'
-	    },
-	},
+	rstore: PBS.data.RunningTasksStore,
     },
 
     columns: [

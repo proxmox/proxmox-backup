@@ -133,6 +133,7 @@ Ext.define('PBS.MainView', {
 	init: function(view) {
 	    var me = this;
 
+	    PBS.data.RunningTasksStore.startUpdate();
 	    me.lookupReference('usernameinfo').update({username:Proxmox.UserName});
 
 	    // show login on requestexception
