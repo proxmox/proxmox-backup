@@ -35,10 +35,14 @@ mod hex_csum {
     }
 }
 
+fn crypt_mode_none() -> CryptMode { CryptMode::None }
+fn empty_value() -> Value { json!({}) }
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
 pub struct FileInfo {
     pub filename: String,
+    #[serde(default="crypt_mode_none")] // to be compatible with < 0.8.0 backups
     pub crypt_mode: CryptMode,
     pub size: u64,
     #[serde(with = "hex_csum")]
@@ -52,6 +56,7 @@ pub struct BackupManifest {
     backup_id: String,
     backup_time: i64,
     files: Vec<FileInfo>,
+    #[serde(default="empty_value")] // to be compatible with < 0.8.0 backups
     pub unprotected: Value,
 }
 
