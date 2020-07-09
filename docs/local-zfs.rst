@@ -2,10 +2,10 @@ ZFS on Linux
 ------------
 
 ZFS is a combined file system and logical volume manager designed by
-Sun Microsystems. There is no need for manually compile ZFS modules - all
+Sun Microsystems. There is no need to manually compile ZFS modules - all
 packages are included.
 
-By using ZFS, its possible to achieve maximum enterprise features with
+By using ZFS, it's possible to achieve maximum enterprise features with
 low budget hardware, but also high performance systems by leveraging
 SSD caching or even SSD only setups. ZFS can replace cost intense
 hardware raid cards by moderate CPU and memory load combined with easy
