@@ -1,3 +1,19 @@
+rust-proxmox-backup (0.8.5-1) unstable; urgency=medium
+
+  * fix cross process task listing
+
+  * docs: expand datastore documentation
+
+  * docs: add remotes and sync-jobs and schedules
+
+  * bump pathpatterns to 0.1.2
+
+  * ui: align version and user-menu spacing with pve/pmg
+
+  * ui: make username a menu-button
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Jul 2020 15:32:39 +0200
+
 rust-proxmox-backup (0.8.4-1) unstable; urgency=medium
 
   * add TaskButton in header
