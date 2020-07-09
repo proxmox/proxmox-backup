@@ -453,8 +453,6 @@ impl BackupWriter {
     /// Download backup manifest (index.json) of last backup
     pub async fn download_previous_manifest(&self) -> Result<BackupManifest, Error> {
 
-        use std::convert::TryFrom;
-
         let mut raw_data = Vec::with_capacity(64 * 1024);
 
         let param = json!({ "archive-name": MANIFEST_BLOB_NAME });
@@ -463,8 +461,8 @@ impl BackupWriter {
         let blob = DataBlob::from_raw(raw_data)?;
         blob.verify_crc()?;
         let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
-        let json: Value = serde_json::from_slice(&data[..])?;
-        let manifest = BackupManifest::try_from(json)?;
+
+        let manifest = BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
 
         Ok(manifest)
     }

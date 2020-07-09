@@ -168,8 +168,12 @@ impl BackupManifest {
     /// By generating a HMAC SHA256 over the canonical json
     /// representation, The 'unpreotected' property is excluded.
     pub fn signature(&self, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
+        Self::json_signature(&serde_json::to_value(&self)?, crypt_config)
+    }
 
-        let mut signed_data = serde_json::to_value(&self)?;
+    fn json_signature(data: &Value, crypt_config: &CryptConfig) -> Result<[u8; 32], Error> {
+
+        let mut signed_data = data.clone();
 
         signed_data.as_object_mut().unwrap().remove("unprotected"); // exclude
 
@@ -199,11 +203,10 @@ impl BackupManifest {
     pub fn from_data(data: &[u8], crypt_config: Option<&CryptConfig>) -> Result<BackupManifest, Error> {
         let json: Value = serde_json::from_slice(data)?;
         let signature = json["signature"].as_str().map(String::from);
-        let manifest = BackupManifest::try_from(json)?;
 
         if let Some(ref crypt_config) = crypt_config {
             if let Some(signature) = signature {
-                let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(crypt_config)?);
+                let expected_signature = proxmox::tools::digest_to_hex(&Self::json_signature(&json, crypt_config)?);
                 if signature != expected_signature {
                     bail!("wrong signature in manifest");
                 }
@@ -211,9 +214,12 @@ impl BackupManifest {
                 // not signed: warn/fail?
             }
         }
+
+        let manifest: BackupManifest = serde_json::from_value(json)?;
         Ok(manifest)
     }
 }
+
 
 impl TryFrom<super::DataBlob> for BackupManifest {
     type Error = Error;
@@ -223,54 +229,11 @@ impl TryFrom<super::DataBlob> for BackupManifest {
             .map_err(|err| format_err!("decode backup manifest blob failed - {}", err))?;
         let json: Value = serde_json::from_slice(&data[..])
             .map_err(|err| format_err!("unable to parse backup manifest json - {}", err))?;
-        BackupManifest::try_from(json)
+        let manifest: BackupManifest = serde_json::from_value(json)?;
+        Ok(manifest)
     }
 }
 
-impl TryFrom<Value> for BackupManifest {
-    type Error = Error;
-
-    fn try_from(data: Value) -> Result<Self, Error> {
-
-        use crate::tools::{required_string_property, required_integer_property, required_array_property};
-
-        proxmox::try_block!({
-            let backup_type = required_string_property(&data, "backup-type")?;
-            let backup_id = required_string_property(&data, "backup-id")?;
-            let backup_time = required_integer_property(&data, "backup-time")?;
-
-            let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
-
-            let mut manifest = BackupManifest::new(snapshot);
-
-            for item in required_array_property(&data, "files")?.iter() {
-                let filename = required_string_property(item, "filename")?.to_owned();
-                let csum = required_string_property(item, "csum")?;
-                let csum = proxmox::tools::hex_to_digest(csum)?;
-                let size = required_integer_property(item, "size")? as u64;
-
-                let mut crypt_mode = CryptMode::None;
-
-                if let Some(true) = item["encrypted"].as_bool() { // compatible to < 0.8.0
-                    crypt_mode = CryptMode::Encrypt;
-                }
-
-                if let Some(mode) = item.get("crypt-mode") {
-                    crypt_mode = serde_json::from_value(mode.clone())?;
-                }
-
-                manifest.add_file(filename, size, csum, crypt_mode)?;
-            }
-
-            if manifest.files().is_empty() {
-                bail!("manifest does not list any files.");
-            }
-
-            Ok(manifest)
-        }).map_err(|err: Error| format_err!("unable to parse backup manifest - {}", err))
-
-    }
-}
 
 #[test]
 fn test_manifest_signature() -> Result<(), Error> {
@@ -306,7 +269,7 @@ fn test_manifest_signature() -> Result<(), Error> {
 
     assert_eq!(signature, "d7b446fb7db081662081d4b40fedd858a1d6307a5aff4ecff7d5bf4fd35679e9");
 
-    let manifest = BackupManifest::try_from(manifest)?;
+    let manifest: BackupManifest = serde_json::from_value(manifest)?;
     let expected_signature = proxmox::tools::digest_to_hex(&manifest.signature(&crypt_config)?);
 
     assert_eq!(signature, expected_signature);
