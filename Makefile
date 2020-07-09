@@ -40,10 +40,12 @@ COMPILED_BINS := \
 export DEB_VERSION DEB_VERSION_UPSTREAM
 
 SERVER_DEB=${PACKAGE}-server_${DEB_VERSION}_${ARCH}.deb
+SERVER_DBG_DEB=${PACKAGE}-server-dbgsym_${DEB_VERSION}_${ARCH}.deb
 CLIENT_DEB=${PACKAGE}-client_${DEB_VERSION}_${ARCH}.deb
+CLIENT_DBG_DEB=${PACKAGE}-client-dbgsym_${DEB_VERSION}_${ARCH}.deb
 DOC_DEB=${PACKAGE}-docs_${DEB_VERSION}_all.deb
 
-DEBS=${SERVER_DEB} ${CLIENT_DEB}
+DEBS=${SERVER_DEB} ${SERVER_DBG_DEB} ${CLIENT_DEB} ${CLIENT_DBG_DEB}
 
 DSC = rust-${PACKAGE}_${DEB_VERSION}.dsc
 
@@ -58,7 +60,7 @@ $(SUBDIRS):
 test:
 	#cargo test test_broadcast_future
 	#cargo test $(CARGO_BUILD_ARGS)
-	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
+	#$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
 
 doc:
 	$(CARGO) doc --no-deps $(CARGO_BUILD_ARGS)
@@ -142,5 +144,5 @@ install: $(COMPILED_BINS)
 upload: ${SERVER_DEB} ${CLIENT_DEB} ${DOC_DEB}
 	# check if working directory is clean
 	git diff --exit-code --stat && git diff --exit-code --stat --staged
-	tar cf - ${SERVER_DEB} ${DOC_DEB} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
-	tar cf - ${CLIENT_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pbs,pve" --dist buster
+	tar cf - ${SERVER_DEB} ${SERVER_DBG_DEB} ${DOC_DEB} | ssh -X repoman@repo.proxmox.com upload --product pbs --dist buster
+	tar cf - ${CLIENT_DEB} ${CLIENT_DBG_DEB} | ssh -X repoman@repo.proxmox.com upload --product "pbs,pve" --dist buster
