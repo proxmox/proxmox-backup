@@ -274,7 +274,7 @@ impl BackupWriter {
         })
     }
 
-    fn response_queue() -> (
+    fn response_queue(verbose: bool) -> (
         mpsc::Sender<h2::client::ResponseFuture>,
         oneshot::Receiver<Result<(), Error>>
     ) {
@@ -298,11 +298,11 @@ impl BackupWriter {
         tokio::spawn(
             verify_queue_rx
                 .map(Ok::<_, Error>)
-                .try_for_each(|response: h2::client::ResponseFuture| {
+                .try_for_each(move |response: h2::client::ResponseFuture| {
                     response
                         .map_err(Error::from)
                         .and_then(H2Client::h2api_response)
-                        .map_ok(|result| println!("RESPONSE: {:?}", result))
+                        .map_ok(move |result| if verbose { println!("RESPONSE: {:?}", result) })
                         .map_err(|err| format_err!("pipelined request failed: {}", err))
                 })
                 .map(|result| {
@@ -600,7 +600,8 @@ impl BackupWriter {
             })
     }
 
-    pub async fn upload_speedtest(&self) -> Result<usize, Error> {
+    /// Upload speed test - prints result ot stdout
+    pub async fn upload_speedtest(&self, verbose: bool) -> Result<usize, Error> {
 
         let mut data = vec![];
         // generate pseudo random byte sequence
@@ -615,7 +616,7 @@ impl BackupWriter {
 
         let mut repeat = 0;
 
-        let (upload_queue, upload_result) = Self::response_queue();
+        let (upload_queue, upload_result) = Self::response_queue(verbose);
 
         let start_time = std::time::Instant::now();
 
@@ -627,7 +628,7 @@ impl BackupWriter {
 
             let mut upload_queue = upload_queue.clone();
 
-            println!("send test data ({} bytes)", data.len());
+            if verbose { println!("send test data ({} bytes)", data.len()); }
             let request = H2Client::request_builder("localhost", "POST", "speedtest", None, None).unwrap();
             let request_future = self.h2.send_request(request, Some(bytes::Bytes::from(data.clone()))).await?;
 

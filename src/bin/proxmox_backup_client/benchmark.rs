@@ -30,6 +30,11 @@ use crate::{
                schema: REPO_URL_SCHEMA,
                optional: true,
            },
+           verbose: {
+               description: "Verbose output.",
+               type: bool,
+               optional: true,
+           },
            keyfile: {
                schema: KEYFILE_SCHEMA,
                optional: true,
@@ -48,6 +53,8 @@ pub async fn benchmark(
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
+    let verbose = param["verbose"].as_bool().unwrap_or(false);
+
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
@@ -62,18 +69,19 @@ pub async fn benchmark(
     let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);
 
+    println!("Connecting to backup server");
     let client = BackupWriter::start(
         client,
         crypt_config.clone(),
         repo.store(),
         "host",
-        "benshmark",
+        "benchmark",
         backup_time,
         false,
     ).await?;
 
     println!("Start upload speed test");
-    let speed = client.upload_speedtest().await?;
+    let speed = client.upload_speedtest(verbose).await?;
 
     println!("Upload speed: {} MiB/s", speed);
 
