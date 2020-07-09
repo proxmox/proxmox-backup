@@ -83,7 +83,7 @@ Ext.define('PBS.TaskButton', {
 	    if (!success) return;
 
 	    let count = records.length;
-	    let text = count > 9 ? '9+' : count.toString();
+	    let text = count > 99 ? '99+' : count.toString();
 	    let cls = count > 0 ? 'active': '';
 	    me.setBadgeText(text);
 	    me.setBadgeCls(cls);
