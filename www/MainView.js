@@ -190,7 +190,7 @@ Ext.define('PBS.MainView', {
 		type: 'hbox',
 		align: 'middle'
 	    },
-	    margin: '2 5 2 5',
+	    margin: '2 0 2 5',
 	    height: 38,
 	    items: [
 		{
@@ -198,7 +198,8 @@ Ext.define('PBS.MainView', {
 		    prefix: '',
 		},
 		{
-		    xtype: 'versioninfo'
+		    padding: '0 0 0 5',
+		    xtype: 'versioninfo',
 		},
 		{
 		    padding: 5,
