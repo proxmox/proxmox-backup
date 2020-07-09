@@ -9,6 +9,7 @@ JSSRC=							\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
 	data/RunningTasksStore.js			\
+	button/TaskButton.js				\
 	config/UserView.js				\
 	config/RemoteView.js				\
 	config/ACLView.js				\

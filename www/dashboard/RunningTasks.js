@@ -18,6 +18,8 @@ Ext.define('PBS.RunningTasks', {
 		upid: record.data.upid,
 		endtime: record.data.endtime,
 	    }).show();
+
+	    view.fireEvent('taskopened', view, record.data.upid);
 	},
 
 	openTaskItemDblClick: function(grid, record) {

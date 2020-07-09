@@ -190,3 +190,22 @@ p.logs {
     visibility: hidden;
     width: 5px;
 }
+
+.pmx-has-badge .x-btn-inner {
+    padding: 0 0 0 5px;
+    min-width: 24px;
+}
+
+.pmx-button-badge {
+    display: inline-block;
+    font-weight: bold;
+    border-radius: 20px;
+    background-color: #AAA;
+    padding: 2px 3px;
+    min-width: 24px;
+    line-height: 1em;
+}
+
+.pmx-button-badge.active {
+    background-color: #F00;
+}

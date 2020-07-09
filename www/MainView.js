@@ -225,6 +225,10 @@ Ext.define('PBS.MainView', {
 		    margin: '0 5 0 0',
 		},
 		{
+		    xtype: 'pbsTaskButton',
+		    margin: '0 5 0 0',
+		},
+		{
 		    reference: 'logoutButton',
 		    xtype: 'button',
 		    iconCls: 'fa fa-sign-out',
