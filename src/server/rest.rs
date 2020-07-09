@@ -497,8 +497,8 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
 
     let comp_len = components.len();
 
-    println!("REQUEST {} {}", method, path);
-    println!("COMPO {:?}", components);
+    //println!("REQUEST {} {}", method, path);
+    //println!("COMPO {:?}", components);
 
     let env_type = api.env_type();
     let mut rpcenv = RestEnvironment::new(env_type);
