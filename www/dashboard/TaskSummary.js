@@ -9,12 +9,27 @@ Ext.define('PBS.TaskSummary', {
 
 	render_count: function(value, md, record, rowindex, colindex) {
 	    let cls = 'question';
+	    let color = 'faded';
 	    switch (colindex) {
-		case 1: cls = "times-circle critical"; break;
-		case 2: cls = "exclamation-circle warning"; break;
-		case 3: cls = "check-circle good"; break;
+		case 1:
+		    cls = "times-circle";
+		    color = "critical";
+		    break;
+		case 2:
+		    cls = "exclamation-circle";
+		    color = "warning";
+		    break;
+		case 3:
+		    cls = "check-circle";
+		    color = "good";
+		    break;
 		default: break;
 	    }
+
+	    if (value < 1) {
+		color = "faded";
+	    }
+	    cls += " " + color;
 	    return `<i class="fa fa-${cls}"></i> ${value}`;
 	},
     },
