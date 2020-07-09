@@ -130,39 +130,47 @@ impl BackupManifest {
     }
 
     // Generate cannonical json
-    fn to_canonical_json(value: &Value, output: &mut String) -> Result<(), Error> {
+    fn to_canonical_json(value: &Value) -> Result<Vec<u8>, Error> {
+        let mut data = Vec::new();
+        Self::write_canonical_json(value, &mut data)?;
+        Ok(data)
+    }
+
+    fn write_canonical_json(value: &Value, output: &mut Vec<u8>) -> Result<(), Error> {
         match value {
             Value::Null => bail!("got unexpected null value"),
-            Value::String(_) => {
-                output.push_str(&serde_json::to_string(value)?);
-             },
-            Value::Number(_) => {
-                output.push_str(&serde_json::to_string(value)?);
+            Value::String(_) | Value::Number(_) | Value::Bool(_) => {
+                serde_json::to_writer(output, &value)?;
             }
-            Value::Bool(_) => {
-                output.push_str(&serde_json::to_string(value)?);
-             },
             Value::Array(list) => {
-                output.push('[');
-                for (i, item) in list.iter().enumerate() {
-                    if i != 0 { output.push(','); }
-                    Self::to_canonical_json(item, output)?;
+                output.push(b'[');
+                let mut iter = list.iter();
+                if let Some(item) = iter.next() {
+                    Self::write_canonical_json(item, output)?;
+                    for item in iter {
+                        output.push(b',');
+                        Self::write_canonical_json(item, output)?;
+                    }
                 }
-                output.push(']');
+                output.push(b']');
               }
             Value::Object(map) => {
-                output.push('{');
-                let mut keys: Vec<String> = map.keys().map(|s| s.clone()).collect();
+                output.push(b'{');
+                let mut keys: Vec<&str> = map.keys().map(String::as_str).collect();
                 keys.sort();
-                for (i, key) in keys.iter().enumerate() {
-                    let item = map.get(key).unwrap();
-                    if i != 0 { output.push(','); }
-
-                    output.push_str(&serde_json::to_string(&Value::String(key.clone()))?);
-                    output.push(':');
-                    Self::to_canonical_json(item, output)?;
+                let mut iter = keys.into_iter();
+                if let Some(key) = iter.next() {
+                    output.extend(key.as_bytes());
+                    output.push(b':');
+                    Self::write_canonical_json(&map[key], output)?;
+                    for key in iter {
+                        output.push(b',');
+                        output.extend(key.as_bytes());
+                        output.push(b':');
+                        Self::write_canonical_json(&map[key], output)?;
+                    }
                 }
-                output.push('}');
+                output.push(b'}');
             }
         }
         Ok(())
@@ -182,10 +190,9 @@ impl BackupManifest {
 
         signed_data.as_object_mut().unwrap().remove("unprotected"); // exclude
 
-        let mut canonical = String::new();
-        Self::to_canonical_json(&signed_data, &mut canonical)?;
+        let canonical = Self::to_canonical_json(&signed_data)?;
 
-        let sig = crypt_config.compute_auth_tag(canonical.as_bytes());
+        let sig = crypt_config.compute_auth_tag(&canonical);
 
         Ok(sig)
     }
