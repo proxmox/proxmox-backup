@@ -12,6 +12,10 @@ Front-Cover Texts, and no Back-Cover Texts. A copy of the license is included
 in the section entitled "GNU Free Documentation License".
 
 
+.. only:: html
+
+ A `PDF` version of the documentation is `also available here <./proxmox-backup.pdf>`_
+
 .. toctree::
    :maxdepth: 3
    :caption: Table of Contents
