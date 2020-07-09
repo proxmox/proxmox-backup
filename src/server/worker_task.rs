@@ -270,28 +270,22 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
             let line = line?;
             match parse_worker_status_line(&line) {
                 Err(err) => bail!("unable to parse active worker status '{}' - {}", line, err),
-                Ok((upid_str, upid, state)) => {
-
-                    let running = worker_is_active_local(&upid);
-
-                    if running {
+                Ok((upid_str, upid, state)) => match state {
+                    None if worker_is_active_local(&upid) => {
                         active_list.push(TaskListInfo { upid, upid_str, state: None });
-                    } else {
-                        match state {
-                            None => {
-                                println!("Detected stopped UPID {}", upid_str);
-                                let status = upid_read_status(&upid)
-                                    .unwrap_or_else(|_| String::from("unknown"));
-                                finish_list.push(TaskListInfo {
-                                    upid, upid_str, state: Some((Local::now().timestamp(), status))
-                                });
-                            }
-                            Some((endtime, status)) => {
-                                finish_list.push(TaskListInfo {
-                                    upid, upid_str, state: Some((endtime, status))
-                                })
-                            }
-                        }
+                    },
+                    None => {
+                        println!("Detected stopped UPID {}", upid_str);
+                        let status = upid_read_status(&upid)
+                            .unwrap_or_else(|_| String::from("unknown"));
+                        finish_list.push(TaskListInfo {
+                            upid, upid_str, state: Some((Local::now().timestamp(), status))
+                        });
+                    },
+                    Some((endtime, status)) => {
+                        finish_list.push(TaskListInfo {
+                            upid, upid_str, state: Some((endtime, status))
+                        })
                     }
                 }
             }
