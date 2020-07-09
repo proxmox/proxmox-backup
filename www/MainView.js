@@ -125,7 +125,7 @@ Ext.define('PBS.MainView', {
 	},
 
 	control: {
-	    'button[reference=logoutButton]': {
+	    '[reference=logoutButton]': {
 		click: 'logout'
 	    }
 	},
@@ -134,7 +134,7 @@ Ext.define('PBS.MainView', {
 	    var me = this;
 
 	    PBS.data.RunningTasksStore.startUpdate();
-	    me.lookupReference('usernameinfo').update({username:Proxmox.UserName});
+	    me.lookupReference('usernameinfo').setText(Proxmox.UserName);
 
 	    // show login on requestexception
 	    // fixme: what about other errors
@@ -210,12 +210,6 @@ Ext.define('PBS.MainView', {
 		    baseCls: 'x-plain',
 		},
 		{
-		    baseCls: 'x-plain',
-		    reference: 'usernameinfo',
-		    padding: '0 5',
-		    tpl: Ext.String.format(gettext("You are logged in as {0}"), "'{username}'")
-		},
-		{
 		    xtype: 'button',
 		    baseCls: 'x-btn',
 		    cls: 'x-btn-default-toolbar-small proxmox-inline-button',
@@ -229,11 +223,23 @@ Ext.define('PBS.MainView', {
 		    margin: '0 5 0 0',
 		},
 		{
-		    reference: 'logoutButton',
 		    xtype: 'button',
-		    iconCls: 'fa fa-sign-out',
-		    text: gettext('Logout')
-		}
+		    reference: 'usernameinfo',
+		    style: {
+			// proxmox dark grey p light grey as border
+			backgroundColor: '#464d4d',
+			borderColor: '#ABBABA'
+		    },
+		    margin: '0 5 0 0',
+		    iconCls: 'fa fa-user',
+		    menu: [
+			{
+			    reference: 'logoutButton',
+			    iconCls: 'fa fa-sign-out',
+			    text: gettext('Logout'),
+			},
+		    ],
+		},
 	    ]
 	},
 	{
