@@ -1,3 +1,13 @@
+rust-proxmox-backup (0.8.3-1) unstable; urgency=medium
+
+  * get_disks: don't fail on zfs_devices
+
+  * allow some more characters for zpool list
+
+  * ui: adapt for new sign-only crypt mode
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Jul 2020 13:55:06 +0200
+
 rust-proxmox-backup (0.8.2-1) unstable; urgency=medium
 
   * buildsys: also upload debug packages
