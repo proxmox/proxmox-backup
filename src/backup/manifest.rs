@@ -189,6 +189,7 @@ impl BackupManifest {
         let mut signed_data = data.clone();
 
         signed_data.as_object_mut().unwrap().remove("unprotected"); // exclude
+        signed_data.as_object_mut().unwrap().remove("signature"); // exclude
 
         let canonical = Self::to_canonical_json(&signed_data)?;
 
