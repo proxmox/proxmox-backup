@@ -76,6 +76,7 @@ Ext.define('PBS.Dashboard', {
 	    let viewmodel = me.getViewModel();
 
 	    let res = records[0].data;
+	    viewmodel.set('fingerprint', res.info.fingerprint || Proxmox.Utils.unknownText);
 
 	    let cpu = res.cpu,
 	        mem = res.memory,
@@ -89,6 +90,34 @@ Ext.define('PBS.Dashboard', {
 
 	    var hdPanel = me.lookup('root');
 	    hdPanel.updateValue(root.used / root.total);
+	},
+
+	showFingerPrint: function() {
+	    let me = this;
+	    let vm = me.getViewModel();
+	    let fingerprint = vm.get('fingerprint');
+	    Ext.create('Ext.window.Window', {
+		modal: true,
+		width: 600,
+		title: gettext('Fingerprint'),
+		layout: 'form',
+		bodyPadding: '10 0',
+		items: [
+		    {
+			xtype: 'textfield',
+			value: fingerprint,
+			editable: false,
+		    },
+		],
+		buttons: [
+		    {
+			text: gettext("OK"),
+			handler: function() {
+			    this.up('window').close();
+			},
+		    },
+		],
+	    }).show();
 	},
 
 	updateTasks: function(store, records, success) {
@@ -134,9 +163,14 @@ Ext.define('PBS.Dashboard', {
 	    timespan: 300, // in seconds
 	    hours: 12, // in hours
 	    error_shown: false,
+	    fingerprint: "",
 	    'bytes_in': 0,
 	    'bytes_out': 0,
 	    'avg_ptime': 0.0
+	},
+
+	formulas: {
+	    disableFPButton: (get) => get('fingerprint') === "",
 	},
 
 	stores: {
@@ -211,6 +245,16 @@ Ext.define('PBS.Dashboard', {
 	    iconCls: 'fa fa-tasks',
 	    title: gettext('Server Resources'),
 	    bodyPadding: '0 20 0 20',
+	    tools: [
+		{
+		    xtype: 'button',
+		    text: gettext('Show Fingerprint'),
+		    handler: 'showFingerPrint',
+		    bind: {
+			disabled: '{disableFPButton}',
+		    },
+		},
+	    ],
 	    layout: {
 		type: 'hbox',
 		align: 'center'
