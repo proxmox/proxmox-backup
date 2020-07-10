@@ -33,6 +33,46 @@ During the Proxmox Backup beta phase only one repository (pbstest) will be
 available. Once released, a Enterprise repository for production use and a
 no-subscription repository will be provided.
 
+SecureApt
+~~~~~~~~~
+
+The `Release` files in the repositories are signed with GnuPG. APT is using
+these signatures to verify that all packages are from a trusted source.
+
+If you install Proxmox Backup Server from an official ISO image, the key for
+verification is already installed.
+
+If you install Proxmox Backup Server on top of Debian, download and install the
+key with the following commands:
+
+.. code-block:: console
+
+ # wget http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+
+Verify the SHA512 checksum afterwards with:
+
+.. code-block:: console
+
+ # sha512sum /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+
+The output should be:
+
+.. code-block:: console
+
+ acca6f416917e8e11490a08a1e2842d500b3a5d9f322c6319db0927b2901c3eae23cfb5cd5df6facf2b57399d3cfa52ad7769ebdd75d9b204549ca147da52626 /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+
+and the md5sum:
+
+.. code-block:: console
+
+ # md5sum /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+
+Here, the output should be:
+
+.. code-block:: console
+
+ f3f6c5a3a67baf38ad178e5ff1ee270c /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+
 .. comment
     `Proxmox Backup`_ Enterprise Repository
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
