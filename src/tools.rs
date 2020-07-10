@@ -23,6 +23,7 @@ pub use proxmox::tools::fd::Fd;
 pub mod acl;
 pub mod async_io;
 pub mod borrow;
+pub mod cert;
 pub mod daemon;
 pub mod disks;
 pub mod fs;

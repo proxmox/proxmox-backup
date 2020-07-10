@@ -1,32 +1,18 @@
-use std::path::PathBuf;
-
 use anyhow::{bail, Error};
 
 use proxmox::api::{api, cli::*};
 
 use proxmox_backup::config;
-use proxmox_backup::configdir;
 use proxmox_backup::auth_helpers::*;
-
-fn x509name_to_string(name: &openssl::x509::X509NameRef) -> Result<String, Error> {
-    let mut parts = Vec::new();
-    for entry in name.entries() {
-        parts.push(format!("{} = {}", entry.object().nid().short_name()?, entry.data().as_utf8()?));
-    }
-    Ok(parts.join(", "))
-}
+use proxmox_backup::tools::cert::CertInfo;
 
 #[api]
 /// Display node certificate information.
 fn cert_info() -> Result<(), Error> {
 
-    let cert_path = PathBuf::from(configdir!("/proxy.pem"));
+    let cert = CertInfo::new()?;
 
-    let cert_pem = proxmox::tools::fs::file_get_contents(&cert_path)?;
-
-    let cert = openssl::x509::X509::from_pem(&cert_pem)?;
-
-    println!("Subject: {}", x509name_to_string(cert.subject_name())?);
+    println!("Subject: {}", cert.subject_name()?);
 
     if let Some(san) = cert.subject_alt_names() {
         for name in san.iter() {
@@ -42,17 +28,12 @@ fn cert_info() -> Result<(), Error> {
         }
     }
 
-    println!("Issuer: {}", x509name_to_string(cert.issuer_name())?);
+    println!("Issuer: {}", cert.issuer_name()?);
     println!("Validity:");
     println!("    Not Before: {}", cert.not_before());
     println!("    Not After : {}", cert.not_after());
 
-    let fp = cert.digest(openssl::hash::MessageDigest::sha256())?;
-    let fp_string = proxmox::tools::digest_to_hex(&fp);
-    let fp_string = fp_string.as_bytes().chunks(2).map(|v| std::str::from_utf8(v).unwrap())
-        .collect::<Vec<&str>>().join(":");
-
-    println!("Fingerprint (sha256): {}", fp_string);
+    println!("Fingerprint (sha256): {}", cert.fingerprint()?);
 
     let pubkey = cert.public_key()?;
     println!("Public key type: {}", openssl::nid::Nid::from_raw(pubkey.id().as_raw()).long_name()?);
