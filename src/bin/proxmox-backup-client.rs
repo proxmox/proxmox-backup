@@ -25,6 +25,7 @@ use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use proxmox_backup::tools;
 use proxmox_backup::api2::types::*;
+use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
 use proxmox_backup::backup::{
@@ -550,6 +551,56 @@ fn api_logout(param: Value) -> Result<Value, Error> {
     delete_ticket_info("proxmox-backup", repo.host(), repo.user())?;
 
     Ok(Value::Null)
+}
+
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+   }
+)]
+/// Show client and optional server version
+async fn api_version(param: Value) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+
+    let mut version_info = json!({
+        "client": {
+            "version": version::PROXMOX_PKG_VERSION,
+            "release": version::PROXMOX_PKG_RELEASE,
+            "repoid": version::PROXMOX_PKG_REPOID,
+        }
+    });
+
+    let repo = extract_repository_from_value(&param);
+    if let Ok(repo) = repo {
+        let client = connect(repo.host(), repo.user())?;
+
+        match client.get("api2/json/version", None).await {
+            Ok(mut result) => version_info["server"] = result["data"].take(),
+            Err(e) => eprintln!("could not connect to server - {}", e),
+        }
+    }
+    if output_format == "text" {
+        println!("client version: {}.{}", version::PROXMOX_PKG_VERSION, version::PROXMOX_PKG_RELEASE);
+        if let Some(server) = version_info["server"].as_object() {
+            let server_version = server["version"].as_str().unwrap();
+            let server_release = server["release"].as_str().unwrap();
+            println!("server version: {}.{}", server_version, server_release);
+        }
+    } else {
+        format_and_print_result(&version_info, &output_format);
+    }
+
+    Ok(())
 }
 
 
@@ -1878,6 +1929,9 @@ fn main() {
     let logout_cmd_def = CliCommand::new(&API_METHOD_API_LOGOUT)
         .completion_cb("repository", complete_repository);
 
+    let version_cmd_def = CliCommand::new(&API_METHOD_API_VERSION)
+        .completion_cb("repository", complete_repository);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup", backup_cmd_def)
         .insert("upload-log", upload_log_cmd_def)
@@ -1895,6 +1949,7 @@ fn main() {
         .insert("mount", mount_cmd_def())
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli())
+        .insert("version", version_cmd_def)
         .insert("benchmark", benchmark_cmd_def);
 
     let rpcenv = CliEnvironment::new();
