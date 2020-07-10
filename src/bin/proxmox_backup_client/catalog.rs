@@ -1,6 +1,5 @@
 use std::os::unix::fs::OpenOptionsExt;
 use std::io::{Seek, SeekFrom};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
@@ -14,8 +13,12 @@ use proxmox_backup::client::*;
 
 use crate::{
     REPO_URL_SCHEMA,
+    KEYFD_SCHEMA,
     extract_repository_from_value,
     record_repository,
+    keyfile_parameters,
+    key::get_encryption_key_password,
+    decrypt_key,
     api_datastore_latest_snapshot,
     complete_repository,
     complete_backup_snapshot,
@@ -34,10 +37,6 @@ use crate::{
     Shell,
 };
 
-use proxmox_backup::backup::load_and_decrypt_key;
-
-use crate::key::get_encryption_key_password;
-
 #[api(
    input: {
         properties: {
@@ -49,6 +48,15 @@ use crate::key::get_encryption_key_password;
                 type: String,
                 description: "Snapshot path.",
              },
+            "keyfile": {
+                optional: true,
+                type: String,
+                description: "Path to encryption key.",
+            },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
         }
    }
 )]
@@ -60,13 +68,14 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
-    let keyfile = param["keyfile"].as_str().map(PathBuf::from);
+    let (keydata, _) = keyfile_parameters(&param)?;
 
-    let crypt_config = match keyfile {
+    let crypt_config = match keydata {
         None => None,
-        Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
-            Some(Arc::new(CryptConfig::new(key)?))
+        Some(key) => {
+            let (key, _created) = decrypt_key(&key, &get_encryption_key_password)?;
+            let crypt_config = CryptConfig::new(key)?;
+            Some(Arc::new(crypt_config))
         }
     };
 
@@ -132,7 +141,11 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
                 type: String,
                 description: "Path to encryption key.",
             },
-        },
+            "keyfd": {
+                schema: KEYFD_SCHEMA,
+                optional: true,
+            },
+         },
     },
 )]
 /// Shell to interactively inspect and restore snapshots.
@@ -150,12 +163,14 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         (snapshot.group().backup_type().to_owned(), snapshot.group().backup_id().to_owned(), snapshot.backup_time())
     };
 
-    let keyfile = param["keyfile"].as_str().map(|p| PathBuf::from(p));
-    let crypt_config = match keyfile {
+    let (keydata, _) = keyfile_parameters(&param)?;
+
+    let crypt_config = match keydata {
         None => None,
-        Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
-            Some(Arc::new(CryptConfig::new(key)?))
+        Some(key) => {
+            let (key, _created) = decrypt_key(&key, &get_encryption_key_password)?;
+            let crypt_config = CryptConfig::new(key)?;
+            Some(Arc::new(crypt_config))
         }
     };
 
