@@ -105,13 +105,23 @@ Ext.define('PBS.Dashboard', {
 		items: [
 		    {
 			xtype: 'textfield',
+			inputId: 'fingerprintField',
 			value: fingerprint,
 			editable: false,
 		    },
 		],
 		buttons: [
 		    {
-			text: gettext("OK"),
+			xtype: 'button',
+			handler: function(b) {
+			    var el = document.getElementById('fingerprintField');
+			    el.select();
+			    document.execCommand("copy");
+			},
+			text: gettext('Copy')
+		    },
+		    {
+			text: gettext("Close"),
 			handler: function() {
 			    this.up('window').close();
 			},
