@@ -493,7 +493,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
     let (parts, body) = req.into_parts();
 
     let method = parts.method.clone();
-    let (path, components) = tools::normalize_uri_path(parts.uri.path())?;
+    let (_path, components) = tools::normalize_uri_path(parts.uri.path())?;
 
     let comp_len = components.len();
 
