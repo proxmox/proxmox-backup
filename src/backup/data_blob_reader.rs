@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use std::sync::Arc;
 use std::io::{Read, BufReader};
 use proxmox::tools::io::ReadExt;
@@ -40,23 +40,25 @@ impl <R: Read> DataBlobReader<R> {
                 Ok(Self { state: BlobReaderState::Compressed { expected_crc, decompr }})
             }
             ENCRYPTED_BLOB_MAGIC_1_0 => {
+                let config = config.ok_or_else(|| format_err!("unable to read encrypted blob without key"))?;
                 let expected_crc = u32::from_le_bytes(head.crc);
                 let mut iv = [0u8; 16];
                 let mut expected_tag = [0u8; 16];
                 reader.read_exact(&mut iv)?;
                 reader.read_exact(&mut expected_tag)?;
                 let csum_reader = ChecksumReader::new(reader, None);
-                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config.unwrap())?;
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config)?;
                 Ok(Self { state: BlobReaderState::Encrypted { expected_crc, decrypt_reader }})
             }
             ENCR_COMPR_BLOB_MAGIC_1_0 => {
+                let config = config.ok_or_else(|| format_err!("unable to read encrypted blob without key"))?;
                 let expected_crc = u32::from_le_bytes(head.crc);
                 let mut iv = [0u8; 16];
                 let mut expected_tag = [0u8; 16];
                 reader.read_exact(&mut iv)?;
                 reader.read_exact(&mut expected_tag)?;
                 let csum_reader = ChecksumReader::new(reader, None);
-                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config.unwrap())?;
+                let decrypt_reader = CryptReader::new(BufReader::with_capacity(64*1024, csum_reader), iv, expected_tag, config)?;
                 let decompr = zstd::stream::read::Decoder::new(decrypt_reader)?;
                 Ok(Self { state: BlobReaderState::EncryptedCompressed { expected_crc, decompr }})
             }
