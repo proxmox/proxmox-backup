@@ -4,9 +4,19 @@ use std::sync::Arc;
 use anyhow::{Error};
 use serde_json::Value;
 use chrono::{TimeZone, Utc};
+use serde::Serialize;
 
 use proxmox::api::{ApiMethod, RpcEnvironment};
-use proxmox::api::api;
+use proxmox::api::{
+    api,
+    cli::{
+        OUTPUT_FORMAT,
+        ColumnConfig,
+        get_output_format,
+        format_and_print_result_full,
+        default_table_format_options,
+    },
+};
 
 use proxmox_backup::backup::{
     load_and_decrypt_key,
@@ -21,6 +31,75 @@ use crate::{
     extract_repository_from_value,
     record_repository,
     connect,
+};
+
+#[api()]
+#[derive(Copy, Clone, Serialize)]
+/// Speed test result
+struct Speed {
+    /// The meassured speed in Bytes/second
+    #[serde(skip_serializing_if="Option::is_none")]
+    speed: Option<f64>,
+    /// Top result we want to compare with
+    top: f64,
+}
+
+#[api(
+    properties: {
+        "tls": {
+            type: Speed,
+        },
+        "sha256": {
+            type: Speed,
+        },
+        "compress": {
+            type: Speed,
+        },
+        "decompress": {
+            type: Speed,
+        },
+        "aes256_gcm": {
+            type: Speed,
+        },
+    },
+)]
+#[derive(Copy, Clone, Serialize)]
+/// Benchmark Results
+struct BenchmarkResult {
+    /// TLS upload speed
+    tls: Speed,
+    /// SHA256 checksum comptation speed
+    sha256: Speed,
+    /// ZStd level 1 compression speed
+    compress: Speed,
+    /// ZStd level 1 decompression speed
+    decompress: Speed,
+    /// AES256 GCM encryption speed
+    aes256_gcm: Speed,
+}
+
+
+static BENCHMARK_RESULT_2020_TOP: BenchmarkResult =  BenchmarkResult {
+    tls: Speed {
+        speed: None,
+        top: 1_000_000.0 * 590.0, // TLS to localhost, AMD Ryzen 7 2700X
+    },
+    sha256: Speed {
+        speed: None,
+        top: 1_000_000.0 * 2120.0, // AMD Ryzen 7 2700X
+    },
+    compress: Speed {
+        speed: None,
+        top: 1_000_000.0 * 2158.0, // AMD Ryzen 7 2700X
+    },
+    decompress: Speed {
+        speed: None,
+        top: 1_000_000.0 * 8062.0, // AMD Ryzen 7 2700X
+    },
+    aes256_gcm: Speed {
+        speed: None,
+        top: 1_000_000.0 * 3803.0, // AMD Ryzen 7 2700X
+    },
 };
 
 #[api(
@@ -39,6 +118,10 @@ use crate::{
                schema: KEYFILE_SCHEMA,
                optional: true,
            },
+           "output-format": {
+               schema: OUTPUT_FORMAT,
+               optional: true,
+           },
        }
    }
 )]
@@ -49,11 +132,13 @@ pub async fn benchmark(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let repo = extract_repository_from_value(&param)?;
+    let repo = extract_repository_from_value(&param).ok();
 
     let keyfile = param["keyfile"].as_str().map(PathBuf::from);
 
     let verbose = param["verbose"].as_bool().unwrap_or(false);
+
+    let output_format = get_output_format(&param);
 
     let crypt_config = match keyfile {
         None => None,
@@ -64,14 +149,75 @@ pub async fn benchmark(
         }
     };
 
-    test_crypt_speed(verbose)?;
+    let mut benchmark_result = BENCHMARK_RESULT_2020_TOP;
+
+    // do repo tests first, because this may prompt for a password
+    if let Some(repo) = repo {
+        test_upload_speed(&mut benchmark_result, repo, crypt_config.clone(), verbose).await?;
+    }
+
+    test_crypt_speed(&mut benchmark_result, verbose)?;
+
+    render_result(&output_format, &benchmark_result)?;
+
+    Ok(())
+}
+
+// print comparison table
+fn render_result(
+    output_format: &str,
+    benchmark_result: &BenchmarkResult,
+) -> Result<(), Error> {
+
+    let mut data = serde_json::to_value(benchmark_result)?;
+    let schema = BenchmarkResult::API_SCHEMA;
+
+    let render_speed = |value: &Value, _record: &Value| -> Result<String, Error> {
+        match value["speed"].as_f64() {
+            None => Ok(String::from("not tested")),
+            Some(speed) => {
+                let top = value["top"].as_f64().unwrap();
+                Ok(format!("{:.2} MB/s ({:.0}%)", speed/1_000_000.0, (speed*100.0)/top))
+            }
+        }
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("tls")
+                .header("TLS (maximal backup upload speed)")
+                .right_align(false).renderer(render_speed))
+        .column(ColumnConfig::new("sha256")
+                .header("SHA256 checksum comptation speed")
+                .right_align(false).renderer(render_speed))
+        .column(ColumnConfig::new("compress")
+                .header("ZStd level 1 compression speed")
+                .right_align(false).renderer(render_speed))
+        .column(ColumnConfig::new("decompress")
+                .header("ZStd level 1 decompression speed")
+                .right_align(false).renderer(render_speed))
+        .column(ColumnConfig::new("aes256_gcm")
+                .header("AES256 GCM encryption speed")
+                .right_align(false).renderer(render_speed));
+
+
+    format_and_print_result_full(&mut data, schema, output_format, &options);
+
+    Ok(())
+}
+
+async fn test_upload_speed(
+    benchmark_result: &mut BenchmarkResult,
+    repo: BackupRepository,
+    crypt_config: Option<Arc<CryptConfig>>,
+    verbose: bool,
+) -> Result<(), Error> {
 
     let backup_time = Utc.timestamp(Utc::now().timestamp(), 0);
 
     let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);
 
-    if verbose { println!("Connecting to backup server"); }
+    if verbose { eprintln!("Connecting to backup server"); }
     let client = BackupWriter::start(
         client,
         crypt_config.clone(),
@@ -82,17 +228,21 @@ pub async fn benchmark(
         false,
     ).await?;
 
-    if verbose { println!("Start upload speed test"); }
+    if verbose { eprintln!("Start TLS speed test"); }
     let speed = client.upload_speedtest(verbose).await?;
 
-    println!("Upload speed: {} MiB/s", speed);
+    eprintln!("TLS speed: {:.2} MB/s", speed/1_000_000.0);
+
+    benchmark_result.tls.speed = Some(speed);
 
     Ok(())
 }
 
-
-// test SHA256 speed
-fn test_crypt_speed(verbose: bool) -> Result<(), Error> {
+// test hash/crypt/compress speed
+fn test_crypt_speed(
+    benchmark_result: &mut BenchmarkResult,
+    _verbose: bool,
+) -> Result<(), Error> {
 
     let pw = b"test";
 
@@ -118,8 +268,9 @@ fn test_crypt_speed(verbose: bool) -> Result<(), Error> {
         if start_time.elapsed().as_micros() > 1_000_000 { break; }
     }
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
+    benchmark_result.sha256.speed = Some(speed);
 
-    println!("SHA256 speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("SHA256 speed: {:.2} MB/s", speed/1_000_000_.0);
 
 
     let start_time = std::time::Instant::now();
@@ -129,11 +280,12 @@ fn test_crypt_speed(verbose: bool) -> Result<(), Error> {
         let mut reader = &random_data[..];
         zstd::stream::encode_all(&mut reader, 1)?;
         bytes += random_data.len();
-        if start_time.elapsed().as_micros() > 1_000_000 { break; }
+        if start_time.elapsed().as_micros() > 3_000_000 { break; }
     }
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
+    benchmark_result.compress.speed = Some(speed);
 
-    println!("Compression speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("Compression speed: {:.2} MB/s", speed/1_000_000_.0);
 
 
     let start_time = std::time::Instant::now();
@@ -151,8 +303,9 @@ fn test_crypt_speed(verbose: bool) -> Result<(), Error> {
         if start_time.elapsed().as_micros() > 1_000_000 { break; }
     }
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
+    benchmark_result.decompress.speed = Some(speed);
 
-    println!("Decompress speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("Decompress speed: {:.2} MB/s", speed/1_000_000_.0);
 
 
     let start_time = std::time::Instant::now();
@@ -160,13 +313,14 @@ fn test_crypt_speed(verbose: bool) -> Result<(), Error> {
     let mut bytes = 0;
     loop  {
         let mut out = Vec::new();
-        crypt_config.encrypt_to(&random_data, &mut out);
+        crypt_config.encrypt_to(&random_data, &mut out)?;
         bytes += random_data.len();
         if start_time.elapsed().as_micros() > 1_000_000 { break; }
     }
     let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
+    benchmark_result.aes256_gcm.speed = Some(speed);
 
-    println!("AES256/GCM speed: {:.2} MB/s", speed/1_000_000_.0);
+    eprintln!("AES256/GCM speed: {:.2} MB/s", speed/1_000_000_.0);
 
     Ok(())
 }

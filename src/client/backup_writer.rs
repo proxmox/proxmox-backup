@@ -600,8 +600,8 @@ impl BackupWriter {
             })
     }
 
-    /// Upload speed test - prints result ot stdout
-    pub async fn upload_speedtest(&self, verbose: bool) -> Result<usize, Error> {
+    /// Upload speed test - prints result ot stderr
+    pub async fn upload_speedtest(&self, verbose: bool) -> Result<f64, Error> {
 
         let mut data = vec![];
         // generate pseudo random byte sequence
@@ -628,7 +628,7 @@ impl BackupWriter {
 
             let mut upload_queue = upload_queue.clone();
 
-            if verbose { println!("send test data ({} bytes)", data.len()); }
+            if verbose { eprintln!("send test data ({} bytes)", data.len()); }
             let request = H2Client::request_builder("localhost", "POST", "speedtest", None, None).unwrap();
             let request_future = self.h2.send_request(request, Some(bytes::Bytes::from(data.clone()))).await?;
 
@@ -639,9 +639,9 @@ impl BackupWriter {
 
         let _ = upload_result.await?;
 
-        println!("Uploaded {} chunks in {} seconds.", repeat, start_time.elapsed().as_secs());
-        let speed = ((item_len*1_000_000*(repeat as usize))/(1024*1024))/(start_time.elapsed().as_micros() as usize);
-        println!("Time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
+        eprintln!("Uploaded {} chunks in {} seconds.", repeat, start_time.elapsed().as_secs());
+        let speed = ((item_len*(repeat as usize)) as f64)/start_time.elapsed().as_secs_f64();
+        eprintln!("Time per request: {} microseconds.", (start_time.elapsed().as_micros())/(repeat as u128));
 
         Ok(speed)
     }
