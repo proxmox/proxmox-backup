@@ -10,6 +10,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::api2::types::*;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
+use crate::tools::cert::CertInfo;
 
 #[api(
     input: {
@@ -46,14 +47,24 @@ use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_POWER_MANAGEMENT};
                 description: "Total CPU usage since last query.",
                 optional: true,
             },
-        }
+            info: {
+                type: Object,
+                description: "contains node information",
+                properties: {
+                    fingerprint: {
+                        description: "The SSL Fingerprint",
+                        type: String,
+                    },
+                },
+            },
+        },
     },
     access: {
         permission: &Permission::Privilege(&["system", "status"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read node memory, CPU and (root) disk usage
-fn get_usage(
+fn get_status(
     _param: Value,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
@@ -62,6 +73,10 @@ fn get_usage(
     let meminfo: procfs::ProcFsMemInfo = procfs::read_meminfo()?;
     let kstat: procfs::ProcFsStat = procfs::read_proc_stat()?;
     let disk_usage = crate::tools::disks::disk_usage(Path::new("/"))?;
+
+    // get fingerprint
+    let cert = CertInfo::new()?;
+    let fp = cert.fingerprint()?;
 
     Ok(json!({
         "memory": {
@@ -74,7 +89,10 @@ fn get_usage(
             "total": disk_usage.total,
             "used": disk_usage.used,
             "free": disk_usage.avail,
-        }
+        },
+        "info": {
+            "fingerprint": fp,
+        },
     }))
 }
 
@@ -122,5 +140,5 @@ fn reboot_or_shutdown(command: NodePowerCommand) -> Result<(), Error> {
 }
 
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_USAGE)
+    .get(&API_METHOD_GET_STATUS)
     .post(&API_METHOD_REBOOT_OR_SHUTDOWN);
