@@ -113,6 +113,7 @@ Ext.define('PBS.Dashboard', {
 		buttons: [
 		    {
 			xtype: 'button',
+			iconCls: 'fa fa-clipboard',
 			handler: function(b) {
 			    var el = document.getElementById('fingerprintField');
 			    el.select();
@@ -121,7 +122,7 @@ Ext.define('PBS.Dashboard', {
 			text: gettext('Copy')
 		    },
 		    {
-			text: gettext("Close"),
+			text: gettext('Ok'),
 			handler: function() {
 			    this.up('window').close();
 			},
