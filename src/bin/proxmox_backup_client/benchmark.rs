@@ -170,7 +170,7 @@ fn render_result(
 ) -> Result<(), Error> {
 
     let mut data = serde_json::to_value(benchmark_result)?;
-    let schema = BenchmarkResult::API_SCHEMA;
+    let schema = &BenchmarkResult::API_SCHEMA;
 
     let render_speed = |value: &Value, _record: &Value| -> Result<String, Error> {
         match value["speed"].as_f64() {

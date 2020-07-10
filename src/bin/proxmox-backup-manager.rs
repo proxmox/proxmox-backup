@@ -127,7 +127,7 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let mut result = client.get(&path, None).await?;
     let mut data = result["data"].take();
-    let schema = api2::admin::datastore::API_RETURN_SCHEMA_GARBAGE_COLLECTION_STATUS;
+    let schema = &api2::admin::datastore::API_RETURN_SCHEMA_GARBAGE_COLLECTION_STATUS;
 
     let options = default_table_format_options();
 
@@ -193,7 +193,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
     let mut data = result["data"].take();
-    let schema = api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
+    let schema = &api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))

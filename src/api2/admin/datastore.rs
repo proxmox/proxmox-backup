@@ -535,7 +535,7 @@ macro_rules! add_common_prune_prameters {
 
 pub const API_RETURN_SCHEMA_PRUNE: Schema = ArraySchema::new(
     "Returns the list of snapshots and a flag indicating if there are kept or removed.",
-    PruneListItem::API_SCHEMA
+    &PruneListItem::API_SCHEMA
 ).schema();
 
 const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
