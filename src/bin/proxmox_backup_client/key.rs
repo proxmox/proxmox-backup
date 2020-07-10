@@ -99,7 +99,11 @@ impl Default for Kdf {
 fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => place_default_encryption_key()?,
+        None => {
+            let path = place_default_encryption_key()?;
+            println!("creating default key at: {:?}", path);
+            path
+        }
     };
 
     let kdf = kdf.unwrap_or_default();
@@ -156,8 +160,14 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
     let path = match path {
         Some(path) => PathBuf::from(path),
-        None => find_default_encryption_key()?
-            .ok_or_else(|| format_err!("no encryption file provided and no default file found"))?,
+        None => {
+            let path = find_default_encryption_key()?
+                .ok_or_else(|| {
+                    format_err!("no encryption file provided and no default file found")
+                })?;
+            println!("updating default key at: {:?}", path);
+            path
+        }
     };
 
     let kdf = kdf.unwrap_or_default();
