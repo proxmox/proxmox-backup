@@ -13,7 +13,7 @@ Ext.define('PBS.data.RunningTasksStore', {
 	    proxy: {
 		type: 'proxmox',
 		// maybe separate api call?
-		url: '/api2/json/nodes/localhost/tasks?running=1',
+		url: '/api2/json/nodes/localhost/tasks?running=1&limit=100',
 	    },
 	});
 	me.callParent([config]);
