@@ -541,7 +541,7 @@ environment variable ``PBS_REPOSITORY``.
 
 .. code-block:: console
 
-  # export PBS_REPOSTORY=backup-server:store1
+  # export PBS_REPOSITORY=backup-server:store1
 
 After this you can execute all commands without specifying the ``--repository``
 option.
