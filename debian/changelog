@@ -1,8 +1,12 @@
-rust-proxmox-backup (0.8.7-1) unstable; urgency=medium
+rust-proxmox-backup (0.8.7-2) unstable; urgency=medium
 
   * support restoring file attributes from pxar archives
 
- -- Proxmox Support Team <support@proxmox.com>  Tue, 14 Jul 2020 09:43:45 +0200
+  * docs: additions and fixes
+
+  * ui: running tasks: update limit to 100
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 14 Jul 2020 12:05:25 +0200
 
 rust-proxmox-backup (0.8.6-1) unstable; urgency=medium
 
