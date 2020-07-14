@@ -1,3 +1,9 @@
+rust-proxmox-backup (0.8.7-1) unstable; urgency=medium
+
+  * support restoring file attributes from pxar archives
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 14 Jul 2020 09:43:45 +0200
+
 rust-proxmox-backup (0.8.6-1) unstable; urgency=medium
 
   * ui: add button for easily showing the server fingerprint dashboard
