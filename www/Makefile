@@ -55,6 +55,10 @@ js/proxmox-backup-gui.js: js OnlineHelpInfo.js ${JSSRC}
 	cat OnlineHelpInfo.js ${JSSRC} >$@.tmp
 	mv $@.tmp $@
 
+.PHONY: lint
+lint: ${JSSRC}
+	eslint ${JSSRC}
+
 .PHONY: clean
 clean:
 	find . -name '*~' -exec rm {} ';'	
