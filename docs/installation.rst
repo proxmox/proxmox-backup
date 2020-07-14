@@ -83,6 +83,10 @@ In general this is not trivial, especially when LVM_ or ZFS_ is used.
 
 The network configuration is completely up to you as well.
 
+.. note:: You can access the webinterface of the Proxmox Backup Server with
+  your web browser, using HTTPS on port 8007. For example at
+ ``https://<ip-or-dns-name>:8007``
+
 Install Proxmox Backup server on `Proxmox VE`_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -98,6 +102,10 @@ After configuring the
    is not recommended. It is safer to use a separate physical
    server to store backups. Should the hypervisor server fail, you can
    still access the backups.
+
+.. note:: You can access the webinterface of the Proxmox Backup Server with
+  your web browser, using HTTPS on port 8007. For example at
+ ``https://<ip-or-dns-name>:8007``
 
 Client installation
 -------------------
