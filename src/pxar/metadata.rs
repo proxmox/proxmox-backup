@@ -79,12 +79,18 @@ pub fn apply_at(
     apply(flags, metadata, fd.as_raw_fd(), file_name)
 }
 
+pub fn apply_initial_flags(
+    flags: Flags,
+    metadata: &Metadata,
+    fd: RawFd,
+) -> Result<(), Error> {
+    let entry_flags = Flags::from_bits_truncate(metadata.stat.flags);
+    apply_chattr(fd, entry_flags.to_initial_chattr(), flags.to_initial_chattr());
+    Ok(())
+}
+
 pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
-
-    if metadata.stat.flags != 0 {
-        todo!("apply flags!");
-    }
 
     unsafe {
         // UID and GID first, as this fails if we lose access anyway.
@@ -94,13 +100,15 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
             metadata.stat.gid
         ))
         .map(drop)
-        .or_else(allow_notsupp)?;
+        .or_else(allow_notsupp)
+        .map_err(|err| format_err!("failed to set ownership: {}", err))?;
     }
 
     let mut skip_xattrs = false;
     apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
     add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
-    apply_acls(flags, &c_proc_path, metadata)?;
+    apply_acls(flags, &c_proc_path, metadata)
+        .map_err(|err| format_err!("failed to apply acls: {}", err))?;
     apply_quota_project_id(flags, fd, metadata)?;
 
     // Finally mode and time. We may lose access with mode, but the changing the mode also
@@ -110,7 +118,12 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
             libc::chmod(c_proc_path.as_ptr(), perms_from_metadata(metadata)?.bits())
         })
         .map(drop)
-        .or_else(allow_notsupp)?;
+        .or_else(allow_notsupp)
+        .map_err(|err| format_err!("failed to change file mode: {}", err))?;
+    }
+
+    if metadata.stat.flags != 0 {
+        apply_flags(flags, fd, metadata.stat.flags)?;
     }
 
     let res = c_result!(unsafe {
@@ -160,7 +173,8 @@ fn add_fcaps(
         )
     })
     .map(drop)
-    .or_else(|err| allow_notsupp_remember(err, skip_xattrs))?;
+    .or_else(|err| allow_notsupp_remember(err, skip_xattrs))
+    .map_err(|err| format_err!("failed to apply file capabilities: {}", err))?;
 
     Ok(())
 }
@@ -195,7 +209,8 @@ fn apply_xattrs(
             )
         })
         .map(drop)
-        .or_else(|err| allow_notsupp_remember(err, &mut *skip_xattrs))?;
+        .or_else(|err| allow_notsupp_remember(err, &mut *skip_xattrs))
+        .map_err(|err| format_err!("failed to apply extended attributes: {}", err))?;
     }
 
     Ok(())
@@ -313,6 +328,52 @@ fn apply_quota_project_id(flags: Flags, fd: RawFd, metadata: &Metadata) -> Resul
                 err
             )
         })?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn errno_is_unsupported(errno: Errno) -> bool {
+    match errno {
+        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => true,
+        _ => false,
+    }
+}
+
+fn apply_chattr(fd: RawFd, chattr: libc::c_long, mask: libc::c_long) -> Result<(), Error> {
+    if chattr == 0 {
+        return Ok(());
+    }
+
+    let mut fattr: libc::c_long = 0;
+    match unsafe { fs::read_attr_fd(fd, &mut fattr) } {
+        Ok(_) => (),
+        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => {
+            return Ok(());
+        }
+        Err(err) => bail!("failed to read file attributes: {}", err),
+    }
+
+    let attr = (chattr & mask) | (fattr & !mask);
+    match unsafe { fs::write_attr_fd(fd, &attr) } {
+        Ok(_) => Ok(()),
+        Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => Ok(()),
+        Err(err) => bail!("failed to set file attributes: {}", err),
+    }
+}
+
+fn apply_flags(flags: Flags, fd: RawFd, entry_flags: u64) -> Result<(), Error> {
+    let entry_flags = Flags::from_bits_truncate(entry_flags);
+
+    apply_chattr(fd, entry_flags.to_chattr(), flags.to_chattr())?;
+
+    let fatattr = (flags & entry_flags).to_fat_attr();
+    if fatattr != 0 {
+        match unsafe { fs::write_fat_attr_fd(fd, &fatattr) } {
+            Ok(_) => (),
+            Err(nix::Error::Sys(errno)) if errno_is_unsupported(errno) => (),
+            Err(err) => bail!("failed to set file attributes: {}", err),
+        }
     }
 
     Ok(())

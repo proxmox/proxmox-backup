@@ -23,6 +23,7 @@ use proxmox::tools::fd::RawFdNum;
 use proxmox::tools::vec;
 
 use crate::pxar::catalog::BackupCatalogWriter;
+use crate::pxar::metadata::errno_is_unsupported;
 use crate::pxar::Flags;
 use crate::pxar::tools::assert_single_path_component;
 use crate::tools::{acl, fs, xattr, Fd};
@@ -698,13 +699,6 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Resu
     Ok(meta)
 }
 
-fn errno_is_unsupported(errno: Errno) -> bool {
-    match errno {
-        Errno::ENOTTY | Errno::ENOSYS | Errno::EBADF | Errno::EOPNOTSUPP | Errno::EINVAL => true,
-        _ => false,
-    }
-}
-
 fn get_fcaps(meta: &mut Metadata, fd: RawFd, flags: Flags) -> Result<(), Error> {
     if flags.contains(Flags::WITH_FCAPS) {
         return Ok(());
@@ -769,7 +763,7 @@ fn get_xattr_fcaps_acl(
 }
 
 fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
-    let mut attr: usize = 0;
+    let mut attr: libc::c_long = 0;
 
     match unsafe { fs::read_attr_fd(fd, &mut attr) } {
         Ok(_) => (),
@@ -779,7 +773,7 @@ fn get_chattr(metadata: &mut Metadata, fd: RawFd) -> Result<(), Error> {
         Err(err) => bail!("failed to read file attributes: {}", err),
     }
 
-    metadata.stat.flags |= Flags::from_chattr(attr as u32).bits();
+    metadata.stat.flags |= Flags::from_chattr(attr).bits();
 
     Ok(())
 }

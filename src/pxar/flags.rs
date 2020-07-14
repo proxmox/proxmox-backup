@@ -3,6 +3,8 @@
 //! Flags for known supported features for a given filesystem can be derived
 //! from the superblocks magic number.
 
+use libc::c_long;
+
 use bitflags::bitflags;
 
 bitflags! {
@@ -149,34 +151,54 @@ impl Default for Flags {
     }
 }
 
+// form /usr/include/linux/fs.h
+const FS_APPEND_FL: c_long =      0x0000_0020;
+const FS_NOATIME_FL: c_long =     0x0000_0080;
+const FS_COMPR_FL: c_long =       0x0000_0004;
+const FS_NOCOW_FL: c_long =       0x0080_0000;
+const FS_NODUMP_FL: c_long =      0x0000_0040;
+const FS_DIRSYNC_FL: c_long =     0x0001_0000;
+const FS_IMMUTABLE_FL: c_long =   0x0000_0010;
+const FS_SYNC_FL: c_long =        0x0000_0008;
+const FS_NOCOMP_FL: c_long =      0x0000_0400;
+const FS_PROJINHERIT_FL: c_long = 0x2000_0000;
+
+pub(crate) const INITIAL_FS_FLAGS: c_long =
+    FS_NOATIME_FL
+    | FS_COMPR_FL
+    | FS_NOCOW_FL
+    | FS_NOCOMP_FL
+    | FS_PROJINHERIT_FL;
+
+#[rustfmt::skip]
+const CHATTR_MAP: [(Flags, c_long); 10] = [
+    ( Flags::WITH_FLAG_APPEND,      FS_APPEND_FL      ),
+    ( Flags::WITH_FLAG_NOATIME,     FS_NOATIME_FL     ),
+    ( Flags::WITH_FLAG_COMPR,       FS_COMPR_FL       ),
+    ( Flags::WITH_FLAG_NOCOW,       FS_NOCOW_FL       ),
+    ( Flags::WITH_FLAG_NODUMP,      FS_NODUMP_FL      ),
+    ( Flags::WITH_FLAG_DIRSYNC,     FS_DIRSYNC_FL     ),
+    ( Flags::WITH_FLAG_IMMUTABLE,   FS_IMMUTABLE_FL   ),
+    ( Flags::WITH_FLAG_SYNC,        FS_SYNC_FL        ),
+    ( Flags::WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
+    ( Flags::WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
+];
+
+// from /usr/include/linux/msdos_fs.h
+const ATTR_HIDDEN: u32 =      2;
+const ATTR_SYS: u32 =         4;
+const ATTR_ARCH: u32 =       32;
+
+#[rustfmt::skip]
+const FAT_ATTR_MAP: [(Flags, u32); 3] = [
+    ( Flags::WITH_FLAG_HIDDEN,  ATTR_HIDDEN ),
+    ( Flags::WITH_FLAG_SYSTEM,  ATTR_SYS    ),
+    ( Flags::WITH_FLAG_ARCHIVE, ATTR_ARCH   ),
+];
+
 impl Flags {
     /// Get a set of feature flags from file attributes.
-    pub fn from_chattr(attr: u32) -> Flags {
-        // form /usr/include/linux/fs.h
-        const FS_APPEND_FL: u32 =      0x0000_0020;
-        const FS_NOATIME_FL: u32 =     0x0000_0080;
-        const FS_COMPR_FL: u32 =       0x0000_0004;
-        const FS_NOCOW_FL: u32 =       0x0080_0000;
-        const FS_NODUMP_FL: u32 =      0x0000_0040;
-        const FS_DIRSYNC_FL: u32 =     0x0001_0000;
-        const FS_IMMUTABLE_FL: u32 =   0x0000_0010;
-        const FS_SYNC_FL: u32 =        0x0000_0008;
-        const FS_NOCOMP_FL: u32 =      0x0000_0400;
-        const FS_PROJINHERIT_FL: u32 = 0x2000_0000;
-
-        const CHATTR_MAP: [(Flags, u32); 10] = [
-            ( Flags::WITH_FLAG_APPEND,      FS_APPEND_FL      ),
-            ( Flags::WITH_FLAG_NOATIME,     FS_NOATIME_FL     ),
-            ( Flags::WITH_FLAG_COMPR,       FS_COMPR_FL       ),
-            ( Flags::WITH_FLAG_NOCOW,       FS_NOCOW_FL       ),
-            ( Flags::WITH_FLAG_NODUMP,      FS_NODUMP_FL      ),
-            ( Flags::WITH_FLAG_DIRSYNC,     FS_DIRSYNC_FL     ),
-            ( Flags::WITH_FLAG_IMMUTABLE,   FS_IMMUTABLE_FL   ),
-            ( Flags::WITH_FLAG_SYNC,        FS_SYNC_FL        ),
-            ( Flags::WITH_FLAG_NOCOMP,      FS_NOCOMP_FL      ),
-            ( Flags::WITH_FLAG_PROJINHERIT, FS_PROJINHERIT_FL ),
-        ];
-
+    pub fn from_chattr(attr: c_long) -> Flags {
         let mut flags = Flags::empty();
 
         for (fe_flag, fs_flag) in &CHATTR_MAP {
@@ -188,24 +210,43 @@ impl Flags {
         flags
     }
 
+    /// Get the chattr bit representation of these feature flags.
+    pub fn to_chattr(self) -> c_long {
+        let mut flags: c_long = 0;
+
+        for (fe_flag, fs_flag) in &CHATTR_MAP {
+            if self.contains(*fe_flag) {
+                flags |= *fs_flag;
+            }
+        }
+
+        flags
+    }
+
+    pub fn to_initial_chattr(self) -> c_long {
+        self.to_chattr() & INITIAL_FS_FLAGS
+    }
+
     /// Get a set of feature flags from FAT attributes.
     pub fn from_fat_attr(attr: u32) -> Flags {
-        // from /usr/include/linux/msdos_fs.h
-        const ATTR_HIDDEN: u32 =      2;
-        const ATTR_SYS: u32 =         4;
-        const ATTR_ARCH: u32 =       32;
-
-        const FAT_ATTR_MAP: [(Flags, u32); 3] = [
-            ( Flags::WITH_FLAG_HIDDEN,  ATTR_HIDDEN ),
-            ( Flags::WITH_FLAG_SYSTEM,  ATTR_SYS    ),
-            ( Flags::WITH_FLAG_ARCHIVE, ATTR_ARCH   ),
-        ];
-
         let mut flags = Flags::empty();
 
         for (fe_flag, fs_flag) in &FAT_ATTR_MAP {
             if (attr & fs_flag) != 0 {
                 flags |= *fe_flag;
+            }
+        }
+
+        flags
+    }
+
+    /// Get the fat attribute bit representation of these feature flags.
+    pub fn to_fat_attr(self) -> u32 {
+        let mut flags = 0u32;
+
+        for (fe_flag, fs_flag) in &FAT_ATTR_MAP {
+            if self.contains(*fe_flag) {
+                flags |= *fs_flag;
             }
         }
 

@@ -230,7 +230,8 @@ impl Extractor {
                 dir.metadata(),
                 fd,
                 &CString::new(dir.file_name().as_bytes())?,
-            )?;
+            )
+            .map_err(|err| format_err!("failed to apply directory metadata: {}", err))?;
         }
 
         Ok(())
@@ -241,7 +242,9 @@ impl Extractor {
     }
 
     fn parent_fd(&mut self) -> Result<RawFd, Error> {
-        self.dir_stack.last_dir_fd(self.allow_existing_dirs)
+        self.dir_stack
+            .last_dir_fd(self.allow_existing_dirs)
+            .map_err(|err| format_err!("failed to get parent directory file descriptor: {}", err))
     }
 
     pub fn extract_symlink(
@@ -320,10 +323,14 @@ impl Extractor {
                 file_name,
                 OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
                 Mode::from_bits(0o600).unwrap(),
-            )?)
+            )
+            .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?)
         };
 
-        let extracted = io::copy(&mut *contents, &mut file)?;
+        metadata::apply_initial_flags(self.feature_flags, metadata, file.as_raw_fd())?;
+
+        let extracted = io::copy(&mut *contents, &mut file)
+            .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
         if size != extracted {
             bail!("extracted {} bytes of a file of {} bytes", extracted, size);
         }
@@ -345,10 +352,15 @@ impl Extractor {
                 file_name,
                 OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
                 Mode::from_bits(0o600).unwrap(),
-            )?)
+            )
+            .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?)
         });
 
-        let extracted = tokio::io::copy(&mut *contents, &mut file).await?;
+        metadata::apply_initial_flags(self.feature_flags, metadata, file.as_raw_fd())?;
+
+        let extracted = tokio::io::copy(&mut *contents, &mut file)
+            .await
+            .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
         if size != extracted {
             bail!("extracted {} bytes of a file of {} bytes", extracted, size);
         }
