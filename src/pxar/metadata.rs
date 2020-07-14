@@ -85,7 +85,7 @@ pub fn apply_initial_flags(
     fd: RawFd,
 ) -> Result<(), Error> {
     let entry_flags = Flags::from_bits_truncate(metadata.stat.flags);
-    apply_chattr(fd, entry_flags.to_initial_chattr(), flags.to_initial_chattr());
+    apply_chattr(fd, entry_flags.to_initial_chattr(), flags.to_initial_chattr())?;
     Ok(())
 }
 
