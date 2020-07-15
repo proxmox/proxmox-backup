@@ -89,7 +89,9 @@ impl CachedUserInfo {
             (user_privs & required_privs) == required_privs
         };
         if !allowed {
-            bail!("no permissions");
+            // printing the path doesn't leaks any information as long as we
+            // always check privilege before resource existence
+            bail!("no permissions on '/{}'", path.join("/"));
         }
         Ok(())
     }
