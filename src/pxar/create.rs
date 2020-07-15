@@ -290,11 +290,13 @@ impl<'a, 'b> Archiver<'a, 'b> {
 
         let old_pattern_count = self.patterns.len();
 
+        let path_bytes = self.path.as_os_str().as_bytes();
+
         if let Some(fd) = fd {
             let file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
 
             use io::BufRead;
-            for line in io::BufReader::new(file).lines() {
+            for line in io::BufReader::new(file).split(b'\n') {
                 let line = match line {
                     Ok(line) => line,
                     Err(err) => {
@@ -309,13 +311,29 @@ impl<'a, 'b> Archiver<'a, 'b> {
                     }
                 };
 
-                let line = line.trim();
+                let line = crate::tools::strip_ascii_whitespace(&line);
 
-                if line.is_empty() || line.starts_with('#') {
+                if line.is_empty() || line[0] == b'#' {
                     continue;
                 }
 
-                match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, MatchType::Exclude) {
+                let mut buf;
+                let (line, mode) = if line[0] == b'/' {
+                    buf = Vec::with_capacity(path_bytes.len() + 1 + line.len());
+                    buf.extend(path_bytes);
+                    buf.extend(line);
+                    (&buf[..], MatchType::Exclude)
+                } else if line.starts_with(b"!/") {
+                    // inverted case with absolute path
+                    buf = Vec::with_capacity(path_bytes.len() + line.len());
+                    buf.extend(path_bytes);
+                    buf.extend(&line[1..]); // without the '!'
+                    (&buf[..], MatchType::Include)
+                } else {
+                    (line, MatchType::Exclude)
+                };
+
+                match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, mode) {
                     Ok(pattern) => self.patterns.push(pattern),
                     Err(err) => {
                         let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
