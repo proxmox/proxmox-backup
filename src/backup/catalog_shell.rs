@@ -89,6 +89,10 @@ pub fn catalog_shell_cli() -> CommandLineInterface {
                 "find",
                 CliCommand::new(&API_METHOD_FIND_COMMAND).arg_param(&["pattern"]),
             )
+            .insert(
+                "exit",
+                CliCommand::new(&API_METHOD_EXIT),
+            )
             .insert_help(),
     )
 }
@@ -102,6 +106,14 @@ fn complete_path(complete_me: &str, _map: &HashMap<String, String>) -> Vec<Strin
             Vec::new()
         }
     }
+}
+
+// just an empty wrapper so that it is displayed in help/docs, we check
+// in the readloop for 'exit' again break
+#[api(input: { properties: {} })]
+/// Exit the shell
+async fn exit() -> Result<(), Error> {
+    Ok(())
 }
 
 #[api(input: { properties: {} })]
@@ -439,6 +451,9 @@ impl Shell {
             SHELL = Some(this as *mut Shell as usize);
         }
         while let Ok(line) = this.rl.readline(&this.prompt) {
+            if line == "exit" {
+                break;
+            }
             let helper = this.rl.helper().unwrap();
             let args = match cli::shellword_split(&line) {
                 Ok(args) => args,
