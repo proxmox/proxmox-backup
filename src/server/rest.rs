@@ -493,7 +493,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
     let (parts, body) = req.into_parts();
 
     let method = parts.method.clone();
-    let (_path, components) = tools::normalize_uri_path(parts.uri.path())?;
+    let (path, components) = tools::normalize_uri_path(parts.uri.path())?;
 
     let comp_len = components.len();
 
@@ -542,7 +542,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
 
             match api.find_method(&components[2..], method, &mut uri_param) {
                 None => {
-                    let err = http_err!(NOT_FOUND, "Path not found.".to_string());
+                    let err = http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string());
                     return Ok((formatter.format_error)(err));
                 }
                 Some(api_method) => {
@@ -596,5 +596,5 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
         }
     }
 
-    Err(http_err!(NOT_FOUND, "Path not found.".to_string()))
+    Err(http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string()))
 }

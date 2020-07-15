@@ -55,7 +55,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         match self.router.find_method(&components, method, &mut uri_param) {
             None => {
-                let err = http_err!(NOT_FOUND, "Path not found.".to_string());
+                let err = http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string());
                 future::ok((formatter.format_error)(err)).boxed()
             }
             Some(api_method) => {
