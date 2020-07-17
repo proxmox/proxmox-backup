@@ -161,6 +161,8 @@ fn datastore_status(
                         if b != 0.0 {
                             let estimate = (1.0 - a) / b;
                             entry["estimated-full-date"] = Value::from(estimate.floor() as u64);
+                        } else {
+                            entry["estimated-full-date"] = Value::from(0);
                         }
                     }
                 }
