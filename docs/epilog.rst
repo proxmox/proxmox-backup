@@ -13,7 +13,7 @@
 .. _Proxmox: https://www.proxmox.com
 .. _Proxmox Community Forum: https://forum.proxmox.com
 .. _Proxmox Virtual Environment: https://www.proxmox.com/proxmox-ve
-.. _Proxmox Backup: https://www.proxmox.com/proxmox-backup
+.. _Proxmox Backup: https://pbs.proxmox.com/wiki/index.php/Main_Page  // FIXME
 .. _PBS Development List: https://lists.proxmox.com/cgi-bin/mailman/listinfo/pbs-devel
 .. _reStructuredText: https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html
 .. _Rust: https://www.rust-lang.org/
