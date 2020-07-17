@@ -4,17 +4,17 @@ Introduction
 What is Proxmox Backup Server
 -----------------------------
 
-Proxmox Backup Server is an enterprise-class client-server backup software that
-backups :term:`virtual machine`\ s, :term:`container`\ s, and physical hosts.
-It is specially optimized for the `Proxmox Virtual Environment`_ platform and
-allows you to backup your data securely, even between remote sites, providing
-easy management with a web-based user interface.
+Proxmox Backup Server is an enterprise-class, client-server backup software
+package that backs up :term:`virtual machine`\ s, :term:`container`\ s, and
+physical hosts. It is specially optimized for the `Proxmox Virtual Environment`_
+platform and allows you to back up your data securely, even between remote
+sites, providing easy management with a web-based user interface.
 
 Proxmox Backup Server supports deduplication, compression, and authenticated
-encryption (AE_). Using :term:`Rust` as implementation language guarantees high
-performance, low resource usage, and a safe, high quality code base.
+encryption (AE_). Using :term:`Rust` as the implementation language guarantees high
+performance, low resource usage, and a safe, high-quality codebase.
 
-It features strong encryption done on the client side. Thus, it's possible to
+It features strong client-side encryption. Thus, it's possible to
 backup data to not fully trusted targets.
 
 
@@ -63,7 +63,7 @@ Main Features
    several gigabytes of data per second.
 
 :Encryption: Backups can be encrypted on the client-side using AES-256 in
-   Galois/Counter Mode (GCM_) mode. This authenticated encryption (AE_) mde
+   Galois/Counter Mode (GCM_) mode. This authenticated encryption (AE_) mode
    provides very high performance on modern hardware.
 
 :Web interface: Manage the Proxmox Backup Server with the integrated web-based
@@ -113,7 +113,7 @@ Proxmox Backup Server consists of multiple components:
 * client CLI tool (`proxmox-backup-client`) to access the server easily from
   any `Linux amd64` environment.
 
-Everything besides the web interface are written in the Rust programming
+Everything outside of the web interface is written in the Rust programming
 language.
 
  "The Rust programming language helps you write faster, more reliable software.
