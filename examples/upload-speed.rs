@@ -2,7 +2,7 @@ use anyhow::{Error};
 
 use proxmox_backup::client::*;
 
-async fn upload_speed() -> Result<usize, Error> {
+async fn upload_speed() -> Result<f64, Error> {
 
     let host = "localhost";
     let datastore = "store2";
@@ -20,7 +20,7 @@ async fn upload_speed() -> Result<usize, Error> {
     let client = BackupWriter::start(client, None, datastore, "host", "speedtest", backup_time, false).await?;
 
     println!("start upload speed test");
-    let res = client.upload_speedtest().await?;
+    let res = client.upload_speedtest(true).await?;
 
     Ok(res)
 }
