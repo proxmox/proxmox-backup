@@ -148,7 +148,7 @@ You can configure multiple datastores. Minimum one datastore needs to be
 configured. The datastore is identified by a simple `name` and points to a
 directory on the filesystem. Each datastore also has associated retention
 settings of how many backup snapshots for each interval of ``hourly``,
-``daily``, ``weekly``, ``monthly``, ``yearly`` as well as an time independent
+``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
 number of backups to keep in that store. :ref:`Pruning <pruning>` and
 :ref:`garbage collection <garbage-collection>` can also be configured to run
 periodically based on a configured :term:`schedule` per datastore.
@@ -372,20 +372,20 @@ following roles exist:
 :term:`Remote`
 ~~~~~~~~~~~~~~
 
-A remote is a different Proxmox Backup Server installation and a user on that
+A remote refers to a separate Proxmox Backup Server installation and a user on that
 installation, from which you can `sync` datastores to a local datastore with a
 `Sync Job`.
 
-For adding a remote you need its hostname or ip, a userid and password on the
-remote and its certificate fingerprint to add it. To get the fingerprint use
-the ``proxmox-backup-manager cert info`` command on the remote.
+To add a remote, you need its hostname or ip, a userid and password on the
+remote, and its certificate fingerprint. To get the fingerprint, use the
+``proxmox-backup-manager cert info`` command on the remote.
 
 .. code-block:: console
 
   # proxmox-backup-manager cert info |grep Fingerprint
   Fingerprint (sha256): 64:d3:ff:3a:50:38:53:5a:9b:f7:50:...:ab:fe
 
-With the needed information add the remote with:
+Using the information specified above, add the remote with:
 
 .. code-block:: console
 
@@ -599,12 +599,12 @@ not contained within the brackets. It is also possible to specify ranges with tw
 characters separated by ``-``. For example, ``[a-z]`` matches any lowercase
 alphabetic character and ``[0-9]`` matches any one single digit.
 
-The order of the glob match patterns defines if a file is included or
-excluded, later entries win over previous ones.
+The order of the glob match patterns defines whether a file is included or
+excluded, that is to say later entries override previous ones.
 This is also true for match patterns encountered deeper down the directory tree,
 which can override a previous exclusion.
 Be aware that excluded directories will **not** be read by the backup client.
-A ``.pxarexclude`` file in a subdirectory will have no effect.
+Thus, a ``.pxarexclude`` file in an excluded subdirectory will have no effect.
 ``.pxarexclude`` files are treated as regular files and will be included in the
 backup archive.
 
@@ -656,8 +656,8 @@ Restoring this backup will result in:
 Encryption
 ^^^^^^^^^^
 
-Proxmox backup supports client side encryption with AES-256 in GCM_
-mode. First you need to create an encryption key:
+Proxmox Backup supports client-side encryption with AES-256 in GCM_
+mode. To set this up, you first need to create an encryption key:
 
 .. code-block:: console
 
@@ -689,13 +689,13 @@ variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 Restoring Data
 ~~~~~~~~~~~~~~
 
-The regular creation of backups is a necessary step to avoid data
-loss. More important, however, is the restoration. It is good practice to perform
+The regular creation of backups is a necessary step to avoiding data
+loss. More importantly, however, is the restoration. It is good practice to perform
 periodic recovery tests to ensure that you can access the data in
 case of problems.
 
 First, you need to find the snapshot which you want to restore. The snapshot
-command gives a list of all snapshots on the server:
+command provides a list of all the snapshots on the server:
 
 .. code-block:: console
 
@@ -727,8 +727,8 @@ backup.
 
   # proxmox-backup-client restore host/elsa/2019-12-03T09:35:01Z root.pxar /target/path/
 
-To get the contents of any archive you can restore the ``ìndex.json`` file in the
-repository and restore it to '-'. This will dump the content to the standard output.
+To get the contents of any archive, you can restore the ``ìndex.json`` file in the
+repository to the target path '-'. This will dump the contents to the standard output.
 
 .. code-block:: console
 
@@ -765,7 +765,7 @@ working directory and list directory contents in the archive.
 ``pwd`` shows the full path of the current working directory with respect to the
 archive root.
 
-Being able to quickly search the contents of the archive is a often needed feature.
+Being able to quickly search the contents of the archive is a commmonly needed feature.
 That's where the catalog is most valuable.
 For example:
 
@@ -814,10 +814,10 @@ file archive as a read-only filesystem to a mountpoint on your host.
   bin   dev  home  lib32  libx32      media  opt   root  sbin  sys  usr
   boot  etc  lib   lib64  lost+found  mnt    proc  run   srv   tmp  var
 
-This allows you to access the full content of the archive in a seamless manner.
+This allows you to access the full contents of the archive in a seamless manner.
 
 .. note:: As the FUSE connection needs to fetch and decrypt chunks from the
-    backup servers datastore, this can cause some additional network and CPU
+    backup server's datastore, this can cause some additional network and CPU
     load on your host, depending on the operations you perform on the mounted
     filesystem.
 
@@ -914,7 +914,7 @@ backup is retained.
 
 
 You can use the ``--dry-run`` option to test your settings. This only
-shows the list of existing snapshots and which action prune would take.
+shows the list of existing snapshots and what actions prune would take.
 
 .. code-block:: console
 
