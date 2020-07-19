@@ -82,7 +82,7 @@ pub fn flistxattr(fd: RawFd) -> Result<ListXAttr, nix::errno::Errno> {
     let mut size = 256;
     let mut buffer = vec::undefined(size);
     let mut bytes = unsafe {
-        libc::flistxattr(fd, buffer.as_mut_ptr() as *mut i8, buffer.len())
+        libc::flistxattr(fd, buffer.as_mut_ptr() as *mut libc::c_char, buffer.len())
     };
     while bytes < 0 {
         let err = Errno::last();
@@ -96,7 +96,7 @@ pub fn flistxattr(fd: RawFd) -> Result<ListXAttr, nix::errno::Errno> {
         // Retry to read the list with new buffer
         buffer.resize(size, 0);
         bytes = unsafe {
-            libc::flistxattr(fd, buffer.as_mut_ptr() as *mut i8, buffer.len())
+            libc::flistxattr(fd, buffer.as_mut_ptr() as *mut libc::c_char, buffer.len())
         };
     }
     buffer.truncate(bytes as usize);
@@ -125,7 +125,7 @@ pub fn fgetxattr(fd: RawFd, name: &CStr) -> Result<Vec<u8>, nix::errno::Errno> {
         }
         buffer.resize(size, 0);
         bytes = unsafe {
-            libc::fgetxattr(fd, name.as_ptr() as *const i8, buffer.as_mut_ptr() as *mut core::ffi::c_void, buffer.len())
+            libc::fgetxattr(fd, name.as_ptr() as *const libc::c_char, buffer.as_mut_ptr() as *mut core::ffi::c_void, buffer.len())
         };
     }
     buffer.resize(bytes as usize, 0);
