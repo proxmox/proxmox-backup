@@ -139,12 +139,12 @@ or ``zfs``) to store the backup data.
 Datastores are identified by a simple *ID*. You can configure it
 when setting up the backup server.
 
-.. note:: The `File Layout`_ requires the file system to support more than
-   65537 subdirectories per directory. This excludes certain filesystems and
-   filesystem configuration from being supported as datastore. For example
-   ``ext4`` without the ``dir_nlink`` feature (which is enabled by default)
-   and ``ext3``.
-
+.. note:: The `File Layout`_ requires the file system to support at least *65538*
+   subdirectories per directory. That number comes from the 2\ :sup:`16`
+   pre-created chunk namespace directories, and the ``.`` and ``..`` default
+   directory entries. This requirement excludes certain filesystems and
+   filesystem configuration from being supported for a datastore. For example,
+   ``ext3`` as a whole or ``ext4`` with the ``dir_nlink`` feature manually disabled.
 
 
 Datastore Configuration
