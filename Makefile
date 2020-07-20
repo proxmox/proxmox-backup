@@ -60,7 +60,7 @@ $(SUBDIRS):
 test:
 	#cargo test test_broadcast_future
 	#cargo test $(CARGO_BUILD_ARGS)
-	#$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
+	$(CARGO) test $(tests) $(CARGO_BUILD_ARGS)
 
 doc:
 	$(CARGO) doc --no-deps $(CARGO_BUILD_ARGS)
