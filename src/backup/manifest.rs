@@ -160,12 +160,12 @@ impl BackupManifest {
                 keys.sort();
                 let mut iter = keys.into_iter();
                 if let Some(key) = iter.next() {
-                    output.extend(key.as_bytes());
+                    Self::write_canonical_json(&key.into(), output)?;
                     output.push(b':');
                     Self::write_canonical_json(&map[key], output)?;
                     for key in iter {
                         output.push(b',');
-                        output.extend(key.as_bytes());
+                        Self::write_canonical_json(&key.into(), output)?;
                         output.push(b':');
                         Self::write_canonical_json(&map[key], output)?;
                     }
