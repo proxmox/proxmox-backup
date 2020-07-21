@@ -39,6 +39,8 @@ constnamemap! {
         PRIV_REMOTE_MODIFY("Remote.Modify")                 = 1 << 10;
         PRIV_REMOTE_READ("Remote.Read")                     = 1 << 11;
         PRIV_REMOTE_PRUNE("Remote.Prune")                   = 1 << 12;
+
+        PRIV_SYS_CONSOLE("Sys.Console")                     = 1 << 13;
     }
 }
 
