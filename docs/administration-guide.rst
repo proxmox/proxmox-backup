@@ -962,6 +962,17 @@ unused data blocks are removed.
   depending on the number of chunks and the speed of the underlying
   disks.
 
+.. note:: The garbage collection will only remove chunks that haven't been used
+   for at least one day (exactly 24h 5m). This grace period is necessary because
+   chunks in use are marked by touching the chunk which updates the ``atime``
+   (access time) property. Filesystems are mounted with the ``relatime`` option
+   by default. This results in a better performance by only updating the
+   ``atime`` property if the last access has been at least 24 hours ago. The
+   downside is, that touching a chunk within these 24 hours will not update its
+   ``atime`` property.
+
+   If there are chunks in the grace period, it will be logged at the end of the
+   garbage collection run as *Pending removals*.
 
 .. code-block:: console
 
