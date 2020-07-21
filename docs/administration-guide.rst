@@ -439,8 +439,8 @@ Backup Client usage
 The command line client is called :command:`proxmox-backup-client`.
 
 
-Respository Locations
-~~~~~~~~~~~~~~~~~~~~~
+Repository Locations
+~~~~~~~~~~~~~~~~~~~~
 
 The client uses the following notation to specify a datastore repository
 on the backup server.
@@ -600,7 +600,7 @@ the given patterns. It is only possible to match files in this directory and its
 all files ending in ``.tmp`` within the directory or subdirectories with the
 following pattern ``**/*.tmp``.
 ``[...]`` matches a single character from any of the provided characters within
-the brackets. ``[!...]`` does the complementary and matches any singe character
+the brackets. ``[!...]`` does the complementary and matches any single character
 not contained within the brackets. It is also possible to specify ranges with two
 characters separated by ``-``. For example, ``[a-z]`` matches any lowercase
 alphabetic character and ``[0-9]`` matches any one single digit.

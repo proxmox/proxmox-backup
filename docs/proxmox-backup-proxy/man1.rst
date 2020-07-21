@@ -24,7 +24,7 @@ This daemon is normally started and managed as ``systemd`` service::
 
  systemctl status proxmox-backup-proxy
 
-For debugging, you can start the daemon in forground using::
+For debugging, you can start the daemon in foreground using::
 
  proxmox-backup-proxy
 

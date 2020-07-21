@@ -16,7 +16,7 @@ Glossary
    Datastore
 
       A place to store backups. A directory which contains the backup data.
-      The current implemenation is file-system based.
+      The current implementation is file-system based.
 
    `Rust`_
 
