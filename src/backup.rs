@@ -40,21 +40,21 @@
 //!
 //!   Acquire shared lock for ChunkStore (process wide).
 //!
-//!   Note: When creating .idx files, we create temporary (.tmp) file,
+//!   Note: When creating .idx files, we create temporary a (.tmp) file,
 //!   then do an atomic rename ...
 //!
 //!
 //! * Garbage Collect:
 //!
 //!   Acquire exclusive lock for ChunkStore (process wide). If we have
-//!   already an shared lock for ChunkStore, try to updraged that
+//!   already a shared lock for the ChunkStore, try to upgrade that
 //!   lock.
 //!
 //!
 //! * Server Restart
 //!
-//!   Try to abort running garbage collection to release exclusive
-//!   ChunkStore lock asap. Start new service with existing listening
+//!   Try to abort the running garbage collection to release exclusive
+//!   ChunkStore locks ASAP. Start the new service with the existing listening
 //!   socket.
 //!
 //!
@@ -62,10 +62,10 @@
 //!
 //! Deleting backups is as easy as deleting the corresponding .idx
 //! files. Unfortunately, this does not free up any storage, because
-//! those files just contains references to chunks.
+//! those files just contain references to chunks.
 //!
 //! To free up some storage, we run a garbage collection process at
-//! regular intervals. The collector uses an mark and sweep
+//! regular intervals. The collector uses a mark and sweep
 //! approach. In the first phase, it scans all .idx files to mark used
 //! chunks. The second phase then removes all unmarked chunks from the
 //! store.
@@ -90,12 +90,12 @@
 //! amount of time ago (by default 24h). So we may only delete chunks
 //! with `atime` older than 24 hours.
 //!
-//! Another problem arise from running backups. The mark phase does
+//! Another problem arises from running backups. The mark phase does
 //! not find any chunks from those backups, because there is no .idx
 //! file for them (created after the backup). Chunks created or
 //! touched by those backups may have an `atime` as old as the start
-//! time of those backup. Please not that the backup start time may
-//! predate the GC start time. Se we may only delete chunk older than
+//! time of those backups. Please note that the backup start time may
+//! predate the GC start time. So we may only delete chunks older than
 //! the start time of those running backup jobs.
 //!
 //!
