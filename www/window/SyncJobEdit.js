@@ -68,7 +68,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	    },
 	    {
 		fieldLabel: gettext('Schedule'),
-		xtype: 'proxmoxtextfield',
+		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
 		emptyText: gettext('none'),
 		cbind: {

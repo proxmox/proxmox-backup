@@ -8,6 +8,7 @@ JSSRC=							\
 	form/UserSelector.js				\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
+	form/CalendarEvent.js				\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\

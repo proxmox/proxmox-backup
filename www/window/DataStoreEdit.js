@@ -15,6 +15,9 @@ Ext.define('PBS.DataStoreEdit', {
 	let baseurl = '/api2/extjs/config/datastore';
 
 	me.isCreate = !name;
+	if (!me.isCreate) {
+	    me.defaultFocus = 'textfield[name=comment]';
+	}
 	me.url = name ? baseurl + '/' + name : baseurl;
 	me.method = name ? 'PUT' : 'POST';
 	me.autoLoad = !!name;
@@ -51,17 +54,19 @@ Ext.define('PBS.DataStoreEdit', {
 		],
 		column2: [
 		    {
-			xtype: 'proxmoxtextfield',
+			xtype: 'pbsCalendarEvent',
 			name: 'gc-schedule',
 			fieldLabel: gettext("GC Schedule"),
+			emptyText: gettext('none'),
 			cbind: {
 			    deleteEmpty: '{!isCreate}',
 			},
 		    },
 		    {
-			xtype: 'proxmoxtextfield',
+			xtype: 'pbsCalendarEvent',
 			name: 'prune-schedule',
 			fieldLabel: gettext("Prune Schedule"),
+			emptyText: gettext('none'),
 			cbind: {
 			    deleteEmpty: '{!isCreate}',
 			},
