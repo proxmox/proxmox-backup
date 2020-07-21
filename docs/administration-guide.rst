@@ -968,11 +968,11 @@ unused data blocks are removed.
    (access time) property. Filesystems are mounted with the ``relatime`` option
    by default. This results in a better performance by only updating the
    ``atime`` property if the last access has been at least 24 hours ago. The
-   downside is, that touching a chunk within these 24 hours will not update its
-   ``atime`` property.
+   downside is, that touching a chunk within these 24 hours will not always
+   update its ``atime`` property.
 
-   If there are chunks in the grace period, it will be logged at the end of the
-   garbage collection run as *Pending removals*.
+   Chunks in the grace period will be logged at the end of the garbage
+   collection task as *Pending removals*.
 
 .. code-block:: console
 
