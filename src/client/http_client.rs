@@ -16,6 +16,7 @@ use percent_encoding::percent_encode;
 use xdg::BaseDirectories;
 
 use proxmox::{
+    api::error::HttpError,
     sys::linux::tty,
     tools::{
         fs::{file_get_json, replace_file, CreateOptions},
@@ -606,7 +607,7 @@ impl HttpClient {
                 Ok(value)
             }
         } else {
-            bail!("HTTP Error {}: {}", status, text);
+            Err(Error::from(HttpError::new(status, text)))
         }
     }
 
@@ -819,7 +820,7 @@ impl H2Client {
                 bail!("got result without data property");
             }
         } else {
-            bail!("HTTP Error {}: {}", status, text);
+            Err(Error::from(HttpError::new(status, text)))
         }
     }
 

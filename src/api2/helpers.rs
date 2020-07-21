@@ -6,7 +6,12 @@ use proxmox::http_err;
 
 pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, Error> {
     let file = tokio::fs::File::open(path.clone())
-        .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path.clone(), err)))
+        .map_err(move |err| {
+            match err.kind() {
+                std::io::ErrorKind::NotFound => http_err!(NOT_FOUND, format!("open file {:?} failed - not found", path.clone())),
+                _ => http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path.clone(), err)),
+            }
+        })
         .await?;
 
     let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
