@@ -3,3 +3,4 @@ local.mak
 **/*.rs.bk
 /etc/proxmox-backup.service
 /etc/proxmox-backup-proxy.service
+build/
