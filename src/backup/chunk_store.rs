@@ -178,7 +178,7 @@ impl ChunkStore {
                 return Ok(false);
             }
 
-            bail!("updata atime failed for chunk {:?} - {}", chunk_path, err);
+            bail!("update atime failed for chunk {:?} - {}", chunk_path, err);
         }
 
         Ok(true)
