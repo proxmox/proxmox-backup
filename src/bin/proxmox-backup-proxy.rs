@@ -56,6 +56,7 @@ async fn run() -> Result<(), Error> {
     let mut indexpath = PathBuf::from(buildcfg::JS_DIR);
     indexpath.push("index.hbs");
     config.register_template("index", &indexpath)?;
+    config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
     let rest_server = RestServer::new(config);
 

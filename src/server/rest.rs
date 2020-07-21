@@ -319,11 +319,14 @@ fn get_index(username: Option<String>, token: Option<String>, api: &Arc<ApiConfi
     let token = token.unwrap_or_else(|| String::from(""));
 
     let mut debug = false;
+    let mut template_file = "index";
 
     if let Some(query_str) = parts.uri.query() {
         for (k, v) in form_urlencoded::parse(query_str.as_bytes()).into_owned() {
             if k == "debug" && v != "0" && v != "false" {
                 debug = true;
+            } else if k == "console" {
+                template_file = "console";
             }
         }
     }
@@ -337,12 +340,12 @@ fn get_index(username: Option<String>, token: Option<String>, api: &Arc<ApiConfi
 
     let mut ct = "text/html";
 
-    let index = match api.render_template("index", &data) {
+    let index = match api.render_template(template_file, &data) {
         Ok(index) => index,
         Err(err) => {
             ct = "text/plain";
             format!("Error rendering template: {}", err)
-        },
+        }
     };
 
     Response::builder()
