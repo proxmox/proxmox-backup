@@ -106,7 +106,11 @@ impl BackupGroup {
 
             use nix::fcntl::{openat, OFlag};
             match openat(l2_fd, &manifest_path, OFlag::O_RDONLY, nix::sys::stat::Mode::empty()) {
-                Ok(_) => { /* manifest exists --> assume backup was successful */ },
+                Ok(rawfd) => {
+                    /* manifest exists --> assume backup was successful */
+                    /* close else this leaks! */
+                    nix::unistd::close(rawfd)?;
+                },
                 Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => { return Ok(()); }
                 Err(err) => {
                     bail!("last_successful_backup: unexpected error - {}", err);
