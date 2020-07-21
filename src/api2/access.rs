@@ -13,15 +13,22 @@ use crate::auth_helpers::*;
 use crate::api2::types::*;
 
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::acl::PRIV_PERMISSIONS_MODIFY;
+use crate::config::acl::{PRIVILEGES, PRIV_PERMISSIONS_MODIFY};
 
 pub mod user;
 pub mod domain;
 pub mod acl;
 pub mod role;
 
-fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
-
+/// returns Ok(true) if a ticket has to be created
+/// and Ok(false) if not
+fn authenticate_user(
+    username: &str,
+    password: &str,
+    path: Option<String>,
+    privs: Option<String>,
+    port: Option<u16>,
+) -> Result<bool, Error> {
     let user_info = CachedUserInfo::new()?;
 
     if !user_info.is_active_user(&username) {
@@ -33,14 +40,43 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
     if password.starts_with("PBS:") {
         if let Ok((_age, Some(ticket_username))) = tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", password, None, -300, ticket_lifetime) {
             if ticket_username == username {
-                return Ok(());
+                return Ok(true);
             } else {
                 bail!("ticket login failed - wrong username");
             }
         }
+    } else if password.starts_with("PBSTERM:") {
+        if path.is_none() || privs.is_none() || port.is_none() {
+            bail!("cannot check termnal ticket without path, priv and port");
+        }
+
+        let path = path.unwrap();
+        let privilege_name = privs.unwrap();
+        let port = port.unwrap();
+
+        if let Ok((_age, _data)) =
+            tools::ticket::verify_term_ticket(public_auth_key(), &username, &path, port, password)
+        {
+            for (name, privilege) in PRIVILEGES {
+                if *name == privilege_name {
+                    let mut path_vec = Vec::new();
+                    for part in path.split('/') {
+                        if part != "" {
+                            path_vec.push(part);
+                        }
+                    }
+
+                    user_info.check_privs(username, &path_vec, *privilege, false)?;
+                    return Ok(false);
+                }
+            }
+
+            bail!("No such privilege");
+        }
     }
 
-    crate::auth::authenticate_user(username, password)
+    let _ = crate::auth::authenticate_user(username, password)?;
+    Ok(true)
 }
 
 #[api(
@@ -51,6 +87,21 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
             },
             password: {
                 schema: PASSWORD_SCHEMA,
+            },
+            path: {
+                type: String,
+                description: "Path for verifying terminal tickets.",
+                optional: true,
+            },
+            privs: {
+                type: String,
+                description: "Privilege for verifying terminal tickets.",
+                optional: true,
+            },
+            port: {
+                type: Integer,
+                description: "Port for verifying terminal tickets.",
+                optional: true,
             },
         },
     },
@@ -78,11 +129,16 @@ fn authenticate_user(username: &str, password: &str) -> Result<(), Error> {
 /// Create or verify authentication ticket.
 ///
 /// Returns: An authentication ticket with additional infos.
-fn create_ticket(username: String, password: String) -> Result<Value, Error> {
-    match authenticate_user(&username, &password) {
-        Ok(_) => {
-
-            let ticket = assemble_rsa_ticket( private_auth_key(), "PBS", Some(&username), None)?;
+fn create_ticket(
+    username: String,
+    password: String,
+    path: Option<String>,
+    privs: Option<String>,
+    port: Option<u16>,
+) -> Result<Value, Error> {
+    match authenticate_user(&username, &password, path, privs, port) {
+        Ok(true) => {
+            let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some(&username), None)?;
 
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
@@ -94,6 +150,9 @@ fn create_ticket(username: String, password: String) -> Result<Value, Error> {
                 "CSRFPreventionToken": token,
             }))
         }
+        Ok(false) => Ok(json!({
+            "username": username,
+        })),
         Err(err) => {
             let client_ip = "unknown"; // $rpcenv->get_client_ip() || '';
             log::error!("authentication failure; rhost={} user={} msg={}", client_ip, username, err.to_string());

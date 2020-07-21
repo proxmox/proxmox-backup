@@ -11,6 +11,38 @@ use crate::tools::epoch_now_u64;
 
 pub const TICKET_LIFETIME: i64 = 3600*2; // 2 hours
 
+const TERM_PREFIX: &str = "PBSTERM";
+
+pub fn assemble_term_ticket(
+    keypair: &PKey<Private>,
+    username: &str,
+    path: &str,
+    port: u16,
+) -> Result<String, Error> {
+    assemble_rsa_ticket(
+        keypair,
+        TERM_PREFIX,
+        None,
+        Some(&format!("{}{}{}", username, path, port)),
+    )
+}
+
+pub fn verify_term_ticket(
+    keypair: &PKey<Public>,
+    username: &str,
+    path: &str,
+    port: u16,
+    ticket: &str,
+) -> Result<(i64, Option<String>), Error> {
+    verify_rsa_ticket(
+        keypair,
+        TERM_PREFIX,
+        ticket,
+        Some(&format!("{}{}{}", username, path, port)),
+        -300,
+        TICKET_LIFETIME,
+    )
+}
 
 pub fn assemble_rsa_ticket(
     keypair: &PKey<Private>,
