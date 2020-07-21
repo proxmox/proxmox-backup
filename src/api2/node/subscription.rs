@@ -5,8 +5,16 @@ use proxmox::api::{api, Router, Permission};
 
 use crate::tools;
 use crate::config::acl::PRIV_SYS_AUDIT;
+use crate::api2::types::NODE_SCHEMA;
 
 #[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
     returns: {
         description: "Subscription status.",
         properties: {

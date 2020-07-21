@@ -9,6 +9,7 @@ mod syslog;
 mod journal;
 mod services;
 mod status;
+mod subscription;
 pub(crate) mod rrd;
 pub mod disks;
 
@@ -20,6 +21,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("rrd", &rrd::ROUTER),
     ("services", &services::ROUTER),
     ("status", &status::ROUTER),
+    ("subscription", &subscription::ROUTER),
     ("syslog", &syslog::ROUTER),
     ("tasks", &tasks::ROUTER),
     ("time", &time::ROUTER),

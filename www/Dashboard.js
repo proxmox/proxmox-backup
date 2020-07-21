@@ -209,7 +209,7 @@ Ext.define('PBS.Dashboard', {
 		autoDestroy: true,
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/subscription'
+		    url: '/api2/json/nodes/localhost/subscription'
 		},
 		listeners: {
 		    load: 'updateSubscription'

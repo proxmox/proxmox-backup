@@ -37,7 +37,7 @@ Ext.define('PBS.Subscription', {
 	    me.rstore.load();
 	};
 
-	var baseurl = '/subscription';
+	var baseurl = '/nodes/localhost/subscription';
 
 	var render_status = function(value) {
 
