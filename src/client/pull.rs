@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::io::{Seek, SeekFrom};
 
+use proxmox::api::error::{StatusCode, HttpError};
 use crate::server::{WorkerTask};
 use crate::backup::*;
 use crate::api2::types::*;
@@ -151,7 +152,28 @@ async fn pull_snapshot(
     let mut tmp_manifest_name = manifest_name.clone();
     tmp_manifest_name.set_extension("tmp");
 
-    let mut tmp_manifest_file = download_manifest(&reader, &tmp_manifest_name).await?;
+    let download_res = download_manifest(&reader, &tmp_manifest_name).await;
+    let mut tmp_manifest_file = match download_res {
+        Ok(manifest_file) => manifest_file,
+        Err(err) => {
+            match err.downcast_ref::<HttpError>() {
+                Some(HttpError { code, message }) => {
+                    match code {
+                        &StatusCode::NOT_FOUND => {
+                            worker.log(format!("skipping snapshot {} - vanished since start of sync", snapshot));
+                            return Ok(());
+                        },
+                        _ => {
+                            bail!("HTTP error {} - {}", code, message);
+                        },
+                    }
+                },
+                None => {
+                    return Err(err);
+                },
+            };
+        },
+    };
     let tmp_manifest_blob = DataBlob::load(&mut tmp_manifest_file)?;
     tmp_manifest_blob.verify_crc()?;
 
