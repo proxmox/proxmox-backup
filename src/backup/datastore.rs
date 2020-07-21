@@ -492,7 +492,7 @@ impl DataStore {
             self.mark_used_chunks(&mut gc_status, &worker)?;
 
             worker.log("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(oldest_writer, &mut gc_status, &worker)?;
+            self.chunk_store.sweep_unused_chunks(oldest_writer, now, &mut gc_status, &worker)?;
 
             worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));

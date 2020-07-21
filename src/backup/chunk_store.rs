@@ -275,14 +275,13 @@ impl ChunkStore {
     pub fn sweep_unused_chunks(
         &self,
         oldest_writer: i64,
+        phase1_start_time: i64,
         status: &mut GarbageCollectionStatus,
         worker: &WorkerTask,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
 
-        let now = unsafe { libc::time(std::ptr::null_mut()) };
-
-        let mut min_atime = now - 3600*24; // at least 24h (see mount option relatime)
+        let mut min_atime = phase1_start_time - 3600*24; // at least 24h (see mount option relatime)
 
         if oldest_writer < min_atime {
             min_atime = oldest_writer;
