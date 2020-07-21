@@ -64,7 +64,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 		xtype: 'proxmoxcheckbox',
 		name: 'remove-vanished',
 		uncheckedValue: false,
-		value: true,
+		value: false,
 	    },
 	    {
 		fieldLabel: gettext('Schedule'),
