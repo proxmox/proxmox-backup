@@ -219,7 +219,16 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
                     ..Default::default()
                 }));
             }
-            "monthly" | "weekly" | "yearly" | "quarterly" | "semiannually" => {
+            "weekly" => {
+                return Ok(("", CalendarEvent {
+                    hour: vec![DateTimeValue::Single(0)],
+                    minute: vec![DateTimeValue::Single(0)],
+                    second: vec![DateTimeValue::Single(0)],
+                    days: WeekDays::MONDAY,
+                    ..Default::default()
+                }));
+            }
+            "monthly" | "yearly" | "quarterly" | "semiannually" => {
                 return Err(parse_error(i, "unimplemented date or time specification"));
             }
             _ => { /* continue */ }
