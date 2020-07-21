@@ -28,7 +28,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	xtype: 'inputpanel',
 	column1: [
 	    {
-		fieldLabel: gettext('Sync Job'),
+		fieldLabel: gettext('Sync Job ID'),
 		xtype: 'pmxDisplayEditField',
 		name: 'id',
 		renderer: Ext.htmlEncode,
@@ -39,22 +39,22 @@ Ext.define('PBS.window.SyncJobEdit', {
 		},
 	    },
 	    {
-		fieldLabel: gettext('Remote'),
+		fieldLabel: gettext('Source Remote'),
 		xtype: 'pbsRemoteSelector',
 		allowBlank: false,
 		name: 'remote',
+	    },
+	    {
+		fieldLabel: gettext('Source Datastore'),
+		xtype: 'proxmoxtextfield',
+		allowBlank: false,
+		name: 'remote-store',
 	    },
 	    {
 		fieldLabel: gettext('Local Datastore'),
 		xtype: 'pbsDataStoreSelector',
 		allowBlank: false,
 		name: 'store',
-	    },
-	    {
-		fieldLabel: gettext('Remote Datastore'),
-		xtype: 'proxmoxtextfield',
-		allowBlank: false,
-		name: 'remote-store',
 	    },
 	],
 
@@ -70,6 +70,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Schedule'),
 		xtype: 'proxmoxtextfield',
 		name: 'schedule',
+		emptyText: gettext('none'),
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
