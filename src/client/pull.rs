@@ -6,7 +6,6 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::io::{Seek, SeekFrom};
-use chrono::{Utc, TimeZone};
 
 use crate::server::{WorkerTask};
 use crate::backup::*;
@@ -302,7 +301,16 @@ pub async fn pull_group(
     let mut remote_snapshots = std::collections::HashSet::new();
 
     for item in list {
-        let backup_time = Utc.timestamp(item.backup_time, 0);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+
+        // in-progress backups can't be synced
+        if let None = item.size {
+            worker.log(format!("skipping snapshot {} - in-progress backup", snapshot));
+            continue;
+        }
+
+        let backup_time = snapshot.backup_time();
+
         remote_snapshots.insert(backup_time);
 
         if let Some(last_sync_time) = last_sync {
@@ -319,13 +327,11 @@ pub async fn pull_group(
             new_client,
             None,
             src_repo.store(),
-            &item.backup_type,
-            &item.backup_id,
+            snapshot.group().backup_type(),
+            snapshot.group().backup_id(),
             backup_time,
             true,
         ).await?;
-
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
 
         pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot).await?;
     }
