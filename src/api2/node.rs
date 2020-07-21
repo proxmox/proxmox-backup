@@ -12,8 +12,10 @@ mod status;
 mod subscription;
 pub(crate) mod rrd;
 pub mod disks;
+mod apt;
 
 pub const SUBDIRS: SubdirMap = &[
+    ("apt", &apt::ROUTER),
     ("disks", &disks::ROUTER),
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),

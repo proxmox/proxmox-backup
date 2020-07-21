@@ -962,3 +962,30 @@ pub enum RRDTimeFrameResolution {
     /// 1 week => last 490 days
     Year = 60*10080,
 }
+
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+/// Describes a package for which an update is available.
+pub struct APTUpdateInfo {
+    /// Package name
+    pub package: String,
+    /// Package title
+    pub title: String,
+    /// Package architecture
+    pub arch: String,
+    /// Human readable package description
+    pub description: String,
+    /// New version to be updated to
+    pub version: String,
+    /// Old version currently installed
+    pub old_version: String,
+    /// Package origin
+    pub origin: String,
+    /// Package priority in human-readable form
+    pub priority: String,
+    /// Package section
+    pub section: String,
+    /// URL under which the package's changelog can be retrieved
+    pub change_log_url: String,
+}
