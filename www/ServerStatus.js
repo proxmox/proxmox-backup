@@ -86,7 +86,15 @@ Ext.define('PBS.ServerStatus', {
 	    iconCls: 'fa fa-power-off'
 	});
 
-	me.tbar = [ restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' } ];
+	var consoleBtn = Ext.create('Proxmox.button.Button', {
+	    text: gettext('Console'),
+	    iconCls: 'fa fa-terminal',
+	    handler: function() {
+		Proxmox.Utils.openXtermJsViewer('shell', 0, Proxmox.NodeName);
+	    }
+	});
+
+	me.tbar = [ consoleBtn, restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' } ];
 
 	var rrdstore = Ext.create('Proxmox.data.RRDStore', {
 	    rrdurl: "/api2/json/nodes/localhost/rrd",
