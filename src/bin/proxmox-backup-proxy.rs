@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -52,6 +52,10 @@ async fn run() -> Result<(), Error> {
     config.add_alias("widgettoolkit", "/usr/share/javascript/proxmox-widget-toolkit");
     config.add_alias("css", "/usr/share/javascript/proxmox-backup/css");
     config.add_alias("docs", "/usr/share/doc/proxmox-backup/html");
+
+    let mut indexpath = PathBuf::from(buildcfg::JS_DIR);
+    indexpath.push("index.hbs");
+    config.register_template("index", &indexpath)?;
 
     let rest_server = RestServer::new(config);
 

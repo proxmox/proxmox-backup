@@ -16,7 +16,6 @@ use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
-use handlebars::Handlebars;
 
 use proxmox::http_err;
 use proxmox::api::{ApiHandler, ApiMethod, HttpError};
@@ -312,7 +311,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     Ok(resp)
 }
 
-fn get_index(username: Option<String>, token: Option<String>, template: &Handlebars, parts: Parts) ->  Response<Body> {
+fn get_index(username: Option<String>, token: Option<String>, api: &Arc<ApiConfig>, parts: Parts) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
     let username = username.unwrap_or_else(|| String::from(""));
@@ -338,11 +337,11 @@ fn get_index(username: Option<String>, token: Option<String>, template: &Handleb
 
     let mut ct = "text/html";
 
-    let index = match template.render("index", &data) {
+    let index = match api.render_template("index", &data) {
         Ok(index) => index,
         Err(err) => {
             ct = "text/plain";
-            format!("Error rendering template: {}", err.desc)
+            format!("Error rendering template: {}", err)
         },
     };
 
@@ -580,15 +579,15 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                 match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(username) => {
                         let new_token = assemble_csrf_prevention_token(csrf_secret(), &username);
-                        return Ok(get_index(Some(username), Some(new_token), &api.templates, parts));
+                        return Ok(get_index(Some(username), Some(new_token), &api, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
-                        return Ok(get_index(None, None, &api.templates, parts));
+                        return Ok(get_index(None, None, &api, parts));
                     }
                 }
             } else {
-                return Ok(get_index(None, None, &api.templates, parts));
+                return Ok(get_index(None, None, &api, parts));
             }
         } else {
             let filename = api.find_alias(&components);

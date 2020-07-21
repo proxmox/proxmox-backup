@@ -1,9 +1,13 @@
 use std::collections::HashMap;
-use std::path::{PathBuf};
-use anyhow::Error;
+use std::path::PathBuf;
+use std::time::SystemTime;
+use std::fs::metadata;
+use std::sync::RwLock;
 
+use anyhow::{bail, Error, format_err};
 use hyper::Method;
 use handlebars::Handlebars;
+use serde::Serialize;
 
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
 
@@ -12,21 +16,20 @@ pub struct ApiConfig {
     router: &'static Router,
     aliases: HashMap<String, PathBuf>,
     env_type: RpcEnvironmentType,
-    pub templates: Handlebars<'static>,
+    templates: RwLock<Handlebars<'static>>,
+    template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
 }
 
 impl ApiConfig {
 
     pub fn new<B: Into<PathBuf>>(basedir: B, router: &'static Router, env_type: RpcEnvironmentType) -> Result<Self, Error> {
-        let mut templates = Handlebars::new();
-        let basedir = basedir.into();
-        templates.register_template_file("index", basedir.join("index.hbs"))?;
         Ok(Self {
-            basedir,
+            basedir: basedir.into(),
             router,
             aliases: HashMap::new(),
             env_type,
-            templates
+            templates: RwLock::new(Handlebars::new()),
+            template_files: RwLock::new(HashMap::new()),
         })
     }
 
@@ -66,5 +69,53 @@ impl ApiConfig {
 
     pub fn env_type(&self) -> RpcEnvironmentType {
         self.env_type
+    }
+
+    pub fn register_template<P>(&self, name: &str, path: P) -> Result<(), Error>
+    where
+        P: Into<PathBuf>
+    {
+        if self.template_files.read().unwrap().contains_key(name) {
+            bail!("template already registered");
+        }
+
+        let path: PathBuf = path.into();
+        let metadata = metadata(&path)?;
+        let mtime = metadata.modified()?;
+
+        self.templates.write().unwrap().register_template_file(name, &path)?;
+        self.template_files.write().unwrap().insert(name.to_string(), (mtime, path));
+
+        Ok(())
+    }
+
+    /// Checks if the template was modified since the last rendering
+    /// if yes, it loads a the new version of the template
+    pub fn render_template<T>(&self, name: &str, data: &T) -> Result<String, Error>
+    where
+        T: Serialize,
+    {
+        let path;
+        let mtime;
+        {
+            let template_files = self.template_files.read().unwrap();
+            let (old_mtime, old_path) = template_files.get(name).ok_or_else(|| format_err!("template not found"))?;
+
+            mtime = metadata(old_path)?.modified()?;
+            if mtime <= *old_mtime {
+                return self.templates.read().unwrap().render(name, data).map_err(|err| format_err!("{}", err));
+            }
+            path = old_path.to_path_buf();
+        }
+
+        {
+            let mut template_files = self.template_files.write().unwrap();
+            let mut templates = self.templates.write().unwrap();
+
+            templates.register_template_file(name, &path)?;
+            template_files.insert(name.to_string(), (mtime, path));
+
+            templates.render(name, data).map_err(|err| format_err!("{}", err))
+        }
     }
 }
