@@ -13,7 +13,6 @@ use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use super::read_chunk::*;
 use super::ChunkInfo;
 
 use proxmox::tools::io::ReadExt;
@@ -144,20 +143,6 @@ impl FixedIndexReader {
         self.index = std::ptr::null_mut();
 
         Ok(())
-    }
-
-    #[inline]
-    fn chunk_end(&self, pos: usize) -> u64 {
-        if pos >= self.index_length {
-            panic!("chunk index out of range");
-        }
-
-        let end = ((pos + 1) * self.chunk_size) as u64;
-        if end > self.size {
-            self.size
-        } else {
-            end
-        }
     }
 
     pub fn print_info(&self) {
@@ -474,144 +459,5 @@ impl FixedIndexWriter {
         }
 
         Ok(())
-    }
-}
-
-pub struct BufferedFixedReader<S> {
-    store: S,
-    index: FixedIndexReader,
-    archive_size: u64,
-    read_buffer: Vec<u8>,
-    buffered_chunk_idx: usize,
-    buffered_chunk_start: u64,
-    read_offset: u64,
-}
-
-impl<S: ReadChunk> BufferedFixedReader<S> {
-    pub fn new(index: FixedIndexReader, store: S) -> Self {
-        let archive_size = index.size;
-        Self {
-            store,
-            index,
-            archive_size,
-            read_buffer: Vec::with_capacity(1024 * 1024),
-            buffered_chunk_idx: 0,
-            buffered_chunk_start: 0,
-            read_offset: 0,
-        }
-    }
-
-    pub fn archive_size(&self) -> u64 {
-        self.archive_size
-    }
-
-    fn buffer_chunk(&mut self, idx: usize) -> Result<(), Error> {
-        let index = &self.index;
-        let info = match index.chunk_info(idx) {
-            Some(info) => info,
-            None => bail!("chunk index out of range"),
-        };
-
-        // fixme: avoid copy
-
-        let data = self.store.read_chunk(&info.digest)?;
-        let size = info.range.end - info.range.start;
-        if size != data.len() as u64 {
-            bail!("read chunk with wrong size ({} != {}", size, data.len());
-        }
-
-        self.read_buffer.clear();
-        self.read_buffer.extend_from_slice(&data);
-
-        self.buffered_chunk_idx = idx;
-
-        self.buffered_chunk_start = info.range.start as u64;
-        Ok(())
-    }
-}
-
-impl<S: ReadChunk> crate::tools::BufferedRead for BufferedFixedReader<S> {
-    fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error> {
-        if offset == self.archive_size {
-            return Ok(&self.read_buffer[0..0]);
-        }
-
-        let buffer_len = self.read_buffer.len();
-        let index = &self.index;
-
-        // optimization for sequential read
-        if buffer_len > 0
-            && ((self.buffered_chunk_idx + 1) < index.index_length)
-            && (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
-        {
-            let next_idx = self.buffered_chunk_idx + 1;
-            let next_end = index.chunk_end(next_idx);
-            if offset < next_end {
-                self.buffer_chunk(next_idx)?;
-                let buffer_offset = (offset - self.buffered_chunk_start) as usize;
-                return Ok(&self.read_buffer[buffer_offset..]);
-            }
-        }
-
-        if (buffer_len == 0)
-            || (offset < self.buffered_chunk_start)
-            || (offset >= (self.buffered_chunk_start + (self.read_buffer.len() as u64)))
-        {
-            let idx = (offset / index.chunk_size as u64) as usize;
-            self.buffer_chunk(idx)?;
-        }
-
-        let buffer_offset = (offset - self.buffered_chunk_start) as usize;
-        Ok(&self.read_buffer[buffer_offset..])
-    }
-}
-
-impl<S: ReadChunk> std::io::Read for BufferedFixedReader<S> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        use crate::tools::BufferedRead;
-        use std::io::{Error, ErrorKind};
-
-        let data = match self.buffered_read(self.read_offset) {
-            Ok(v) => v,
-            Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
-        };
-
-        let n = if data.len() > buf.len() {
-            buf.len()
-        } else {
-            data.len()
-        };
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(data.as_ptr(), buf.as_mut_ptr(), n);
-        }
-
-        self.read_offset += n as u64;
-
-        Ok(n)
-    }
-}
-
-impl<S: ReadChunk> Seek for BufferedFixedReader<S> {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
-        let new_offset = match pos {
-            SeekFrom::Start(start_offset) => start_offset as i64,
-            SeekFrom::End(end_offset) => (self.archive_size as i64) + end_offset,
-            SeekFrom::Current(offset) => (self.read_offset as i64) + offset,
-        };
-
-        use std::io::{Error, ErrorKind};
-        if (new_offset < 0) || (new_offset > (self.archive_size as i64)) {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "seek is out of range {} ([0..{}])",
-                    new_offset, self.archive_size
-                ),
-            ));
-        }
-        self.read_offset = new_offset as u64;
-
-        Ok(self.read_offset)
     }
 }
