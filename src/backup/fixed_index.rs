@@ -219,6 +219,17 @@ impl IndexFile for FixedIndexReader {
 
         (csum, chunk_end)
     }
+
+    fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)> {
+        if offset >= self.size {
+            return None;
+        }
+
+        Some((
+            (offset / self.chunk_size as u64) as usize,
+            offset % self.chunk_size as u64
+        ))
+    }
 }
 
 pub struct FixedIndexWriter {

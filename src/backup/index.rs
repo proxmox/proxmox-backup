@@ -22,6 +22,9 @@ pub trait IndexFile {
     fn index_bytes(&self) -> u64;
     fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo>;
 
+    /// Get the chunk index and the relative offset within it for a byte offset
+    fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)>;
+
     /// Compute index checksum and size
     fn compute_csum(&self) -> ([u8; 32], u64);
 

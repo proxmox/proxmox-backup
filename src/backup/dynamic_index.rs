@@ -216,6 +216,24 @@ impl IndexFile for DynamicIndexReader {
             digest: self.index[pos].digest.clone(),
         })
     }
+
+    fn chunk_from_offset(&self, offset: u64) -> Option<(usize, u64)> {
+        let end_idx = self.index.len() - 1;
+        let end = self.chunk_end(end_idx);
+        let found_idx = self.binary_search(0, 0, end_idx, end, offset);
+        let found_idx = match found_idx {
+            Ok(i) => i,
+            Err(_) => return None
+        };
+
+        let found_start = if found_idx == 0 {
+            0
+        } else {
+            self.chunk_end(found_idx - 1)
+        };
+
+        Some((found_idx, offset - found_start))
+    }
 }
 
 struct CachedChunk {
