@@ -212,7 +212,7 @@ impl IndexFile for FixedIndexReader {
 
         Some((
             (offset / self.chunk_size as u64) as usize,
-            offset % self.chunk_size as u64
+            offset & (self.chunk_size - 1) as u64 // fast modulo, valid for 2^x chunk_size
         ))
     }
 }
