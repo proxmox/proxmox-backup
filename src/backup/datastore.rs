@@ -340,9 +340,30 @@ impl DataStore {
                 .map(|s| s.starts_with("."))
                 .unwrap_or(false)
         }
-
+        let handle_entry_err = |err: walkdir::Error| {
+            if let Some(inner) = err.io_error() {
+                let path = err.path().unwrap_or(Path::new(""));
+                match inner.kind() {
+                    io::ErrorKind::PermissionDenied => {
+                        // only allow to skip ext4 fsck directory, avoid GC if, for example,
+                        // a user got file permissions wrong on datastore rsync to new server
+                        if err.depth() > 1 || !path.ends_with("lost+found") {
+                            bail!("cannot continue garbage-collection safely, permission denied on: {}", path.display())
+                        }
+                    },
+                    _ => bail!("unexpected error on datastore traversal: {} - {}", inner, path.display()),
+                }
+            }
+            Ok(())
+        };
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
-            let path = entry?.into_path();
+            let path = match entry {
+                Ok(entry) => entry.into_path(),
+                Err(err) => {
+                    handle_entry_err(err)?;
+                    continue
+                },
+            };
             if let Ok(archive_type) = archive_type(&path) {
                 if archive_type == ArchiveType::FixedIndex || archive_type == ArchiveType::DynamicIndex {
                     list.push(path);
