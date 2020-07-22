@@ -5,15 +5,15 @@
 /// use hash value 0 to detect a boundary.
 const CA_CHUNKER_WINDOW_SIZE: usize = 64;
 
-/// Slinding window chunker (Buzhash)
+/// Sliding window chunker (Buzhash)
 ///
 /// This is a rewrite of *casync* chunker (cachunker.h) in rust.
 ///
 /// Hashing by cyclic polynomial (also called Buzhash) has the benefit
 /// of avoiding multiplications, using barrel shifts instead. For more
 /// information please take a look at the [Rolling
-/// Hash](https://en.wikipedia.org/wiki/Rolling_hash) artikel from
-/// wikipedia.
+/// Hash](https://en.wikipedia.org/wiki/Rolling_hash) article from
+/// Wikipedia.
 
 pub struct Chunker {
     h: u32,
