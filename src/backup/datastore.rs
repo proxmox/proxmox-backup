@@ -144,7 +144,7 @@ impl DataStore {
         self.chunk_store.base_path()
     }
 
-    /// Clenaup a backup directory
+    /// Cleanup a backup directory
     ///
     /// Removes all files not mentioned in the manifest.
     pub fn cleanup_backup_dir(&self, backup_dir: &BackupDir, manifest: &BackupManifest
