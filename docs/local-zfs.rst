@@ -24,7 +24,6 @@ General ZFS advantages
 * Self healing
 * Continuous integrity checking
 * Designed for high storage capacities
-* Protection against data corruption
 * Asynchronous replication over network
 * Open Source
 * Encryption
