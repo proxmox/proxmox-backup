@@ -141,6 +141,30 @@ Ext.define('PBS.DataStoreContent', {
 
 	    let groups = this.getRecordGroups(records);
 
+	    let selected;
+	    let expanded = {};
+
+	    view.getSelection().some(function(item) {
+		let id = item.data.text;
+		if (item.data.leaf) {
+		    id = item.parentNode.data.text + id;
+		}
+		selected = id;
+		return true;
+	    });
+
+	    view.getRootNode().cascadeBy({
+		before: item => {
+		    if (item.isExpanded() && !item.data.leaf) {
+			let id = item.data.text;
+			expanded[id] = true;
+			return true;
+		    }
+		    return false;
+		},
+		after: () => {},
+	    });
+
 	    for (const item of records) {
 		let group = item.data["backup-type"] + "/" + item.data["backup-id"];
 		let children = groups[group].children;
@@ -151,6 +175,8 @@ Ext.define('PBS.DataStoreContent', {
 		data.leaf = false;
 		data.cls = 'no-leaf-icons';
 		data.matchesFilter = true;
+
+		data.expanded = !!expanded[data.text];
 
 		data.children = [];
 		for (const file of data.files) {
@@ -166,7 +192,7 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 
 	    let children = [];
-	    for (const [_key, group] of Object.entries(groups)) {
+	    for (const [name, group] of Object.entries(groups)) {
 		let last_backup = 0;
 		let crypt = {
 		    none: 0,
@@ -189,6 +215,7 @@ Ext.define('PBS.DataStoreContent', {
 		group.matchesFilter = true;
 		crypt.count = group.count;
 		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt);
+		group.expanded = !!expanded[name];
 		children.push(group);
 	    }
 
@@ -196,6 +223,19 @@ Ext.define('PBS.DataStoreContent', {
 		expanded: true,
 		children: children
 	    });
+
+	    if (selected !== undefined) {
+		let selection = view.getRootNode().findChildBy(function(item) {
+		    let id = item.data.text;
+		    if (item.data.leaf) {
+			id = item.parentNode.data.text + id;
+		    }
+		    return selected === id;
+		}, undefined, true);
+		view.setSelection(selection);
+		view.getView().focusRow(selection);
+	    }
+
 	    Proxmox.Utils.setErrorMask(view, false);
 	    if (view.getStore().getFilters().length > 0) {
 		let searchBox = me.lookup("searchbox");
