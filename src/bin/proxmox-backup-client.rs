@@ -935,11 +935,17 @@ async fn create_backup(
     }
 
     let mut upload_list = vec![];
+    let mut target_set = HashSet::new();
 
     for backupspec in backupspec_list {
         let spec = parse_backup_specification(backupspec.as_str().unwrap())?;
         let filename = &spec.config_string;
         let target = &spec.archive_name;
+
+        if target_set.contains(target) {
+            bail!("got target twice: '{}'", target);
+        }
+        target_set.insert(target.to_string());
 
         use std::os::unix::fs::FileTypeExt;
 
