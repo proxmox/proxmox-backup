@@ -235,7 +235,7 @@ pub fn apt_update_database(
 
     let username = rpcenv.get_user().unwrap();
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
-    let quiet = quiet.unwrap_or(false);
+    let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, &username.clone(), to_stdout, move |worker| {
         if !quiet { worker.log("starting apt-get update") }
