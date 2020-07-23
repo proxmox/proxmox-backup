@@ -16,6 +16,7 @@ use proxmox::tools::digest_to_hex;
 
 use super::merge_known_chunks::{MergedChunkInfo, MergeKnownChunks};
 use crate::backup::*;
+use crate::tools::format::HumanByte;
 
 use super::{HttpClient, H2Client};
 
@@ -242,7 +243,7 @@ impl BackupWriter {
 
         let wid = self.h2.post(&index_path, Some(param)).await?.as_u64().unwrap();
 
-        let (chunk_count, size, duration, speed, csum) =
+        let (chunk_count, chunk_reused, size, size_reused, duration, csum) =
             Self::upload_chunk_info_stream(
                 self.h2.clone(),
                 wid,
@@ -255,10 +256,30 @@ impl BackupWriter {
             )
             .await?;
 
-        println!("{}: Uploaded {} bytes as {} chunks in {} seconds ({} MB/s).", archive_name, size, chunk_count, duration.as_secs(), speed);
-        if chunk_count > 0 {
-            println!("{}: Average chunk size was {} bytes.", archive_name, size/chunk_count);
-            println!("{}: Time per request: {} microseconds.", archive_name, (duration.as_micros())/(chunk_count as u128));
+        let uploaded = size - size_reused;
+        let vsize_h: HumanByte = size.into();
+        let archive = if self.verbose {
+            archive_name.to_string()
+        } else {
+            crate::tools::format::strip_server_file_expenstion(archive_name.clone())
+        };
+        if archive_name != CATALOG_NAME {
+            let speed: HumanByte = (uploaded / (duration.as_secs() as usize)).into();
+            let uploaded: HumanByte = uploaded.into();
+            println!("{}: had to upload {} from {} in {}s, avgerage speed {}/s).", archive, uploaded, vsize_h, duration.as_secs(), speed);
+        } else {
+            println!("Uploaded backup catalog ({})", vsize_h);
+        }
+
+        if size_reused > 0 && size > 1024*1024 {
+            let reused_percent = size_reused as f64 * 100. / size as f64;
+            let reused: HumanByte = size_reused.into();
+            println!("{}: backup was done incrementally, reused {} ({:.1}%)", archive, reused, reused_percent);
+        }
+        if self.verbose && chunk_count > 0 {
+            println!("{}: Reused {} from {} chunks.", archive, chunk_reused, chunk_count);
+            println!("{}: Average chunk size was {}.", archive, HumanByte::from(size/chunk_count));
+            println!("{}: Average time per request: {} microseconds.", archive, (duration.as_micros())/(chunk_count as u128));
         }
 
         let param = json!({
@@ -476,13 +497,17 @@ impl BackupWriter {
         crypt_config: Option<Arc<CryptConfig>>,
         compress: bool,
         verbose: bool,
-    ) -> impl Future<Output = Result<(usize, usize, std::time::Duration, usize, [u8; 32]), Error>> {
+    ) -> impl Future<Output = Result<(usize, usize, usize, usize, std::time::Duration, [u8; 32]), Error>> {
 
-        let repeat = Arc::new(AtomicUsize::new(0));
-        let repeat2 = repeat.clone();
+        let total_chunks = Arc::new(AtomicUsize::new(0));
+        let total_chunks2 = total_chunks.clone();
+        let known_chunk_count = Arc::new(AtomicUsize::new(0));
+        let known_chunk_count2 = known_chunk_count.clone();
 
         let stream_len = Arc::new(AtomicUsize::new(0));
         let stream_len2 = stream_len.clone();
+        let reused_len = Arc::new(AtomicUsize::new(0));
+        let reused_len2 = reused_len.clone();
 
         let append_chunk_path = format!("{}_index", prefix);
         let upload_chunk_path = format!("{}_chunk", prefix);
@@ -501,7 +526,7 @@ impl BackupWriter {
 
                 let chunk_len = data.len();
 
-                repeat.fetch_add(1, Ordering::SeqCst);
+                total_chunks.fetch_add(1, Ordering::SeqCst);
                 let offset = stream_len.fetch_add(chunk_len, Ordering::SeqCst) as u64;
 
                 let mut chunk_builder = DataChunkBuilder::new(data.as_ref())
@@ -524,6 +549,8 @@ impl BackupWriter {
 
                 let chunk_is_known = known_chunks.contains(digest);
                 if chunk_is_known {
+                    known_chunk_count.fetch_add(1, Ordering::SeqCst);
+                    reused_len.fetch_add(chunk_len, Ordering::SeqCst);
                     future::ok(MergedChunkInfo::Known(vec![(offset, *digest)]))
                 } else {
                     known_chunks.insert(*digest);
@@ -589,14 +616,16 @@ impl BackupWriter {
                 upload_result.await?.and(result)
             }.boxed())
             .and_then(move |_| {
-                let repeat = repeat2.load(Ordering::SeqCst);
+                let duration = start_time.elapsed();
+                let total_chunks = total_chunks2.load(Ordering::SeqCst);
+                let known_chunk_count = known_chunk_count2.load(Ordering::SeqCst);
                 let stream_len = stream_len2.load(Ordering::SeqCst);
-                let speed = ((stream_len*1_000_000)/(1024*1024))/(start_time.elapsed().as_micros() as usize);
+                let reused_len = reused_len2.load(Ordering::SeqCst);
 
                 let mut guard = index_csum_2.lock().unwrap();
                 let csum = guard.take().unwrap().finish();
 
-                futures::future::ok((repeat, stream_len, start_time.elapsed(), speed, csum))
+                futures::future::ok((total_chunks, known_chunk_count, stream_len, reused_len, duration, csum))
             })
     }
 
