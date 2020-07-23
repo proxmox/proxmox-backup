@@ -35,7 +35,12 @@ Ext.define('pbs-data-store-snapshots', {
 
 		return PBS.Utils.calculateCryptMode(crypt);
 	    }
-	}
+	},
+	{
+	    name: 'matchesFilter',
+	    type: 'boolean',
+	    defaultValue: true,
+	},
     ]
 });
 
@@ -126,6 +131,7 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	onLoad: function(store, records, success, operation) {
+	    let me = this;
 	    let view = this.getView();
 
 	    if (!success) {
@@ -144,12 +150,14 @@ Ext.define('PBS.DataStoreContent', {
 		data.text = group + '/' + PBS.Utils.render_datetime_utc(data["backup-time"]);
 		data.leaf = false;
 		data.cls = 'no-leaf-icons';
+		data.matchesFilter = true;
 
 		data.children = [];
 		for (const file of data.files) {
 		    file.text = file.filename,
 		    file['crypt-mode'] = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
 		    file.leaf = true;
+		    file.matchesFilter = true;
 
 		    data.children.push(file);
 		}
@@ -178,6 +186,7 @@ Ext.define('PBS.DataStoreContent', {
 
 		}
 		group.count = group.children.length;
+		group.matchesFilter = true;
 		crypt.count = group.count;
 		group['crypt-mode'] = PBS.Utils.calculateCryptMode(crypt);
 		children.push(group);
@@ -188,6 +197,11 @@ Ext.define('PBS.DataStoreContent', {
 		children: children
 	    });
 	    Proxmox.Utils.setErrorMask(view, false);
+	    if (view.getStore().getFilters().length > 0) {
+		let searchBox = me.lookup("searchbox");
+		let searchvalue = searchBox.getValue();;
+		me.search(searchBox, searchvalue);
+	    }
 	},
 
 	onPrune: function(view, rI, cI, item, e, rec) {
@@ -331,7 +345,71 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-type': type,
 		archive: rec.data.filename,
 	    }).show();
-	}
+	},
+
+	filter: function(item, value) {
+	    if (item.data.text.indexOf(value) !== -1) {
+		return true;
+	    }
+
+	    if (item.data.owner && item.data.owner.indexOf(value) !== -1) {
+		return true;
+	    }
+
+	    return false;
+	},
+
+	search: function(tf, value) {
+	    let me = this;
+	    let view = me.getView();
+	    let store = view.getStore();
+	    if (!value && value !== 0) {
+		store.clearFilter();
+		store.getRoot().collapseChildren(true);
+		tf.triggers.clear.setVisible(false);
+		return;
+	    }
+	    tf.triggers.clear.setVisible(true);
+	    if (value.length < 2) return;
+	    Proxmox.Utils.setErrorMask(view, true);
+	    // we do it a little bit later for the error mask to work
+	    setTimeout(function() {
+		store.clearFilter();
+		store.getRoot().collapseChildren(true);
+
+		store.beginUpdate();
+		store.getRoot().cascadeBy({
+		    before: function(item) {
+			if(me.filter(item, value)) {
+			    item.set('matchesFilter', true);
+			    if (item.parentNode && item.parentNode.id !== 'root') {
+				item.parentNode.childmatches = true;
+			    }
+			    return false;
+			}
+			return true;
+		    },
+		    after: function(item) {
+			if (me.filter(item, value) || item.id === 'root' || item.childmatches) {
+			    item.set('matchesFilter', true);
+			    if (item.parentNode && item.parentNode.id !== 'root') {
+				item.parentNode.childmatches = true;
+			    }
+			    if (item.childmatches) {
+				item.expand();
+			    }
+			} else {
+			    item.set('matchesFilter', false);
+			}
+			delete item.childmatches;
+		    },
+		});
+		store.endUpdate();
+
+		store.filter((item) => !!item.get('matchesFilter'));
+		Proxmox.Utils.setErrorMask(view, false);
+	    }, 10);
+	},
     },
 
     columns: [
@@ -448,5 +526,31 @@ Ext.define('PBS.DataStoreContent', {
 	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
 	},
+	'->',
+	{
+	    xtype: 'tbtext',
+	    html: gettext('Search'),
+	},
+	{
+	    xtype: 'textfield',
+	    reference: 'searchbox',
+	    triggers: {
+		clear: {
+		    cls: 'pmx-clear-trigger',
+		    weight: -1,
+		    hidden: true,
+		    handler: function() {
+			this.triggers.clear.setVisible(false);
+			this.setValue('');
+		    },
+		}
+	    },
+	    listeners: {
+		change: {
+		    fn: 'search',
+		    buffer: 500,
+		},
+	    },
+	}
     ],
 });
