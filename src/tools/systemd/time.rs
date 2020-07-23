@@ -88,12 +88,27 @@ impl DateTimeValue {
     }
 }
 
+/// Calendar events may be used to refer to one or more points in time in a
+/// single expression. They are designed after the systemd.time Calendar Events
+/// specification, but are not guaranteed to be 100% compatible.
 #[derive(Default, Debug)]
 pub struct CalendarEvent {
+    /// the days in a week this event should trigger
     pub days: WeekDays,
+    /// the second(s) this event should trigger
     pub second: Vec<DateTimeValue>, // todo: support float values
+    /// the minute(s) this event should trigger
     pub minute: Vec<DateTimeValue>,
+    /// the hour(s) this event should trigger
     pub hour: Vec<DateTimeValue>,
+/* FIXME: TODO
+    /// the day(s) in a month this event should trigger
+    pub day: Vec<DateTimeValue>,
+    /// the month(s) in a year this event should trigger
+    pub month: Vec<DateTimeValue>,
+    /// the years(s) this event should trigger
+    pub year: Vec<DateTimeValue>,
+*/
 }
 
 #[derive(Default)]
