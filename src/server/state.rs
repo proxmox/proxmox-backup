@@ -19,6 +19,7 @@ pub struct ServerState {
     pub shutdown_listeners: BroadcastData<()>,
     pub last_worker_listeners: BroadcastData<()>,
     pub worker_count: usize,
+    pub task_count: usize,
     pub reload_request: bool,
 }
 
@@ -28,6 +29,7 @@ lazy_static! {
         shutdown_listeners: BroadcastData::new(),
         last_worker_listeners: BroadcastData::new(),
         worker_count: 0,
+        task_count: 0,
         reload_request: false,
     });
 }
@@ -101,20 +103,40 @@ pub fn last_worker_future() ->  impl Future<Output = Result<(), Error>> {
 }
 
 pub fn set_worker_count(count: usize) {
-    let mut data = SERVER_STATE.lock().unwrap();
-    data.worker_count = count;
+    SERVER_STATE.lock().unwrap().worker_count = count;
 
-    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0) { return; }
+    check_last_worker();
+}
+
+pub fn check_last_worker() {
+    let mut data = SERVER_STATE.lock().unwrap();
+
+    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0 && data.task_count == 0) { return; }
 
     data.last_worker_listeners.notify_listeners(Ok(()));
 }
 
-
-pub fn check_last_worker() {
-
+/// Spawns a tokio task that will be tracked for reload
+/// and if it is finished, notify the last_worker_listener if we
+/// are in shutdown mode
+pub fn spawn_internal_task<T>(task: T)
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
     let mut data = SERVER_STATE.lock().unwrap();
+    data.task_count += 1;
 
-    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0) { return; }
+    tokio::spawn(async move {
+        let _ = tokio::spawn(task).await; // ignore errors
 
-    data.last_worker_listeners.notify_listeners(Ok(()));
+        { // drop mutex
+            let mut data = SERVER_STATE.lock().unwrap();
+            if data.task_count > 0 {
+                data.task_count -= 1;
+            }
+        }
+
+        check_last_worker();
+    });
 }

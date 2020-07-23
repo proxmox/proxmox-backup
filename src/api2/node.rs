@@ -267,7 +267,7 @@ fn upgrade_to_websocket(
 
         let (ws, response) = WebSocket::new(parts.headers)?;
 
-        tokio::spawn(async move {
+        crate::server::spawn_internal_task(async move {
             let conn: Upgraded = match req_body.on_upgrade().map_err(Error::from).await {
                 Ok(upgraded) => upgraded,
                 _ => bail!("error"),
