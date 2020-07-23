@@ -206,6 +206,7 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             node: {
