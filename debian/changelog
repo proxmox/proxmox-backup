@@ -1,3 +1,53 @@
+rust-proxmox-backup (0.8.8-1) unstable; urgency=medium
+
+  * pxar: .pxarexclude: match behavior from absolute paths to the one described
+    in the documentation and use byte based paths
+
+  * catalog shell: add exit command
+
+  * manifest: revert signature canonicalization to old behaviour. Fallout from
+    encrypted older backups is expected and was ignored due to the beta status
+    of Proxmox Backup.
+
+  * documentation: various improvements and additions
+
+  * cached user info: print privilege path in error message
+
+  * docs: fix #2851 Add note about GC grace period
+
+  * api2/status: fix datastore full estimation bug if there where (almost) no
+    change for several days
+
+  * schedules, calendar event: support the 'weekly' special expression
+
+  * ui: sync job: group remote fields and use "Source" in labels
+
+  * ui: add calendar event selector
+
+  * ui: sync job: change default to false for "remove-vanished" for new jobs
+
+  * fix #2860: skip in-progress snapshots when syncing
+
+  * fix #2865: detect and skip vanished snapshots
+
+  * fix #2871: close FDs when scanning backup group, avoid leaking
+
+  * backup: list images: handle walkdir error, catch "lost+found" special
+    directory
+
+  * implement AsyncSeek for AsyncIndexReader
+
+  * client: rework logging upload info like size or bandwidth
+
+  * client writer: do not output chunklist for now on verbose=true
+
+  * add initial API for listing available updates and updating the APT
+    database
+
+  * ui: add xterm.js console implementation
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 23 Jul 2020 12:16:05 +0200
+
 rust-proxmox-backup (0.8.7-2) unstable; urgency=medium
 
   * support restoring file attributes from pxar archives
