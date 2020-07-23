@@ -83,14 +83,12 @@ pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
     },
     access: {
         description: "Restricted to users on realm 'pam'",
-        permission: &Permission::Privilege(&["nodes","{node}"], PRIV_SYS_CONSOLE, false),
+        permission: &Permission::Privilege(&["system"], PRIV_SYS_CONSOLE, false),
     }
 )]
 /// Call termproxy and return shell ticket
 async fn termproxy(
-    node: String,
     cmd: Option<String>,
-    _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     let userid = rpcenv
@@ -102,7 +100,7 @@ async fn termproxy(
         bail!("only pam users can use the console");
     }
 
-    let path = format!("/nodes/{}", node);
+    let path = "/system";
 
     // use port 0 and let the kernel decide which port is free
     let listener = TcpListener::bind("localhost:0")?;
@@ -229,8 +227,8 @@ pub const API_METHOD_WEBSOCKET: ApiMethod = ApiMethod::new(
     ),
 )
 .access(
-    Some("The user needs Sys.Console on /nodes/{node}."),
-    &Permission::Privilege(&["nodes", "{node}"], PRIV_SYS_CONSOLE, false),
+    Some("The user needs Sys.Console on /system."),
+    &Permission::Privilege(&["system"], PRIV_SYS_CONSOLE, false),
 );
 
 fn upgrade_to_websocket(
@@ -242,8 +240,6 @@ fn upgrade_to_websocket(
 ) -> ApiResponseFuture {
     async move {
         let username = rpcenv.get_user().unwrap();
-        let node = tools::required_string_param(&param, "node")?.to_owned();
-        let path = format!("/nodes/{}", node);
         let ticket = tools::required_string_param(&param, "vncticket")?.to_owned();
         let port: u16 = tools::required_integer_param(&param, "port")? as u16;
 
@@ -251,7 +247,7 @@ fn upgrade_to_websocket(
         tools::ticket::verify_term_ticket(
             crate::auth_helpers::public_auth_key(),
             &username,
-            &path,
+            &"/system",
             port,
             &ticket,
         )?;
