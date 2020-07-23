@@ -4,7 +4,7 @@ use std::os::unix::io::AsRawFd;
 use anyhow::{bail, format_err, Error};
 use futures::{
     future::{FutureExt, TryFutureExt},
-    try_join,
+    select,
 };
 use hyper::body::Body;
 use hyper::http::request::Parts;
@@ -169,9 +169,10 @@ async fn termproxy(
 
             let mut cmd = tokio::process::Command::new("/usr/bin/termproxy");
 
-            cmd.args(&arguments);
-            cmd.stdout(std::process::Stdio::piped());
-            cmd.stderr(std::process::Stdio::piped());
+            cmd.args(&arguments)
+                .kill_on_drop(true)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
 
             let mut child = cmd.spawn().expect("error executing termproxy");
 
@@ -184,7 +185,7 @@ async fn termproxy(
                 while let Some(line) = reader.next_line().await? {
                     worker_stdout.log(line);
                 }
-                Ok(())
+                Ok::<(), Error>(())
             };
 
             let worker_stderr = worker.clone();
@@ -193,18 +194,24 @@ async fn termproxy(
                 while let Some(line) = reader.next_line().await? {
                     worker_stderr.warn(line);
                 }
-                Ok(())
+                Ok::<(), Error>(())
             };
 
-            let (exit_code, _, _) = try_join!(child, stdout_fut, stderr_fut)?;
-            if !exit_code.success() {
-                match exit_code.code() {
-                    Some(code) => bail!("termproxy exited with {}", code),
-                    None => bail!("termproxy exited by signal"),
-                }
+            select!{
+                res = child.fuse() => {
+                    let exit_code = res?;
+                    if !exit_code.success() {
+                        match exit_code.code() {
+                            Some(code) => bail!("termproxy exited with {}", code),
+                            None => bail!("termproxy exited by signal"),
+                        }
+                    }
+                    Ok(())
+                },
+                res = stdout_fut.fuse() => res,
+                res = stderr_fut.fuse() => res,
+                res = worker.abort_future().fuse() => res.map_err(Error::from),
             }
-
-            Ok(())
         },
     )?;
 
