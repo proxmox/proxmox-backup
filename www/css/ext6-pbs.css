@@ -208,3 +208,19 @@ p.logs {
 .pmx-button-badge.active {
     background-color: #464d4d;
 }
+
+.pmx-hidden {
+    cursor: default;
+}
+
+.x-action-col-icon.good:before {
+    color: #21BF4B;
+}
+
+.x-action-col-icon.warning:before {
+    color: #fc0;
+}
+
+.x-action-col-icon.critical:before {
+    color: #FF6C59;
+}

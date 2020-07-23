@@ -30,8 +30,8 @@ Ext.define('PBS.Utils', {
     cryptIconCls: [
 	'',
 	'',
-	'certificate',
-	'lock',
+	'lock faded',
+	'lock good',
     ],
 
     calculateCryptMode: function(data) {

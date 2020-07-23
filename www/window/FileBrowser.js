@@ -145,7 +145,16 @@ Ext.define("PBS.window.FileBrowser", {
 	    store.load(() => {
 		let root = store.getRoot();
 		root.expand(); // always expand invisible root node
-		if (root.childNodes.length === 1) {
+		if (view.archive) {
+		    let child = root.findChild('text', view.archive);
+		    if (child) {
+			child.expand();
+			setTimeout(function() {
+			    tree.setSelection(child);
+			    tree.getView().focusRow(child);
+			}, 10);
+		    }
+		} else if (root.childNodes.length === 1) {
 		    root.firstChild.expand();
 		}
 	    });

@@ -142,8 +142,17 @@ Ext.define('PBS.DataStoreContent', {
 		let data = item.data;
 
 		data.text = group + '/' + PBS.Utils.render_datetime_utc(data["backup-time"]);
-		data.leaf = true;
+		data.leaf = false;
 		data.cls = 'no-leaf-icons';
+
+		data.children = [];
+		for (const file of data.files) {
+		    file.text = file.filename,
+		    file['crypt-mode'] = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
+		    file.leaf = true;
+
+		    data.children.push(file);
+		}
 
 		children.push(data);
 	    }
@@ -181,13 +190,12 @@ Ext.define('PBS.DataStoreContent', {
 	    Proxmox.Utils.setErrorMask(view, false);
 	},
 
-	onPrune: function() {
+	onPrune: function(view, rI, cI, item, e, rec) {
 	    var view = this.getView();
 
-	    let rec = view.selModel.getSelection()[0];
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
-	    if (data.leaf) return;
+	    if (rec.parentNode.id !== 'root') return;
 
 	    if (!view.datastore) return;
 
@@ -200,18 +208,17 @@ Ext.define('PBS.DataStoreContent', {
 	    win.show();
 	},
 
-	onVerify: function() {
+	onVerify: function(view, rI, cI, item, e, rec) {
 	    var view = this.getView();
 
 	    if (!view.datastore) return;
 
-	    let rec = view.selModel.getSelection()[0];
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
 
 	    let params;
 
-	    if (data.leaf) {
+	    if (rec.parentNode.id !== 'root') {
 		params = {
 		    "backup-type": data["backup-type"],
 		    "backup-id": data["backup-id"],
@@ -239,75 +246,77 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
-	onForget: function() {
+	onForget: function(view, rI, cI, item, e, rec) {
+	    let me = this;
 	    var view = this.getView();
 
-	    let rec = view.selModel.getSelection()[0];
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
-	    if (!data.leaf) return;
-
 	    if (!view.datastore) return;
 
-	    console.log(data);
+	    Ext.Msg.show({
+		title: gettext('Confirm'),
+		icon: Ext.Msg.WARNING,
+		message: Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${data.text}'`),
+		buttons: Ext.Msg.YESNO,
+		defaultFocus: 'no',
+		callback: function(btn) {
+		    if (btn !== 'yes') {
+		        return;
+		    }
 
-	    Proxmox.Utils.API2Request({
-		params: {
-		    "backup-type": data["backup-type"],
-		    "backup-id": data["backup-id"],
-		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		    Proxmox.Utils.API2Request({
+			params: {
+			    "backup-type": data["backup-type"],
+			    "backup-id": data["backup-id"],
+			    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+			},
+			url: `/admin/datastore/${view.datastore}/snapshots`,
+			method: 'DELETE',
+			waitMsgTarget: view,
+			failure: function(response, opts) {
+			    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+			},
+			callback: me.reload.bind(me),
+		    });
 		},
-		url: `/admin/datastore/${view.datastore}/snapshots`,
-		method: 'DELETE',
-		waitMsgTarget: view,
-		failure: function(response, opts) {
-		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		},
-		callback: this.reload.bind(this),
 	    });
 	},
 
-	openBackupFileDownloader: function() {
+	downloadFile: function(tV, rI, cI, item, e, rec) {
 	    let me = this;
 	    let view = me.getView();
 
-	    let rec = view.selModel.getSelection()[0];
 	    if (!(rec && rec.data)) return;
-	    let data = rec.data;
+	    let data = rec.parentNode.data;
 
-	    Ext.create('PBS.window.BackupFileDownloader', {
-		baseurl: `/api2/json/admin/datastore/${view.datastore}`,
-		params: {
-		    'backup-id': data['backup-id'],
-		    'backup-type': data['backup-type'],
-		    'backup-time': (data['backup-time'].getTime()/1000).toFixed(0),
-		},
-		files: data.files,
-	    }).show();
-	},
+	    let file = rec.data.filename;
+	    let params = {
+		'backup-id': data['backup-id'],
+		'backup-type': data['backup-type'],
+		'backup-time': (data['backup-time'].getTime()/1000).toFixed(0),
+		'file-name': file,
+	    };
 
-	openPxarBrowser: function() {
-	    let me = this;
-	    let view = me.getView();
-
-	    let rec = view.selModel.getSelection()[0];
-	    if (!(rec && rec.data)) return;
-	    let data = rec.data;
-
-	    let encrypted = false;
-	    data.files.forEach(file => {
-		if (file.filename === 'catalog.pcat1.didx' && file['crypt-mode'] === 'encrypt') {
-		    encrypted = true;
-		}
-	    });
-
-	    if (encrypted) {
-		Ext.Msg.alert(
-		    gettext('Cannot open Catalog'),
-		    gettext('Only unencrypted Backups can be opened on the server. Please use the client with the decryption key instead.'),
-		);
-		return;
+	    let idx = file.lastIndexOf('.');
+	    let filename = file.slice(0, idx);
+	    let atag = document.createElement('a');
+	    params['file-name'] = file;
+	    atag.download = filename;
+	    let url = new URL(`/api2/json/admin/datastore/${view.datastore}/download-decoded`, window.location.origin);
+	    for (const [key, value] of Object.entries(params)) {
+		url.searchParams.append(key, value);
 	    }
+	    atag.href = url.href;
+	    atag.click();
+	},
+
+	openPxarBrowser: function(tv, rI, Ci, item, e, rec) {
+	    let me = this;
+	    let view = me.getView();
+
+	    if (!(rec && rec.data)) return;
+	    let data = rec.parentNode.data;
 
 	    let id = data['backup-id'];
 	    let time = data['backup-time'];
@@ -320,6 +329,7 @@ Ext.define('PBS.DataStoreContent', {
 		'backup-id': id,
 		'backup-time': (time.getTime()/1000).toFixed(0),
 		'backup-type': type,
+		archive: rec.data.filename,
 	    }).show();
 	}
     },
@@ -330,6 +340,55 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Backup Group"),
 	    dataIndex: 'text',
 	    flex: 1
+	},
+	{
+	    header: gettext('Actions'),
+	    xtype: 'actioncolumn',
+	    dataIndex: 'text',
+	    items: [
+		{
+		    handler: 'onVerify',
+		    tooltip: gettext('Verify'),
+		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'fa fa-search',
+		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
+		},
+		{
+		    handler: 'onPrune',
+		    tooltip: gettext('Prune'),
+		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
+		    isDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+		},
+		{
+		    handler: 'onForget',
+		    tooltip: gettext('Forget Snapshot'),
+		    getClass: (v, m, rec) => !rec.data.leaf && rec.parentNode.id !== 'root' ? 'fa critical fa-trash-o' : 'pmx-hidden',
+		    isDisabled: (v, r, c, i, rec) => rec.data.leaf || rec.parentNode.id === 'root',
+		},
+		{
+		    handler: 'downloadFile',
+		    tooltip: gettext('Download'),
+		    getClass: (v, m, rec) => rec.data.leaf && rec.data.filename ? 'fa fa-download' : 'pmx-hidden',
+		    isDisabled: (v, r, c, i, rec) => !rec.data.leaf || !rec.data.filename || rec.data['crypt-mode'] > 2,
+		},
+		{
+		    handler: 'openPxarBrowser',
+		    tooltip: gettext('Browse'),
+		    getClass: (v, m, rec) => {
+			let data = rec.data;
+			if (data.leaf && data.filename && data.filename.endsWith('pxar.didx')) {
+			    return 'fa fa-folder-open-o';
+			}
+			return 'pmx-hidden';
+		    },
+		    isDisabled: (v, r, c, i, rec) => {
+			let data = rec.data;
+			return !(data.leaf &&
+			    data.filename &&
+			    data.filename.endsWith('pxar.didx') &&
+			    data['crypt-mode'] < 2);
+		    }
+		},
+	    ]
 	},
 	{
 	    xtype: 'datecolumn',
@@ -344,6 +403,9 @@ Ext.define('PBS.DataStoreContent', {
 	    sortable: true,
 	    dataIndex: 'size',
 	    renderer: (v, meta, record) => {
+		if (record.data.text === 'client.log.blob' && v === undefined) {
+		    return '';
+		}
 		if (v === undefined || v === null) {
 		    meta.tdCls = "x-grid-row-loading";
 		    return '';
@@ -366,28 +428,17 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    header: gettext('Encrypted'),
 	    dataIndex: 'crypt-mode',
-	    renderer: value => PBS.Utils.cryptText[value] || Proxmox.Utils.unknownText,
-	},
-	{
-	    header: gettext("Files"),
-	    sortable: false,
-	    dataIndex: 'files',
-	    renderer: function(files) {
-		return files.map((file) => {
-		    let icon = '';
-		    let size = '';
-		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
-		    let iconCls = PBS.Utils.cryptIconCls[mode] || '';
-		    if (iconCls !== '') {
-			icon = `<i class="fa fa-${iconCls}"></i> `;
-		    }
-		    if (file.size)  {
-			size = ` (${Proxmox.Utils.format_size(file.size)})`;
-		    }
-		    return `${icon}${file.filename}${size}`;
-		}).join(', ');
-	    },
-	    flex: 2
+	    renderer: (v, meta, record) => {
+		if (v === -1) {
+		    return '';
+		}
+		let iconCls = PBS.Utils.cryptIconCls[v] || '';
+		let iconTxt = "";
+		if (iconCls) {
+		    iconTxt = `<i class="fa fa-fw fa-${iconCls}"></i> `;
+		}
+		return (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText
+	    }
 	},
     ],
 
@@ -397,55 +448,5 @@ Ext.define('PBS.DataStoreContent', {
 	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
 	},
-	'-',
-	{
-	    xtype: 'proxmoxButton',
-	    text: gettext('Verify'),
-	    disabled: true,
-	    parentXType: 'pbsDataStoreContent',
-	    enableFn: (rec) => !!rec.data && rec.data.size !== null,
-	    handler: 'onVerify',
-	},
-	{
-	    xtype: 'proxmoxButton',
-	    text: gettext('Prune'),
-	    disabled: true,
-	    parentXType: 'pbsDataStoreContent',
-	    enableFn: (rec) => !rec.data.leaf,
-	    handler: 'onPrune',
-	},
-	{
-	    xtype: 'proxmoxButton',
-	    text: gettext('Forget'),
-	    disabled: true,
-	    parentXType: 'pbsDataStoreContent',
-	    handler: 'onForget',
-	    dangerous: true,
-	    confirmMsg: function(record) {
-		//console.log(record);
-		let name = record.data.text;
-		return Ext.String.format(gettext('Are you sure you want to remove snapshot {0}'), `'${name}'`);
-	    },
-	    enableFn: (rec) => !!rec.data.leaf && rec.data.size !== null,
-	},
-	'-',
-	{
-	    xtype: 'proxmoxButton',
-	    text: gettext('Download Files'),
-	    disabled: true,
-	    parentXType: 'pbsDataStoreContent',
-	    handler: 'openBackupFileDownloader',
-	    enableFn: (rec) => !!rec.data.leaf && rec.data.size !== null,
-	},
-	{
-	    xtype: "proxmoxButton",
-	    text: gettext('PXAR File Browser'),
-	    disabled: true,
-	    handler: 'openPxarBrowser',
-	    parentXType: 'pbsDataStoreContent',
-	    enableFn: function(record) {
-		return !!record.data.leaf && record.size !== null && record.data.files.some(el => el.filename.endsWith('pxar.didx'));
-	    },
-	}
     ],
 });
