@@ -573,7 +573,7 @@ impl BackupWriter {
                     let digest = chunk_info.digest;
                     let digest_str = digest_to_hex(&digest);
 
-                    if verbose {
+                    if false && verbose { // TO verbose, needs finer verbosity setting granularity
                         println!("upload new chunk {} ({} bytes, offset {})", digest_str,
                                  chunk_info.chunk_len, offset);
                     }
