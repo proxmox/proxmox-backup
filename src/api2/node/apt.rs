@@ -3,10 +3,13 @@ use anyhow::{Error, bail};
 use serde_json::{json, Value};
 
 use proxmox::{list_subdirs_api_method, const_regex};
-use proxmox::api::{api, Router, Permission, SubdirMap};
+use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
+use proxmox::api::router::{Router, SubdirMap};
 
-use crate::config::acl::PRIV_SYS_AUDIT;
-use crate::api2::types::{APTUpdateInfo, NODE_SCHEMA};
+use crate::server::WorkerTask;
+
+use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::api2::types::{APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 
 const_regex! {
     VERSION_EPOCH_REGEX = r"^\d+:";
@@ -202,8 +205,61 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
     Ok(json!(ret))
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            quiet: {
+                description: "Only produces output suitable for logging, omitting progress indicators.",
+                type: bool,
+                default: false,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Update the APT database
+pub fn apt_update_database(
+    quiet: Option<bool>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
+
+    let username = rpcenv.get_user().unwrap();
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    let quiet = quiet.unwrap_or(false);
+
+    let upid_str = WorkerTask::new_thread("aptupdate", None, &username.clone(), to_stdout, move |worker| {
+        if !quiet { worker.log("starting apt-get update") }
+
+        // TODO: set proxy /etc/apt/apt.conf.d/76pbsproxy like PVE
+
+        let mut command = std::process::Command::new("apt-get");
+        command.arg("update");
+
+        let output = crate::tools::run_command(command, None)?;
+        if !quiet { worker.log(output) }
+
+        // TODO: add mail notify for new updates like PVE
+
+        Ok(())
+    })?;
+
+    Ok(upid_str)
+}
+
 const SUBDIRS: SubdirMap = &[
-    ("update", &Router::new().get(&API_METHOD_APT_UPDATE_AVAILABLE)),
+    ("update", &Router::new()
+        .get(&API_METHOD_APT_UPDATE_AVAILABLE)
+        .post(&API_METHOD_APT_UPDATE_DATABASE)
+    ),
 ];
 
 pub const ROUTER: Router = Router::new()
