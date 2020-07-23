@@ -1137,7 +1137,7 @@ async fn create_backup(
         .map_err(|err| format_err!("unable to format manifest - {}", err))?;
 
 
-    println!("Upload index.json to '{}'", repo);
+    if verbose { println!("Upload index.json to '{}'", repo) };
     client
         .upload_blob_from_data(manifest.into_bytes(), MANIFEST_BLOB_NAME, true, false)
         .await?;
