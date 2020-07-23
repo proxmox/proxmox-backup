@@ -123,7 +123,13 @@ async fn termproxy(
             }
         }
         Some("upgrade") => {
-            bail!("upgrade is not supported yet");
+            if userid != "root@pam" {
+                bail!("only root@pam can upgrade");
+            }
+            // TODO: add nicer/safer wrapper like in PVE instead
+            command.push("sh");
+            command.push("-c");
+            command.push("apt full-upgrade; bash -l");
         }
         _ => bail!("invalid command"),
     };
