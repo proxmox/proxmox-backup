@@ -1037,14 +1037,14 @@ async fn create_backup(
     for (backup_type, filename, target, size) in upload_list {
         match backup_type {
             BackupSpecificationType::CONFIG => {
-                println!("Upload config file '{}' to '{:?}' as {}", filename, repo, target);
+                println!("Upload config file '{}' to '{}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, true, crypt_mode == CryptMode::Encrypt)
                     .await?;
                 manifest.add_file(target, stats.size, stats.csum, crypt_mode)?;
             }
             BackupSpecificationType::LOGFILE => { // fixme: remove - not needed anymore ?
-                println!("Upload log file '{}' to '{:?}' as {}", filename, repo, target);
+                println!("Upload log file '{}' to '{}' as {}", filename, repo, target);
                 let stats = client
                     .upload_blob_from_file(&filename, &target, true, crypt_mode == CryptMode::Encrypt)
                     .await?;
@@ -1059,7 +1059,7 @@ async fn create_backup(
                 }
                 let catalog = catalog.as_ref().unwrap();
 
-                println!("Upload directory '{}' to '{:?}' as {}", filename, repo, target);
+                println!("Upload directory '{}' to '{}' as {}", filename, repo, target);
                 catalog.lock().unwrap().start_directory(std::ffi::CString::new(target.as_str())?.as_c_str())?;
                 let stats = backup_directory(
                     &client,
@@ -1137,7 +1137,7 @@ async fn create_backup(
         .map_err(|err| format_err!("unable to format manifest - {}", err))?;
 
 
-    println!("Upload index.json to '{:?}'", repo);
+    println!("Upload index.json to '{}'", repo);
     client
         .upload_blob_from_data(manifest.into_bytes(), MANIFEST_BLOB_NAME, true, false)
         .await?;
