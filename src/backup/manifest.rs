@@ -104,7 +104,7 @@ impl BackupManifest {
         &self.files[..]
     }
 
-    fn lookup_file_info(&self, name: &str) -> Result<&FileInfo, Error> {
+    pub fn lookup_file_info(&self, name: &str) -> Result<&FileInfo, Error> {
 
         let info = self.files.iter().find(|item| item.filename == name);
 
