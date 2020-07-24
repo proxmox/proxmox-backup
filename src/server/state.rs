@@ -19,7 +19,7 @@ pub struct ServerState {
     pub shutdown_listeners: BroadcastData<()>,
     pub last_worker_listeners: BroadcastData<()>,
     pub worker_count: usize,
-    pub task_count: usize,
+    pub internal_task_count: usize,
     pub reload_request: bool,
 }
 
@@ -29,7 +29,7 @@ lazy_static! {
         shutdown_listeners: BroadcastData::new(),
         last_worker_listeners: BroadcastData::new(),
         worker_count: 0,
-        task_count: 0,
+        internal_task_count: 0,
         reload_request: false,
     });
 }
@@ -111,7 +111,7 @@ pub fn set_worker_count(count: usize) {
 pub fn check_last_worker() {
     let mut data = SERVER_STATE.lock().unwrap();
 
-    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0 && data.task_count == 0) { return; }
+    if !(data.mode == ServerMode::Shutdown && data.worker_count == 0 && data.internal_task_count == 0) { return; }
 
     data.last_worker_listeners.notify_listeners(Ok(()));
 }
@@ -125,15 +125,15 @@ where
     T::Output: Send + 'static,
 {
     let mut data = SERVER_STATE.lock().unwrap();
-    data.task_count += 1;
+    data.internal_task_count += 1;
 
     tokio::spawn(async move {
         let _ = tokio::spawn(task).await; // ignore errors
 
         { // drop mutex
             let mut data = SERVER_STATE.lock().unwrap();
-            if data.task_count > 0 {
-                data.task_count -= 1;
+            if data.internal_task_count > 0 {
+                data.internal_task_count -= 1;
             }
         }
 
