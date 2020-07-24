@@ -264,7 +264,7 @@ impl BackupWriter {
             crate::tools::format::strip_server_file_expenstion(archive_name.clone())
         };
         if archive_name != CATALOG_NAME {
-            let speed: HumanByte = (uploaded / (duration.as_secs() as usize)).into();
+            let speed: HumanByte = ((uploaded * 1_000_000) / (duration.as_micros() as usize)).into();
             let uploaded: HumanByte = uploaded.into();
             println!("{}: had to upload {} from {} in {}s, avgerage speed {}/s).", archive, uploaded, vsize_h, duration.as_secs(), speed);
         } else {
