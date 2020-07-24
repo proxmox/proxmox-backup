@@ -190,8 +190,8 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
         _ => bail!("unknown service command '{}'", cmd),
     }
 
-    if service == "proxmox-backup" && cmd != "restart" {
-        bail!("invalid service cmd '{} {}'", service, cmd);
+    if service == "proxmox-backup" && cmd == "stop" {
+        bail!("invalid service cmd '{} {}' cannot stop essential service!", service, cmd);
     }
 
     let real_service_name = real_service_name(service);
