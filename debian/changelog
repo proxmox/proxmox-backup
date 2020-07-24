@@ -1,3 +1,14 @@
+rust-proxmox-backup (0.8.9-1) unstable; urgency=medium
+
+  * improve termprocy (console) behavior on updating proxmox-backup-server and
+    other daemon restarts
+
+  * client: improve upload log output and speed calculation
+
+  * fix #2885: client upload: bail on duplicate backup targets
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 24 Jul 2020 11:24:07 +0200
+
 rust-proxmox-backup (0.8.8-1) unstable; urgency=medium
 
   * pxar: .pxarexclude: match behavior from absolute paths to the one described
