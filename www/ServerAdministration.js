@@ -26,6 +26,7 @@ Ext.define('PBS.ServerAdministration', {
 	    xtype: 'proxmoxNodeServiceView',
             title: gettext('Services'),
 	    itemId: 'services',
+	    restartCommand: 'reload', // avoid disruptions
 	    startOnlyServices: {
 		syslog: true,
 		'proxmox-backup': true,

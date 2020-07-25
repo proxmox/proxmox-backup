@@ -185,10 +185,11 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
 
     // fixme: run background worker (fork_worker) ???
 
-    match cmd {
-        "start"|"stop"|"restart"|"reload" => {},
+    let cmd = match cmd {
+        "start"|"stop"|"restart"=> cmd,
+        "reload" => "try-reload-or-restart", // some services do not implement reload
         _ => bail!("unknown service command '{}'", cmd),
-    }
+    };
 
     if service == "proxmox-backup" && cmd == "stop" {
         bail!("invalid service cmd '{} {}' cannot stop essential service!", service, cmd);
