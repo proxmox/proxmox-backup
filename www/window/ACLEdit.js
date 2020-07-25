@@ -7,6 +7,7 @@ Ext.define('PBS.window.ACLEdit', {
     method: 'PUT',
     isAdd: true,
     isCreate: true,
+    width: 450,
 
     // caller can give a static path
     path: undefined,
@@ -25,7 +26,7 @@ Ext.define('PBS.window.ACLEdit', {
 
     items: [
 	{
-	    xtype: 'pmxDisplayEditField',
+	    xtype: 'pbsPermissionPathSelector',
 	    fieldLabel: gettext('Path'),
 	    cbind: {
 		editable: '{!path}',
