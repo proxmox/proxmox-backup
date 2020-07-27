@@ -243,7 +243,7 @@ pub const API_METHOD_UPLOAD_BLOB: ApiMethod = ApiMethod::new(
         &sorted!([
             ("file-name", false, &crate::api2::types::BACKUP_ARCHIVE_NAME_SCHEMA),
             ("encoded-size", false, &IntegerSchema::new("Encoded blob size.")
-             .minimum((std::mem::size_of::<DataBlobHeader>() as isize) +1)
+             .minimum(std::mem::size_of::<DataBlobHeader>() as isize)
              .maximum(1024*1024*16+(std::mem::size_of::<EncryptedDataBlobHeader>() as isize))
              .schema()
             )
