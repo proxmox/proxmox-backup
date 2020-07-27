@@ -160,12 +160,12 @@ impl BackupManifest {
                 keys.sort();
                 let mut iter = keys.into_iter();
                 if let Some(key) = iter.next() {
-                    serde_json::to_writer(output as &mut dyn std::io::Write, &key)?;
+                    serde_json::to_writer(&mut *output, &key)?;
                     output.push(b':');
                     Self::write_canonical_json(&map[key], output)?;
                     for key in iter {
                         output.push(b',');
-                        Self::write_canonical_json(&key.into(), output)?;
+                        serde_json::to_writer(&mut *output, &key)?;
                         output.push(b':');
                         Self::write_canonical_json(&map[key], output)?;
                     }
