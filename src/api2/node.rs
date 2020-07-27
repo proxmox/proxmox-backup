@@ -136,7 +136,7 @@ async fn termproxy(
     let upid = WorkerTask::spawn(
         "termproxy",
         None,
-        &username,
+        &userid,
         false,
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port
