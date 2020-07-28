@@ -777,7 +777,7 @@ For example:
 
 .. code-block:: console
 
-  pxar:/ > find etc/ **/*.txt --select
+  pxar:/ > find etc/**/*.txt --select
   "/etc/X11/rgb.txt"
   pxar:/ > list-selected
   etc/**/*.txt
