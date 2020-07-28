@@ -825,6 +825,10 @@ pub fn get_disks(
             };
         }
 
+        if usage == DiskUsageType::Unused && disk.has_holders()? {
+            usage = DiskUsageType::DeviceMapper;
+        }
+
         let mut  status = SmartStatus::Unknown;
         let mut wearout = None;
 
