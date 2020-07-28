@@ -232,8 +232,10 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 		    return selected === id;
 		}, undefined, true);
-		view.setSelection(selection);
-		view.getView().focusRow(selection);
+		if (selection) {
+		    view.setSelection(selection);
+		    view.getView().focusRow(selection);
+		}
 	    }
 
 	    Proxmox.Utils.setErrorMask(view, false);
