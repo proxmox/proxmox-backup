@@ -37,26 +37,20 @@ fn allow_notsupp_remember<E: SysError>(err: E, not_supp: &mut bool) -> Result<()
     }
 }
 
-fn nsec_to_update_timespec(mtime_nsec: u64) -> [libc::timespec; 2] {
+fn timestamp_to_update_timespec(mtime: &pxar::format::StatxTimestamp) -> [libc::timespec; 2] {
     // restore mtime
     const UTIME_OMIT: i64 = (1 << 30) - 2;
-    const NANOS_PER_SEC: i64 = 1_000_000_000;
 
-    let sec = (mtime_nsec as i64) / NANOS_PER_SEC;
-    let nsec = (mtime_nsec as i64) % NANOS_PER_SEC;
-
-    let times: [libc::timespec; 2] = [
+    [
         libc::timespec {
             tv_sec: 0,
             tv_nsec: UTIME_OMIT,
         },
         libc::timespec {
-            tv_sec: sec,
-            tv_nsec: nsec,
+            tv_sec: mtime.secs,
+            tv_nsec: mtime.nanos as _,
         },
-    ];
-
-    times
+    ]
 }
 
 //
@@ -130,7 +124,7 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
         libc::utimensat(
             libc::AT_FDCWD,
             c_proc_path.as_ptr(),
-            nsec_to_update_timespec(metadata.stat.mtime).as_ptr(),
+            timestamp_to_update_timespec(&metadata.stat.mtime).as_ptr(),
             0,
         )
     });

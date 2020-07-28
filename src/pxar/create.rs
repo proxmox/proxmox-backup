@@ -1,5 +1,4 @@
 use std::collections::{HashSet, HashMap};
-use std::convert::TryFrom;
 use std::ffi::{CStr, CString, OsStr};
 use std::fmt;
 use std::io::{self, Read, Write};
@@ -696,16 +695,16 @@ fn get_metadata(fd: RawFd, stat: &FileStat, flags: Flags, fs_magic: i64) -> Resu
     // required for some of these
     let proc_path = Path::new("/proc/self/fd/").join(fd.to_string());
 
-    let mtime = u64::try_from(stat.st_mtime * 1_000_000_000 + stat.st_mtime_nsec)
-        .map_err(|_| format_err!("file with negative mtime"))?;
-
     let mut meta = Metadata {
         stat: pxar::Stat {
             mode: u64::from(stat.st_mode),
             flags: 0,
             uid: stat.st_uid,
             gid: stat.st_gid,
-            mtime,
+            mtime: pxar::format::StatxTimestamp {
+                secs: stat.st_mtime,
+                nanos: stat.st_mtime_nsec as u32,
+            },
         },
         ..Default::default()
     };

@@ -673,11 +673,6 @@ fn to_stat(inode: u64, entry: &pxar::Entry) -> Result<libc::stat, Error> {
 
     let metadata = entry.metadata();
 
-    let time = i64::try_from(metadata.stat.mtime)
-        .map_err(|_| format_err!("mtime does not fit into a signed 64 bit integer"))?;
-    let sec = time / 1_000_000_000;
-    let nsec = time % 1_000_000_000;
-
     let mut stat: libc::stat = unsafe { mem::zeroed() };
     stat.st_ino = inode;
     stat.st_nlink = nlink;
@@ -687,11 +682,11 @@ fn to_stat(inode: u64, entry: &pxar::Entry) -> Result<libc::stat, Error> {
         .map_err(|err| format_err!("size does not fit into st_size field: {}", err))?;
     stat.st_uid = metadata.stat.uid;
     stat.st_gid = metadata.stat.gid;
-    stat.st_atime = sec;
-    stat.st_atime_nsec = nsec;
-    stat.st_mtime = sec;
-    stat.st_mtime_nsec = nsec;
-    stat.st_ctime = sec;
-    stat.st_ctime_nsec = nsec;
+    stat.st_atime = metadata.stat.mtime.secs;
+    stat.st_atime_nsec = metadata.stat.mtime.nanos as _;
+    stat.st_mtime = metadata.stat.mtime.secs;
+    stat.st_mtime_nsec = metadata.stat.mtime.nanos as _;
+    stat.st_ctime = metadata.stat.mtime.secs;
+    stat.st_ctime_nsec = metadata.stat.mtime.nanos as _;
     Ok(stat)
 }

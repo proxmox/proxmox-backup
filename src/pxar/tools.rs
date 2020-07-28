@@ -120,8 +120,7 @@ pub fn format_single_line_entry(entry: &Entry) -> String {
     let mode_string = mode_string(entry);
 
     let meta = entry.metadata();
-    let mtime = meta.mtime_as_duration();
-    let mtime = chrono::Local.timestamp(mtime.as_secs() as i64, mtime.subsec_nanos());
+    let mtime = chrono::Local.timestamp(meta.stat.mtime.secs, meta.stat.mtime.nanos);
 
     let (size, link) = match entry.kind() {
         EntryKind::File { size, .. } => (format!("{}", *size), String::new()),
@@ -148,8 +147,7 @@ pub fn format_multi_line_entry(entry: &Entry) -> String {
     let mode_string = mode_string(entry);
 
     let meta = entry.metadata();
-    let mtime = meta.mtime_as_duration();
-    let mtime = chrono::Local.timestamp(mtime.as_secs() as i64, mtime.subsec_nanos());
+    let mtime = chrono::Local.timestamp(meta.stat.mtime.secs, meta.stat.mtime.nanos);
 
     let (size, link, type_name) = match entry.kind() {
         EntryKind::File { size, .. } => (format!("{}", *size), String::new(), "file"),
