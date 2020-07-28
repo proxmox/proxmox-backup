@@ -549,6 +549,9 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext('Encrypted'),
 	    dataIndex: 'crypt-mode',
 	    renderer: (v, meta, record) => {
+		if (record.data.size === undefined || record.data.size === null) {
+		    return '';
+		}
 		if (v === -1) {
 		    return '';
 		}
