@@ -18,7 +18,7 @@ Run the following command to create an archive of a folder named ``source``:
 
 .. code-block:: console
 
-    # pxar create archive.pxar source
+    # pxar create archive.pxar /path/to/source
 
 This will create a new archive called ``archive.pxar`` with the contents of the
 ``source`` folder.
@@ -35,35 +35,34 @@ To alter this behavior and follow device boundaries, use the
 ``--all-file-systems`` flag.
 
 It is possible to exclude certain files and/or folders from the archive by
-passing glob match patterns as additional parameters. Whenever a file is matched
-by one of the patterns, you will get a warning stating that this file is skipped
-and therefore not included in the archive.
+passing the ``--exclude`` parameter with ``gitignore``\-style match patterns.
 
 For example, you can exclude all files ending in ``.txt`` from the archive
 by running:
 
 .. code-block:: console
 
-    # pxar create archive.pxar source '**/*.txt'
+    # pxar create archive.pxar /path/to/source --exclude '**/*.txt'
 
 Be aware that the shell itself will try to expand all of the glob patterns before
 invoking ``pxar``.
 In order to avoid this, all globs have to be quoted correctly.
-
-It is possible to pass a list of match patterns to fulfill more complex
-file exclusion/inclusion behavior, although it is recommended to use the
+ 
+It is possible to pass the ``--exclude`` parameter multiple times, in order to
+match more than one pattern. This allows you to use more complex
+file exclusion/inclusion behavior. However, it is recommended to use
 ``.pxarexclude`` files instead for such cases.
 
 For example you might want to exclude all ``.txt`` files except for a specific
 one from the archive. This is achieved via the negated match pattern, prefixed
 by ``!``.
-All the glob pattern are relative to the ``source`` directory.
+All the glob patterns are relative to the ``source`` directory.
 
 .. code-block:: console
 
-    # pxar create archive.pxar source '**/*.txt' '!/folder/file.txt'
+    # pxar create archive.pxar /path/to/source --exclude '**/*.txt' --exclude '!/folder/file.txt'
 
-.. NOTE:: The order of the glob match patterns matters as later ones win over
+.. NOTE:: The order of the glob match patterns matters as later ones override
     previous ones. Permutations of the same patterns lead to different results.
 
 ``pxar`` will store the list of glob match patterns passed as parameters via the
