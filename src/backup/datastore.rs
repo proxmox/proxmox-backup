@@ -499,28 +499,43 @@ impl DataStore {
     }
 
     pub fn verify_stored_chunk(&self, digest: &[u8; 32], expected_chunk_size: u64) -> Result<(), Error> {
-        let blob = self.chunk_store.read_chunk(digest)?;
-        blob.verify_crc()?;
+        let blob = self.load_chunk(digest)?;
         blob.verify_unencrypted(expected_chunk_size as usize, digest)?;
         Ok(())
     }
 
-    pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<(DataBlob, u64), Error> {
+    pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<DataBlob, Error> {
         let mut path = self.base_path();
         path.push(backup_dir.relative_path());
         path.push(filename);
 
-        let raw_data = proxmox::tools::fs::file_get_contents(&path)?;
-        let raw_size = raw_data.len() as u64;
-        let blob = DataBlob::from_raw(raw_data)?;
-        Ok((blob, raw_size))
+        proxmox::try_block!({
+            let mut file = std::fs::File::open(&path)?;
+            DataBlob::load_from_reader(&mut file)
+        }).map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
     }
+    
+    pub fn load_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
 
+        let (chunk_path, digest_str) = self.chunk_store.chunk_path(digest);
+
+        proxmox::try_block!({
+            let mut file = std::fs::File::open(&chunk_path)?;
+            DataBlob::load_from_reader(&mut file)
+        }).map_err(|err| format_err!(
+            "store '{}', unable to load chunk '{}' - {}",
+            self.name(),
+            digest_str,
+            err,
+        ))
+     }
+    
     pub fn load_manifest(
         &self,
         backup_dir: &BackupDir,
     ) -> Result<(BackupManifest, CryptMode, u64), Error> {
-        let (blob, raw_size) = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
+        let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
+        let raw_size = blob.raw_size();
         let crypt_mode = blob.crypt_mode()?;
         let manifest = BackupManifest::try_from(blob)?;
         Ok((manifest, crypt_mode, raw_size))

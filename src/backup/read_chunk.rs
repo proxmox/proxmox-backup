@@ -34,12 +34,7 @@ impl LocalChunkReader {
 
 impl ReadChunk for LocalChunkReader {
     fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
-        let (path, _) = self.store.chunk_path(digest);
-        let raw_data = proxmox::tools::fs::file_get_contents(&path)?;
-        let chunk = DataBlob::from_raw(raw_data)?;
-        chunk.verify_crc()?;
-
-        Ok(chunk)
+        self.store.load_chunk(digest)
     }
 
     fn read_chunk(&self, digest: &[u8; 32]) -> Result<Vec<u8>, Error> {
@@ -76,9 +71,9 @@ impl AsyncReadChunk for LocalChunkReader {
             let (path, _) = self.store.chunk_path(digest);
 
             let raw_data = tokio::fs::read(&path).await?;
-            let chunk = DataBlob::from_raw(raw_data)?;
-            chunk.verify_crc()?;
 
+            let chunk = DataBlob::load_from_reader(&mut &raw_data[..])?;
+           
             Ok(chunk)
         })
     }

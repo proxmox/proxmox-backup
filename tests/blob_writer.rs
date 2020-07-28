@@ -50,8 +50,7 @@ fn verify_test_blob(mut cursor: Cursor<Vec<u8>>) -> Result<(), Error> {
 
     let raw_data = cursor.into_inner();
 
-    let blob = DataBlob::from_raw(raw_data)?;
-    blob.verify_crc()?;
+    let blob = DataBlob::load_from_reader(&mut &raw_data[..])?;
 
     let data = blob.decode(Some(&CRYPT_CONFIG))?;
     if data != *TEST_DATA {

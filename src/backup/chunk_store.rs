@@ -184,22 +184,6 @@ impl ChunkStore {
         Ok(true)
     }
 
-    pub fn read_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
-
-        let (chunk_path, digest_str) = self.chunk_path(digest);
-        let mut file = std::fs::File::open(&chunk_path)
-            .map_err(|err| {
-                format_err!(
-                    "store '{}', unable to read chunk '{}' - {}",
-                    self.name,
-                    digest_str,
-                    err,
-                )
-            })?;
-
-        DataBlob::load(&mut file)
-    }
-
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<

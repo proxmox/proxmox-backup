@@ -1037,11 +1037,10 @@ fn upload_backup_log(
             })
             .await?;
 
-        let blob = DataBlob::from_raw(data)?;
-        // always verify CRC at server side
-        blob.verify_crc()?;
-        let raw_data = blob.raw_data();
-        replace_file(&path, raw_data, CreateOptions::new())?;
+        // always verify blob/CRC at server side
+        let blob = DataBlob::load_from_reader(&mut &data[..])?;
+
+        replace_file(&path, blob.raw_data(), CreateOptions::new())?;
 
         // fixme: use correct formatter
         Ok(crate::server::formatter::json_response(Ok(Value::Null)))

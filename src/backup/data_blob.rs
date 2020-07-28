@@ -36,6 +36,11 @@ impl DataBlob {
         &self.raw_data
     }
 
+    /// Returns raw_data size
+    pub fn raw_size(&self) -> u64 {
+        self.raw_data.len() as u64
+    }
+
     /// Consume self and returns raw_data
     pub fn into_inner(self) -> Vec<u8> {
         self.raw_data
@@ -66,8 +71,8 @@ impl DataBlob {
         hasher.finalize()
     }
 
-    /// verify the CRC32 checksum
-    pub fn verify_crc(&self) -> Result<(), Error> {
+    // verify the CRC32 checksum
+    fn verify_crc(&self) -> Result<(), Error> {
         let expected_crc = self.compute_crc();
         if expected_crc != self.crc() {
             bail!("Data blob has wrong CRC checksum.");
@@ -212,13 +217,17 @@ impl DataBlob {
         }
     }
 
-    /// Load blob from ``reader``
-    pub fn load(reader: &mut dyn std::io::Read) -> Result<Self, Error> {
+    /// Load blob from ``reader``, verify CRC
+    pub fn load_from_reader(reader: &mut dyn std::io::Read) -> Result<Self, Error> {
 
         let mut data = Vec::with_capacity(1024*1024);
         reader.read_to_end(&mut data)?;
 
-        Self::from_raw(data)
+        let blob = Self::from_raw(data)?;
+
+        blob.verify_crc()?;
+
+        Ok(blob)
     }
 
     /// Create Instance from raw data
@@ -254,7 +263,7 @@ impl DataBlob {
     /// To do that, we need to decompress data first. Please note that
     /// this is not possible for encrypted chunks. This function simply return Ok
     /// for encrypted chunks.
-    /// Note: This does not call verify_crc
+    /// Note: This does not call verify_crc, because this is usually done in load
     pub fn verify_unencrypted(
         &self,
         expected_chunk_size: usize,

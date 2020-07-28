@@ -174,16 +174,14 @@ async fn pull_snapshot(
             };
         },
     };
-    let tmp_manifest_blob = DataBlob::load(&mut tmp_manifest_file)?;
-    tmp_manifest_blob.verify_crc()?;
+    let tmp_manifest_blob = DataBlob::load_from_reader(&mut tmp_manifest_file)?;
 
     if manifest_name.exists() {
         let manifest_blob = proxmox::try_block!({
             let mut manifest_file = std::fs::File::open(&manifest_name)
                 .map_err(|err| format_err!("unable to open local manifest {:?} - {}", manifest_name, err))?;
 
-            let manifest_blob = DataBlob::load(&mut manifest_file)?;
-            manifest_blob.verify_crc()?;
+            let manifest_blob = DataBlob::load_from_reader(&mut manifest_file)?;
             Ok(manifest_blob)
         }).map_err(|err: Error| {
             format_err!("unable to read local manifest {:?} - {}", manifest_name, err)

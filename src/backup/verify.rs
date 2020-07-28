@@ -10,18 +10,17 @@ use super::{
 
 fn verify_blob(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo) -> Result<(), Error> {
 
-    let (blob, raw_size) = datastore.load_blob(backup_dir, &info.filename)?;
+    let blob = datastore.load_blob(backup_dir, &info.filename)?;
 
-    let csum = openssl::sha::sha256(blob.raw_data());
+    let raw_size = blob.raw_size();    
     if raw_size != info.size {
         bail!("wrong size ({} != {})", info.size, raw_size);
     }
 
+    let csum = openssl::sha::sha256(blob.raw_data());
     if csum != info.csum {
         bail!("wrong index checksum");
     }
-
-    blob.verify_crc()?;
 
     let magic = blob.magic();
 

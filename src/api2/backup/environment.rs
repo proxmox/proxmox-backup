@@ -416,9 +416,8 @@ impl BackupEnvironment {
         let blob_len = data.len();
         let orig_len = data.len(); // fixme:
 
-        let blob = DataBlob::from_raw(data)?;
-        // always verify CRC at server side
-        blob.verify_crc()?;
+        // always verify blob/CRC at server side
+        let blob = DataBlob::load_from_reader(&mut &data[..])?;
 
         let raw_data = blob.raw_data();
         replace_file(&path, raw_data, CreateOptions::new())?;

@@ -42,8 +42,9 @@ impl RemoteChunkReader {
             .download_chunk(&digest, &mut chunk_data)
             .await?;
 
-        let chunk = DataBlob::from_raw(chunk_data)?;
-        chunk.verify_crc()?;
+        let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;
+        
+        // fixme: verify digest?
 
         Ok(chunk)
     }
