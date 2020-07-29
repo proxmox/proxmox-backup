@@ -266,7 +266,7 @@ impl BackupWriter {
         if archive_name != CATALOG_NAME {
             let speed: HumanByte = ((uploaded * 1_000_000) / (duration.as_micros() as usize)).into();
             let uploaded: HumanByte = uploaded.into();
-            println!("{}: had to upload {} of {} in {:.2}s, avgerage speed {}/s).", archive, uploaded, vsize_h, duration.as_secs_f64(), speed);
+            println!("{}: had to upload {} of {} in {:.2}s, average speed {}/s).", archive, uploaded, vsize_h, duration.as_secs_f64(), speed);
         } else {
             println!("Uploaded backup catalog ({})", vsize_h);
         }
