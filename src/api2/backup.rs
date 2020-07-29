@@ -95,16 +95,16 @@ async move {
     }
 
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group).unwrap_or(None);
-    let backup_dir = BackupDir::new_with_group(backup_group, backup_time);
+    let backup_dir = BackupDir::new_with_group(backup_group.clone(), backup_time);
 
     if let Some(last) = &last_backup {
         if backup_dir.backup_time() <= last.backup_dir.backup_time() {
             bail!("backup timestamp is older than last backup.");
         }
-        // fixme: abort if last backup is still running - howto test?
-        // Idea: write upid into a file inside snapshot dir. then test if
-        // it is still running here.
     }
+
+    // lock backup group to only allow one backup per group at a time
+    let _group_guard = backup_group.lock(&datastore.base_path())?;
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
@@ -144,6 +144,9 @@ async move {
             .map(|_| Err(format_err!("task aborted")));
 
         async move {
+            // keep flock until task ends
+            let _group_guard = _group_guard;
+
             let res = select!{
                 req = req_fut => req,
                 abrt = abort_future => abrt,
