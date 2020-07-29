@@ -15,7 +15,7 @@ encryption (AE_). Using :term:`Rust` as the implementation language guarantees h
 performance, low resource usage, and a safe, high-quality codebase.
 
 It features strong client-side encryption. Thus, it's possible to
-backup data to not fully trusted targets.
+backup data to targets that are not fully trusted.
 
 
 Architecture
@@ -23,7 +23,7 @@ Architecture
 
 Proxmox Backup Server uses a `client-server model`_. The server stores the
 backup data and provides an API to create backups and restore data. With the
-API it's also possible to manage disks and other server side resources.
+API, it's also possible to manage disks and other server-side resources.
 
 The backup client uses this API to access the backed up data. With the command
 line tool ``proxmox-backup-client`` you can create backups and restore data.
@@ -32,7 +32,7 @@ For QEMU_ with `Proxmox Virtual Environment`_ we deliver an integrated client.
 A single backup is allowed to contain several archives. For example, when you
 backup a :term:`virtual machine`, each disk is stored as a separate archive
 inside that backup. The VM configuration itself is stored as an extra file.
-This way, it is easy to access and restore only important parts of the backup
+This way, it's easy to access and restore only important parts of the backup,
 without the need to scan the whole backup.
 
 
@@ -44,29 +44,29 @@ Main Features
    :term:`container`\ s.
 
 :Performance: The whole software stack is written in :term:`Rust`,
-   to provide high speed and memory efficiency.
+   in order to provide high speed and memory efficiency.
 
 :Deduplication: Periodic backups produce large amounts of duplicate
-   data. The deduplication layer avoids redundancy and minimizes the used
-   storage space.
+   data. The deduplication layer avoids redundancy and minimizes the storage
+   space used.
 
 :Incremental backups: Changes between backups are typically low. Reading and
-   sending only the delta reduces storage and network impact of backups.
+   sending only the delta reduces the storage and network impact of backups.
 
-:Data Integrity: The built-in `SHA-256`_ checksum algorithm assures the
-   accuracy and consistency of your backups.
+:Data Integrity: The built-in `SHA-256`_ checksum algorithm ensures accuracy and
+   consistency in your backups.
 
 :Remote Sync: It is possible to efficiently synchronize data to remote
    sites. Only deltas containing new data are transferred.
 
-:Compression: The ultra fast Zstandard_ compression is able to compress
+:Compression: The ultra-fast Zstandard_ compression is able to compress
    several gigabytes of data per second.
 
-:Encryption: Backups can be encrypted on the client-side using AES-256 in
+:Encryption: Backups can be encrypted on the client-side, using AES-256 in
    Galois/Counter Mode (GCM_) mode. This authenticated encryption (AE_) mode
    provides very high performance on modern hardware.
 
-:Web interface: Manage the Proxmox Backup Server with the integrated web-based
+:Web interface: Manage the Proxmox Backup Server with the integrated, web-based
    user interface.
 
 :Open Source: No secrets. Proxmox Backup Server is free and open-source
@@ -80,11 +80,11 @@ Reasons for Data Backup?
 ------------------------
 
 The main purpose of a backup is to protect against data loss. Data loss can be
-caused by faulty hardware but also by human error.
+caused by both faulty hardware and human error.
 
 A common mistake is to accidentally delete a file or folder which is still
-required. Virtualization can even amplify this problem; it easily happens that
-a whole virtual machine is deleted by just pressing a single button.
+required. Virtualization can even amplify this problem, as deleting a whole
+virtual machine can be as easy as pressing a single button.
 
 For administrators, backups can serve as a useful toolkit for temporarily
 storing data. For example, it is common practice to perform full backups before
@@ -104,16 +104,16 @@ Software Stack
 
 Proxmox Backup Server consists of multiple components:
 
-* server-daemon providing, among others, a RESTfull API, super-fast
+* A server-daemon providing, among other things, a RESTfull API, super-fast
   asynchronous tasks, lightweight usage statistic collection, scheduling
   events, strict separation of privileged and unprivileged execution
-  environments, ...
-* JavaScript management webinterface
-* management CLI tool for the server (`proxmox-backup-manager`)
-* client CLI tool (`proxmox-backup-client`) to access the server easily from
-  any `Linux amd64` environment.
+  environments
+* A JavaScript management web interface
+* A management CLI tool for the server (`proxmox-backup-manager`)
+* A client CLI tool (`proxmox-backup-client`) to access the server easily from
+  any `Linux amd64` environment
 
-Everything outside of the web interface is written in the Rust programming
+Aside from the web interface, everything is written in the Rust programming
 language.
 
  "The Rust programming language helps you write faster, more reliable software.
