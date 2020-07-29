@@ -272,7 +272,7 @@ fn delete_snapshot(
     let allowed = (user_privs & PRIV_DATASTORE_MODIFY) != 0;
     if !allowed { check_backup_owner(&datastore, snapshot.group(), &username)?; }
 
-    datastore.remove_backup_dir(&snapshot)?;
+    datastore.remove_backup_dir(&snapshot, false)?;
 
     Ok(Value::Null)
 }
@@ -661,7 +661,7 @@ fn prune(
             }));
 
             if !(dry_run || keep) {
-                datastore.remove_backup_dir(&info.backup_dir)?;
+                datastore.remove_backup_dir(&info.backup_dir, true)?;
             }
         }
 

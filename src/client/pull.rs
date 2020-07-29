@@ -277,7 +277,7 @@ pub async fn pull_snapshot_from(
         worker.log(format!("sync snapshot {:?}", snapshot.relative_path()));
 
         if let Err(err) = pull_snapshot(worker, reader, tgt_store.clone(), &snapshot).await {
-            if let Err(cleanup_err) = tgt_store.remove_backup_dir(&snapshot) {
+            if let Err(cleanup_err) = tgt_store.remove_backup_dir(&snapshot, true) {
                 worker.log(format!("cleanup error - {}", cleanup_err));
             }
             return Err(err);
@@ -362,7 +362,7 @@ pub async fn pull_group(
             let backup_time = info.backup_dir.backup_time();
             if remote_snapshots.contains(&backup_time) { continue; }
             worker.log(format!("delete vanished snapshot {:?}", info.backup_dir.relative_path()));
-            tgt_store.remove_backup_dir(&info.backup_dir)?;
+            tgt_store.remove_backup_dir(&info.backup_dir, false)?;
         }
     }
 

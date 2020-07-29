@@ -455,7 +455,7 @@ async fn schedule_datastore_prune() {
                             BackupDir::backup_time_to_string(info.backup_dir.backup_time())));
 
                         if !keep {
-                            datastore.remove_backup_dir(&info.backup_dir)?;
+                            datastore.remove_backup_dir(&info.backup_dir, true)?;
                         }
                     }
                 }

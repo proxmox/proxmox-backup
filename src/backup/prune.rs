@@ -53,7 +53,7 @@ fn remove_incomplete_snapshots(
     let mut keep_unfinished = true;
     for info in list.iter() {
         // backup is considered unfinished if there is no manifest
-        if info.files.iter().any(|name| name == super::MANIFEST_BLOB_NAME) {
+        if info.is_finished() {
             // There is a new finished backup, so there is no need
             // to keep older unfinished backups.
             keep_unfinished = false;

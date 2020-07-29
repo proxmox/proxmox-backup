@@ -479,7 +479,7 @@ impl BackupEnvironment {
         let mut state = self.state.lock().unwrap();
         state.finished = true;
 
-        self.datastore.remove_backup_dir(&self.backup_dir)?;
+        self.datastore.remove_backup_dir(&self.backup_dir, true)?;
 
         Ok(())
     }

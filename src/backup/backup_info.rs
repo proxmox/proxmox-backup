@@ -173,7 +173,7 @@ impl std::str::FromStr for BackupGroup {
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BackupDir {
     /// Backup group
     group: BackupGroup,
@@ -316,6 +316,11 @@ impl BackupInfo {
             })
         })?;
         Ok(list)
+    }
+
+    pub fn is_finished(&self) -> bool {
+        // backup is considered unfinished if there is no manifest
+        self.files.iter().any(|name| name == super::MANIFEST_BLOB_NAME)
     }
 }
 

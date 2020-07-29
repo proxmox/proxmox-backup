@@ -8,7 +8,7 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use chrono::{DateTime, Utc};
 
-use super::backup_info::{BackupGroup, BackupDir};
+use super::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -197,6 +197,20 @@ impl DataStore {
 
         let full_path = self.group_path(backup_group);
 
+        let mut snap_list = backup_group.list_backups(&self.base_path())?;
+        BackupInfo::sort_list(&mut snap_list, false);
+        for snap in snap_list {
+            if snap.is_finished() {
+                break;
+            } else {
+                bail!(
+                    "cannot remove backup group {:?}, contains potentially running backup: {}",
+                    full_path,
+                    snap.backup_dir
+                );
+            }
+        }
+
         log::info!("removing backup group {:?}", full_path);
         std::fs::remove_dir_all(&full_path)
             .map_err(|err| {
@@ -211,9 +225,34 @@ impl DataStore {
     }
 
     /// Remove a backup directory including all content
-    pub fn remove_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(), Error> {
+    pub fn remove_backup_dir(&self, backup_dir: &BackupDir, force: bool) ->  Result<(), Error> {
 
         let full_path = self.snapshot_path(backup_dir);
+
+        if !force {
+            let mut snap_list = backup_dir.group().list_backups(&self.base_path())?;
+            BackupInfo::sort_list(&mut snap_list, false);
+            let mut prev_snap_finished = true;
+            for snap in snap_list {
+                let cur_snap_finished = snap.is_finished();
+                if &snap.backup_dir == backup_dir {
+                    if !cur_snap_finished {
+                        bail!(
+                            "cannot remove currently running snapshot: {:?}",
+                            backup_dir
+                        );
+                    }
+                    if !prev_snap_finished {
+                        bail!(
+                            "cannot remove snapshot {:?}, successor is currently running and potentially based on it",
+                            backup_dir
+                        );
+                    }
+                    break;
+                }
+                prev_snap_finished = cur_snap_finished;
+            }
+        }
 
         log::info!("removing backup snapshot {:?}", full_path);
         std::fs::remove_dir_all(&full_path)
