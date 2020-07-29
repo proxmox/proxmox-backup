@@ -660,6 +660,7 @@ fn download_previous(
             };
             if let Some(index) = index {
                 env.log(format!("register chunks in '{}' from previous backup.", archive_name));
+                env.register_base_snapshot(last_backup.backup_dir.clone());
 
                 for pos in 0..index.index_count() {
                     let info = index.chunk_info(pos).unwrap();

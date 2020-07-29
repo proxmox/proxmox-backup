@@ -1,6 +1,6 @@
 use anyhow::{bail, Error};
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
 
@@ -57,6 +57,7 @@ struct SharedBackupState {
     dynamic_writers: HashMap<usize, DynamicWriterState>,
     fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
+    base_snapshots: HashSet<BackupDir>,
 }
 
 impl SharedBackupState {
@@ -108,6 +109,7 @@ impl BackupEnvironment {
             dynamic_writers: HashMap::new(),
             fixed_writers: HashMap::new(),
             known_chunks: HashMap::new(),
+            base_snapshots: HashSet::new(),
         };
 
         Self {
@@ -122,6 +124,13 @@ impl BackupEnvironment {
             last_backup: None,
             state: Arc::new(Mutex::new(state)),
         }
+    }
+
+    /// Register a snapshot as a predecessor of the current backup.
+    /// It's existance will be ensured on finishing.
+    pub fn register_base_snapshot(&self, snap: BackupDir) {
+        let mut state = self.state.lock().unwrap();
+        state.base_snapshots.insert(snap);
     }
 
     /// Register a Chunk with associated length.
@@ -443,6 +452,16 @@ impl BackupEnvironment {
 
         if state.file_counter == 0 {
             bail!("backup does not contain valid files (file count == 0)");
+        }
+
+        for snap in &state.base_snapshots {
+            let path = self.datastore.snapshot_path(snap);
+            if !path.exists() {
+                bail!(
+                    "base snapshot {} was removed during backup, cannot finish as chunks might be missing",
+                    snap
+                );
+            }
         }
 
         state.finished = true;
