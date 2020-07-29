@@ -91,6 +91,9 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
 
 /// Create a file lock using fntl. This function allows you to specify
 /// a timeout if you want to avoid infinite blocking.
+///
+/// With timeout set to 0, non-blocking mode is used and the function
+/// will fail immediately if the lock can't be acquired.
 pub fn lock_file<F: AsRawFd>(
     file: &mut F,
     exclusive: bool,
@@ -109,6 +112,16 @@ pub fn lock_file<F: AsRawFd>(
         }
         Some(t) => t,
     };
+
+    if timeout.as_nanos() == 0 {
+        let lockarg = if exclusive {
+            nix::fcntl::FlockArg::LockExclusiveNonblock
+        } else {
+            nix::fcntl::FlockArg::LockSharedNonblock
+        };
+        nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+        return Ok(());
+    }
 
     // unblock the timeout signal temporarily
     let _sigblock_guard = timer::unblock_timeout_signal();
