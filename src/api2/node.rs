@@ -2,10 +2,7 @@ use std::net::TcpListener;
 use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
-use futures::{
-    future::{FutureExt, TryFutureExt},
-    select,
-};
+use futures::future::{FutureExt, TryFutureExt};
 use hyper::body::Body;
 use hyper::http::request::Parts;
 use hyper::upgrade::Upgraded;
@@ -172,7 +169,6 @@ async fn termproxy(
             let mut cmd = tokio::process::Command::new("/usr/bin/termproxy");
 
             cmd.args(&arguments)
-                .kill_on_drop(true)
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped());
 
@@ -199,8 +195,9 @@ async fn termproxy(
                 Ok::<(), Error>(())
             };
 
-            select!{
-                res = child.fuse() => {
+            let mut needs_kill = false;
+            let res = tokio::select!{
+                res = &mut child => {
                     let exit_code = res?;
                     if !exit_code.success() {
                         match exit_code.code() {
@@ -210,10 +207,29 @@ async fn termproxy(
                     }
                     Ok(())
                 },
-                res = stdout_fut.fuse() => res,
-                res = stderr_fut.fuse() => res,
-                res = worker.abort_future().fuse() => res.map_err(Error::from),
+                res = stdout_fut => res,
+                res = stderr_fut => res,
+                res = worker.abort_future() => {
+                    needs_kill = true;
+                    res.map_err(Error::from)
+                }
+            };
+
+            if needs_kill {
+                if res.is_ok() {
+                    child.kill()?;
+                    child.await?;
+                    return Ok(());
+                }
+
+                if let Err(err) = child.kill() {
+                    worker.warn(format!("error killing termproxy: {}", err));
+                } else if let Err(err) = child.await {
+                    worker.warn(format!("error awaiting termproxy: {}", err));
+                }
             }
+
+            res
         },
     )?;
 
