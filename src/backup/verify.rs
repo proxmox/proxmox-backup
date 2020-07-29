@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Error};
 
 use crate::server::WorkerTask;
@@ -12,7 +14,7 @@ fn verify_blob(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo) -
 
     let blob = datastore.load_blob(backup_dir, &info.filename)?;
 
-    let raw_size = blob.raw_size();    
+    let raw_size = blob.raw_size();
     if raw_size != info.size {
         bail!("wrong size ({} != {})", info.size, raw_size);
     }
@@ -36,6 +38,7 @@ fn verify_blob(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo) -
 fn verify_index_chunks(
     datastore: &DataStore,
     index: Box<dyn IndexFile>,
+    verified_chunks: &mut HashSet<[u8;32]>,
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
@@ -45,13 +48,23 @@ fn verify_index_chunks(
 
         let info = index.chunk_info(pos).unwrap();
         let size = info.range.end - info.range.start;
-        datastore.verify_stored_chunk(&info.digest, size)?;
+
+        if !verified_chunks.contains(&info.digest) {
+            datastore.verify_stored_chunk(&info.digest, size)?;
+            verified_chunks.insert(info.digest);
+        }
     }
 
     Ok(())
 }
 
-fn verify_fixed_index(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo, worker: &WorkerTask) -> Result<(), Error> {
+fn verify_fixed_index(
+    datastore: &DataStore,
+    backup_dir: &BackupDir,
+    info: &FileInfo,
+    verified_chunks: &mut HashSet<[u8;32]>,
+    worker: &WorkerTask,
+) -> Result<(), Error> {
 
     let mut path = backup_dir.relative_path();
     path.push(&info.filename);
@@ -67,10 +80,17 @@ fn verify_fixed_index(datastore: &DataStore, backup_dir: &BackupDir, info: &File
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, worker)
 }
 
-fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo, worker: &WorkerTask) -> Result<(), Error> {
+fn verify_dynamic_index(
+    datastore: &DataStore,
+    backup_dir: &BackupDir,
+    info: &FileInfo,
+    verified_chunks: &mut HashSet<[u8;32]>,
+    worker: &WorkerTask,
+) -> Result<(), Error> {
+
     let mut path = backup_dir.relative_path();
     path.push(&info.filename);
 
@@ -85,7 +105,7 @@ fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &Fi
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, worker)
 }
 
 /// Verify a single backup snapshot
@@ -97,7 +117,12 @@ fn verify_dynamic_index(datastore: &DataStore, backup_dir: &BackupDir, info: &Fi
 /// - Ok(true) if verify is successful
 /// - Ok(false) if there were verification errors
 /// - Err(_) if task was aborted
-pub fn verify_backup_dir(datastore: &DataStore, backup_dir: &BackupDir, worker: &WorkerTask) -> Result<bool, Error> {
+pub fn verify_backup_dir(
+    datastore: &DataStore,
+    backup_dir: &BackupDir,
+    verified_chunks: &mut HashSet<[u8;32]>,
+    worker: &WorkerTask
+) -> Result<bool, Error> {
 
     let manifest = match datastore.load_manifest(&backup_dir) {
         Ok((manifest, _crypt_mode, _)) => manifest,
@@ -115,8 +140,8 @@ pub fn verify_backup_dir(datastore: &DataStore, backup_dir: &BackupDir, worker: 
         let result = proxmox::try_block!({
             worker.log(format!("  check {}", info.filename));
             match archive_type(&info.filename)? {
-                ArchiveType::FixedIndex => verify_fixed_index(&datastore, &backup_dir, info, worker),
-                ArchiveType::DynamicIndex => verify_dynamic_index(&datastore, &backup_dir, info, worker),
+                ArchiveType::FixedIndex => verify_fixed_index(&datastore, &backup_dir, info, verified_chunks, worker),
+                ArchiveType::DynamicIndex => verify_dynamic_index(&datastore, &backup_dir, info, verified_chunks, worker),
                 ArchiveType::Blob => verify_blob(&datastore, &backup_dir, info),
             }
         });
@@ -154,9 +179,11 @@ pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &
 
     let mut error_count = 0;
 
+    let mut verified_chunks = HashSet::with_capacity(1024*16); // start with 16384 chunks (up to 65GB)
+
     BackupInfo::sort_list(&mut list, false); // newest first
     for info in list {
-        if !verify_backup_dir(datastore, &info.backup_dir, worker)? {
+        if !verify_backup_dir(datastore, &info.backup_dir, &mut verified_chunks, worker)? {
             error_count += 1;
         }
     }

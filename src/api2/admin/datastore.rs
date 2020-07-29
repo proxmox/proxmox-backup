@@ -475,7 +475,8 @@ pub fn verify(
         "verify", Some(worker_id.clone()), &username, to_stdout, move |worker|
         {
             let success = if let Some(backup_dir) = backup_dir {
-                verify_backup_dir(&datastore, &backup_dir, &worker)?
+                let mut verified_chunks = HashSet::with_capacity(1024*16);
+                verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &worker)?
             } else if let Some(backup_group) = backup_group {
                 verify_backup_group(&datastore, &backup_group, &worker)?
             } else {
