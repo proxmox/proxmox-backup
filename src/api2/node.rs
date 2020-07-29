@@ -28,15 +28,17 @@ use crate::tools;
 
 pub mod disks;
 pub mod dns;
-mod journal;
 pub mod network;
+pub mod tasks;
+
 pub(crate) mod rrd;
+
+mod apt;
+mod journal;
 mod services;
 mod status;
 mod subscription;
-mod apt;
 mod syslog;
-pub mod tasks;
 mod time;
 
 pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
