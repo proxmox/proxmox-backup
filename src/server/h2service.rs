@@ -44,7 +44,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         let (path, components) = match tools::normalize_uri_path(parts.uri.path()) {
             Ok((p,c)) => (p, c),
-            Err(err) => return future::err(http_err!(BAD_REQUEST, err.to_string())).boxed(),
+            Err(err) => return future::err(http_err!(BAD_REQUEST, "{}", err)).boxed(),
         };
 
         self.debug(format!("{} {}", method, path));
@@ -55,7 +55,7 @@ impl <E: RpcEnvironment + Clone> H2Service<E> {
 
         match self.router.find_method(&components, method, &mut uri_param) {
             None => {
-                let err = http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string());
+                let err = http_err!(NOT_FOUND, "Path '{}' not found.", path);
                 future::ok((formatter.format_error)(err)).boxed()
             }
             Some(api_method) => {

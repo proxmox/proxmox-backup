@@ -225,8 +225,8 @@ fn download_chunk(
         env.debug(format!("download chunk {:?}", path));
 
         let data = tokio::fs::read(path)
-            .map_err(move |err| http_err!(BAD_REQUEST, format!("reading file {:?} failed: {}", path2, err)))
-            .await?;
+            .await
+            .map_err(move |err| http_err!(BAD_REQUEST, "reading file {:?} failed: {}", path2, err))?;
 
         let body = Body::from(data);
 
@@ -260,7 +260,7 @@ fn download_chunk_old(
     let path3 = path.clone();
 
     let response_future = tokio::fs::File::open(path)
-        .map_err(move |err| http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path2, err)))
+        .map_err(move |err| http_err!(BAD_REQUEST, "open file {:?} failed: {}", path2, err))
         .and_then(move |file| {
             env2.debug(format!("download chunk {:?}", path3));
             let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())

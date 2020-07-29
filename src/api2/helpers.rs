@@ -1,18 +1,19 @@
 use std::path::PathBuf;
+
 use anyhow::Error;
-use futures::*;
+use futures::stream::TryStreamExt;
 use hyper::{Body, Response, StatusCode, header};
-use proxmox::http_err;
+
+use proxmox::http_bail;
 
 pub async fn create_download_response(path: PathBuf) -> Result<Response<Body>, Error> {
-    let file = tokio::fs::File::open(path.clone())
-        .map_err(move |err| {
-            match err.kind() {
-                std::io::ErrorKind::NotFound => http_err!(NOT_FOUND, format!("open file {:?} failed - not found", path.clone())),
-                _ => http_err!(BAD_REQUEST, format!("open file {:?} failed: {}", path.clone(), err)),
-            }
-        })
-        .await?;
+    let file = match tokio::fs::File::open(path.clone()).await {
+        Ok(file) => file,
+        Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
+            http_bail!(NOT_FOUND, "open file {:?} failed - not found", path);
+        }
+        Err(err) => http_bail!(BAD_REQUEST, "open file {:?} failed: {}", path, err),
+    };
 
     let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
         .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));

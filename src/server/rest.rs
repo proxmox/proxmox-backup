@@ -204,13 +204,13 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
     }
 
     let body = req_body
-        .map_err(|err| http_err!(BAD_REQUEST, format!("Promlems reading request body: {}", err)))
+        .map_err(|err| http_err!(BAD_REQUEST, "Promlems reading request body: {}", err))
         .try_fold(Vec::new(), |mut acc, chunk| async move {
             if acc.len() + chunk.len() < 64*1024 { //fimxe: max request body size?
                 acc.extend_from_slice(&*chunk);
                 Ok(acc)
             } else {
-                Err(http_err!(BAD_REQUEST, "Request body too large".to_string()))
+                Err(http_err!(BAD_REQUEST, "Request body too large"))
             }
         }).await?;
 
@@ -392,12 +392,12 @@ async fn simple_static_file_download(filename: PathBuf) -> Result<Response<Body>
 
     let mut file = File::open(filename)
         .await
-        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))?;
+        .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
     let mut data: Vec<u8> = Vec::new();
     file.read_to_end(&mut data)
         .await
-        .map_err(|err| http_err!(BAD_REQUEST, format!("File read failed: {}", err)))?;
+        .map_err(|err| http_err!(BAD_REQUEST, "File read failed: {}", err))?;
 
     let mut response = Response::new(data.into());
     response.headers_mut().insert(
@@ -411,7 +411,7 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
 
     let file = File::open(filename)
         .await
-        .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))?;
+        .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
     let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
         .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
@@ -429,7 +429,7 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
 async fn handle_static_file_download(filename: PathBuf) ->  Result<Response<Body>, Error> {
 
     let metadata = tokio::fs::metadata(filename.clone())
-        .map_err(|err| http_err!(BAD_REQUEST, format!("File access problems: {}", err)))
+        .map_err(|err| http_err!(BAD_REQUEST, "File access problems: {}", err))
         .await?;
 
     if metadata.len() < 1024*32 {
@@ -535,7 +535,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                     Ok(username) => rpcenv.set_user(Some(username)),
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
-                        let err = http_err!(UNAUTHORIZED, format!("authentication failed - {}", err));
+                        let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
@@ -544,13 +544,13 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
 
             match api.find_method(&components[2..], method, &mut uri_param) {
                 None => {
-                    let err = http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string());
+                    let err = http_err!(NOT_FOUND, "Path '{}' not found.", path);
                     return Ok((formatter.format_error)(err));
                 }
                 Some(api_method) => {
                     let user = rpcenv.get_user();
                     if !check_api_permission(api_method.access.permission, user.as_deref(), &uri_param, user_info.as_ref()) {
-                        let err = http_err!(FORBIDDEN, format!("permission check failed"));
+                        let err = http_err!(FORBIDDEN, "permission check failed");
                         tokio::time::delay_until(Instant::from_std(access_forbidden_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
@@ -598,5 +598,5 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
         }
     }
 
-    Err(http_err!(NOT_FOUND, format!("Path '{}' not found.", path).to_string()))
+    Err(http_err!(NOT_FOUND, "Path '{}' not found.", path))
 }

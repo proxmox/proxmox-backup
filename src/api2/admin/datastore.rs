@@ -846,8 +846,8 @@ fn download_file(
         path.push(&file_name);
 
         let file = tokio::fs::File::open(&path)
-            .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))
-            .await?;
+            .await
+            .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
         let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
             .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()))
@@ -954,7 +954,7 @@ fn download_file_decoded(
             },
             "blob" => {
                 let file = std::fs::File::open(&path)
-                    .map_err(|err| http_err!(BAD_REQUEST, format!("File open failed: {}", err)))?;
+                    .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
                 Body::wrap_stream(
                     WrappedReaderStream::new(DataBlobReader::new(file, None)?)
