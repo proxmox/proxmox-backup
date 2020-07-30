@@ -198,22 +198,20 @@ pub fn verify_backup_dir(
 /// Errors are logged to the worker log.
 ///
 /// Returns
-/// - Ok(true) if verify is successful
-/// - Ok(false) if there were verification errors
+/// - Ok(failed_dirs) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &WorkerTask) -> Result<bool, Error> {
+pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &WorkerTask) -> Result<Vec<String>, Error> {
 
+    let mut errors = Vec::new();
     let mut list = match group.list_backups(&datastore.base_path()) {
         Ok(list) => list,
         Err(err) => {
             worker.log(format!("verify group {}:{} - unable to list backups: {}", datastore.name(), group, err));
-            return Ok(false);
+            return Ok(errors);
         }
     };
 
     worker.log(format!("verify group {}:{}", datastore.name(), group));
-
-    let mut error_count = 0;
 
     let mut verified_chunks = HashSet::with_capacity(1024*16); // start with 16384 chunks (up to 65GB)
     let mut corrupt_chunks = HashSet::with_capacity(64); // start with 64 chunks since we assume there are few corrupt ones
@@ -221,11 +219,11 @@ pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &
     BackupInfo::sort_list(&mut list, false); // newest first
     for info in list {
         if !verify_backup_dir(datastore, &info.backup_dir, &mut verified_chunks, &mut corrupt_chunks, worker)?{
-            error_count += 1;
+            errors.push(info.backup_dir.to_string());
         }
     }
 
-    Ok(error_count == 0)
+    Ok(errors)
 }
 
 /// Verify all backups inside a datastore
@@ -233,27 +231,26 @@ pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &
 /// Errors are logged to the worker log.
 ///
 /// Returns
-/// - Ok(true) if verify is successful
-/// - Ok(false) if there were verification errors
+/// - Ok(failed_dirs) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_all_backups(datastore: &DataStore, worker: &WorkerTask) -> Result<bool, Error> {
+pub fn verify_all_backups(datastore: &DataStore, worker: &WorkerTask) -> Result<Vec<String>, Error> {
+
+    let mut errors = Vec::new();
 
     let list = match BackupGroup::list_groups(&datastore.base_path()) {
         Ok(list) => list,
         Err(err) => {
             worker.log(format!("verify datastore {} - unable to list backups: {}", datastore.name(), err));
-            return Ok(false);
+            return Ok(errors);
         }
     };
 
     worker.log(format!("verify datastore {}", datastore.name()));
 
-    let mut error_count = 0;
     for group in list {
-        if !verify_backup_group(datastore, &group, worker)? {
-            error_count += 1;
-        }
+        let mut group_errors = verify_backup_group(datastore, &group, worker)?;
+        errors.append(&mut group_errors);
     }
 
-    Ok(error_count == 0)
+    Ok(errors)
 }

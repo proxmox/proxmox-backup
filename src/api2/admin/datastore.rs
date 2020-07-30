@@ -474,16 +474,24 @@ pub fn verify(
     let upid_str = WorkerTask::new_thread(
         "verify", Some(worker_id.clone()), &username, to_stdout, move |worker|
         {
-            let success = if let Some(backup_dir) = backup_dir {
+            let failed_dirs = if let Some(backup_dir) = backup_dir {
                 let mut verified_chunks = HashSet::with_capacity(1024*16);
                 let mut corrupt_chunks = HashSet::with_capacity(64);
-                verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &mut corrupt_chunks, &worker)?
+                let mut res = Vec::new();
+                if !verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &mut corrupt_chunks, &worker)? {
+                    res.push(backup_dir.to_string());
+                }
+                res
             } else if let Some(backup_group) = backup_group {
                 verify_backup_group(&datastore, &backup_group, &worker)?
             } else {
                 verify_all_backups(&datastore, &worker)?
             };
-            if !success {
+            if failed_dirs.len() > 0 {
+                worker.log("Failed to verify following snapshots:");
+                for dir in failed_dirs {
+                    worker.log(format!("\t{}", dir));
+                }
                 bail!("verfication failed - please check the log for details");
             }
             Ok(())
