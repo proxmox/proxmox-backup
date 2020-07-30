@@ -42,6 +42,7 @@ fn verify_index_chunks(
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
+    let mut errors = 0;
     for pos in 0..index.index_count() {
 
         worker.fail_on_abort()?;
@@ -50,9 +51,17 @@ fn verify_index_chunks(
         let size = info.range.end - info.range.start;
 
         if !verified_chunks.contains(&info.digest) {
-            datastore.verify_stored_chunk(&info.digest, size)?;
-            verified_chunks.insert(info.digest);
+            if let Err(err) = datastore.verify_stored_chunk(&info.digest, size) {
+                worker.log(format!("{}", err));
+                errors += 1;
+            } else {
+                verified_chunks.insert(info.digest);
+            }
         }
+    }
+
+    if errors > 0 {
+        bail!("chunks could not be verified");
     }
 
     Ok(())
