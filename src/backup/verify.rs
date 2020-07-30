@@ -39,6 +39,7 @@ fn verify_index_chunks(
     datastore: &DataStore,
     index: Box<dyn IndexFile>,
     verified_chunks: &mut HashSet<[u8;32]>,
+    corrupt_chunks: &mut HashSet<[u8; 32]>,
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
@@ -51,11 +52,18 @@ fn verify_index_chunks(
         let size = info.range.end - info.range.start;
 
         if !verified_chunks.contains(&info.digest) {
-            if let Err(err) = datastore.verify_stored_chunk(&info.digest, size) {
-                worker.log(format!("{}", err));
-                errors += 1;
+            if !corrupt_chunks.contains(&info.digest) {
+                if let Err(err) = datastore.verify_stored_chunk(&info.digest, size) {
+                    corrupt_chunks.insert(info.digest);
+                    worker.log(format!("{}", err));
+                    errors += 1;
+                } else {
+                    verified_chunks.insert(info.digest);
+                }
             } else {
-                verified_chunks.insert(info.digest);
+                let digest_str = proxmox::tools::digest_to_hex(&info.digest);
+                worker.log(format!("chunk {} was marked as corrupt", digest_str));
+                errors += 1;
             }
         }
     }
@@ -72,6 +80,7 @@ fn verify_fixed_index(
     backup_dir: &BackupDir,
     info: &FileInfo,
     verified_chunks: &mut HashSet<[u8;32]>,
+    corrupt_chunks: &mut HashSet<[u8;32]>,
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
@@ -89,7 +98,7 @@ fn verify_fixed_index(
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), verified_chunks, worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, worker)
 }
 
 fn verify_dynamic_index(
@@ -97,6 +106,7 @@ fn verify_dynamic_index(
     backup_dir: &BackupDir,
     info: &FileInfo,
     verified_chunks: &mut HashSet<[u8;32]>,
+    corrupt_chunks: &mut HashSet<[u8;32]>,
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
@@ -114,7 +124,7 @@ fn verify_dynamic_index(
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), verified_chunks, worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, worker)
 }
 
 /// Verify a single backup snapshot
@@ -130,6 +140,7 @@ pub fn verify_backup_dir(
     datastore: &DataStore,
     backup_dir: &BackupDir,
     verified_chunks: &mut HashSet<[u8;32]>,
+    corrupt_chunks: &mut HashSet<[u8;32]>,
     worker: &WorkerTask
 ) -> Result<bool, Error> {
 
@@ -149,8 +160,24 @@ pub fn verify_backup_dir(
         let result = proxmox::try_block!({
             worker.log(format!("  check {}", info.filename));
             match archive_type(&info.filename)? {
-                ArchiveType::FixedIndex => verify_fixed_index(&datastore, &backup_dir, info, verified_chunks, worker),
-                ArchiveType::DynamicIndex => verify_dynamic_index(&datastore, &backup_dir, info, verified_chunks, worker),
+                ArchiveType::FixedIndex =>
+                    verify_fixed_index(
+                        &datastore,
+                        &backup_dir,
+                        info,
+                        verified_chunks,
+                        corrupt_chunks,
+                        worker
+                    ),
+                ArchiveType::DynamicIndex =>
+                    verify_dynamic_index(
+                        &datastore,
+                        &backup_dir,
+                        info,
+                        verified_chunks,
+                        corrupt_chunks,
+                        worker
+                    ),
                 ArchiveType::Blob => verify_blob(&datastore, &backup_dir, info),
             }
         });
@@ -189,10 +216,11 @@ pub fn verify_backup_group(datastore: &DataStore, group: &BackupGroup, worker: &
     let mut error_count = 0;
 
     let mut verified_chunks = HashSet::with_capacity(1024*16); // start with 16384 chunks (up to 65GB)
+    let mut corrupt_chunks = HashSet::with_capacity(64); // start with 64 chunks since we assume there are few corrupt ones
 
     BackupInfo::sort_list(&mut list, false); // newest first
     for info in list {
-        if !verify_backup_dir(datastore, &info.backup_dir, &mut verified_chunks, worker)? {
+        if !verify_backup_dir(datastore, &info.backup_dir, &mut verified_chunks, &mut corrupt_chunks, worker)?{
             error_count += 1;
         }
     }

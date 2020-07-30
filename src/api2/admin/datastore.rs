@@ -476,7 +476,8 @@ pub fn verify(
         {
             let success = if let Some(backup_dir) = backup_dir {
                 let mut verified_chunks = HashSet::with_capacity(1024*16);
-                verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &worker)?
+                let mut corrupt_chunks = HashSet::with_capacity(64);
+                verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &mut corrupt_chunks, &worker)?
             } else if let Some(backup_group) = backup_group {
                 verify_backup_group(&datastore, &backup_group, &worker)?
             } else {
