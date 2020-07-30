@@ -27,6 +27,7 @@ pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
     destination: &Path,
     match_list: &[MatchEntry],
+    extract_match_default: bool,
     feature_flags: Flags,
     allow_existing_dirs: bool,
     mut callback: F,
@@ -69,7 +70,7 @@ where
     );
 
     let mut match_stack = Vec::new();
-    let mut current_match = true;
+    let mut current_match = extract_match_default;
     while let Some(entry) = decoder.next() {
         use pxar::EntryKind;
 

@@ -1375,6 +1375,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 pxar::decoder::Decoder::from_std(reader)?,
                 Path::new(target),
                 &[],
+                true,
                 proxmox_backup::pxar::Flags::DEFAULT,
                 allow_existing_dirs,
                 |path| {

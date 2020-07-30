@@ -24,11 +24,13 @@ fn extract_archive_from_reader<R: std::io::Read>(
     allow_existing_dirs: bool,
     verbose: bool,
     match_list: &[MatchEntry],
+    extract_match_default: bool,
 ) -> Result<(), Error> {
     proxmox_backup::pxar::extract_archive(
         pxar::decoder::Decoder::from_std(reader)?,
         Path::new(target),
         &match_list,
+        extract_match_default,
         feature_flags,
         allow_existing_dirs,
         |path| {
@@ -162,6 +164,8 @@ fn extract_archive(
         );
     }
 
+    let extract_match_default = match_list.is_empty();
+
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
@@ -172,6 +176,7 @@ fn extract_archive(
             allow_existing_dirs,
             verbose,
             &match_list,
+            extract_match_default,
         )?;
     } else {
         if verbose {
@@ -186,6 +191,7 @@ fn extract_archive(
             allow_existing_dirs,
             verbose,
             &match_list,
+            extract_match_default,
         )?;
     }
 
