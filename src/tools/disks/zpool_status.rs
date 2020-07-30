@@ -67,6 +67,19 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
     }
 
     let (i, state) = preceded(multispace1, notspace1)(i)?;
+    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // spares
+        let vdev = ZFSPoolVDevState {
+            name: vdev_name.to_string(),
+            lvl: indent_level,
+            state: Some(state.to_string()),
+            read: None,
+            write: None,
+            cksum: None,
+            msg: None,
+        };
+        return Ok((n, vdev));
+    }
+
     let (i, read) = preceded(multispace1, parse_u64)(i)?;
     let (i, write) = preceded(multispace1, parse_u64)(i)?;
     let (i, cksum) = preceded(multispace1, parse_u64)(i)?;
