@@ -8,7 +8,7 @@ use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use chrono::{DateTime, Utc};
 
-use super::backup_info::{BackupGroup, BackupDir, BackupInfo};
+use super::backup_info::{BackupGroup, BackupGroupGuard, BackupDir, BackupInfo};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -318,11 +318,13 @@ impl DataStore {
         Ok(())
     }
 
-    /// Create a backup group if it does not already exists.
+    /// Create (if it does not already exists) and lock a backup group
     ///
     /// And set the owner to 'userid'. If the group already exists, it returns the
     /// current owner (instead of setting the owner).
-    pub fn create_backup_group(&self, backup_group: &BackupGroup, userid: &str) -> Result<String, Error> {
+    ///
+    /// This also aquires an exclusive lock on the directory and returns the lock guard.
+    pub fn create_locked_backup_group(&self, backup_group: &BackupGroup, userid: &str) -> Result<(String, BackupGroupGuard), Error> {
 
         // create intermediate path first:
         let base_path = self.base_path();
@@ -336,13 +338,15 @@ impl DataStore {
         // create the last component now
         match std::fs::create_dir(&full_path) {
             Ok(_) => {
+                let guard = backup_group.lock(&base_path)?;
                 self.set_owner(backup_group, userid, false)?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
-                Ok(owner)
+                Ok((owner, guard))
             }
             Err(ref err) if err.kind() == io::ErrorKind::AlreadyExists => {
+                let guard = backup_group.lock(&base_path)?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
-                Ok(owner)
+                Ok((owner, guard))
             }
             Err(err) => bail!("unable to create backup group {:?} - {}", full_path, err),
         }

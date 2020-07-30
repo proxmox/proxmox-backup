@@ -88,7 +88,10 @@ async move {
     let env_type = rpcenv.env_type();
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
-    let owner = datastore.create_backup_group(&backup_group, &username)?;
+
+    // lock backup group to only allow one backup per group at a time
+    let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &username)?;
+
     // permission check
     if owner != username { // only the owner is allowed to create additional snapshots
         bail!("backup owner check failed ({} != {})", username, owner);
@@ -102,9 +105,6 @@ async move {
             bail!("backup timestamp is older than last backup.");
         }
     }
-
-    // lock backup group to only allow one backup per group at a time
-    let _group_guard = backup_group.lock(&datastore.base_path())?;
 
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }

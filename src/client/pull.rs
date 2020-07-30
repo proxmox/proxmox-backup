@@ -406,7 +406,7 @@ pub async fn pull_store(
     for item in list {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
-        let owner = tgt_store.create_backup_group(&group, &username)?;
+        let (owner, _lock_guard) = tgt_store.create_locked_backup_group(&group, &username)?;
         // permission check
         if owner != username { // only the owner is allowed to create additional snapshots
             worker.log(format!("sync group {}/{} failed - owner check failed ({} != {})",
