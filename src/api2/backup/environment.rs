@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use std::sync::{Arc, Mutex};
 use std::collections::{HashMap, HashSet};
 
@@ -454,6 +454,13 @@ impl BackupEnvironment {
             bail!("backup does not contain valid files (file count == 0)");
         }
 
+        state.finished = true;
+
+        // check manifest
+        let _manifest = self.datastore.load_manifest(&self.backup_dir)
+            .map_err(|err| format_err!("unable to load manifest blob - {}", err))?;
+
+
         for snap in &state.base_snapshots {
             let path = self.datastore.snapshot_path(snap);
             if !path.exists() {
@@ -464,7 +471,6 @@ impl BackupEnvironment {
             }
         }
 
-        state.finished = true;
 
         Ok(())
     }
