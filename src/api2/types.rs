@@ -431,6 +431,9 @@ pub struct SnapshotListItem {
     pub backup_type: String, // enum
     pub backup_id: String,
     pub backup_time: i64,
+    /// The first line from manifest "notes"
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub comment: Option<String>,
     /// List of contained archive files.
     pub files: Vec<BackupContent>,
     /// Overall snapshot size (sum of all archive sizes).

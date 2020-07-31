@@ -44,7 +44,7 @@ fn check_backup_owner(store: &DataStore, group: &BackupGroup, userid: &str) -> R
     Ok(())
 }
 
-fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
+fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
 
     let (manifest, index_size) = store.load_manifest(backup_dir)?;
 
@@ -63,14 +63,15 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
         size: Some(index_size),
     });
 
-    Ok(result)
+    Ok((manifest, result))
 }
 
 fn get_all_snapshot_files(
     store: &DataStore,
     info: &BackupInfo,
-) -> Result<Vec<BackupContent>, Error> {
-    let mut files = read_backup_index(&store, &info.backup_dir)?;
+) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
+
+    let (manifest, mut files) = read_backup_index(&store, &info.backup_dir)?;
 
     let file_set = files.iter().fold(HashSet::new(), |mut acc, item| {
         acc.insert(item.filename.clone());
@@ -86,7 +87,7 @@ fn get_all_snapshot_files(
         });
     }
 
-    Ok(files)
+    Ok((manifest, files))
 }
 
 fn group_backups(backup_list: Vec<BackupInfo>) -> HashMap<String, Vec<BackupInfo>> {
@@ -224,7 +225,9 @@ pub fn list_snapshot_files(
 
     let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
 
-    get_all_snapshot_files(&datastore, &info)
+    let (_manifest, files) = get_all_snapshot_files(&datastore, &info)?;
+
+    Ok(files)
 }
 
 #[api(
@@ -347,22 +350,31 @@ pub fn list_snapshots (
 
         let mut size = None;
 
-        let files = match get_all_snapshot_files(&datastore, &info) {
-            Ok(files) => {
+        let (comment, files) = match get_all_snapshot_files(&datastore, &info) {
+            Ok((manifest, files)) => {
                 size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
-                files
+                // extract the first line from notes
+                let comment: Option<String> = manifest.unprotected["notes"]
+                    .as_str()
+                    .and_then(|notes| notes.lines().next())
+                    .map(String::from);
+
+                (comment, files)
             },
             Err(err) => {
                 eprintln!("error during snapshot file listing: '{}'", err);
-                info
-                    .files
-                    .iter()
-                    .map(|x| BackupContent {
-                        filename: x.to_string(),
-                        size: None,
-                        crypt_mode: None,
-                    })
-                    .collect()
+                (
+                    None,
+                    info
+                        .files
+                        .iter()
+                        .map(|x| BackupContent {
+                            filename: x.to_string(),
+                            size: None,
+                            crypt_mode: None,
+                        })
+                        .collect()
+                )
             },
         };
 
@@ -370,6 +382,7 @@ pub fn list_snapshots (
             backup_type: group.backup_type().to_string(),
             backup_id: group.backup_id().to_string(),
             backup_time: info.backup_dir.backup_time().timestamp(),
+            comment,
             files,
             size,
             owner: Some(owner),
@@ -922,7 +935,7 @@ fn download_file_decoded(
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
 
-        let files = read_backup_index(&datastore, &backup_dir)?;
+        let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
             if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", file_name);
