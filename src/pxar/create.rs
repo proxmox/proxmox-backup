@@ -261,24 +261,32 @@ impl<'a, 'b> Archiver<'a, 'b> {
         // common flags we always want to use:
         let oflags = oflags | OFlag::O_CLOEXEC | OFlag::O_NOCTTY;
 
-        match Fd::openat(
-            &unsafe { RawFdNum::from_raw_fd(parent) },
-            file_name,
-            oflags,
-            Mode::empty(),
-        ) {
-            Ok(fd) => Ok(Some(fd)),
-            Err(nix::Error::Sys(Errno::ENOENT)) => {
-                if existed {
-                    self.report_vanished_file()?;
+        let mut noatime = OFlag::O_NOATIME;
+        loop {
+            return match Fd::openat(
+                &unsafe { RawFdNum::from_raw_fd(parent) },
+                file_name,
+                oflags | noatime,
+                Mode::empty(),
+            ) {
+                Ok(fd) => Ok(Some(fd)),
+                Err(nix::Error::Sys(Errno::ENOENT)) => {
+                    if existed {
+                        self.report_vanished_file()?;
+                    }
+                    Ok(None)
                 }
-                Ok(None)
+                Err(nix::Error::Sys(Errno::EACCES)) => {
+                    writeln!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
+                    Ok(None)
+                }
+                Err(nix::Error::Sys(Errno::EPERM)) if !noatime.is_empty() => {
+                    // Retry without O_NOATIME:
+                    noatime = OFlag::empty();
+                    continue;
+                }
+                Err(other) => Err(Error::from(other)),
             }
-            Err(nix::Error::Sys(Errno::EACCES)) => {
-                writeln!(self.errors, "failed to open file: {:?}: access denied", file_name)?;
-                Ok(None)
-            }
-            Err(other) => Err(Error::from(other)),
         }
     }
 
