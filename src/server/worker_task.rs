@@ -589,4 +589,8 @@ impl WorkerTask {
         }
         rx
     }
+
+    pub fn upid(&self) -> &UPID {
+        &self.upid
+    }
 }
