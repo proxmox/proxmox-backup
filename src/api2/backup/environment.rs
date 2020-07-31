@@ -381,7 +381,6 @@ impl BackupEnvironment {
 
         let expected_csum = data.index.close()?;
 
-        println!("server checksum {:?} client: {:?}", expected_csum, csum);
         if csum != expected_csum {
             bail!("dynamic writer '{}' close failed - got unexpected checksum", data.name);
         }
