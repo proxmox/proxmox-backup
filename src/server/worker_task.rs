@@ -502,17 +502,23 @@ impl WorkerTask {
         Ok(upid_str)
     }
 
-    /// Log task result, remove task from running list
-    pub fn log_result(&self, result: &Result<(), Error>) {
+    /// get the Text of the result
+    pub fn get_log_text(&self, result: &Result<(), Error>) -> String {
 
         let warn_count = self.data.lock().unwrap().warn_count;
+
         if let Err(err) = result {
-            self.log(&format!("TASK ERROR: {}", err));
+            format!("ERROR: {}", err)
         } else if warn_count > 0 {
-            self.log(format!("TASK WARNINGS: {}", warn_count));
+            format!("WARNINGS: {}", warn_count)
         } else {
-            self.log("TASK OK");
+            "OK".to_string()
         }
+    }
+
+    /// Log task result, remove task from running list
+    pub fn log_result(&self, result: &Result<(), Error>) {
+        self.log(format!("TASK {}", self.get_log_text(result)));
 
         WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
         let _ = update_active_workers(None);
