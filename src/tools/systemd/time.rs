@@ -301,6 +301,9 @@ mod test {
         const THURSDAY_00_00: i64 = make_test_time(0, 0, 0);
         const THURSDAY_15_00: i64 = make_test_time(0, 15, 0);
 
+        const JUL_31_2020: i64 = 1596153600; // Friday, 2020-07-31 00:00:00
+        const DEC_31_2020: i64 = 1609372800; // Thursday, 2020-12-31 00:00:00
+
         test_value("*:0", THURSDAY_00_00, THURSDAY_00_00 + HOUR)?;
         test_value("*:*", THURSDAY_00_00, THURSDAY_00_00 + MIN)?;
         test_value("*:*:*", THURSDAY_00_00, THURSDAY_00_00 + 1)?;
@@ -316,6 +319,24 @@ mod test {
         test_value("fri", THURSDAY_00_00, THURSDAY_00_00 + 1*DAY)?;
         test_value("sat", THURSDAY_00_00, THURSDAY_00_00 + 2*DAY)?;
         test_value("sun", THURSDAY_00_00, THURSDAY_00_00 + 3*DAY)?;
+
+        // test month wrapping
+        test_value("sat", JUL_31_2020, JUL_31_2020 + 1*DAY)?;
+        test_value("sun", JUL_31_2020, JUL_31_2020 + 2*DAY)?;
+        test_value("mon", JUL_31_2020, JUL_31_2020 + 3*DAY)?;
+        test_value("tue", JUL_31_2020, JUL_31_2020 + 4*DAY)?;
+        test_value("wed", JUL_31_2020, JUL_31_2020 + 5*DAY)?;
+        test_value("thu", JUL_31_2020, JUL_31_2020 + 6*DAY)?;
+        test_value("fri", JUL_31_2020, JUL_31_2020 + 7*DAY)?;
+
+        // test year wrapping
+        test_value("fri", DEC_31_2020, DEC_31_2020 + 1*DAY)?;
+        test_value("sat", DEC_31_2020, DEC_31_2020 + 2*DAY)?;
+        test_value("sun", DEC_31_2020, DEC_31_2020 + 3*DAY)?;
+        test_value("mon", DEC_31_2020, DEC_31_2020 + 4*DAY)?;
+        test_value("tue", DEC_31_2020, DEC_31_2020 + 5*DAY)?;
+        test_value("wed", DEC_31_2020, DEC_31_2020 + 6*DAY)?;
+        test_value("thu", DEC_31_2020, DEC_31_2020 + 7*DAY)?;
 
         test_value("daily", THURSDAY_00_00, THURSDAY_00_00 + DAY)?;
         test_value("daily", THURSDAY_00_00+1, THURSDAY_00_00 + DAY)?;
