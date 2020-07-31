@@ -7,6 +7,9 @@ use std::convert::TryFrom;
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 use chrono::{DateTime, Utc};
+use serde_json::Value;
+
+use proxmox::tools::fs::{replace_file, CreateOptions};
 
 use super::backup_info::{BackupGroup, BackupGroupGuard, BackupDir, BackupInfo};
 use super::chunk_store::ChunkStore;
@@ -557,7 +560,8 @@ impl DataStore {
             DataBlob::load_from_reader(&mut file)
         }).map_err(|err| format_err!("unable to load blob '{:?}' - {}", path, err))
     }
-    
+
+
     pub fn load_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
 
         let (chunk_path, digest_str) = self.chunk_store.chunk_path(digest);
@@ -572,7 +576,7 @@ impl DataStore {
             err,
         ))
      }
-    
+
     pub fn load_manifest(
         &self,
         backup_dir: &BackupDir,
@@ -582,5 +586,33 @@ impl DataStore {
         let crypt_mode = blob.crypt_mode()?;
         let manifest = BackupManifest::try_from(blob)?;
         Ok((manifest, crypt_mode, raw_size))
+    }
+
+    pub fn load_manifest_json(
+        &self,
+        backup_dir: &BackupDir,
+    ) -> Result<Value, Error> {
+        let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
+        let manifest_data = blob.decode(None)?;
+        let manifest: Value = serde_json::from_slice(&manifest_data[..])?;
+        Ok(manifest)
+    }
+
+    pub fn store_manifest(
+        &self,
+        backup_dir: &BackupDir,
+        manifest: Value,
+    ) -> Result<(), Error> {
+        let manifest = serde_json::to_string_pretty(&manifest)?;
+        let blob = DataBlob::encode(manifest.as_bytes(), None, true)?;
+        let raw_data = blob.raw_data();
+
+        let mut path = self.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(MANIFEST_BLOB_NAME);
+
+        replace_file(&path, raw_data, CreateOptions::new())?;
+
+        Ok(())
     }
 }
