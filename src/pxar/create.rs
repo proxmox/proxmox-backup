@@ -258,6 +258,9 @@ impl<'a, 'b> Archiver<'a, 'b> {
         oflags: OFlag,
         existed: bool,
     ) -> Result<Option<Fd>, Error> {
+        // common flags we always want to use:
+        let oflags = oflags | OFlag::O_CLOEXEC | OFlag::O_NOCTTY;
+
         match Fd::openat(
             &unsafe { RawFdNum::from_raw_fd(parent) },
             file_name,
@@ -280,12 +283,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 
     fn read_pxar_excludes(&mut self, parent: RawFd) -> Result<(), Error> {
-        let fd = self.open_file(
-            parent,
-            c_str!(".pxarexclude"),
-            OFlag::O_RDONLY | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
-            false,
-        )?;
+        let fd = self.open_file(parent, c_str!(".pxarexclude"), OFlag::O_RDONLY, false)?;
 
         let old_pattern_count = self.patterns.len();
 
@@ -479,7 +477,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let fd = self.open_file(
             parent,
             c_file_name,
-            open_mode | OFlag::O_RDONLY | OFlag::O_NOFOLLOW | OFlag::O_CLOEXEC | OFlag::O_NOCTTY,
+            open_mode | OFlag::O_RDONLY | OFlag::O_NOFOLLOW,
             true,
         )?;
 
