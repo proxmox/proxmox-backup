@@ -2,6 +2,7 @@ use anyhow::{bail, format_err, Error};
 use std::sync::{Arc, Mutex};
 use std::collections::{HashMap, HashSet};
 
+use ::serde::{Serialize};
 use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
@@ -13,6 +14,7 @@ use crate::backup::*;
 use crate::server::formatter::*;
 use hyper::{Body, Response};
 
+#[derive(Copy, Clone, Serialize)]
 struct UploadStatistic {
     count: u64,
     size: u64,
@@ -27,6 +29,19 @@ impl UploadStatistic {
             size: 0,
             compressed_size: 0,
             duplicates: 0,
+        }
+    }
+}
+
+impl std::ops::Add for UploadStatistic {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            count: self.count + other.count,
+            size: self.size + other.size,
+            compressed_size: self.compressed_size + other.compressed_size,
+            duplicates: self.duplicates + other.duplicates,
         }
     }
 }
@@ -58,6 +73,8 @@ struct SharedBackupState {
     fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
     base_snapshots: HashSet<BackupDir>,
+    backup_size: u64, // sums up size of all files
+    backup_stat: UploadStatistic,
 }
 
 impl SharedBackupState {
@@ -110,6 +127,8 @@ impl BackupEnvironment {
             fixed_writers: HashMap::new(),
             known_chunks: HashMap::new(),
             base_snapshots: HashSet::new(),
+            backup_size: 0,
+            backup_stat: UploadStatistic::new(),
         };
 
         Self {
@@ -370,6 +389,8 @@ impl BackupEnvironment {
         self.log_upload_stat(&data.name, &csum, &uuid, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
+        state.backup_size += size;
+        state.backup_stat = state.backup_stat + data.upload_stat;
 
         Ok(())
     }
@@ -412,6 +433,8 @@ impl BackupEnvironment {
         self.log_upload_stat(&data.name, &expected_csum, &uuid, size, chunk_count, &data.upload_stat);
 
         state.file_counter += 1;
+        state.backup_size += size;
+        state.backup_stat = state.backup_stat + data.upload_stat;
 
         Ok(())
     }
@@ -435,6 +458,8 @@ impl BackupEnvironment {
 
         let mut state = self.state.lock().unwrap();
         state.file_counter += 1;
+        state.backup_size += orig_len as u64;
+        state.backup_stat.size += blob_len as u64;
 
         Ok(())
     }
@@ -457,9 +482,15 @@ impl BackupEnvironment {
         state.finished = true;
 
         // check manifest
-        let _manifest = self.datastore.load_manifest(&self.backup_dir)
+        let mut manifest = self.datastore.load_manifest_json(&self.backup_dir)
             .map_err(|err| format_err!("unable to load manifest blob - {}", err))?;
 
+        let stats = serde_json::to_value(state.backup_stat)?;
+
+        manifest["unprotected"]["chunk_upload_stats"] = stats;
+
+        self.datastore.store_manifest(&self.backup_dir, manifest)
+            .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
 
         for snap in &state.base_snapshots {
             let path = self.datastore.snapshot_path(snap);
