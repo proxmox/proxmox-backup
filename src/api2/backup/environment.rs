@@ -424,7 +424,6 @@ impl BackupEnvironment {
         let uuid = data.index.uuid;
         let expected_csum = data.index.close()?;
 
-        println!("server checksum: {:?} client: {:?} (incremental: {})", expected_csum, csum, data.incremental);
         if csum != expected_csum {
             bail!("fixed writer '{}' close failed - got unexpected checksum", data.name);
         }
