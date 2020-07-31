@@ -123,7 +123,6 @@ impl TmEditor {
 	    if self.t.tm_mday < days_in_mon { break; }
 	    // Wrap one month
 	    self.t.tm_mday -= days_in_mon;
-            self.t.tm_wday += 7 - (days_in_mon % 7);
 	    self.t.tm_mon += 1;
             self.changes.insert(TMChanges::MDAY|TMChanges::WDAY|TMChanges::MON);
         }
