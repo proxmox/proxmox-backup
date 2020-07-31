@@ -145,7 +145,7 @@ pub fn verify_backup_dir(
 ) -> Result<bool, Error> {
 
     let manifest = match datastore.load_manifest(&backup_dir) {
-        Ok((manifest, _crypt_mode, _)) => manifest,
+        Ok((manifest, _)) => manifest,
         Err(err) => {
             worker.log(format!("verify {}:{} - manifest load error: {}", datastore.name(), backup_dir, err));
             return Ok(false);

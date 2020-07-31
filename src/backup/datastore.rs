@@ -18,7 +18,6 @@ use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::manifest::{MANIFEST_BLOB_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
-use crate::backup::CryptMode;
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
@@ -580,12 +579,11 @@ impl DataStore {
     pub fn load_manifest(
         &self,
         backup_dir: &BackupDir,
-    ) -> Result<(BackupManifest, CryptMode, u64), Error> {
+    ) -> Result<(BackupManifest, u64), Error> {
         let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
         let raw_size = blob.raw_size();
-        let crypt_mode = blob.crypt_mode()?;
         let manifest = BackupManifest::try_from(blob)?;
-        Ok((manifest, crypt_mode, raw_size))
+        Ok((manifest, raw_size))
     }
 
     pub fn load_manifest_json(

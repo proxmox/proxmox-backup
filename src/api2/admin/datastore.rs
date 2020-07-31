@@ -46,7 +46,7 @@ fn check_backup_owner(store: &DataStore, group: &BackupGroup, userid: &str) -> R
 
 fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<BackupContent>, Error> {
 
-    let (manifest, manifest_crypt_mode, index_size) = store.load_manifest(backup_dir)?;
+    let (manifest, index_size) = store.load_manifest(backup_dir)?;
 
     let mut result = Vec::new();
     for item in manifest.files() {
@@ -59,7 +59,7 @@ fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<Vec<Ba
 
     result.push(BackupContent {
         filename: MANIFEST_BLOB_NAME.to_string(),
-        crypt_mode: Some(manifest_crypt_mode),
+        crypt_mode: Some(CryptMode::None),
         size: Some(index_size),
     });
 
