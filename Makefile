@@ -73,6 +73,7 @@ build:
 	sed -e '1,/^$$/ ! d' build/debian/control > build/debian/control.src
 	cat build/debian/control.src build/debian/control.in > build/debian/control
 	rm build/debian/control.in build/debian/control.src
+	cp build/debian/control debian/control
 	rm build/Cargo.lock
 	find build/debian -name "*.hint" -delete
 	$(foreach i,$(SUBDIRS), \
