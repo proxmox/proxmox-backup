@@ -17,6 +17,7 @@ use openssl::hash::{hash, DigestBytes, MessageDigest};
 use percent_encoding::AsciiSet;
 
 use proxmox::tools::vec;
+use proxmox::sys::error::SysResult;
 
 pub use proxmox::tools::fd::Fd;
 
@@ -98,7 +99,7 @@ pub fn lock_file<F: AsRawFd>(
     file: &mut F,
     exclusive: bool,
     timeout: Option<Duration>,
-) -> Result<(), Error> {
+) -> Result<(), io::Error> {
     let lockarg = if exclusive {
         nix::fcntl::FlockArg::LockExclusive
     } else {
@@ -107,7 +108,7 @@ pub fn lock_file<F: AsRawFd>(
 
     let timeout = match timeout {
         None => {
-            nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+            nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
             return Ok(());
         }
         Some(t) => t,
@@ -119,7 +120,7 @@ pub fn lock_file<F: AsRawFd>(
         } else {
             nix::fcntl::FlockArg::LockSharedNonblock
         };
-        nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+        nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
         return Ok(());
     }
 
@@ -138,7 +139,7 @@ pub fn lock_file<F: AsRawFd>(
             .interval(Some(Duration::from_millis(10))),
     )?;
 
-    nix::fcntl::flock(file.as_raw_fd(), lockarg)?;
+    nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
     Ok(())
 }
 

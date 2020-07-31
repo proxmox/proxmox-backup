@@ -11,6 +11,8 @@ use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
 
+use proxmox::sys::error::SysError;
+
 use super::manifest::MANIFEST_BLOB_NAME;
 
 macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
@@ -155,19 +157,14 @@ impl BackupGroup {
         // backups could still take a very long time
         tools::lock_file(&mut handle, true, Some(Duration::from_nanos(0)))
             .map_err(|err| {
-                match err.downcast_ref::<nix::Error>() {
-                    Some(nix::Error::Sys(nix::errno::Errno::EAGAIN)) => {
-                        return format_err!(
-                            "unable to acquire lock on backup group {:?} - another backup is already running",
-                            self.group_path(),
-                        );
-                    },
-                    _ => ()
-                }
                 format_err!(
                     "unable to acquire lock on backup group {:?} - {}",
                     self.group_path(),
-                    err,
+                    if err.would_block() {
+                        String::from("another backup is already running")
+                    } else {
+                        err.to_string()
+                    }
                 )
             })?;
 
