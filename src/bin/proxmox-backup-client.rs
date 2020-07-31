@@ -1383,6 +1383,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                         println!("{:?}", path);
                     }
                 },
+                None,
             )
             .map_err(|err| format_err!("error extracting archive - {}", err))?;
         } else {

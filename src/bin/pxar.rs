@@ -3,8 +3,10 @@ use std::ffi::OsStr;
 use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use futures::future::FutureExt;
 use futures::select;
 use tokio::signal::unix::{signal, SignalKind};
@@ -25,6 +27,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
     verbose: bool,
     match_list: &[MatchEntry],
     extract_match_default: bool,
+    on_error: Option<Box<dyn FnMut(Error) -> Result<(), Error> + Send>>,
 ) -> Result<(), Error> {
     proxmox_backup::pxar::extract_archive(
         pxar::decoder::Decoder::from_std(reader)?,
@@ -38,6 +41,7 @@ fn extract_archive_from_reader<R: std::io::Read>(
                 println!("{:?}", path);
             }
         },
+        on_error,
     )
 }
 
@@ -104,6 +108,11 @@ fn extract_archive_from_reader<R: std::io::Read>(
                 optional: true,
                 default: false,
             },
+            strict: {
+                description: "Stop on errors. Otherwise most errors will simply warn.",
+                optional: true,
+                default: false,
+            },
         },
     },
 )]
@@ -121,6 +130,7 @@ fn extract_archive(
     no_device_nodes: bool,
     no_fifos: bool,
     no_sockets: bool,
+    strict: bool,
 ) -> Result<(), Error> {
     let mut feature_flags = Flags::DEFAULT;
     if no_xattrs {
@@ -166,6 +176,20 @@ fn extract_archive(
 
     let extract_match_default = match_list.is_empty();
 
+    let was_ok = Arc::new(AtomicBool::new(true));
+    let on_error = if strict {
+        // by default errors are propagated up
+        None
+    } else {
+        let was_ok = Arc::clone(&was_ok);
+        // otherwise we want to log them but not act on them
+        Some(Box::new(move |err| {
+            was_ok.store(false, Ordering::Release);
+            eprintln!("error: {}", err);
+            Ok(())
+        }) as Box<dyn FnMut(Error) -> Result<(), Error> + Send>)
+    };
+
     if archive == "-" {
         let stdin = std::io::stdin();
         let mut reader = stdin.lock();
@@ -177,6 +201,7 @@ fn extract_archive(
             verbose,
             &match_list,
             extract_match_default,
+            on_error,
         )?;
     } else {
         if verbose {
@@ -192,7 +217,12 @@ fn extract_archive(
             verbose,
             &match_list,
             extract_match_default,
+            on_error,
         )?;
+    }
+
+    if !was_ok.load(Ordering::Acquire) {
+        bail!("there were errors");
     }
 
     Ok(())

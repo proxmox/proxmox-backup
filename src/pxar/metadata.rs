@@ -62,6 +62,7 @@ pub fn apply_at(
     metadata: &Metadata,
     parent: RawFd,
     file_name: &CStr,
+    on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
     let fd = proxmox::tools::fd::Fd::openat(
         &unsafe { RawFdNum::from_raw_fd(parent) },
@@ -70,20 +71,32 @@ pub fn apply_at(
         Mode::empty(),
     )?;
 
-    apply(flags, metadata, fd.as_raw_fd(), file_name)
+    apply(flags, metadata, fd.as_raw_fd(), file_name, on_error)
 }
 
 pub fn apply_initial_flags(
     flags: Flags,
     metadata: &Metadata,
     fd: RawFd,
+    on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
 ) -> Result<(), Error> {
     let entry_flags = Flags::from_bits_truncate(metadata.stat.flags);
-    apply_chattr(fd, entry_flags.to_initial_chattr(), flags.to_initial_chattr())?;
+    apply_chattr(
+        fd,
+        entry_flags.to_initial_chattr(),
+        flags.to_initial_chattr(),
+    )
+    .or_else(on_error)?;
     Ok(())
 }
 
-pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> Result<(), Error> {
+pub fn apply(
+    flags: Flags,
+    metadata: &Metadata,
+    fd: RawFd,
+    file_name: &CStr,
+    on_error: &mut (dyn FnMut(Error) -> Result<(), Error> + Send),
+) -> Result<(), Error> {
     let c_proc_path = CString::new(format!("/proc/self/fd/{}", fd)).unwrap();
 
     unsafe {
@@ -95,15 +108,18 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
         ))
         .map(drop)
         .or_else(allow_notsupp)
-        .map_err(|err| format_err!("failed to set ownership: {}", err))?;
+        .map_err(|err| format_err!("failed to set ownership: {}", err))
+        .or_else(&mut *on_error)?;
     }
 
     let mut skip_xattrs = false;
-    apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
-    add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)?;
+    apply_xattrs(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs)
+        .or_else(&mut *on_error)?;
+    add_fcaps(flags, c_proc_path.as_ptr(), metadata, &mut skip_xattrs).or_else(&mut *on_error)?;
     apply_acls(flags, &c_proc_path, metadata)
-        .map_err(|err| format_err!("failed to apply acls: {}", err))?;
-    apply_quota_project_id(flags, fd, metadata)?;
+        .map_err(|err| format_err!("failed to apply acls: {}", err))
+        .or_else(&mut *on_error)?;
+    apply_quota_project_id(flags, fd, metadata).or_else(&mut *on_error)?;
 
     // Finally mode and time. We may lose access with mode, but the changing the mode also
     // affects times.
@@ -113,11 +129,12 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
         })
         .map(drop)
         .or_else(allow_notsupp)
-        .map_err(|err| format_err!("failed to change file mode: {}", err))?;
+        .map_err(|err| format_err!("failed to change file mode: {}", err))
+        .or_else(&mut *on_error)?;
     }
 
     if metadata.stat.flags != 0 {
-        apply_flags(flags, fd, metadata.stat.flags)?;
+        apply_flags(flags, fd, metadata.stat.flags).or_else(&mut *on_error)?;
     }
 
     let res = c_result!(unsafe {
@@ -131,13 +148,13 @@ pub fn apply(flags: Flags, metadata: &Metadata, fd: RawFd, file_name: &CStr) -> 
     match res {
         Ok(_) => (),
         Err(ref err) if err.is_errno(Errno::EOPNOTSUPP) => (),
-        Err(ref err) if err.is_errno(Errno::EPERM) => {
-            println!(
+        Err(err) => {
+            on_error(format_err!(
                 "failed to restore mtime attribute on {:?}: {}",
-                file_name, err
-            );
+                file_name,
+                err
+            ))?;
         }
-        Err(err) => return Err(err.into()),
     }
 
     Ok(())
@@ -189,7 +206,7 @@ fn apply_xattrs(
         }
 
         if !xattr::is_valid_xattr_name(xattr.name()) {
-            println!("skipping invalid xattr named {:?}", xattr.name());
+            eprintln!("skipping invalid xattr named {:?}", xattr.name());
             continue;
         }
 

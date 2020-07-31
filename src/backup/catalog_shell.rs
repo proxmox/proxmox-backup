@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString, OsStr, OsString};
 use std::future::Future;
 use std::io::Write;
 use std::mem;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
@@ -1073,6 +1073,7 @@ impl<'a> ExtractorState<'a> {
             }
             self.path.extend(&entry.name);
 
+            self.extractor.set_path(OsString::from_vec(self.path.clone()));
             self.handle_entry(entry).await?;
         }
 

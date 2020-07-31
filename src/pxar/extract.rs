@@ -6,6 +6,7 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 use nix::dir::Dir;
@@ -20,8 +21,8 @@ use proxmox::c_result;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::pxar::dir_stack::PxarDirStack;
-use crate::pxar::Flags;
 use crate::pxar::metadata;
+use crate::pxar::Flags;
 
 pub fn extract_archive<T, F>(
     mut decoder: pxar::decoder::Decoder<T>,
@@ -31,6 +32,7 @@ pub fn extract_archive<T, F>(
     feature_flags: Flags,
     allow_existing_dirs: bool,
     mut callback: F,
+    on_error: Option<Box<dyn FnMut(Error) -> Result<(), Error> + Send>>,
 ) -> Result<(), Error>
 where
     T: pxar::decoder::SeqRead,
@@ -69,7 +71,12 @@ where
         feature_flags,
     );
 
+    if let Some(on_error) = on_error {
+        extractor.on_error(on_error);
+    }
+
     let mut match_stack = Vec::new();
+    let mut err_path_stack = Vec::new();
     let mut current_match = extract_match_default;
     while let Some(entry) = decoder.next() {
         use pxar::EntryKind;
@@ -88,6 +95,8 @@ where
 
         let metadata = entry.metadata();
 
+        extractor.set_path(entry.path().as_os_str().to_owned());
+
         let match_result = match_list.matches(
             entry.path().as_os_str().as_bytes(),
             Some(metadata.file_type() as u32),
@@ -103,17 +112,32 @@ where
                 callback(entry.path());
 
                 let create = current_match && match_result != Some(MatchType::Exclude);
-                extractor.enter_directory(file_name_os.to_owned(), metadata.clone(), create)?;
+                extractor
+                    .enter_directory(file_name_os.to_owned(), metadata.clone(), create)
+                    .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
 
                 // We're starting a new directory, push our old matching state and replace it with
                 // our new one:
                 match_stack.push(current_match);
                 current_match = did_match;
 
+                // When we hit the goodbye table we'll try to apply metadata to the directory, but
+                // the Goodbye entry will not contain the path, so push it to our path stack for
+                // error messages:
+                err_path_stack.push(extractor.clone_path());
+
                 Ok(())
             }
             (_, EntryKind::GoodbyeTable) => {
                 // go up a directory
+
+                extractor.set_path(err_path_stack.pop().ok_or_else(|| {
+                    format_err!(
+                        "error at entry {:?}: unexpected end of directory",
+                        file_name_os
+                    )
+                })?);
+
                 extractor
                     .leave_directory()
                     .map_err(|err| format_err!("error at entry {:?}: {}", file_name_os, err))?;
@@ -182,6 +206,13 @@ pub(crate) struct Extractor {
     feature_flags: Flags,
     allow_existing_dirs: bool,
     dir_stack: PxarDirStack,
+
+    /// For better error output we need to track the current path in the Extractor state.
+    current_path: Arc<Mutex<OsString>>,
+
+    /// Error callback. Includes `current_path` in the reformatted error, should return `Ok` to
+    /// continue extracting or the passed error as `Err` to bail out.
+    on_error: Box<dyn FnMut(Error) -> Result<(), Error> + Send>,
 }
 
 impl Extractor {
@@ -196,7 +227,28 @@ impl Extractor {
             dir_stack: PxarDirStack::new(root_dir, metadata),
             allow_existing_dirs,
             feature_flags,
+            current_path: Arc::new(Mutex::new(OsString::new())),
+            on_error: Box::new(|err| Err(err)),
         }
+    }
+
+    /// We call this on errors. The error will be reformatted to include `current_path`. The
+    /// callback should decide whether this error was fatal (simply return it) to bail out early,
+    /// or log/remember/accumulate errors somewhere and return `Ok(())` in its place to continue
+    /// extracting.
+    pub fn on_error(&mut self, mut on_error: Box<dyn FnMut(Error) -> Result<(), Error> + Send>) {
+        let path = Arc::clone(&self.current_path);
+        self.on_error = Box::new(move |err: Error| -> Result<(), Error> {
+            on_error(format_err!("error at {:?}: {}", path.lock().unwrap(), err))
+        });
+    }
+
+    pub fn set_path(&mut self, path: OsString) {
+        *self.current_path.lock().unwrap() = path;
+    }
+
+    pub fn clone_path(&self) -> OsString {
+        self.current_path.lock().unwrap().clone()
     }
 
     /// When encountering a directory during extraction, this is used to keep track of it. If
@@ -217,7 +269,7 @@ impl Extractor {
         Ok(())
     }
 
-    /// When done with a directory we need to make sure we're
+    /// When done with a directory we can apply its metadata if it has been created.
     pub fn leave_directory(&mut self) -> Result<(), Error> {
         let dir = self
             .dir_stack
@@ -231,6 +283,7 @@ impl Extractor {
                 dir.metadata(),
                 fd,
                 &CString::new(dir.file_name().as_bytes())?,
+                &mut self.on_error,
             )
             .map_err(|err| format_err!("failed to apply directory metadata: {}", err))?;
         }
@@ -256,14 +309,16 @@ impl Extractor {
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
         nix::unistd::symlinkat(link, Some(parent), file_name)?;
-        metadata::apply_at(self.feature_flags, metadata, parent, file_name)
+        metadata::apply_at(
+            self.feature_flags,
+            metadata,
+            parent,
+            file_name,
+            &mut self.on_error,
+        )
     }
 
-    pub fn extract_hardlink(
-        &mut self,
-        file_name: &CStr,
-        link: &OsStr,
-    ) -> Result<(), Error> {
+    pub fn extract_hardlink(&mut self, file_name: &CStr, link: &OsStr) -> Result<(), Error> {
         crate::pxar::tools::assert_relative_path(link)?;
 
         let parent = self.parent_fd()?;
@@ -307,7 +362,13 @@ impl Extractor {
         unsafe { c_result!(libc::mknodat(parent, file_name.as_ptr(), mode, device)) }
             .map_err(|err| format_err!("failed to create device node: {}", err))?;
 
-        metadata::apply_at(self.feature_flags, metadata, parent, file_name)
+        metadata::apply_at(
+            self.feature_flags,
+            metadata,
+            parent,
+            file_name,
+            &mut self.on_error,
+        )
     }
 
     pub fn extract_file(
@@ -319,16 +380,23 @@ impl Extractor {
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
         let mut file = unsafe {
-            std::fs::File::from_raw_fd(nix::fcntl::openat(
-                parent,
-                file_name,
-                OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
-                Mode::from_bits(0o600).unwrap(),
+            std::fs::File::from_raw_fd(
+                nix::fcntl::openat(
+                    parent,
+                    file_name,
+                    OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                    Mode::from_bits(0o600).unwrap(),
+                )
+                .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
             )
-            .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?)
         };
 
-        metadata::apply_initial_flags(self.feature_flags, metadata, file.as_raw_fd())?;
+        metadata::apply_initial_flags(
+            self.feature_flags,
+            metadata,
+            file.as_raw_fd(),
+            &mut self.on_error,
+        )?;
 
         let extracted = io::copy(&mut *contents, &mut file)
             .map_err(|err| format_err!("failed to copy file contents: {}", err))?;
@@ -336,7 +404,13 @@ impl Extractor {
             bail!("extracted {} bytes of a file of {} bytes", extracted, size);
         }
 
-        metadata::apply(self.feature_flags, metadata, file.as_raw_fd(), file_name)
+        metadata::apply(
+            self.feature_flags,
+            metadata,
+            file.as_raw_fd(),
+            file_name,
+            &mut self.on_error,
+        )
     }
 
     pub async fn async_extract_file<T: tokio::io::AsyncRead + Unpin>(
@@ -348,16 +422,23 @@ impl Extractor {
     ) -> Result<(), Error> {
         let parent = self.parent_fd()?;
         let mut file = tokio::fs::File::from_std(unsafe {
-            std::fs::File::from_raw_fd(nix::fcntl::openat(
-                parent,
-                file_name,
-                OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
-                Mode::from_bits(0o600).unwrap(),
+            std::fs::File::from_raw_fd(
+                nix::fcntl::openat(
+                    parent,
+                    file_name,
+                    OFlag::O_CREAT | OFlag::O_EXCL | OFlag::O_WRONLY | OFlag::O_CLOEXEC,
+                    Mode::from_bits(0o600).unwrap(),
+                )
+                .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?,
             )
-            .map_err(|err| format_err!("failed to create file {:?}: {}", file_name, err))?)
         });
 
-        metadata::apply_initial_flags(self.feature_flags, metadata, file.as_raw_fd())?;
+        metadata::apply_initial_flags(
+            self.feature_flags,
+            metadata,
+            file.as_raw_fd(),
+            &mut self.on_error,
+        )?;
 
         let extracted = tokio::io::copy(&mut *contents, &mut file)
             .await
@@ -366,6 +447,12 @@ impl Extractor {
             bail!("extracted {} bytes of a file of {} bytes", extracted, size);
         }
 
-        metadata::apply(self.feature_flags, metadata, file.as_raw_fd(), file_name)
+        metadata::apply(
+            self.feature_flags,
+            metadata,
+            file.as_raw_fd(),
+            file_name,
+            &mut self.on_error,
+        )
     }
 }
