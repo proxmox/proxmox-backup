@@ -1302,6 +1302,108 @@ fn get_rrd_stats(
     )
 }
 
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true),
+    },
+)]
+/// Get "notes" for a specific backup
+fn get_notes(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<String, Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let username = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+    let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+
+    let manifest = datastore.load_manifest_json(&backup_dir)?;
+
+    let notes = manifest["unprotected"]["notes"]
+        .as_str()
+        .unwrap_or("");
+
+    Ok(String::from(notes))
+}
+
+#[api(
+    input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "backup-time": {
+                schema: BACKUP_TIME_SCHEMA,
+            },
+            notes: {
+                description: "A multiline text.",
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY, true),
+    },
+)]
+/// Set "notes" for a specific backup
+fn set_notes(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    backup_time: i64,
+    notes: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let username = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+
+    let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+
+    let mut manifest = datastore.load_manifest_json(&backup_dir)?;
+
+    manifest["unprotected"]["notes"] = notes.into();
+
+    datastore.store_manifest(&backup_dir, manifest)?;
+
+    Ok(())
+}
+
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
@@ -1334,6 +1436,12 @@ const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
         "groups",
         &Router::new()
             .get(&API_METHOD_LIST_GROUPS)
+    ),
+    (
+        "notes",
+        &Router::new()
+            .get(&API_METHOD_GET_NOTES)
+            .put(&API_METHOD_SET_NOTES)
     ),
     (
         "prune",
