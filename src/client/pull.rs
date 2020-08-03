@@ -62,15 +62,32 @@ async fn download_manifest(
     Ok(tmp_manifest_file)
 }
 
+fn verify_archive(
+    info: &FileInfo,
+    csum: &[u8; 32],
+    size: u64,
+) -> Result<(), Error> {
+    if size != info.size {
+        bail!("wrong size for file '{}' ({} != {})", info.filename, info.size, size);
+    }
+
+    if csum != &info.csum {
+        bail!("wrong checksum for file '{}'", info.filename);
+    }
+
+    Ok(())
+}
+
 async fn pull_single_archive(
     worker: &WorkerTask,
     reader: &BackupReader,
     chunk_reader: &mut RemoteChunkReader,
     tgt_store: Arc<DataStore>,
     snapshot: &BackupDir,
-    archive_name: &str,
+    archive_info: &FileInfo,
 ) -> Result<(), Error> {
 
+    let archive_name = &archive_info.filename;
     let mut path = tgt_store.base_path();
     path.push(snapshot.relative_path());
     path.push(archive_name);
@@ -91,16 +108,23 @@ async fn pull_single_archive(
         ArchiveType::DynamicIndex => {
             let index = DynamicIndexReader::new(tmpfile)
                 .map_err(|err| format_err!("unable to read dynamic index {:?} - {}", tmp_path, err))?;
+            let (csum, size) = index.compute_csum();
+            verify_archive(archive_info, &csum, size)?;
 
             pull_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
         }
         ArchiveType::FixedIndex => {
             let index = FixedIndexReader::new(tmpfile)
                 .map_err(|err| format_err!("unable to read fixed index '{:?}' - {}", tmp_path, err))?;
+            let (csum, size) = index.compute_csum();
+            verify_archive(archive_info, &csum, size)?;
 
             pull_index_chunks(worker, chunk_reader, tgt_store.clone(), index).await?;
         }
-        ArchiveType::Blob => { /* nothing to do */ }
+        ArchiveType::Blob => {
+            let (csum, size) = compute_file_csum(&mut tmpfile)?;
+            verify_archive(archive_info, &csum, size)?;
+        }
     }
     if let Err(err) = std::fs::rename(&tmp_path, &path) {
         bail!("Atomic rename file {:?} failed - {}", path, err);
@@ -248,7 +272,7 @@ async fn pull_snapshot(
             &mut chunk_reader,
             tgt_store.clone(),
             snapshot,
-            &item.filename,
+            &item,
         ).await?;
     }
 
