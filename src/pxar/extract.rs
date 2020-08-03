@@ -76,7 +76,7 @@ where
     }
 
     let mut match_stack = Vec::new();
-    let mut err_path_stack = Vec::new();
+    let mut err_path_stack = vec![OsString::from("/")];
     let mut current_match = extract_match_default;
     while let Some(entry) = decoder.next() {
         use pxar::EntryKind;
