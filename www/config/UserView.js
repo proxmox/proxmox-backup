@@ -51,6 +51,18 @@ Ext.define('PBS.config.UserView', {
             }).show();
 	},
 
+	setPassword: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+
+	    if (selection.length < 1) return;
+
+	    Ext.create('PBS.window.UserPassword', {
+		url: '/api2/extjs/access/users/' + selection[0].data.userid,
+	    }).show();
+	},
+
 	renderUsername: function(userid) {
 	    return Ext.String.htmlEncode(userid.match(/^(.+)@([^@]+)$/)[1]);
 	},
@@ -96,6 +108,12 @@ Ext.define('PBS.config.UserView', {
 	    xtype: 'proxmoxButton',
 	    text: gettext('Edit'),
 	    handler: 'editUser',
+	    disabled: true,
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Password'),
+	    handler: 'setPassword',
 	    disabled: true,
 	},
 	{

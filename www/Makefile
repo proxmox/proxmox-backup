@@ -18,6 +18,7 @@ JSSRC=							\
 	config/SyncView.js				\
 	config/DataStoreConfig.js			\
 	window/UserEdit.js				\
+	window/UserPassword.js				\
 	window/RemoteEdit.js				\
 	window/SyncJobEdit.js				\
 	window/ACLEdit.js				\
