@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 lazy_static!{
     static ref LVM_UUIDS: HashSet<&'static str> = {
         let mut set = HashSet::new();
-	set.insert("e6d6d379-f507-44c2-a23c-238f2a3df928");
+        set.insert("e6d6d379-f507-44c2-a23c-238f2a3df928");
         set
     };
 }
