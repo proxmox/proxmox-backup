@@ -505,7 +505,7 @@ Ext.define('PBS.DataStoreContent', {
 			return !(data.leaf &&
 			    data.filename &&
 			    data.filename.endsWith('pxar.didx') &&
-			    data['crypt-mode'] < 2);
+			    data['crypt-mode'] < 3);
 		    }
 		},
 	    ]
