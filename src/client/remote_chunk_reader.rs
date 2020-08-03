@@ -35,6 +35,8 @@ impl RemoteChunkReader {
         }
     }
 
+    /// Downloads raw chunk. This only verifies the (untrusted) CRC32, use
+    /// DataBlob::verify_unencrypted or DataBlob::decode before storing/processing further.
     pub async fn read_raw_chunk(&self, digest: &[u8; 32]) -> Result<DataBlob, Error> {
         let mut chunk_data = Vec::with_capacity(4 * 1024 * 1024);
 
@@ -43,8 +45,6 @@ impl RemoteChunkReader {
             .await?;
 
         let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;
-        
-        // fixme: verify digest?
 
         Ok(chunk)
     }

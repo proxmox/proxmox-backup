@@ -27,16 +27,18 @@ async fn pull_index_chunks<I: IndexFile>(
 
 
     for pos in 0..index.index_count() {
-        let digest = index.index_digest(pos).unwrap();
-        let chunk_exists = target.cond_touch_chunk(digest, false)?;
+        let info = index.chunk_info(pos).unwrap();
+        let chunk_exists = target.cond_touch_chunk(&info.digest, false)?;
         if chunk_exists {
             //worker.log(format!("chunk {} exists {}", pos, proxmox::tools::digest_to_hex(digest)));
             continue;
         }
         //worker.log(format!("sync {} chunk {}", pos, proxmox::tools::digest_to_hex(digest)));
-        let chunk = chunk_reader.read_raw_chunk(&digest).await?;
+        let chunk = chunk_reader.read_raw_chunk(&info.digest).await?;
 
-        target.insert_chunk(&chunk, &digest)?;
+        chunk.verify_unencrypted(info.size() as usize, &info.digest)?;
+
+        target.insert_chunk(&chunk, &info.digest)?;
     }
 
     Ok(())
