@@ -155,7 +155,7 @@ pub fn get_smart_data(
     if let Some(list) = output["nvme_smart_health_information_log"].as_object() {
         for (name, value) in list {
             if name == "percentage_used" {
-	        // extract wearout from nvme text, allow for decimal values
+                // extract wearout from nvme text, allow for decimal values
                 if let Some(v) = value.as_f64() {
                     if v <= 100.0 {
                         wearout = Some(100.0 - v);

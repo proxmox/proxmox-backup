@@ -10,8 +10,8 @@ use super::*;
 lazy_static!{
     static ref ZFS_UUIDS: HashSet<&'static str> = {
         let mut set = HashSet::new();
-	set.insert("6a898cc3-1dd2-11b2-99a6-080020736631"); // apple
-	set.insert("516e7cba-6ecf-11d6-8ff8-00022d09712b"); // bsd
+        set.insert("6a898cc3-1dd2-11b2-99a6-080020736631"); // apple
+        set.insert("516e7cba-6ecf-11d6-8ff8-00022d09712b"); // bsd
         set
     };
 }
