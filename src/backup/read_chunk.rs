@@ -40,9 +40,7 @@ impl ReadChunk for LocalChunkReader {
     fn read_chunk(&self, digest: &[u8; 32]) -> Result<Vec<u8>, Error> {
         let chunk = ReadChunk::read_raw_chunk(self, digest)?;
 
-        let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
-
-        // fixme: verify digest?
+        let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
         Ok(raw_data)
     }
@@ -85,7 +83,7 @@ impl AsyncReadChunk for LocalChunkReader {
         Box::pin(async move {
             let chunk = AsyncReadChunk::read_raw_chunk(self, digest).await?;
 
-            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
+            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
             // fixme: verify digest?
 

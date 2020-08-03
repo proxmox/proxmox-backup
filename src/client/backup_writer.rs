@@ -480,7 +480,8 @@ impl BackupWriter {
         self.h2.download("previous", Some(param), &mut raw_data).await?;
 
         let blob = DataBlob::load_from_reader(&mut &raw_data[..])?;
-        let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
+        // no expected digest available
+        let data = blob.decode(self.crypt_config.as_ref().map(Arc::as_ref), None)?;
 
         let manifest = BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
 

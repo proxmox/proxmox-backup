@@ -62,9 +62,7 @@ impl ReadChunk for RemoteChunkReader {
 
         let chunk = ReadChunk::read_raw_chunk(self, digest)?;
 
-        let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
-
-        // fixme: verify digest?
+        let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
         let use_cache = self.cache_hint.contains_key(digest);
         if use_cache {
@@ -94,9 +92,7 @@ impl AsyncReadChunk for RemoteChunkReader {
 
             let chunk = Self::read_raw_chunk(self, digest).await?;
 
-            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref))?;
-
-            // fixme: verify digest?
+            let raw_data = chunk.decode(self.crypt_config.as_ref().map(Arc::as_ref), Some(digest))?;
 
             let use_cache = self.cache_hint.contains_key(digest);
             if use_cache {

@@ -185,16 +185,23 @@ impl DataBlob {
     }
 
     /// Decode blob data
-    pub fn decode(&self, config: Option<&CryptConfig>) -> Result<Vec<u8>, Error> {
+    pub fn decode(&self, config: Option<&CryptConfig>, digest: Option<&[u8; 32]>) -> Result<Vec<u8>, Error> {
 
         let magic = self.magic();
 
         if magic == &UNCOMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
-            Ok(self.raw_data[data_start..].to_vec())
+            let data = self.raw_data[data_start..].to_vec();
+            if let Some(digest) = digest {
+                Self::verify_digest(&data, None, digest)?;
+            }
+            Ok(data)
         } else if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
             let data = zstd::block::decompress(&self.raw_data[data_start..], MAX_BLOB_SIZE)?;
+            if let Some(digest) = digest {
+                Self::verify_digest(&data, None, digest)?;
+            }
             Ok(data)
         } else if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
             let header_len = std::mem::size_of::<EncryptedDataBlobHeader>();
@@ -208,6 +215,9 @@ impl DataBlob {
                 } else {
                     config.decode_uncompressed_chunk(&self.raw_data[header_len..], &head.iv, &head.tag)?
                 };
+                if let Some(digest) = digest {
+                    Self::verify_digest(&data, Some(config), digest)?;
+                }
                 Ok(data)
             } else {
                 bail!("unable to decrypt blob - missing CryptConfig");
@@ -276,12 +286,26 @@ impl DataBlob {
             return Ok(());
         }
 
-        let data = self.decode(None)?;
+        // verifies digest!
+        let data = self.decode(None, Some(expected_digest))?;
 
         if expected_chunk_size != data.len() {
             bail!("detected chunk with wrong length ({} != {})", expected_chunk_size, data.len());
         }
-        let digest = openssl::sha::sha256(&data);
+
+        Ok(())
+    }
+
+    fn verify_digest(
+        data: &[u8],
+        config: Option<&CryptConfig>,
+        expected_digest: &[u8; 32],
+    ) -> Result<(), Error> {
+
+        let digest = match config {
+            Some(config) => config.compute_digest(data),
+            None => openssl::sha::sha256(&data),
+        };
         if &digest != expected_digest {
             bail!("detected chunk with wrong digest.");
         }

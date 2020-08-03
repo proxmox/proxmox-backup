@@ -6,7 +6,7 @@ use crate::server::WorkerTask;
 
 use super::{
     DataStore, BackupGroup, BackupDir, BackupInfo, IndexFile,
-    ENCR_COMPR_BLOB_MAGIC_1_0, ENCRYPTED_BLOB_MAGIC_1_0,
+    CryptMode,
     FileInfo, ArchiveType, archive_type,
 };
 
@@ -24,15 +24,15 @@ fn verify_blob(datastore: &DataStore, backup_dir: &BackupDir, info: &FileInfo) -
         bail!("wrong index checksum");
     }
 
-    let magic = blob.magic();
-
-    if magic == &ENCR_COMPR_BLOB_MAGIC_1_0 || magic == &ENCRYPTED_BLOB_MAGIC_1_0 {
-        return Ok(());
+    match blob.crypt_mode()? {
+        CryptMode::Encrypt => Ok(()),
+        CryptMode::None => {
+            // digest already verified above
+            blob.decode(None, None)?;
+            Ok(())
+        },
+        CryptMode::SignOnly => bail!("Invalid CryptMode for blob"),
     }
-
-    blob.decode(None)?;
-
-    Ok(())
 }
 
 fn verify_index_chunks(

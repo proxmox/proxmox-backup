@@ -591,7 +591,8 @@ impl DataStore {
         backup_dir: &BackupDir,
     ) -> Result<Value, Error> {
         let blob = self.load_blob(backup_dir, MANIFEST_BLOB_NAME)?;
-        let manifest_data = blob.decode(None)?;
+        // no expected digest available
+        let manifest_data = blob.decode(None, None)?;
         let manifest: Value = serde_json::from_slice(&manifest_data[..])?;
         Ok(manifest)
     }

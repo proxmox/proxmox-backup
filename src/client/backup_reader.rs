@@ -130,7 +130,8 @@ impl BackupReader {
         let mut raw_data = Vec::with_capacity(64 * 1024);
         self.download(MANIFEST_BLOB_NAME, &mut raw_data).await?;
         let blob = DataBlob::load_from_reader(&mut &raw_data[..])?;
-        let data = blob.decode(None)?;
+        // no expected digest available
+        let data = blob.decode(None, None)?;
 
         let manifest = BackupManifest::from_data(&data[..], self.crypt_config.as_ref().map(Arc::as_ref))?;
 
