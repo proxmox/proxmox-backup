@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::schema::{Schema, StringSchema};
+use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::config::user;
@@ -87,7 +88,7 @@ pub fn list_users(
 /// Create new user.
 pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let user: user::User = serde_json::from_value(param)?;
 
@@ -193,7 +194,7 @@ pub fn update_user(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let (mut config, expected_digest) = user::config()?;
 
@@ -265,7 +266,7 @@ pub fn update_user(
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let (mut config, expected_digest) = user::config()?;
 

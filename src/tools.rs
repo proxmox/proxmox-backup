@@ -4,9 +4,9 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, BufRead, ErrorKind, Read};
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::time::Duration;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
@@ -17,7 +17,6 @@ use openssl::hash::{hash, DigestBytes, MessageDigest};
 use percent_encoding::AsciiSet;
 
 use proxmox::tools::vec;
-use proxmox::sys::error::SysResult;
 
 pub use proxmox::tools::fd::Fd;
 
@@ -32,7 +31,6 @@ pub mod format;
 pub mod lru_cache;
 pub mod runtime;
 pub mod ticket;
-pub mod timer;
 pub mod statistics;
 pub mod systemd;
 pub mod nom;
@@ -88,73 +86,6 @@ pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
         bail!("unable to map struct - buffer too small");
     }
     Ok(unsafe { &mut *(buffer.as_ptr() as *mut T) })
-}
-
-/// Create a file lock using fntl. This function allows you to specify
-/// a timeout if you want to avoid infinite blocking.
-///
-/// With timeout set to 0, non-blocking mode is used and the function
-/// will fail immediately if the lock can't be acquired.
-pub fn lock_file<F: AsRawFd>(
-    file: &mut F,
-    exclusive: bool,
-    timeout: Option<Duration>,
-) -> Result<(), io::Error> {
-    let lockarg = if exclusive {
-        nix::fcntl::FlockArg::LockExclusive
-    } else {
-        nix::fcntl::FlockArg::LockShared
-    };
-
-    let timeout = match timeout {
-        None => {
-            nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
-            return Ok(());
-        }
-        Some(t) => t,
-    };
-
-    if timeout.as_nanos() == 0 {
-        let lockarg = if exclusive {
-            nix::fcntl::FlockArg::LockExclusiveNonblock
-        } else {
-            nix::fcntl::FlockArg::LockSharedNonblock
-        };
-        nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
-        return Ok(());
-    }
-
-    // unblock the timeout signal temporarily
-    let _sigblock_guard = timer::unblock_timeout_signal();
-
-    // setup a timeout timer
-    let mut timer = timer::Timer::create(
-        timer::Clock::Realtime,
-        timer::TimerEvent::ThisThreadSignal(timer::SIGTIMEOUT),
-    )?;
-
-    timer.arm(
-        timer::TimerSpec::new()
-            .value(Some(timeout))
-            .interval(Some(Duration::from_millis(10))),
-    )?;
-
-    nix::fcntl::flock(file.as_raw_fd(), lockarg).into_io_result()?;
-    Ok(())
-}
-
-/// Open or create a lock file (append mode). Then try to
-/// acquire a lock using `lock_file()`.
-pub fn open_file_locked<P: AsRef<Path>>(path: P, timeout: Duration) -> Result<File, Error> {
-    let path = path.as_ref();
-    let mut file = match OpenOptions::new().create(true).append(true).open(path) {
-        Ok(file) => file,
-        Err(err) => bail!("Unable to open lock {:?} - {}", path, err),
-    };
-    match lock_file(&mut file, true, Some(timeout)) {
-        Ok(_) => Ok(file),
-        Err(err) => bail!("Unable to acquire lock {:?} - {}", path, err),
-    }
 }
 
 /// Split a file into equal sized chunks. The last chunk may be

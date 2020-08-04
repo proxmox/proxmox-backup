@@ -155,7 +155,7 @@ impl BackupGroup {
 
         // acquire in non-blocking mode, no point in waiting here since other
         // backups could still take a very long time
-        tools::lock_file(&mut handle, true, Some(Duration::from_nanos(0)))
+        proxmox::tools::fs::lock_file(&mut handle, true, Some(Duration::from_nanos(0)))
             .map_err(|err| {
                 format_err!(
                     "unable to acquire lock on backup group {:?} - {}",

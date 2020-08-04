@@ -2,6 +2,7 @@ use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::config::acl;
@@ -174,7 +175,7 @@ pub fn update_acl(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let _lock = crate::tools::open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
     let (mut tree, expected_digest) = acl::config()?;
 
