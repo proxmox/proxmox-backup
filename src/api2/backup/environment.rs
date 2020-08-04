@@ -477,8 +477,6 @@ impl BackupEnvironment {
             bail!("backup does not contain valid files (file count == 0)");
         }
 
-        state.finished = true;
-
         // check manifest
         let mut manifest = self.datastore.load_manifest_json(&self.backup_dir)
             .map_err(|err| format_err!("unable to load manifest blob - {}", err))?;
@@ -500,6 +498,8 @@ impl BackupEnvironment {
             }
         }
 
+        // marks the backup as successful
+        state.finished = true;
 
         Ok(())
     }
