@@ -97,7 +97,7 @@ async move {
         bail!("backup owner check failed ({} != {})", username, owner);
     }
 
-    let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group).unwrap_or(None);
+    let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
     let backup_dir = BackupDir::new_with_group(backup_group.clone(), backup_time);
 
     if let Some(last) = &last_backup {

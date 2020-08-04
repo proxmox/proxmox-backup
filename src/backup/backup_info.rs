@@ -313,9 +313,13 @@ impl BackupInfo {
     }
 
     /// Finds the latest backup inside a backup group
-    pub fn last_backup(base_path: &Path, group: &BackupGroup) -> Result<Option<BackupInfo>, Error> {
+    pub fn last_backup(base_path: &Path, group: &BackupGroup, only_finished: bool)
+        -> Result<Option<BackupInfo>, Error>
+    {
         let backups = group.list_backups(base_path)?;
-        Ok(backups.into_iter().max_by_key(|item| item.backup_dir.backup_time()))
+        Ok(backups.into_iter()
+            .filter(|item| !only_finished || item.is_finished())
+            .max_by_key(|item| item.backup_dir.backup_time()))
     }
 
     pub fn sort_list(list: &mut Vec<BackupInfo>, ascendending: bool) {
