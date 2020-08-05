@@ -436,8 +436,8 @@ impl DataStore {
             tools::fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if let Err(err) = self.chunk_store.touch_chunk(digest) {
-                bail!("unable to access chunk {}, required by {:?} - {}",
-                      proxmox::tools::digest_to_hex(digest), file_name, err);
+                worker.warn(&format!("warning: unable to access chunk {}, required by {:?} - {}",
+                      proxmox::tools::digest_to_hex(digest), file_name, err));
             }
         }
         Ok(())
