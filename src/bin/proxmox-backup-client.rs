@@ -1120,12 +1120,12 @@ async fn create_backup(
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
-        let target = "rsa-encrypted.key";
+        let target = "rsa-encrypted.key.blob";
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, false, false)
             .await?;
-        manifest.add_file(format!("{}.blob", target), stats.size, stats.csum, crypt_mode)?;
+        manifest.add_file(target.to_string(), stats.size, stats.csum, crypt_mode)?;
 
         // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
         /*
@@ -1136,7 +1136,6 @@ async fn create_backup(
         println!("TEST {} {:?}", len, buffer2);
          */
     }
-
     // create manifest (index.json)
     // manifests are never encrypted, but include a signature
     let manifest = manifest.to_string(crypt_config.as_ref().map(Arc::as_ref))
