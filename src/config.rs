@@ -15,13 +15,13 @@ use proxmox::try_block;
 
 use crate::buildcfg;
 
-pub mod datastore;
-pub mod remote;
-pub mod user;
 pub mod acl;
 pub mod cached_user_info;
+pub mod datastore;
 pub mod network;
+pub mod remote;
 pub mod sync;
+pub mod user;
 
 /// Check configuration directory permissions
 ///
