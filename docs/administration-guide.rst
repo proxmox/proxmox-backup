@@ -677,6 +677,8 @@ extra protection, you can also create it without a password:
 
   # proxmox-backup-client key create /path/to/my-backup.key --kdf none
 
+Having created this key, it is now possible to create an encrypted backup, by
+passing the ``--keyfile`` parameter, with the path to the key file.
 
 .. code-block:: console
 
@@ -685,12 +687,95 @@ extra protection, you can also create it without a password:
   Encryption Key Password: **************
   ...
 
+.. Note:: If you do not specify the name of the backup key, the key will be
+  created in the default location
+  ``~/.config/proxmox-backup/encryption-key.json``. ``proxmox-backup-client``
+  will also search this location by default, in case the ``--keyfile``
+  parameter is not specified.
 
 You can avoid entering the passwords by setting the environment
 variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 
-.. todo:: Explain master-key
+Using a master key to store and recover encryption keys
+^^^^^^^^^^
 
+You can also use ``proxmox-backup-client key`` to create an RSA public/private
+key pair, which can be used to store an encrypted version of the symmetric
+backup encryption key alongside each backup and recover it later.
+
+To set up a master key:
+
+1. Create an encryption key for the backup:
+
+   .. code-block:: console
+
+     # proxmox-backup-client key create
+     creating default key at: "~/.config/proxmox-backup/encryption-key.json"
+     Encryption Key Password: **********
+     ...
+
+   The resulting file will be saved to ``~/.config/proxmox-backup/encryption-key.json``.
+
+2. Create an RSA public/private key pair:
+
+   .. code-block:: console
+
+     # proxmox-backup-client key create-master-key
+     Master Key Password: *********
+     ...
+
+   This will create two files in your current directory, ``master-public.pem``
+   and ``master-private.pem``.
+
+3. Import the newly created ``master-public.pem`` public certificate, so that
+   ``proxmox-backup-client`` can find and use it upon backup.
+
+   .. code-block:: console
+
+     # proxmox-backup-client key import-master-pubkey /path/to/master-public.pem
+     Imported public master key to "~/.config/proxmox-backup/master-public.pem"
+
+4. With all these files in place, run a backup job:
+
+   .. code-block:: console
+
+     # proxmox-backup-client backup etc.pxar:/etc
+
+   The key will be stored in your backup, under the name ``rsa-encrypted.key``.
+
+   .. Note:: The ``--keyfile`` parameter can be excluded, if the encryption key
+     is in the default path. If you specified another path upon creation, you
+     must pass the ``--keyfile`` parameter.
+
+5. To test that everything worked, you can restore the key from the backup:
+
+   .. code-block:: console
+
+     # proxmox-backup-client restore /path/to/backup/ rsa-encrypted.key /path/to/target
+
+   .. Note:: You should not need an encryption key to extract this file. However, if
+     a key exists at the default location
+     (``~/.config/proxmox-backup/encryption-key.json``) the program will prompt
+     you for an encryption key password. Simply moving ``encryption-key.json``
+     out of this directory will fix this issue.
+
+6. Then, use the previously generated master key to decrypt the file:
+
+   .. code-block:: console
+
+     # openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out /path/to/target
+     Enter pass phrase for ./master-private.pem: *********
+
+7. The target file will now contain the encryption key information in plain
+   text. The success of this can be confirmed by passing the resulting ``json``
+   file, with the ``--keyfile`` parameter, when decrypting files from the backup.
+
+.. warning:: Without their key, backed up files will be inaccessible. Thus, you should
+  keep keys ordered and in a place that is separate from the contents being
+  backed up. It can happen, for example, that you back up an entire system, using
+  a key on that system. If the system then becomes inaccessable for any reason
+  and needs to be restored, this will not be possible as the encryption key will be
+  lost along with the broken system.
 
 Restoring Data
 ~~~~~~~~~~~~~~
