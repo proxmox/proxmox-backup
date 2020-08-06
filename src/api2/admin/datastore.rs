@@ -10,7 +10,8 @@ use serde_json::{json, Value};
 
 use proxmox::api::{
     api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
-    RpcEnvironment, RpcEnvironmentType, Permission, UserInformation};
+    RpcEnvironment, RpcEnvironmentType, Permission
+};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{replace_file, CreateOptions};
@@ -36,7 +37,11 @@ use crate::config::acl::{
     PRIV_DATASTORE_BACKUP,
 };
 
-fn check_backup_owner(store: &DataStore, group: &BackupGroup, userid: &str) -> Result<(), Error> {
+fn check_backup_owner(
+    store: &DataStore,
+    group: &BackupGroup,
+    userid: &Userid,
+) -> Result<(), Error> {
     let owner = store.get_owner(group)?;
     if &owner != userid {
         bail!("backup owner check failed ({} != {})", userid, owner);
@@ -44,7 +49,10 @@ fn check_backup_owner(store: &DataStore, group: &BackupGroup, userid: &str) -> R
     Ok(())
 }
 
-fn read_backup_index(store: &DataStore, backup_dir: &BackupDir) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
+fn read_backup_index(
+    store: &DataStore,
+    backup_dir: &BackupDir,
+) -> Result<(BackupManifest, Vec<BackupContent>), Error> {
 
     let (manifest, index_size) = store.load_manifest(backup_dir)?;
 
@@ -131,9 +139,9 @@ fn list_groups(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -154,7 +162,7 @@ fn list_groups(
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
         let owner = datastore.get_owner(group)?;
         if !list_all {
-            if owner != username { continue; }
+            if owner != userid { continue; }
         }
 
         let result_item = GroupListItem {
@@ -212,16 +220,16 @@ pub fn list_snapshot_files(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<BackupContent>, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
     let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ)) != 0;
-    if !allowed { check_backup_owner(&datastore, snapshot.group(), &username)?; }
+    if !allowed { check_backup_owner(&datastore, snapshot.group(), &userid)?; }
 
     let info = BackupInfo::new(&datastore.base_path(), snapshot)?;
 
@@ -264,16 +272,16 @@ fn delete_snapshot(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let allowed = (user_privs & PRIV_DATASTORE_MODIFY) != 0;
-    if !allowed { check_backup_owner(&datastore, snapshot.group(), &username)?; }
+    if !allowed { check_backup_owner(&datastore, snapshot.group(), &userid)?; }
 
     datastore.remove_backup_dir(&snapshot, false)?;
 
@@ -320,9 +328,9 @@ pub fn list_snapshots (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SnapshotListItem>, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -345,7 +353,7 @@ pub fn list_snapshots (
         let owner = datastore.get_owner(group)?;
 
         if !list_all {
-            if owner != username { continue; }
+            if owner != userid { continue; }
         }
 
         let mut size = None;
@@ -481,12 +489,15 @@ pub fn verify(
         _ => bail!("parameters do not spefify a backup group or snapshot"),
     }
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let upid_str = WorkerTask::new_thread(
-        "verify", Some(worker_id.clone()), &username, to_stdout, move |worker|
-        {
+        "verify",
+        Some(worker_id.clone()),
+        userid,
+        to_stdout,
+        move |worker| {
             let failed_dirs = if let Some(backup_dir) = backup_dir {
                 let mut verified_chunks = HashSet::with_capacity(1024*16);
                 let mut corrupt_chunks = HashSet::with_capacity(64);
@@ -508,7 +519,8 @@ pub fn verify(
                 bail!("verfication failed - please check the log for details");
             }
             Ok(())
-        })?;
+        },
+    )?;
 
     Ok(json!(upid_str))
 }
@@ -593,9 +605,9 @@ fn prune(
     let backup_type = tools::required_string_param(&param, "backup-type")?;
     let backup_id = tools::required_string_param(&param, "backup-id")?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let dry_run = param["dry-run"].as_bool().unwrap_or(false);
 
@@ -604,7 +616,7 @@ fn prune(
     let datastore = DataStore::lookup_datastore(&store)?;
 
     let allowed = (user_privs & PRIV_DATASTORE_MODIFY) != 0;
-    if !allowed { check_backup_owner(&datastore, &group, &username)?; }
+    if !allowed { check_backup_owner(&datastore, &group, &userid)?; }
 
     let prune_options = PruneOptions {
         keep_last: param["keep-last"].as_u64(),
@@ -646,7 +658,7 @@ fn prune(
 
 
     // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(worker_id), "root@pam", true)?;
+    let worker = WorkerTask::new("prune", Some(worker_id), Userid::root_userid().clone(), true)?;
 
     let result = try_block! {
         if keep_all {
@@ -728,11 +740,15 @@ fn start_garbage_collection(
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let upid_str = WorkerTask::new_thread(
-        "garbage_collection", Some(store.clone()), "root@pam", to_stdout, move |worker|
-        {
+        "garbage_collection",
+        Some(store.clone()),
+        Userid::root_userid().clone(),
+        to_stdout,
+        move |worker| {
             worker.log(format!("starting garbage collection on store {}", store));
             datastore.garbage_collection(&worker)
-        })?;
+        },
+    )?;
 
     Ok(json!(upid_str))
 }
@@ -796,13 +812,13 @@ fn get_datastore_list(
 
     let (config, _digest) = datastore::config()?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let mut list = Vec::new();
 
     for (store, (_, data)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if allowed {
             let mut entry = json!({ "store": store });
@@ -847,9 +863,9 @@ fn download_file(
         let store = tools::required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
-        let username = rpcenv.get_user().unwrap();
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         let user_info = CachedUserInfo::new()?;
-        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
         let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
 
@@ -860,7 +876,7 @@ fn download_file(
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
         println!("Download {} from {} ({}/{})", file_name, store, backup_dir, file_name);
 
@@ -920,9 +936,9 @@ fn download_file_decoded(
         let store = tools::required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(store)?;
 
-        let username = rpcenv.get_user().unwrap();
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         let user_info = CachedUserInfo::new()?;
-        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
         let file_name = tools::required_string_param(&param, "file-name")?.to_owned();
 
@@ -933,7 +949,7 @@ fn download_file_decoded(
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
         let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
@@ -1038,8 +1054,8 @@ fn upload_backup_log(
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
-        let username = rpcenv.get_user().unwrap();
-        check_backup_owner(&datastore, backup_dir.group(), &username)?;
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+        check_backup_owner(&datastore, backup_dir.group(), &userid)?;
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
@@ -1108,14 +1124,14 @@ fn catalog(
 ) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
     let mut path = datastore.base_path();
     path.push(backup_dir.relative_path());
@@ -1207,9 +1223,9 @@ fn pxar_file_download(
         let store = tools::required_string_param(&param, "store")?;
         let datastore = DataStore::lookup_datastore(&store)?;
 
-        let username = rpcenv.get_user().unwrap();
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         let user_info = CachedUserInfo::new()?;
-        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
         let filepath = tools::required_string_param(&param, "filepath")?.to_owned();
 
@@ -1220,7 +1236,7 @@ fn pxar_file_download(
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+        if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
         let mut path = datastore.base_path();
         path.push(backup_dir.relative_path());
@@ -1346,14 +1362,14 @@ fn get_notes(
 ) -> Result<String, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
     let manifest = datastore.load_manifest_json(&backup_dir)?;
 
@@ -1399,14 +1415,14 @@ fn set_notes(
 ) -> Result<(), Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+    let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
-    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &username)?; }
+    if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
     let mut manifest = datastore.load_manifest_json(&backup_dir)?;
 

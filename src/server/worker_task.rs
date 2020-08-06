@@ -20,6 +20,7 @@ use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOpti
 use super::UPID;
 
 use crate::tools::FileLogger;
+use crate::api2::types::Userid;
 
 macro_rules! PROXMOX_BACKUP_VAR_RUN_DIR_M { () => ("/run/proxmox-backup") }
 macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
@@ -394,10 +395,10 @@ impl Drop for WorkerTask {
 
 impl WorkerTask {
 
-    pub fn new(worker_type: &str, worker_id: Option<String>, username: &str, to_stdout: bool) -> Result<Arc<Self>, Error> {
+    pub fn new(worker_type: &str, worker_id: Option<String>, userid: Userid, to_stdout: bool) -> Result<Arc<Self>, Error> {
         println!("register worker");
 
-        let upid = UPID::new(worker_type, worker_id, username)?;
+        let upid = UPID::new(worker_type, worker_id, userid)?;
         let task_id = upid.task_id;
 
         let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR);
@@ -442,14 +443,14 @@ impl WorkerTask {
     pub fn spawn<F, T>(
         worker_type: &str,
         worker_id: Option<String>,
-        username: &str,
+        userid: Userid,
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
         where F: Send + 'static + FnOnce(Arc<WorkerTask>) -> T,
               T: Send + 'static + Future<Output = Result<(), Error>>,
     {
-        let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
+        let worker = WorkerTask::new(worker_type, worker_id, userid, to_stdout)?;
         let upid_str = worker.upid.to_string();
         let f = f(worker.clone());
         tokio::spawn(async move {
@@ -464,7 +465,7 @@ impl WorkerTask {
     pub fn new_thread<F>(
         worker_type: &str,
         worker_id: Option<String>,
-        username: &str,
+        userid: Userid,
         to_stdout: bool,
         f: F,
     ) -> Result<String, Error>
@@ -474,7 +475,7 @@ impl WorkerTask {
 
         let (p, c) = oneshot::channel::<()>();
 
-        let worker = WorkerTask::new(worker_type, worker_id, username, to_stdout)?;
+        let worker = WorkerTask::new(worker_type, worker_id, userid, to_stdout)?;
         let upid_str = worker.upid.to_string();
 
         let _child = std::thread::Builder::new().name(upid_str.clone()).spawn(move || {

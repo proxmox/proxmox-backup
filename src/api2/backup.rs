@@ -56,12 +56,12 @@ fn upgrade_to_backup_protocol(
 async move {
     let debug = param["debug"].as_bool().unwrap_or(false);
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     let store = tools::required_string_param(&param, "store")?.to_owned();
 
     let user_info = CachedUserInfo::new()?;
-    user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
+    user_info.check_privs(&userid, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -90,11 +90,11 @@ async move {
     let backup_group = BackupGroup::new(backup_type, backup_id);
 
     // lock backup group to only allow one backup per group at a time
-    let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &username)?;
+    let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &userid)?;
 
     // permission check
-    if owner != username { // only the owner is allowed to create additional snapshots
-        bail!("backup owner check failed ({} != {})", username, owner);
+    if owner != userid { // only the owner is allowed to create additional snapshots
+        bail!("backup owner check failed ({} != {})", userid, owner);
     }
 
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
@@ -109,9 +109,9 @@ async move {
     let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
 
-    WorkerTask::spawn("backup", Some(worker_id), &username.clone(), true, move |worker| {
+    WorkerTask::spawn("backup", Some(worker_id), userid.clone(), true, move |worker| {
         let mut env = BackupEnvironment::new(
-            env_type, username.clone(), worker.clone(), datastore, backup_dir);
+            env_type, userid, worker.clone(), datastore, backup_dir);
 
         env.debug = debug;
         env.last_backup = last_backup;

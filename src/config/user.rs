@@ -56,7 +56,7 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
 #[api(
     properties: {
         userid: {
-            schema: PROXMOX_USER_ID_SCHEMA,
+            type: Userid,
         },
         comment: {
             optional: true,
@@ -87,7 +87,7 @@ pub const EMAIL_SCHEMA: Schema = StringSchema::new("E-Mail Address.")
 #[derive(Serialize,Deserialize)]
 /// User properties.
 pub struct User {
-    pub userid: String,
+    pub userid: Userid,
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -109,7 +109,7 @@ fn init() -> SectionConfig {
     };
 
     let plugin = SectionConfigPlugin::new("user".to_string(), Some("userid".to_string()), obj_schema);
-    let mut config = SectionConfig::new(&PROXMOX_USER_ID_SCHEMA);
+    let mut config = SectionConfig::new(&Userid::API_SCHEMA);
 
     config.register_plugin(plugin);
 
@@ -129,7 +129,7 @@ pub fn config() -> Result<(SectionConfigData, [u8;32]), Error> {
 
     if data.sections.get("root@pam").is_none() {
         let user: User = User {
-            userid: "root@pam".to_string(),
+            userid: Userid::root_userid().clone(),
             comment: Some("Superuser".to_string()),
             enable: None,
             expire: None,

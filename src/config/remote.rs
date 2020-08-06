@@ -40,7 +40,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
             schema: DNS_NAME_OR_IP_SCHEMA,
         },
         userid: {
-            schema: PROXMOX_USER_ID_SCHEMA,
+            type: Userid,
         },
         password: {
             schema: REMOTE_PASSWORD_SCHEMA,
@@ -58,7 +58,7 @@ pub struct Remote {
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
     pub host: String,
-    pub userid: String,
+    pub userid: Userid,
     #[serde(skip_serializing_if="String::is_empty")]
     #[serde(with = "proxmox::tools::serde::string_as_base64")]
     pub password: String,

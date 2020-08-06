@@ -49,7 +49,7 @@ pub fn list_users(
     input: {
         properties: {
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             comment: {
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -94,19 +94,18 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
 
     let (mut config, _digest) = user::config()?;
 
-    if let Some(_) = config.sections.get(&user.userid) {
+    if let Some(_) = config.sections.get(user.userid.as_str()) {
         bail!("user '{}' already exists.", user.userid);
     }
 
-    let (username, realm) = crate::auth::parse_userid(&user.userid)?;
-    let authenticator = crate::auth::lookup_authenticator(&realm)?;
+    let authenticator = crate::auth::lookup_authenticator(&user.userid.realm())?;
 
-    config.set_data(&user.userid, "user", &user)?;
+    config.set_data(user.userid.as_str(), "user", &user)?;
 
     user::save_config(&config)?;
 
     if let Some(password) = password {
-        authenticator.store_password(&username, &password)?;
+        authenticator.store_password(user.userid.name(), &password)?;
     }
 
     Ok(())
@@ -116,7 +115,7 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
    input: {
         properties: {
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
          },
     },
@@ -129,9 +128,9 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
     },
 )]
 /// Read user configuration data.
-pub fn read_user(userid: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<user::User, Error> {
+pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<user::User, Error> {
     let (config, digest) = user::config()?;
-    let user = config.lookup("user", &userid)?;
+    let user = config.lookup("user", userid.as_str())?;
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(user)
 }
@@ -141,7 +140,7 @@ pub fn read_user(userid: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
     input: {
         properties: {
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             comment: {
                 optional: true,
@@ -183,7 +182,7 @@ pub fn read_user(userid: String, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
 )]
 /// Update user configuration.
 pub fn update_user(
-    userid: String,
+    userid: Userid,
     comment: Option<String>,
     enable: Option<bool>,
     expire: Option<i64>,
@@ -203,7 +202,7 @@ pub fn update_user(
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    let mut data: user::User = config.lookup("user", &userid)?;
+    let mut data: user::User = config.lookup("user", userid.as_str())?;
 
     if let Some(comment) = comment {
         let comment = comment.trim().to_string();
@@ -223,9 +222,8 @@ pub fn update_user(
     }
 
     if let Some(password) = password {
-        let (username, realm) = crate::auth::parse_userid(&userid)?;
-        let authenticator = crate::auth::lookup_authenticator(&realm)?;
-        authenticator.store_password(&username, &password)?;
+        let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
+        authenticator.store_password(userid.name(), &password)?;
     }
 
     if let Some(firstname) = firstname {
@@ -239,7 +237,7 @@ pub fn update_user(
         data.email = if email.is_empty() { None } else { Some(email) };
     }
 
-    config.set_data(&userid, "user", &data)?;
+    config.set_data(userid.as_str(), "user", &data)?;
 
     user::save_config(&config)?;
 
@@ -251,7 +249,7 @@ pub fn update_user(
     input: {
         properties: {
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             digest: {
                 optional: true,
@@ -264,7 +262,7 @@ pub fn update_user(
     },
 )]
 /// Remove a user from the configuration file.
-pub fn delete_user(userid: String, digest: Option<String>) -> Result<(), Error> {
+pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
 
     let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
 
@@ -275,8 +273,8 @@ pub fn delete_user(userid: String, digest: Option<String>) -> Result<(), Error> 
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    match config.sections.get(&userid) {
-        Some(_) => { config.sections.remove(&userid); },
+    match config.sections.get(userid.as_str()) {
+        Some(_) => { config.sections.remove(userid.as_str()); },
         None => bail!("user '{}' does not exist.", userid),
     }
 

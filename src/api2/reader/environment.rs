@@ -5,9 +5,10 @@ use serde_json::{json, Value};
 
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::server::WorkerTask;
+use crate::api2::types::Userid;
 use crate::backup::*;
 use crate::server::formatter::*;
+use crate::server::WorkerTask;
 
 //use proxmox::tools;
 
@@ -16,7 +17,7 @@ use crate::server::formatter::*;
 pub struct ReaderEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: Value,
-    user: String,
+    user: Userid,
     pub debug: bool,
     pub formatter: &'static OutputFormatter,
     pub worker: Arc<WorkerTask>,
@@ -28,7 +29,7 @@ pub struct ReaderEnvironment {
 impl ReaderEnvironment {
     pub fn new(
         env_type: RpcEnvironmentType,
-        user: String,
+        user: Userid,
         worker: Arc<WorkerTask>,
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
@@ -77,7 +78,7 @@ impl RpcEnvironment for ReaderEnvironment {
     }
 
     fn get_user(&self) -> Option<String> {
-        Some(self.user.clone())
+        Some(self.user.to_string())
     }
 }
 

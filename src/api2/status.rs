@@ -10,14 +10,14 @@ use proxmox::api::{
     Router,
     RpcEnvironment,
     SubdirMap,
-    UserInformation,
 };
 
 use crate::api2::types::{
     DATASTORE_SCHEMA,
     RRDMode,
     RRDTimeFrameResolution,
-    TaskListItem
+    TaskListItem,
+    Userid,
 };
 
 use crate::server;
@@ -84,13 +84,13 @@ fn datastore_status(
 
     let (config, _digest) = datastore::config()?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let mut list = Vec::new();
 
     for (store, (_, _)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&username, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if !allowed {
             continue;
@@ -202,9 +202,9 @@ pub fn list_tasks(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["system", "tasks"]);
+    let user_privs = user_info.lookup_privs(&userid, &["system", "tasks"]);
 
     let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
 
@@ -212,7 +212,7 @@ pub fn list_tasks(
     let list: Vec<TaskListItem> = server::read_task_list()?
         .into_iter()
         .map(TaskListItem::from)
-        .filter(|entry| list_all || entry.user == username)
+        .filter(|entry| list_all || entry.user == userid)
         .collect();
 
     Ok(list.into())

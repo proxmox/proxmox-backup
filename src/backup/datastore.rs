@@ -21,7 +21,7 @@ use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
-use crate::api2::types::GarbageCollectionStatus;
+use crate::api2::types::{GarbageCollectionStatus, Userid};
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
@@ -287,16 +287,21 @@ impl DataStore {
     /// Returns the backup owner.
     ///
     /// The backup owner is the user who first created the backup group.
-    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<String, Error> {
+    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<Userid, Error> {
         let mut full_path = self.base_path();
         full_path.push(backup_group.group_path());
         full_path.push("owner");
         let owner = proxmox::tools::fs::file_read_firstline(full_path)?;
-        Ok(owner.trim_end().to_string()) // remove trailing newline
+        Ok(owner.trim_end().parse()?) // remove trailing newline
     }
 
     /// Set the backup owner.
-    pub fn set_owner(&self, backup_group: &BackupGroup, userid: &str, force: bool) -> Result<(), Error> {
+    pub fn set_owner(
+        &self,
+        backup_group: &BackupGroup,
+        userid: &Userid,
+        force: bool,
+    ) -> Result<(), Error> {
         let mut path = self.base_path();
         path.push(backup_group.group_path());
         path.push("owner");
@@ -326,8 +331,11 @@ impl DataStore {
     /// current owner (instead of setting the owner).
     ///
     /// This also aquires an exclusive lock on the directory and returns the lock guard.
-    pub fn create_locked_backup_group(&self, backup_group: &BackupGroup, userid: &str) -> Result<(String, BackupGroupGuard), Error> {
-
+    pub fn create_locked_backup_group(
+        &self,
+        backup_group: &BackupGroup,
+        userid: &Userid,
+    ) -> Result<(Userid, BackupGroupGuard), Error> {
         // create intermediate path first:
         let base_path = self.base_path();
 

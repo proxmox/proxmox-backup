@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader};
 use anyhow::{Error};
 use serde_json::{json, Value};
 
-use proxmox::api::{api, Router, RpcEnvironment, Permission, UserInformation};
+use proxmox::api::{api, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
@@ -84,11 +84,11 @@ async fn get_task_status(
 
     let upid = extract_upid(&param)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    if username != upid.username {
+    if userid != upid.userid {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
     }
 
     let mut result = json!({
@@ -99,7 +99,7 @@ async fn get_task_status(
         "starttime": upid.starttime,
         "type": upid.worker_type,
         "id": upid.worker_id,
-        "user": upid.username,
+        "user": upid.userid,
     });
 
     if crate::server::worker_is_active(&upid).await? {
@@ -161,11 +161,11 @@ async fn read_task_log(
 
     let upid = extract_upid(&param)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    if username != upid.username {
+    if userid != upid.userid {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
     }
 
     let test_status = param["test-status"].as_bool().unwrap_or(false);
@@ -234,11 +234,11 @@ fn stop_task(
 
     let upid = extract_upid(&param)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    if username != upid.username {
+    if userid != upid.userid {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&username, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
+        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 
     server::abort_worker_async(upid);
@@ -281,7 +281,7 @@ fn stop_task(
                 default: false,
             },
             userfilter: {
-                optional:true,
+                optional: true,
                 type: String,
                 description: "Only list tasks from this user.",
             },
@@ -307,9 +307,9 @@ pub fn list_tasks(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&username, &["system", "tasks"]);
+    let user_privs = user_info.lookup_privs(&userid, &["system", "tasks"]);
 
     let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
 
@@ -324,11 +324,11 @@ pub fn list_tasks(
     let mut count = 0;
 
     for info in list {
-        if !list_all && info.upid.username != username { continue; }
+        if !list_all && info.upid.userid != userid { continue; }
 
 
-        if let Some(username) = userfilter {
-            if !info.upid.username.contains(username) { continue; }
+        if let Some(userid) = userfilter {
+            if !info.upid.userid.as_str().contains(userid) { continue; }
         }
 
         if let Some(store) = store {

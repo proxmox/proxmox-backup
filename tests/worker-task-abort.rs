@@ -54,21 +54,27 @@ fn worker_task_abort() -> Result<(), Error> {
         }
 
         let errmsg = errmsg1.clone();
-        let res = server::WorkerTask::new_thread("garbage_collection", None, "root@pam", true, move |worker| {
-            println!("WORKER {}", worker);
+        let res = server::WorkerTask::new_thread(
+            "garbage_collection",
+            None,
+            proxmox_backup::api2::types::Userid::root_userid().clone(),
+            true,
+            move |worker| {
+                println!("WORKER {}", worker);
 
-            let result = garbage_collection(&worker);
-            tools::request_shutdown();
+                let result = garbage_collection(&worker);
+                tools::request_shutdown();
 
-            if let Err(err) = result {
-                println!("got expected error: {}", err);
-            } else {
-                let mut data = errmsg.lock().unwrap();
-                *data = Some(String::from("thread finished - seems abort did not work as expected"));
-            }
+                if let Err(err) = result {
+                    println!("got expected error: {}", err);
+                } else {
+                    let mut data = errmsg.lock().unwrap();
+                    *data = Some(String::from("thread finished - seems abort did not work as expected"));
+                }
 
-            Ok(())
-        });
+                Ok(())
+            },
+        );
 
         match res {
             Err(err) => {

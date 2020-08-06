@@ -27,6 +27,7 @@ use super::formatter::*;
 use super::ApiConfig;
 
 use crate::auth_helpers::*;
+use crate::api2::types::Userid;
 use crate::tools;
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -311,10 +312,10 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     Ok(resp)
 }
 
-fn get_index(username: Option<String>, token: Option<String>, api: &Arc<ApiConfig>, parts: Parts) ->  Response<Body> {
+fn get_index(userid: Option<Userid>, token: Option<String>, api: &Arc<ApiConfig>, parts: Parts) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
-    let username = username.unwrap_or_else(|| String::from(""));
+    let userid = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
 
     let token = token.unwrap_or_else(|| String::from(""));
 
@@ -333,7 +334,7 @@ fn get_index(username: Option<String>, token: Option<String>, api: &Arc<ApiConfi
 
     let data = json!({
         "NodeName": nodename,
-        "UserName": username,
+        "UserName": userid,
         "CSRFPreventionToken": token,
         "debug": debug,
     });
@@ -461,33 +462,33 @@ fn check_auth(
     ticket: &Option<String>,
     token: &Option<String>,
     user_info: &CachedUserInfo,
-) -> Result<String, Error> {
+) -> Result<Userid, Error> {
 
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
-    let username = match ticket {
+    let userid = match ticket {
         Some(ticket) => match tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", &ticket, None, -300, ticket_lifetime) {
-            Ok((_age, Some(username))) => username.to_owned(),
+            Ok((_age, Some(userid))) => userid,
             Ok((_, None)) => bail!("ticket without username."),
             Err(err) => return Err(err),
         }
         None => bail!("missing ticket"),
     };
 
-    if !user_info.is_active_user(&username) {
+    if !user_info.is_active_user(&userid) {
         bail!("user account disabled or expired.");
     }
 
     if method != hyper::Method::GET {
         if let Some(token) = token {
             println!("CSRF prevention token: {:?}", token);
-            verify_csrf_prevention_token(csrf_secret(), &username, &token, -300, ticket_lifetime)?;
+            verify_csrf_prevention_token(csrf_secret(), &userid, &token, -300, ticket_lifetime)?;
         } else {
             bail!("missing CSRF prevention token");
         }
     }
 
-    Ok(username)
+    Ok(userid)
 }
 
 pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Response<Body>, Error> {
@@ -532,7 +533,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
             } else {
                 let (ticket, token) = extract_auth_data(&parts.headers);
                 match check_auth(&method, &ticket, &token, &user_info) {
-                    Ok(username) => rpcenv.set_user(Some(username)),
+                    Ok(userid) => rpcenv.set_user(Some(userid.to_string())),
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
@@ -580,9 +581,9 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
             let (ticket, token) = extract_auth_data(&parts.headers);
             if ticket != None {
                 match check_auth(&method, &ticket, &token, &user_info) {
-                    Ok(username) => {
-                        let new_token = assemble_csrf_prevention_token(csrf_secret(), &username);
-                        return Ok(get_index(Some(username), Some(new_token), &api, parts));
+                    Ok(userid) => {
+                        let new_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
+                        return Ok(get_index(Some(userid), Some(new_token), &api, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;

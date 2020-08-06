@@ -90,12 +90,12 @@ async fn termproxy(
     cmd: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let userid = rpcenv
+    let userid: Userid = rpcenv
         .get_user()
-        .ok_or_else(|| format_err!("unknown user"))?;
-    let (username, realm) = crate::auth::parse_userid(&userid)?;
+        .ok_or_else(|| format_err!("unknown user"))?
+        .parse()?;
 
-    if realm != "pam" {
+    if userid.realm() != "pam" {
         bail!("only pam users can use the console");
     }
 
@@ -133,10 +133,11 @@ async fn termproxy(
         _ => bail!("invalid command"),
     };
 
+    let username = userid.name().to_owned();
     let upid = WorkerTask::spawn(
         "termproxy",
         None,
-        &userid,
+        userid,
         false,
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port
@@ -233,6 +234,7 @@ async fn termproxy(
         },
     )?;
 
+    // FIXME: We're returning the user NAME only?
     Ok(json!({
         "user": username,
         "ticket": ticket,
@@ -270,14 +272,14 @@ fn upgrade_to_websocket(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
-        let username = rpcenv.get_user().unwrap();
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         let ticket = tools::required_string_param(&param, "vncticket")?.to_owned();
         let port: u16 = tools::required_integer_param(&param, "port")? as u16;
 
         // will be checked again by termproxy
         tools::ticket::verify_term_ticket(
             crate::auth_helpers::public_auth_key(),
-            &username,
+            &userid,
             &"/system",
             port,
             &ticket,

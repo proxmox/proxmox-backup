@@ -1,11 +1,21 @@
-use anyhow::{bail};
-use ::serde::{Deserialize, Serialize};
+use anyhow::bail;
+use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use crate::backup::CryptMode;
+
+#[macro_use]
+mod macros;
+
+#[macro_use]
+mod userid;
+pub use userid::{Realm, RealmRef};
+pub use userid::{Username, UsernameRef};
+pub use userid::Userid;
+pub use userid::PROXMOX_GROUP_ID_SCHEMA;
 
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
@@ -20,19 +30,6 @@ pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
 
 macro_rules! DNS_LABEL { () => (r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)") }
 macro_rules! DNS_NAME { () => (concat!(r"(?:", DNS_LABEL!() , r"\.)*", DNS_LABEL!())) }
-
-// we only allow a limited set of characters
-// colon is not allowed, because we store usernames in
-// colon separated lists)!
-// slash is not allowed because it is used as pve API delimiter
-// also see "man useradd"
-macro_rules! USER_NAME_REGEX_STR { () => (r"(?:[^\s:/[:cntrl:]]+)") }
-macro_rules! GROUP_NAME_REGEX_STR { () => (USER_NAME_REGEX_STR!()) }
-
-macro_rules! USER_ID_REGEX_STR { () => (concat!(USER_NAME_REGEX_STR!(), r"@", PROXMOX_SAFE_ID_REGEX_STR!())) }
-
-#[macro_export]
-macro_rules! PROXMOX_SAFE_ID_REGEX_STR {  () => (r"(?:[A-Za-z0-9_][A-Za-z0-9._\-]*)") }
 
 macro_rules! CIDR_V4_REGEX_STR { () => (concat!(r"(?:", IPV4RE!(), r"/\d{1,2})$")) }
 macro_rules! CIDR_V6_REGEX_STR { () => (concat!(r"(?:", IPV6RE!(), r"/\d{1,3})$")) }
@@ -67,11 +64,7 @@ const_regex!{
 
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r"$");
 
-    pub PROXMOX_USER_ID_REGEX = concat!(r"^",  USER_ID_REGEX_STR!(), r"$");
-
     pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE!() ,"):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
-
-    pub PROXMOX_GROUP_ID_REGEX = concat!(r"^",  GROUP_NAME_REGEX_STR!(), r"$");
 
     pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 
@@ -114,12 +107,6 @@ pub const DNS_NAME_FORMAT: ApiStringFormat =
 
 pub const DNS_NAME_OR_IP_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&DNS_NAME_OR_IP_REGEX);
-
-pub const PROXMOX_USER_ID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&PROXMOX_USER_ID_REGEX);
-
-pub const PROXMOX_GROUP_ID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&PROXMOX_GROUP_ID_REGEX);
 
 pub const PASSWORD_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PASSWORD_REGEX);
@@ -343,24 +330,6 @@ pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP addr
     .format(&DNS_NAME_OR_IP_FORMAT)
     .schema();
 
-pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = StringSchema::new("Authentication domain ID")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(3)
-    .max_length(32)
-    .schema();
-
-pub const PROXMOX_USER_ID_SCHEMA: Schema = StringSchema::new("User ID")
-    .format(&PROXMOX_USER_ID_FORMAT)
-    .min_length(3)
-    .max_length(64)
-    .schema();
-
-pub const PROXMOX_GROUP_ID_SCHEMA: Schema = StringSchema::new("Group ID")
-    .format(&PROXMOX_GROUP_ID_FORMAT)
-    .min_length(3)
-    .max_length(64)
-    .schema();
-
 pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name (/sys/block/<name>).")
     .format(&BLOCKDEVICE_NAME_FORMAT)
     .min_length(3)
@@ -388,6 +357,10 @@ pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name
                 schema: BACKUP_ARCHIVE_NAME_SCHEMA
             },
         },
+        owner: {
+            type: Userid,
+            optional: true,
+        },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -403,7 +376,7 @@ pub struct GroupListItem {
     pub files: Vec<String>,
     /// The owner of group
     #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<String>,
+    pub owner: Option<Userid>,
 }
 
 #[api(
@@ -421,6 +394,10 @@ pub struct GroupListItem {
             items: {
                 schema: BACKUP_ARCHIVE_NAME_SCHEMA
             },
+        },
+        owner: {
+            type: Userid,
+            optional: true,
         },
     },
 )]
@@ -441,7 +418,7 @@ pub struct SnapshotListItem {
     pub size: Option<u64>,
     /// The owner of the snapshots group
     #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<String>,
+    pub owner: Option<Userid>,
 }
 
 #[api(
@@ -584,7 +561,8 @@ pub struct StorageStatus {
 
 #[api(
     properties: {
-        "upid": { schema: UPID_SCHEMA },
+        upid: { schema: UPID_SCHEMA },
+        user: { type: Userid },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -604,7 +582,7 @@ pub struct TaskListItem {
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
     /// The user who started the task
-    pub user: String,
+    pub user: Userid,
     /// The task end time (Epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub endtime: Option<i64>,
@@ -627,7 +605,7 @@ impl From<crate::server::TaskListInfo> for TaskListItem {
             starttime: info.upid.starttime,
             worker_type: info.upid.worker_type,
             worker_id: info.upid.worker_id,
-            user: info.upid.username,
+            user: info.upid.userid,
             endtime,
             status,
         }
@@ -893,9 +871,6 @@ fn test_cert_fingerprint_schema() -> Result<(), anyhow::Error> {
 
 #[test]
 fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
-
-    let schema = PROXMOX_USER_ID_SCHEMA;
-
     let invalid_user_ids = [
         "x", // too short
         "xx", // too short
@@ -909,7 +884,7 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     ];
 
     for name in invalid_user_ids.iter() {
-        if let Ok(_) = parse_simple_value(name, &schema) {
+        if let Ok(_) = parse_simple_value(name, &Userid::API_SCHEMA) {
             bail!("test userid '{}' failed -  got Ok() while exception an error.", name);
         }
     }
@@ -923,7 +898,7 @@ fn test_proxmox_user_id_schema() -> Result<(), anyhow::Error> {
     ];
 
     for name in valid_user_ids.iter() {
-        let v = match parse_simple_value(name, &schema) {
+        let v = match parse_simple_value(name, &Userid::API_SCHEMA) {
             Ok(v) => v,
             Err(err) => {
                 bail!("unable to parse userid '{}' - {}", name, err);

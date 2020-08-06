@@ -59,12 +59,17 @@ fn connect() -> Result<HttpClient, Error> {
         .verify_cert(false); // not required for connection to localhost
 
     let client = if uid.is_root()  {
-        let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some("root@pam"), None)?;
+        let ticket = assemble_rsa_ticket(
+            private_auth_key(),
+            "PBS",
+            Some(Userid::root_userid()),
+            None,
+        )?;
         options = options.password(Some(ticket));
-        HttpClient::new("localhost", "root@pam", options)?
+        HttpClient::new("localhost", Userid::root_userid(), options)?
     } else {
         options = options.ticket_cache(true).interactive(true);
-        HttpClient::new("localhost", "root@pam", options)?
+        HttpClient::new("localhost", Userid::root_userid(), options)?
     };
 
     Ok(client)

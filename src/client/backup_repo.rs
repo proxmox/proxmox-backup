@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::fmt;
 
 use anyhow::{format_err, Error};
@@ -15,7 +16,7 @@ pub const BACKUP_REPO_URL: ApiStringFormat = ApiStringFormat::Pattern(&BACKUP_RE
 #[derive(Debug)]
 pub struct BackupRepository {
     /// The user name used for Authentication
-    user: Option<String>,
+    user: Option<Userid>,
     /// The host name or IP address
     host: Option<String>,
     /// The name of the datastore
@@ -24,15 +25,15 @@ pub struct BackupRepository {
 
 impl BackupRepository {
 
-    pub fn new(user: Option<String>, host: Option<String>, store: String) -> Self {
+    pub fn new(user: Option<Userid>, host: Option<String>, store: String) -> Self {
         Self { user, host, store }
     }
 
-    pub fn user(&self) -> &str {
+    pub fn user(&self) -> &Userid {
         if let Some(ref user) = self.user {
-            return user;
+            return &user;
         }
-        "root@pam"
+        Userid::root_userid()
     }
 
     pub fn host(&self) -> &str {
@@ -73,7 +74,7 @@ impl std::str::FromStr for BackupRepository {
             .ok_or_else(|| format_err!("unable to parse repository url '{}'", url))?;
 
         Ok(Self {
-            user: cap.get(1).map(|m| m.as_str().to_owned()),
+            user: cap.get(1).map(|m| Userid::try_from(m.as_str().to_owned())).transpose()?,
             host: cap.get(2).map(|m| m.as_str().to_owned()),
             store: cap[3].to_owned(),
         })

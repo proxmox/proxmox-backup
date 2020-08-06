@@ -55,11 +55,11 @@ fn upgrade_to_backup_reader_protocol(
     async move {
         let debug = param["debug"].as_bool().unwrap_or(false);
 
-        let username = rpcenv.get_user().unwrap();
+        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         let store = tools::required_string_param(&param, "store")?.to_owned();
 
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&username, &["datastore", &store], PRIV_DATASTORE_READ, false)?;
+        user_info.check_privs(&userid, &["datastore", &store], PRIV_DATASTORE_READ, false)?;
 
         let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -90,9 +90,14 @@ fn upgrade_to_backup_reader_protocol(
 
         let worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_dir.backup_time().timestamp());
 
-        WorkerTask::spawn("reader", Some(worker_id), &username.clone(), true, move |worker| {
+        WorkerTask::spawn("reader", Some(worker_id), userid.clone(), true, move |worker| {
             let mut env = ReaderEnvironment::new(
-                env_type, username.clone(), worker.clone(), datastore, backup_dir);
+                env_type,
+                userid,
+                worker.clone(),
+                datastore,
+                backup_dir,
+            );
 
             env.debug = debug;
 

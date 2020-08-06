@@ -9,6 +9,7 @@ use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 
+use proxmox_backup::api2::types::Userid;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
@@ -318,7 +319,7 @@ async fn schedule_datastore_garbage_collection() {
         if let Err(err) = WorkerTask::new_thread(
             worker_type,
             Some(store.clone()),
-            "backup@pam",
+            Userid::backup_userid().clone(),
             false,
             move |worker| {
                 worker.log(format!("starting garbage collection on store {}", store));
@@ -429,7 +430,7 @@ async fn schedule_datastore_prune() {
         if let Err(err) = WorkerTask::new_thread(
             worker_type,
             Some(store.clone()),
-            "backup@pam",
+            Userid::backup_userid().clone(),
             false,
             move |worker| {
                 worker.log(format!("Starting datastore prune on store \"{}\"", store));
@@ -568,14 +569,14 @@ async fn schedule_datastore_sync_jobs() {
             }
         };
 
-        let username = String::from("backup@pam");
+        let userid = Userid::backup_userid().clone();
 
         let delete = job_config.remove_vanished.unwrap_or(true);
 
         if let Err(err) = WorkerTask::spawn(
             worker_type,
             Some(job_id.clone()),
-            &username.clone(),
+            userid.clone(),
             false,
             move |worker| async move {
                 worker.log(format!("Starting datastore sync job '{}'", job_id));
@@ -594,7 +595,7 @@ async fn schedule_datastore_sync_jobs() {
 
                 let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), job_config.remote_store);
 
-                pull_store(&worker, &client, &src_repo, tgt_store, delete, username).await?;
+                pull_store(&worker, &client, &src_repo, tgt_store, delete, userid).await?;
 
                 Ok(())
             }

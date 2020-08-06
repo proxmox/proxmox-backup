@@ -24,6 +24,7 @@ use proxmox::{
 };
 
 use super::pipe_to_stream::PipeToSendStream;
+use crate::api2::types::Userid;
 use crate::tools::async_io::EitherStream;
 use crate::tools::{self, BroadcastFuture, DEFAULT_ENCODE_SET};
 
@@ -104,7 +105,7 @@ pub struct HttpClient {
 }
 
 /// Delete stored ticket data (logout)
-pub fn delete_ticket_info(prefix: &str, server: &str, username: &str) -> Result<(), Error> {
+pub fn delete_ticket_info(prefix: &str, server: &str, username: &Userid) -> Result<(), Error> {
 
     let base = BaseDirectories::with_prefix(prefix)?;
 
@@ -116,7 +117,7 @@ pub fn delete_ticket_info(prefix: &str, server: &str, username: &str) -> Result<
     let mut data = file_get_json(&path, Some(json!({})))?;
 
     if let Some(map) = data[server].as_object_mut() {
-        map.remove(username);
+        map.remove(username.as_str());
     }
 
     replace_file(path, data.to_string().as_bytes(), CreateOptions::new().perm(mode))?;
@@ -223,7 +224,7 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
     Ok(())
 }
 
-fn load_ticket_info(prefix: &str, server: &str, username: &str) -> Option<(String, String)> {
+fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(String, String)> {
     let base = BaseDirectories::with_prefix(prefix).ok()?;
 
     // usually /run/user/<uid>/...
@@ -231,7 +232,7 @@ fn load_ticket_info(prefix: &str, server: &str, username: &str) -> Option<(Strin
     let data = file_get_json(&path, None).ok()?;
     let now = Utc::now().timestamp();
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
-    let uinfo = data[server][username].as_object()?;
+    let uinfo = data[server][userid.as_str()].as_object()?;
     let timestamp = uinfo["timestamp"].as_i64()?;
     let age = now - timestamp;
 
@@ -245,8 +246,11 @@ fn load_ticket_info(prefix: &str, server: &str, username: &str) -> Option<(Strin
 }
 
 impl HttpClient {
-
-    pub fn new(server: &str, username: &str, mut options: HttpClientOptions) -> Result<Self, Error> {
+    pub fn new(
+        server: &str,
+        userid: &Userid,
+        mut options: HttpClientOptions,
+    ) -> Result<Self, Error> {
 
         let verified_fingerprint = Arc::new(Mutex::new(None));
 
@@ -306,20 +310,20 @@ impl HttpClient {
         } else {
             let mut ticket_info = None;
             if use_ticket_cache {
-                ticket_info = load_ticket_info(options.prefix.as_ref().unwrap(), server, username);
+                ticket_info = load_ticket_info(options.prefix.as_ref().unwrap(), server, userid);
             }
             if let Some((ticket, _token)) = ticket_info {
                 ticket
             } else {
-                Self::get_password(&username, options.interactive)?
+                Self::get_password(userid, options.interactive)?
             }
         };
 
         let login_future = Self::credentials(
             client.clone(),
             server.to_owned(),
-            username.to_owned(),
-            password,
+            userid.to_owned(),
+            password.to_owned(),
         ).map_ok({
             let server = server.to_string();
             let prefix = options.prefix.clone();
@@ -355,7 +359,7 @@ impl HttpClient {
         (*self.fingerprint.lock().unwrap()).clone()
     }
 
-    fn get_password(username: &str, interactive: bool) -> Result<String, Error> {
+    fn get_password(username: &Userid, interactive: bool) -> Result<String, Error> {
         // If we're on a TTY, query the user for a password
         if interactive && tty::stdin_isatty() {
             let msg = format!("Password for \"{}\": ", username);
@@ -579,7 +583,7 @@ impl HttpClient {
     async fn credentials(
         client: Client<HttpsConnector>,
         server: String,
-        username: String,
+        username: Userid,
         password: String,
     ) -> Result<AuthInfo, Error> {
         let data = json!({ "username": username, "password": password });

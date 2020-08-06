@@ -2,7 +2,7 @@ use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
 
-use proxmox::api::{api, RpcEnvironment, Permission, UserInformation};
+use proxmox::api::{api, RpcEnvironment, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
@@ -23,7 +23,7 @@ pub mod role;
 /// returns Ok(true) if a ticket has to be created
 /// and Ok(false) if not
 fn authenticate_user(
-    username: &str,
+    userid: &Userid,
     password: &str,
     path: Option<String>,
     privs: Option<String>,
@@ -31,7 +31,7 @@ fn authenticate_user(
 ) -> Result<bool, Error> {
     let user_info = CachedUserInfo::new()?;
 
-    if !user_info.is_active_user(&username) {
+    if !user_info.is_active_user(&userid) {
         bail!("user account disabled or expired.");
     }
 
@@ -39,10 +39,10 @@ fn authenticate_user(
 
     if password.starts_with("PBS:") {
         if let Ok((_age, Some(ticket_username))) = tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", password, None, -300, ticket_lifetime) {
-            if ticket_username == username {
+            if *userid == ticket_username {
                 return Ok(true);
             } else {
-                bail!("ticket login failed - wrong username");
+                bail!("ticket login failed - wrong userid");
             }
         }
     } else if password.starts_with("PBSTERM:") {
@@ -55,7 +55,7 @@ fn authenticate_user(
         let port = port.unwrap();
 
         if let Ok((_age, _data)) =
-            tools::ticket::verify_term_ticket(public_auth_key(), &username, &path, port, password)
+            tools::ticket::verify_term_ticket(public_auth_key(), &userid, &path, port, password)
         {
             for (name, privilege) in PRIVILEGES {
                 if *name == privilege_name {
@@ -66,7 +66,7 @@ fn authenticate_user(
                         }
                     }
 
-                    user_info.check_privs(username, &path_vec, *privilege, false)?;
+                    user_info.check_privs(userid, &path_vec, *privilege, false)?;
                     return Ok(false);
                 }
             }
@@ -75,7 +75,7 @@ fn authenticate_user(
         }
     }
 
-    let _ = crate::auth::authenticate_user(username, password)?;
+    let _ = crate::auth::authenticate_user(userid, password)?;
     Ok(true)
 }
 
@@ -83,7 +83,7 @@ fn authenticate_user(
     input: {
         properties: {
             username: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             password: {
                 schema: PASSWORD_SCHEMA,
@@ -130,7 +130,7 @@ fn authenticate_user(
 ///
 /// Returns: An authentication ticket with additional infos.
 fn create_ticket(
-    username: String,
+    username: Userid,
     password: String,
     path: Option<String>,
     privs: Option<String>,
@@ -165,7 +165,7 @@ fn create_ticket(
     input: {
         properties: {
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             password: {
                 schema: PASSWORD_SCHEMA,
@@ -183,13 +183,15 @@ fn create_ticket(
 /// Each user is allowed to change his own password. Superuser
 /// can change all passwords.
 fn change_password(
-    userid: String,
+    userid: Userid,
     password: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let current_user = rpcenv.get_user()
-        .ok_or_else(|| format_err!("unknown user"))?;
+    let current_user: Userid = rpcenv
+        .get_user()
+        .ok_or_else(|| format_err!("unknown user"))?
+        .parse()?;
 
     let mut allowed = userid == current_user;
 
@@ -205,9 +207,8 @@ fn change_password(
         bail!("you are not authorized to change the password.");
     }
 
-    let (username, realm) = crate::auth::parse_userid(&userid)?;
-    let authenticator = crate::auth::lookup_authenticator(&realm)?;
-    authenticator.store_password(&username, &password)?;
+    let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
+    authenticator.store_password(userid.name(), &password)?;
 
     Ok(Value::Null)
 }

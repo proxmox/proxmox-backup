@@ -184,7 +184,7 @@ pub fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<
     result
 }
 
-fn connect(server: &str, userid: &str) -> Result<HttpClient, Error> {
+fn connect(server: &str, userid: &Userid) -> Result<HttpClient, Error> {
 
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 

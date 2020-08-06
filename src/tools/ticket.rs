@@ -7,6 +7,7 @@ use openssl::pkey::{PKey, Public, Private};
 use openssl::sign::{Signer, Verifier};
 use openssl::hash::MessageDigest;
 
+use crate::api2::types::Userid;
 use crate::tools::epoch_now_u64;
 
 pub const TICKET_LIFETIME: i64 = 3600*2; // 2 hours
@@ -15,7 +16,7 @@ const TERM_PREFIX: &str = "PBSTERM";
 
 pub fn assemble_term_ticket(
     keypair: &PKey<Private>,
-    username: &str,
+    userid: &Userid,
     path: &str,
     port: u16,
 ) -> Result<String, Error> {
@@ -23,22 +24,22 @@ pub fn assemble_term_ticket(
         keypair,
         TERM_PREFIX,
         None,
-        Some(&format!("{}{}{}", username, path, port)),
+        Some(&format!("{}{}{}", userid, path, port)),
     )
 }
 
 pub fn verify_term_ticket(
     keypair: &PKey<Public>,
-    username: &str,
+    userid: &Userid,
     path: &str,
     port: u16,
     ticket: &str,
-) -> Result<(i64, Option<String>), Error> {
+) -> Result<(i64, Option<Userid>), Error> {
     verify_rsa_ticket(
         keypair,
         TERM_PREFIX,
         ticket,
-        Some(&format!("{}{}{}", username, path, port)),
+        Some(&format!("{}{}{}", userid, path, port)),
         -300,
         TICKET_LIFETIME,
     )
@@ -47,7 +48,7 @@ pub fn verify_term_ticket(
 pub fn assemble_rsa_ticket(
     keypair: &PKey<Private>,
     prefix: &str,
-    data: Option<&str>,
+    data: Option<&Userid>,
     secret_data: Option<&str>,
 ) -> Result<String, Error> {
 
@@ -59,7 +60,8 @@ pub fn assemble_rsa_ticket(
     plain.push(':');
 
     if let Some(data) = data {
-        plain.push_str(data);
+        use std::fmt::Write;
+        write!(plain, "{}", data)?;
         plain.push(':');
     }
 
@@ -87,7 +89,7 @@ pub fn verify_rsa_ticket(
     secret_data: Option<&str>,
     min_age: i64,
     max_age: i64,
-) -> Result<(i64, Option<String>), Error> {
+) -> Result<(i64, Option<Userid>), Error> {
 
     use std::collections::VecDeque;
 
@@ -145,5 +147,5 @@ pub fn verify_rsa_ticket(
         bail!("invalid ticket - timestamp too old.");
     }
 
-    Ok((age, data))
+    Ok((age, data.map(|s| s.parse()).transpose()?))
 }

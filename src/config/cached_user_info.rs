@@ -10,6 +10,7 @@ use proxmox::api::UserInformation;
 
 use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
 use super::user::User;
+use crate::api2::types::Userid;
 
 /// Cache User/Group/Acl configuration data for fast permission tests
 pub struct CachedUserInfo {
@@ -57,8 +58,8 @@ impl CachedUserInfo {
     }
 
     /// Test if a user account is enabled and not expired
-    pub fn is_active_user(&self, userid: &str) -> bool {
-        if let Ok(info) = self.user_cfg.lookup::<User>("user", &userid) {
+    pub fn is_active_user(&self, userid: &Userid) -> bool {
+        if let Ok(info) = self.user_cfg.lookup::<User>("user", userid.as_str()) {
             if !info.enable.unwrap_or(true) {
                 return false;
             }
@@ -77,12 +78,12 @@ impl CachedUserInfo {
 
     pub fn check_privs(
         &self,
-        userid: &str,
+        userid: &Userid,
         path: &[&str],
         required_privs: u64,
         partial: bool,
     ) -> Result<(), Error> {
-        let user_privs = self.lookup_privs(userid, path);
+        let user_privs = self.lookup_privs(&userid, path);
         let allowed = if partial {
             (user_privs & required_privs) != 0
         } else {
@@ -97,6 +98,32 @@ impl CachedUserInfo {
     }
 }
 
+impl CachedUserInfo {
+    pub fn is_superuser(&self, userid: &Userid) -> bool {
+        userid == "root@pam"
+    }
+
+    pub fn is_group_member(&self, _userid: &Userid, _group: &str) -> bool {
+        false
+    }
+
+    pub fn lookup_privs(&self, userid: &Userid, path: &[&str]) -> u64 {
+
+        if self.is_superuser(userid) {
+            return ROLE_ADMIN;
+        }
+
+        let roles = self.acl_tree.roles(userid, path);
+        let mut privs: u64 = 0;
+        for role in roles {
+            if let Some((role_privs, _)) = ROLE_NAMES.get(role.as_str()) {
+                privs |= role_privs;
+            }
+        }
+        privs
+    }
+}
+
 impl UserInformation for CachedUserInfo {
     fn is_superuser(&self, userid: &str) -> bool {
         userid == "root@pam"
@@ -107,16 +134,9 @@ impl UserInformation for CachedUserInfo {
     }
 
     fn lookup_privs(&self, userid: &str, path: &[&str]) -> u64 {
-
-        if self.is_superuser(userid) { return ROLE_ADMIN; }
-
-        let roles = self.acl_tree.roles(userid, path);
-        let mut privs: u64 = 0;
-        for role in roles {
-            if let Some((role_privs, _)) = ROLE_NAMES.get(role.as_str()) {
-                privs |= role_privs;
-            }
+        match userid.parse::<Userid>() {
+            Ok(userid) => Self::lookup_privs(self, &userid, path),
+            Err(_) => 0,
         }
-        privs
     }
 }

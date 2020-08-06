@@ -4,6 +4,7 @@ use anyhow::{Error};
 
 use chrono::{DateTime, Utc};
 
+use proxmox_backup::api2::types::Userid;
 use proxmox_backup::client::{HttpClient, HttpClientOptions, BackupReader};
 
 pub struct DummyWriter {
@@ -27,7 +28,7 @@ async fn run() -> Result<(), Error> {
 
     let host = "localhost";
 
-    let username = "root@pam";
+    let username = Userid::root_userid();
 
     let options = HttpClientOptions::new()
         .interactive(true)

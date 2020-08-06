@@ -1,5 +1,6 @@
 use anyhow::{Error};
 
+use proxmox_backup::api2::types::Userid;
 use proxmox_backup::client::*;
 
 async fn upload_speed() -> Result<f64, Error> {
@@ -7,7 +8,7 @@ async fn upload_speed() -> Result<f64, Error> {
     let host = "localhost";
     let datastore = "store2";
 
-    let username = "root@pam";
+    let username = Userid::root_userid();
 
     let options = HttpClientOptions::new()
         .interactive(true)

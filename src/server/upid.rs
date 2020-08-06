@@ -1,11 +1,13 @@
-use anyhow::{bail, Error};
-use lazy_static::lazy_static;
-use regex::Regex;
-use chrono::Local;
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use anyhow::{bail, Error};
+use chrono::Local;
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use proxmox::sys::linux::procfs;
+
+use crate::api2::types::Userid;
 
 /// Unique Process/Task Identifier
 ///
@@ -13,7 +15,7 @@ use proxmox::sys::linux::procfs;
 /// string repesentaion, which gives additional information about the
 /// type of the task. for example:
 /// ```text
-/// UPID:{node}:{pid}:{pstart}:{task_id}:{starttime}:{worker_type}:{worker_id}:{username}:
+/// UPID:{node}:{pid}:{pstart}:{task_id}:{starttime}:{worker_type}:{worker_id}:{userid}:
 /// UPID:elsa:00004F37:0039E469:00000000:5CA78B83:garbage_collection::root@pam:
 /// ```
 /// Please note that we use tokio, so a single thread can run multiple
@@ -33,7 +35,7 @@ pub struct UPID {
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
     /// The user who started the task
-    pub username: String,
+    pub userid: Userid,
     /// The node name.
     pub node: String,
 }
@@ -41,7 +43,11 @@ pub struct UPID {
 impl UPID {
 
     /// Create a new UPID
-    pub fn new(worker_type: &str, worker_id: Option<String>, username: &str) -> Result<Self, Error> {
+    pub fn new(
+        worker_type: &str,
+        worker_id: Option<String>,
+        userid: Userid,
+    ) -> Result<Self, Error> {
 
         let pid = unsafe { libc::getpid() };
 
@@ -67,7 +73,7 @@ impl UPID {
             task_id,
             worker_type: worker_type.to_owned(),
             worker_id,
-            username: username.to_owned(),
+            userid,
             node: proxmox::tools::nodename().to_owned(),
         })
     }
@@ -91,7 +97,7 @@ impl std::str::FromStr for UPID {
             static ref REGEX: Regex = Regex::new(concat!(
                 r"^UPID:(?P<node>[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?):(?P<pid>[0-9A-Fa-f]{8}):",
                 r"(?P<pstart>[0-9A-Fa-f]{8,9}):(?P<task_id>[0-9A-Fa-f]{8,16}):(?P<starttime>[0-9A-Fa-f]{8}):",
-                r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<username>[^:\s]+):$"
+                r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<userid>[^:\s]+):$"
             )).unwrap();
         }
 
@@ -104,7 +110,7 @@ impl std::str::FromStr for UPID {
                 task_id: usize::from_str_radix(&cap["task_id"], 16).unwrap(),
                 worker_type: cap["wtype"].to_string(),
                 worker_id: if cap["wid"].is_empty() { None } else { Some(cap["wid"].to_string()) },
-                username: cap["username"].to_string(),
+                userid: cap["userid"].parse()?,
                 node: cap["node"].to_string(),
             })
         } else {
@@ -124,6 +130,6 @@ impl std::fmt::Display for UPID {
         // more that 8 characters for pstart
 
         write!(f, "UPID:{}:{:08X}:{:08X}:{:08X}:{:08X}:{}:{}:{}:",
-               self.node, self.pid, self.pstart, self.task_id, self.starttime, self.worker_type, wid, self.username)
+               self.node, self.pid, self.pstart, self.task_id, self.starttime, self.worker_type, wid, self.userid)
     }
 }

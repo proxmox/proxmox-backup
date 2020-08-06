@@ -61,7 +61,7 @@ pub fn list_remotes(
                 schema: DNS_NAME_OR_IP_SCHEMA,
             },
             userid: {
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             password: {
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
@@ -155,7 +155,7 @@ pub enum DeletableProperty {
             },
             userid: {
                 optional: true,
-               schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             password: {
                 optional: true,
@@ -188,7 +188,7 @@ pub fn update_remote(
     name: String,
     comment: Option<String>,
     host: Option<String>,
-    userid: Option<String>,
+    userid: Option<Userid>,
     password: Option<String>,
     fingerprint: Option<String>,
     delete: Option<Vec<DeletableProperty>>,

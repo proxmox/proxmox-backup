@@ -142,7 +142,7 @@ pub fn read_acl(
             },
             userid: {
                 optional: true,
-                schema: PROXMOX_USER_ID_SCHEMA,
+                type: Userid,
             },
             group: {
                 optional: true,
@@ -168,7 +168,7 @@ pub fn update_acl(
     path: String,
     role: String,
     propagate: Option<bool>,
-    userid: Option<String>,
+    userid: Option<Userid>,
     group: Option<String>,
     delete: Option<bool>,
     digest: Option<String>,
@@ -193,7 +193,7 @@ pub fn update_acl(
     } else if let Some(ref userid) = userid {
         if !delete { // Note: we allow to delete non-existent users
             let user_cfg = crate::config::user::cached_config()?;
-            if user_cfg.sections.get(userid).is_none() {
+            if user_cfg.sections.get(&userid.to_string()).is_none() {
                 bail!("no such user.");
             }
         }

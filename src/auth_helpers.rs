@@ -10,16 +10,17 @@ use std::path::PathBuf;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
+use crate::api2::types::Userid;
 use crate::tools::epoch_now_u64;
 
 fn compute_csrf_secret_digest(
     timestamp: i64,
     secret: &[u8],
-    username: &str,
+    userid: &Userid,
 ) -> String {
 
     let mut hasher = sha::Sha256::new();
-    let data = format!("{:08X}:{}:", timestamp, username);
+    let data = format!("{:08X}:{}:", timestamp, userid);
     hasher.update(data.as_bytes());
     hasher.update(secret);
 
@@ -28,19 +29,19 @@ fn compute_csrf_secret_digest(
 
 pub fn assemble_csrf_prevention_token(
     secret: &[u8],
-    username: &str,
+    userid: &Userid,
 ) -> String {
 
     let epoch = epoch_now_u64().unwrap() as i64;
 
-    let digest = compute_csrf_secret_digest(epoch, secret, username);
+    let digest = compute_csrf_secret_digest(epoch, secret, userid);
 
     format!("{:08X}:{}", epoch, digest)
 }
 
 pub fn verify_csrf_prevention_token(
     secret: &[u8],
-    username: &str,
+    userid: &Userid,
     token: &str,
     min_age: i64,
     max_age: i64,
@@ -62,7 +63,7 @@ pub fn verify_csrf_prevention_token(
         let ttime = i64::from_str_radix(timestamp, 16).
             map_err(|err| format_err!("timestamp format error - {}", err))?;
 
-        let digest = compute_csrf_secret_digest(ttime, secret, username);
+        let digest = compute_csrf_secret_digest(ttime, secret, userid);
 
         if digest != sig {
             bail!("invalid signature.");

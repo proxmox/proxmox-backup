@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::{Error};
 use serde_json::Value;
-use std::collections::HashMap;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
@@ -92,16 +93,23 @@ async fn run_sync_job(
     let (config, _digest) = sync::config()?;
     let sync_job: SyncJobConfig = config.lookup("sync", &id)?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     let delete = sync_job.remove_vanished.unwrap_or(true);
     let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
 
-    let upid_str = WorkerTask::spawn("syncjob", Some(id.clone()), &username.clone(), false, move |worker| async move {
+    let upid_str = WorkerTask::spawn("syncjob", Some(id.clone()), userid, false, move |worker| async move {
 
         worker.log(format!("sync job '{}' start", &id));
 
-        crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, String::from("backup@pam")).await?;
+        crate::client::pull::pull_store(
+            &worker,
+            &client,
+            &src_repo,
+            tgt_store.clone(),
+            delete,
+            Userid::backup_userid().clone(),
+        ).await?;
 
         worker.log(format!("sync job '{}' end", &id));
 

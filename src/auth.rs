@@ -10,39 +10,54 @@ use base64;
 use anyhow::{bail, format_err, Error};
 use serde_json::json;
 
+use crate::api2::types::{Userid, UsernameRef, RealmRef};
+
 pub trait ProxmoxAuthenticator {
-    fn authenticate_user(&self, username: &str, password: &str) -> Result<(), Error>;
-    fn store_password(&self, username: &str, password: &str) -> Result<(), Error>;
+    fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;
+    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error>;
 }
 
 pub struct PAM();
 
 impl ProxmoxAuthenticator for PAM {
 
-    fn authenticate_user(&self, username: &str, password: &str) -> Result<(), Error> {
+    fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
         let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
-        auth.get_handler().set_credentials(username, password);
+        auth.get_handler().set_credentials(username.as_str(), password);
         auth.authenticate()?;
         return Ok(());
 
     }
 
-    fn store_password(&self, username: &str, password: &str) -> Result<(), Error> {
+    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
         let mut child = Command::new("passwd")
-            .arg(username)
+            .arg(username.as_str())
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .or_else(|err| Err(format_err!("unable to set password for '{}' - execute passwd failed: {}", username, err)))?;
+            .map_err(|err| format_err!(
+                "unable to set password for '{}' - execute passwd failed: {}",
+                username.as_str(),
+                err,
+            ))?;
 
         // Note: passwd reads password twice from stdin (for verify)
         writeln!(child.stdin.as_mut().unwrap(), "{}\n{}", password, password)?;
 
-        let output = child.wait_with_output()
-            .or_else(|err| Err(format_err!("unable to set password for '{}' - wait failed: {}", username, err)))?;
+        let output = child
+            .wait_with_output()
+            .map_err(|err| format_err!(
+                "unable to set password for '{}' - wait failed: {}",
+                username.as_str(),
+                err,
+            ))?;
 
         if !output.status.success() {
-            bail!("unable to set password for '{}' - {}", username, String::from_utf8_lossy(&output.stderr));
+            bail!(
+                "unable to set password for '{}' - {}",
+                username.as_str(),
+                String::from_utf8_lossy(&output.stderr),
+            );
         }
 
         Ok(())
@@ -90,23 +105,23 @@ pub fn verify_crypt_pw(password: &str, enc_password: &str) -> Result<(), Error> 
     Ok(())
 }
 
-const SHADOW_CONFIG_FILENAME: &str = "/etc/proxmox-backup/shadow.json";
+const SHADOW_CONFIG_FILENAME: &str = configdir!("/shadow.json");
 
 impl ProxmoxAuthenticator for PBS {
 
-    fn authenticate_user(&self, username: &str, password: &str) -> Result<(), Error> {
+    fn authenticate_user(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
         let data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
-        match data[username].as_str() {
+        match data[username.as_str()].as_str() {
             None => bail!("no password set"),
             Some(enc_password) => verify_crypt_pw(password, enc_password)?,
         }
         Ok(())
     }
 
-    fn store_password(&self, username: &str, password: &str) -> Result<(), Error> {
+    fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
         let enc_password = encrypt_pw(password)?;
         let mut data = proxmox::tools::fs::file_get_json(SHADOW_CONFIG_FILENAME, Some(json!({})))?;
-        data[username] = enc_password.into();
+        data[username.as_str()] = enc_password.into();
 
         let mode = nix::sys::stat::Mode::from_bits_truncate(0o0600);
         let options =  proxmox::tools::fs::CreateOptions::new()
@@ -121,28 +136,18 @@ impl ProxmoxAuthenticator for PBS {
     }
 }
 
-pub fn parse_userid(userid: &str) -> Result<(String, String), Error> {
-    let data: Vec<&str> = userid.rsplitn(2, '@').collect();
-
-    if data.len() != 2 {
-        bail!("userid '{}' has no realm", userid);
-    }
-    Ok((data[1].to_owned(), data[0].to_owned()))
-}
-
 /// Lookup the autenticator for the specified realm
-pub fn lookup_authenticator(realm: &str) -> Result<Box<dyn ProxmoxAuthenticator>, Error> {
-    match realm {
+pub fn lookup_authenticator(realm: &RealmRef) -> Result<Box<dyn ProxmoxAuthenticator>, Error> {
+    match realm.as_str() {
         "pam" => Ok(Box::new(PAM())),
         "pbs" => Ok(Box::new(PBS())),
-        _ => bail!("unknown realm '{}'", realm),
+        _ => bail!("unknown realm '{}'", realm.as_str()),
     }
 }
 
 /// Authenticate users
-pub fn authenticate_user(userid: &str, password: &str) -> Result<(), Error> {
-    let (username, realm) = parse_userid(userid)?;
+pub fn authenticate_user(userid: &Userid, password: &str) -> Result<(), Error> {
 
-    lookup_authenticator(&realm)?
-    .authenticate_user(&username, password)
+    lookup_authenticator(userid.realm())?
+        .authenticate_user(userid.name(), password)
 }

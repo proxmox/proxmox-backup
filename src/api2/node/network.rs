@@ -625,9 +625,9 @@ pub async fn reload_network_config(
 
     network::assert_ifupdown2_installed()?;
 
-    let username = rpcenv.get_user().unwrap();
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), &username.clone(), true, |_worker| async {
+    let upid_str = WorkerTask::spawn("srvreload", Some(String::from("networking")), userid, true, |_worker| async {
 
         let _ = std::fs::rename(network::NETWORK_INTERFACES_NEW_FILENAME, network::NETWORK_INTERFACES_FILENAME);
 
