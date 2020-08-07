@@ -697,7 +697,7 @@ You can avoid entering the passwords by setting the environment
 variables ``PBS_PASSWORD`` and ``PBS_ENCRYPTION_PASSWORD``.
 
 Using a master key to store and recover encryption keys
-^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can also use ``proxmox-backup-client key`` to create an RSA public/private
 key pair, which can be used to store an encrypted version of the symmetric
