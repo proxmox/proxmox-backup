@@ -660,7 +660,7 @@ Restoring this backup will result in:
     .  ..  file2
 
 Encryption
-^^^^^^^^^^
+~~~~~~~~~~
 
 Proxmox Backup supports client-side encryption with AES-256 in GCM_
 mode. To set this up, you first need to create an encryption key:
