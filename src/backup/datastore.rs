@@ -551,12 +551,6 @@ impl DataStore {
         self.chunk_store.insert_chunk(chunk, digest)
     }
 
-    pub fn verify_stored_chunk(&self, digest: &[u8; 32], expected_chunk_size: u64) -> Result<(), Error> {
-        let blob = self.load_chunk(digest)?;
-        blob.verify_unencrypted(expected_chunk_size as usize, digest)?;
-        Ok(())
-    }
-
     pub fn load_blob(&self, backup_dir: &BackupDir, filename: &str) -> Result<DataBlob, Error> {
         let mut path = self.base_path();
         path.push(backup_dir.relative_path());

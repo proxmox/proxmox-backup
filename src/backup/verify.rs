@@ -40,6 +40,7 @@ fn verify_index_chunks(
     index: Box<dyn IndexFile>,
     verified_chunks: &mut HashSet<[u8;32]>,
     corrupt_chunks: &mut HashSet<[u8; 32]>,
+    crypt_mode: CryptMode,
     worker: &WorkerTask,
 ) -> Result<(), Error> {
 
@@ -51,9 +52,38 @@ fn verify_index_chunks(
         let info = index.chunk_info(pos).unwrap();
         let size = info.range.end - info.range.start;
 
+        let chunk = match datastore.load_chunk(&info.digest) {
+            Err(err) => {
+                corrupt_chunks.insert(info.digest);
+                worker.log(format!("can't verify chunk, load failed - {}", err));
+                errors += 1;
+                continue;
+            },
+            Ok(chunk) => chunk,
+        };
+
+        let chunk_crypt_mode = match chunk.crypt_mode() {
+            Err(err) => {
+                corrupt_chunks.insert(info.digest);
+                worker.log(format!("can't verify chunk, unknown CryptMode - {}", err));
+                errors += 1;
+                continue;
+            },
+            Ok(mode) => mode,
+        };
+
+        if chunk_crypt_mode != crypt_mode {
+            worker.log(format!(
+                "chunk CryptMode {:?} does not match index CryptMode {:?}",
+                chunk_crypt_mode,
+                crypt_mode
+            ));
+            errors += 1;
+        }
+
         if !verified_chunks.contains(&info.digest) {
             if !corrupt_chunks.contains(&info.digest) {
-                if let Err(err) = datastore.verify_stored_chunk(&info.digest, size) {
+                if let Err(err) = chunk.verify_unencrypted(size as usize, &info.digest) {
                     corrupt_chunks.insert(info.digest);
                     worker.log(format!("{}", err));
                     errors += 1;
@@ -98,7 +128,7 @@ fn verify_fixed_index(
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, info.chunk_crypt_mode(), worker)
 }
 
 fn verify_dynamic_index(
@@ -124,7 +154,7 @@ fn verify_dynamic_index(
         bail!("wrong index checksum");
     }
 
-    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, worker)
+    verify_index_chunks(datastore, Box::new(index), verified_chunks, corrupt_chunks, info.chunk_crypt_mode(), worker)
 }
 
 /// Verify a single backup snapshot
