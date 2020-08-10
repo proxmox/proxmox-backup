@@ -141,10 +141,12 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
     let (manifest, _) = client.download_manifest().await?;
 
+    let file_info = manifest.lookup_file_info(&archive_name)?;
+
     if server_archive_name.ends_with(".didx") {
         let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
         let most_used = index.find_most_used_chunks(8);
-        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
         let archive_size = reader.archive_size();
         let reader: proxmox_backup::pxar::fuse::Reader =

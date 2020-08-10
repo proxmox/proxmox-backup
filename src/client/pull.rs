@@ -224,8 +224,6 @@ async fn pull_snapshot(
 
     let manifest = BackupManifest::try_from(tmp_manifest_blob)?;
 
-    let mut chunk_reader = RemoteChunkReader::new(reader.clone(), None, HashMap::new());
-
     for item in manifest.files() {
         let mut path = tgt_store.base_path();
         path.push(snapshot.relative_path());
@@ -265,6 +263,8 @@ async fn pull_snapshot(
                 }
             }
         }
+
+        let mut chunk_reader = RemoteChunkReader::new(reader.clone(), None, item.chunk_crypt_mode(), HashMap::new());
 
         pull_single_archive(
             worker,

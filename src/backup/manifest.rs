@@ -49,6 +49,20 @@ pub struct FileInfo {
     pub csum: [u8; 32],
 }
 
+impl FileInfo {
+
+    /// Return expected CryptMode of referenced chunks
+    ///
+    /// Encrypted Indices should only reference encrypted chunks, while signed or plain indices
+    /// should only reference plain chunks.
+    pub fn chunk_crypt_mode (&self) -> CryptMode {
+        match self.crypt_mode {
+            CryptMode::Encrypt => CryptMode::Encrypt,
+            CryptMode::SignOnly | CryptMode::None => CryptMode::None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="kebab-case")]
 pub struct BackupManifest {

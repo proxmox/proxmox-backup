@@ -97,7 +97,9 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 
     let most_used = index.find_most_used_chunks(8);
 
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+    let file_info = manifest.lookup_file_info(&CATALOG_NAME)?;
+
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
 
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
@@ -200,7 +202,9 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
 
     let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
     let most_used = index.find_most_used_chunks(8);
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), most_used);
+
+    let file_info = manifest.lookup_file_info(&server_archive_name)?;
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config.clone(), file_info.chunk_crypt_mode(), most_used);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
     let archive_size = reader.archive_size();
     let reader: proxmox_backup::pxar::fuse::Reader =
@@ -216,7 +220,9 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     manifest.verify_file(CATALOG_NAME, &csum, size)?;
 
     let most_used = index.find_most_used_chunks(8);
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+
+    let file_info = manifest.lookup_file_info(&CATALOG_NAME)?;
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
     let mut reader = BufferedDynamicReader::new(index, chunk_reader);
     let mut catalogfile = std::fs::OpenOptions::new()
         .write(true)

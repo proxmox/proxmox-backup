@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 
 use super::BackupReader;
-use crate::backup::{AsyncReadChunk, CryptConfig, DataBlob, ReadChunk};
+use crate::backup::{AsyncReadChunk, CryptConfig, CryptMode, DataBlob, ReadChunk};
 use crate::tools::runtime::block_on;
 
 /// Read chunks from remote host using ``BackupReader``
@@ -14,6 +14,7 @@ use crate::tools::runtime::block_on;
 pub struct RemoteChunkReader {
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
+    crypt_mode: CryptMode,
     cache_hint: HashMap<[u8; 32], usize>,
     cache: Arc<Mutex<HashMap<[u8; 32], Vec<u8>>>>,
 }
@@ -25,11 +26,13 @@ impl RemoteChunkReader {
     pub fn new(
         client: Arc<BackupReader>,
         crypt_config: Option<Arc<CryptConfig>>,
+        crypt_mode: CryptMode,
         cache_hint: HashMap<[u8; 32], usize>,
     ) -> Self {
         Self {
             client,
             crypt_config,
+            crypt_mode,
             cache_hint,
             cache: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -46,7 +49,20 @@ impl RemoteChunkReader {
 
         let chunk = DataBlob::load_from_reader(&mut &chunk_data[..])?;
 
-        Ok(chunk)
+        match self.crypt_mode {
+            CryptMode::Encrypt => {
+                match chunk.crypt_mode()? {
+                    CryptMode::Encrypt => Ok(chunk),
+                    CryptMode::SignOnly | CryptMode::None => bail!("Index and chunk CryptMode don't match."),
+                }
+            },
+            CryptMode::SignOnly | CryptMode::None => {
+                match chunk.crypt_mode()? {
+                    CryptMode::Encrypt => bail!("Index and chunk CryptMode don't match."),
+                    CryptMode::SignOnly | CryptMode::None => Ok(chunk),
+                }
+            },
+        }
     }
 }
 

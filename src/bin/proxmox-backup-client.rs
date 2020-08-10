@@ -1182,6 +1182,7 @@ fn complete_backup_source(arg: &str, param: &HashMap<String, String>) -> Vec<Str
 async fn dump_image<W: Write>(
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
+    crypt_mode: CryptMode,
     index: FixedIndexReader,
     mut writer: W,
     verbose: bool,
@@ -1189,7 +1190,7 @@ async fn dump_image<W: Write>(
 
     let most_used = index.find_most_used_chunks(8);
 
-    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+    let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, crypt_mode, most_used);
 
     // Note: we avoid using BufferedFixedReader, because that add an additional buffer/copy
     // and thus slows down reading. Instead, directly use RemoteChunkReader
@@ -1340,7 +1341,12 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to pipe data - {}", err))?;
         }
 
-    } else if archive_type == ArchiveType::Blob {
+        return Ok(Value::Null);
+    }
+
+    let file_info = manifest.lookup_file_info(&archive_name)?;
+
+    if archive_type == ArchiveType::Blob {
 
         let mut reader = client.download_blob(&manifest, &archive_name).await?;
 
@@ -1365,7 +1371,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
         let most_used = index.find_most_used_chunks(8);
 
-        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, most_used);
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
 
         let mut reader = BufferedDynamicReader::new(index, chunk_reader);
 
@@ -1412,7 +1418,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
                 .map_err(|err| format_err!("unable to open /dev/stdout - {}", err))?
         };
 
-        dump_image(client.clone(), crypt_config.clone(), index, &mut writer, verbose).await?;
+        dump_image(client.clone(), crypt_config.clone(), file_info.chunk_crypt_mode(), index, &mut writer, verbose).await?;
     }
 
     Ok(Value::Null)

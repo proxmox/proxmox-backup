@@ -973,7 +973,7 @@ fn download_file_decoded(
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&file_name, &csum, size)?;
 
-                let chunk_reader = LocalChunkReader::new(datastore, None);
+                let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
                 Body::wrap_stream(AsyncReaderStream::new(reader)
                     .map_err(move |err| {
@@ -988,7 +988,7 @@ fn download_file_decoded(
                 let (csum, size) = index.compute_csum();
                 manifest.verify_file(&file_name, &csum, size)?;
 
-                let chunk_reader = LocalChunkReader::new(datastore, None);
+                let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
                 Body::wrap_stream(AsyncReaderStream::with_buffer_size(reader, 4*1024*1024)
                     .map_err(move |err| {
@@ -1159,7 +1159,7 @@ fn catalog(
     let (csum, size) = index.compute_csum();
     manifest.verify_file(&file_name, &csum, size)?;
 
-    let chunk_reader = LocalChunkReader::new(datastore, None);
+    let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
 
     let mut catalog_reader = CatalogReader::new(reader);
@@ -1282,7 +1282,7 @@ fn pxar_file_download(
         let (csum, size) = index.compute_csum();
         manifest.verify_file(&pxar_name, &csum, size)?;
 
-        let chunk_reader = LocalChunkReader::new(datastore, None);
+        let chunk_reader = LocalChunkReader::new(datastore, None, CryptMode::None);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
         let archive_size = reader.archive_size();
         let reader = LocalDynamicReadAt::new(reader);
