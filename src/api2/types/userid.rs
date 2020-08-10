@@ -76,6 +76,12 @@ pub const PROXMOX_AUTH_REALM_SCHEMA: Schema = PROXMOX_AUTH_REALM_STRING_SCHEMA.s
 /// This alone does NOT uniquely identify the user and therefore does not implement `Eq`. In order
 /// to compare user names directly, they need to be explicitly compared as strings by calling
 /// `.as_str()`.
+///
+/// ```compile_fail
+/// fn test(a: Username, b: Username) -> bool {
+///     a == b // illegal and does not compile
+/// }
+/// ```
 #[derive(Clone, Debug, Hash, Deserialize, Serialize)]
 pub struct Username(String);
 
@@ -84,6 +90,26 @@ pub struct Username(String);
 /// This is like a `str` to the `String` of a [`Username`].
 #[derive(Debug, Hash)]
 pub struct UsernameRef(str);
+
+#[doc(hidden)]
+/// ```compile_fail
+/// let a: Username = unsafe { std::mem::zeroed() };
+/// let b: Username = unsafe { std::mem::zeroed() };
+/// let _ = <Username as PartialEq>::eq(&a, &b);
+/// ```
+///
+/// ```compile_fail
+/// let a: &UsernameRef = unsafe { std::mem::zeroed() };
+/// let b: &UsernameRef = unsafe { std::mem::zeroed() };
+/// let _ = <&UsernameRef as PartialEq>::eq(a, b);
+/// ```
+///
+/// ```compile_fail
+/// let a: &UsernameRef = unsafe { std::mem::zeroed() };
+/// let b: &UsernameRef = unsafe { std::mem::zeroed() };
+/// let _ = <&UsernameRef as PartialEq>::eq(&a, &b);
+/// ```
+struct _AssertNoEqImpl;
 
 impl UsernameRef {
     fn new(s: &str) -> &Self {
