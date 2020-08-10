@@ -1133,9 +1133,18 @@ fn catalog(
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
+    let file_name = CATALOG_NAME;
+
+    let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+    for file in files {
+        if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
+            bail!("cannot decode '{}' - is encrypted", file_name);
+        }
+    }
+
     let mut path = datastore.base_path();
     path.push(backup_dir.relative_path());
-    path.push(CATALOG_NAME);
+    path.push(file_name);
 
     let index = DynamicIndexReader::open(&path)
         .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
@@ -1238,19 +1247,24 @@ fn pxar_file_download(
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
-        let mut path = datastore.base_path();
-        path.push(backup_dir.relative_path());
-
         let mut components = base64::decode(&filepath)?;
         if components.len() > 0 && components[0] == '/' as u8 {
             components.remove(0);
         }
 
         let mut split = components.splitn(2, |c| *c == '/' as u8);
-        let pxar_name = split.next().unwrap();
+        let pxar_name = std::str::from_utf8(split.next().unwrap())?;
         let file_path = split.next().ok_or(format_err!("filepath looks strange '{}'", filepath))?;
+        let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+        for file in files {
+            if file.filename == pxar_name && file.crypt_mode == Some(CryptMode::Encrypt) {
+                bail!("cannot decode '{}' - is encrypted", pxar_name);
+            }
+        }
 
-        path.push(OsStr::from_bytes(&pxar_name));
+        let mut path = datastore.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(pxar_name);
 
         let index = DynamicIndexReader::open(&path)
             .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
