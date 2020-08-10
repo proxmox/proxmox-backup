@@ -67,7 +67,10 @@ fn read_backup_index(
 
     result.push(BackupContent {
         filename: MANIFEST_BLOB_NAME.to_string(),
-        crypt_mode: Some(CryptMode::None),
+        crypt_mode: match manifest.signature {
+            Some(_) => Some(CryptMode::SignOnly),
+            None => Some(CryptMode::None),
+        },
         size: Some(index_size),
     });
 

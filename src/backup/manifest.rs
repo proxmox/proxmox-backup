@@ -72,6 +72,7 @@ pub struct BackupManifest {
     files: Vec<FileInfo>,
     #[serde(default="empty_value")] // to be compatible with < 0.8.0 backups
     pub unprotected: Value,
+    pub signature: Option<String>,
 }
 
 #[derive(PartialEq)]
@@ -105,6 +106,7 @@ impl BackupManifest {
             backup_time: snapshot.backup_time().timestamp(),
             files: Vec::new(),
             unprotected: json!({}),
+            signature: None,
         }
     }
 
