@@ -268,6 +268,24 @@ impl PartialEq<&str> for RealmRef {
     }
 }
 
+impl PartialEq<RealmRef> for Realm {
+    fn eq(&self, rhs: &RealmRef) -> bool {
+        self.0 == &rhs.0
+    }
+}
+
+impl PartialEq<Realm> for RealmRef {
+    fn eq(&self, rhs: &Realm) -> bool {
+        self.0 == rhs.0
+    }
+}
+
+impl PartialEq<Realm> for &RealmRef {
+    fn eq(&self, rhs: &Realm) -> bool {
+        (*self).0 == rhs.0
+    }
+}
+
 /// A complete user id consting of a user name and a realm.
 #[derive(Clone, Debug, Hash)]
 pub struct Userid {
