@@ -951,7 +951,7 @@ fn download_file_decoded(
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
-        let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+        let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
             if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", file_name);
@@ -970,6 +970,8 @@ fn download_file_decoded(
             "didx" => {
                 let index = DynamicIndexReader::open(&path)
                     .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+                let (csum, size) = index.compute_csum();
+                manifest.verify_file(&file_name, &csum, size)?;
 
                 let chunk_reader = LocalChunkReader::new(datastore, None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
@@ -983,6 +985,9 @@ fn download_file_decoded(
                 let index = FixedIndexReader::open(&path)
                     .map_err(|err| format_err!("unable to read fixed index '{:?}' - {}", &path, err))?;
 
+                let (csum, size) = index.compute_csum();
+                manifest.verify_file(&file_name, &csum, size)?;
+
                 let chunk_reader = LocalChunkReader::new(datastore, None);
                 let reader = AsyncIndexReader::new(index, chunk_reader);
                 Body::wrap_stream(AsyncReaderStream::with_buffer_size(reader, 4*1024*1024)
@@ -994,6 +999,8 @@ fn download_file_decoded(
             "blob" => {
                 let file = std::fs::File::open(&path)
                     .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
+
+                // FIXME: load full blob to verify index checksum?
 
                 Body::wrap_stream(
                     WrappedReaderStream::new(DataBlobReader::new(file, None)?)
@@ -1135,7 +1142,7 @@ fn catalog(
 
     let file_name = CATALOG_NAME;
 
-    let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+    let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
     for file in files {
         if file.filename == file_name && file.crypt_mode == Some(CryptMode::Encrypt) {
             bail!("cannot decode '{}' - is encrypted", file_name);
@@ -1148,6 +1155,9 @@ fn catalog(
 
     let index = DynamicIndexReader::open(&path)
         .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+    let (csum, size) = index.compute_csum();
+    manifest.verify_file(&file_name, &csum, size)?;
 
     let chunk_reader = LocalChunkReader::new(datastore, None);
     let reader = BufferedDynamicReader::new(index, chunk_reader);
@@ -1255,7 +1265,7 @@ fn pxar_file_download(
         let mut split = components.splitn(2, |c| *c == '/' as u8);
         let pxar_name = std::str::from_utf8(split.next().unwrap())?;
         let file_path = split.next().ok_or(format_err!("filepath looks strange '{}'", filepath))?;
-        let (_manifest, files) = read_backup_index(&datastore, &backup_dir)?;
+        let (manifest, files) = read_backup_index(&datastore, &backup_dir)?;
         for file in files {
             if file.filename == pxar_name && file.crypt_mode == Some(CryptMode::Encrypt) {
                 bail!("cannot decode '{}' - is encrypted", pxar_name);
@@ -1268,6 +1278,9 @@ fn pxar_file_download(
 
         let index = DynamicIndexReader::open(&path)
             .map_err(|err| format_err!("unable to read dynamic index '{:?}' - {}", &path, err))?;
+
+        let (csum, size) = index.compute_csum();
+        manifest.verify_file(&pxar_name, &csum, size)?;
 
         let chunk_reader = LocalChunkReader::new(datastore, None);
         let reader = BufferedDynamicReader::new(index, chunk_reader);
