@@ -7,9 +7,17 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use anyhow::{format_err, Error};
 use nix::dir;
 use nix::dir::Dir;
+use nix::fcntl::OFlag;
+use nix::sys::stat::Mode;
+
 use regex::Regex;
 
+use proxmox::sys::error::SysError;
+
+
 use crate::tools::borrow::Tied;
+
+pub type DirLockGuard = Dir;
 
 /// This wraps nix::dir::Entry with the parent directory's file descriptor.
 pub struct ReadDirEntry {
@@ -94,9 +102,6 @@ impl Iterator for ReadDir {
 /// Create an iterator over sub directory entries.
 /// This uses `openat` on `dirfd`, so `path` can be relative to that or an absolute path.
 pub fn read_subdir<P: ?Sized + nix::NixPath>(dirfd: RawFd, path: &P) -> nix::Result<ReadDir> {
-    use nix::fcntl::OFlag;
-    use nix::sys::stat::Mode;
-
     let dir = Dir::openat(dirfd, path, OFlag::O_RDONLY, Mode::empty())?;
     let fd = dir.as_raw_fd();
     let iter = Tied::new(dir, |dir| {
@@ -258,4 +263,32 @@ impl Default for FSXAttr {
             fsx_pad: [0u8; 8],
         }
     }
+}
+
+
+pub fn lock_dir_noblock(
+    path: &std::path::Path,
+    what: &str,
+    would_block_msg: &str,
+) -> Result<DirLockGuard, Error> {
+    let mut handle = Dir::open(path, OFlag::O_RDONLY, Mode::empty())
+        .map_err(|err| {
+            format_err!("unable to open {} directory {:?} for locking - {}", what, path, err)
+        })?;
+
+    // acquire in non-blocking mode, no point in waiting here since other
+    // backups could still take a very long time
+    proxmox::tools::fs::lock_file(&mut handle, true, Some(std::time::Duration::from_nanos(0)))
+        .map_err(|err| {
+            format_err!(
+                "unable to acquire lock on {} directory {:?} - {}", what, path,
+                if err.would_block() {
+                    String::from(would_block_msg)
+                } else {
+                    err.to_string()
+                }
+            )
+        })?;
+
+    Ok(handle)
 }
