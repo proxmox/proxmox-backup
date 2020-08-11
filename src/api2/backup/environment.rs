@@ -480,6 +480,16 @@ impl BackupEnvironment {
         self.datastore.store_manifest(&self.backup_dir, manifest)
             .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
 
+        if let Some(base) = &self.last_backup {
+            let path = self.datastore.snapshot_path(&base.backup_dir);
+            if !path.exists() {
+                bail!(
+                    "base snapshot {} was removed during backup, cannot finish as chunks might be missing",
+                    base.backup_dir
+                );
+            }
+        }
+
         // marks the backup as successful
         state.finished = true;
 

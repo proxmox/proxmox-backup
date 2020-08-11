@@ -16,6 +16,7 @@ use crate::backup::*;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_BACKUP;
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::tools::fs::lock_dir_noblock;
 
 mod environment;
 use environment::*;
@@ -100,11 +101,17 @@ async move {
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
     let backup_dir = BackupDir::new_with_group(backup_group.clone(), backup_time);
 
-    if let Some(last) = &last_backup {
+    let _last_guard = if let Some(last) = &last_backup {
         if backup_dir.backup_time() <= last.backup_dir.backup_time() {
             bail!("backup timestamp is older than last backup.");
         }
-    }
+
+        // lock last snapshot to prevent forgetting/pruning it during backup
+        let full_path = datastore.snapshot_path(&last.backup_dir);
+        Some(lock_dir_noblock(&full_path, "snapshot", "base snapshot is already locked by another operation")?)
+    } else {
+        None
+    };
 
     let (path, is_new, _snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
@@ -147,6 +154,7 @@ async move {
             // keep flock until task ends
             let _group_guard = _group_guard;
             let _snap_guard = _snap_guard;
+            let _last_guard = _last_guard;
 
             let res = select!{
                 req = req_fut => req,
