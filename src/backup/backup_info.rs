@@ -173,7 +173,7 @@ impl std::str::FromStr for BackupGroup {
 /// Uniquely identify a Backup (relative to data store)
 ///
 /// We also call this a backup snaphost.
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BackupDir {
     /// Backup group
     group: BackupGroup,

@@ -1,6 +1,6 @@
 use anyhow::{bail, format_err, Error};
 use std::sync::{Arc, Mutex};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ::serde::{Serialize};
 use serde_json::{json, Value};
@@ -73,7 +73,6 @@ struct SharedBackupState {
     dynamic_writers: HashMap<usize, DynamicWriterState>,
     fixed_writers: HashMap<usize, FixedWriterState>,
     known_chunks: HashMap<[u8;32], u32>,
-    base_snapshots: HashSet<BackupDir>,
     backup_size: u64, // sums up size of all files
     backup_stat: UploadStatistic,
 }
@@ -127,7 +126,6 @@ impl BackupEnvironment {
             dynamic_writers: HashMap::new(),
             fixed_writers: HashMap::new(),
             known_chunks: HashMap::new(),
-            base_snapshots: HashSet::new(),
             backup_size: 0,
             backup_stat: UploadStatistic::new(),
         };
@@ -144,13 +142,6 @@ impl BackupEnvironment {
             last_backup: None,
             state: Arc::new(Mutex::new(state)),
         }
-    }
-
-    /// Register a snapshot as a predecessor of the current backup.
-    /// It's existance will be ensured on finishing.
-    pub fn register_base_snapshot(&self, snap: BackupDir) {
-        let mut state = self.state.lock().unwrap();
-        state.base_snapshots.insert(snap);
     }
 
     /// Register a Chunk with associated length.
@@ -488,16 +479,6 @@ impl BackupEnvironment {
 
         self.datastore.store_manifest(&self.backup_dir, manifest)
             .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
-
-        for snap in &state.base_snapshots {
-            let path = self.datastore.snapshot_path(snap);
-            if !path.exists() {
-                bail!(
-                    "base snapshot {} was removed during backup, cannot finish as chunks might be missing",
-                    snap
-                );
-            }
-        }
 
         // marks the backup as successful
         state.finished = true;
