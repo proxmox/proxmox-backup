@@ -1,3 +1,75 @@
+rust-proxmox-backup (0.8.10-1) unstable; urgency=medium
+
+  * ui: acl: add improved permission selector
+
+  * services: make reload safer and default to it in gui
+
+  * ui: rework DataStore content Panel
+
+  * ui: add search box to DataStore content
+
+  * ui: DataStoreContent: keep selection and expansion on reload
+
+  * upload_chunk: allow upload of empty blobs
+
+  * fix #2856: also check whole device for device mapper
+
+  * ui: fix error when reloading DataStoreContent
+
+  * ui: fix in-progress snapshots always showing as "Encrypted"
+
+  * update to pxar 0.3 to support negative timestamps
+
+  * fix #2873: if --pattern is used, default to not extracting
+
+  * finish_backup: test/verify manifest at server side
+
+  * finish_backup: add chunk_upload_stats to manifest
+
+  * src/api2/admin/datastore.rs: add API to get/set Notes for backus
+
+  * list_snapshots: Returns new "comment" property (first line from notes)
+
+  * pxar: create: attempt to use O_NOATIME
+
+  * systemd/time: fix weekday wrapping on month
+
+  * pxar: better error handling on extract
+
+  * pxar/extract: fixup path stack for errors
+
+  * datastore: allow browsing signed pxar files
+
+  * GC: use time pre phase1 to calculate min_atime in phase2
+
+  * gui: user: fix #2898 add dialog to set password
+
+  * fix #2909: handle missing chunks gracefully in garbage collection
+
+  * finish_backup: mark backup as finished only after checks have passed
+
+  * fix: master-key: upload RSA encoded key with backup
+
+  * admin-guide: add section explaining master keys
+
+  * backup: only allow finished backups as base snapshot
+
+  * datastore api: only decode unencrypted indices
+
+  * datastore api: verify blob/index csum from manifest
+
+  * sync, blobs and chunk readers: add more checks and verification
+
+  * verify: add more checks, don't fail on first error
+
+  * mark signed manifests as such
+
+  * backup/prune/forget: improve locking
+
+  * backup: ensure base snapshots are still available after backup
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 11 Aug 2020 15:37:29 +0200
+
 rust-proxmox-backup (0.8.9-1) unstable; urgency=medium
 
   * improve termprocy (console) behavior on updating proxmox-backup-server and
