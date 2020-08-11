@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use super::backup_info::{BackupGroup, BackupDir, BackupInfo};
+use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -200,19 +200,7 @@ impl DataStore {
 
         let full_path = self.group_path(backup_group);
 
-        let mut snap_list = backup_group.list_backups(&self.base_path())?;
-        BackupInfo::sort_list(&mut snap_list, false);
-        for snap in snap_list {
-            if snap.is_finished() {
-                break;
-            } else {
-                bail!(
-                    "cannot remove backup group {:?}, contains potentially running backup: {}",
-                    full_path,
-                    snap.backup_dir
-                );
-            }
-        }
+        let _guard = tools::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
 
         log::info!("removing backup group {:?}", full_path);
         std::fs::remove_dir_all(&full_path)
@@ -232,29 +220,9 @@ impl DataStore {
 
         let full_path = self.snapshot_path(backup_dir);
 
+        let _guard;
         if !force {
-            let mut snap_list = backup_dir.group().list_backups(&self.base_path())?;
-            BackupInfo::sort_list(&mut snap_list, false);
-            let mut prev_snap_finished = true;
-            for snap in snap_list {
-                let cur_snap_finished = snap.is_finished();
-                if &snap.backup_dir == backup_dir {
-                    if !cur_snap_finished {
-                        bail!(
-                            "cannot remove currently running snapshot: {:?}",
-                            backup_dir
-                        );
-                    }
-                    if !prev_snap_finished {
-                        bail!(
-                            "cannot remove snapshot {:?}, successor is currently running and potentially based on it",
-                            backup_dir
-                        );
-                    }
-                    break;
-                }
-                prev_snap_finished = cur_snap_finished;
-            }
+            _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or used as base")?;
         }
 
         log::info!("removing backup snapshot {:?}", full_path);
