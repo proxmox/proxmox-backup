@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use proxmox::tools::fs::{replace_file, CreateOptions};
 
-use super::backup_info::{BackupGroup, BackupGroupGuard, BackupDir, BackupInfo};
+use super::backup_info::{BackupGroup, BackupDir, BackupInfo};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
@@ -21,6 +21,7 @@ use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
+use crate::tools::fs::{lock_dir_noblock, DirLockGuard};
 use crate::api2::types::{GarbageCollectionStatus, Userid};
 
 lazy_static! {
@@ -335,7 +336,7 @@ impl DataStore {
         &self,
         backup_group: &BackupGroup,
         userid: &Userid,
-    ) -> Result<(Userid, BackupGroupGuard), Error> {
+    ) -> Result<(Userid, DirLockGuard), Error> {
         // create intermediate path first:
         let base_path = self.base_path();
 
@@ -348,13 +349,13 @@ impl DataStore {
         // create the last component now
         match std::fs::create_dir(&full_path) {
             Ok(_) => {
-                let guard = backup_group.lock(&base_path)?;
+                let guard = lock_dir_noblock(&full_path, "backup group", "another backup is already running")?;
                 self.set_owner(backup_group, userid, false)?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
                 Ok((owner, guard))
             }
             Err(ref err) if err.kind() == io::ErrorKind::AlreadyExists => {
-                let guard = backup_group.lock(&base_path)?;
+                let guard = lock_dir_noblock(&full_path, "backup group", "another backup is already running")?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
                 Ok((owner, guard))
             }

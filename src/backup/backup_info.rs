@@ -3,15 +3,11 @@ use crate::tools;
 use anyhow::{bail, format_err, Error};
 use regex::Regex;
 use std::os::unix::io::RawFd;
-use nix::dir::Dir;
 
-use std::time::Duration;
 use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
 
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
-
-use proxmox::sys::error::SysError;
 
 use super::manifest::MANIFEST_BLOB_NAME;
 
@@ -39,9 +35,6 @@ lazy_static!{
         concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
 
 }
-
-/// Opaque type releasing the corresponding flock when dropped
-pub type BackupGroupGuard = Dir;
 
 /// BackupGroup is a directory containing a list of BackupDir
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -135,40 +128,6 @@ impl BackupGroup {
         })?;
 
         Ok(last)
-    }
-
-    pub fn lock(&self, base_path: &Path) -> Result<BackupGroupGuard, Error> {
-        use nix::fcntl::OFlag;
-        use nix::sys::stat::Mode;
-
-        let mut path = base_path.to_owned();
-        path.push(self.group_path());
-
-        let mut handle = Dir::open(&path, OFlag::O_RDONLY, Mode::empty())
-            .map_err(|err| {
-                format_err!(
-                    "unable to open backup group directory {:?} for locking - {}",
-                    self.group_path(),
-                    err,
-                )
-            })?;
-
-        // acquire in non-blocking mode, no point in waiting here since other
-        // backups could still take a very long time
-        proxmox::tools::fs::lock_file(&mut handle, true, Some(Duration::from_nanos(0)))
-            .map_err(|err| {
-                format_err!(
-                    "unable to acquire lock on backup group {:?} - {}",
-                    self.group_path(),
-                    if err.would_block() {
-                        String::from("another backup is already running")
-                    } else {
-                        err.to_string()
-                    }
-                )
-            })?;
-
-        Ok(handle)
     }
 
     pub fn list_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
