@@ -106,7 +106,7 @@ async move {
         }
     }
 
-    let (path, is_new) = datastore.create_backup_dir(&backup_dir)?;
+    let (path, is_new, _snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
 
     WorkerTask::spawn("backup", Some(worker_id), userid.clone(), true, move |worker| {
@@ -146,6 +146,7 @@ async move {
         async move {
             // keep flock until task ends
             let _group_guard = _group_guard;
+            let _snap_guard = _snap_guard;
 
             let res = select!{
                 req = req_fut => req,

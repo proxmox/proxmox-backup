@@ -297,7 +297,7 @@ pub async fn pull_snapshot_from(
     snapshot: &BackupDir,
 ) -> Result<(), Error> {
 
-    let (_path, is_new) = tgt_store.create_backup_dir(&snapshot)?;
+    let (_path, is_new, _snap_lock) = tgt_store.create_locked_backup_dir(&snapshot)?;
 
     if is_new {
         worker.log(format!("sync snapshot {:?}", snapshot.relative_path()));

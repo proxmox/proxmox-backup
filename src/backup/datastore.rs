@@ -334,15 +334,20 @@ impl DataStore {
     /// Creates a new backup snapshot inside a BackupGroup
     ///
     /// The BackupGroup directory needs to exist.
-    pub fn create_backup_dir(&self, backup_dir: &BackupDir) ->  Result<(PathBuf, bool), io::Error> {
+    pub fn create_locked_backup_dir(&self, backup_dir: &BackupDir)
+        -> Result<(PathBuf, bool, DirLockGuard), Error>
+    {
         let relative_path = backup_dir.relative_path();
         let mut full_path = self.base_path();
         full_path.push(&relative_path);
 
+        let lock = ||
+            lock_dir_noblock(&full_path, "snapshot", "internal error - tried creating snapshot that's already in use");
+
         match std::fs::create_dir(&full_path) {
-            Ok(_) => Ok((relative_path, true)),
-            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok((relative_path, false)),
-            Err(e) => Err(e)
+            Ok(_) => Ok((relative_path, true, lock()?)),
+            Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => Ok((relative_path, false, lock()?)),
+            Err(e) => Err(e.into())
         }
     }
 
