@@ -473,8 +473,6 @@ impl WorkerTask {
     {
         println!("register worker thread");
 
-        let (p, c) = oneshot::channel::<()>();
-
         let worker = WorkerTask::new(worker_type, worker_id, userid, to_stdout)?;
         let upid_str = worker.upid.to_string();
 
@@ -495,10 +493,7 @@ impl WorkerTask {
             };
 
             worker.log_result(&result);
-            p.send(()).unwrap();
         });
-
-        tokio::spawn(c.map(|_| ()));
 
         Ok(upid_str)
     }
