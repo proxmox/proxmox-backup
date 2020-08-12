@@ -7,8 +7,7 @@ use proxmox::api::router::{Router, SubdirMap};
 use proxmox::{sortable, identity};
 use proxmox::{http_err, list_subdirs_api_method};
 
-use crate::tools;
-use crate::tools::ticket::*;
+use crate::tools::ticket::{self, Empty, Ticket};
 use crate::auth_helpers::*;
 use crate::api2::types::*;
 
@@ -35,27 +34,31 @@ fn authenticate_user(
         bail!("user account disabled or expired.");
     }
 
-    let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
-
     if password.starts_with("PBS:") {
-        if let Ok((_age, Some(ticket_username))) = tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", password, None, -300, ticket_lifetime) {
-            if *userid == ticket_username {
+        if let Ok(ticket_userid) = Ticket::<Userid>::parse(password)
+            .and_then(|ticket| ticket.verify(public_auth_key(), "PBS", None))
+        {
+            if *userid == ticket_userid {
                 return Ok(true);
-            } else {
-                bail!("ticket login failed - wrong userid");
             }
+            bail!("ticket login failed - wrong userid");
         }
     } else if password.starts_with("PBSTERM:") {
         if path.is_none() || privs.is_none() || port.is_none() {
             bail!("cannot check termnal ticket without path, priv and port");
         }
 
-        let path = path.unwrap();
-        let privilege_name = privs.unwrap();
-        let port = port.unwrap();
+        let path = path.ok_or_else(|| format_err!("missing path for termproxy ticket"))?;
+        let privilege_name = privs
+            .ok_or_else(|| format_err!("missing privilege name for termproxy ticket"))?;
+        let port = port.ok_or_else(|| format_err!("missing port for termproxy ticket"))?;
 
-        if let Ok((_age, _data)) =
-            tools::ticket::verify_term_ticket(public_auth_key(), &userid, &path, port, password)
+        if let Ok(Empty) = Ticket::parse(password)
+            .and_then(|ticket| ticket.verify(
+                public_auth_key(),
+                ticket::TERM_PREFIX,
+                Some(&ticket::term_aad(userid, &path, port)),
+            ))
         {
             for (name, privilege) in PRIVILEGES {
                 if *name == privilege_name {
@@ -138,7 +141,7 @@ fn create_ticket(
 ) -> Result<Value, Error> {
     match authenticate_user(&username, &password, path, privs, port) {
         Ok(true) => {
-            let ticket = assemble_rsa_ticket(private_auth_key(), "PBS", Some(&username), None)?;
+            let ticket = Ticket::new("PBS", &username)?.sign(private_auth_key(), None)?;
 
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 

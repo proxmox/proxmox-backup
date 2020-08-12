@@ -9,7 +9,7 @@ use proxmox_backup::tools;
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
 use proxmox_backup::client::*;
-use proxmox_backup::tools::ticket::*;
+use proxmox_backup::tools::ticket::Ticket;
 use proxmox_backup::auth_helpers::*;
 
 mod proxmox_backup_manager;
@@ -59,12 +59,8 @@ fn connect() -> Result<HttpClient, Error> {
         .verify_cert(false); // not required for connection to localhost
 
     let client = if uid.is_root()  {
-        let ticket = assemble_rsa_ticket(
-            private_auth_key(),
-            "PBS",
-            Some(Userid::root_userid()),
-            None,
-        )?;
+        let ticket = Ticket::new("PBS", Userid::root_userid())?
+            .sign(private_auth_key(), None)?;
         options = options.password(Some(ticket));
         HttpClient::new("localhost", Userid::root_userid(), options)?
     } else {

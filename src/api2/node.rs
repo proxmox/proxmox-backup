@@ -22,6 +22,7 @@ use crate::api2::types::*;
 use crate::config::acl::PRIV_SYS_CONSOLE;
 use crate::server::WorkerTask;
 use crate::tools;
+use crate::tools::ticket::{self, Empty, Ticket};
 
 pub mod disks;
 pub mod dns;
@@ -105,12 +106,11 @@ async fn termproxy(
     let listener = TcpListener::bind("localhost:0")?;
     let port = listener.local_addr()?.port();
 
-    let ticket = tools::ticket::assemble_term_ticket(
-        crate::auth_helpers::private_auth_key(),
-        &userid,
-        &path,
-        port,
-    )?;
+    let ticket = Ticket::new(ticket::TERM_PREFIX, &Empty)?
+        .sign(
+            crate::auth_helpers::private_auth_key(),
+            Some(&ticket::term_aad(&userid, &path, port)),
+        )?;
 
     let mut command = Vec::new();
     match cmd.as_ref().map(|x| x.as_str()) {
@@ -273,17 +273,16 @@ fn upgrade_to_websocket(
 ) -> ApiResponseFuture {
     async move {
         let userid: Userid = rpcenv.get_user().unwrap().parse()?;
-        let ticket = tools::required_string_param(&param, "vncticket")?.to_owned();
+        let ticket = tools::required_string_param(&param, "vncticket")?;
         let port: u16 = tools::required_integer_param(&param, "port")? as u16;
 
         // will be checked again by termproxy
-        tools::ticket::verify_term_ticket(
-            crate::auth_helpers::public_auth_key(),
-            &userid,
-            &"/system",
-            port,
-            &ticket,
-        )?;
+        Ticket::<Empty>::parse(ticket)?
+            .verify(
+                crate::auth_helpers::public_auth_key(),
+                ticket::TERM_PREFIX,
+                Some(&ticket::term_aad(&userid, "/system", port)),
+            )?;
 
         let (ws, response) = WebSocket::new(parts.headers)?;
 

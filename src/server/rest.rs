@@ -29,6 +29,7 @@ use super::ApiConfig;
 use crate::auth_helpers::*;
 use crate::api2::types::Userid;
 use crate::tools;
+use crate::tools::ticket::Ticket;
 use crate::config::cached_user_info::CachedUserInfo;
 
 extern "C"  { fn tzset(); }
@@ -463,17 +464,11 @@ fn check_auth(
     token: &Option<String>,
     user_info: &CachedUserInfo,
 ) -> Result<Userid, Error> {
-
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
-    let userid = match ticket {
-        Some(ticket) => match tools::ticket::verify_rsa_ticket(public_auth_key(), "PBS", &ticket, None, -300, ticket_lifetime) {
-            Ok((_age, Some(userid))) => userid,
-            Ok((_, None)) => bail!("ticket without username."),
-            Err(err) => return Err(err),
-        }
-        None => bail!("missing ticket"),
-    };
+    let ticket = ticket.as_ref().map(String::as_str);
+    let userid: Userid = Ticket::parse(&ticket.ok_or_else(|| format_err!("missing ticket"))?)?
+        .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?;
 
     if !user_info.is_active_user(&userid) {
         bail!("user account disabled or expired.");
