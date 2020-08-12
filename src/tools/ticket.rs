@@ -6,16 +6,15 @@ use std::marker::PhantomData;
 
 use anyhow::{bail, format_err, Error};
 use base64;
-
-use openssl::pkey::{PKey, Private, HasPublic};
-use openssl::sign::{Signer, Verifier};
 use openssl::hash::MessageDigest;
-use percent_encoding::{AsciiSet, percent_decode_str, percent_encode};
+use openssl::pkey::{HasPublic, PKey, Private};
+use openssl::sign::{Signer, Verifier};
+use percent_encoding::{percent_decode_str, percent_encode, AsciiSet};
 
 use crate::api2::types::Userid;
 use crate::tools::epoch_now_u64;
 
-pub const TICKET_LIFETIME: i64 = 3600*2; // 2 hours
+pub const TICKET_LIFETIME: i64 = 3600 * 2; // 2 hours
 
 pub const TERM_PREFIX: &str = "PBSTERM";
 
@@ -220,13 +219,17 @@ where
         let mut parts = ticket.splitn(4, ':');
 
         let prefix = percent_decode_str(
-            parts.next().ok_or_else(|| format_err!("ticket without prefix"))?,
+            parts
+                .next()
+                .ok_or_else(|| format_err!("ticket without prefix"))?,
         )
         .decode_utf8()
         .map_err(|err| format_err!("invalid ticket, error decoding prefix: {}", err))?;
 
         let data = percent_decode_str(
-            parts.next().ok_or_else(|| format_err!("ticket without data"))?,
+            parts
+                .next()
+                .ok_or_else(|| format_err!("ticket without data"))?,
         )
         .decode_utf8()
         .map_err(|err| format_err!("invalid ticket, error decoding data: {}", err))?;
@@ -239,7 +242,9 @@ where
         )
         .map_err(|err| format_err!("ticket with bad timestamp: {}", err))?;
 
-        let remainder = parts.next().ok_or_else(|| format_err!("ticket without signature"))?;
+        let remainder = parts
+            .next()
+            .ok_or_else(|| format_err!("ticket without signature"))?;
         // <prefix>:<data>:<time>::signature - the 4th `.next()` swallows the first colon in the
         // double-colon!
         if !remainder.starts_with(':') {
@@ -280,8 +285,8 @@ mod test {
         let should_work = modify(&mut ticket);
         let ticket = ticket.sign(key, aad).expect("failed to sign test ticket");
 
-        let parsed = Ticket::<Userid>::parse(&ticket)
-            .expect("failed to parse generated test ticket");
+        let parsed =
+            Ticket::<Userid>::parse(&ticket).expect("failed to parse generated test ticket");
         if should_work {
             let check: Userid = parsed
                 .verify(key, "PREFIX", aad)
@@ -298,8 +303,8 @@ mod test {
     #[test]
     fn test_tickets() {
         // first we need keys, for testing we use small keys for speed...
-        let rsa = openssl::rsa::Rsa::generate(1024)
-            .expect("failed to generate RSA key for testing");
+        let rsa =
+            openssl::rsa::Rsa::generate(1024).expect("failed to generate RSA key for testing");
         let key = openssl::pkey::PKey::<openssl::pkey::Private>::from_rsa(rsa)
             .expect("failed to create PKey for RSA key");
 
