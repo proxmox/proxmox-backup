@@ -190,9 +190,12 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
     Ok(())
 }
 
-/// Read exits status from task log file
-pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
+/// Read endtime (time of last log line) and exitstatus from task log file
+/// If there is not a single line with at valid datetime, we assume the
+/// starttime to be the endtime
+pub fn upid_read_status(upid: &UPID) -> Result<(i64, TaskState), Error> {
     let mut status = TaskState::Unknown;
+    let mut time = upid.starttime;
 
     let path = upid.log_path();
 
@@ -208,9 +211,15 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     for line in reader.lines() {
         let line = line?;
 
-        let mut iter = line.splitn(2, ": TASK ");
-        if iter.next() == None { continue; }
-        match iter.next() {
+        let mut iter = line.splitn(2, ": ");
+        if let Some(time_str) = iter.next() {
+            time = chrono::DateTime::parse_from_rfc3339(time_str)
+                .map_err(|err| format_err!("cannot parse '{}': {}", time_str, err))?
+                .timestamp();
+        } else {
+            continue;
+        }
+        match iter.next().and_then(|rest| rest.strip_prefix("TASK ")) {
             None => continue,
             Some(rest) => {
                 if let Ok(state) = rest.parse() {
@@ -220,7 +229,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
         }
     }
 
-    Ok(status)
+    Ok((time, status))
 }
 
 /// Task State
@@ -325,10 +334,10 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                     },
                     None => {
                         println!("Detected stopped UPID {}", upid_str);
-                        let status = upid_read_status(&upid)
-                            .unwrap_or_else(|_| TaskState::Unknown);
+                        let (time, status) = upid_read_status(&upid)
+                            .unwrap_or_else(|_| (Local::now().timestamp(), TaskState::Unknown));
                         finish_list.push(TaskListInfo {
-                            upid, upid_str, state: Some((Local::now().timestamp(), status))
+                            upid, upid_str, state: Some((time, status))
                         });
                     },
                     Some((endtime, status)) => {
