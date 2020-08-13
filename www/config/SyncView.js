@@ -214,26 +214,26 @@ Ext.define('PBS.config.SyncJobView', {
     columns: [
 	{
 	    header: gettext('Sync Job'),
-	    width: 200,
+	    width: 100,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'id',
 	},
 	{
 	    header: gettext('Remote'),
-	    width: 200,
+	    width: 100,
 	    sortable: true,
 	    dataIndex: 'remote',
 	},
 	{
 	    header: gettext('Remote Store'),
-	    width: 200,
+	    width: 100,
 	    sortable: true,
 	    dataIndex: 'remote-store',
 	},
 	{
 	    header: gettext('Local Store'),
-	    width: 200,
+	    width: 100,
 	    sortable: true,
 	    dataIndex: 'store',
 	},
