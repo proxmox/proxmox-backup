@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::json;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType};
+use proxmox::api::{api, Permission, RpcEnvironment, RpcEnvironmentType, HttpError};
 use proxmox::api::section_config::SectionConfigData;
 use proxmox::api::router::Router;
 
@@ -16,6 +16,8 @@ use crate::tools::systemd::{self, types::*};
 use crate::server::WorkerTask;
 
 use crate::api2::types::*;
+use proxmox::api::error::StatusCode;
+use crate::config::datastore::DataStoreConfig;
 
 #[api(
     properties: {
@@ -175,9 +177,75 @@ pub fn create_datastore_disk(
     Ok(upid_str)
 }
 
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            name: {
+                schema: DATASTORE_SCHEMA,
+            },
+        }
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Remove a Filesystem mounted under '/mnt/datastore/<name>'.".
+pub fn delete_datastore_disk(
+    name: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let path = format!("/mnt/datastore/{}", name);
+    // path of datastore cannot be changed
+    let (config, _) = crate::config::datastore::config()?;
+    let datastores: Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
+    let conflicting_datastore: Option<DataStoreConfig> = datastores.into_iter()
+        .filter(|ds| ds.path == path)
+        .next();
+
+    match conflicting_datastore {
+        Some(conflicting_datastore) =>
+            Err(Error::from(HttpError::new(StatusCode::CONFLICT,
+                                           format!("Can't remove '{}' since it's required by datastore '{}'",
+                                                   conflicting_datastore.path,
+                                                   conflicting_datastore.name)))),
+        None => {
+            // disable systemd mount-unit
+            let mut mount_unit_name = systemd::escape_unit(&path, true);
+            mount_unit_name.push_str(".mount");
+            systemd::disable_unit(mount_unit_name.as_str())?;
+
+            // delete .mount-file
+            let mount_unit_path = format!("/etc/systemd/system/{}", mount_unit_name);
+            let full_path = std::path::Path::new(mount_unit_path.as_str());
+            log::info!("removing {:?}", full_path);
+            std::fs::remove_file(&full_path)?;
+
+            // try to unmount, if that fails tell the user to reboot or unmount manually
+            let mut command = std::process::Command::new("umount");
+            command.arg(path.as_str());
+            match crate::tools::run_command(command, None) {
+                Err(_) => bail!(
+                    "Could not umount '{}' since it is busy. It will stay mounted \
+                    until the next reboot or until unmounted manually!",
+                    path
+                 ),
+                Ok(_) => Ok(())
+            }
+        }
+    }
+}
+
+const ITEM_ROUTER: Router = Router::new()
+    .delete(&API_METHOD_DELETE_DATASTORE_DISK);
+
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_DATASTORE_MOUNTS)
-    .post(&API_METHOD_CREATE_DATASTORE_DISK);
+    .post(&API_METHOD_CREATE_DATASTORE_DISK)
+    .match_all("name", &ITEM_ROUTER);
 
 
 fn create_datastore_mount_unit(

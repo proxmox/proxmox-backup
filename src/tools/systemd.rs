@@ -83,6 +83,17 @@ pub fn reload_daemon() -> Result<(), Error> {
     Ok(())
 }
 
+pub fn disable_unit(unit: &str) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new("systemctl");
+    command.arg("disable");
+    command.arg(unit);
+
+    crate::tools::run_command(command, None)?;
+
+    Ok(())
+}
+
 pub fn enable_unit(unit: &str) -> Result<(), Error> {
 
     let mut command = std::process::Command::new("systemctl");
