@@ -5,7 +5,6 @@ use std::io;
 use std::marker::PhantomData;
 
 use anyhow::{bail, format_err, Error};
-use base64;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{HasPublic, PKey, Private};
 use openssl::sign::{Signer, Verifier};
