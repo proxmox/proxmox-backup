@@ -66,19 +66,18 @@ pub async fn get_pull_parameters(
 }
 
 pub fn do_sync_job(
-    id: &str,
+    mut job: Job,
     sync_job: SyncJobConfig,
     userid: &Userid,
     schedule: Option<String>,
-    mut job: Job,
 ) -> Result<String, Error> {
 
-    let job_id = id.to_string();
-    let worker_type = "syncjob";
+    let job_id = job.jobname().to_string();
+    let worker_type = job.jobtype().to_string();
 
     let upid_str = WorkerTask::spawn(
-        worker_type,
-        Some(id.to_string()),
+        &worker_type,
+        Some(job.jobname().to_string()),
         userid.clone(),
         false,
         move |worker| async move {

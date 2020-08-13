@@ -232,6 +232,14 @@ impl Job {
         self.write_state()
     }
 
+    pub fn jobtype(&self) -> &str {
+        &self.jobtype
+    }
+
+    pub fn jobname(&self) -> &str {
+        &self.jobname
+    }
+
     fn write_state(&mut self) -> Result<(), Error> {
         let serialized = serde_json::to_string(&self.state)?;
         let path = get_path(&self.jobtype, &self.jobname);

@@ -90,7 +90,7 @@ fn run_sync_job(
     let mut job = Job::new("syncjob", &id)?;
     job.load()?;
 
-    let upid_str = do_sync_job(&id, sync_job, &userid, None, job)?;
+    let upid_str = do_sync_job(job, sync_job, &userid, None)?;
 
     Ok(upid_str)
 }
