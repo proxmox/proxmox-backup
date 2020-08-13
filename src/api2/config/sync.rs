@@ -264,6 +264,8 @@ pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> 
 
     sync::save_config(&config)?;
 
+    crate::config::jobstate::remove_state_file("syncjob", &id)?;
+
     Ok(())
 }
 

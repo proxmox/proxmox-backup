@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use anyhow::{Error};
+use anyhow::{format_err, Error};
 use serde_json::Value;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
@@ -10,7 +8,8 @@ use proxmox::{list_subdirs_api_method, sortable};
 use crate::api2::types::*;
 use crate::api2::pull::{get_pull_parameters};
 use crate::config::sync::{self, SyncJobStatus, SyncJobConfig};
-use crate::server::{self, TaskListInfo, WorkerTask};
+use crate::server::UPID;
+use crate::config::jobstate::JobState;
 use crate::tools::systemd::time::{
     parse_calendar_event, compute_next_event};
 
@@ -34,33 +33,26 @@ pub fn list_sync_jobs(
 
     let mut list: Vec<SyncJobStatus> = config.convert_to_typed_array("sync")?;
 
-    let mut last_tasks: HashMap<String, &TaskListInfo> = HashMap::new();
-    let tasks = server::read_task_list()?;
-
-    for info in tasks.iter() {
-        let worker_id = match &info.upid.worker_id {
-            Some(id) => id,
-            _ => { continue; },
-        };
-        if let Some(last) = last_tasks.get(worker_id) {
-            if last.upid.starttime < info.upid.starttime {
-                last_tasks.insert(worker_id.to_string(), &info);
-            }
-        } else {
-            last_tasks.insert(worker_id.to_string(), &info);
-        }
-    }
-
     for job in &mut list {
-        let mut last = 0;
-        if let Some(task) = last_tasks.get(&job.id) {
-            job.last_run_upid = Some(task.upid_str.clone());
-            if let Some((endtime, status)) = &task.state {
-                job.last_run_state = Some(status.to_string());
-                job.last_run_endtime = Some(*endtime);
-                last = *endtime;
-            }
-        }
+        let last_state = JobState::load("syncjob", &job.id)
+            .map_err(|err| format_err!("could not open statefile for {}: {}", &job.id, err))?;
+        let (upid, endtime, state, starttime) = match last_state {
+            JobState::Created { time } => (None, None, None, time),
+            JobState::Started { upid } => {
+                let parsed_upid: UPID = upid.parse()?;
+                (Some(upid), None, None, parsed_upid.starttime)
+            },
+            JobState::Finished { upid, endtime, state } => {
+                let parsed_upid: UPID = upid.parse()?;
+                (Some(upid), Some(endtime), Some(state.to_string()), parsed_upid.starttime)
+            },
+        };
+
+        job.last_run_upid = upid;
+        job.last_run_state = state;
+        job.last_run_endtime = endtime;
+
+        let last = job.last_run_endtime.unwrap_or_else(|| starttime);
 
         job.next_run = (|| -> Option<i64> {
             let schedule = job.schedule.as_ref()?;
