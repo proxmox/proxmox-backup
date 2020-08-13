@@ -18,6 +18,8 @@ use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
 
+use proxmox_backup::api2::pull::do_sync_job;
+
 fn main() {
     proxmox_backup::tools::setup_safe_path_env();
 
@@ -472,24 +474,13 @@ async fn schedule_datastore_prune() {
 async fn schedule_datastore_sync_jobs() {
 
     use proxmox_backup::{
-        backup::DataStore,
-        client::{ HttpClient, HttpClientOptions, BackupRepository, pull::pull_store },
-        server::{ WorkerTask },
-        config::{ sync::{self, SyncJobConfig}, remote::{self, Remote} },
+        config::{ sync::{self, SyncJobConfig}, jobstate::{self, Job} },
         tools::systemd::time::{ parse_calendar_event, compute_next_event },
     };
 
     let config = match sync::config() {
         Err(err) => {
             eprintln!("unable to read sync job config - {}", err);
-            return;
-        }
-        Ok((config, _digest)) => config,
-    };
-
-    let remote_config = match remote::config() {
-        Err(err) => {
-            eprintln!("unable to read remote config - {}", err);
             return;
         }
         Ok((config, _digest)) => config,
@@ -519,16 +510,10 @@ async fn schedule_datastore_sync_jobs() {
 
         let worker_type = "syncjob";
 
-        let last = match lookup_last_worker(worker_type, &job_id) {
-            Ok(Some(upid)) => {
-                if proxmox_backup::server::worker_is_active_local(&upid) {
-                    continue;
-                }
-                upid.starttime
-            },
-            Ok(None) => 0,
+        let last = match jobstate::last_run_time(worker_type, &job_id) {
+            Ok(time) => time,
             Err(err) => {
-                eprintln!("lookup_last_job_start failed: {}", err);
+                eprintln!("could not get last run time of {} {}: {}", worker_type, job_id, err);
                 continue;
             }
         };
@@ -550,57 +535,21 @@ async fn schedule_datastore_sync_jobs() {
         };
         if next > now  { continue; }
 
-
-        let job_id2 = job_id.clone();
-
-        let tgt_store = match DataStore::lookup_datastore(&job_config.store) {
-            Ok(datastore) => datastore,
-            Err(err) => {
-                eprintln!("lookup_datastore '{}' failed - {}", job_config.store, err);
-                continue;
+        let job = match Job::new(worker_type, &job_id) {
+            Ok(mut job) => match job.load() {
+                Ok(_) => job,
+                Err(err) => {
+                    eprintln!("error loading jobstate for {} -  {}: {}", worker_type, &job_id, err);
+                    continue;
+                }
             }
-        };
-
-        let remote: Remote = match remote_config.lookup("remote", &job_config.remote) {
-            Ok(remote) => remote,
-            Err(err) => {
-                eprintln!("remote_config lookup failed: {}", err);
-                continue;
-            }
+            Err(_) => continue, // could not get lock
         };
 
         let userid = Userid::backup_userid().clone();
 
-        let delete = job_config.remove_vanished.unwrap_or(true);
-
-        if let Err(err) = WorkerTask::spawn(
-            worker_type,
-            Some(job_id.clone()),
-            userid.clone(),
-            false,
-            move |worker| async move {
-                worker.log(format!("Starting datastore sync job '{}'", job_id));
-                worker.log(format!("task triggered by schedule '{}'", event_str));
-                worker.log(format!("Sync datastore '{}' from '{}/{}'",
-                                   job_config.store, job_config.remote, job_config.remote_store));
-
-                let options = HttpClientOptions::new()
-                    .password(Some(remote.password.clone()))
-                    .fingerprint(remote.fingerprint.clone());
-
-                let client = HttpClient::new(&remote.host, &remote.userid, options)?;
-                let _auth_info = client.login() // make sure we can auth
-                    .await
-                    .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
-
-                let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), job_config.remote_store);
-
-                pull_store(&worker, &client, &src_repo, tgt_store, delete, userid).await?;
-
-                Ok(())
-            }
-        ) {
-            eprintln!("unable to start datastore sync job {} - {}", job_id2, err);
+        if let Err(err) = do_sync_job(&job_id, job_config, &userid, Some(event_str), job) {
+            eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
         }
     }
 }
