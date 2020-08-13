@@ -83,6 +83,8 @@ pub fn create_sync_job(param: Value) -> Result<(), Error> {
 
     sync::save_config(&config)?;
 
+    crate::config::jobstate::create_state_file("syncjob", &sync_job.id)?;
+
     Ok(())
 }
 

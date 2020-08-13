@@ -87,8 +87,7 @@ fn run_sync_job(
 
     let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    let mut job = Job::new("syncjob", &id)?;
-    job.load()?;
+    let job = Job::new("syncjob", &id)?;
 
     let upid_str = do_sync_job(job, sync_job, &userid, None)?;
 

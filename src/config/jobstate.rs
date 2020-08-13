@@ -25,13 +25,7 @@
 //!     Err(err) => bail!("could not lock jobstate"),
 //! };
 //!
-//! // job holds the lock
-//! match job.load() {
-//!     Ok(()) => {},
-//!     Err(err) => bail!("could not load state {}", err),
-//! }
-//!
-//! // now the job is loaded;
+//! // job holds the lock, we can start it
 //! job.start("someupid")?;
 //! // do something
 //! let task_state = some_code();
@@ -102,16 +96,32 @@ where
 {
     let mut path = path.as_ref().to_path_buf();
     path.set_extension("lck");
-    open_file_locked(path, Duration::new(10, 0))
+    let lock = open_file_locked(&path, Duration::new(10, 0))?;
+    let backup_user = crate::backup::backup_user()?;
+    nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
+    Ok(lock)
 }
 
 /// Removes the statefile of a job, this is useful if we delete a job
 pub fn remove_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
-    let path = get_path(jobtype, jobname);
+    let mut path = get_path(jobtype, jobname);
     let _lock = get_lock(&path)?;
     std::fs::remove_file(&path).map_err(|err|
         format_err!("cannot remove statefile for {} - {}: {}", jobtype, jobname, err)
-    )
+    )?;
+    path.set_extension("lck");
+    // ignore errors
+    let _ = std::fs::remove_file(&path).map_err(|err|
+        format_err!("cannot remove lockfile for {} - {}: {}", jobtype, jobname, err)
+    );
+    Ok(())
+}
+
+/// Creates the statefile with the state 'Created'
+/// overwrites if it exists already
+pub fn create_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
+    let mut job = Job::new(jobtype, jobname)?;
+    job.write_state()
 }
 
 /// Returns the last run time of a job by reading the statefile
@@ -158,7 +168,7 @@ impl JobState {
             }
         } else {
             Ok(JobState::Created {
-                time: epoch_now_u64()? as i64
+                time: epoch_now_u64()? as i64 - 30,
             })
         }
     }
@@ -183,19 +193,6 @@ impl Job {
             },
             _lock,
         })
-    }
-
-    /// Loads the state from the statefile if it exists.
-    /// If not, it gets created. Updates 'Started' State to 'Finished'
-    /// if we detect the UPID already stopped
-    pub fn load(&mut self) -> Result<(), Error> {
-        self.state = JobState::load(&self.jobtype, &self.jobname)?;
-
-        if let Err(err) = self.write_state() {
-            bail!("could not write statefile: {}", err);
-        }
-
-        Ok(())
     }
 
     /// Start the job and update the statefile accordingly

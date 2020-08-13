@@ -536,13 +536,7 @@ async fn schedule_datastore_sync_jobs() {
         if next > now  { continue; }
 
         let job = match Job::new(worker_type, &job_id) {
-            Ok(mut job) => match job.load() {
-                Ok(_) => job,
-                Err(err) => {
-                    eprintln!("error loading jobstate for {} -  {}: {}", worker_type, &job_id, err);
-                    continue;
-                }
-            }
+            Ok(job) => job,
             Err(_) => continue, // could not get lock
         };
 
