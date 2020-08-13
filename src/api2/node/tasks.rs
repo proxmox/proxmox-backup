@@ -10,7 +10,7 @@ use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use crate::tools;
 use crate::api2::types::*;
-use crate::server::{self, UPID};
+use crate::server::{self, UPID, TaskState};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -105,9 +105,9 @@ async fn get_task_status(
     if crate::server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
     } else {
-        let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(String::from("unknown"));
+        let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(TaskState::Unknown);
         result["status"] = Value::from("stopped");
-        result["exitstatus"] = Value::from(exitstatus);
+        result["exitstatus"] = Value::from(exitstatus.to_string());
     };
 
     Ok(result)
@@ -352,7 +352,7 @@ pub fn list_tasks(
 
         if let Some(ref state) = info.state {
             if running { continue; }
-            if errors && state.1 == "OK" {
+            if errors && state.1 == crate::server::TaskState::OK {
                 continue;
             }
         }

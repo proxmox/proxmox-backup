@@ -11,6 +11,7 @@ use futures::*;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
 use serde_json::{json, Value};
+use serde::{Serialize, Deserialize};
 use tokio::sync::oneshot;
 
 use proxmox::sys::linux::procfs;
@@ -190,8 +191,8 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
 }
 
 /// Read exits status from task log file
-pub fn upid_read_status(upid: &UPID) -> Result<String, Error> {
-    let mut status = String::from("unknown");
+pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
+    let mut status = TaskState::Unknown;
 
     let path = upid.log_path();
 
@@ -212,18 +213,67 @@ pub fn upid_read_status(upid: &UPID) -> Result<String, Error> {
         match iter.next() {
             None => continue,
             Some(rest) => {
-                if rest == "OK" {
-                    status = String::from(rest);
-                } else if rest.starts_with("WARNINGS: ") {
-                    status = String::from(rest);
-                } else if rest.starts_with("ERROR: ") {
-                    status = String::from(&rest[7..]);
+                if let Ok(state) = rest.parse() {
+                    status = state;
                 }
             }
         }
     }
 
     Ok(status)
+}
+
+/// Task State
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum TaskState {
+    /// The Task ended with an undefined state
+    Unknown,
+    /// The Task ended and there were no errors or warnings
+    OK,
+    /// The Task had 'count' amount of warnings and no errors
+    Warning { count: u64 },
+    /// The Task ended with the error described in 'message'
+    Error { message: String },
+}
+
+impl TaskState {
+    fn result_text(&self) -> String {
+        match self {
+            TaskState::Error { message } => format!("TASK ERROR: {}", message),
+            other => format!("TASK {}", other),
+        }
+    }
+}
+
+impl std::fmt::Display for TaskState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskState::Unknown => write!(f, "unknown"),
+            TaskState::OK => write!(f, "OK"),
+            TaskState::Warning { count } => write!(f, "WARNINGS: {}", count),
+            TaskState::Error { message } => write!(f, "{}", message),
+        }
+    }
+}
+
+impl std::str::FromStr for TaskState {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "unknown" {
+            Ok(TaskState::Unknown)
+        } else if s == "OK" {
+            Ok(TaskState::OK)
+        } else if s.starts_with("WARNINGS: ") {
+            let count: u64 = s[10..].parse()?;
+            Ok(TaskState::Warning{ count })
+        } else if s.len() > 0 {
+            let message = if s.starts_with("ERROR: ") { &s[7..] } else { s }.to_string();
+            Ok(TaskState::Error{ message })
+        } else {
+            bail!("unable to parse Task Status '{}'", s);
+        }
+    }
 }
 
 /// Task details including parsed UPID
@@ -236,9 +286,7 @@ pub struct TaskListInfo {
     /// UPID string representation
     pub upid_str: String,
     /// Task `(endtime, status)` if already finished
-    ///
-    /// The `status` is either `unknown`, `OK`, `WARN`, or `ERROR: ...`
-    pub state: Option<(i64, String)>, // endtime, status
+    pub state: Option<(i64, TaskState)>, // endtime, status
 }
 
 // atomically read/update the task list, update status of finished tasks
@@ -278,14 +326,14 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                     None => {
                         println!("Detected stopped UPID {}", upid_str);
                         let status = upid_read_status(&upid)
-                            .unwrap_or_else(|_| String::from("unknown"));
+                            .unwrap_or_else(|_| TaskState::Unknown);
                         finish_list.push(TaskListInfo {
                             upid, upid_str, state: Some((Local::now().timestamp(), status))
                         });
                     },
                     Some((endtime, status)) => {
                         finish_list.push(TaskListInfo {
-                            upid, upid_str, state: Some((endtime, status))
+                            upid, upid_str, state: Some((endtime, status.parse()?))
                         })
                     }
                 }
@@ -498,23 +546,23 @@ impl WorkerTask {
         Ok(upid_str)
     }
 
-    /// get the Text of the result
-    pub fn get_log_text(&self, result: &Result<(), Error>) -> String {
-
+    /// create state from self and a result
+    pub fn create_state(&self, result: &Result<(), Error>) -> TaskState {
         let warn_count = self.data.lock().unwrap().warn_count;
 
         if let Err(err) = result {
-            format!("ERROR: {}", err)
+            TaskState::Error { message: err.to_string() }
         } else if warn_count > 0 {
-            format!("WARNINGS: {}", warn_count)
+            TaskState::Warning { count: warn_count }
         } else {
-            "OK".to_string()
+            TaskState::OK
         }
     }
 
     /// Log task result, remove task from running list
     pub fn log_result(&self, result: &Result<(), Error>) {
-        self.log(format!("TASK {}", self.get_log_text(result)));
+        let state = self.create_state(result);
+        self.log(state.result_text());
 
         WORKER_TASK_LIST.lock().unwrap().remove(&self.upid.task_id);
         let _ = update_active_workers(None);

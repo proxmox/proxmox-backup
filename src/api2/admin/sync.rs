@@ -56,7 +56,7 @@ pub fn list_sync_jobs(
         if let Some(task) = last_tasks.get(&job.id) {
             job.last_run_upid = Some(task.upid_str.clone());
             if let Some((endtime, status)) = &task.state {
-                job.last_run_state = Some(String::from(status));
+                job.last_run_state = Some(status.to_string());
                 job.last_run_endtime = Some(*endtime);
                 last = *endtime;
             }
