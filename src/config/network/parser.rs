@@ -210,9 +210,7 @@ impl <R: BufRead> NetworkParser<R> {
                     self.eat(Token::Newline)?;
                     continue;
                 }
-                Token::Newline => break,
-                Token::EOF => break,
-                unexpected => bail!("unexpected token {:?} (expected iface attribute)", unexpected),
+                _ => break,
             }
 
             match self.peek()? {
