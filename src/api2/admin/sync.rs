@@ -6,7 +6,7 @@ use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
 
 use crate::api2::types::*;
-use crate::api2::pull::{get_pull_parameters};
+use crate::api2::pull::do_sync_job;
 use crate::config::sync::{self, SyncJobStatus, SyncJobConfig};
 use crate::server::UPID;
 use crate::config::jobstate::JobState;
@@ -76,7 +76,7 @@ pub fn list_sync_jobs(
     }
 )]
 /// Runs the sync jobs manually.
-async fn run_sync_job(
+fn run_sync_job(
     id: String,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
@@ -87,26 +87,7 @@ async fn run_sync_job(
 
     let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    let delete = sync_job.remove_vanished.unwrap_or(true);
-    let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
-
-    let upid_str = WorkerTask::spawn("syncjob", Some(id.clone()), userid, false, move |worker| async move {
-
-        worker.log(format!("sync job '{}' start", &id));
-
-        crate::client::pull::pull_store(
-            &worker,
-            &client,
-            &src_repo,
-            tgt_store.clone(),
-            delete,
-            Userid::backup_userid().clone(),
-        ).await?;
-
-        worker.log(format!("sync job '{}' end", &id));
-
-        Ok(())
-    })?;
+    let upid_str = do_sync_job(&id, sync_job, &userid)?;
 
     Ok(upid_str)
 }

@@ -12,6 +12,7 @@ use crate::client::{HttpClient, HttpClientOptions, BackupRepository, pull::pull_
 use crate::api2::types::*;
 use crate::config::{
     remote,
+    sync::SyncJobConfig,
     acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ},
     cached_user_info::CachedUserInfo,
 };
@@ -60,6 +61,37 @@ pub async fn get_pull_parameters(
     let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote_store.to_string());
 
     Ok((client, src_repo, tgt_store))
+}
+
+pub fn do_sync_job(
+    id: &str,
+    sync_job: SyncJobConfig,
+    userid: &Userid,
+) -> Result<String, Error> {
+
+    let job_id = id.to_string();
+
+    let upid_str = WorkerTask::spawn("syncjob", Some(id.to_string()), userid.clone(), false, move |worker| async move {
+        let delete = sync_job.remove_vanished.unwrap_or(true);
+        let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
+
+        worker.log(format!("sync job '{}' start", &job_id));
+
+        crate::client::pull::pull_store(
+            &worker,
+            &client,
+            &src_repo,
+            tgt_store.clone(),
+            delete,
+            Userid::backup_userid().clone(),
+        ).await?;
+
+        worker.log(format!("sync job '{}' end", &job_id));
+
+        Ok(())
+    })?;
+
+    Ok(upid_str)
 }
 
 #[api(
