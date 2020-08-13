@@ -595,7 +595,7 @@ impl From<crate::server::TaskListInfo> for TaskListItem {
     fn from(info: crate::server::TaskListInfo) -> Self {
         let (endtime, status) = info
             .state
-            .map_or_else(|| (None, None), |(a,b)| (Some(a), Some(b.to_string())));
+            .map_or_else(|| (None, None), |a| (Some(a.endtime()), Some(a.to_string())));
 
         TaskListItem {
             upid: info.upid_str,

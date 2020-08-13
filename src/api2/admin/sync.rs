@@ -42,9 +42,9 @@ pub fn list_sync_jobs(
                 let parsed_upid: UPID = upid.parse()?;
                 (Some(upid), None, None, parsed_upid.starttime)
             },
-            JobState::Finished { upid, endtime, state } => {
+            JobState::Finished { upid, state } => {
                 let parsed_upid: UPID = upid.parse()?;
-                (Some(upid), Some(endtime), Some(state.to_string()), parsed_upid.starttime)
+                (Some(upid), Some(state.endtime()), Some(state.to_string()), parsed_upid.starttime)
             },
         };
 

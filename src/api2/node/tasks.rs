@@ -105,7 +105,7 @@ async fn get_task_status(
     if crate::server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
     } else {
-        let (_, exitstatus) = crate::server::upid_read_status(&upid).unwrap_or((0, TaskState::Unknown));
+        let exitstatus = crate::server::upid_read_status(&upid).unwrap_or(TaskState::Unknown { endtime: 0 });
         result["status"] = Value::from("stopped");
         result["exitstatus"] = Value::from(exitstatus.to_string());
     };
@@ -352,8 +352,9 @@ pub fn list_tasks(
 
         if let Some(ref state) = info.state {
             if running { continue; }
-            if errors && state.1 == crate::server::TaskState::OK {
-                continue;
+            match state {
+                crate::server::TaskState::OK { .. } if errors => continue,
+                _ => {},
             }
         }
 

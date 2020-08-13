@@ -16,7 +16,7 @@
 //! # use anyhow::{bail, Error};
 //! # use proxmox_backup::server::TaskState;
 //! # use proxmox_backup::config::jobstate::*;
-//! # fn some_code() -> TaskState { TaskState::OK }
+//! # fn some_code() -> TaskState { TaskState::OK { endtime: 0 } }
 //! # fn code() -> Result<(), Error> {
 //! // locks the correct file under /var/lib
 //! // or fails if someone else holds the lock
@@ -62,8 +62,8 @@ pub enum JobState {
     Created { time: i64 },
     /// The Job was last started in 'upid',
     Started { upid: String },
-    /// The Job was last started in 'upid', which finished with 'state' at 'endtime'
-    Finished { upid: String, endtime: i64, state: TaskState }
+    /// The Job was last started in 'upid', which finished with 'state'
+    Finished { upid: String, state: TaskState }
 }
 
 /// Represents a Job and holds the correct lock
@@ -143,12 +143,11 @@ impl JobState {
                         .map_err(|err| format_err!("error parsing upid: {}", err))?;
 
                     if !worker_is_active_local(&parsed) {
-                        let (endtime, state) = upid_read_status(&parsed)
+                        let state = upid_read_status(&parsed)
                             .map_err(|err| format_err!("error reading upid log status: {}", err))?;
 
                         Ok(JobState::Finished {
                             upid,
-                            endtime,
                             state
                         })
                     } else {
@@ -225,11 +224,8 @@ impl Job {
             JobState::Finished { upid, .. } => upid,
         }.to_string();
 
-        let endtime: i64 = epoch_now_u64()? as i64;
-
         self.state = JobState::Finished {
             upid,
-            endtime,
             state,
         };
 
