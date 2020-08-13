@@ -107,11 +107,27 @@ Ext.define('PBS.config.SyncJobView', {
 		return '';
 	    }
 
-	    if (value === 'OK') {
-		return `<i class="fa fa-check good"></i> ${gettext("OK")}`;
+	    let parsed = Proxmox.Utils.parse_task_status(value);
+	    let text = value;
+	    let icon = '';
+	    switch (parsed) {
+		case 'unknown':
+		    icon = 'question faded';
+		    text = Proxmox.Utils.unknownText;
+		    break;
+		case 'error':
+		    icon =  'times critical';
+		    text = Proxmox.Utils.errorText + ': ' + value;
+		    break;
+		case 'warning':
+		    icon = 'exclamation warning';
+		    break;
+		case  'ok':
+		    icon = 'check good';
+		    text = gettext("OK");
 	    }
 
-	    return `<i class="fa fa-times critical"></i> ${gettext("Error")}:${value}`;
+	    return `<i class="fa fa-${icon}"></i> ${text}`;
 	},
 
 	render_next_run: function(value, metadat, record) {
