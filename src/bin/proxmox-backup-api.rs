@@ -37,6 +37,7 @@ async fn run() -> Result<(), Error> {
     config::update_self_signed_cert(false)?;
 
     proxmox_backup::rrd::create_rrdb_dir()?;
+    proxmox_backup::config::jobstate::create_jobstate_dir()?;
 
     if let Err(err) = generate_auth_key() {
         bail!("unable to generate auth key - {}", err);

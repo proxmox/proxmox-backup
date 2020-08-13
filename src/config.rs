@@ -18,6 +18,7 @@ use crate::buildcfg;
 pub mod acl;
 pub mod cached_user_info;
 pub mod datastore;
+pub mod jobstate;
 pub mod network;
 pub mod remote;
 pub mod sync;
