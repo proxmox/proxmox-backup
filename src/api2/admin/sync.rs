@@ -9,7 +9,7 @@ use crate::api2::types::*;
 use crate::api2::pull::do_sync_job;
 use crate::config::sync::{self, SyncJobStatus, SyncJobConfig};
 use crate::server::UPID;
-use crate::config::jobstate::JobState;
+use crate::config::jobstate::{Job, JobState};
 use crate::tools::systemd::time::{
     parse_calendar_event, compute_next_event};
 
@@ -87,7 +87,10 @@ fn run_sync_job(
 
     let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
-    let upid_str = do_sync_job(&id, sync_job, &userid)?;
+    let mut job = Job::new("syncjob", &id)?;
+    job.load()?;
+
+    let upid_str = do_sync_job(&id, sync_job, &userid, None, job)?;
 
     Ok(upid_str)
 }
