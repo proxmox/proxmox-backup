@@ -4,12 +4,13 @@ use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity, list_subdirs_api_method};
-use proxmox::api::{api, Router, Permission};
+use proxmox::api::{api, Router, Permission, RpcEnvironment};
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 
 use crate::api2::types::*;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::server::WorkerTask;
 
 static SERVICE_NAME_LIST: [&str; 7] = [
     "proxmox-backup",
@@ -181,31 +182,43 @@ fn get_service_state(
     Ok(json_service_state(&service, status))
 }
 
-fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
+fn run_service_command(service: &str, cmd: &str, userid: Userid) -> Result<Value, Error> {
 
-    // fixme: run background worker (fork_worker) ???
+    let workerid = format!("srv{}", &cmd);
 
     let cmd = match cmd {
-        "start"|"stop"|"restart"=> cmd,
-        "reload" => "try-reload-or-restart", // some services do not implement reload
+        "start"|"stop"|"restart"=> cmd.to_string(),
+        "reload" => "try-reload-or-restart".to_string(), // some services do not implement reload
         _ => bail!("unknown service command '{}'", cmd),
     };
+    let service = service.to_string();
 
-    if service == "proxmox-backup" && cmd == "stop" {
-        bail!("invalid service cmd '{} {}' cannot stop essential service!", service, cmd);
-    }
+    let upid = WorkerTask::new_thread(
+        &workerid,
+        Some(service.clone()),
+        userid,
+        false,
+        move |_worker| {
 
-    let real_service_name = real_service_name(service);
+            if service == "proxmox-backup" && cmd == "stop" {
+                bail!("invalid service cmd '{} {}' cannot stop essential service!", service, cmd);
+            }
 
-    let status = Command::new("systemctl")
-        .args(&[cmd, real_service_name])
-        .status()?;
+            let real_service_name = real_service_name(&service);
 
-    if !status.success() {
-        bail!("systemctl {} failed with {}", cmd, status);
-    }
+            let status = Command::new("systemctl")
+                .args(&[&cmd, real_service_name])
+                .status()?;
 
-    Ok(Value::Null)
+            if !status.success() {
+                bail!("systemctl {} failed with {}", cmd, status);
+            }
+
+            Ok(())
+        }
+    )?;
+
+    Ok(upid.into())
 }
 
 #[api(
@@ -228,11 +241,14 @@ fn run_service_command(service: &str, cmd: &str) -> Result<Value, Error> {
 fn start_service(
     service: String,
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     log::info!("starting service {}", service);
 
-    run_service_command(&service, "start")
+    run_service_command(&service, "start", userid)
 }
 
 #[api(
@@ -255,11 +271,14 @@ fn start_service(
 fn stop_service(
     service: String,
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
  ) -> Result<Value, Error> {
+
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     log::info!("stopping service {}", service);
 
-    run_service_command(&service, "stop")
+    run_service_command(&service, "stop", userid)
 }
 
 #[api(
@@ -282,15 +301,18 @@ fn stop_service(
 fn restart_service(
     service: String,
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     log::info!("re-starting service {}", service);
 
     if &service == "proxmox-backup-proxy" {
         // special case, avoid aborting running tasks
-        run_service_command(&service, "reload")
+        run_service_command(&service, "reload", userid)
     } else {
-        run_service_command(&service, "restart")
+        run_service_command(&service, "restart", userid)
     }
 }
 
@@ -314,11 +336,14 @@ fn restart_service(
 fn reload_service(
     service: String,
     _param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
     log::info!("reloading service {}", service);
 
-    run_service_command(&service, "reload")
+    run_service_command(&service, "reload", userid)
 }
 
 
