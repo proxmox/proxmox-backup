@@ -11,7 +11,6 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox::tools::io::ReadExt;
 use proxmox::tools::uuid::Uuid;
-use proxmox::tools::vec;
 use proxmox::tools::mmap::Mmap;
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
@@ -40,6 +39,24 @@ proxmox::static_assert_size!(DynamicIndexHeader, 4096);
 //     reserved: [u8; 4096],
 //     pub data: DynamicIndexHeaderData,
 // }
+
+impl DynamicIndexHeader {
+    /// Convenience method to allocate a zero-initialized header struct.
+    pub fn zeroed() -> Box<Self> {
+        unsafe {
+            Box::from_raw(std::alloc::alloc_zeroed(std::alloc::Layout::new::<Self>()) as *mut Self)
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                self as *const Self as *const u8,
+                std::mem::size_of::<Self>(),
+            )
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 #[repr(C)]
@@ -489,27 +506,16 @@ impl DynamicIndexWriter {
 
         let mut writer = BufWriter::with_capacity(1024 * 1024, file);
 
-        let header_size = std::mem::size_of::<DynamicIndexHeader>();
-
-        // todo: use static assertion when available in rust
-        if header_size != 4096 {
-            panic!("got unexpected header size");
-        }
-
         let ctime = epoch_now_u64()?;
 
         let uuid = Uuid::generate();
 
-        let mut buffer = vec::zeroed(header_size);
-        let header = crate::tools::map_struct_mut::<DynamicIndexHeader>(&mut buffer)?;
-
+        let mut header = DynamicIndexHeader::zeroed();
         header.magic = super::DYNAMIC_SIZED_CHUNK_INDEX_1_0;
         header.ctime = u64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
-
-        header.index_csum = [0u8; 32];
-
-        writer.write_all(&buffer)?;
+        // header.index_csum = [0u8; 32];
+        writer.write_all(header.as_bytes())?;
 
         let csum = Some(openssl::sha::Sha256::new());
 
