@@ -62,32 +62,6 @@ pub trait BufferedRead {
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error>;
 }
 
-/// Directly map a type into a binary buffer. This is mostly useful
-/// for reading structured data from a byte stream (file). You need to
-/// make sure that the buffer location does not change, so please
-/// avoid vec resize while you use such map.
-///
-/// This function panics if the buffer is not large enough.
-pub fn map_struct<T>(buffer: &[u8]) -> Result<&T, Error> {
-    if buffer.len() < ::std::mem::size_of::<T>() {
-        bail!("unable to map struct - buffer too small");
-    }
-    Ok(unsafe { &*(buffer.as_ptr() as *const T) })
-}
-
-/// Directly map a type into a mutable binary buffer. This is mostly
-/// useful for writing structured data into a byte stream (file). You
-/// need to make sure that the buffer location does not change, so
-/// please avoid vec resize while you use such map.
-///
-/// This function panics if the buffer is not large enough.
-pub fn map_struct_mut<T>(buffer: &mut [u8]) -> Result<&mut T, Error> {
-    if buffer.len() < ::std::mem::size_of::<T>() {
-        bail!("unable to map struct - buffer too small");
-    }
-    Ok(unsafe { &mut *(buffer.as_ptr() as *mut T) })
-}
-
 /// Split a file into equal sized chunks. The last chunk may be
 /// smaller. Note: We cannot implement an `Iterator`, because iterators
 /// cannot return a borrowed buffer ref (we want zero-copy)
