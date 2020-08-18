@@ -22,7 +22,7 @@ Architecture
 ------------
 
 Proxmox Backup Server uses a `client-server model`_. The server stores the
-backup data and provides an API to create backups and restore data. With the
+backup data and provides an API to create and manage data stores. With the
 API, it's also possible to manage disks and other server-side resources.
 
 The backup client uses this API to access the backed up data. With the command
@@ -143,6 +143,7 @@ Mailing Lists
 
 Proxmox Backup Server is fully open-source and contributions are welcome! Here
 is the primary communication channel for developers:
+
 :Mailing list for developers: `PBS Development List`_
 
 Bug Tracker

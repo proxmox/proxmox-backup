@@ -19,9 +19,9 @@ for various management tasks such as disk management.
 The disk image (ISO file) provided by Proxmox includes a complete Debian system
 ("buster" for version 1.x) as well as all necessary packages for the `Proxmox Backup`_ server.
 
-The installer will guide you through the setup process and allows
+The installer will guide you through the setup process and allow
 you to partition the local disk(s), apply basic system configurations
-(e.g. timezone, language, network), and installs all required packages.
+(e.g. timezone, language, network), and install all required packages.
 The provided ISO will get you started in just a few minutes, and is the
 recommended method for new and existing users.
 
@@ -36,11 +36,11 @@ It includes the following:
 
 * The `Proxmox Backup`_ server installer, which partitions the local
   disk(s) with ext4, ext3, xfs or ZFS, and installs the operating
-  system.
+  system
 
 * Complete operating system (Debian Linux, 64-bit)
 
-* Our Linux kernel with ZFS support.
+* Our Linux kernel with ZFS support
 
 * Complete tool-set to administer backups and all necessary resources
 
@@ -54,7 +54,7 @@ Install `Proxmox Backup`_ server on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Proxmox ships as a set of Debian packages which can be installed on top of a
-standard Debian installation.  After configuring the
+standard Debian installation. After configuring the
 :ref:`sysadmin_package_repositories`, you need to run:
 
 .. code-block:: console
@@ -103,9 +103,9 @@ After configuring the
    server to store backups. Should the hypervisor server fail, you can
    still access the backups.
 
-.. note:: You can access the webinterface of the Proxmox Backup Server with
-  your web browser, using HTTPS on port 8007. For example at
- ``https://<ip-or-dns-name>:8007``
+.. note::
+  You can access the webinterface of the Proxmox Backup Server with your web
+  browser, using HTTPS on port 8007. For example at ``https://<ip-or-dns-name>:8007``
 
 Client installation
 -------------------

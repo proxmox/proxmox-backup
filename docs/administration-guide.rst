@@ -344,10 +344,10 @@ following roles exist:
   Disable Access - nothing is allowed.
 
 **Admin**
-  The Administrator can do anything.
+  Can do anything.
 
 **Audit**
-  An Auditor can view things, but is not allowed to change settings.
+  Can view things, but is not allowed to change settings.
 
 **DatastoreAdmin**
   Can do anything on datastores.
@@ -578,7 +578,7 @@ Excluding files/folders from a backup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes it is desired to exclude certain files or folders from a backup archive.
-To tell the Proxmox backup client when and how to ignore files and directories,
+To tell the Proxmox Backup client when and how to ignore files and directories,
 place a text file called ``.pxarexclude`` in the filesystem hierarchy.
 Whenever the backup client encounters such a file in a directory, it interprets
 each line as glob match patterns for files and directories that are to be excluded
@@ -818,7 +818,7 @@ backup.
 
   # proxmox-backup-client restore host/elsa/2019-12-03T09:35:01Z root.pxar /target/path/
 
-To get the contents of any archive, you can restore the ``ìndex.json`` file in the
+To get the contents of any archive, you can restore the ``index.json`` file in the
 repository to the target path '-'. This will dump the contents to the standard output.
 
 .. code-block:: console
@@ -959,8 +959,8 @@ command:
    snapshot. They will be inaccessible and unrecoverable.
 
 
-The manual removal is sometimes required, but normally the prune
-command is used to systematically delete older backups. Prune lets
+Although manual removal is sometimes required, the ``prune``
+command is normally used to systematically delete older backups. Prune lets
 you specify which backup snapshots you want to keep. The
 following retention options are available:
 

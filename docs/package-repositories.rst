@@ -3,8 +3,8 @@
 Debian Package Repositories
 ---------------------------
 
-All Debian based systems use APT_ as package management tool. The list of
-repositories is defined in ``/etc/apt/sources.list`` and ``.list`` files found
+All Debian based systems use APT_ as a package management tool. The lists of
+repositories are defined in ``/etc/apt/sources.list`` and the ``.list`` files found
 in the ``/etc/apt/sources.d/`` directory. Updates can be installed directly
 with the ``apt`` command line tool, or via the GUI.
 
@@ -26,11 +26,10 @@ update``.
 
 .. FIXME for 7.0: change security update suite to bullseye-security
 
-In addition, you need a package repositories from Proxmox to get the backup
-server updates.
+In addition, you need a package repository from Proxmox to get Proxmox Backup updates.
 
-During the Proxmox Backup beta phase only one repository (pbstest) will be
-available. Once released, a Enterprise repository for production use and a
+During the Proxmox Backup beta phase, only one repository (pbstest) will be
+available. Once released, an Enterprise repository for production use and a
 no-subscription repository will be provided.
 
 SecureApt
@@ -39,8 +38,8 @@ SecureApt
 The `Release` files in the repositories are signed with GnuPG. APT is using
 these signatures to verify that all packages are from a trusted source.
 
-If you install Proxmox Backup Server from an official ISO image, the key for
-verification is already installed.
+If you install Proxmox Backup Server from an official ISO image, the
+verification key is already installed.
 
 If you install Proxmox Backup Server on top of Debian, download and install the
 key with the following commands:
@@ -136,17 +135,17 @@ During the public beta, there is a repository called ``pbstest``. This one
 contains the latest packages and is heavily used by developers to test new
 features.
 
-..  .. warning:: the ``pbstest`` repository should (as the name implies)
+.. .. warning:: the ``pbstest`` repository should (as the name implies)
   only be used to test new features or bug fixes.
 
-You can configure this using ``/etc/apt/sources.list`` by adding the following
-line:
+You can access this repository by adding the following line to
+``/etc/apt/sources.list``:
 
 .. code-block:: sources.list
   :caption: sources.list entry for ``pbstest``
 
   deb http://download.proxmox.com/debian/pbs buster pbstest
 
-If you installed Proxmox Backup Server from the official beta ISO you should
+If you installed Proxmox Backup Server from the official beta ISO, you should
 have this repository already configured in
 ``/etc/apt/sources.list.d/pbstest-beta.list``

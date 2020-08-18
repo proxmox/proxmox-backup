@@ -9,7 +9,7 @@ which caters to a similar use-case.
 The ``.pxar`` format is adapted to fulfill the specific needs of the Proxmox
 Backup Server, for example, efficient storage of hardlinks.
 The format is designed to reduce storage space needed on the server by achieving
-a high level of de-duplication.
+a high level of deduplication.
 
 Creating an Archive
 ^^^^^^^^^^^^^^^^^^^
@@ -29,7 +29,7 @@ This will create a new archive called ``archive.pxar`` with the contents of the
 
 By default, ``pxar`` will skip certain mountpoints and will not follow device
 boundaries. This design decision is based on the primary use case of creating
-archives for backups. It is sensible to not back up the contents of certain
+archives for backups. It makes sense to not back up the contents of certain
 temporary or system specific files.
 To alter this behavior and follow device boundaries, use the
 ``--all-file-systems`` flag.
@@ -66,7 +66,7 @@ All the glob patterns are relative to the ``source`` directory.
     previous ones. Permutations of the same patterns lead to different results.
 
 ``pxar`` will store the list of glob match patterns passed as parameters via the
-command line in a file called ``.pxarexclude-cli`` and stores it at the root of
+command line, in a file called ``.pxarexclude-cli`` at the root of
 the archive.
 If a file with this name is already present in the source folder during archive
 creation, this file is not included in the archive and the file containing the
@@ -85,23 +85,23 @@ The behavior is the same as described in :ref:`creating-backups`.
 Extracting an Archive
 ^^^^^^^^^^^^^^^^^^^^^
 
-An existing archive ``archive.pxar`` is extracted to a ``target`` directory
+An existing archive, ``archive.pxar``, is extracted to a ``target`` directory
 with the following command:
 
 .. code-block:: console
 
-    # pxar extract archive.pxar --target target
+    # pxar extract archive.pxar /path/to/target
 
 If no target is provided, the content of the archive is extracted to the current
 working directory.
 
-In order to restore only parts of an archive, single files and/or folders,
+In order to restore only parts of an archive, single files, and/or folders,
 it is possible to pass the corresponding glob match patterns as additional
-parameters or use the patterns stored in a file:
+parameters or to use the patterns stored in a file:
 
 .. code-block:: console
 
-    # pxar extract etc.pxar '**/*.conf' --target /restore/target/etc
+    # pxar extract etc.pxar /restore/target/etc --pattern '**/*.conf'
 
 The above example restores all ``.conf`` files encountered in any of the
 sub-folders in the archive ``etc.pxar`` to the target ``/restore/target/etc``.
