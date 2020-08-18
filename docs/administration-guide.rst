@@ -1113,6 +1113,38 @@ unused data blocks are removed.
 
 .. todo:: howto run garbage-collection at regular intervalls (cron)
 
+Benchmarking
+~~~~~~~~~~~~
+The backup client also comes with a benchmarking tool. This tool measures
+various metrics relating to compression and encryption speeds. You can run a
+benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
+
+.. code-block:: console
+
+  # proxmox-backup-client benchmark
+  Uploaded 656 chunks in 5 seconds.
+  Time per request: 7659 microseconds.
+  TLS speed: 547.60 MB/s
+  SHA256 speed: 585.76 MB/s
+  Compression speed: 1923.96 MB/s
+  Decompress speed: 7885.24 MB/s
+  AES256/GCM speed: 3974.03 MB/s
+  ┌───────────────────────────────────┬─────────────────────┐
+  │ Name                              │ Value               │
+  ╞═══════════════════════════════════╪═════════════════════╡
+  │ TLS (maximal backup upload speed) │ 547.60 MB/s (93%)   │
+  ├───────────────────────────────────┼─────────────────────┤
+  │ SHA256 checksum computation speed │ 585.76 MB/s (28%)   │
+  ├───────────────────────────────────┼─────────────────────┤
+  │ ZStd level 1 compression speed    │ 1923.96 MB/s (89%)  │
+  ├───────────────────────────────────┼─────────────────────┤
+  │ ZStd level 1 decompression speed  │ 7885.24 MB/s (98%)  │
+  ├───────────────────────────────────┼─────────────────────┤
+  │ AES256 GCM encryption speed       │ 3974.03 MB/s (104%) │
+  └───────────────────────────────────┴─────────────────────┘
+
+You can also pass the ``--output-format`` parameter to output stats in ``json``,
+rather than the default table format.
 
 .. _pve-integration:
 
