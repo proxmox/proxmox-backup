@@ -41,15 +41,17 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use serde::{Serialize, Deserialize};
-use anyhow::{bail, Error, format_err};
-use proxmox::tools::fs::{file_read_optional_string, replace_file, create_path, CreateOptions, open_file_locked};
+use anyhow::{bail, format_err, Error};
+use proxmox::tools::fs::{
+    create_path, file_read_optional_string, open_file_locked, replace_file, CreateOptions,
+};
+use serde::{Deserialize, Serialize};
 
+use crate::server::{upid_read_status, worker_is_active_local, TaskState, UPID};
 use crate::tools::epoch_now_u64;
-use crate::server::{TaskState, UPID, worker_is_active_local, upid_read_status};
 
-#[serde(rename_all="kebab-case")]
-#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[derive(Serialize, Deserialize)]
 /// Represents the State of a specific Job
 pub enum JobState {
     /// A job was created at 'time', but never started/finished
@@ -57,7 +59,7 @@ pub enum JobState {
     /// The Job was last started in 'upid',
     Started { upid: String },
     /// The Job was last started in 'upid', which finished with 'state'
-    Finished { upid: String, state: TaskState }
+    Finished { upid: String, state: TaskState },
 }
 
 /// Represents a Job and holds the correct lock
@@ -92,7 +94,7 @@ fn get_path(jobtype: &str, jobname: &str) -> PathBuf {
 
 fn get_lock<P>(path: P) -> Result<File, Error>
 where
-    P: AsRef<Path>
+    P: AsRef<Path>,
 {
     let mut path = path.as_ref().to_path_buf();
     path.set_extension("lck");
@@ -106,14 +108,24 @@ where
 pub fn remove_state_file(jobtype: &str, jobname: &str) -> Result<(), Error> {
     let mut path = get_path(jobtype, jobname);
     let _lock = get_lock(&path)?;
-    std::fs::remove_file(&path).map_err(|err|
-        format_err!("cannot remove statefile for {} - {}: {}", jobtype, jobname, err)
-    )?;
+    std::fs::remove_file(&path).map_err(|err| {
+        format_err!(
+            "cannot remove statefile for {} - {}: {}",
+            jobtype,
+            jobname,
+            err
+        )
+    })?;
     path.set_extension("lck");
     // ignore errors
-    let _ = std::fs::remove_file(&path).map_err(|err|
-        format_err!("cannot remove lockfile for {} - {}: {}", jobtype, jobname, err)
-    );
+    let _ = std::fs::remove_file(&path).map_err(|err| {
+        format_err!(
+            "cannot remove lockfile for {} - {}: {}",
+            jobtype,
+            jobname,
+            err
+        )
+    });
     Ok(())
 }
 
@@ -130,9 +142,9 @@ pub fn last_run_time(jobtype: &str, jobname: &str) -> Result<i64, Error> {
     match JobState::load(jobtype, jobname)? {
         JobState::Created { time } => Ok(time),
         JobState::Started { upid } | JobState::Finished { upid, .. } => {
-            let upid: UPID = upid.parse().map_err(|err|
-                format_err!("could not parse upid from state: {}", err)
-            )?;
+            let upid: UPID = upid
+                .parse()
+                .map_err(|err| format_err!("could not parse upid from state: {}", err))?;
             Ok(upid.starttime)
         }
     }
@@ -149,17 +161,15 @@ impl JobState {
         if let Some(state) = file_read_optional_string(get_path(jobtype, jobname))? {
             match serde_json::from_str(&state)? {
                 JobState::Started { upid } => {
-                    let parsed: UPID = upid.parse()
+                    let parsed: UPID = upid
+                        .parse()
                         .map_err(|err| format_err!("error parsing upid: {}", err))?;
 
                     if !worker_is_active_local(&parsed) {
                         let state = upid_read_status(&parsed)
                             .map_err(|err| format_err!("error reading upid log status: {}", err))?;
 
-                        Ok(JobState::Finished {
-                            upid,
-                            state
-                        })
+                        Ok(JobState::Finished { upid, state })
                     } else {
                         Ok(JobState::Started { upid })
                     }
@@ -185,11 +195,11 @@ impl Job {
 
         let _lock = get_lock(&path)?;
 
-        Ok(Self{
+        Ok(Self {
             jobtype: jobtype.to_string(),
             jobname: jobname.to_string(),
             state: JobState::Created {
-                time: epoch_now_u64()? as i64
+                time: epoch_now_u64()? as i64,
             },
             _lock,
         })
@@ -205,7 +215,7 @@ impl Job {
             _ => {}
         }
 
-        self.state = JobState::Started{
+        self.state = JobState::Started {
             upid: upid.to_string(),
         };
 
@@ -219,12 +229,10 @@ impl Job {
             JobState::Created { .. } => bail!("cannot finish when not started"),
             JobState::Started { upid } => upid,
             JobState::Finished { upid, .. } => upid,
-        }.to_string();
+        }
+        .to_string();
 
-        self.state = JobState::Finished {
-            upid,
-            state,
-        };
+        self.state = JobState::Finished { upid, state };
 
         self.write_state()
     }
@@ -250,10 +258,6 @@ impl Job {
             .owner(backup_user.uid)
             .group(backup_user.gid);
 
-        replace_file(
-            path,
-            serialized.as_bytes(),
-            options,
-        )
+        replace_file(path, serialized.as_bytes(), options)
     }
 }
