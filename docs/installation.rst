@@ -76,12 +76,11 @@ does, please use the following:
 This will install all required packages, the Proxmox kernel with ZFS_
 support, and a set of common and useful packages.
 
-Installing `Proxmox Backup`_ on top of an existing Debian_ installation looks easy, but
-it presumes that the base system and local storage has been set up correctly.
-
-In general this is not trivial, especially when LVM_ or ZFS_ is used.
-
-The network configuration is completely up to you as well.
+.. caution:: Installing `Proxmox Backup`_ on top of an existing Debian_
+  installation looks easy, but it assumes that the base system and local
+  storage have been set up correctly. In general this is not trivial, especially
+  when LVM_ or ZFS_ is used. The network configuration is completely up to you
+  as well.
 
 .. note:: You can access the webinterface of the Proxmox Backup Server with
   your web browser, using HTTPS on port 8007. For example at

@@ -356,10 +356,10 @@ following roles exist:
   Can view datastore settings and list content. But
   is not allowed to read the actual data.
 
-**DataStoreReader**
+**DatastoreReader**
   Can Inspect datastore content and can do restores.
 
-**DataStoreBackup**
+**DatastoreBackup**
   Can backup and restore owned backups.
 
 **DatastorePowerUser**
@@ -543,7 +543,9 @@ This will prompt you for a password and then uploads a file archive named
 
 The ``--repository`` option can get quite long and is used by all
 commands. You can avoid having to enter this value by setting the
-environment variable ``PBS_REPOSITORY``.
+environment variable ``PBS_REPOSITORY``. Note that if you would like this to remain set
+over multiple sessions, you should instead add the below line to your
+``.bashrc`` file.
 
 .. code-block:: console
 
@@ -775,7 +777,9 @@ To set up a master key:
   backed up. It can happen, for example, that you back up an entire system, using
   a key on that system. If the system then becomes inaccessable for any reason
   and needs to be restored, this will not be possible as the encryption key will be
-  lost along with the broken system.
+  lost along with the broken system. In preparation for the worst case scenario,
+  you should consider keeping a paper copy of this key locked away in
+  a safe place.
 
 Restoring Data
 ~~~~~~~~~~~~~~
@@ -900,8 +904,8 @@ file archive as a read-only filesystem to a mountpoint on your host.
 
 .. code-block:: console
 
-  # proxmox-backup-client mount host/backup-client/2020-01-29T11:29:22Z root.pxar /mnt
-  # ls /mnt
+  # proxmox-backup-client mount host/backup-client/2020-01-29T11:29:22Z root.pxar /mnt/mountpoint
+  # ls /mnt/mountpoint
   bin   dev  home  lib32  libx32      media  opt   root  sbin  sys  usr
   boot  etc  lib   lib64  lost+found  mnt    proc  run   srv   tmp  var
 
@@ -916,7 +920,7 @@ To unmount the filesystem use the ``umount`` command on the mountpoint:
 
 .. code-block:: console
 
-  # umount /mnt
+  # umount /mnt/mountpoint
 
 Login and Logout
 ~~~~~~~~~~~~~~~~
