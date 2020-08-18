@@ -68,7 +68,7 @@ struct Speed {
 struct BenchmarkResult {
     /// TLS upload speed
     tls: Speed,
-    /// SHA256 checksum comptation speed
+    /// SHA256 checksum computation speed
     sha256: Speed,
     /// ZStd level 1 compression speed
     compress: Speed,
@@ -187,7 +187,7 @@ fn render_result(
                 .header("TLS (maximal backup upload speed)")
                 .right_align(false).renderer(render_speed))
         .column(ColumnConfig::new("sha256")
-                .header("SHA256 checksum comptation speed")
+                .header("SHA256 checksum computation speed")
                 .right_align(false).renderer(render_speed))
         .column(ColumnConfig::new("compress")
                 .header("ZStd level 1 compression speed")
