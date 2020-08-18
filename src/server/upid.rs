@@ -2,9 +2,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{bail, Error};
 use chrono::Local;
-use lazy_static::lazy_static;
-use regex::Regex;
 
+use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
+use proxmox::const_regex;
 use proxmox::sys::linux::procfs;
 
 use crate::api2::types::Userid;
@@ -20,6 +20,7 @@ use crate::api2::types::Userid;
 /// ```
 /// Please note that we use tokio, so a single thread can run multiple
 /// tasks.
+// #[api] - manually implemented API type
 #[derive(Debug, Clone)]
 pub struct UPID {
     /// The Unix PID
@@ -40,7 +41,26 @@ pub struct UPID {
     pub node: String,
 }
 
+proxmox::forward_serialize_to_display!(UPID);
+proxmox::forward_deserialize_to_from_str!(UPID);
+
+const_regex! {
+    pub PROXMOX_UPID_REGEX = concat!(
+        r"^UPID:(?P<node>[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?):(?P<pid>[0-9A-Fa-f]{8}):",
+        r"(?P<pstart>[0-9A-Fa-f]{8,9}):(?P<task_id>[0-9A-Fa-f]{8,16}):(?P<starttime>[0-9A-Fa-f]{8}):",
+        r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<userid>[^:\s]+):$"
+    );
+}
+
+pub const PROXMOX_UPID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&PROXMOX_UPID_REGEX);
+
 impl UPID {
+    pub const API_SCHEMA: Schema = StringSchema::new("Unique Process/Task Identifier")
+        .min_length("UPID:N:12345678:12345678:12345678:::".len())
+        .max_length(128) // arbitrary
+        .format(&PROXMOX_UPID_FORMAT)
+        .schema();
 
     /// Create a new UPID
     pub fn new(
@@ -92,17 +112,7 @@ impl std::str::FromStr for UPID {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-
-        lazy_static! {
-            static ref REGEX: Regex = Regex::new(concat!(
-                r"^UPID:(?P<node>[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?):(?P<pid>[0-9A-Fa-f]{8}):",
-                r"(?P<pstart>[0-9A-Fa-f]{8,9}):(?P<task_id>[0-9A-Fa-f]{8,16}):(?P<starttime>[0-9A-Fa-f]{8}):",
-                r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<userid>[^:\s]+):$"
-            )).unwrap();
-        }
-
-        if let Some(cap) = REGEX.captures(s) {
-
+        if let Some(cap) = PROXMOX_UPID_REGEX.captures(s) {
             Ok(UPID {
                 pid: i32::from_str_radix(&cap["pid"], 16).unwrap(),
                 pstart: u64::from_str_radix(&cap["pstart"], 16).unwrap(),
