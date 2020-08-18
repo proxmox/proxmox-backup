@@ -374,6 +374,35 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
+You can use the ``acl`` subcommand to manage and monitor user permissions. For
+example, the command below will add the user ``john@pbs`` as a
+**DatastoreAdmin** for the data store ``store1``, located at ``/backup/disk1/store1``:
+
+.. code-block:: console
+
+  # proxmox-backup-manager acl update /datastore/store1 DatastoreAdmin --userid john@pbs
+
+You can monitor the roles of each user using the following command:
+
+.. code-block:: console
+
+   # proxmox-backup-manager acl list
+   ┌──────────┬──────────────────┬───────────┬────────────────┐
+   │ ugid     │ path             │ propagate │ roleid         │
+   ╞══════════╪══════════════════╪═══════════╪════════════════╡
+   │ john@pbs │ /datastore/disk1 │         1 │ DatastoreAdmin │
+   └──────────┴──────────────────┴───────────┴────────────────┘
+
+A single user can be assigned multiple permission sets for different data stores.
+
+.. Note::
+  Naming convention is important here. For data stores on the host,
+  you must use the convention ``/datastore/{storename}``. For example, to set
+  permissions for a data store mounted at ``/mnt/backup/disk4/store2``, you would use
+  ``/datastore/store2`` for the path. For remote stores, use the convention
+  ``/remote/{remote}/{storename}``, where ``{remote}`` signifies the name of the
+  remote (see `Remote` below) and ``{storename}`` is the name of the data store on
+  the remote.
 
 :term:`Remote`
 ~~~~~~~~~~~~~~
