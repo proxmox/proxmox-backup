@@ -1,3 +1,21 @@
+rust-proxmox-backup (0.8.11-1) unstable; urgency=medium
+
+  * improve sync jobs, allow to stop them and better logging
+
+  * fix #2926: make network interfaces parser more flexible
+
+  * fix #2904: zpool status: parse also those vdevs without READ/ẀRITE/...
+    statistics
+
+  * api2/node/services: turn service api calls into workers
+
+  * docs: add sections describing ACL related commands and describing
+    benchmarking
+
+  * docs: general grammar, wording and typo improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 19 Aug 2020 19:20:03 +0200
+
 rust-proxmox-backup (0.8.10-1) unstable; urgency=medium
 
   * ui: acl: add improved permission selector
