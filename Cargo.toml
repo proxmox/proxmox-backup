@@ -43,7 +43,7 @@ proxmox = { version = "0.3.3", features = [ "sortable-macro", "api-macro", "webs
 #proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "websocket" ] }
 proxmox-fuse = "0.1.0"
-pxar = { version = "0.3.0", features = [ "tokio-io", "futures-io" ] }
+pxar = { version = "0.4.0", features = [ "tokio-io", "futures-io" ] }
 #pxar = { path = "../pxar", features = [ "tokio-io", "futures-io" ] }
 regex = "1.2"
 rustyline = "6"
