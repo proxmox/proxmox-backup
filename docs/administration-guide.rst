@@ -472,6 +472,72 @@ A single user can be assigned multiple permission sets for different data stores
   remote (see `Remote` below) and ``{storename}`` is the name of the data store on
   the remote.
 
+Network Management
+~~~~~~~~~~~~~~~~~~
+Proxmox Backup Server provides an interface for network configuration, through the
+``network`` subcommand. This allows you to carry out some basic network
+management tasks such as adding, configuring and removing network interfaces.
+
+To get a list of available interfaces, use the following command:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network list
+  ┌───────┬────────┬───────────┬────────┬─────────┬───────────────────┬──────────────┬──────────────┐
+  │ name  │ type   │ autostart │ method │ method6 │ address           │ gateway      │ ports/slaves │
+  ╞═══════╪════════╪═══════════╪════════╪═════════╪═══════════════════╪══════════════╪══════════════╡
+  │ bond0 │ bond   │         1 │ manual │         │                   │              │ ens18 ens19  │
+  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
+  │ ens18 │ eth    │         1 │ manual │         │                   │              │              │
+  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
+  │ ens19 │ eth    │         1 │ manual │         │                   │              │              │
+  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
+  │ vmbr0 │ bridge │         1 │ static │         │ x.x.x.x/x         │ x.x.x.x      │ bond0        │
+  └───────┴────────┴───────────┴────────┴─────────┴───────────────────┴──────────────┴──────────────┘
+
+To add a new network interface, use the ``create`` subcommand with the relevant
+parameters. The following command shows a template for creating a new bridge:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network create vmbr1 --autostart true --cidr x.x.x.x/x --gateway x.x.x.x --bridge_ports iface_name --type bridge
+
+You can make changes to the configuration of a network interface with the
+``update`` subcommand:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network update vmbr1 --cidr y.y.y.y/y
+
+You can also remove a network interface:
+
+.. code-block:: console
+
+   # proxmox-backup-manager network remove vmbr1
+
+To view the changes made to the network configuration file, before committing
+them, use the command:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network changes
+
+If you would like to cancel all changes at this point, you can do this using:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network revert
+
+If you are happy with the changes and would like to write them into the
+configuration file, the command is:
+
+.. code-block:: console
+
+  # proxmox-backup-manager network reload
+
+You can also configure DNS settings using the ``dns`` subcommand of
+``proxmox-backup-manager``.
+
 :term:`Remote`
 ~~~~~~~~~~~~~~
 
