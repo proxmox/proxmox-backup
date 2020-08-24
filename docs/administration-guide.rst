@@ -1211,6 +1211,10 @@ benchmark using the ``benchmark`` subcommand of ``proxmox-backup-client``:
   │ AES256 GCM encryption speed       │ 3974.03 MB/s (104%) │
   └───────────────────────────────────┴─────────────────────┘
 
+.. note::
+  The percentages given in the output table correspond to a comparison against a
+  Ryzen 7 2700X.
+
 You can also pass the ``--output-format`` parameter to output stats in ``json``,
 rather than the default table format.
 
