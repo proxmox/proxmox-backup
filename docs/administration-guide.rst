@@ -146,6 +146,84 @@ when setting up the backup server.
    filesystem configuration from being supported for a datastore. For example,
    ``ext3`` as a whole or ``ext4`` with the ``dir_nlink`` feature manually disabled.
 
+Disk Management
+~~~~~~~~~~~~~~~
+Proxmox Backup Server comes with a set of disk utilities, which are
+accessed using the ``disk`` subcommand. This subcommand allows you to initialize
+disks, create various filesystems, and get information about the disks.
+
+To view the disks connected to the system, use the ``list`` subcommand of
+``disk``:
+
+.. code-block:: console
+
+  # proxmox-backup-manager disk list
+  ┌──────┬────────┬─────┬───────────┬─────────────┬───────────────┬─────────┬────────┐
+  │ name │ used   │ gpt │ disk-type │        size │ model         │ wearout │ status │
+  ╞══════╪════════╪═════╪═══════════╪═════════════╪═══════════════╪═════════╪════════╡
+  │ sda  │ lvm    │   1 │ hdd       │ 34359738368 │ QEMU_HARDDISK │       - │ passed │
+  ├──────┼────────┼─────┼───────────┼─────────────┼───────────────┼─────────┼────────┤
+  │ sdb  │ unused │   1 │ hdd       │ 68719476736 │ QEMU_HARDDISK │       - │ passed │
+  ├──────┼────────┼─────┼───────────┼─────────────┼───────────────┼─────────┼────────┤
+  │ sdc  │ unused │   1 │ hdd       │ 68719476736 │ QEMU_HARDDISK │       - │ passed │
+  └──────┴────────┴─────┴───────────┴─────────────┴───────────────┴─────────┴────────┘
+
+To initialize a disk with a new GPT, use the ``initialize`` subcommand:
+
+.. code-block:: console
+
+  # proxmox-backup-manager disk initialize sdX
+
+You can create an ``ext4`` or ``xfs`` filesystem on a disk, using ``fs
+create``. The following command creates an ``ext4`` filesystem and passes the
+``--add-datastore`` parameter, in order to automatically create a datastore on
+the disk (in this case ``sdd``). This will create a datastore at the location
+``/mnt/datastore/store1``:
+
+.. code-block:: console
+
+  # proxmox-backup-manager disk fs create store1 --disk sdd --filesystem ext4 --add-datastore true
+  register worker thread
+  register worker
+  FILE: "/var/log/proxmox-backup/tasks/EA/UPID:pbs:000016F6:001851EA:00000000:5F3D0A26:dircreate:store1:root@pam:"
+  create datastore 'store1' on disk sdd
+  Percentage done: 1
+  ...
+  Percentage done: 99
+  TASK OK
+  Detected stopped UPID UPID:pbs:000016F6:001851EA:00000000:5F3D0A26:dircreate:store1:root@pam:
+  unregister worker
+
+You can also create a ``zpool`` with various raid levels. The command below
+creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and mounts it
+on the root directory (default):
+
+.. code-block:: console
+
+  # proxmox-backup-manager disk zpool create zpool1 --devices sdb,sdc --raidlevel mirror
+  register worker thread
+  register worker
+  FILE: "/var/log/proxmox-backup/tasks/F5/UPID:pbs:00001544:001814F5:00000000:5F3D098A:zfscreate:zpool1:root@pam:"
+  create Mirror zpool 'zpool1' on devices 'sdb,sdc'
+  # "zpool" "create" "-o" "ashift=12" "zpool1" "mirror" "sdb" "sdc"
+
+  TASK OK
+  Detected stopped UPID UPID:pbs:00001544:001814F5:00000000:5F3D098A:zfscreate:zpool1:root@pam:
+  unregister worker
+
+.. note::
+  You can also pass the ``--add-datastore`` parameter here, to automatically
+  create a datastore from the disk.
+
+You can use ``disk fs list`` and ``disk zpool list`` to keep track of your
+filesystems and zpools respectively.
+
+If a disk supports S.M.A.R.T. capability, and you have this enabled, you can
+display S.M.A.R.T. attributes using the command:
+
+.. code-block:: console
+
+  # proxmox-backup-manager disk smart-attributes sdX
 
 Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
