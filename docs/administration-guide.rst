@@ -595,6 +595,14 @@ provide it with a :term:`schedule` to run regularly. The
   └────────────┴───────┴────────┴──────────────┴───────────┴─────────┘
   # proxmox-backup-manager sync-job remove pbs2-local
 
+Garbage Collection
+~~~~~~~~~~~~~~~~~~
+You can monitor and run :ref:`garbage collection <garbage-collection>` on the
+Proxmox Backup Server using the ``garbage-collection`` subcommand of
+``proxmox-backup-manager``. You can use the ``start`` subcommand to manually start garbage
+collection on an entire data store and the ``status`` subcommand to see
+attributes relating to the :ref:`garbage collection <garbage-collection>`.
+
 
 Backup Client usage
 -------------------
