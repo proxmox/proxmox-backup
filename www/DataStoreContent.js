@@ -10,6 +10,7 @@ Ext.define('pbs-data-store-snapshots', {
 	},
 	'files',
 	'owner',
+	'verification',
 	{ name: 'size', type: 'int', allowNull: true, },
 	{
 	    name: 'crypt-mode',
@@ -208,6 +209,10 @@ Ext.define('PBS.DataStoreContent', {
 			group.files = item.files;
 			group.size = item.size;
 			group.owner = item.owner;
+		    }
+		    if (item.verification &&
+		       (!group.verification || group.verification.state !== 'failed')) {
+			group.verification = item.verification;
 		    }
 
 		}
@@ -562,6 +567,41 @@ Ext.define('PBS.DataStoreContent', {
 		}
 		return (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText
 	    }
+	},
+	{
+	    header: gettext('Verify State'),
+	    sortable: true,
+	    dataIndex: 'verification',
+	    renderer: (v, meta, record) => {
+		if (v === undefined || v === null || !v.state) {
+		    //meta.tdCls = "x-grid-row-loading";
+		    return record.data.leaf ? '' : gettext('None');
+		}
+		let task = Proxmox.Utils.parse_task_upid(v.upid);
+		let verify_time = Proxmox.Utils.render_timestamp(task.starttime);
+		let iconCls = v.state === 'ok' ? 'check good' : 'times critical';
+		let tip = `Verify task started on ${verify_time}`;
+		if (record.parentNode.id === 'root') {
+		    tip = v.state === 'ok'
+			? 'All verification OK in backup group'
+			: 'At least one failed verification in backup group!';
+		}
+		return `<span data-qtip="${tip}">
+		    <i class="fa fa-fw fa-${iconCls}"></i> ${v.state}
+		</span>`;
+	    },
+	    listeners: {
+		dblclick: function(view, el, row, col, ev, rec) {
+		    let data = rec.data || {};
+		    let verify = data.verification;
+		    if (verify && verify.upid && rec.parentNode.id !== 'root') {
+			let win = Ext.create('Proxmox.window.TaskViewer', {
+			    upid: verify.upid,
+			});
+			win.show();
+		    }
+		},
+	    },
 	},
     ],
 
