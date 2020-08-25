@@ -50,7 +50,17 @@ fn verify_index_chunks(
         worker.fail_on_abort()?;
 
         let info = index.chunk_info(pos).unwrap();
-        let size = info.range.end - info.range.start;
+
+        if verified_chunks.contains(&info.digest) {
+            continue; // already verified
+        }
+
+        if corrupt_chunks.contains(&info.digest) {
+            let digest_str = proxmox::tools::digest_to_hex(&info.digest);
+            worker.log(format!("chunk {} was marked as corrupt", digest_str));
+            errors += 1;
+            continue;
+        }
 
         let chunk = match datastore.load_chunk(&info.digest) {
             Err(err) => {
@@ -81,20 +91,14 @@ fn verify_index_chunks(
             errors += 1;
         }
 
-        if !verified_chunks.contains(&info.digest) {
-            if !corrupt_chunks.contains(&info.digest) {
-                if let Err(err) = chunk.verify_unencrypted(size as usize, &info.digest) {
-                    corrupt_chunks.insert(info.digest);
-                    worker.log(format!("{}", err));
-                    errors += 1;
-                } else {
-                    verified_chunks.insert(info.digest);
-                }
-            } else {
-                let digest_str = proxmox::tools::digest_to_hex(&info.digest);
-                worker.log(format!("chunk {} was marked as corrupt", digest_str));
-                errors += 1;
-            }
+        let size = info.range.end - info.range.start;
+
+        if let Err(err) = chunk.verify_unencrypted(size as usize, &info.digest) {
+            corrupt_chunks.insert(info.digest);
+            worker.log(format!("{}", err));
+            errors += 1;
+        } else {
+            verified_chunks.insert(info.digest);
         }
     }
 
