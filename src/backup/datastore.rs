@@ -299,7 +299,7 @@ impl DataStore {
     /// And set the owner to 'userid'. If the group already exists, it returns the
     /// current owner (instead of setting the owner).
     ///
-    /// This also aquires an exclusive lock on the directory and returns the lock guard.
+    /// This also acquires an exclusive lock on the directory and returns the lock guard.
     pub fn create_locked_backup_group(
         &self,
         backup_group: &BackupGroup,

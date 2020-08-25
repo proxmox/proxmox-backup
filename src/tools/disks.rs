@@ -133,7 +133,7 @@ impl DiskManage {
             })
     }
 
-    /// Information about file system type and unsed device for a path
+    /// Information about file system type and used device for a path
     ///
     /// Returns tuple (fs_type, device, mount_source)
     pub fn find_mounted_device(

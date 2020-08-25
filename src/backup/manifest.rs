@@ -145,7 +145,7 @@ impl BackupManifest {
         Ok(())
     }
 
-    // Generate cannonical json
+    // Generate canonical json
     fn to_canonical_json(value: &Value) -> Result<Vec<u8>, Error> {
         let mut data = Vec::new();
         Self::write_canonical_json(value, &mut data)?;

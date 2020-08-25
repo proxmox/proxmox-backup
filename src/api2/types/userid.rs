@@ -9,7 +9,7 @@
 //!   with `String`, meaning you can only make references to it.
 //! * [`Realm`]: an owned realm (`String` equivalent).
 //! * [`RealmRef`]: a borrowed realm (`str` equivalent).
-//! * [`Userid`]: an owned user id (`"user@realm"`). Note that this does not have a separte
+//! * [`Userid`]: an owned user id (`"user@realm"`). Note that this does not have a separate
 //!   borrowed type.
 //!
 //! Note that `Username`s are not unique, therefore they do not implement `Eq` and cannot be

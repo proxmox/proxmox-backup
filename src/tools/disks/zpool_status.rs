@@ -53,7 +53,7 @@ fn parse_zpool_status_vdev(i: &str) -> IResult<&str, ZFSPoolVDevState> {
 
     let (i, vdev_name) =  notspace1(i)?;
 
-    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // sepecial device
+    if let Ok((n, _)) = preceded(multispace0, line_ending)(i) { // special device
         let vdev = ZFSPoolVDevState {
             name: vdev_name.to_string(),
             lvl: indent_level,

@@ -629,7 +629,7 @@ impl BackupWriter {
             })
     }
 
-    /// Upload speed test - prints result ot stderr
+    /// Upload speed test - prints result to stderr
     pub async fn upload_speedtest(&self, verbose: bool) -> Result<f64, Error> {
 
         let mut data = vec![];

@@ -111,7 +111,7 @@ fn parse_zpool_list_item(i: &str) -> IResult<&str, ZFSPoolInfo> {
     Ok((i, stat))
 }
 
-/// Parse zpool list outout
+/// Parse zpool list output
 ///
 /// Note: This does not reveal any details on how the pool uses the devices, because
 /// the zpool list output format is not really defined...

@@ -519,7 +519,7 @@ pub fn verify(
                 for dir in failed_dirs {
                     worker.log(format!("\t{}", dir));
                 }
-                bail!("verfication failed - please check the log for details");
+                bail!("verification failed - please check the log for details");
             }
             Ok(())
         },
@@ -1218,7 +1218,7 @@ fn catalog(
 pub const API_METHOD_PXAR_FILE_DOWNLOAD: ApiMethod = ApiMethod::new(
     &ApiHandler::AsyncHttp(&pxar_file_download),
     &ObjectSchema::new(
-        "Download single file from pxar file of a bacup snapshot. Only works if it's not encrypted.",
+        "Download single file from pxar file of a backup snapshot. Only works if it's not encrypted.",
         &sorted!([
             ("store", false, &DATASTORE_SCHEMA),
             ("backup-type", false, &BACKUP_TYPE_SCHEMA),

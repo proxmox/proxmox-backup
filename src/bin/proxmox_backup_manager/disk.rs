@@ -239,7 +239,7 @@ pub fn zpool_commands() -> CommandLineInterface {
         .insert("create",
                 CliCommand::new(&API_METHOD_CREATE_ZPOOL)
                 .arg_param(&["name"])
-                .completion_cb("devices", complete_disk_name) // fixme: comlete the list
+                .completion_cb("devices", complete_disk_name) // fixme: complete the list
         );
 
     cmd_def.into()
