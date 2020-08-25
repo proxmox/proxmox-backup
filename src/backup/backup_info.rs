@@ -45,6 +45,31 @@ pub struct BackupGroup {
     backup_id: String,
 }
 
+impl std::cmp::Ord for BackupGroup {
+
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let type_order = self.backup_type.cmp(&other.backup_type);
+        if type_order != std::cmp::Ordering::Equal {
+            return type_order;
+        }
+        // try to compare IDs numerically
+        let id_self = self.backup_id.parse::<u64>();
+        let id_other = other.backup_id.parse::<u64>();
+        match (id_self, id_other) {
+            (Ok(id_self), Ok(id_other)) => id_self.cmp(&id_other),
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
+             _ => self.backup_id.cmp(&other.backup_id),
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for BackupGroup {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl BackupGroup {
 
     pub fn new<T: Into<String>, U: Into<String>>(backup_type: T, backup_id: U) -> Self {

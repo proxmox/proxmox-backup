@@ -267,13 +267,15 @@ pub fn verify_all_backups(datastore: &DataStore, worker: &WorkerTask) -> Result<
 
     let mut errors = Vec::new();
 
-    let list = match BackupGroup::list_groups(&datastore.base_path()) {
+    let mut list = match BackupGroup::list_groups(&datastore.base_path()) {
         Ok(list) => list,
         Err(err) => {
             worker.log(format!("verify datastore {} - unable to list backups: {}", datastore.name(), err));
             return Ok(errors);
         }
     };
+
+    list.sort_unstable();
 
     worker.log(format!("verify datastore {}", datastore.name()));
 
