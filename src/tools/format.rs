@@ -80,6 +80,11 @@ impl From<usize> for HumanByte {
         HumanByte { b: v }
     }
 }
+impl From<u64> for HumanByte {
+    fn from(v: u64) -> Self {
+        HumanByte { b: v as usize }
+    }
+}
 
 #[test]
 fn correct_byte_convert() {
