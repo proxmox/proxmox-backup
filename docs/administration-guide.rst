@@ -183,16 +183,11 @@ the disk (in this case ``sdd``). This will create a datastore at the location
 .. code-block:: console
 
   # proxmox-backup-manager disk fs create store1 --disk sdd --filesystem ext4 --add-datastore true
-  register worker thread
-  register worker
-  FILE: "/var/log/proxmox-backup/tasks/EA/UPID:pbs:000016F6:001851EA:00000000:5F3D0A26:dircreate:store1:root@pam:"
   create datastore 'store1' on disk sdd
   Percentage done: 1
   ...
   Percentage done: 99
   TASK OK
-  Detected stopped UPID UPID:pbs:000016F6:001851EA:00000000:5F3D0A26:dircreate:store1:root@pam:
-  unregister worker
 
 You can also create a ``zpool`` with various raid levels. The command below
 creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and mounts it
@@ -201,15 +196,10 @@ on the root directory (default):
 .. code-block:: console
 
   # proxmox-backup-manager disk zpool create zpool1 --devices sdb,sdc --raidlevel mirror
-  register worker thread
-  register worker
-  FILE: "/var/log/proxmox-backup/tasks/F5/UPID:pbs:00001544:001814F5:00000000:5F3D098A:zfscreate:zpool1:root@pam:"
   create Mirror zpool 'zpool1' on devices 'sdb,sdc'
   # "zpool" "create" "-o" "ashift=12" "zpool1" "mirror" "sdb" "sdc"
 
   TASK OK
-  Detected stopped UPID UPID:pbs:00001544:001814F5:00000000:5F3D098A:zfscreate:zpool1:root@pam:
-  unregister worker
 
 .. note::
   You can also pass the ``--add-datastore`` parameter here, to automatically
