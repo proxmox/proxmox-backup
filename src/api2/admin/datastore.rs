@@ -489,7 +489,7 @@ pub fn verify(
         (None, None, None) => {
             worker_id = store.clone();
         }
-        _ => bail!("parameters do not spefify a backup group or snapshot"),
+        _ => bail!("parameters do not specify a backup group or snapshot"),
     }
 
     let userid: Userid = rpcenv.get_user().unwrap().parse()?;
