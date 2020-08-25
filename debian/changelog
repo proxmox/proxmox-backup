@@ -1,3 +1,13 @@
+rust-proxmox-backup (0.8.12-1) unstable; urgency=medium
+
+  * verify: speedup - only verify chunks once
+
+  * verify: sort backup groups
+
+  * bump pxar dep to 0.4.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 25 Aug 2020 08:55:52 +0200
+
 rust-proxmox-backup (0.8.11-1) unstable; urgency=medium
 
   * improve sync jobs, allow to stop them and better logging
