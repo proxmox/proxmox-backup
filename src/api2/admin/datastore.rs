@@ -361,7 +361,7 @@ pub fn list_snapshots (
 
         let mut size = None;
 
-        let (comment, files) = match get_all_snapshot_files(&datastore, &info) {
+        let (comment, verification, files) = match get_all_snapshot_files(&datastore, &info) {
             Ok((manifest, files)) => {
                 size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
                 // extract the first line from notes
@@ -370,11 +370,21 @@ pub fn list_snapshots (
                     .and_then(|notes| notes.lines().next())
                     .map(String::from);
 
-                (comment, files)
+                let verify = manifest.unprotected["verify_state"].clone();
+                let verify: Option<SnapshotVerifyState> = match serde_json::from_value(verify) {
+                    Ok(verify) => verify,
+                    Err(err) => {
+                        eprintln!("error parsing verification state : '{}'", err);
+                        None
+                    }
+                };
+
+                (comment, verify, files)
             },
             Err(err) => {
                 eprintln!("error during snapshot file listing: '{}'", err);
                 (
+                    None,
                     None,
                     info
                         .files
@@ -394,6 +404,7 @@ pub fn list_snapshots (
             backup_id: group.backup_id().to_string(),
             backup_time: info.backup_dir.backup_time().timestamp(),
             comment,
+            verification,
             files,
             size,
             owner: Some(owner),

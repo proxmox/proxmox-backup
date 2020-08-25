@@ -6,6 +6,7 @@ use proxmox::const_regex;
 use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use crate::backup::CryptMode;
+use crate::server::UPID;
 
 #[macro_use]
 mod macros;
@@ -381,6 +382,25 @@ pub struct GroupListItem {
 
 #[api(
     properties: {
+        upid: {
+            schema: UPID_SCHEMA
+        },
+        state: {
+            type: String
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+/// Task properties.
+pub struct SnapshotVerifyState {
+    /// UPID of the verify task
+    pub upid: UPID,
+    /// State of the verification. "failed" or "ok"
+    pub state: String,
+}
+
+#[api(
+    properties: {
         "backup-type": {
             schema: BACKUP_TYPE_SCHEMA,
         },
@@ -392,6 +412,10 @@ pub struct GroupListItem {
         },
         comment: {
             schema: SINGLE_LINE_COMMENT_SCHEMA,
+            optional: true,
+        },
+        verification: {
+            type: SnapshotVerifyState,
             optional: true,
         },
         files: {
@@ -415,6 +439,9 @@ pub struct SnapshotListItem {
     /// The first line from manifest "notes"
     #[serde(skip_serializing_if="Option::is_none")]
     pub comment: Option<String>,
+    /// The result of the last run verify task
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub verification: Option<SnapshotVerifyState>,
     /// List of contained archive files.
     pub files: Vec<BackupContent>,
     /// Overall snapshot size (sum of all archive sizes).
