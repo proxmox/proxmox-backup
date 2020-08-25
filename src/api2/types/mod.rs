@@ -390,6 +390,10 @@ pub struct GroupListItem {
         "backup-time": {
             schema: BACKUP_TIME_SCHEMA,
         },
+        comment: {
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+            optional: true,
+        },
         files: {
             items: {
                 schema: BACKUP_ARCHIVE_NAME_SCHEMA
