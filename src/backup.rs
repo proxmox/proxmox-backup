@@ -120,11 +120,21 @@ macro_rules! PROXMOX_BACKUP_READER_PROTOCOL_ID_V1 {
 
 /// Unix system user used by proxmox-backup-proxy
 pub const BACKUP_USER_NAME: &str = "backup";
+/// Unix system group used by proxmox-backup-proxy
+pub const BACKUP_GROUP_NAME: &str = "backup";
 
 /// Return User info for the 'backup' user (``getpwnam_r(3)``)
 pub fn backup_user() -> Result<nix::unistd::User, Error> {
     match nix::unistd::User::from_name(BACKUP_USER_NAME)? {
         Some(user) => Ok(user),
+        None => bail!("Unable to lookup backup user."),
+    }
+}
+
+/// Return Group info for the 'backup' group (``getgrnam(3)``)
+pub fn backup_group() -> Result<nix::unistd::Group, Error> {
+    match nix::unistd::Group::from_name(BACKUP_GROUP_NAME)? {
+        Some(group) => Ok(group),
         None => bail!("Unable to lookup backup user."),
     }
 }
