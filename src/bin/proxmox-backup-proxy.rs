@@ -20,13 +20,10 @@ use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
 
 use proxmox_backup::api2::pull::do_sync_job;
 
-fn main() {
+fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
 
-    if let Err(err) = proxmox_backup::tools::runtime::main(run()) {
-        eprintln!("Error: {}", err);
-        std::process::exit(-1);
-    }
+    proxmox_backup::tools::runtime::main(run())
 }
 
 async fn run() -> Result<(), Error> {
