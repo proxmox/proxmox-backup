@@ -40,11 +40,6 @@ async fn run() -> Result<(), Error> {
     let mut config = ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PUBLIC)?;
 
-    // add default dirs which includes jquery and bootstrap
-    // my $base = '/usr/share/libpve-http-server-perl';
-    // add_dirs($self->{dirs}, '/css/' => "$base/css/");
-    // add_dirs($self->{dirs}, '/js/' => "$base/js/");
-    // add_dirs($self->{dirs}, '/fonts/' => "$base/fonts/");
     config.add_alias("novnc", "/usr/share/novnc-pve");
     config.add_alias("extjs", "/usr/share/javascript/extjs");
     config.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
