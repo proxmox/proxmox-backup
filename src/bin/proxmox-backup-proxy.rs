@@ -23,6 +23,15 @@ use proxmox_backup::api2::pull::do_sync_job;
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
 
+    let backup_uid = proxmox_backup::backup::backup_user()?.uid;
+    let backup_gid = proxmox_backup::backup::backup_group()?.gid;
+    let running_uid = nix::unistd::Uid::effective();
+    let running_gid = nix::unistd::Gid::effective();
+
+    if running_uid != backup_uid || running_gid != backup_gid {
+        bail!("proxy not running as backup user or group (got uid {} gid {})", running_uid, running_gid);
+    }
+
     proxmox_backup::tools::runtime::main(run())
 }
 
