@@ -1,3 +1,13 @@
+rust-proxmox-backup (0.8.13-1) unstable; urgency=medium
+
+  * improve and add to documentation
+
+  * save last verify result in snapshot manifest and show it in the GUI
+
+  * gc: use human readable units for summary in task log
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 27 Aug 2020 16:12:07 +0200
+
 rust-proxmox-backup (0.8.12-1) unstable; urgency=medium
 
   * verify: speedup - only verify chunks once
