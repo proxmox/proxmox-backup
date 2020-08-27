@@ -21,6 +21,7 @@ use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
 use crate::server::WorkerTask;
 use crate::tools;
+use crate::tools::format::HumanByte;
 use crate::tools::fs::{lock_dir_noblock, DirLockGuard};
 use crate::api2::types::{GarbageCollectionStatus, Userid};
 
@@ -462,9 +463,8 @@ impl DataStore {
 
             let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
 
-            let now = unsafe { libc::time(std::ptr::null_mut()) };
-
-            let oldest_writer = self.chunk_store.oldest_writer().unwrap_or(now);
+            let phase1_start_time = unsafe { libc::time(std::ptr::null_mut()) };
+            let oldest_writer = self.chunk_store.oldest_writer().unwrap_or(phase1_start_time);
 
             let mut gc_status = GarbageCollectionStatus::default();
             gc_status.upid = Some(worker.to_string());
@@ -474,26 +474,26 @@ impl DataStore {
             self.mark_used_chunks(&mut gc_status, &worker)?;
 
             worker.log("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(oldest_writer, now, &mut gc_status, &worker)?;
+            self.chunk_store.sweep_unused_chunks(oldest_writer, phase1_start_time, &mut gc_status, &worker)?;
 
-            worker.log(&format!("Removed bytes: {}", gc_status.removed_bytes));
+            worker.log(&format!("Removed garbage: {}", HumanByte::from(gc_status.removed_bytes)));
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
             if gc_status.pending_bytes > 0 {
-                worker.log(&format!("Pending removals: {} bytes ({} chunks)", gc_status.pending_bytes, gc_status.pending_chunks));
+                worker.log(&format!("Pending removals: {} (in {} chunks)", HumanByte::from(gc_status.pending_bytes), gc_status.pending_chunks));
             }
 
-            worker.log(&format!("Original data bytes: {}", gc_status.index_data_bytes));
+            worker.log(&format!("Original data usage: {}", HumanByte::from(gc_status.index_data_bytes)));
 
             if gc_status.index_data_bytes > 0 {
-                let comp_per = (gc_status.disk_bytes*100)/gc_status.index_data_bytes;
-                worker.log(&format!("Disk bytes: {} ({} %)", gc_status.disk_bytes, comp_per));
+                let comp_per = (gc_status.disk_bytes as f64 * 100.)/gc_status.index_data_bytes as f64;
+                worker.log(&format!("On-Disk usage: {} ({:.2}%)", HumanByte::from(gc_status.disk_bytes), comp_per));
             }
 
-            worker.log(&format!("Disk chunks: {}", gc_status.disk_chunks));
+            worker.log(&format!("On-Disk chunks: {}", gc_status.disk_chunks));
 
             if gc_status.disk_chunks > 0 {
                 let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
-                worker.log(&format!("Average chunk size: {}", avg_chunk));
+                worker.log(&format!("Average chunk size: {}", HumanByte::from(avg_chunk)));
             }
 
             *self.last_gc_status.lock().unwrap() = gc_status;

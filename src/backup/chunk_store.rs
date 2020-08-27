@@ -104,7 +104,7 @@ impl ChunkStore {
             }
             let percentage = (i*100)/(64*1024);
             if percentage != last_percentage {
-                eprintln!("Percentage done: {}", percentage);
+                eprintln!("{}%", percentage);
                 last_percentage = percentage;
             }
         }
@@ -295,7 +295,7 @@ impl ChunkStore {
         for (entry, percentage) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
-                worker.log(format!("percentage done: {}, chunk count: {}", percentage, chunk_count));
+                worker.log(format!("{}%, processed {} chunks", percentage, chunk_count));
             }
 
             worker.fail_on_abort()?;
