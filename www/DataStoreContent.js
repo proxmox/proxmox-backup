@@ -181,7 +181,7 @@ Ext.define('PBS.DataStoreContent', {
 
 		data.children = [];
 		for (const file of data.files) {
-		    file.text = file.filename,
+		    file.text = file.filename;
 		    file['crypt-mode'] = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
 		    file.leaf = true;
 		    file.matchesFilter = true;
