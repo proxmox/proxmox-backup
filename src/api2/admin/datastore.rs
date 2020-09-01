@@ -513,16 +513,17 @@ pub fn verify(
         userid,
         to_stdout,
         move |worker| {
+            let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
+            let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
+
             let failed_dirs = if let Some(backup_dir) = backup_dir {
-                let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
-                let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
                 let mut res = Vec::new();
                 if !verify_backup_dir(datastore, &backup_dir, verified_chunks, corrupt_chunks, worker.clone())? {
                     res.push(backup_dir.to_string());
                 }
                 res
             } else if let Some(backup_group) = backup_group {
-                verify_backup_group(datastore, &backup_group, worker.clone())?
+                verify_backup_group(datastore, &backup_group,  verified_chunks, corrupt_chunks, worker.clone())?
             } else {
                 verify_all_backups(datastore, worker.clone())?
             };

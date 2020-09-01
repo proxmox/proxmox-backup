@@ -309,7 +309,13 @@ pub fn verify_backup_dir(
 /// Returns
 /// - Ok(failed_dirs) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_backup_group(datastore: Arc<DataStore>, group: &BackupGroup, worker: Arc<WorkerTask>) -> Result<Vec<String>, Error> {
+pub fn verify_backup_group(
+    datastore: Arc<DataStore>,
+    group: &BackupGroup,
+    verified_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
+    corrupt_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
+    worker: Arc<WorkerTask>,
+) -> Result<Vec<String>, Error> {
 
     let mut errors = Vec::new();
     let mut list = match group.list_backups(&datastore.base_path()) {
@@ -321,12 +327,6 @@ pub fn verify_backup_group(datastore: Arc<DataStore>, group: &BackupGroup, worke
     };
 
     worker.log(format!("verify group {}:{}", datastore.name(), group));
-
-    // start with 16384 chunks (up to 65GB)
-    let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
-
-    // start with 64 chunks since we assume there are few corrupt ones
-    let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
 
     BackupInfo::sort_list(&mut list, false); // newest first
     for info in list {
@@ -359,10 +359,22 @@ pub fn verify_all_backups(datastore: Arc<DataStore>, worker: Arc<WorkerTask>) ->
 
     list.sort_unstable();
 
+    // start with 16384 chunks (up to 65GB)
+    let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
+
+    // start with 64 chunks since we assume there are few corrupt ones
+    let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
+
     worker.log(format!("verify datastore {}", datastore.name()));
 
     for group in list {
-        let mut group_errors = verify_backup_group(datastore.clone(), &group, worker.clone())?;
+        let mut group_errors = verify_backup_group(
+            datastore.clone(),
+            &group,
+            verified_chunks.clone(),
+            corrupt_chunks.clone(),
+            worker.clone(),
+        )?;
         errors.append(&mut group_errors);
     }
 
