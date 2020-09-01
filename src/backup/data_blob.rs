@@ -304,7 +304,7 @@ impl DataBlob {
 
         let digest = match config {
             Some(config) => config.compute_digest(data),
-            None => openssl::sha::sha256(&data),
+            None => openssl::sha::sha256(data),
         };
         if &digest != expected_digest {
             bail!("detected chunk with wrong digest.");
