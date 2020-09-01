@@ -545,6 +545,8 @@ Ext.define('PBS.DataStoreContent', {
 	    format: '0',
 	    header: gettext("Count"),
 	    sortable: true,
+	    width: 75,
+	    align: 'right',
 	    dataIndex: 'count',
 	},
 	{
