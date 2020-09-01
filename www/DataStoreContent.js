@@ -623,6 +623,7 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    xtype: 'textfield',
 	    reference: 'searchbox',
+	    emptyText: gettext('group, date or owner'),
 	    triggers: {
 		clear: {
 		    cls: 'pmx-clear-trigger',
