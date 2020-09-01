@@ -30,8 +30,8 @@ Ext.define('pbs-data-store-snapshots', {
 		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
 		    if (mode !== -1) {
 			crypt[file['crypt-mode']]++;
+			crypt.count++;
 		    }
-		    crypt.count++;
 		});
 
 		return PBS.Utils.calculateCryptMode(crypt);
