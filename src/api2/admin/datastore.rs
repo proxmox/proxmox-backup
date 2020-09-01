@@ -1,6 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -513,17 +514,17 @@ pub fn verify(
         to_stdout,
         move |worker| {
             let failed_dirs = if let Some(backup_dir) = backup_dir {
-                let mut verified_chunks = HashSet::with_capacity(1024*16);
-                let mut corrupt_chunks = HashSet::with_capacity(64);
+                let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
+                let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
                 let mut res = Vec::new();
-                if !verify_backup_dir(&datastore, &backup_dir, &mut verified_chunks, &mut corrupt_chunks, &worker)? {
+                if !verify_backup_dir(datastore, &backup_dir, verified_chunks, corrupt_chunks, worker.clone())? {
                     res.push(backup_dir.to_string());
                 }
                 res
             } else if let Some(backup_group) = backup_group {
-                verify_backup_group(&datastore, &backup_group, &worker)?
+                verify_backup_group(datastore, &backup_group, worker.clone())?
             } else {
-                verify_all_backups(&datastore, &worker)?
+                verify_all_backups(datastore, worker.clone())?
             };
             if failed_dirs.len() > 0 {
                 worker.log("Failed to verify following snapshots:");
