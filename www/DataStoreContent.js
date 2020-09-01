@@ -270,7 +270,8 @@ Ext.define('PBS.DataStoreContent', {
 	},
 
 	onVerify: function(view, rI, cI, item, e, rec) {
-	    var view = this.getView();
+	    let me = this;
+	    view = me.getView();
 
 	    if (!view.datastore) return;
 
@@ -302,6 +303,7 @@ Ext.define('PBS.DataStoreContent', {
 		success: function(response, options) {
 		    Ext.create('Proxmox.window.TaskViewer', {
 			upid: response.result.data,
+			taskDone: () => me.reload(),
 		    }).show();
 		},
 	    });
