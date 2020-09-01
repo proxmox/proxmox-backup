@@ -15,11 +15,10 @@ case "$1" in
 	fi
 	deb-systemd-invoke $_dh_action proxmox-backup.service proxmox-backup-proxy.service >/dev/null || true
 
-	if test -n "$2"; then
-		if dpkg --compare-versions "$2" 'le' '0.8.10-1'; then
-			echo "Fixing up termproxy user id in task log..."
-			flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::root: /:termproxy::root@pam: /' /var/log/proxmox-backup/tasks/active
-		fi
+	# FIXME: Remove in future version once we're sure no broken entries remain in anyone's files
+	if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then
+	    echo "Fixing up termproxy user id in task log..."
+	    flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::\([^@]\+\): /:termproxy::\1@pam: /' /var/log/proxmox-backup/tasks/active
 	fi
     ;;
 
