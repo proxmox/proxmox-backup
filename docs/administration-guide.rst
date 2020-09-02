@@ -560,45 +560,41 @@ To get a list of available interfaces, use the following command:
 .. code-block:: console
 
   # proxmox-backup-manager network list
-  ┌───────┬────────┬───────────┬────────┬─────────┬───────────────────┬──────────────┬──────────────┐
-  │ name  │ type   │ autostart │ method │ method6 │ address           │ gateway      │ ports/slaves │
-  ╞═══════╪════════╪═══════════╪════════╪═════════╪═══════════════════╪══════════════╪══════════════╡
-  │ bond0 │ bond   │         1 │ manual │         │                   │              │ ens18 ens19  │
-  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
-  │ ens18 │ eth    │         1 │ manual │         │                   │              │              │
-  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
-  │ ens19 │ eth    │         1 │ manual │         │                   │              │              │
-  ├───────┼────────┼───────────┼────────┼─────────┼───────────────────┼──────────────┼──────────────┤
-  │ vmbr0 │ bridge │         1 │ static │         │ x.x.x.x/x         │ x.x.x.x      │ bond0        │
-  └───────┴────────┴───────────┴────────┴─────────┴───────────────────┴──────────────┴──────────────┘
+  ┌───────┬────────┬───────────┬────────┬─────────────┬──────────────┬──────────────┐
+  │ name  │ type   │ autostart │ method │ address     │ gateway      │ ports/slaves │
+  ╞═══════╪════════╪═══════════╪════════╪═════════════╪══════════════╪══════════════╡
+  │ bond0 │ bond   │         1 │ static │ x.x.x.x/x   │ x.x.x.x      │ ens18 ens19  │
+  ├───────┼────────┼───────────┼────────┼─────────────┼──────────────┼──────────────┤
+  │ ens18 │ eth    │         1 │ manual │             │              │              │
+  ├───────┼────────┼───────────┼────────┼─────────────┼──────────────┼──────────────┤
+  │ ens19 │ eth    │         1 │ manual │             │              │              │
+  └───────┴────────┴───────────┴────────┴─────────────┴──────────────┴──────────────┘
 
 .. image:: images/screenshots/pbs-gui-network-create-bond.png
   :width: 230
   :align: right
   :alt: Add a network interface
 
-To add a new network interface, select an interface type from the **Create** menu
-in the web interface, or use the ``create`` subcommand with the relevant
-parameters. The following command shows a template for creating a new bridge:
-
-|
+To add a new network interface, use the ``create`` subcommand with the relevant
+parameters. The following command shows a template for creating the bond shown
+in the list above:
 
 .. code-block:: console
 
-  # proxmox-backup-manager network create vmbr1 --autostart true --cidr x.x.x.x/x --gateway x.x.x.x --bridge_ports iface_name --type bridge
+  # proxmox-backup-manager network create bond0 --type bond --bond_mode active-backup --slaves ens18,ens19 --autostart true --cidr x.x.x.x/x --gateway x.x.x.x
 
 You can make changes to the configuration of a network interface with the
 ``update`` subcommand:
 
 .. code-block:: console
 
-  # proxmox-backup-manager network update vmbr1 --cidr y.y.y.y/y
+  # proxmox-backup-manager network update bond0 --cidr y.y.y.y/y
 
 You can also remove a network interface:
 
 .. code-block:: console
 
-   # proxmox-backup-manager network remove vmbr1
+   # proxmox-backup-manager network remove bond0
 
 The pending changes for the network configuration file will appear at the bottom of the
 web interface. You can also view these changes, by using the command:
