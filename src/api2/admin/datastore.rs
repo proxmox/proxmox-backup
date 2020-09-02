@@ -523,7 +523,15 @@ pub fn verify(
                 }
                 res
             } else if let Some(backup_group) = backup_group {
-                verify_backup_group(datastore, &backup_group,  verified_chunks, corrupt_chunks, worker.clone())?
+                let (_count, failed_dirs) = verify_backup_group(
+                    datastore,
+                    &backup_group,
+                    verified_chunks,
+                    corrupt_chunks,
+                    None,
+                    worker.clone(),
+                )?;
+                failed_dirs
             } else {
                 verify_all_backups(datastore, worker.clone())?
             };
