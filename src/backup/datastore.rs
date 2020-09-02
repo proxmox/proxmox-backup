@@ -430,6 +430,12 @@ impl DataStore {
 
         let image_list = self.list_images()?;
 
+        let image_count = image_list.len();
+
+        let mut done = 0;
+
+        let mut last_percentage: usize = 0;
+
         for path in image_list {
 
             worker.fail_on_abort()?;
@@ -443,6 +449,14 @@ impl DataStore {
                     let index = self.open_dynamic_reader(&path)?;
                     self.index_mark_used_chunks(index, &path, status, worker)?;
                 }
+            }
+            done += 1;
+
+            let percentage = done*100/image_count;
+            if percentage > last_percentage {
+                worker.log(format!("percentage done: phase1 {}% ({} of {} index files)",
+                                   percentage, done, image_count));
+                last_percentage = percentage;
             }
         }
 
