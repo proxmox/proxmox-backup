@@ -192,6 +192,7 @@ Ext.define('PBS.DataStoreContent', {
 		children.push(data);
 	    }
 
+	    let nowSeconds = Date.now() / 1000;
 	    let children = [];
 	    for (const [name, group] of Object.entries(groups)) {
 		let last_backup = 0;
@@ -201,7 +202,13 @@ Ext.define('PBS.DataStoreContent', {
 		    'sign-only': 0,
 		    encrypt: 0,
 		};
-		for (const item of group.children) {
+		let verify = {
+		    outdated: 0,
+		    none: 0,
+		    failed: 0,
+		    ok: 0,
+		};
+		for (let item of group.children) {
 		    crypt[PBS.Utils.cryptmap[item['crypt-mode']]]++;
 		    if (item["backup-time"] > last_backup && item.size !== null) {
 			last_backup = item["backup-time"];
@@ -211,12 +218,22 @@ Ext.define('PBS.DataStoreContent', {
 			group.owner = item.owner;
 			verify.lastFailed = item.verification && item.verification.state !== 'ok';
 		    }
-		    if (item.verification &&
-		       (!group.verification || group.verification.state !== 'failed')) {
-			group.verification = item.verification;
+		    if (!item.verification) {
+			verify.none++;
+		    } else {
+			if (item.verification.state === 'ok') {
+			    verify.ok++;
+			} else {
+			    verify.failed++;
+			}
+			let task = Proxmox.Utils.parse_task_upid(item.verification.upid);
+			item.verification.lastTime = task.starttime;
+			if (nowSeconds - task.starttime > 30 * 24 * 60 * 60) {
+			    verify.outdated++;
+			}
 		    }
-
 		}
+		group.verification = verify;
 		group.count = group.children.length;
 		group.matchesFilter = true;
 		crypt.count = group.count;
@@ -586,22 +603,59 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext('Verify State'),
 	    sortable: true,
 	    dataIndex: 'verification',
+	    width: 120,
 	    renderer: (v, meta, record) => {
-		if (v === undefined || v === null || !v.state) {
-		    //meta.tdCls = "x-grid-row-loading";
-		    return record.data.leaf ? '' : gettext('None');
+		let i = (cls, txt) => `<i class="fa fa-fw fa-${cls}"></i> ${txt}`;
+		if (v === undefined || v === null) {
+		    return record.data.leaf ? '' : i('question-circle-o warning', gettext('None'));
 		}
-		let task = Proxmox.Utils.parse_task_upid(v.upid);
-		let verify_time = Proxmox.Utils.render_timestamp(task.starttime);
-		let iconCls = v.state === 'ok' ? 'check good' : 'times critical';
-		let tip = `Verify task started on ${verify_time}`;
+		let tip, iconCls, txt;
 		if (record.parentNode.id === 'root') {
-		    tip = v.state === 'ok'
-			? 'All verification OK in backup group'
-			: 'At least one failed verification in backup group!';
+		    if (v.failed === 0) {
+			if (v.none === 0) {
+			    if (v.outdated > 0) {
+				tip = 'All OK, but some snapshots were not verified in last 30 days';
+				iconCls = 'check warning';
+				txt = gettext('All OK (old)');
+			    } else {
+				tip = 'All snapshots verified at least once in last 30 days';
+				iconCls = 'check good';
+				txt = gettext('All OK');
+			    }
+			} else if (v.ok === 0) {
+			    tip = `${v.none} not verified yet`;
+			    iconCls = 'question-circle-o warning';
+			    txt = gettext('None');
+			} else {
+			    tip = `${v.ok} OK, ${v.none} not verified yet`;
+			    iconCls = 'check faded';
+			    txt = `${v.ok} OK`;
+			}
+		    } else {
+			tip = `${v.ok} OK, ${v.failed} failed, ${v.none} not verified yet`;
+			iconCls = 'times critical';
+			txt = v.ok === 0 && v.none === 0
+			    ? gettext('All failed')
+			    : `${v.failed} failed`;
+		    }
+		} else if (!v.state) {
+		    return record.data.leaf ? '' : gettext('None');
+		} else {
+		    let verify_time = Proxmox.Utils.render_timestamp(v.lastTime);
+		    tip = `Last verify task started on ${verify_time}`;
+		    txt = v.state;
+		    iconCls = 'times critical';
+		    if (v.state === 'ok') {
+			iconCls = 'check good';
+			let now = Date.now() / 1000;
+			if (now - v.lastTime > 30 * 24 * 60 * 60) {
+			    tip = `Last verify task over 30 days ago: ${verify_time}`;
+			    iconCls = 'check warning';
+			}
+		    }
 		}
 		return `<span data-qtip="${tip}">
-		    <i class="fa fa-fw fa-${iconCls}"></i> ${v.state}
+		    <i class="fa fa-fw fa-${iconCls}"></i> ${txt}
 		</span>`;
 	    },
 	    listeners: {
