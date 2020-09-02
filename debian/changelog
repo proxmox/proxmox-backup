@@ -1,3 +1,17 @@
+rust-proxmox-backup (0.8.14-1) unstable; urgency=medium
+
+  * verify speed up: use separate IO thread, use datastore-wide cache (instead
+    of per group)
+
+  * ui: datastore content: improve encrypted column
+
+  * ui: datastore content: show more granular verify state, especially for
+    backup group rows
+
+  * verify: log progress in percent
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 02 Sep 2020 09:36:47 +0200
+
 rust-proxmox-backup (0.8.13-1) unstable; urgency=medium
 
   * improve and add to documentation
