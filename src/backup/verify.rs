@@ -115,6 +115,7 @@ fn verify_index_chunks(
     loop {
 
         worker.fail_on_abort()?;
+        crate::tools::fail_on_shutdown()?;
 
         let (chunk, digest, size) = match chunk_channel.recv() {
             Ok(tuple) => tuple,
@@ -281,6 +282,7 @@ pub fn verify_backup_dir(
         });
 
         worker.fail_on_abort()?;
+        crate::tools::fail_on_shutdown()?;
 
         if let Err(err) = result {
             worker.log(format!("verify {}:{}/{} failed: {}", datastore.name(), backup_dir, info.filename, err));
