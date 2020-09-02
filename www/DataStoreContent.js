@@ -6,17 +6,16 @@ Ext.define('pbs-data-store-snapshots', {
 	{
 	    name: 'backup-time',
 	    type: 'date',
-	    dateFormat: 'timestamp'
+	    dateFormat: 'timestamp',
 	},
 	'files',
 	'owner',
 	'verification',
-	{ name: 'size', type: 'int', allowNull: true, },
+	{ name: 'size', type: 'int', allowNull: true },
 	{
 	    name: 'crypt-mode',
 	    type: 'boolean',
 	    calculate: function(data) {
-		let encrypted = 0;
 		let crypt = {
 		    none: 0,
 		    mixed: 0,
@@ -24,7 +23,6 @@ Ext.define('pbs-data-store-snapshots', {
 		    encrypt: 0,
 		    count: 0,
 		};
-		let signed = 0;
 		data.files.forEach(file => {
 		    if (file.filename === 'index.json.blob') return; // is never encrypted
 		    let mode = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
@@ -35,14 +33,14 @@ Ext.define('pbs-data-store-snapshots', {
 		});
 
 		return PBS.Utils.calculateCryptMode(crypt);
-	    }
+	    },
 	},
 	{
 	    name: 'matchesFilter',
 	    type: 'boolean',
 	    defaultValue: true,
 	},
-    ]
+    ],
 });
 
 Ext.define('PBS.DataStoreContent', {
@@ -70,7 +68,7 @@ Ext.define('PBS.DataStoreContent', {
 	    view.getStore().setSorters([
 		'backup-group',
 		'text',
-		'backup-time'
+		'backup-time',
 	    ]);
 	    Proxmox.Utils.monStoreErrors(view, this.store);
 	    this.reload(); // initial load
@@ -88,7 +86,7 @@ Ext.define('PBS.DataStoreContent', {
 	    this.store.setProxy({
 		type: 'proxmox',
 		timeout: 300*1000, // 5 minutes, we should make that api call faster
-		url:  url
+		url: url,
 	    });
 
 	    this.store.load();
@@ -124,7 +122,7 @@ Ext.define('PBS.DataStoreContent', {
 		    expanded: false,
 		    backup_type: item.data["backup-type"],
 		    backup_id: item.data["backup-id"],
-		    children: []
+		    children: [],
 		};
 	    }
 
@@ -163,7 +161,7 @@ Ext.define('PBS.DataStoreContent', {
 		    }
 		    return false;
 		},
-		after: () => {},
+		after: Ext.emptyFn,
 	    });
 
 	    for (const item of records) {
@@ -244,7 +242,7 @@ Ext.define('PBS.DataStoreContent', {
 
 	    view.setRootNode({
 		expanded: true,
-		children: children
+		children: children,
 	    });
 
 	    if (selected !== undefined) {
@@ -264,13 +262,13 @@ Ext.define('PBS.DataStoreContent', {
 	    Proxmox.Utils.setErrorMask(view, false);
 	    if (view.getStore().getFilters().length > 0) {
 		let searchBox = me.lookup("searchbox");
-		let searchvalue = searchBox.getValue();;
+		let searchvalue = searchBox.getValue();
 		me.search(searchBox, searchvalue);
 	    }
 	},
 
 	onPrune: function(view, rI, cI, item, e, rec) {
-	    var view = this.getView();
+	    view = this.getView();
 
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
@@ -329,7 +327,7 @@ Ext.define('PBS.DataStoreContent', {
 
 	onForget: function(view, rI, cI, item, e, rec) {
 	    let me = this;
-	    var view = this.getView();
+	    view = this.getView();
 
 	    if (!(rec && rec.data)) return;
 	    let data = rec.data;
@@ -384,7 +382,8 @@ Ext.define('PBS.DataStoreContent', {
 	    let atag = document.createElement('a');
 	    params['file-name'] = file;
 	    atag.download = filename;
-	    let url = new URL(`/api2/json/admin/datastore/${view.datastore}/download-decoded`, window.location.origin);
+	    let url = new URL(`/api2/json/admin/datastore/${view.datastore}/download-decoded`,
+	                      window.location.origin);
 	    for (const [key, value] of Object.entries(params)) {
 		url.searchParams.append(key, value);
 	    }
@@ -447,7 +446,7 @@ Ext.define('PBS.DataStoreContent', {
 		store.beginUpdate();
 		store.getRoot().cascadeBy({
 		    before: function(item) {
-			if(me.filter(item, value)) {
+			if (me.filter(item, value)) {
 			    item.set('matchesFilter', true);
 			    if (item.parentNode && item.parentNode.id !== 'root') {
 				item.parentNode.childmatches = true;
@@ -485,6 +484,7 @@ Ext.define('PBS.DataStoreContent', {
 	    if (verify && verify.lastFailed) {
 		return 'proxmox-invalid-row';
 	    }
+	    return null;
 	},
     },
 
@@ -493,7 +493,7 @@ Ext.define('PBS.DataStoreContent', {
 	    xtype: 'treecolumn',
 	    header: gettext("Backup Group"),
 	    dataIndex: 'text',
-	    flex: 1
+	    flex: 1,
 	},
 	{
 	    header: gettext('Actions'),
@@ -540,9 +540,9 @@ Ext.define('PBS.DataStoreContent', {
 			    data.filename &&
 			    data.filename.endsWith('pxar.didx') &&
 			    data['crypt-mode'] < 3);
-		    }
+		    },
 		},
-	    ]
+	    ],
 	},
 	{
 	    xtype: 'datecolumn',
@@ -550,7 +550,7 @@ Ext.define('PBS.DataStoreContent', {
 	    sortable: true,
 	    dataIndex: 'backup-time',
 	    format: 'Y-m-d H:i:s',
-	    width: 150
+	    width: 150,
 	},
 	{
 	    header: gettext("Size"),
@@ -596,8 +596,8 @@ Ext.define('PBS.DataStoreContent', {
 		if (iconCls) {
 		    iconTxt = `<i class="fa fa-fw fa-${iconCls}"></i> `;
 		}
-		return (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText
-	    }
+		return (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText;
+	    },
 	},
 	{
 	    header: gettext('Verify State'),
@@ -697,7 +697,7 @@ Ext.define('PBS.DataStoreContent', {
 			this.triggers.clear.setVisible(false);
 			this.setValue('');
 		    },
-		}
+		},
 	    },
 	    listeners: {
 		change: {
@@ -705,6 +705,6 @@ Ext.define('PBS.DataStoreContent', {
 		    buffer: 500,
 		},
 	    },
-	}
+	},
     ],
 });
