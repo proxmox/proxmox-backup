@@ -18,8 +18,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-# import sys
+import sys
 # sys.path.insert(0, os.path.abspath('.'))
+
+# custom extensions
+sys.path.append(os.path.abspath("./_ext"))
 
 # -- Implement custom formatter for code-blocks ---------------------------
 #
@@ -46,7 +49,7 @@ PygmentsBridge.latex_formatter = CustomLatexFormatter
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-extensions = ["sphinx.ext.graphviz", "sphinx.ext.todo"]
+extensions = ["sphinx.ext.graphviz", "sphinx.ext.todo", "proxmox-scanrefs"]
 
 todo_link_only = True
 

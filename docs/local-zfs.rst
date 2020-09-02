@@ -1,3 +1,6 @@
+
+.. _chapter-zfs:
+
 ZFS on Linux
 ------------
 

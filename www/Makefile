@@ -54,6 +54,10 @@ all: js/proxmox-backup-gui.js css/ext6-pbs.css
 js:
 	mkdir js
 
+OnlineHelpInfo.js:
+	$(MAKE) -C ../docs onlinehelpinfo
+	mv ../docs/output/scanrefs/OnlineHelpInfo.js .
+
 js/proxmox-backup-gui.js: js OnlineHelpInfo.js ${JSSRC}
 	cat OnlineHelpInfo.js ${JSSRC} >$@.tmp
 	mv $@.tmp $@

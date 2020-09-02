@@ -28,7 +28,6 @@ COMPILEDIR := ../target/debug
 SPHINXOPTS    += -t devbuild
 endif
 
-
 # Sphinx internal variables.
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(SPHINXOPTS) .
 
@@ -67,6 +66,12 @@ proxmox-backup-manager.1: proxmox-backup-manager/man1.rst  proxmox-backup-manage
 
 proxmox-backup-proxy.1: proxmox-backup-proxy/man1.rst  proxmox-backup-proxy/description.rst
 	rst2man $< >$@
+
+.PHONY: onlinehelpinfo
+onlinehelpinfo:
+	@echo "Generating OnlineHelpInfo.js..."
+	$(SPHINXBUILD) -b proxmox-scanrefs $(ALLSPHINXOPTS) $(BUILDDIR)/scanrefs
+	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
 .PHONY: html
 html: ${GENERATED_SYNOPSIS}
