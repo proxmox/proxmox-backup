@@ -226,6 +226,7 @@ async fn test_upload_speed(
         "benchmark",
         backup_time,
         false,
+        true
     ).await?;
 
     if verbose { eprintln!("Start TLS speed test"); }

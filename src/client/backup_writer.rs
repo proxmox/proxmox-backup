@@ -53,6 +53,7 @@ impl BackupWriter {
         backup_id: &str,
         backup_time: DateTime<Utc>,
         debug: bool,
+        benchmark: bool
     ) -> Result<Arc<BackupWriter>, Error> {
 
         let param = json!({
@@ -60,7 +61,8 @@ impl BackupWriter {
             "backup-id": backup_id,
             "backup-time": backup_time.timestamp(),
             "store": datastore,
-            "debug": debug
+            "debug": debug,
+            "benchmark": benchmark
         });
 
         let req = HttpClient::request_builder(

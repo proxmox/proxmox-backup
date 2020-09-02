@@ -1026,6 +1026,7 @@ async fn create_backup(
         &backup_id,
         backup_time,
         verbose,
+        false
     ).await?;
 
     let previous_manifest = if let Ok(previous_manifest) = client.download_previous_manifest().await {

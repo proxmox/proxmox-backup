@@ -38,6 +38,7 @@ pub const API_METHOD_UPGRADE_BACKUP: ApiMethod = ApiMethod::new(
             ("backup-id", false, &BACKUP_ID_SCHEMA),
             ("backup-time", false, &BACKUP_TIME_SCHEMA),
             ("debug", true, &BooleanSchema::new("Enable verbose debug logging.").schema()),
+            ("benchmark", true, &BooleanSchema::new("Job is a benchmark (do not keep data).").schema()),
         ]),
     )
 ).access(
@@ -56,6 +57,7 @@ fn upgrade_to_backup_protocol(
 
 async move {
     let debug = param["debug"].as_bool().unwrap_or(false);
+    let benchmark = param["benchmark"].as_bool().unwrap_or(false);
 
     let userid: Userid = rpcenv.get_user().unwrap().parse()?;
 
@@ -90,11 +92,24 @@ async move {
 
     let backup_group = BackupGroup::new(backup_type, backup_id);
 
+    let worker_type = if backup_type == "host" && backup_id == "benchmark" {
+        if !benchmark {
+            bail!("unable to run benchmark without --benchmark flags");
+        }
+        "benchmark"
+    } else {
+        if benchmark {
+            bail!("benchmark flags is only allowed on 'host/benchmark'");
+        }
+        "backup"
+    };
+
     // lock backup group to only allow one backup per group at a time
     let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &userid)?;
 
     // permission check
-    if owner != userid { // only the owner is allowed to create additional snapshots
+    if owner != userid && worker_type != "benchmark" {
+        // only the owner is allowed to create additional snapshots
         bail!("backup owner check failed ({} != {})", userid, owner);
     }
 
@@ -116,14 +131,15 @@ async move {
     let (path, is_new, _snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
 
-    WorkerTask::spawn("backup", Some(worker_id), userid.clone(), true, move |worker| {
+
+    WorkerTask::spawn(worker_type, Some(worker_id), userid.clone(), true, move |worker| {
         let mut env = BackupEnvironment::new(
             env_type, userid, worker.clone(), datastore, backup_dir);
 
         env.debug = debug;
         env.last_backup = last_backup;
 
-        env.log(format!("starting new backup on datastore '{}': {:?}", store, path));
+        env.log(format!("starting new {} on datastore '{}': {:?}", worker_type, store, path));
 
         let service = H2Service::new(env.clone(), worker.clone(), &BACKUP_API_ROUTER, debug);
 
@@ -160,7 +176,11 @@ async move {
                 req = req_fut => req,
                 abrt = abort_future => abrt,
             };
-
+            if benchmark {
+                env.log("benchmark finished successfully");
+                env.remove_backup()?;
+                return Ok(());
+            }
             match (res, env.ensure_finished()) {
                 (Ok(_), Ok(())) => {
                     env.log("backup finished successfully");
