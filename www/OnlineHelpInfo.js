@@ -1,6 +1,6 @@
 const proxmoxOnlineHelpInfo = {
   "pbs_documentation_index": {
-    "link": "/pbs-docs/index.html",
+    "link": "/docs/index.html",
     "title": "Proxmox Backup Server Documentation Index"
   },
   "chapter-zfs": {

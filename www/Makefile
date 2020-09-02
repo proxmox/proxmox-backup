@@ -54,6 +54,7 @@ all: js/proxmox-backup-gui.js css/ext6-pbs.css
 js:
 	mkdir js
 
+.PHONY: OnlineHelpInfo.js
 OnlineHelpInfo.js:
 	$(MAKE) -C ../docs onlinehelpinfo
 	mv ../docs/output/scanrefs/OnlineHelpInfo.js .
