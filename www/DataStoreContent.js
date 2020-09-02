@@ -209,6 +209,7 @@ Ext.define('PBS.DataStoreContent', {
 			group.files = item.files;
 			group.size = item.size;
 			group.owner = item.owner;
+			verify.lastFailed = item.verification && item.verification.state !== 'ok';
 		    }
 		    if (item.verification &&
 		       (!group.verification || group.verification.state !== 'failed')) {
@@ -458,6 +459,15 @@ Ext.define('PBS.DataStoreContent', {
 		store.filter((item) => !!item.get('matchesFilter'));
 		Proxmox.Utils.setErrorMask(view, false);
 	    }, 10);
+	},
+    },
+
+    viewConfig: {
+	getRowClass: function(record, index) {
+	    let verify = record.get('verification');
+	    if (verify && verify.lastFailed) {
+		return 'proxmox-invalid-row';
+	    }
 	},
     },
 
