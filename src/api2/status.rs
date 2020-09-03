@@ -74,6 +74,9 @@ use crate::config::acl::{
             },
         },
     },
+    access: {
+        permission: &Permission::Anybody,
+    },
 )]
 /// List Datastore usages and estimates
 fn datastore_status(
