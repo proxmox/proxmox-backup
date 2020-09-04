@@ -186,6 +186,25 @@ fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
     }
 }
 
+fn parse_date_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeValue>, Vec<DateTimeValue>)> {
+
+    // TODO: implement ~ for days (man systemd.time)
+    if let Ok((i, (year, month, day))) = tuple((
+        parse_date_time_comp_list(2200), // the upper limit for systemd, stay compatible
+        preceded(tag("-"), parse_date_time_comp_list(13)),
+        preceded(tag("-"), parse_date_time_comp_list(32)),
+    ))(i) {
+        Ok((i, (year, month, day)))
+    } else if let Ok((i, (month, day))) = tuple((
+        parse_date_time_comp_list(13),
+        preceded(tag("-"), parse_date_time_comp_list(32)),
+    ))(i) {
+        Ok((i, (Vec::new(), month, day)))
+    } else {
+        Err(parse_error(i, "invalid date spec"))
+    }
+}
+
 pub fn parse_calendar_event(i: &str) -> Result<CalendarEvent, Error> {
     parse_complete_line("calendar event", i, parse_calendar_event_incomplete)
 }
@@ -194,7 +213,7 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
 
     let mut has_dayspec = false;
     let mut has_timespec = false;
-    let has_datespec = false;
+    let mut has_datespec = false;
 
     let mut event = CalendarEvent::default();
 
@@ -231,8 +250,52 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
                     ..Default::default()
                 }));
             }
-            "monthly" | "yearly" | "quarterly" | "semiannually" => {
-                return Err(parse_error(i, "unimplemented date or time specification"));
+            "monthly" => {
+                return Ok(("", CalendarEvent {
+                    hour: vec![DateTimeValue::Single(0)],
+                    minute: vec![DateTimeValue::Single(0)],
+                    second: vec![DateTimeValue::Single(0)],
+                    day: vec![DateTimeValue::Single(1)],
+                    ..Default::default()
+                }));
+            }
+            "yearly" | "annually" => {
+                return Ok(("", CalendarEvent {
+                    hour: vec![DateTimeValue::Single(0)],
+                    minute: vec![DateTimeValue::Single(0)],
+                    second: vec![DateTimeValue::Single(0)],
+                    day: vec![DateTimeValue::Single(1)],
+                    month: vec![DateTimeValue::Single(1)],
+                    ..Default::default()
+                }));
+            }
+            "quarterly" => {
+                return Ok(("", CalendarEvent {
+                    hour: vec![DateTimeValue::Single(0)],
+                    minute: vec![DateTimeValue::Single(0)],
+                    second: vec![DateTimeValue::Single(0)],
+                    day: vec![DateTimeValue::Single(1)],
+                    month: vec![
+                        DateTimeValue::Single(1),
+                        DateTimeValue::Single(4),
+                        DateTimeValue::Single(7),
+                        DateTimeValue::Single(10),
+                    ],
+                    ..Default::default()
+                }));
+            }
+            "semiannually" | "semi-annually" => {
+                return Ok(("", CalendarEvent {
+                    hour: vec![DateTimeValue::Single(0)],
+                    minute: vec![DateTimeValue::Single(0)],
+                    second: vec![DateTimeValue::Single(0)],
+                    day: vec![DateTimeValue::Single(1)],
+                    month: vec![
+                        DateTimeValue::Single(1),
+                        DateTimeValue::Single(7),
+                    ],
+                    ..Default::default()
+                }));
             }
             _ => { /* continue */ }
         }
@@ -249,7 +312,13 @@ fn parse_calendar_event_incomplete(mut i: &str) -> IResult<&str, CalendarEvent> 
         for range in range_list  { event.days.insert(range); }
     }
 
-    // todo: support date specs
+    if let (n, Some((year, month, day))) = opt(parse_date_spec)(i)? {
+        event.year = year;
+        event.month = month;
+        event.day = day;
+        has_datespec = true;
+        i = space0(n)?.0;
+    }
 
     if let (n, Some((hour, minute, second))) = opt(parse_time_spec)(i)? {
         event.hour = hour;

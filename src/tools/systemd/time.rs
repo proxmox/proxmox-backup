@@ -103,14 +103,12 @@ pub struct CalendarEvent {
     pub minute: Vec<DateTimeValue>,
     /// the hour(s) this event should trigger
     pub hour: Vec<DateTimeValue>,
-/* FIXME: TODO
     /// the day(s) in a month this event should trigger
     pub day: Vec<DateTimeValue>,
     /// the month(s) in a year this event should trigger
     pub month: Vec<DateTimeValue>,
     /// the years(s) this event should trigger
     pub year: Vec<DateTimeValue>,
-*/
 }
 
 #[derive(Default)]
@@ -173,6 +171,45 @@ pub fn compute_next_event(
             return Ok(None);
         } else {
             count += 1;
+        }
+
+        if !event.year.is_empty() {
+            let year: u32 = t.year().try_into()?;
+            if !DateTimeValue::list_contains(&event.year, year) {
+                if let Some(n) = DateTimeValue::find_next(&event.year, year) {
+                    t.add_years((n - year).try_into()?)?;
+                    continue;
+                } else {
+                    // if we have no valid year, we cannot find a correct timestamp
+                    return Ok(None);
+                }
+            }
+        }
+
+        if !event.month.is_empty() {
+            let month: u32 = t.month().try_into()?;
+            if !DateTimeValue::list_contains(&event.month, month) {
+                if let Some(n) = DateTimeValue::find_next(&event.month, month) {
+                    t.add_months((n - month).try_into()?)?;
+                } else {
+                    // if we could not find valid month, retry next year
+                    t.add_years(1)?;
+                }
+                continue;
+            }
+        }
+
+        if !event.day.is_empty() {
+            let day: u32 = t.day().try_into()?;
+            if !DateTimeValue::list_contains(&event.day, day) {
+                if let Some(n) = DateTimeValue::find_next(&event.day, day) {
+                    t.add_days((n - day).try_into()?)?;
+                } else {
+                    // if we could not find valid mday, retry next month
+                    t.add_months(1)?;
+                }
+                continue;
+            }
         }
 
         if !all_days { // match day first
@@ -288,6 +325,18 @@ mod test {
             Ok(expect)
         };
 
+        let test_never = |v: &'static str, last: i64| -> Result<(), Error> {
+            let event = match parse_calendar_event(v) {
+                Ok(event) => event,
+                Err(err) => bail!("parsing '{}' failed - {}", v, err),
+            };
+
+            match compute_next_event(&event, last, true)? {
+                None => Ok(()),
+                Some(next) => bail!("compute next for '{}' succeeded, but expected fail - result {}", v, next),
+            }
+        };
+
         const MIN: i64 = 60;
         const HOUR: i64 = 3600;
         const DAY: i64 = 3600*24;
@@ -354,6 +403,23 @@ mod test {
         for i in 2..100 {
             n = test_value("1:0", n, THURSDAY_00_00 + i*DAY + HOUR)?;
         }
+
+        // test date functionality
+
+        test_value("2020-07-31", 0, JUL_31_2020)?;
+        test_value("02-28", 0, (31+27)*DAY)?;
+        test_value("02-29", 0, 2*365*DAY + (31+28)*DAY)?; // 1972-02-29
+        test_value("1965/5-01-01", -1, THURSDAY_00_00)?;
+        test_value("2020-7..9-2/2", JUL_31_2020, JUL_31_2020 + 2*DAY)?;
+        test_value("2020,2021-12-31", JUL_31_2020, DEC_31_2020)?;
+
+        test_value("monthly", 0, 31*DAY)?;
+        test_value("quarterly", 0, (31+28+31)*DAY)?;
+        test_value("semiannually", 0, (31+28+31+30+31+30)*DAY)?;
+        test_value("yearly", 0, (365)*DAY)?;
+
+        test_never("2021-02-29", 0)?;
+        test_never("02-30", 0)?;
 
         Ok(())
     }
