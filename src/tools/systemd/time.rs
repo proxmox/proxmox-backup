@@ -54,7 +54,7 @@ impl DateTimeValue {
         let mut next: Option<u32> = None;
         let mut set_next = |v: u32| {
             if let Some(n) = next {
-                if v > n { next = Some(v); }
+                if v < n { next = Some(v); }
             } else {
                 next = Some(v);
             }
