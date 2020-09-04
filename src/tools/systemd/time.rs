@@ -180,11 +180,11 @@ pub fn compute_next_event(
                     .find(|d| event.days.contains(WeekDays::from_bits(1<<d).unwrap()))
                 {
                     // try next day
-                    t.add_days(n - day_num, true);
+                    t.add_days(n - day_num, true)?;
                     continue;
                 } else {
                     // try next week
-                    t.add_days(7 - day_num, true);
+                    t.add_days(7 - day_num, true)?;
                     continue;
                 }
             }
@@ -196,11 +196,11 @@ pub fn compute_next_event(
             if !DateTimeValue::list_contains(&event.hour, hour) {
                 if let Some(n) = DateTimeValue::find_next(&event.hour, hour) {
                     // test next hour
-                    t.set_time(n as libc::c_int, 0, 0);
+                    t.set_time(n as libc::c_int, 0, 0)?;
                     continue;
                 } else {
                     // test next day
-                    t.add_days(1, true);
+                    t.add_days(1, true)?;
                     continue;
                 }
             }
@@ -212,11 +212,11 @@ pub fn compute_next_event(
             if !DateTimeValue::list_contains(&event.minute, minute) {
                 if let Some(n) = DateTimeValue::find_next(&event.minute, minute) {
                     // test next minute
-                    t.set_min_sec(n as libc::c_int, 0);
+                    t.set_min_sec(n as libc::c_int, 0)?;
                     continue;
                 } else {
                     // test next hour
-                    t.set_time(t.hour() + 1, 0, 0);
+                    t.set_time(t.hour() + 1, 0, 0)?;
                     continue;
                 }
             }
@@ -228,11 +228,11 @@ pub fn compute_next_event(
             if !DateTimeValue::list_contains(&event.second, second) {
                 if let Some(n) = DateTimeValue::find_next(&event.second, second) {
                     // test next second
-                    t.set_sec(n as libc::c_int);
+                    t.set_sec(n as libc::c_int)?;
                     continue;
                 } else {
                     // test next min
-                    t.set_min_sec(t.min() + 1, 0);
+                    t.set_min_sec(t.min() + 1, 0)?;
                     continue;
                 }
             }
