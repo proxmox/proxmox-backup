@@ -57,7 +57,8 @@ pub fn list_sync_jobs(
         job.next_run = (|| -> Option<i64> {
             let schedule = job.schedule.as_ref()?;
             let event = parse_calendar_event(&schedule).ok()?;
-            compute_next_event(&event, last, false).ok()
+            // ignore errors
+            compute_next_event(&event, last, false).unwrap_or_else(|_| None)
         })();
     }
 

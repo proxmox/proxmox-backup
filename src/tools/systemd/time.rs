@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use bitflags::bitflags;
 
 pub use super::parse_time::*;
@@ -155,7 +155,7 @@ pub fn compute_next_event(
     event: &CalendarEvent,
     last: i64,
     utc: bool,
-) -> Result<i64, Error> {
+) -> Result<Option<i64>, Error> {
 
     let last = last + 1; // at least one second later
 
@@ -166,8 +166,9 @@ pub fn compute_next_event(
     let mut count = 0;
 
     loop {
-        if count > 1000 { // should not happen
-            bail!("unable to compute next calendar event");
+        // cancel after 1000 loops
+        if count > 1000 {
+            return Ok(None);
         } else {
             count += 1;
         }
@@ -235,12 +236,14 @@ pub fn compute_next_event(
         }
 
         let next = t.into_epoch()?;
-        return Ok(next)
+        return Ok(Some(next))
     }
 }
 
 #[cfg(test)]
 mod test {
+
+    use anyhow::bail;
 
     use super::*;
     use proxmox::tools::time::*;
@@ -268,7 +271,7 @@ mod test {
             };
 
             match compute_next_event(&event, last, true) {
-                Ok(next) => {
+                Ok(Some(next)) => {
                     if next == expect {
                         println!("next {:?} => {}", event, next);
                     } else {
@@ -276,6 +279,7 @@ mod test {
                               event, gmtime(next), gmtime(expect));
                     }
                 }
+                Ok(None) => bail!("next {:?} failed to find a timestamp", event),
                 Err(err) => bail!("compute next for '{}' failed - {}", v, err),
             }
 

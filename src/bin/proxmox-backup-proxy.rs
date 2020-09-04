@@ -301,7 +301,8 @@ async fn schedule_datastore_garbage_collection() {
         };
 
         let next = match compute_next_event(&event, last, false) {
-            Ok(next) => next,
+            Ok(Some(next)) => next,
+            Ok(None) => continue,
             Err(err) => {
                 eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
                 continue;
@@ -412,7 +413,8 @@ async fn schedule_datastore_prune() {
         };
 
         let next = match compute_next_event(&event, last, false) {
-            Ok(next) => next,
+            Ok(Some(next)) => next,
+            Ok(None) => continue,
             Err(err) => {
                 eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
                 continue;
@@ -520,7 +522,8 @@ async fn schedule_datastore_sync_jobs() {
         };
 
         let next = match compute_next_event(&event, last, false) {
-            Ok(next) => next,
+            Ok(Some(next)) => next,
+            Ok(None) => continue,
             Err(err) => {
                 eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
                 continue;
