@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{Read, BufRead, BufReader};
 use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -195,8 +195,8 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
 /// If there is not a single line with at valid datetime, we assume the
 /// starttime to be the endtime
 pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
-    let mut endtime = upid.starttime;
-    let mut status = TaskState::Unknown { endtime };
+
+    let mut status = TaskState::Unknown { endtime: upid.starttime };
 
     let path = upid.log_path();
 
@@ -207,22 +207,29 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     use std::io::SeekFrom;
     let _ = file.seek(SeekFrom::End(-8192)); // ignore errors
 
-    let reader = BufReader::new(file);
+    let mut data = Vec::with_capacity(8192);
+    file.read_to_end(&mut data)?;
 
-    for line in reader.lines() {
-        let line = line?;
-
-        let mut iter = line.splitn(2, ": ");
-        if let Some(time_str) = iter.next() {
-            endtime = chrono::DateTime::parse_from_rfc3339(time_str)
-                .map_err(|err| format_err!("cannot parse '{}': {}", time_str, err))?
-                .timestamp();
-        } else {
-            continue;
+    let last_line = {
+        let mut start = 0;
+        for pos in data.len()-1..=0 {
+            if data[pos] == b'\n' {
+                start = pos + 1;
+                break;
+            }
         }
-        match iter.next().and_then(|rest| rest.strip_prefix("TASK ")) {
-            None => continue,
-            Some(rest) => {
+        &data[start..]
+    };
+
+    let last_line = std::str::from_utf8(last_line)
+        .map_err(|err| format_err!("upid_read_status: utf8 parse failed: {}", err))?;
+
+    let mut iter = last_line.splitn(2, ": ");
+    if let Some(time_str) = iter.next() {
+        if let Ok(endtime) = chrono::DateTime::parse_from_rfc3339(time_str) {
+            let endtime = endtime.timestamp();
+
+            if let Some(rest) = iter.next().and_then(|rest| rest.strip_prefix("TASK ")) {
                 if let Ok(state) = TaskState::from_endtime_and_message(endtime, rest) {
                     status = state;
                 }
