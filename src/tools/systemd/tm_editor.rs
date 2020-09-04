@@ -50,7 +50,7 @@ impl TmEditor {
 
     pub fn into_epoch(mut self) -> Result<i64, Error> {
         self.t.tm_year -= 1900;
-        let epoch = if self.utc { timegm(self.t)? } else { timelocal(self.t)? };
+        let epoch = if self.utc { timegm(&mut self.t)? } else { timelocal(&mut self.t)? };
         Ok(epoch)
     }
 
