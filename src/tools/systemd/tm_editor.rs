@@ -21,15 +21,13 @@ impl TmEditor {
         Ok(epoch)
     }
 
-    pub fn add_days(&mut self, days: libc::c_int, reset_time: bool) -> Result<(), Error> {
+    /// increases the day by 'days' and resets all smaller fields to their minimum
+    pub fn add_days(&mut self, days: libc::c_int) -> Result<(), Error> {
         if days == 0 { return Ok(()); }
-        if reset_time {
-            self.t.tm_hour = 0;
-            self.t.tm_min = 0;
-            self.t.tm_sec = 0;
-        }
+        self.t.tm_hour = 0;
+        self.t.tm_min = 0;
+        self.t.tm_sec = 0;
         self.t.tm_mday += days;
-        self.t.tm_wday += days;
         self.normalize_time()
     }
 
