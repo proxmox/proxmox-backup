@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use anyhow::Error;
 use bitflags::bitflags;
 
@@ -174,17 +176,17 @@ pub fn compute_next_event(
         }
 
         if !all_days { // match day first
-            let day_num = t.day_num();
+            let day_num: u32 = t.day_num().try_into()?;
             let day = WeekDays::from_bits(1<<day_num).unwrap();
             if !event.days.contains(day) {
                 if let Some(n) = ((day_num+1)..7)
                     .find(|d| event.days.contains(WeekDays::from_bits(1<<d).unwrap()))
                 {
                     // try next day
-                    t.add_days(n - day_num,)?;
+                    t.add_days((n - day_num).try_into()?)?;
                 } else {
                     // try next week
-                    t.add_days(7 - day_num)?;
+                    t.add_days((7 - day_num).try_into()?)?;
                 }
                 continue;
             }
@@ -192,11 +194,11 @@ pub fn compute_next_event(
 
         // this day
         if !event.hour.is_empty() {
-            let hour = t.hour() as u32;
+            let hour = t.hour().try_into()?;
             if !DateTimeValue::list_contains(&event.hour, hour) {
                 if let Some(n) = DateTimeValue::find_next(&event.hour, hour) {
                     // test next hour
-                    t.set_time(n as libc::c_int, 0, 0)?;
+                    t.set_time(n.try_into()?, 0, 0)?;
                 } else {
                     // test next day
                     t.add_days(1)?;
@@ -207,11 +209,11 @@ pub fn compute_next_event(
 
         // this hour
         if !event.minute.is_empty() {
-            let minute = t.min() as u32;
+            let minute = t.min().try_into()?;
             if !DateTimeValue::list_contains(&event.minute, minute) {
                 if let Some(n) = DateTimeValue::find_next(&event.minute, minute) {
                     // test next minute
-                    t.set_min_sec(n as libc::c_int, 0)?;
+                    t.set_min_sec(n.try_into()?, 0)?;
                 } else {
                     // test next hour
                     t.set_time(t.hour() + 1, 0, 0)?;
@@ -222,11 +224,11 @@ pub fn compute_next_event(
 
         // this minute
         if !event.second.is_empty() {
-            let second = t.sec() as u32;
+            let second = t.sec().try_into()?;
             if !DateTimeValue::list_contains(&event.second, second) {
                 if let Some(n) = DateTimeValue::find_next(&event.second, second) {
                     // test next second
-                    t.set_sec(n as libc::c_int)?;
+                    t.set_sec(n.try_into()?)?;
                 } else {
                     // test next min
                     t.set_min_sec(t.min() + 1, 0)?;
