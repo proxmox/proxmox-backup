@@ -19,6 +19,29 @@ impl TmEditor {
         Ok(epoch)
     }
 
+    /// increases the year by 'years' and resets all smaller fields to their minimum
+    pub fn add_years(&mut self, years: libc::c_int) -> Result<(), Error> {
+        if years == 0 { return Ok(()); }
+        self.t.tm_mon = 0;
+        self.t.tm_mday = 1;
+        self.t.tm_hour = 0;
+        self.t.tm_min = 0;
+        self.t.tm_sec = 0;
+        self.t.tm_year += years;
+        self.normalize_time()
+    }
+
+    /// increases the month by 'months' and resets all smaller fields to their minimum
+    pub fn add_months(&mut self, months: libc::c_int) -> Result<(), Error> {
+        if months == 0 { return Ok(()); }
+        self.t.tm_mday = 1;
+        self.t.tm_hour = 0;
+        self.t.tm_min = 0;
+        self.t.tm_sec = 0;
+        self.t.tm_mon += months;
+        self.normalize_time()
+    }
+
     /// increases the day by 'days' and resets all smaller fields to their minimum
     pub fn add_days(&mut self, days: libc::c_int) -> Result<(), Error> {
         if days == 0 { return Ok(()); }
@@ -30,6 +53,8 @@ impl TmEditor {
     }
 
     pub fn year(&self) -> libc::c_int { self.t.tm_year + 1900 } // see man mktime
+    pub fn month(&self) -> libc::c_int { self.t.tm_mon + 1 }
+    pub fn day(&self) -> libc::c_int { self.t.tm_mday }
     pub fn hour(&self) -> libc::c_int { self.t.tm_hour }
     pub fn min(&self) -> libc::c_int { self.t.tm_min }
     pub fn sec(&self) -> libc::c_int { self.t.tm_sec }
@@ -83,7 +108,7 @@ impl TmEditor {
     }
 
     pub fn set_mon(&mut self, v: libc::c_int) -> Result<(), Error> {
-        self.t.tm_mon = v;
+        self.t.tm_mon = v - 1;
         self.normalize_time()
     }
 
