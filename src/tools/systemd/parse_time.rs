@@ -145,6 +145,9 @@ fn parse_date_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, DateTimeVa
         let (i, value) = parse_time_comp(max)(i)?;
 
         if let (i, Some(end)) = opt(preceded(tag(".."), parse_time_comp(max)))(i)? {
+            if value > end {
+                return Err(parse_error(i, "range start is bigger than end"));
+            }
             return Ok((i, DateTimeValue::Range(value, end)))
         }
 
