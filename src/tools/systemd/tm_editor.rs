@@ -10,13 +10,11 @@ pub struct TmEditor {
 impl TmEditor {
 
     pub fn new(epoch: i64, utc: bool) -> Result<Self, Error> {
-        let mut t = if utc { gmtime(epoch)? } else { localtime(epoch)? };
-        t.tm_year += 1900; // real years for clarity
+        let t = if utc { gmtime(epoch)? } else { localtime(epoch)? };
         Ok(Self { utc, t })
     }
 
     pub fn into_epoch(mut self) -> Result<i64, Error> {
-        self.t.tm_year -= 1900;
         let epoch = if self.utc { timegm(&mut self.t)? } else { timelocal(&mut self.t)? };
         Ok(epoch)
     }
@@ -31,6 +29,7 @@ impl TmEditor {
         self.normalize_time()
     }
 
+    pub fn year(&self) -> libc::c_int { self.t.tm_year + 1900 } // see man mktime
     pub fn hour(&self) -> libc::c_int { self.t.tm_hour }
     pub fn min(&self) -> libc::c_int { self.t.tm_min }
     pub fn sec(&self) -> libc::c_int { self.t.tm_sec }
@@ -89,7 +88,7 @@ impl TmEditor {
     }
 
     pub fn set_year(&mut self, v: libc::c_int) -> Result<(), Error> {
-        self.t.tm_year = v;
+        self.t.tm_year = v - 1900;
         self.normalize_time()
     }
 }
