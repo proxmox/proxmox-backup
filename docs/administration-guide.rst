@@ -1411,6 +1411,10 @@ as ``user1@pbs``.
   # pvesm add pbs store2 --server localhost --datastore store2
   # pvesm set store2 --username user1@pbs --password <secret>
 
+.. note:: If you would rather not pass your password as plain text, you can pass
+  the ``--password`` parameter, without any arguments. This will cause the
+  program to prompt you for a password upon entering the command.
+
 If your backup server uses a self signed certificate, you need to add
 the certificate fingerprint to the configuration. You can get the
 fingerprint by running the following command on the backup server:
