@@ -313,7 +313,13 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
     Ok(resp)
 }
 
-fn get_index(userid: Option<Userid>, token: Option<String>, api: &Arc<ApiConfig>, parts: Parts) ->  Response<Body> {
+fn get_index(
+    userid: Option<Userid>,
+    token: Option<String>,
+    language: Option<String>,
+    api: &Arc<ApiConfig>,
+    parts: Parts,
+) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
     let userid = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
@@ -333,10 +339,18 @@ fn get_index(userid: Option<Userid>, token: Option<String>, api: &Arc<ApiConfig>
         }
     }
 
+    let mut lang = String::from("");
+    if let Some(language) = language {
+        if Path::new(&format!("/usr/share/pbs-i18n/pbs-lang-{}.js", language)).exists() {
+            lang = language;
+        }
+    }
+
     let data = json!({
         "NodeName": nodename,
         "UserName": userid,
         "CSRFPreventionToken": token,
+        "language": lang,
         "debug": debug,
     });
 
@@ -441,12 +455,14 @@ async fn handle_static_file_download(filename: PathBuf) ->  Result<Response<Body
     }
 }
 
-fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<String>) {
+fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<String>, Option<String>) {
 
     let mut ticket = None;
+    let mut language = None;
     if let Some(raw_cookie) = headers.get("COOKIE") {
         if let Ok(cookie) = raw_cookie.to_str() {
             ticket = tools::extract_cookie(cookie, "PBSAuthCookie");
+            language = tools::extract_cookie(cookie, "PBSLangCookie");
         }
     }
 
@@ -455,7 +471,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
         _ => None,
     };
 
-    (ticket, token)
+    (ticket, token, language)
 }
 
 fn check_auth(
@@ -526,7 +542,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
             ) {
                 // explicitly allow those calls without auth
             } else {
-                let (ticket, token) = extract_auth_data(&parts.headers);
+                let (ticket, token, _) = extract_auth_data(&parts.headers);
                 match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(userid) => rpcenv.set_user(Some(userid.to_string())),
                     Err(err) => {
@@ -573,20 +589,20 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
         }
 
         if comp_len == 0 {
-            let (ticket, token) = extract_auth_data(&parts.headers);
+            let (ticket, token, language) = extract_auth_data(&parts.headers);
             if ticket != None {
                 match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(userid) => {
                         let new_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
-                        return Ok(get_index(Some(userid), Some(new_token), &api, parts));
+                        return Ok(get_index(Some(userid), Some(new_token), language, &api, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
-                        return Ok(get_index(None, None, &api, parts));
+                        return Ok(get_index(None, None, language, &api, parts));
                     }
                 }
             } else {
-                return Ok(get_index(None, None, &api, parts));
+                return Ok(get_index(None, None, language, &api, parts));
             }
         } else {
             let filename = api.find_alias(&components);
