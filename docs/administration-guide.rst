@@ -148,11 +148,18 @@ when setting up the backup server.
 
 Disk Management
 ~~~~~~~~~~~~~~~
+
+.. image:: images/screenshots/pbs-gui-disks.png
+  :width: 230
+  :align: right
+  :alt: List of disks
+
 Proxmox Backup Server comes with a set of disk utilities, which are
 accessed using the ``disk`` subcommand. This subcommand allows you to initialize
 disks, create various filesystems, and get information about the disks.
 
-To view the disks connected to the system, use the ``list`` subcommand of
+To view the disks connected to the system, navigate to **Administration ->
+Disks** in the web interface or use the ``list`` subcommand of
 ``disk``:
 
 .. code-block:: console
@@ -174,11 +181,19 @@ To initialize a disk with a new GPT, use the ``initialize`` subcommand:
 
   # proxmox-backup-manager disk initialize sdX
 
-You can create an ``ext4`` or ``xfs`` filesystem on a disk, using ``fs
-create``. The following command creates an ``ext4`` filesystem and passes the
-``--add-datastore`` parameter, in order to automatically create a datastore on
-the disk (in this case ``sdd``). This will create a datastore at the location
-``/mnt/datastore/store1``:
+.. image:: images/screenshots/pbs-gui-disks-dir-create.png
+  :width: 230
+  :align: right
+  :alt: Create a directory
+
+You can create an ``ext4`` or ``xfs`` filesystem on a disk using ``fs
+create``, or by navigating to **Administration -> Disks -> Directory** in the
+web interface and creating one from there. The following command creates an
+``ext4`` filesystem and passes the ``--add-datastore`` parameter, in order to
+automatically create a datastore on the disk (in this case ``sdd``). This will
+create a datastore at the location ``/mnt/datastore/store1``:
+
+|
 
 .. code-block:: console
 
@@ -189,9 +204,17 @@ the disk (in this case ``sdd``). This will create a datastore at the location
   Percentage done: 99
   TASK OK
 
-You can also create a ``zpool`` with various raid levels. The command below
-creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and mounts it
-on the root directory (default):
+.. image:: images/screenshots/pbs-gui-disks-zfs-create.png
+  :width: 230
+  :align: right
+  :alt: Create a directory
+
+You can also create a ``zpool`` with various raid levels from **Administration
+-> Disks -> Zpool** in the web interface, or by using ``zpool create``. The command
+below creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and
+mounts it on the root directory (default):
+
+|
 
 .. code-block:: console
 
