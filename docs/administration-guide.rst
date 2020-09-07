@@ -232,17 +232,23 @@ You can use ``disk fs list`` and ``disk zpool list`` to keep track of your
 filesystems and zpools respectively.
 
 If a disk supports S.M.A.R.T. capability, and you have this enabled, you can
-display S.M.A.R.T. attributes using the command:
+display S.M.A.R.T. attributes from the web interface or by using the command:
 
 .. code-block:: console
 
   # proxmox-backup-manager disk smart-attributes sdX
 
+
 Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+.. image:: images/screenshots/pbs-gui-datastore.png
+  :width: 230
+  :align: right
+  :alt: Datastore Overview
+
 You can configure multiple datastores. Minimum one datastore needs to be
-configured. The datastore is identified by a simple `name` and points to a
+configured. The datastore is identified by a simple *name* and points to a
 directory on the filesystem. Each datastore also has associated retention
 settings of how many backup snapshots for each interval of ``hourly``,
 ``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
@@ -250,13 +256,35 @@ number of backups to keep in that store. :ref:`Pruning <pruning>` and
 :ref:`garbage collection <garbage-collection>` can also be configured to run
 periodically based on a configured :term:`schedule` per datastore.
 
-The following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
+Creating a Datastore
+^^^^^^^^^^^^^^^^^^^^
+.. image:: images/screenshots/pbs-gui-datastore-create-general.png
+  :width: 230
+  :align: right
+  :alt: Create a data store
+
+You can create a new datastore from the web GUI, by navigating to **Datastore** in
+the menu tree and clicking **Create**. Here:
+
+* *Name* refers to the name of the datastore
+* *Backing Path* is the path to the directory upon which you want to create the
+  datastore
+* *GC Schedule* refers to the time and intervals at which garbage collection
+  runs
+* *Prune Schedule* refers to the frequency at which pruning takes place
+* *Prune Options* set the amount of backups which you would like to keep (see :ref:`Pruning <pruning>`).
+
+Alternatively you can create a new datastore from the command line. The
+following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`
 
 .. code-block:: console
 
   # proxmox-backup-manager datastore create store1 /backup/disk1/store1
 
-To list existing datastores run:
+Managing Datastores
+^^^^^^^^^^^^^^^^^^^
+
+To list existing datastores from the command line run:
 
 .. code-block:: console
 
@@ -267,13 +295,15 @@ To list existing datastores run:
   │ store1 │ /backup/disk1/store1 │ This is my default storage. │
   └────────┴──────────────────────┴─────────────────────────────┘
 
-You can change settings of a datastore, for example to set a prune and garbage
-collection schedule or retention settings using ``update`` subcommand and view
-a datastore with the ``show`` subcommand:
+You can change the garbage collection and prune settings of a datastore, by
+editing the datastore from the GUI or by using the ``update`` subcommand. For
+example, the below command changes the garbage collection schedule using the
+``update`` subcommand and prints the properties of the datastore with the
+``show`` subcommand:
 
 .. code-block:: console
 
-  # proxmox-backup-manager datastore update store1 --keep-last 7 --prune-schedule daily --gc-schedule 'Tue 04:27'
+  # proxmox-backup-manager datastore update store1 --gc-schedule 'Tue 04:27'
   # proxmox-backup-manager datastore show store1
   ┌────────────────┬─────────────────────────────┐
   │ Name           │ Value                       │
