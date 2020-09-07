@@ -19,7 +19,7 @@ bitflags!{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DateTimeValue {
     Single(u32),
     Range(u32, u32),
@@ -93,7 +93,7 @@ impl DateTimeValue {
 /// Calendar events may be used to refer to one or more points in time in a
 /// single expression. They are designed after the systemd.time Calendar Events
 /// specification, but are not guaranteed to be 100% compatible.
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct CalendarEvent {
     /// the days in a week this event should trigger
     pub days: WeekDays,
@@ -111,7 +111,7 @@ pub struct CalendarEvent {
     pub year: Vec<DateTimeValue>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct TimeSpan {
     pub nsec: u64,
     pub usec: u64,
