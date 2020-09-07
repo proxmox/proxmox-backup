@@ -446,7 +446,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
     let mut ticket = None;
     if let Some(raw_cookie) = headers.get("COOKIE") {
         if let Ok(cookie) = raw_cookie.to_str() {
-            ticket = tools::extract_auth_cookie(cookie, "PBSAuthCookie");
+            ticket = tools::extract_cookie(cookie, "PBSAuthCookie");
         }
     }
 
