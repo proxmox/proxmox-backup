@@ -541,9 +541,19 @@ A single user can be assigned multiple permission sets for different data stores
 
 Network Management
 ~~~~~~~~~~~~~~~~~~
-Proxmox Backup Server provides an interface for network configuration, through the
-``network`` subcommand. This allows you to carry out some basic network
-management tasks such as adding, configuring and removing network interfaces.
+
+Proxmox Backup Server provides both a web interface and a command line tool for
+network configuration. You can find the configuration options in the web
+interface under the **Network Interfaces** section of the **Configuration** menu
+tree item. The command line tool is accessed via the ``network`` subcommand.
+These interfaces allow you to carry out some basic network management tasks,
+such as adding, configuring, and removing network interfaces.
+
+.. note:: Any changes made to the network configuration are not
+  applied, until you click on **Apply Configuration** or enter the ``network
+  reload`` command. This allows you to make many changes at once. It also allows
+  you to ensure that your changes are correct before applying them, as making a
+  mistake here can render the server inaccessible over the network.
 
 To get a list of available interfaces, use the following command:
 
@@ -562,8 +572,16 @@ To get a list of available interfaces, use the following command:
   │ vmbr0 │ bridge │         1 │ static │         │ x.x.x.x/x         │ x.x.x.x      │ bond0        │
   └───────┴────────┴───────────┴────────┴─────────┴───────────────────┴──────────────┴──────────────┘
 
-To add a new network interface, use the ``create`` subcommand with the relevant
+.. image:: images/screenshots/pbs-gui-network-create-bond.png
+  :width: 230
+  :align: right
+  :alt: Add a network interface
+
+To add a new network interface, select an interface type from the **Create** menu
+in the web interface, or use the ``create`` subcommand with the relevant
 parameters. The following command shows a template for creating a new bridge:
+
+|
 
 .. code-block:: console
 
@@ -582,27 +600,30 @@ You can also remove a network interface:
 
    # proxmox-backup-manager network remove vmbr1
 
-To view the changes made to the network configuration file, before committing
-them, use the command:
+The pending changes for the network configuration file will appear at the bottom of the
+web interface. You can also view these changes, by using the command:
 
 .. code-block:: console
 
   # proxmox-backup-manager network changes
 
-If you would like to cancel all changes at this point, you can do this using:
+If you would like to cancel all changes at this point, you can either click on
+the **Revert** button or use the following command:
 
 .. code-block:: console
 
   # proxmox-backup-manager network revert
 
 If you are happy with the changes and would like to write them into the
-configuration file, the command is:
+configuration file, select **Apply Configuration**. The corresponding command
+is:
 
 .. code-block:: console
 
   # proxmox-backup-manager network reload
 
-You can also configure DNS settings using the ``dns`` subcommand of
+You can also configure DNS settings, from the **DNS** section
+of **Configuration** or by using the ``dns`` subcommand of
 ``proxmox-backup-manager``.
 
 :term:`Remote`
