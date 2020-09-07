@@ -363,6 +363,13 @@ mod test {
         test_value("sat", THURSDAY_00_00, THURSDAY_00_00 + 2*DAY)?;
         test_value("sun", THURSDAY_00_00, THURSDAY_00_00 + 3*DAY)?;
 
+        // test multiple values for a single field
+        // and test that the order does not matter
+        test_value("5,10:4,8", THURSDAY_00_00, THURSDAY_00_00 + 5*HOUR + 4*MIN)?;
+        test_value("10,5:8,4", THURSDAY_00_00, THURSDAY_00_00 + 5*HOUR + 4*MIN)?;
+        test_value("6,4..10:23,5/5", THURSDAY_00_00, THURSDAY_00_00 + 4*HOUR + 5*MIN)?;
+        test_value("4..10,6:5/5,23", THURSDAY_00_00, THURSDAY_00_00 + 4*HOUR + 5*MIN)?;
+
         // test month wrapping
         test_value("sat", JUL_31_2020, JUL_31_2020 + 1*DAY)?;
         test_value("sun", JUL_31_2020, JUL_31_2020 + 2*DAY)?;
