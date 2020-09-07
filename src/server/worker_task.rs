@@ -210,9 +210,14 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
     let mut data = Vec::with_capacity(8192);
     file.read_to_end(&mut data)?;
 
+    // task logs should end with newline, we do not want it here
+    if data[data.len()-1] == b'\n' {
+        data.pop();
+    }
+
     let last_line = {
         let mut start = 0;
-        for pos in data.len()-1..=0 {
+        for pos in (0..data.len()).rev() {
             if data[pos] == b'\n' {
                 start = pos + 1;
                 break;
