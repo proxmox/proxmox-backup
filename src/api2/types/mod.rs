@@ -559,6 +559,8 @@ pub struct GarbageCollectionStatus {
     pub pending_bytes: u64,
     /// Number of pending chunks (pending removal - kept for safety).
     pub pending_chunks: usize,
+    /// Number of chunks marked as .bad by verify that have been removed by GC.
+    pub removed_bad: usize,
 }
 
 impl Default for GarbageCollectionStatus {
@@ -573,6 +575,7 @@ impl Default for GarbageCollectionStatus {
             removed_chunks: 0,
             pending_bytes: 0,
             pending_chunks: 0,
+            removed_bad: 0,
         }
     }
 }

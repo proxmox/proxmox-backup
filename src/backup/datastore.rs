@@ -85,7 +85,7 @@ impl DataStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize)>,
+        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize, bool)>,
         Error
     > {
         self.chunk_store.get_chunk_iterator()
@@ -494,6 +494,9 @@ impl DataStore {
             worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
             if gc_status.pending_bytes > 0 {
                 worker.log(&format!("Pending removals: {} (in {} chunks)", HumanByte::from(gc_status.pending_bytes), gc_status.pending_chunks));
+            }
+            if gc_status.removed_bad > 0 {
+                worker.log(&format!("Removed bad files: {}", gc_status.removed_bad));
             }
 
             worker.log(&format!("Original data usage: {}", HumanByte::from(gc_status.index_data_bytes)));

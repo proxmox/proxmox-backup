@@ -187,7 +187,7 @@ impl ChunkStore {
     pub fn get_chunk_iterator(
         &self,
     ) -> Result<
-        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize)> + std::iter::FusedIterator,
+        impl Iterator<Item = (Result<tools::fs::ReadDirEntry, Error>, usize, bool)> + std::iter::FusedIterator,
         Error
     > {
         use nix::dir::Dir;
@@ -219,19 +219,21 @@ impl ChunkStore {
                         Some(Ok(entry)) => {
                             // skip files if they're not a hash
                             let bytes = entry.file_name().to_bytes();
-                            if bytes.len() != 64 {
+                            if bytes.len() != 64 && bytes.len() != 64 + ".0.bad".len() {
                                 continue;
                             }
-                            if !bytes.iter().all(u8::is_ascii_hexdigit) {
+                            if !bytes.iter().take(64).all(u8::is_ascii_hexdigit) {
                                 continue;
                             }
-                            return Some((Ok(entry), percentage));
+
+                            let bad = bytes.ends_with(".bad".as_bytes());
+                            return Some((Ok(entry), percentage, bad));
                         }
                         Some(Err(err)) => {
                             // stop after first error
                             done = true;
                             // and pass the error through:
-                            return Some((Err(err), percentage));
+                            return Some((Err(err), percentage, false));
                         }
                         None => (), // open next directory
                     }
@@ -261,7 +263,7 @@ impl ChunkStore {
                         // other errors are fatal, so end our iteration
                         done = true;
                         // and pass the error through:
-                        return Some((Err(format_err!("unable to read subdir '{}' - {}", subdir, err)), percentage));
+                        return Some((Err(format_err!("unable to read subdir '{}' - {}", subdir, err)), percentage, false));
                     }
                 }
             }
@@ -280,6 +282,7 @@ impl ChunkStore {
         worker: &WorkerTask,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
+        use nix::unistd::{unlinkat, UnlinkatFlags};
 
         let mut min_atime = phase1_start_time - 3600*24; // at least 24h (see mount option relatime)
 
@@ -292,7 +295,7 @@ impl ChunkStore {
         let mut last_percentage = 0;
         let mut chunk_count = 0;
 
-        for (entry, percentage) in self.get_chunk_iterator()? {
+        for (entry, percentage, bad) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
                 worker.log(format!("percentage done: phase2 {}% (processed {} chunks)", percentage, chunk_count));
@@ -321,14 +324,59 @@ impl ChunkStore {
             let lock = self.mutex.lock();
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                if stat.st_atime < min_atime {
+                if bad {
+                    match std::ffi::CString::new(&filename.to_bytes()[..64]) {
+                        Ok(orig_filename) => {
+                            match fstatat(
+                                dirfd,
+                                orig_filename.as_c_str(),
+                                nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
+                            {
+                                Ok(_) => { /* do nothing */ },
+                                Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
+                                    // chunk hasn't been rewritten yet, keep
+                                    // .bad file around for manual recovery
+                                    continue;
+                                },
+                                Err(err) => {
+                                    // some other error, warn user and keep
+                                    // .bad file around too
+                                    worker.warn(format!(
+                                        "error during stat on '{:?}' - {}",
+                                        orig_filename,
+                                        err,
+                                    ));
+                                    continue;
+                                }
+                            }
+                        },
+                        Err(err) => {
+                            worker.warn(format!(
+                                "could not get original filename from .bad file '{:?}' - {}",
+                                filename,
+                                err,
+                            ));
+                            continue;
+                        }
+                    }
+
+                    if let Err(err) = unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
+                        worker.warn(format!(
+                            "unlinking corrupt chunk {:?} failed on store '{}' - {}",
+                            filename,
+                            self.name,
+                            err,
+                        ));
+                    } else {
+                        status.removed_bad += 1;
+                        status.removed_bytes += stat.st_size as u64;
+                    }
+                } else if stat.st_atime < min_atime {
                     //let age = now - stat.st_atime;
                     //println!("UNLINK {}  {:?}", age/(3600*24), filename);
-                    let res = unsafe { libc::unlinkat(dirfd, filename.as_ptr(), 0) };
-                    if res != 0 {
-                        let err = nix::Error::last();
+                    if let Err(err) = unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
                         bail!(
-                            "unlink chunk {:?} failed on store '{}' - {}",
+                            "unlinking chunk {:?} failed on store '{}' - {}",
                             filename,
                             self.name,
                             err,
