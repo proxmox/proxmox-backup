@@ -631,18 +631,27 @@ of **Configuration** or by using the ``dns`` subcommand of
 
 A remote refers to a separate Proxmox Backup Server installation and a user on that
 installation, from which you can `sync` datastores to a local datastore with a
-`Sync Job`.
+`Sync Job`. You can configure remotes in the web interface, under **Configuration
+-> Remotes**. Alternatively, you can use the ``remote`` subcommand.
+
+.. image:: images/screenshots/pbs-gui-remote-add.png
+.. image:: images/screenshots/pbs-gui-permissions-add.png
+  :width: 230
+  :align: right
+  :alt: Add a remote
 
 To add a remote, you need its hostname or ip, a userid and password on the
 remote, and its certificate fingerprint. To get the fingerprint, use the
-``proxmox-backup-manager cert info`` command on the remote.
+``proxmox-backup-manager cert info`` command on the remote, or navigate to
+**Dashboard** in the remote's web interface and select **Show Fingerprint**.
 
 .. code-block:: console
 
   # proxmox-backup-manager cert info |grep Fingerprint
   Fingerprint (sha256): 64:d3:ff:3a:50:38:53:5a:9b:f7:50:...:ab:fe
 
-Using the information specified above, add the remote with:
+Using the information specified above, you can add a remote from the **Remotes**
+configuration panel, or by using the command:
 
 .. code-block:: console
 
@@ -666,10 +675,16 @@ Use the ``list``, ``show``, ``update``, ``remove`` subcommands of
 Sync Jobs
 ~~~~~~~~~
 
-Sync jobs are configured to pull the contents of a datastore on a `Remote` to a
-local datastore. You can either start the sync job manually on the GUI or
-provide it with a :term:`schedule` to run regularly. The
-``proxmox-backup-manager sync-job`` command is used to manage sync jobs:
+.. image:: images/screenshots/pbs-gui-syncjob-add.png
+  :width: 230
+  :align: right
+  :alt: Add a remote
+
+Sync jobs are configured to pull the contents of a datastore on a **Remote** to a
+local datastore. You can either start a sync job manually on the GUI or
+provide it with a :term:`schedule` to run regularly. You can manage sync jobs
+under **Configuration -> Sync Jobs** in the web interface, or using the
+``proxmox-backup-manager sync-job`` command:
 
 .. code-block:: console
 
@@ -682,6 +697,7 @@ provide it with a :term:`schedule` to run regularly. The
   │ pbs2-local │ local │ pbs2   │ local        │ Wed 02:30 │ offsite │
   └────────────┴───────┴────────┴──────────────┴───────────┴─────────┘
   # proxmox-backup-manager sync-job remove pbs2-local
+
 
 Garbage Collection
 ~~~~~~~~~~~~~~~~~~
