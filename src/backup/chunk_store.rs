@@ -414,6 +414,7 @@ impl ChunkStore {
 
         if let Ok(metadata) = std::fs::metadata(&chunk_path) {
             if metadata.is_file() {
+                self.touch_chunk(digest)?;
                 return Ok((true, metadata.len()));
             } else {
                 bail!("Got unexpected file type on store '{}' for chunk {}", self.name, digest_str);
