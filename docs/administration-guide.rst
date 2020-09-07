@@ -381,6 +381,11 @@ directories will store the chunked data after a backup operation has been execut
 User Management
 ~~~~~~~~~~~~~~~
 
+.. image:: images/screenshots/pbs-gui-user-management.png
+  :width: 230
+  :align: right
+  :alt: User management
+
 Proxmox Backup Server supports several authentication realms, and you need to
 choose the realm when you add a new user. Possible realms are:
 
@@ -405,19 +410,22 @@ users:
   │ root@pam    │      1 │        │           │          │                │ Superuser          │
   └─────────────┴────────┴────────┴───────────┴──────────┴────────────────┴────────────────────┘
 
+.. image:: images/screenshots/pbs-gui-user-management-add-user.png
+  :width: 230
+  :align: right
+  :alt: Add a new user
+
 The superuser has full administration rights on everything, so you
-normally want to add other users with less privileges:
+normally want to add other users with less privileges. You can create a new
+user with the ``user create`` subcommand or through the web interface, under
+**Configuration -> User Management**. The ``create`` subcommand lets you specify
+many options like ``--email`` or ``--password``. You can update or change any
+user properties using the ``update`` subcommand later (**Edit** in the GUI):
+
 
 .. code-block:: console
 
   # proxmox-backup-manager user create john@pbs --email john@example.com
-
-The create command lets you specify many options like ``--email`` or
-``--password``. You can update or change any of them using the
-update command later:
-
-.. code-block:: console
-
   # proxmox-backup-manager user update john@pbs --firstname John --lastname Smith
   # proxmox-backup-manager user update john@pbs --comment "An example user."
 
@@ -495,9 +503,15 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
-You can use the ``acl`` subcommand to manage and monitor user permissions. For
-example, the command below will add the user ``john@pbs`` as a
-**DatastoreAdmin** for the data store ``store1``, located at ``/backup/disk1/store1``:
+  :width: 230
+  :align: right
+  :alt: Add permissions for user
+
+You can manage datastore permissions from **Configuration -> Permissions** in
+the web interface. Likewise, you can use the ``acl`` subcommand to manage and
+monitor user permissions from the command line. For example, the command below
+will add the user ``john@pbs`` as a **DatastoreAdmin** for the datastore
+``store1``, located at ``/backup/disk1/store1``:
 
 .. code-block:: console
 
