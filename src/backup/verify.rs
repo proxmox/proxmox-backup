@@ -163,7 +163,7 @@ fn verify_index_chunks(
 
     let error_count = errors.load(Ordering::SeqCst);
 
-    worker.log(format!("  verified {:.2}/{:.2} Mib in {:.2} seconds, speed {:.2}/{:.2} Mib/s ({} errors)",
+    worker.log(format!("  verified {:.2}/{:.2} MiB in {:.2} seconds, speed {:.2}/{:.2} MiB/s ({} errors)",
                        read_bytes_mib, decoded_bytes_mib, elapsed, read_speed, decode_speed, error_count));
 
     if errors.load(Ordering::SeqCst) > 0 {
