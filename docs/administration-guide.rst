@@ -24,6 +24,13 @@ good deduplication rates for file archives.
 The Proxmox Backup Server supports both strategies.
 
 
+Image Archives: ``<name>.img``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is used for virtual machine images and other large binary
+data. Content is split into fixed-sized chunks.
+
+
 File Archives: ``<name>.pxar``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -32,13 +39,6 @@ File Archives: ``<name>.pxar``
 A file archive stores a full directory tree. Content is stored using
 the :ref:`pxar-format`, split into variable-sized chunks. The format
 is optimized to achieve good deduplication rates.
-
-
-Image Archives: ``<name>.img``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This is used for virtual machine images and other large binary
-data. Content is split into fixed-sized chunks.
 
 
 Binary Data (BLOBs)
