@@ -252,6 +252,6 @@ pub const SYSTEMD_TIMESPAN_SCHEMA: Schema = StringSchema::new(
     .schema();
 
 pub const SYSTEMD_CALENDAR_EVENT_SCHEMA: Schema = StringSchema::new(
-    "systemd time span")
+    "systemd calendar event")
     .format(&ApiStringFormat::VerifyFn(super::time::verify_calendar_event))
     .schema();
