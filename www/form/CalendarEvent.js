@@ -28,6 +28,8 @@ Ext.define('PBS.form.CalendarEvent', {
     displayField: 'text',
     queryMode: 'local',
 
+    matchFieldWidth: false,
+
     config: {
 	deleteEmpty: true,
     },
