@@ -48,10 +48,9 @@ fn rename_corrupted_chunk(
 
     let mut counter = 0;
     let mut new_path = path.clone();
-    new_path.set_file_name(format!("{}.{}.bad", digest_str, counter));
-    while new_path.exists() && counter < 9 {
-        counter += 1;
+    loop {
         new_path.set_file_name(format!("{}.{}.bad", digest_str, counter));
+        if new_path.exists() && counter < 9 { counter += 1; } else { break; }
     }
 
     match std::fs::rename(&path, &new_path) {
