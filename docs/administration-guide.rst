@@ -261,7 +261,7 @@ Creating a Datastore
 .. image:: images/screenshots/pbs-gui-datastore-create-general.png
   :width: 230
   :align: right
-  :alt: Create a data store
+  :alt: Create a datastore
 
 You can create a new datastore from the web GUI, by navigating to **Datastore** in
 the menu tree and clicking **Create**. Here:
@@ -528,15 +528,15 @@ You can monitor the roles of each user using the following command:
    │ john@pbs │ /datastore/disk1 │         1 │ DatastoreAdmin │
    └──────────┴──────────────────┴───────────┴────────────────┘
 
-A single user can be assigned multiple permission sets for different data stores.
+A single user can be assigned multiple permission sets for different datastores.
 
 .. Note::
-  Naming convention is important here. For data stores on the host,
+  Naming convention is important here. For datastores on the host,
   you must use the convention ``/datastore/{storename}``. For example, to set
-  permissions for a data store mounted at ``/mnt/backup/disk4/store2``, you would use
+  permissions for a datastore mounted at ``/mnt/backup/disk4/store2``, you would use
   ``/datastore/store2`` for the path. For remote stores, use the convention
   ``/remote/{remote}/{storename}``, where ``{remote}`` signifies the name of the
-  remote (see `Remote` below) and ``{storename}`` is the name of the data store on
+  remote (see `Remote` below) and ``{storename}`` is the name of the datastore on
   the remote.
 
 Network Management
@@ -700,7 +700,7 @@ Garbage Collection
 You can monitor and run :ref:`garbage collection <garbage-collection>` on the
 Proxmox Backup Server using the ``garbage-collection`` subcommand of
 ``proxmox-backup-manager``. You can use the ``start`` subcommand to manually start garbage
-collection on an entire data store and the ``status`` subcommand to see
+collection on an entire datastore and the ``status`` subcommand to see
 attributes relating to the :ref:`garbage collection <garbage-collection>`.
 
 
@@ -1310,7 +1310,7 @@ Garbage Collection
 ~~~~~~~~~~~~~~~~~~
 
 The ``prune`` command removes only the backup index files, not the data
-from the data store. This task is left to the garbage collection
+from the datastore. This task is left to the garbage collection
 command. It is recommended to carry out garbage collection on a regular basis.
 
 The garbage collection works in two phases. In the first phase, all
