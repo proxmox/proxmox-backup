@@ -141,7 +141,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
     let (manifest, _) = client.download_manifest().await?;
 
-    let file_info = manifest.lookup_file_info(&archive_name)?;
+    let file_info = manifest.lookup_file_info(&server_archive_name)?;
 
     if server_archive_name.ends_with(".didx") {
         let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
