@@ -325,51 +325,39 @@ impl ChunkStore {
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 if bad {
-                    match std::ffi::CString::new(&filename.to_bytes()[..64]) {
-                        Ok(orig_filename) => {
-                            match fstatat(
-                                dirfd,
-                                orig_filename.as_c_str(),
-                                nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
-                            {
-                                Ok(_) => { /* do nothing */ },
-                                Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
-                                    // chunk hasn't been rewritten yet, keep
-                                    // .bad file around for manual recovery
-                                    continue;
-                                },
-                                Err(err) => {
-                                    // some other error, warn user and keep
-                                    // .bad file around too
+                    // filename validity checked in iterator
+                    let orig_filename = std::ffi::CString::new(&filename.to_bytes()[..64]).unwrap();
+                    match fstatat(
+                        dirfd,
+                        orig_filename.as_c_str(),
+                        nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
+                    {
+                        Ok(_) => {
+                            match unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
+                                Err(err) =>
                                     worker.warn(format!(
-                                        "error during stat on '{:?}' - {}",
-                                        orig_filename,
+                                        "unlinking corrupt chunk {:?} failed on store '{}' - {}",
+                                        filename,
+                                        self.name,
                                         err,
-                                    ));
-                                    continue;
+                                    )),
+                                Ok(_) => {
+                                    status.removed_bad += 1;
+                                    status.removed_bytes += stat.st_size as u64;
                                 }
                             }
                         },
+                        Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
+                            // chunk hasn't been rewritten yet, keep .bad file
+                        },
                         Err(err) => {
+                            // some other error, warn user and keep .bad file around too
                             worker.warn(format!(
-                                "could not get original filename from .bad file '{:?}' - {}",
-                                filename,
+                                "error during stat on '{:?}' - {}",
+                                orig_filename,
                                 err,
                             ));
-                            continue;
                         }
-                    }
-
-                    if let Err(err) = unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
-                        worker.warn(format!(
-                            "unlinking corrupt chunk {:?} failed on store '{}' - {}",
-                            filename,
-                            self.name,
-                            err,
-                        ));
-                    } else {
-                        status.removed_bad += 1;
-                        status.removed_bytes += stat.st_size as u64;
                     }
                 } else if stat.st_atime < min_atime {
                     //let age = now - stat.st_atime;
