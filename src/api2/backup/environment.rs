@@ -457,11 +457,11 @@ impl BackupEnvironment {
     /// Mark backup as finished
     pub fn finish_backup(&self) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
-        // test if all writer are correctly closed
 
         state.ensure_unfinished()?;
 
-        if state.dynamic_writers.len() != 0 {
+        // test if all writer are correctly closed
+        if state.dynamic_writers.len() != 0 || state.fixed_writers.len() != 0 {
             bail!("found open index writer - unable to finish backup");
         }
 
