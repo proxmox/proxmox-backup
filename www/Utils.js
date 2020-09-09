@@ -41,9 +41,9 @@ Ext.define('PBS.Utils', {
 	let files = data.count;
 	if (mixed > 0) {
 	    return PBS.Utils.cryptmap.indexOf('mixed');
-	} else if (files === encrypted) {
+	} else if (files === encrypted && encrypted > 0) {
 	    return PBS.Utils.cryptmap.indexOf('encrypt');
-	} else if (files === signed) {
+	} else if (files === signed && signed > 0) {
 	    return PBS.Utils.cryptmap.indexOf('sign-only');
 	} else if ((signed+encrypted) === 0) {
 	    return PBS.Utils.cryptmap.indexOf('none');
