@@ -87,8 +87,6 @@ async fn run() -> Result<(), Error> {
                     let acceptor = Arc::clone(&acceptor);
                     async move {
                         sock.set_nodelay(true).unwrap();
-                        sock.set_send_buffer_size(1024*1024).unwrap();
-                        sock.set_recv_buffer_size(1024*1024).unwrap();
                         Ok(tokio_openssl::accept(&acceptor, sock)
                             .await
                             .ok() // handshake errors aren't be fatal, so return None to filter
