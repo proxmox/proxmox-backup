@@ -292,7 +292,6 @@ impl HttpClient {
 
         let mut httpc = hyper::client::HttpConnector::new();
         httpc.set_nodelay(true); // important for h2 download performance!
-        httpc.set_recv_buffer_size(Some(1024*1024)); //important for h2 download performance!
         httpc.enforce_http(false); // we want https...
 
         let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
