@@ -415,6 +415,10 @@ pub fn verify_all_backups(datastore: Arc<DataStore>, worker: Arc<WorkerTask>) ->
 
     let mut done = 0;
     for group in list {
+        if group.backup_type() == "host" && group.backup_id() == "benchmark" {
+            continue;
+        }
+
         let (count, mut group_errors) = verify_backup_group(
             datastore.clone(),
             &group,
