@@ -60,7 +60,7 @@ gains access to the server, they will not be able to read the data.
 .. note:: Encryption is not enabled by default. To set up encryption, see the
   `Encryption
   <https://pbs.proxmox.com/docs/administration-guide.html#encryption>`_ section
-  of the Proxmox Packup Server Administration Guide.
+  of the Proxmox Backup Server Administration Guide.
 
 
 Is the backup incremental/deduplicated?
