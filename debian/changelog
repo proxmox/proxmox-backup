@@ -1,3 +1,32 @@
+rust-proxmox-backup (0.8.15-1) unstable; urgency=medium
+
+  *  verify: skip benchmark directory
+
+  * add benchmark flag to backup creation for proper cleanup when running
+    a benchmark
+
+  * mount: fix mount subcommand
+
+  * ui: only mark backup encrypted if there are any files
+
+  * fix #2983: improve tcp performance
+
+  * improve ui and docs
+
+  * verify: rename corrupted chunks with .bad extension
+
+  * gc: remove .bad files on garbage collect
+
+  * ui: add translation support
+
+  * server/worker_task: fix upid_read_status
+
+  * tools/systemd/time: enable dates for calendarevents
+
+  * server/worker_task: fix 'unknown' status for some big task logs
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 10 Sep 2020 09:25:59 +0200
+
 rust-proxmox-backup (0.8.14-1) unstable; urgency=medium
 
   * verify speed up: use separate IO thread, use datastore-wide cache (instead
@@ -443,4 +472,3 @@ proxmox-backup (0.1-1) unstable; urgency=medium
   * first try
 
  -- Proxmox Support Team <support@proxmox.com>  Fri, 30 Nov 2018 13:03:28 +0100
-
