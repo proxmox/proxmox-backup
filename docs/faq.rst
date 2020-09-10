@@ -24,11 +24,11 @@ future plans to support 32-bit processors.
 How long will my Proxmox Backup Server version be supported?
 ------------------------------------------------------------
 
-+------------+--------------------+---------------+------------+---------+
-|PBS Version | Debian Version     | First Release | Debian EOL | PBS EOL |
-+============+====================+===============+============+=========+
-|PBS 1.x     | Debian 10 (Buster) | tba           | tba        | tba     |
-+------------+--------------------+---------------+------------+---------+
++-----------------------+--------------------+---------------+------------+--------------------+
+|Proxmox Backup Version | Debian Version     | First Release | Debian EOL | Proxmox Backup EOL |
++=======================+====================+===============+============+====================+
+|Proxmox Backup 1.x     | Debian 10 (Buster) | tba           | tba        | tba                |
++-----------------------+--------------------+---------------+------------+--------------------+
 
 
 Can I copy or synchronize my datastore to another location?
@@ -44,27 +44,28 @@ a *Remote* to a local datastore.
 Can Proxmox Backup Server verify data integrity of a backup archive?
 --------------------------------------------------------------------
 
-PBS uses a built-in SHA-256 checksum algorithm, to ensure data integrity. Within
-each backup, a manifest file (index.json) is created, which contains a list of
-all the backup files, along with their sizes and checksums. This manifest file
-is used to verify the integrity of each backup.
+Proxmox Backup Server uses a built-in SHA-256 checksum algorithm, to ensure
+data integrity. Within each backup, a manifest file (index.json) is created,
+which contains a list of all the backup files, along with their sizes and
+checksums. This manifest file is used to verify the integrity of each backup.
 
 
 When backing up to remote servers, do I have to trust the remote server?
 ------------------------------------------------------------------------
 
-PBS supports client-side encryption, meaning your data is encrypted before
-it reaches the server. Thus, in the event that an attacker gains access to the
-server, they will not be able to read the data.
+Proxmox Backup Server supports client-side encryption, meaning your data is
+encrypted before it reaches the server. Thus, in the event that an attacker
+gains access to the server, they will not be able to read the data.
 
 .. note:: Encryption is not enabled by default. To set up encryption, see the
   `Encryption
   <https://pbs.proxmox.com/docs/administration-guide.html#encryption>`_ section
-  of the PBS Administration Guide.
+  of the Proxmox Packup Server Administration Guide.
 
 
 Is the backup incremental/deduplicated?
 ---------------------------------------
 
-With PBS, backups are incremental and data is deduplicated. This minimizes both
-the storage consumed and the network impact.
+With Proxmox Backup Server, backups are sent incremental and data is
+deduplicated on the server.
+This minimizes both the storage consumed and the network impact.
