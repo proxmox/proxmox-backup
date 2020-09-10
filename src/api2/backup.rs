@@ -159,6 +159,7 @@ async move {
                 let window_size = 32*1024*1024; // max = (1 << 31) - 2
                 http.http2_initial_stream_window_size(window_size);
                 http.http2_initial_connection_window_size(window_size);
+                http.http2_max_frame_size(4*1024*1024);
 
                 http.serve_connection(conn, service)
                     .map_err(Error::from)
