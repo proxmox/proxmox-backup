@@ -391,7 +391,10 @@ pub fn verify_all_backups(datastore: Arc<DataStore>, worker: Arc<WorkerTask>) ->
     let mut errors = Vec::new();
 
     let mut list = match BackupGroup::list_groups(&datastore.base_path()) {
-        Ok(list) => list,
+        Ok(list) => list
+            .into_iter()
+            .filter(|group| !(group.backup_type() == "host" && group.backup_id() == "benchmark"))
+            .collect::<Vec<BackupGroup>>(),
         Err(err) => {
             worker.log(format!("verify datastore {} - unable to list backups: {}", datastore.name(), err));
             return Ok(errors);
@@ -415,10 +418,6 @@ pub fn verify_all_backups(datastore: Arc<DataStore>, worker: Arc<WorkerTask>) ->
 
     let mut done = 0;
     for group in list {
-        if group.backup_type() == "host" && group.backup_id() == "benchmark" {
-            continue;
-        }
-
         let (count, mut group_errors) = verify_backup_group(
             datastore.clone(),
             &group,
