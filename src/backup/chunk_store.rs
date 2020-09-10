@@ -326,7 +326,7 @@ impl ChunkStore {
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
                 if bad {
                     // filename validity checked in iterator
-                    let orig_filename = std::ffi::CString::new(&filename.to_bytes()[..64]).unwrap();
+                    let orig_filename = std::ffi::CString::new(&filename.to_bytes()[..64])?;
                     match fstatat(
                         dirfd,
                         orig_filename.as_c_str(),
