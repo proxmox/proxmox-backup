@@ -76,6 +76,8 @@ onlinehelpinfo:
 .PHONY: html
 html: ${GENERATED_SYNOPSIS}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	cp images/proxmox-logo.svg $(BUILDDIR)/html/_static/
+	cp custom.css $(BUILDDIR)/html/_static/
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 

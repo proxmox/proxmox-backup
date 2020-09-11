@@ -156,13 +156,32 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinxdoc'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'fixed_sidebar': True,
+    #'sidebar_includehidden': False,
+    'sidebar_collapse': False, # FIXME: documented, but does not works?!
+    'show_relbar_bottom': True, # FIXME: documented, but does not works?!
+    'show_powered_by': False,
+
+    'logo': 'proxmox-logo.svg',
+    'logo_name': True, # show project name below logo
+    #'logo_text_align': 'center',
+    #'description': 'Fast, Secure & Efficient.',
+
+    'sidebar_width': '300px',
+    'page_width': '1280px',
+    # font styles
+    'head_font_family': 'Lato, sans-serif',
+    'caption_font_family': 'Lato, sans-serif',
+    'caption_font_size': '20px',
+    'font_family': 'Open Sans, sans-serif',
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -179,7 +198,7 @@ html_theme = 'sphinxdoc'
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = 'images/proxmox-logo.svg'
+#html_logo = 'images/proxmox-logo.svg' # replaced by html_theme_options.logo
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -232,7 +251,7 @@ html_static_path = ['_static']
 
 # If true, links to the reST sources are added to the pages.
 #
-# html_show_sourcelink = True
+html_show_sourcelink = False
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 #
