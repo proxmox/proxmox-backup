@@ -5,6 +5,8 @@ Ext.define('PBS.window.SyncJobEdit', {
 
     userid: undefined,
 
+    onlineHelp: 'syncjobs',
+
     isAdd: true,
 
     subject: gettext('SyncJob'),

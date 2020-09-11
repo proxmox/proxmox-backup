@@ -644,6 +644,7 @@ Use the ``list``, ``show``, ``update``, ``remove`` subcommands of
   └──────┴──────────────┴──────────┴───────────────────────────────────────────┴─────────┘
   # proxmox-backup-manager remote remove pbs2
 
+.. _syncjobs:
 
 Sync Jobs
 ~~~~~~~~~
