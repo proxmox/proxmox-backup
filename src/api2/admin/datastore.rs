@@ -230,7 +230,7 @@ pub fn list_snapshot_files(
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
 
     let allowed = (user_privs & (PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_READ)) != 0;
     if !allowed { check_backup_owner(&datastore, snapshot.group(), &userid)?; }
@@ -280,7 +280,7 @@ fn delete_snapshot(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -490,7 +490,7 @@ pub fn verify(
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_time);
-            let dir = BackupDir::new(backup_type, backup_id, backup_time);
+            let dir = BackupDir::new(backup_type, backup_id, backup_time)?;
             backup_dir = Some(dir);
         }
         (Some(backup_type), Some(backup_id), None) => {
@@ -897,7 +897,7 @@ fn download_file(
         let backup_id = tools::required_string_param(&param, "backup-id")?;
         let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
@@ -970,7 +970,7 @@ fn download_file_decoded(
         let backup_id = tools::required_string_param(&param, "backup-id")?;
         let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
@@ -1083,7 +1083,7 @@ fn upload_backup_log(
         let backup_id = tools::required_string_param(&param, "backup-id")?;
         let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
         let userid: Userid = rpcenv.get_user().unwrap().parse()?;
         check_backup_owner(&datastore, backup_dir.group(), &userid)?;
@@ -1159,7 +1159,7 @@ fn catalog(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
@@ -1276,7 +1276,7 @@ fn pxar_file_download(
         let backup_id = tools::required_string_param(&param, "backup-id")?;
         let backup_time = tools::required_integer_param(&param, "backup-time")?;
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
         let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
         if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
@@ -1417,7 +1417,7 @@ fn get_notes(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
@@ -1470,7 +1470,7 @@ fn set_notes(
     let user_info = CachedUserInfo::new()?;
     let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
 
-    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+    let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }

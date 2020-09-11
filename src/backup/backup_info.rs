@@ -2,9 +2,10 @@ use crate::tools;
 
 use anyhow::{bail, format_err, Error};
 use regex::Regex;
+use std::convert::TryFrom;
 use std::os::unix::io::RawFd;
 
-use chrono::{DateTime, TimeZone, SecondsFormat, Utc};
+use chrono::{DateTime, LocalResult, TimeZone, SecondsFormat, Utc};
 
 use std::path::{PathBuf, Path};
 use lazy_static::lazy_static;
@@ -106,7 +107,7 @@ impl BackupGroup {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
 
             let dt = backup_time.parse::<DateTime<Utc>>()?;
-            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), dt.timestamp());
+            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), dt.timestamp())?;
             let files = list_backup_files(l2_fd, backup_time)?;
 
             list.push(BackupInfo { backup_dir, files });
@@ -208,19 +209,22 @@ pub struct BackupDir {
 
 impl BackupDir {
 
-    pub fn new<T, U>(backup_type: T, backup_id: U, timestamp: i64) -> Self
+    pub fn new<T, U>(backup_type: T, backup_id: U, timestamp: i64) -> Result<Self, Error>
     where
         T: Into<String>,
         U: Into<String>,
     {
-        // Note: makes sure that nanoseconds is 0
-        Self {
-            group: BackupGroup::new(backup_type.into(), backup_id.into()),
-            backup_time: Utc.timestamp(timestamp, 0),
-        }
+        let group = BackupGroup::new(backup_type.into(), backup_id.into());
+        BackupDir::new_with_group(group, timestamp)
     }
-    pub fn new_with_group(group: BackupGroup, timestamp: i64) -> Self {
-        Self { group, backup_time: Utc.timestamp(timestamp, 0) }
+
+    pub fn new_with_group(group: BackupGroup, timestamp: i64) -> Result<Self, Error> {
+        let backup_time = match Utc.timestamp_opt(timestamp, 0) {
+            LocalResult::Single(time) => time,
+            _ => bail!("can't create BackupDir with invalid backup time {}", timestamp),
+        };
+
+        Ok(Self { group, backup_time })
     }
 
     pub fn group(&self) -> &BackupGroup {
@@ -257,7 +261,7 @@ impl std::str::FromStr for BackupDir {
 
         let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
         let backup_time = cap.get(3).unwrap().as_str().parse::<DateTime<Utc>>()?;
-        Ok(BackupDir::from((group, backup_time.timestamp())))
+        BackupDir::try_from((group, backup_time.timestamp()))
     }
 }
 
@@ -270,9 +274,11 @@ impl std::fmt::Display for BackupDir {
     }
 }
 
-impl From<(BackupGroup, i64)> for BackupDir {
-    fn from((group, timestamp): (BackupGroup, i64)) -> Self {
-        Self { group, backup_time: Utc.timestamp(timestamp, 0) }
+impl TryFrom<(BackupGroup, i64)> for BackupDir {
+    type Error = Error;
+
+    fn try_from((group, timestamp): (BackupGroup, i64)) -> Result<Self, Error> {
+        BackupDir::new_with_group(group, timestamp)
     }
 }
 
@@ -334,7 +340,7 @@ impl BackupInfo {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
                     let dt = backup_time.parse::<DateTime<Utc>>()?;
-                    let backup_dir = BackupDir::new(backup_type, backup_id, dt.timestamp());
+                    let backup_dir = BackupDir::new(backup_type, backup_id, dt.timestamp())?;
 
                     let files = list_backup_files(l2_fd, backup_time)?;
 

@@ -83,7 +83,7 @@ fn upgrade_to_backup_reader_protocol(
 
         let env_type = rpcenv.env_type();
 
-        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time);
+        let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
         let path = datastore.base_path();
 
         //let files = BackupInfo::list_files(&path, &backup_dir)?;

@@ -347,7 +347,7 @@ pub async fn pull_group(
     let mut remote_snapshots = std::collections::HashSet::new();
 
     for item in list {
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
 
         // in-progress backups can't be synced
         if let None = item.size {

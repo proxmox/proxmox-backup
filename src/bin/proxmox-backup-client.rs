@@ -377,7 +377,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let render_last_backup = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: GroupListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.last_backup);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.last_backup)?;
         Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 
@@ -448,7 +448,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
         Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 
@@ -1047,7 +1047,7 @@ async fn create_backup(
         None
     };
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp());
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp())?;
     let mut manifest = BackupManifest::new(snapshot);
 
     let mut catalog = None;
@@ -1572,7 +1572,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
 
     let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
         let item: PruneListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time);
+        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
         Ok(snapshot.relative_path().to_str().unwrap().to_owned())
     };
 
@@ -1764,8 +1764,9 @@ async fn complete_backup_snapshot_do(param: &HashMap<String, String>) -> Vec<Str
             if let (Some(backup_id), Some(backup_type), Some(backup_time)) =
                 (item["backup-id"].as_str(), item["backup-type"].as_str(), item["backup-time"].as_i64())
             {
-                let snapshot = BackupDir::new(backup_type, backup_id, backup_time);
-                result.push(snapshot.relative_path().to_str().unwrap().to_owned());
+                if let Ok(snapshot) = BackupDir::new(backup_type, backup_id, backup_time) {
+                    result.push(snapshot.relative_path().to_str().unwrap().to_owned());
+                }
             }
         }
     }

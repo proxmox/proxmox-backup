@@ -114,7 +114,7 @@ async move {
     }
 
     let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
-    let backup_dir = BackupDir::new_with_group(backup_group.clone(), backup_time);
+    let backup_dir = BackupDir::new_with_group(backup_group.clone(), backup_time)?;
 
     let _last_guard = if let Some(last) = &last_backup {
         if backup_dir.backup_time() <= last.backup_dir.backup_time() {
