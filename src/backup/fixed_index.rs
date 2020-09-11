@@ -6,7 +6,7 @@ use super::chunk_store::*;
 use super::{IndexFile, ChunkReadInfo};
 use crate::tools::{self, epoch_now_u64};
 
-use chrono::{Local, TimeZone};
+use chrono::{Local, LocalResult, TimeZone};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
@@ -150,7 +150,10 @@ impl FixedIndexReader {
         println!("ChunkSize: {}", self.chunk_size);
         println!(
             "CTime: {}",
-            Local.timestamp(self.ctime as i64, 0).format("%c")
+            match Local.timestamp_opt(self.ctime as i64, 0) {
+                LocalResult::Single(ctime) => ctime.format("%c").to_string(),
+                _ => (self.ctime as i64).to_string(),
+            }
         );
         println!("UUID: {:?}", self.uuid);
     }

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
-use chrono::{Local, DateTime, Utc, TimeZone};
+use chrono::{Local, LocalResult, DateTime, Utc, TimeZone};
 use futures::future::FutureExt;
 use futures::stream::{StreamExt, TryStreamExt};
 use serde_json::{json, Value};
@@ -257,7 +257,11 @@ pub async fn api_datastore_latest_snapshot(
 
     list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
 
-    let backup_time = Utc.timestamp(list[0].backup_time, 0);
+    let backup_time = match Utc.timestamp_opt(list[0].backup_time, 0) {
+        LocalResult::Single(time) => time,
+        _ => bail!("last snapshot of backup group {:?} has invalid timestmap {}.",
+                   group.group_path(), list[0].backup_time),
+    };
 
     Ok((group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time))
 }
@@ -986,7 +990,15 @@ async fn create_backup(
         }
     }
 
-    let backup_time = Utc.timestamp(backup_time_opt.unwrap_or_else(|| Utc::now().timestamp()), 0);
+    let backup_time = match backup_time_opt {
+        Some(timestamp) => {
+            match Utc.timestamp_opt(timestamp, 0) {
+                LocalResult::Single(time) => time,
+                _ => bail!("Invalid backup-time parameter: {}", timestamp),
+            }
+        },
+        _ => Utc::now(),
+    };
 
     let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);

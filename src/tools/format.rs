@@ -1,6 +1,6 @@
 use anyhow::{Error};
 use serde_json::Value;
-use chrono::{Local, TimeZone};
+use chrono::{Local, TimeZone, LocalResult};
 
 pub fn strip_server_file_expenstion(name: &str) -> String {
 
@@ -25,8 +25,11 @@ pub fn render_epoch(value: &Value, _record: &Value) -> Result<String, Error> {
     if value.is_null() { return Ok(String::new()); }
     let text = match value.as_i64() {
         Some(epoch) => {
-            Local.timestamp(epoch, 0).format("%c").to_string()
-        }
+            match Local.timestamp_opt(epoch, 0) {
+                LocalResult::Single(epoch) => epoch.format("%c").to_string(),
+                _ => epoch.to_string(),
+            }
+        },
         None => {
             value.to_string()
         }
