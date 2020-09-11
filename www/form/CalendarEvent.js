@@ -4,9 +4,9 @@ Ext.define('PBS.data.CalendarEventExamples', {
 
     field: ['value', 'text'],
     data: [
-	{ value: '*/30', text: Ext.String.format(gettext("Every {0} minutes"), 30) },
+	{ value: '*:0/30', text: Ext.String.format(gettext("Every {0} minutes"), 30) },
 	{ value: 'hourly', text: gettext("Every hour") },
-	{ value: '*/2:00', text: gettext("Every two hours") },
+	{ value: '0/2:00', text: gettext("Every two hours") },
 	{ value: '2,22:30', text: gettext("Every day") + " 02:30, 22:30" },
 	{ value: 'daily', text: gettext("Every day") + " 00:00" },
 	{ value: 'mon..fri', text: gettext("Monday to Friday") + " 00:00" },
