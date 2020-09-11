@@ -5,7 +5,7 @@ use std::io::{Read, Write, Seek, SeekFrom};
 use std::os::unix::ffi::OsStrExt;
 
 use anyhow::{bail, format_err, Error};
-use chrono::offset::{TimeZone, Local};
+use chrono::offset::{TimeZone, Local, LocalResult};
 
 use pathpatterns::{MatchList, MatchType};
 use proxmox::tools::io::ReadExt;
@@ -533,17 +533,17 @@ impl <R: Read + Seek> CatalogReader<R> {
                     self.dump_dir(&path, pos)?;
                 }
                 CatalogEntryType::File => {
-                    let dt = Local
-                        .timestamp_opt(mtime as i64, 0)
-                        .single() // chrono docs say timestamp_opt can only be None or Single!
-                        .unwrap_or_else(|| Local.timestamp(0, 0));
+                    let mtime_string = match Local.timestamp_opt(mtime as i64, 0) {
+                        LocalResult::Single(time) => time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
+                        _ => (mtime as i64).to_string(),
+                    };
 
                     println!(
                         "{} {:?} {} {}",
                         etype,
                         path,
                         size,
-                        dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
+                        mtime_string,
                     );
                 }
                 _ => {
