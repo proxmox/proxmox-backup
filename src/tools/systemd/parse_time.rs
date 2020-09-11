@@ -161,10 +161,17 @@ fn parse_date_time_comp(max: usize) -> impl Fn(&str) -> IResult<&str, DateTimeVa
     }
 }
 
-fn parse_date_time_comp_list(max: usize) -> impl Fn(&str) -> IResult<&str, Vec<DateTimeValue>> {
+fn parse_date_time_comp_list(start: u32, max: usize) -> impl Fn(&str) -> IResult<&str, Vec<DateTimeValue>> {
     move |i: &str| {
         if i.starts_with("*") {
-            return Ok((&i[1..], Vec::new()));
+            let i = &i[1..];
+            if i.starts_with("/") {
+                let (n, repeat) = parse_time_comp(max)(&i[1..])?;
+                if repeat > 0 {
+                    return Ok((n, vec![DateTimeValue::Repeated(start, repeat)]));
+                }
+            }
+            return Ok((i, Vec::new()));
         }
 
         separated_nonempty_list(tag(","), parse_date_time_comp(max))(i)
@@ -174,9 +181,9 @@ fn parse_date_time_comp_list(max: usize) -> impl Fn(&str) -> IResult<&str, Vec<D
 fn parse_time_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeValue>, Vec<DateTimeValue>)> {
 
     let (i, (hour, minute, opt_second)) = tuple((
-        parse_date_time_comp_list(24),
-        preceded(tag(":"), parse_date_time_comp_list(60)),
-        opt(preceded(tag(":"), parse_date_time_comp_list(60))),
+        parse_date_time_comp_list(0, 24),
+        preceded(tag(":"), parse_date_time_comp_list(0, 60)),
+        opt(preceded(tag(":"), parse_date_time_comp_list(0, 60))),
     ))(i)?;
 
     if let Some(second) = opt_second {
@@ -190,14 +197,14 @@ fn parse_date_spec(i: &str) -> IResult<&str, (Vec<DateTimeValue>, Vec<DateTimeVa
 
     // TODO: implement ~ for days (man systemd.time)
     if let Ok((i, (year, month, day))) = tuple((
-        parse_date_time_comp_list(2200), // the upper limit for systemd, stay compatible
-        preceded(tag("-"), parse_date_time_comp_list(13)),
-        preceded(tag("-"), parse_date_time_comp_list(32)),
+        parse_date_time_comp_list(0, 2200), // the upper limit for systemd, stay compatible
+        preceded(tag("-"), parse_date_time_comp_list(1, 13)),
+        preceded(tag("-"), parse_date_time_comp_list(1, 32)),
     ))(i) {
         Ok((i, (year, month, day)))
     } else if let Ok((i, (month, day))) = tuple((
-        parse_date_time_comp_list(13),
-        preceded(tag("-"), parse_date_time_comp_list(32)),
+        parse_date_time_comp_list(1, 13),
+        preceded(tag("-"), parse_date_time_comp_list(1, 32)),
     ))(i) {
         Ok((i, (Vec::new(), month, day)))
     } else {
