@@ -6,6 +6,10 @@ div.sphinxsidebar {
 h1.logo-name {
     font-size: 24px;
 }
+
+div.body img {
+    width: 250px;
+}
 pre {
     padding: 5px 10px;
 }

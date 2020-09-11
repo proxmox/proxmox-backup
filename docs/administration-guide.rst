@@ -150,7 +150,6 @@ Disk Management
 ~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-disks.png
-  :width: 230
   :align: right
   :alt: List of disks
 
@@ -182,7 +181,6 @@ To initialize a disk with a new GPT, use the ``initialize`` subcommand:
   # proxmox-backup-manager disk initialize sdX
 
 .. image:: images/screenshots/pbs-gui-disks-dir-create.png
-  :width: 230
   :align: right
   :alt: Create a directory
 
@@ -193,19 +191,11 @@ web interface and creating one from there. The following command creates an
 automatically create a datastore on the disk (in this case ``sdd``). This will
 create a datastore at the location ``/mnt/datastore/store1``:
 
-|
-
 .. code-block:: console
 
   # proxmox-backup-manager disk fs create store1 --disk sdd --filesystem ext4 --add-datastore true
-  create datastore 'store1' on disk sdd
-  Percentage done: 1
-  ...
-  Percentage done: 99
-  TASK OK
 
 .. image:: images/screenshots/pbs-gui-disks-zfs-create.png
-  :width: 230
   :align: right
   :alt: Create a directory
 
@@ -214,15 +204,9 @@ You can also create a ``zpool`` with various raid levels from **Administration
 below creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and
 mounts it on the root directory (default):
 
-|
-
 .. code-block:: console
 
   # proxmox-backup-manager disk zpool create zpool1 --devices sdb,sdc --raidlevel mirror
-  create Mirror zpool 'zpool1' on devices 'sdb,sdc'
-  # "zpool" "create" "-o" "ashift=12" "zpool1" "mirror" "sdb" "sdc"
-
-  TASK OK
 
 .. note::
   You can also pass the ``--add-datastore`` parameter here, to automatically
@@ -243,7 +227,6 @@ Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-datastore.png
-  :width: 230
   :align: right
   :alt: Datastore Overview
 
@@ -259,7 +242,6 @@ periodically based on a configured :term:`schedule` per datastore.
 Creating a Datastore
 ^^^^^^^^^^^^^^^^^^^^
 .. image:: images/screenshots/pbs-gui-datastore-create-general.png
-  :width: 230
   :align: right
   :alt: Create a datastore
 
@@ -382,7 +364,6 @@ User Management
 ~~~~~~~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-user-management.png
-  :width: 230
   :align: right
   :alt: User management
 
@@ -411,7 +392,6 @@ users:
   └─────────────┴────────┴────────┴───────────┴──────────┴────────────────┴────────────────────┘
 
 .. image:: images/screenshots/pbs-gui-user-management-add-user.png
-  :width: 230
   :align: right
   :alt: Add a new user
 
@@ -503,7 +483,6 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
-  :width: 230
   :align: right
   :alt: Add permissions for user
 
@@ -571,7 +550,6 @@ To get a list of available interfaces, use the following command:
   └───────┴────────┴───────────┴────────┴─────────────┴──────────────┴──────────────┘
 
 .. image:: images/screenshots/pbs-gui-network-create-bond.png
-  :width: 230
   :align: right
   :alt: Add a network interface
 
@@ -632,7 +610,6 @@ installation, from which you can `sync` datastores to a local datastore with a
 
 .. image:: images/screenshots/pbs-gui-remote-add.png
 .. image:: images/screenshots/pbs-gui-permissions-add.png
-  :width: 230
   :align: right
   :alt: Add a remote
 
@@ -672,7 +649,6 @@ Sync Jobs
 ~~~~~~~~~
 
 .. image:: images/screenshots/pbs-gui-syncjob-add.png
-  :width: 230
   :align: right
   :alt: Add a remote
 

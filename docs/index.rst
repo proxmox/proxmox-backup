@@ -50,4 +50,3 @@ in the section entitled "GNU Free Documentation License".
 
 
 * :ref:`genindex`
-
