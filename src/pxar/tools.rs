@@ -8,7 +8,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use nix::sys::stat::Mode;
 
-use pxar::{mode, Entry, EntryKind, Metadata};
+use pxar::{mode, Entry, EntryKind, Metadata, format::StatxTimestamp};
 
 /// Get the file permissions as `nix::Mode`
 pub fn perms_from_metadata(meta: &Metadata) -> Result<Mode, Error> {
@@ -114,13 +114,19 @@ fn mode_string(entry: &Entry) -> String {
     )
 }
 
-pub fn format_single_line_entry(entry: &Entry) -> String {
+fn format_mtime(mtime: &StatxTimestamp) -> String {
     use chrono::offset::TimeZone;
 
+    match chrono::Local.timestamp_opt(mtime.secs, mtime.nanos) {
+        chrono::LocalResult::Single(mtime) => mtime.format("%Y-%m-%d %H:%M:%S").to_string(),
+        _ => format!("{}.{}", mtime.secs, mtime.nanos),
+    }
+}
+
+pub fn format_single_line_entry(entry: &Entry) -> String {
     let mode_string = mode_string(entry);
 
     let meta = entry.metadata();
-    let mtime = chrono::Local.timestamp(meta.stat.mtime.secs, meta.stat.mtime.nanos);
 
     let (size, link) = match entry.kind() {
         EntryKind::File { size, .. } => (format!("{}", *size), String::new()),
@@ -134,7 +140,7 @@ pub fn format_single_line_entry(entry: &Entry) -> String {
         "{} {:<13} {} {:>8} {:?}{}",
         mode_string,
         format!("{}/{}", meta.stat.uid, meta.stat.gid),
-        mtime.format("%Y-%m-%d %H:%M:%S"),
+        format_mtime(&meta.stat.mtime),
         size,
         entry.path(),
         link,
@@ -142,12 +148,9 @@ pub fn format_single_line_entry(entry: &Entry) -> String {
 }
 
 pub fn format_multi_line_entry(entry: &Entry) -> String {
-    use chrono::offset::TimeZone;
-
     let mode_string = mode_string(entry);
 
     let meta = entry.metadata();
-    let mtime = chrono::Local.timestamp(meta.stat.mtime.secs, meta.stat.mtime.nanos);
 
     let (size, link, type_name) = match entry.kind() {
         EntryKind::File { size, .. } => (format!("{}", *size), String::new(), "file"),
@@ -196,6 +199,6 @@ pub fn format_multi_line_entry(entry: &Entry) -> String {
         mode_string,
         meta.stat.uid,
         meta.stat.gid,
-        mtime.format("%Y-%m-%d %H:%M:%S"),
+        format_mtime(&meta.stat.mtime),
     )
 }
