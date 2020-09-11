@@ -10,7 +10,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Error};
-use chrono::{Local, TimeZone, DateTime};
+use chrono::{Local, DateTime};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
@@ -219,7 +219,7 @@ impl CryptConfig {
         created: DateTime<Local>,
     ) -> Result<Vec<u8>, Error> {
 
-        let modified = Local.timestamp(Local::now().timestamp(), 0);
+        let modified = Local::now();
         let key_config = super::KeyConfig { kdf: None, created, modified, data: self.enc_key.to_vec() };
         let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
 

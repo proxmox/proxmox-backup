@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
-use chrono::{Local, TimeZone};
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
@@ -112,7 +112,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
     match kdf {
         Kdf::None => {
-            let created = Local.timestamp(Local::now().timestamp(), 0);
+            let created = Local::now();
 
             store_key_config(
                 &path,
@@ -180,7 +180,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
 
     match kdf {
         Kdf::None => {
-            let modified = Local.timestamp(Local::now().timestamp(), 0);
+            let modified = Local::now();
 
             store_key_config(
                 &path,

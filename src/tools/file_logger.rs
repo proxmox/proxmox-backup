@@ -1,5 +1,5 @@
 use anyhow::{Error};
-use chrono::{TimeZone, Local};
+use chrono::Local;
 use std::io::Write;
 
 /// Log messages with timestamps into files
@@ -56,7 +56,7 @@ impl FileLogger {
             stdout.write_all(b"\n").unwrap();
         }
 
-        let line = format!("{}: {}\n", Local.timestamp(Local::now().timestamp(), 0).to_rfc3339(), msg);
+        let line = format!("{}: {}\n", Local::now().to_rfc3339(), msg);
         self.file.write_all(line.as_bytes()).unwrap();
     }
 }

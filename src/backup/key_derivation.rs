@@ -1,7 +1,7 @@
 use anyhow::{bail, format_err, Context, Error};
 
 use serde::{Deserialize, Serialize};
-use chrono::{Local, TimeZone, DateTime};
+use chrono::{Local, DateTime};
 
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
@@ -136,7 +136,7 @@ pub fn encrypt_key_with_passphrase(
     enc_data.extend_from_slice(&tag);
     enc_data.extend_from_slice(&encrypted_key);
 
-    let created =  Local.timestamp(Local::now().timestamp(), 0);
+    let created = Local::now();
 
     Ok(KeyConfig {
         kdf: Some(kdf),
