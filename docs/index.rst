@@ -37,6 +37,7 @@ in the section entitled "GNU Free Documentation License".
    command-syntax.rst
    file-formats.rst
    backup-protocol.rst
+   calendarevents.rst
    glossary.rst
    GFDL.rst
 

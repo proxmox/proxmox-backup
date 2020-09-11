@@ -51,14 +51,3 @@ Glossary
       A remote Proxmox Backup Server installation and credentials for a user on it.
       You can pull datastores from a remote to a local datastore in order to
       have redundant backups.
-
-   Schedule
-
-      Certain tasks, for example pruning and garbage collection, need to be
-      performed on a regular basis. Proxmox Backup Server uses a subset of the
-      `systemd Time and Date Specification
-      <https://www.freedesktop.org/software/systemd/man/systemd.time.html#>`_.
-      The subset currently supports time of day specifications and weekdays, in
-      addition to the shorthand expressions 'minutely', 'hourly', 'daily'.
-      There is no support for specifying timezones, the tasks are run in the
-      timezone configured on the server.

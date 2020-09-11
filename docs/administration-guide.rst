@@ -237,7 +237,7 @@ settings of how many backup snapshots for each interval of ``hourly``,
 ``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
 number of backups to keep in that store. :ref:`Pruning <pruning>` and
 :ref:`garbage collection <garbage-collection>` can also be configured to run
-periodically based on a configured :term:`schedule` per datastore.
+periodically based on a configured schedule (see :ref:`calendar-events`) per datastore.
 
 Creating a Datastore
 ^^^^^^^^^^^^^^^^^^^^
@@ -654,7 +654,7 @@ Sync Jobs
 
 Sync jobs are configured to pull the contents of a datastore on a **Remote** to a
 local datastore. You can either start a sync job manually on the GUI or
-provide it with a :term:`schedule` to run regularly. You can manage sync jobs
+provide it with a schedule (see :ref:`calendar-events`) to run regularly. You can manage sync jobs
 under **Configuration -> Sync Jobs** in the web interface, or using the
 ``proxmox-backup-manager sync-job`` command:
 
