@@ -1,3 +1,25 @@
+rust-proxmox-backup (0.8.16-1) unstable; urgency=medium
+
+  * BackupDir: make constructor fallible
+
+  * handle invalid mtime when formating entries
+
+  * ui/docs: add onlineHelp button for syncjobs
+
+  * docs: add section for calendar events
+
+  * tools/systemd/parse_time: enable */x syntax for calendar events
+
+  * docs: set html img width limitation through css
+
+  * docs: use alabaster theme
+
+  * server: set http2 max frame size
+
+  * doc: Add section "FAQ"
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 11 Sep 2020 15:54:57 +0200
+
 rust-proxmox-backup (0.8.15-1) unstable; urgency=medium
 
   *  verify: skip benchmark directory
