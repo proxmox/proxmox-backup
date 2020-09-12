@@ -6,7 +6,6 @@ use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use proxmox::tools::fs::{replace_file, CreateOptions};
@@ -242,7 +241,7 @@ impl DataStore {
     /// Returns the time of the last successful backup
     ///
     /// Or None if there is no backup in the group (or the group dir does not exist).
-    pub fn last_successful_backup(&self, backup_group: &BackupGroup) -> Result<Option<DateTime<Utc>>, Error> {
+    pub fn last_successful_backup(&self, backup_group: &BackupGroup) -> Result<Option<i64>, Error> {
         let base_path = self.base_path();
         let mut group_path = base_path.clone();
         group_path.push(backup_group.group_path());

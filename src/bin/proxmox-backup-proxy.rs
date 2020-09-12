@@ -13,7 +13,7 @@ use proxmox_backup::api2::types::Userid;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
-use proxmox_backup::tools::{daemon, epoch_now, epoch_now_u64};
+use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
@@ -144,11 +144,12 @@ fn start_task_scheduler() {
     tokio::spawn(task.map(|_| ()));
 }
 
-use std::time:: {Instant, Duration};
+use std::time::{SystemTime, Instant, Duration, UNIX_EPOCH};
 
 fn next_minute() -> Result<Instant, Error> {
-    let epoch_now = epoch_now()?;
-    let epoch_next = Duration::from_secs((epoch_now.as_secs()/60 + 1)*60);
+    let now = SystemTime::now();
+    let epoch_now = now.duration_since(UNIX_EPOCH)?;
+    let epoch_next = Duration::from_secs((epoch_now.as_secs()/60  + 1)*60);
     Ok(Instant::now() + epoch_next - epoch_now)
 }
 
@@ -308,13 +309,8 @@ async fn schedule_datastore_garbage_collection() {
             }
         };
 
-        let now = match epoch_now_u64() {
-            Ok(epoch_now) => epoch_now as i64,
-            Err(err) => {
-                eprintln!("query system time failed - {}", err);
-                continue;
-            }
-        };
+        let now = proxmox::tools::time::epoch_i64();
+
         if next > now  { continue; }
 
         let store2 = store.clone();
@@ -338,7 +334,7 @@ async fn schedule_datastore_garbage_collection() {
 async fn schedule_datastore_prune() {
 
     use proxmox_backup::backup::{
-        PruneOptions, DataStore, BackupGroup, BackupDir, compute_prune_info};
+        PruneOptions, DataStore, BackupGroup, compute_prune_info};
     use proxmox_backup::server::{WorkerTask};
     use proxmox_backup::config::datastore::{self, DataStoreConfig};
     use proxmox_backup::tools::systemd::time::{
@@ -420,13 +416,8 @@ async fn schedule_datastore_prune() {
             }
         };
 
-        let now = match epoch_now_u64() {
-            Ok(epoch_now) => epoch_now as i64,
-            Err(err) => {
-                eprintln!("query system time failed - {}", err);
-                continue;
-            }
-        };
+        let now = proxmox::tools::time::epoch_i64();
+
         if next > now  { continue; }
 
         let store2 = store.clone();
@@ -457,8 +448,7 @@ async fn schedule_datastore_prune() {
                             "{} {}/{}/{}",
                             if keep { "keep" } else { "remove" },
                             group.backup_type(), group.backup_id(),
-                            BackupDir::backup_time_to_string(info.backup_dir.backup_time())));
-
+                            info.backup_dir.backup_time_string()));
                         if !keep {
                             datastore.remove_backup_dir(&info.backup_dir, true)?;
                         }
@@ -529,13 +519,8 @@ async fn schedule_datastore_sync_jobs() {
             }
         };
 
-        let now = match epoch_now_u64() {
-            Ok(epoch_now) => epoch_now as i64,
-            Err(err) => {
-                eprintln!("query system time failed - {}", err);
-                continue;
-            }
-        };
+        let now = proxmox::tools::time::epoch_i64();
+
         if next > now  { continue; }
 
         let job = match Job::new(worker_type, &job_id) {

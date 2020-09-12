@@ -8,7 +8,6 @@ use lazy_static::lazy_static;
 use proxmox::tools::fs::{create_path, CreateOptions};
 
 use crate::api2::types::{RRDMode, RRDTimeFrameResolution};
-use crate::tools::epoch_now_f64;
 
 use super::*;
 
@@ -42,7 +41,7 @@ pub fn update_value(rel_path: &str, value: f64, dst: DST, save: bool) -> Result<
     std::fs::create_dir_all(path.parent().unwrap())?;
 
     let mut map = RRD_CACHE.write().unwrap();
-    let now = epoch_now_f64()?;
+    let now = proxmox::tools::time::epoch_f64();
 
     if let Some(rrd) = map.get_mut(rel_path) {
         rrd.update(now, value);

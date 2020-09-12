@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{bail, Error};
-use chrono::Local;
 
 use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
 use proxmox::const_regex;
@@ -89,7 +88,7 @@ impl UPID {
         Ok(UPID {
             pid,
             pstart: procfs::PidStat::read_from_pid(nix::unistd::Pid::from_raw(pid))?.starttime,
-            starttime: Local::now().timestamp(),
+            starttime: proxmox::tools::time::epoch_i64(),
             task_id,
             worker_type: worker_type.to_owned(),
             worker_id,

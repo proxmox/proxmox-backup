@@ -2,7 +2,6 @@ use std::io::Write;
 use std::task::{Context, Poll};
 use std::sync::{Arc, Mutex};
 
-use chrono::Utc;
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use http::Uri;
@@ -199,7 +198,7 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
 
     let mut data = file_get_json(&path, Some(json!({})))?;
 
-    let now = Utc::now().timestamp();
+    let now = proxmox::tools::time::epoch_i64();
 
     data[server][username] = json!({ "timestamp": now, "ticket": ticket, "token": token});
 
@@ -230,7 +229,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
     // usually /run/user/<uid>/...
     let path = base.place_runtime_file("tickets").ok()?;
     let data = file_get_json(&path, None).ok()?;
-    let now = Utc::now().timestamp();
+    let now = proxmox::tools::time::epoch_i64();
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME - 60;
     let uinfo = data[server][userid.as_str()].as_object()?;
     let timestamp = uinfo["timestamp"].as_i64()?;

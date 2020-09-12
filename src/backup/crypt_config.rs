@@ -10,7 +10,6 @@
 use std::io::Write;
 
 use anyhow::{bail, Error};
-use chrono::{Local, DateTime};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
@@ -216,10 +215,10 @@ impl CryptConfig {
     pub fn generate_rsa_encoded_key(
         &self,
         rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
-        created: DateTime<Local>,
+        created: i64,
     ) -> Result<Vec<u8>, Error> {
 
-        let modified = Local::now();
+        let modified = proxmox::tools::time::epoch_i64();
         let key_config = super::KeyConfig { kdf: None, created, modified, data: self.enc_key.to_vec() };
         let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
 

@@ -48,7 +48,6 @@ use proxmox::tools::fs::{
 use serde::{Deserialize, Serialize};
 
 use crate::server::{upid_read_status, worker_is_active_local, TaskState, UPID};
-use crate::tools::epoch_now_u64;
 
 #[serde(rename_all = "kebab-case")]
 #[derive(Serialize, Deserialize)]
@@ -178,7 +177,7 @@ impl JobState {
             }
         } else {
             Ok(JobState::Created {
-                time: epoch_now_u64()? as i64 - 30,
+                time: proxmox::tools::time::epoch_i64() - 30,
             })
         }
     }
@@ -199,7 +198,7 @@ impl Job {
             jobtype: jobtype.to_string(),
             jobname: jobname.to_string(),
             state: JobState::Created {
-                time: epoch_now_u64()? as i64,
+                time: proxmox::tools::time::epoch_i64(),
             },
             _lock,
         })

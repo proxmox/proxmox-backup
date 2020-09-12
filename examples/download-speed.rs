@@ -2,8 +2,6 @@ use std::io::Write;
 
 use anyhow::{Error};
 
-use chrono::{DateTime, Utc};
-
 use proxmox_backup::api2::types::Userid;
 use proxmox_backup::client::{HttpClient, HttpClientOptions, BackupReader};
 
@@ -36,7 +34,7 @@ async fn run() -> Result<(), Error> {
 
     let client = HttpClient::new(host, username, options)?;
 
-    let backup_time = "2019-06-28T10:49:48Z".parse::<DateTime<Utc>>()?;
+    let backup_time = proxmox::tools::time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
     let client = BackupReader::start(client, None, "store2", "host", "elsa", backup_time, true)
         .await?;

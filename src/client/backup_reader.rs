@@ -4,7 +4,6 @@ use std::fs::File;
 use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
 
-use chrono::{DateTime, Utc};
 use futures::future::AbortHandle;
 use serde_json::{json, Value};
 
@@ -41,14 +40,14 @@ impl BackupReader {
         datastore: &str,
         backup_type: &str,
         backup_id: &str,
-        backup_time: DateTime<Utc>,
+        backup_time: i64,
         debug: bool,
     ) -> Result<Arc<BackupReader>, Error> {
 
         let param = json!({
             "backup-type": backup_type,
             "backup-id": backup_id,
-            "backup-time": backup_time.timestamp(),
+            "backup-time": backup_time,
             "store": datastore,
             "debug": debug,
         });

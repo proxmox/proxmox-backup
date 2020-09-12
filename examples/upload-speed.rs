@@ -16,7 +16,7 @@ async fn upload_speed() -> Result<f64, Error> {
 
     let client = HttpClient::new(host, username, options)?;
 
-    let backup_time = chrono::Utc::now();
+    let backup_time = proxmox::tools::time::epoch_i64();
 
     let client = BackupWriter::start(client, None, datastore, "host", "speedtest", backup_time, false, true).await?;
 

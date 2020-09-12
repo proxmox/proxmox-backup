@@ -4,7 +4,6 @@ use serde_json::{Value, json};
 use proxmox::api::{api, Router};
 
 use crate::api2::types::*;
-use crate::tools::epoch_now_f64;
 use crate::rrd::{extract_cached_data, RRD_DATA_ENTRIES};
 
 pub fn create_value_from_rrd(
@@ -15,7 +14,7 @@ pub fn create_value_from_rrd(
 ) -> Result<Value, Error> {
 
     let mut result = Vec::new();
-    let now = epoch_now_f64()?;
+    let now = proxmox::tools::time::epoch_f64();
 
     for name in list {
         let (start, reso, list) = match extract_cached_data(basedir, name, now, timeframe, cf) {

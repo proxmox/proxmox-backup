@@ -1,5 +1,4 @@
 use anyhow::{Error};
-use chrono::Local;
 use std::io::Write;
 
 /// Log messages with timestamps into files
@@ -56,7 +55,10 @@ impl FileLogger {
             stdout.write_all(b"\n").unwrap();
         }
 
-        let line = format!("{}: {}\n", Local::now().to_rfc3339(), msg);
+        let now = proxmox::tools::time::epoch_i64();
+        let rfc3339 = proxmox::tools::time::epoch_to_rfc3339(now).unwrap();
+
+        let line = format!("{}: {}\n", rfc3339, msg);
         self.file.write_all(line.as_bytes()).unwrap();
     }
 }

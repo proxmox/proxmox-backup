@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 use std::task::Context;
 
 use anyhow::{bail, format_err, Error};
-use chrono::{Local, LocalResult, DateTime, Utc, TimeZone};
 use futures::future::FutureExt;
 use futures::stream::{StreamExt, TryStreamExt};
 use serde_json::{json, Value};
@@ -16,11 +15,20 @@ use tokio::sync::mpsc;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
-use proxmox::tools::fs::{file_get_contents, file_get_json, replace_file, CreateOptions, image_size};
-use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment};
-use proxmox::api::schema::*;
-use proxmox::api::cli::*;
-use proxmox::api::api;
+use proxmox::{
+    tools::{
+        time::{strftime_local, epoch_i64},
+        fs::{file_get_contents, file_get_json, replace_file, CreateOptions, image_size},
+    },
+    api::{
+        api,
+        ApiHandler,
+        ApiMethod,
+        RpcEnvironment,
+        schema::*,
+        cli::*,
+    },
+};
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use proxmox_backup::tools;
@@ -246,7 +254,7 @@ pub async fn api_datastore_latest_snapshot(
     client: &HttpClient,
     store: &str,
     group: BackupGroup,
-) -> Result<(String, String, DateTime<Utc>), Error> {
+) -> Result<(String, String, i64), Error> {
 
     let list = api_datastore_list_snapshots(client, store, Some(group.clone())).await?;
     let mut list: Vec<SnapshotListItem> = serde_json::from_value(list)?;
@@ -257,11 +265,7 @@ pub async fn api_datastore_latest_snapshot(
 
     list.sort_unstable_by(|a, b| b.backup_time.cmp(&a.backup_time));
 
-    let backup_time = match Utc.timestamp_opt(list[0].backup_time, 0) {
-        LocalResult::Single(time) => time,
-        _ => bail!("last snapshot of backup group {:?} has invalid timestmap {}.",
-                   group.group_path(), list[0].backup_time),
-    };
+    let backup_time = list[0].backup_time;
 
     Ok((group.backup_type().to_owned(), group.backup_id().to_owned(), backup_time))
 }
@@ -506,7 +510,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let result = client.delete(&path, Some(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time().timestamp(),
+        "backup-time": snapshot.backup_time(),
     }))).await?;
 
     record_repository(&repo);
@@ -643,7 +647,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
     let mut result = client.get(&path, Some(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time().timestamp(),
+        "backup-time": snapshot.backup_time(),
     }))).await?;
 
     record_repository(&repo);
@@ -990,26 +994,18 @@ async fn create_backup(
         }
     }
 
-    let backup_time = match backup_time_opt {
-        Some(timestamp) => {
-            match Utc.timestamp_opt(timestamp, 0) {
-                LocalResult::Single(time) => time,
-                _ => bail!("Invalid backup-time parameter: {}", timestamp),
-            }
-        },
-        _ => Utc::now(),
-    };
+    let backup_time = backup_time_opt.unwrap_or_else(|| epoch_i64());
 
     let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);
 
-    println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time));
+    println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
 
     println!("Client name: {}", proxmox::tools::nodename());
 
-    let start_time = Local::now();
+    let start_time = std::time::Instant::now();
 
-    println!("Starting protocol: {}", start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false));
+    println!("Starting backup protocol: {}", strftime_local("%c", epoch_i64())?);
 
     let (crypt_config, rsa_encrypted_key) = match keydata {
         None => (None, None),
@@ -1047,7 +1043,7 @@ async fn create_backup(
         None
     };
 
-    let snapshot = BackupDir::new(backup_type, backup_id, backup_time.timestamp())?;
+    let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
     let mut manifest = BackupManifest::new(snapshot);
 
     let mut catalog = None;
@@ -1162,11 +1158,11 @@ async fn create_backup(
 
     client.finish().await?;
 
-    let end_time = Local::now();
-    let elapsed = end_time.signed_duration_since(start_time);
-    println!("Duration: {}", elapsed);
+    let end_time = std::time::Instant::now();
+    let elapsed = end_time.duration_since(start_time);
+    println!("Duration: {:.2}s", elapsed.as_secs_f64());
 
-    println!("End Time: {}", end_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false));
+    println!("End Time: {}", strftime_local("%c", epoch_i64())?);
 
     Ok(Value::Null)
 }
@@ -1504,7 +1500,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let args = json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id":  snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time().timestamp(),
+        "backup-time": snapshot.backup_time(),
     });
 
     let body = hyper::Body::from(raw_data);
@@ -1800,7 +1796,7 @@ async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<St
     let query = tools::json_object_to_query(json!({
         "backup-type": snapshot.group().backup_type(),
         "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time().timestamp(),
+        "backup-time": snapshot.backup_time(),
     })).unwrap();
 
     let path = format!("api2/json/admin/datastore/{}/files?{}", repo.store(), query);

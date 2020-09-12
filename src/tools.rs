@@ -8,8 +8,6 @@ use std::fs::File;
 use std::io::{self, BufRead, ErrorKind, Read};
 use std::os::unix::io::RawFd;
 use std::path::Path;
-use std::time::Duration;
-use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -545,18 +543,6 @@ pub fn file_get_non_comment_lines<P: AsRef<Path>>(
         }
         Err(err) => Some(Err(err)),
     }))
-}
-
-pub fn epoch_now() -> Result<Duration, SystemTimeError> {
-    SystemTime::now().duration_since(UNIX_EPOCH)
-}
-
-pub fn epoch_now_f64() -> Result<f64, SystemTimeError> {
-    Ok(epoch_now()?.as_secs_f64())
-}
-
-pub fn epoch_now_u64() -> Result<u64, SystemTimeError> {
-    Ok(epoch_now()?.as_secs())
 }
 
 pub fn setup_safe_path_env() {

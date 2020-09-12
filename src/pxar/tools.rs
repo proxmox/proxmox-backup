@@ -115,12 +115,10 @@ fn mode_string(entry: &Entry) -> String {
 }
 
 fn format_mtime(mtime: &StatxTimestamp) -> String {
-    use chrono::offset::TimeZone;
-
-    match chrono::Local.timestamp_opt(mtime.secs, mtime.nanos) {
-        chrono::LocalResult::Single(mtime) => mtime.format("%Y-%m-%d %H:%M:%S").to_string(),
-        _ => format!("{}.{}", mtime.secs, mtime.nanos),
+    if let Ok(s) = proxmox::tools::time::strftime_local("%Y-%m-%d %H:%M:%S", mtime.secs) {
+        return s;
     }
+    format!("{}.{}", mtime.secs, mtime.nanos)
 }
 
 pub fn format_single_line_entry(entry: &Entry) -> String {

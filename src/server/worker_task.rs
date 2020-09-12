@@ -5,7 +5,6 @@ use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use chrono::Local;
 use anyhow::{bail, format_err, Error};
 use futures::*;
 use lazy_static::lazy_static;
@@ -231,9 +230,7 @@ pub fn upid_read_status(upid: &UPID) -> Result<TaskState, Error> {
 
     let mut iter = last_line.splitn(2, ": ");
     if let Some(time_str) = iter.next() {
-        if let Ok(endtime) = chrono::DateTime::parse_from_rfc3339(time_str) {
-            let endtime = endtime.timestamp();
-
+        if let Ok(endtime) = proxmox::tools::time::parse_rfc3339(time_str) {
             if let Some(rest) = iter.next().and_then(|rest| rest.strip_prefix("TASK ")) {
                 if let Ok(state) = TaskState::from_endtime_and_message(endtime, rest) {
                     status = state;
@@ -364,8 +361,9 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
                     },
                     None => {
                         println!("Detected stopped UPID {}", upid_str);
+                        let now = proxmox::tools::time::epoch_i64();
                         let status = upid_read_status(&upid)
-                            .unwrap_or_else(|_| TaskState::Unknown { endtime: Local::now().timestamp() });
+                            .unwrap_or_else(|_| TaskState::Unknown { endtime: now });
                         finish_list.push(TaskListInfo {
                             upid, upid_str, state: Some(status)
                         });
@@ -589,7 +587,7 @@ impl WorkerTask {
     pub fn create_state(&self, result: &Result<(), Error>) -> TaskState {
         let warn_count = self.data.lock().unwrap().warn_count;
 
-        let endtime = Local::now().timestamp();
+        let endtime = proxmox::tools::time::epoch_i64();
 
         if let Err(err) = result {
             TaskState::Error { message: err.to_string(), endtime }

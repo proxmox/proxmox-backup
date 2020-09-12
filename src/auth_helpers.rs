@@ -11,7 +11,6 @@ use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
 use crate::api2::types::Userid;
-use crate::tools::epoch_now_u64;
 
 fn compute_csrf_secret_digest(
     timestamp: i64,
@@ -32,7 +31,7 @@ pub fn assemble_csrf_prevention_token(
     userid: &Userid,
 ) -> String {
 
-    let epoch = epoch_now_u64().unwrap() as i64;
+    let epoch = proxmox::tools::time::epoch_i64();
 
     let digest = compute_csrf_secret_digest(epoch, secret, userid);
 
@@ -69,7 +68,7 @@ pub fn verify_csrf_prevention_token(
             bail!("invalid signature.");
         }
 
-        let now = epoch_now_u64()? as i64;
+        let now = proxmox::tools::time::epoch_i64();
 
         let age = now - ttime;
         if age < min_age {

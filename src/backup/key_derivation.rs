@@ -1,7 +1,6 @@
 use anyhow::{bail, format_err, Context, Error};
 
 use serde::{Deserialize, Serialize};
-use chrono::{Local, DateTime};
 
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
@@ -61,10 +60,10 @@ impl KeyDerivationConfig {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KeyConfig {
     pub kdf: Option<KeyDerivationConfig>,
-    #[serde(with = "proxmox::tools::serde::date_time_as_rfc3339")]
-    pub created: DateTime<Local>,
-    #[serde(with = "proxmox::tools::serde::date_time_as_rfc3339")]
-    pub modified: DateTime<Local>,
+    #[serde(with = "proxmox::tools::serde::epoch_as_rfc3339")]
+    pub created: i64,
+    #[serde(with = "proxmox::tools::serde::epoch_as_rfc3339")]
+    pub modified: i64,
     #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
     pub data: Vec<u8>,
  }
@@ -136,7 +135,7 @@ pub fn encrypt_key_with_passphrase(
     enc_data.extend_from_slice(&tag);
     enc_data.extend_from_slice(&encrypted_key);
 
-    let created = Local::now();
+    let created = proxmox::tools::time::epoch_i64();
 
     Ok(KeyConfig {
         kdf: Some(kdf),
@@ -149,7 +148,7 @@ pub fn encrypt_key_with_passphrase(
 pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], DateTime<Local>), Error> {
+) -> Result<([u8;32], i64), Error> {
     do_load_and_decrypt_key(path, passphrase)
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
@@ -157,14 +156,14 @@ pub fn load_and_decrypt_key(
 fn do_load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], DateTime<Local>), Error> {
+) -> Result<([u8;32], i64), Error> {
     decrypt_key(&file_get_contents(&path)?, passphrase)
 }
 
 pub fn decrypt_key(
     mut keydata: &[u8],
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], DateTime<Local>), Error> {
+) -> Result<([u8;32], i64), Error> {
     let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
 
     let raw_data = key_config.data;

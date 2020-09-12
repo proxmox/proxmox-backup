@@ -103,7 +103,7 @@ impl BackupManifest {
         Self {
             backup_type: snapshot.group().backup_type().into(),
             backup_id: snapshot.group().backup_id().into(),
-            backup_time: snapshot.backup_time().timestamp(),
+            backup_time: snapshot.backup_time(),
             files: Vec::new(),
             unprotected: json!({}),
             signature: None,

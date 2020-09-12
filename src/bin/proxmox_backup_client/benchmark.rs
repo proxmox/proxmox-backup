@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use anyhow::{Error};
 use serde_json::Value;
-use chrono::Utc;
 use serde::Serialize;
 
 use proxmox::api::{ApiMethod, RpcEnvironment};
@@ -212,7 +211,7 @@ async fn test_upload_speed(
     verbose: bool,
 ) -> Result<(), Error> {
 
-    let backup_time = Utc::now();
+    let backup_time = proxmox::tools::time::epoch_i64();
 
     let client = connect(repo.host(), repo.user())?;
     record_repository(&repo);

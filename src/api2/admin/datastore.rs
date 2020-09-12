@@ -172,7 +172,7 @@ fn list_groups(
         let result_item = GroupListItem {
             backup_type: group.backup_type().to_string(),
             backup_id: group.backup_id().to_string(),
-            last_backup: info.backup_dir.backup_time().timestamp(),
+            last_backup: info.backup_dir.backup_time(),
             backup_count: list.len() as u64,
             files: info.files.clone(),
             owner: Some(owner),
@@ -403,7 +403,7 @@ pub fn list_snapshots (
         let result_item = SnapshotListItem {
             backup_type: group.backup_type().to_string(),
             backup_id: group.backup_id().to_string(),
-            backup_time: info.backup_dir.backup_time().timestamp(),
+            backup_time: info.backup_dir.backup_time(),
             comment,
             verification,
             files,
@@ -673,7 +673,7 @@ fn prune(
             prune_result.push(json!({
                 "backup-type": group.backup_type(),
                 "backup-id": group.backup_id(),
-                "backup-time": backup_time.timestamp(),
+                "backup-time": backup_time,
                 "keep": keep,
             }));
         }
@@ -697,7 +697,7 @@ fn prune(
             if keep_all { keep = true; }
 
             let backup_time = info.backup_dir.backup_time();
-            let timestamp = BackupDir::backup_time_to_string(backup_time);
+            let timestamp = info.backup_dir.backup_time_string();
             let group = info.backup_dir.group();
 
 
@@ -714,7 +714,7 @@ fn prune(
             prune_result.push(json!({
                 "backup-type": group.backup_type(),
                 "backup-id": group.backup_id(),
-                "backup-time": backup_time.timestamp(),
+                "backup-time": backup_time,
                 "keep": keep,
             }));
 
@@ -1097,7 +1097,7 @@ fn upload_backup_log(
         }
 
         println!("Upload backup log to {}/{}/{}/{}/{}", store,
-                 backup_type, backup_id, BackupDir::backup_time_to_string(backup_dir.backup_time()), file_name);
+                 backup_type, backup_id, backup_dir.backup_time_string(), file_name);
 
         let data = req_body
             .map_err(Error::from)

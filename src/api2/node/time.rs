@@ -1,4 +1,3 @@
-use chrono::prelude::*;
 use anyhow::{bail, format_err, Error};
 use serde_json::{json, Value};
 
@@ -57,10 +56,11 @@ fn read_etc_localtime() -> Result<String, Error> {
 )]
 /// Read server time and time zone settings.
 fn get_time(_param: Value) -> Result<Value, Error> {
-    let datetime = Local::now();
-    let offset = datetime.offset();
-    let time = datetime.timestamp();
-    let localtime = time + (offset.fix().local_minus_utc() as i64);
+    let time = proxmox::tools::time::epoch_i64();
+    let tm = proxmox::tools::time::localtime(time)?;
+    let offset = tm.tm_gmtoff;
+
+    let localtime = time + offset;
 
     Ok(json!({
         "timezone": read_etc_localtime()?,

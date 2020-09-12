@@ -11,7 +11,6 @@ use openssl::sign::{Signer, Verifier};
 use percent_encoding::{percent_decode_str, percent_encode, AsciiSet};
 
 use crate::api2::types::Userid;
-use crate::tools::epoch_now_u64;
 
 pub const TICKET_LIFETIME: i64 = 3600 * 2; // 2 hours
 
@@ -69,7 +68,7 @@ where
         Ok(Self {
             prefix: Cow::Borrowed(prefix),
             data: data.to_string(),
-            time: epoch_now_u64()? as i64,
+            time: proxmox::tools::time::epoch_i64(),
             signature: None,
             _type_marker: PhantomData,
         })
@@ -174,7 +173,7 @@ where
             None => bail!("invalid ticket without signature"),
         };
 
-        let age = epoch_now_u64()? as i64 - self.time;
+        let age = proxmox::tools::time::epoch_i64() - self.time;
         if age < time_frame.start {
             bail!("invalid ticket - timestamp newer than expected");
         }
@@ -272,7 +271,6 @@ mod test {
 
     use super::Ticket;
     use crate::api2::types::Userid;
-    use crate::tools::epoch_now_u64;
 
     fn simple_test<F>(key: &PKey<Private>, aad: Option<&str>, modify: F)
     where
@@ -314,7 +312,7 @@ mod test {
             false
         });
         simple_test(&key, None, |t| {
-            t.change_time(epoch_now_u64().unwrap() as i64 + 0x1000_0000);
+            t.change_time(proxmox::tools::time::epoch_i64() + 0x1000_0000);
             false
         });
     }

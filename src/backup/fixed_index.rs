@@ -4,9 +4,8 @@ use std::io::{Seek, SeekFrom};
 use super::chunk_stat::*;
 use super::chunk_store::*;
 use super::{IndexFile, ChunkReadInfo};
-use crate::tools::{self, epoch_now_u64};
+use crate::tools;
 
-use chrono::{Local, LocalResult, TimeZone};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
@@ -23,7 +22,7 @@ use proxmox::tools::Uuid;
 pub struct FixedIndexHeader {
     pub magic: [u8; 8],
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
     /// Sha256 over the index ``SHA256(digest1||digest2||...)``
     pub index_csum: [u8; 32],
     pub size: u64,
@@ -41,7 +40,7 @@ pub struct FixedIndexReader {
     index_length: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
     pub index_csum: [u8; 32],
 }
 
@@ -82,7 +81,7 @@ impl FixedIndexReader {
         }
 
         let size = u64::from_le(header.size);
-        let ctime = u64::from_le(header.ctime);
+        let ctime = i64::from_le(header.ctime);
         let chunk_size = u64::from_le(header.chunk_size);
 
         let index_length = ((size + chunk_size - 1) / chunk_size) as usize;
@@ -148,13 +147,13 @@ impl FixedIndexReader {
     pub fn print_info(&self) {
         println!("Size: {}", self.size);
         println!("ChunkSize: {}", self.chunk_size);
-        println!(
-            "CTime: {}",
-            match Local.timestamp_opt(self.ctime as i64, 0) {
-                LocalResult::Single(ctime) => ctime.format("%c").to_string(),
-                _ => (self.ctime as i64).to_string(),
-            }
-        );
+
+        let mut ctime_str = self.ctime.to_string();
+        if let Ok(s) = proxmox::tools::time::strftime_local("%c",self.ctime) {
+            ctime_str = s;
+        }
+
+        println!("CTime: {}", ctime_str);
         println!("UUID: {:?}", self.uuid);
     }
 }
@@ -231,7 +230,7 @@ pub struct FixedIndexWriter {
     index_length: usize,
     index: *mut u8,
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
 }
 
 // `index` is mmap()ed which cannot be thread-local so should be sendable
@@ -274,7 +273,7 @@ impl FixedIndexWriter {
             panic!("got unexpected header size");
         }
 
-        let ctime = epoch_now_u64()?;
+        let ctime = proxmox::tools::time::epoch_i64();
 
         let uuid = Uuid::generate();
 
@@ -282,7 +281,7 @@ impl FixedIndexWriter {
         let header = unsafe { &mut *(buffer.as_ptr() as *mut FixedIndexHeader) };
 
         header.magic = super::FIXED_SIZED_CHUNK_INDEX_1_0;
-        header.ctime = u64::to_le(ctime);
+        header.ctime = i64::to_le(ctime);
         header.size = u64::to_le(size as u64);
         header.chunk_size = u64::to_le(chunk_size as u64);
         header.uuid = *uuid.as_bytes();

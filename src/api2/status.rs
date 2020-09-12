@@ -23,7 +23,6 @@ use crate::api2::types::{
 use crate::server;
 use crate::backup::{DataStore};
 use crate::config::datastore;
-use crate::tools::epoch_now_f64;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::acl::{
@@ -110,7 +109,7 @@ fn datastore_status(
         });
 
         let rrd_dir = format!("datastore/{}", store);
-        let now = epoch_now_f64()?;
+        let now = proxmox::tools::time::epoch_f64();
         let rrd_resolution = RRDTimeFrameResolution::Month;
         let rrd_mode = RRDMode::Average;
 

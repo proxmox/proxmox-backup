@@ -3,8 +3,9 @@ use std::convert::TryInto;
 use anyhow::Error;
 use bitflags::bitflags;
 
+use proxmox::tools::time::TmEditor;
+
 pub use super::parse_time::*;
-use super::tm_editor::*;
 
 bitflags!{
     #[derive(Default)]
@@ -161,7 +162,7 @@ pub fn compute_next_event(
 
     let all_days = event.days.is_empty() || event.days.is_all();
 
-    let mut t = TmEditor::new(last, utc)?;
+    let mut t = TmEditor::with_epoch(last, utc)?;
 
     let mut count = 0;
 

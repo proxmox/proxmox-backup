@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, format_err, Error};
-use chrono::{DateTime, Utc};
 use futures::*;
 use futures::stream::Stream;
 use futures::future::AbortHandle;
@@ -51,7 +50,7 @@ impl BackupWriter {
         datastore: &str,
         backup_type: &str,
         backup_id: &str,
-        backup_time: DateTime<Utc>,
+        backup_time: i64,
         debug: bool,
         benchmark: bool
     ) -> Result<Arc<BackupWriter>, Error> {
@@ -59,7 +58,7 @@ impl BackupWriter {
         let param = json!({
             "backup-type": backup_type,
             "backup-id": backup_id,
-            "backup-time": backup_time.timestamp(),
+            "backup-time": backup_time,
             "store": datastore,
             "debug": debug,
             "benchmark": benchmark

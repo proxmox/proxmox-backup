@@ -21,14 +21,14 @@ use super::read_chunk::ReadChunk;
 use super::Chunker;
 use super::IndexFile;
 use super::{DataBlob, DataChunkBuilder};
-use crate::tools::{self, epoch_now_u64};
+use crate::tools;
 
 /// Header format definition for dynamic index files (`.dixd`)
 #[repr(C)]
 pub struct DynamicIndexHeader {
     pub magic: [u8; 8],
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
     /// Sha256 over the index ``SHA256(offset1||digest1||offset2||digest2||...)``
     pub index_csum: [u8; 32],
     reserved: [u8; 4032], // overall size is one page (4096 bytes)
@@ -77,7 +77,7 @@ pub struct DynamicIndexReader {
     pub size: usize,
     index: Mmap<DynamicEntry>,
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
     pub index_csum: [u8; 32],
 }
 
@@ -107,7 +107,7 @@ impl DynamicIndexReader {
             bail!("got unknown magic number");
         }
 
-        let ctime = u64::from_le(header.ctime);
+        let ctime = proxmox::tools::time::epoch_i64();
 
         let rawfd = file.as_raw_fd();
 
@@ -480,7 +480,7 @@ pub struct DynamicIndexWriter {
     tmp_filename: PathBuf,
     csum: Option<openssl::sha::Sha256>,
     pub uuid: [u8; 16],
-    pub ctime: u64,
+    pub ctime: i64,
 }
 
 impl Drop for DynamicIndexWriter {
@@ -506,13 +506,13 @@ impl DynamicIndexWriter {
 
         let mut writer = BufWriter::with_capacity(1024 * 1024, file);
 
-        let ctime = epoch_now_u64()?;
+        let ctime = proxmox::tools::time::epoch_i64();
 
         let uuid = Uuid::generate();
 
         let mut header = DynamicIndexHeader::zeroed();
         header.magic = super::DYNAMIC_SIZED_CHUNK_INDEX_1_0;
-        header.ctime = u64::to_le(ctime);
+        header.ctime = i64::to_le(ctime);
         header.uuid = *uuid.as_bytes();
         // header.index_csum = [0u8; 32];
         writer.write_all(header.as_bytes())?;

@@ -2,18 +2,16 @@ use anyhow::{Error};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use chrono::{DateTime, Timelike, Datelike, Local};
-
-use super::{BackupDir, BackupInfo};
+use super::BackupInfo;
 
 enum PruneMark { Keep, KeepPartial, Remove }
 
-fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
+fn mark_selections<F: Fn(&BackupInfo) -> Result<String, Error>> (
     mark: &mut HashMap<PathBuf, PruneMark>,
     list: &Vec<BackupInfo>,
     keep: usize,
     select_id: F,
-) {
+) -> Result<(), Error> {
 
     let mut include_hash = HashSet::new();
 
@@ -21,8 +19,7 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     for info in list {
         let backup_id = info.backup_dir.relative_path();
         if let Some(PruneMark::Keep) = mark.get(&backup_id) {
-            let local_time = info.backup_dir.backup_time().with_timezone(&Local);
-            let sel_id: String = select_id(local_time, &info);
+            let sel_id: String = select_id(&info)?;
             already_included.insert(sel_id);
         }
     }
@@ -30,8 +27,7 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
     for info in list {
         let backup_id = info.backup_dir.relative_path();
         if let Some(_) = mark.get(&backup_id) { continue; }
-        let local_time = info.backup_dir.backup_time().with_timezone(&Local);
-        let sel_id: String = select_id(local_time, &info);
+        let sel_id: String = select_id(&info)?;
 
         if already_included.contains(&sel_id) { continue; }
 
@@ -43,6 +39,8 @@ fn mark_selections<F: Fn(DateTime<Local>, &BackupInfo) -> String> (
             mark.insert(backup_id, PruneMark::Remove);
         }
     }
+
+    Ok(())
 }
 
 fn remove_incomplete_snapshots(
@@ -182,44 +180,43 @@ pub fn compute_prune_info(
     remove_incomplete_snapshots(&mut mark, &list);
 
     if let Some(keep_last) = options.keep_last {
-        mark_selections(&mut mark, &list, keep_last as usize, |_local_time, info| {
-            BackupDir::backup_time_to_string(info.backup_dir.backup_time())
-        });
+        mark_selections(&mut mark, &list, keep_last as usize, |info| {
+            Ok(info.backup_dir.backup_time_string().to_owned())
+        })?;
     }
 
+    use proxmox::tools::time::strftime_local;
+
     if let Some(keep_hourly) = options.keep_hourly {
-        mark_selections(&mut mark, &list, keep_hourly as usize, |local_time, _info| {
-            format!("{}/{}/{}/{}", local_time.year(), local_time.month(),
-                    local_time.day(), local_time.hour())
-        });
+        mark_selections(&mut mark, &list, keep_hourly as usize, |info| {
+            strftime_local("%Y/%m/%d/%H", info.backup_dir.backup_time())
+        })?;
     }
 
     if let Some(keep_daily) = options.keep_daily {
-        mark_selections(&mut mark, &list, keep_daily as usize, |local_time, _info| {
-            format!("{}/{}/{}", local_time.year(), local_time.month(), local_time.day())
-        });
+        mark_selections(&mut mark, &list, keep_daily as usize, |info| {
+            strftime_local("%Y/%m/%d", info.backup_dir.backup_time())
+        })?;
     }
 
     if let Some(keep_weekly) = options.keep_weekly {
-        mark_selections(&mut mark, &list, keep_weekly as usize, |local_time, _info| {
-            let iso_week = local_time.iso_week();
-            let week = iso_week.week();
-            // Note: This year number might not match the calendar year number.
-            let iso_week_year = iso_week.year();
-            format!("{}/{}", iso_week_year, week)
-        });
+        mark_selections(&mut mark, &list, keep_weekly as usize, |info| {
+            // Note: Use iso-week year/week here. This year number
+            // might not match the calendar year number.
+            strftime_local("%G/%V", info.backup_dir.backup_time())
+        })?;
     }
 
     if let Some(keep_monthly) = options.keep_monthly {
-        mark_selections(&mut mark, &list, keep_monthly as usize, |local_time, _info| {
-            format!("{}/{}", local_time.year(), local_time.month())
-        });
+        mark_selections(&mut mark, &list, keep_monthly as usize, |info| {
+            strftime_local("%Y/%m", info.backup_dir.backup_time())
+        })?;
     }
 
     if let Some(keep_yearly) = options.keep_yearly {
-        mark_selections(&mut mark, &list, keep_yearly as usize, |local_time, _info| {
-            format!("{}/{}", local_time.year(), local_time.year())
-        });
+        mark_selections(&mut mark, &list, keep_yearly as usize, |info| {
+            strftime_local("%Y", info.backup_dir.backup_time())
+        })?;
     }
 
     let prune_info: Vec<(BackupInfo, bool)> = list.into_iter()
