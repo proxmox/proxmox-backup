@@ -113,7 +113,30 @@ async move {
         bail!("backup owner check failed ({} != {})", userid, owner);
     }
 
-    let last_backup = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
+    let last_backup = {
+        let info = BackupInfo::last_backup(&datastore.base_path(), &backup_group, true).unwrap_or(None);
+        if let Some(info) = info {
+            let (manifest, _) = datastore.load_manifest(&info.backup_dir)?;
+            let verify = manifest.unprotected["verify_state"].clone();
+            match serde_json::from_value::<SnapshotVerifyState>(verify) {
+                Ok(verify) => {
+                    if verify.state != "ok" {
+                        // verify failed, treat as if no previous backup exists
+                        None
+                    } else {
+                        Some(info)
+                    }
+                },
+                Err(_) => {
+                    // no verify state found, treat as valid
+                    Some(info)
+                }
+            }
+        } else {
+            None
+        }
+    };
+
     let backup_dir = BackupDir::with_group(backup_group.clone(), backup_time)?;
 
     let _last_guard = if let Some(last) = &last_backup {
@@ -355,7 +378,7 @@ fn create_fixed_index(
         let last_backup = match &env.last_backup {
             Some(info) => info,
             None => {
-                bail!("cannot reuse index - no previous backup exists");
+                bail!("cannot reuse index - no valid previous backup exists");
             }
         };
 
@@ -670,7 +693,7 @@ fn download_previous(
 
         let last_backup = match &env.last_backup {
             Some(info) => info,
-            None => bail!("no previous backup"),
+            None => bail!("no valid previous backup"),
         };
 
         let mut path = env.datastore.snapshot_path(&last_backup.backup_dir);
