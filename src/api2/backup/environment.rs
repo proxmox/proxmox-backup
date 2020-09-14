@@ -9,7 +9,7 @@ use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::api2::types::Userid;
+use crate::api2::types::{Userid, SnapshotVerifyState};
 use crate::backup::*;
 use crate::server::WorkerTask;
 use crate::server::formatter::*;
@@ -66,13 +66,16 @@ struct FixedWriterState {
     incremental: bool,
 }
 
+// key=digest, value=(length, existance checked)
+type KnownChunksMap = HashMap<[u8;32], (u32, bool)>;
+
 struct SharedBackupState {
     finished: bool,
     uid_counter: usize,
     file_counter: usize, // successfully uploaded files
     dynamic_writers: HashMap<usize, DynamicWriterState>,
     fixed_writers: HashMap<usize, FixedWriterState>,
-    known_chunks: HashMap<[u8;32], u32>,
+    known_chunks: KnownChunksMap,
     backup_size: u64, // sums up size of all files
     backup_stat: UploadStatistic,
 }
@@ -153,7 +156,7 @@ impl BackupEnvironment {
 
         state.ensure_unfinished()?;
 
-        state.known_chunks.insert(digest, length);
+        state.known_chunks.insert(digest, (length, false));
 
         Ok(())
     }
@@ -195,7 +198,7 @@ impl BackupEnvironment {
         if is_duplicate { data.upload_stat.duplicates += 1; }
 
         // register chunk
-        state.known_chunks.insert(digest, size);
+        state.known_chunks.insert(digest, (size, true));
 
         Ok(())
     }
@@ -228,7 +231,7 @@ impl BackupEnvironment {
         if is_duplicate { data.upload_stat.duplicates += 1; }
 
         // register chunk
-        state.known_chunks.insert(digest, size);
+        state.known_chunks.insert(digest, (size, true));
 
         Ok(())
     }
@@ -237,7 +240,7 @@ impl BackupEnvironment {
         let state = self.state.lock().unwrap();
 
         match state.known_chunks.get(digest) {
-            Some(len) => Some(*len),
+            Some((len, _)) => Some(*len),
             None => None,
         }
     }
@@ -454,6 +457,47 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    /// Ensure all chunks referenced in this backup actually exist.
+    /// Only call *after* all writers have been closed, to avoid race with GC.
+    /// In case of error, mark the previous backup as 'verify failed'.
+    fn verify_chunk_existance(&self, known_chunks: &KnownChunksMap) -> Result<(), Error> {
+        for (digest, (_, checked)) in known_chunks.iter() {
+            if !checked && !self.datastore.chunk_path(digest).0.exists() {
+                let mark_msg = if let Some(ref last_backup) = self.last_backup {
+                    let last_dir = &last_backup.backup_dir;
+                    let verify_state = SnapshotVerifyState {
+                        state: "failed".to_owned(),
+                        upid: self.worker.upid().clone(),
+                    };
+
+                    let res = proxmox::try_block!{
+                        let (mut manifest, _) = self.datastore.load_manifest(last_dir)?;
+                        manifest.unprotected["verify_state"] = serde_json::to_value(verify_state)?;
+                        self.datastore.store_manifest(last_dir, serde_json::to_value(manifest)?)
+                    };
+
+                    if let Err(err) = res {
+                        format!("tried marking previous snapshot as bad, \
+                                but got error accessing manifest: {}", err)
+                    } else {
+                        "marked previous snapshot as bad, please use \
+                        'verify' for a detailed check".to_owned()
+                    }
+                } else {
+                    "internal error: no base backup registered to mark invalid".to_owned()
+                };
+
+                bail!(
+                    "chunk '{}' was attempted to be reused but doesn't exist - {}",
+                    digest_to_hex(digest),
+                    mark_msg
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     /// Mark backup as finished
     pub fn finish_backup(&self) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
@@ -489,6 +533,8 @@ impl BackupEnvironment {
                 );
             }
         }
+
+        self.verify_chunk_existance(&state.known_chunks)?;
 
         // marks the backup as successful
         state.finished = true;
