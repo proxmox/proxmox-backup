@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::task::{Context, Poll};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::Duration;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -29,7 +30,7 @@ use crate::tools::{self, BroadcastFuture, DEFAULT_ENCODE_SET};
 
 #[derive(Clone)]
 pub struct AuthInfo {
-    pub username: String,
+    pub userid: Userid,
     pub ticket: String,
     pub token: String,
 }
@@ -99,7 +100,9 @@ pub struct HttpClient {
     client: Client<HttpsConnector>,
     server: String,
     fingerprint: Arc<Mutex<Option<String>>>,
-    auth: BroadcastFuture<AuthInfo>,
+    first_auth: BroadcastFuture<()>,
+    auth: Arc<RwLock<AuthInfo>>,
+    ticket_abort: futures::future::AbortHandle,
     _options: HttpClientOptions,
 }
 
@@ -317,6 +320,41 @@ impl HttpClient {
             }
         };
 
+        let auth = Arc::new(RwLock::new(AuthInfo {
+            userid: userid.clone(),
+            ticket: password.clone(),
+            token: "".to_string(),
+        }));
+
+        let server2 = server.to_string();
+        let client2 = client.clone();
+        let auth2 = auth.clone();
+        let prefix2 = options.prefix.clone();
+
+        let renewal_future = async move {
+            loop {
+                tokio::time::delay_for(Duration::new(60*15,  0)).await; // 15 minutes
+                let (userid, ticket) = {
+                    let authinfo = auth2.read().unwrap().clone();
+                    (authinfo.userid, authinfo.ticket)
+                };
+                match Self::credentials(client2.clone(), server2.clone(), userid, ticket).await {
+                    Ok(auth) => {
+                        if use_ticket_cache & &prefix2.is_some() {
+                            let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.userid.to_string(), &auth.ticket, &auth.token);
+                        }
+                        *auth2.write().unwrap() = auth;
+                    },
+                    Err(err) => {
+                        eprintln!("re-authentication failed: {}", err);
+                        return;
+                    }
+                }
+            }
+        };
+
+        let (renewal_future, ticket_abort) = futures::future::abortable(renewal_future);
+
         let login_future = Self::credentials(
             client.clone(),
             server.to_owned(),
@@ -325,13 +363,14 @@ impl HttpClient {
         ).map_ok({
             let server = server.to_string();
             let prefix = options.prefix.clone();
+            let authinfo = auth.clone();
 
             move |auth| {
                 if use_ticket_cache & &prefix.is_some() {
-                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.username, &auth.ticket, &auth.token);
+                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.userid.to_string(), &auth.ticket, &auth.token);
                 }
-
-                auth
+                *authinfo.write().unwrap() = auth;
+                tokio::spawn(renewal_future);
             }
         });
 
@@ -339,7 +378,9 @@ impl HttpClient {
             client,
             server: String::from(server),
             fingerprint: verified_fingerprint,
-            auth: BroadcastFuture::new(Box::new(login_future)),
+            auth,
+            ticket_abort,
+            first_auth: BroadcastFuture::new(Box::new(login_future)),
             _options: options,
         })
     }
@@ -349,7 +390,9 @@ impl HttpClient {
     /// Login is done on demand, so this is only required if you need
     /// access to authentication data in 'AuthInfo'.
     pub async fn login(&self) -> Result<AuthInfo, Error> {
-        self.auth.listen().await
+        self.first_auth.listen().await?;
+        let authinfo = self.auth.read().unwrap();
+        Ok(authinfo.clone())
     }
 
     /// Returns the optional fingerprint passed to the new() constructor.
@@ -588,7 +631,7 @@ impl HttpClient {
         let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
         let cred = Self::api_request(client, req).await?;
         let auth = AuthInfo {
-            username: cred["data"]["username"].as_str().unwrap().to_owned(),
+            userid: cred["data"]["username"].as_str().unwrap().parse()?,
             ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
             token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
         };
@@ -663,6 +706,12 @@ impl HttpClient {
             .body(Body::empty())?;
 
         Ok(request)
+    }
+}
+
+impl Drop for HttpClient {
+    fn drop(&mut self) {
+        self.ticket_abort.abort();
     }
 }
 
