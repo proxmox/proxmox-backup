@@ -120,11 +120,9 @@ async move {
             let verify = manifest.unprotected["verify_state"].clone();
             match serde_json::from_value::<SnapshotVerifyState>(verify) {
                 Ok(verify) => {
-                    if verify.state != "ok" {
-                        // verify failed, treat as if no previous backup exists
-                        None
-                    } else {
-                        Some(info)
+                    match verify.state {
+                        VerifyState::Ok => Some(info),
+                        VerifyState::Failed => None,
                     }
                 },
                 Err(_) => {

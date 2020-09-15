@@ -283,7 +283,7 @@ pub fn verify_backup_dir(
 
     let mut error_count = 0;
 
-    let mut verify_result = "ok";
+    let mut verify_result = VerifyState::Ok;
     for info in manifest.files() {
         let result = proxmox::try_block!({
             worker.log(format!("  check {}", info.filename));
@@ -316,19 +316,18 @@ pub fn verify_backup_dir(
         if let Err(err) = result {
             worker.log(format!("verify {}:{}/{} failed: {}", datastore.name(), backup_dir, info.filename, err));
             error_count += 1;
-            verify_result = "failed";
+            verify_result = VerifyState::Failed;
         }
 
     }
 
     let verify_state = SnapshotVerifyState {
-        state: verify_result.to_string(),
+        state: verify_result,
         upid: worker.upid().clone(),
     };
     manifest.unprotected["verify_state"] = serde_json::to_value(verify_state)?;
     datastore.store_manifest(&backup_dir, serde_json::to_value(manifest)?)
         .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
-
 
     Ok(error_count == 0)
 }

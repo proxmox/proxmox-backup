@@ -9,7 +9,7 @@ use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::api2::types::{Userid, SnapshotVerifyState};
+use crate::api2::types::{Userid, SnapshotVerifyState, VerifyState};
 use crate::backup::*;
 use crate::server::WorkerTask;
 use crate::server::formatter::*;
@@ -466,7 +466,7 @@ impl BackupEnvironment {
                 let mark_msg = if let Some(ref last_backup) = self.last_backup {
                     let last_dir = &last_backup.backup_dir;
                     let verify_state = SnapshotVerifyState {
-                        state: "failed".to_owned(),
+                        state: VerifyState::Failed,
                         upid: self.worker.upid().clone(),
                     };
 

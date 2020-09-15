@@ -380,13 +380,24 @@ pub struct GroupListItem {
     pub owner: Option<Userid>,
 }
 
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Result of a verify operation.
+pub enum VerifyState {
+    /// Verification was successful
+    Ok,
+    /// Verification reported one or more errors
+    Failed,
+}
+
 #[api(
     properties: {
         upid: {
             schema: UPID_SCHEMA
         },
         state: {
-            type: String
+            type: VerifyState
         },
     },
 )]
@@ -395,8 +406,8 @@ pub struct GroupListItem {
 pub struct SnapshotVerifyState {
     /// UPID of the verify task
     pub upid: UPID,
-    /// State of the verification. "failed" or "ok"
-    pub state: String,
+    /// State of the verification. Enum.
+    pub state: VerifyState,
 }
 
 #[api(
