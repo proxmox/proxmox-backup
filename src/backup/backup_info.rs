@@ -213,7 +213,7 @@ impl BackupDir {
         U: Into<String>,
     {
         let group = BackupGroup::new(backup_type.into(), backup_id.into());
-        BackupDir::new_with_group(group, backup_time)
+        BackupDir::with_group(group, backup_time)
     }
 
     pub fn with_rfc3339<T,U,V>(backup_type: T, backup_id: U, backup_time_string: V) -> Result<Self, Error>
@@ -228,7 +228,7 @@ impl BackupDir {
         Ok(Self { group, backup_time, backup_time_string })
     }
 
-    pub fn new_with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
+    pub fn with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
         let backup_time_string = Self::backup_time_to_string(backup_time)?;
         Ok(Self { group, backup_time, backup_time_string })
     }
