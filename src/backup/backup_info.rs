@@ -103,8 +103,7 @@ impl BackupGroup {
         tools::scandir(libc::AT_FDCWD, &path, &BACKUP_DATE_REGEX, |l2_fd, backup_time, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-            let timestamp = proxmox::tools::time::parse_rfc3339(backup_time)?;
-            let backup_dir = BackupDir::new(self.backup_type.clone(), self.backup_id.clone(), timestamp)?;
+            let backup_dir = BackupDir::with_rfc3339(&self.backup_type, &self.backup_id, backup_time)?;
             let files = list_backup_files(l2_fd, backup_time)?;
 
             list.push(BackupInfo { backup_dir, files });
@@ -217,6 +216,18 @@ impl BackupDir {
         BackupDir::new_with_group(group, backup_time)
     }
 
+    pub fn with_rfc3339<T,U,V>(backup_type: T, backup_id: U, backup_time_string: V) -> Result<Self, Error>
+    where
+        T: Into<String>,
+        U: Into<String>,
+        V: Into<String>,
+    {
+        let backup_time_string =  backup_time_string.into();
+        let backup_time = proxmox::tools::time::parse_rfc3339(&backup_time_string)?;
+        let group = BackupGroup::new(backup_type.into(), backup_id.into());
+        Ok(Self { group, backup_time, backup_time_string })
+    }
+
     pub fn new_with_group(group: BackupGroup, backup_time: i64) -> Result<Self, Error> {
         let backup_time_string = Self::backup_time_to_string(backup_time)?;
         Ok(Self { group, backup_time, backup_time_string })
@@ -259,10 +270,11 @@ impl std::str::FromStr for BackupDir {
         let cap = SNAPSHOT_PATH_REGEX.captures(path)
             .ok_or_else(|| format_err!("unable to parse backup snapshot path '{}'", path))?;
 
-        let group = BackupGroup::new(cap.get(1).unwrap().as_str(), cap.get(2).unwrap().as_str());
-        let backup_time_string = cap.get(3).unwrap().as_str().to_owned();
-        let backup_time = proxmox::tools::time::parse_rfc3339(&backup_time_string)?;
-        Ok(BackupDir { group, backup_time, backup_time_string })
+        BackupDir::with_rfc3339(
+            cap.get(1).unwrap().as_str(),
+            cap.get(2).unwrap().as_str(),
+            cap.get(3).unwrap().as_str(),
+        )
     }
 }
 
@@ -331,13 +343,7 @@ impl BackupInfo {
                 tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time_string, file_type| {
                     if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-                    let backup_time = proxmox::tools::time::parse_rfc3339(backup_time_string)?;
-
-                    let backup_dir = BackupDir {
-                        group: BackupGroup::new(backup_type, backup_id),
-                        backup_time,
-                        backup_time_string: backup_time_string.to_owned(),
-                    };
+                    let backup_dir = BackupDir::with_rfc3339(backup_type, backup_id, backup_time_string)?;
 
                     let files = list_backup_files(l2_fd, backup_time_string)?;
 
