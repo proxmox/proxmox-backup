@@ -176,7 +176,13 @@ async fn pull (
 
         worker.log(format!("sync datastore '{}' start", store));
 
-        pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, userid).await?;
+        let pull_future = pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, userid);
+        let future = select!{
+            success = pull_future.fuse() => success,
+            abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,
+        };
+
+        let _ = future?;
 
         worker.log(format!("sync datastore '{}' end", store));
 
