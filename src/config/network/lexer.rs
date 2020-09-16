@@ -27,6 +27,7 @@ pub enum Token {
     BondSlaves,
     BondMode,
     BondPrimary,
+    BondXmitHashPolicy,
     EOF,
 }
 
@@ -54,6 +55,8 @@ lazy_static! {
         map.insert("bond-mode", Token::BondMode);
         map.insert("bond-primary", Token::BondPrimary);
         map.insert("bond_primary", Token::BondPrimary);
+        map.insert("bond_xmit_hash_policy", Token::BondXmitHashPolicy);
+        map.insert("bond-xmit-hash-policy", Token::BondXmitHashPolicy);
         map
     };
 }

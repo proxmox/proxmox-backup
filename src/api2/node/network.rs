@@ -202,6 +202,10 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
                 optional: true,
             },
+            bond_xmit_hash_policy: {
+                type: BondXmitHashPolicy,
+                optional: true,
+            },
             slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
@@ -229,6 +233,7 @@ pub fn create_interface(
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
     bond_primary: Option<String>,
+    bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
     slaves: Option<String>,
     param: Value,
 ) -> Result<(), Error> {
@@ -297,6 +302,14 @@ pub fn create_interface(
                     }
                     interface.bond_primary = bond_primary;
                 }
+                if bond_xmit_hash_policy.is_some() {
+                    if mode != LinuxBondMode::ieee802_3ad &&
+                       mode != LinuxBondMode::balance_xor
+                    {
+                        bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
+                    }
+                    interface.bond_xmit_hash_policy = bond_xmit_hash_policy;
+                }
             }
             if let Some(slaves) = slaves {
                 let slaves = split_interface_list(&slaves)?;
@@ -359,6 +372,8 @@ pub enum DeletableProperty {
     /// Delete bond-primary
     #[serde(rename = "bond-primary")]
     bond_primary,
+    /// Delete bond transmit hash policy
+    bond_xmit_hash_policy,
 }
 
 
@@ -440,6 +455,10 @@ pub enum DeletableProperty {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
                 optional: true,
             },
+            bond_xmit_hash_policy: {
+                type: BondXmitHashPolicy,
+                optional: true,
+            },
             slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
@@ -479,6 +498,7 @@ pub fn update_interface(
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
     bond_primary: Option<String>,
+    bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
     slaves: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
@@ -523,6 +543,7 @@ pub fn update_interface(
                 DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
                 DeletableProperty::slaves => { interface.set_bond_slaves(Vec::new())?; }
                 DeletableProperty::bond_primary => { interface.bond_primary = None; }
+                DeletableProperty::bond_xmit_hash_policy => { interface.bond_xmit_hash_policy = None }
             }
         }
     }
@@ -547,6 +568,14 @@ pub fn update_interface(
                 bail!("bond-primary is only valid with Active/Backup mode");
             }
             interface.bond_primary = bond_primary;
+        }
+        if bond_xmit_hash_policy.is_some() {
+            if mode != LinuxBondMode::ieee802_3ad &&
+               mode != LinuxBondMode::balance_xor
+            {
+                bail!("bond_xmit_hash_policy is only valid with LACP(802.3ad) or balance-xor mode");
+            }
+            interface.bond_xmit_hash_policy = bond_xmit_hash_policy;
         }
     }
 

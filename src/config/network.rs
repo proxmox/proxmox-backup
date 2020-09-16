@@ -17,7 +17,7 @@ pub use lexer::*;
 mod parser;
 pub use parser::*;
 
-use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode};
+use crate::api2::types::{Interface, NetworkConfigMethod, NetworkInterfaceType, LinuxBondMode, BondXmitHashPolicy};
 
 lazy_static!{
     static ref PHYSICAL_NIC_REGEX: Regex = Regex::new(r"^(?:eth\d+|en[^:.]+|ib\d+)$").unwrap();
@@ -41,6 +41,19 @@ pub fn bond_mode_to_str(mode: LinuxBondMode) -> &'static str {
         LinuxBondMode::ieee802_3ad => "802.3ad",
         LinuxBondMode::balance_tlb => "balance-tlb",
         LinuxBondMode::balance_alb => "balance-alb",
+    }
+}
+
+pub fn bond_xmit_hash_policy_from_str(s: &str) -> Result<BondXmitHashPolicy, Error> {
+    BondXmitHashPolicy::deserialize(s.into_deserializer())
+        .map_err(|_: value::Error| format_err!("invalid bond_xmit_hash_policy '{}'", s))
+}
+
+pub fn bond_xmit_hash_policy_to_str(policy: &BondXmitHashPolicy) -> &'static str {
+    match policy {
+        BondXmitHashPolicy::layer2 => "layer2",
+        BondXmitHashPolicy::layer2_3 => "layer2+3",
+        BondXmitHashPolicy::layer3_4 => "layer3+4",
     }
 }
 
@@ -68,6 +81,7 @@ impl Interface {
             slaves: None,
             bond_mode: None,
             bond_primary: None,
+            bond_xmit_hash_policy: None,
         }
     }
 
@@ -173,6 +187,14 @@ impl Interface {
                 if let Some(primary) = &self.bond_primary {
                     if mode == LinuxBondMode::active_backup {
                         writeln!(w, "\tbond-primary {}", primary)?;
+                    }
+                }
+
+                if let Some(xmit_policy) = &self.bond_xmit_hash_policy {
+                    if mode == LinuxBondMode::ieee802_3ad ||
+                       mode == LinuxBondMode::balance_xor
+                    {
+                        writeln!(w, "\tbond_xmit_hash_policy {}", bond_xmit_hash_policy_to_str(xmit_policy))?;
                     }
                 }
 

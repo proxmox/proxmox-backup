@@ -699,12 +699,29 @@ pub enum LinuxBondMode {
     /// Broadcast policy
     broadcast = 3,
     /// IEEE 802.3ad Dynamic link aggregation
-    //#[serde(rename = "802.3ad")]
+    #[serde(rename = "802.3ad")]
     ieee802_3ad = 4,
     /// Adaptive transmit load balancing
     balance_tlb = 5,
     /// Adaptive load balancing
     balance_alb = 6,
+}
+
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[allow(non_camel_case_types)]
+#[repr(u8)]
+/// Bond Transmit Hash Policy for LACP (802.3ad)
+pub enum BondXmitHashPolicy {
+    /// Layer 2
+    layer2 = 0,
+    /// Layer 2+3
+    #[serde(rename = "layer2+3")]
+    layer2_3 = 1,
+    /// Layer 3+4
+    #[serde(rename = "layer3+4")]
+    layer3_4 = 2,
 }
 
 #[api()]
@@ -817,6 +834,10 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = StringSchema::new(
             schema: NETWORK_INTERFACE_NAME_SCHEMA,
             optional: true,
         },
+        bond_xmit_hash_policy: {
+            type: BondXmitHashPolicy,
+            optional: true,
+        },
     }
 )]
 #[derive(Debug, Serialize, Deserialize)]
@@ -876,6 +897,7 @@ pub struct Interface {
     #[serde(skip_serializing_if="Option::is_none")]
     #[serde(rename = "bond-primary")]
     pub bond_primary: Option<String>,
+    pub bond_xmit_hash_policy: Option<BondXmitHashPolicy>,
 }
 
 // Regression tests
