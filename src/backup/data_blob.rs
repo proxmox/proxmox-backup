@@ -72,7 +72,7 @@ impl DataBlob {
     }
 
     // verify the CRC32 checksum
-    fn verify_crc(&self) -> Result<(), Error> {
+    pub fn verify_crc(&self) -> Result<(), Error> {
         let expected_crc = self.compute_crc();
         if expected_crc != self.crc() {
             bail!("Data blob has wrong CRC checksum.");
