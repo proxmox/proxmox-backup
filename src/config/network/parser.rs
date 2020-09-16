@@ -243,6 +243,12 @@ impl <R: BufRead> NetworkParser<R> {
                     interface.bond_mode = Some(bond_mode_from_str(&mode)?);
                     self.eat(Token::Newline)?;
                 }
+                Token::BondPrimary => {
+                    self.eat(Token::BondPrimary)?;
+                    let primary = self.next_text()?;
+                    interface.bond_primary = Some(primary);
+                    self.eat(Token::Newline)?;
+                }
                 Token::Netmask => bail!("netmask is deprecated and no longer supported"),
 
                 _ => { // parse addon attributes

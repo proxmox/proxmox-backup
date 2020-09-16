@@ -812,7 +812,11 @@ pub const NETWORK_INTERFACE_LIST_SCHEMA: Schema = StringSchema::new(
         bond_mode: {
             type: LinuxBondMode,
             optional: true,
-        }
+        },
+        "bond-primary": {
+            schema: NETWORK_INTERFACE_NAME_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Debug, Serialize, Deserialize)]
@@ -869,6 +873,9 @@ pub struct Interface {
     pub slaves: Option<Vec<String>>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub bond_mode: Option<LinuxBondMode>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    #[serde(rename = "bond-primary")]
+    pub bond_primary: Option<String>,
 }
 
 // Regression tests

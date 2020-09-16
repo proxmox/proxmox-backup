@@ -198,6 +198,10 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
                 type: LinuxBondMode,
                 optional: true,
             },
+            "bond-primary": {
+                schema: NETWORK_INTERFACE_NAME_SCHEMA,
+                optional: true,
+            },
             slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
@@ -224,6 +228,7 @@ pub fn create_interface(
     bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
+    bond_primary: Option<String>,
     slaves: Option<String>,
     param: Value,
 ) -> Result<(), Error> {
@@ -284,7 +289,15 @@ pub fn create_interface(
             if bridge_vlan_aware.is_some() { interface.bridge_vlan_aware = bridge_vlan_aware; }
         }
         NetworkInterfaceType::Bond => {
-            if bond_mode.is_some() { interface.bond_mode = bond_mode; }
+            if let Some(mode) = bond_mode {
+                interface.bond_mode = bond_mode;
+                if bond_primary.is_some() {
+                    if mode != LinuxBondMode::active_backup {
+                        bail!("bond-primary is only valid with Active/Backup mode");
+                    }
+                    interface.bond_primary = bond_primary;
+                }
+            }
             if let Some(slaves) = slaves {
                 let slaves = split_interface_list(&slaves)?;
                 interface.set_bond_slaves(slaves)?;
@@ -343,6 +356,9 @@ pub enum DeletableProperty {
     bridge_vlan_aware,
     /// Delete bond-slaves (set to 'none')
     slaves,
+    /// Delete bond-primary
+    #[serde(rename = "bond-primary")]
+    bond_primary,
 }
 
 
@@ -420,6 +436,10 @@ pub enum DeletableProperty {
                 type: LinuxBondMode,
                 optional: true,
             },
+            "bond-primary": {
+                schema: NETWORK_INTERFACE_NAME_SCHEMA,
+                optional: true,
+            },
             slaves: {
                 schema: NETWORK_INTERFACE_LIST_SCHEMA,
                 optional: true,
@@ -458,6 +478,7 @@ pub fn update_interface(
     bridge_ports: Option<String>,
     bridge_vlan_aware: Option<bool>,
     bond_mode: Option<LinuxBondMode>,
+    bond_primary: Option<String>,
     slaves: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
@@ -501,6 +522,7 @@ pub fn update_interface(
                 DeletableProperty::bridge_ports => { interface.set_bridge_ports(Vec::new())?; }
                 DeletableProperty::bridge_vlan_aware => { interface.bridge_vlan_aware = None; }
                 DeletableProperty::slaves => { interface.set_bond_slaves(Vec::new())?; }
+                DeletableProperty::bond_primary => { interface.bond_primary = None; }
             }
         }
     }
@@ -518,7 +540,15 @@ pub fn update_interface(
         let slaves = split_interface_list(&slaves)?;
         interface.set_bond_slaves(slaves)?;
     }
-    if bond_mode.is_some() { interface.bond_mode = bond_mode; }
+    if let Some(mode) = bond_mode {
+        interface.bond_mode = bond_mode;
+        if bond_primary.is_some() {
+            if mode != LinuxBondMode::active_backup {
+                bail!("bond-primary is only valid with Active/Backup mode");
+            }
+            interface.bond_primary = bond_primary;
+        }
+    }
 
     if let Some(cidr) = cidr {
         let (_, _, is_v6) = network::parse_cidr(&cidr)?;

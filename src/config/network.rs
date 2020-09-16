@@ -67,6 +67,7 @@ impl Interface {
             bridge_vlan_aware: None,
             slaves: None,
             bond_mode: None,
+            bond_primary: None,
         }
     }
 
@@ -169,6 +170,11 @@ impl Interface {
             NetworkInterfaceType::Bond => {
                 let mode = self.bond_mode.unwrap_or(LinuxBondMode::balance_rr);
                 writeln!(w, "\tbond-mode {}", bond_mode_to_str(mode))?;
+                if let Some(primary) = &self.bond_primary {
+                    if mode == LinuxBondMode::active_backup {
+                        writeln!(w, "\tbond-primary {}", primary)?;
+                    }
+                }
 
                 let slaves = self.slaves.as_ref().unwrap_or(&EMPTY_LIST);
                 if slaves.is_empty() {
