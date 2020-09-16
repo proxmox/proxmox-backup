@@ -1,9 +1,10 @@
 use anyhow::Error;
 use serde_json::{Value, json};
 
-use proxmox::api::{api, Router};
+use proxmox::api::{api, Permission, Router};
 
 use crate::api2::types::*;
+use crate::config::acl::PRIV_SYS_AUDIT;
 use crate::rrd::{extract_cached_data, RRD_DATA_ENTRIES};
 
 pub fn create_value_from_rrd(
@@ -55,6 +56,9 @@ pub fn create_value_from_rrd(
                 type: RRDMode,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(&["system", "status"], PRIV_SYS_AUDIT, false),
     },
 )]
 /// Read node stats
