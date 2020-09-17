@@ -8,10 +8,13 @@ use std::collections::HashMap;
 use std::io::{Seek, SeekFrom};
 
 use proxmox::api::error::{StatusCode, HttpError};
-use crate::server::{WorkerTask};
-use crate::backup::*;
-use crate::api2::types::*;
-use super::*;
+use crate::{
+    tools::compute_file_csum,
+    server::WorkerTask,
+    backup::*,
+    api2::types::*,
+    client::*,
+};
 
 
 // fixme: implement filters

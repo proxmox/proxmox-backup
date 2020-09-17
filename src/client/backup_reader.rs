@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use std::io::{Read, Write, Seek, SeekFrom};
+use std::io::{Write, Seek, SeekFrom};
 use std::fs::File;
 use std::sync::Arc;
 use std::os::unix::fs::OpenOptionsExt;
@@ -9,7 +9,10 @@ use serde_json::{json, Value};
 
 use proxmox::tools::digest_to_hex;
 
-use crate::backup::*;
+use crate::{
+    tools::compute_file_csum,
+    backup::*,
+};
 
 use super::{HttpClient, H2Client};
 
@@ -218,30 +221,4 @@ impl BackupReader {
 
         Ok(index)
     }
-}
-
-pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
-
-    file.seek(SeekFrom::Start(0))?;
-
-    let mut hasher = openssl::sha::Sha256::new();
-    let mut buffer = proxmox::tools::vec::undefined(256*1024);
-    let mut size: u64 = 0;
-
-    loop {
-        let count = match file.read(&mut buffer) {
-            Ok(count) => count,
-            Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => { continue; }
-            Err(err) => return Err(err.into()),
-        };
-        if count == 0 {
-            break;
-        }
-        size += count as u64;
-        hasher.update(&buffer[..count]);
-    }
-
-    let csum = hasher.finish();
-
-    Ok((csum, size))
 }
