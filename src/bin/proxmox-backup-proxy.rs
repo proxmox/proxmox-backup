@@ -337,7 +337,10 @@ async fn schedule_datastore_prune() {
     use proxmox_backup::backup::{
         PruneOptions, DataStore, BackupGroup, compute_prune_info};
     use proxmox_backup::server::{WorkerTask};
-    use proxmox_backup::config::datastore::{self, DataStoreConfig};
+    use proxmox_backup::config::{
+        jobstate::{self, Job},
+        datastore::{self, DataStoreConfig}
+    };
     use proxmox_backup::tools::systemd::time::{
         parse_calendar_event, compute_next_event};
 
@@ -394,16 +397,10 @@ async fn schedule_datastore_prune() {
 
         let worker_type = "prune";
 
-        let last = match lookup_last_worker(worker_type, &store) {
-            Ok(Some(upid)) => {
-                if proxmox_backup::server::worker_is_active_local(&upid) {
-                    continue;
-                }
-                upid.starttime
-            }
-            Ok(None) => 0,
+        let last = match jobstate::last_run_time(worker_type, &store) {
+            Ok(time) => time,
             Err(err) => {
-                eprintln!("lookup_last_job_start failed: {}", err);
+                eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
                 continue;
             }
         };
@@ -421,6 +418,11 @@ async fn schedule_datastore_prune() {
 
         if next > now  { continue; }
 
+        let mut job = match Job::new(worker_type, &store) {
+            Ok(job) => job,
+            Err(_) => continue, // could not get lock
+        };
+
         let store2 = store.clone();
 
         if let Err(err) = WorkerTask::new_thread(
@@ -429,34 +431,47 @@ async fn schedule_datastore_prune() {
             Userid::backup_userid().clone(),
             false,
             move |worker| {
-                worker.log(format!("Starting datastore prune on store \"{}\"", store));
-                worker.log(format!("task triggered by schedule '{}'", event_str));
-                worker.log(format!("retention options: {}", prune_options.cli_options_string()));
 
-                let base_path = datastore.base_path();
+                job.start(&worker.upid().to_string())?;
 
-                let groups = BackupGroup::list_groups(&base_path)?;
-                for group in groups {
-                    let list = group.list_backups(&base_path)?;
-                    let mut prune_info = compute_prune_info(list, &prune_options)?;
-                    prune_info.reverse(); // delete older snapshots first
+                let result = {
 
-                    worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
-                                       store, group.backup_type(), group.backup_id()));
+                    worker.log(format!("Starting datastore prune on store \"{}\"", store));
+                    worker.log(format!("task triggered by schedule '{}'", event_str));
+                    worker.log(format!("retention options: {}", prune_options.cli_options_string()));
 
-                    for (info, keep) in prune_info {
-                        worker.log(format!(
-                            "{} {}/{}/{}",
-                            if keep { "keep" } else { "remove" },
-                            group.backup_type(), group.backup_id(),
-                            info.backup_dir.backup_time_string()));
-                        if !keep {
-                            datastore.remove_backup_dir(&info.backup_dir, true)?;
+                    let base_path = datastore.base_path();
+
+                    let groups = BackupGroup::list_groups(&base_path)?;
+                    for group in groups {
+                        let list = group.list_backups(&base_path)?;
+                        let mut prune_info = compute_prune_info(list, &prune_options)?;
+                        prune_info.reverse(); // delete older snapshots first
+
+                        worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
+                                store, group.backup_type(), group.backup_id()));
+
+                        for (info, keep) in prune_info {
+                            worker.log(format!(
+                                    "{} {}/{}/{}",
+                                    if keep { "keep" } else { "remove" },
+                                    group.backup_type(), group.backup_id(),
+                                    info.backup_dir.backup_time_string()));
+                            if !keep {
+                                datastore.remove_backup_dir(&info.backup_dir, true)?;
+                            }
                         }
                     }
+                    Ok(())
+                };
+
+                let status = worker.create_state(&result);
+
+                if let Err(err) = job.finish(status) {
+                    eprintln!("could not finish job state for {}: {}", worker_type, err);
                 }
 
-                Ok(())
+                result
             }
         ) {
             eprintln!("unable to start datastore prune on store {} - {}", store2, err);

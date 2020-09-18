@@ -131,6 +131,8 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     datastore::save_config(&config)?;
 
+    crate::config::jobstate::create_state_file("prune", &datastore.name)?;
+
     Ok(())
 }
 
@@ -312,7 +314,11 @@ pub fn update_datastore(
     }
 
     if gc_schedule.is_some() { data.gc_schedule = gc_schedule; }
-    if prune_schedule.is_some() { data.prune_schedule = prune_schedule; }
+    let mut prune_schedule_changed = false;
+    if prune_schedule.is_some() {
+        prune_schedule_changed = true;
+        data.prune_schedule = prune_schedule;
+    }
     if verify_schedule.is_some() { data.verify_schedule = verify_schedule; }
 
     if keep_last.is_some() { data.keep_last = keep_last; }
@@ -325,6 +331,12 @@ pub fn update_datastore(
     config.set_data(&name, "datastore", &data)?;
 
     datastore::save_config(&config)?;
+
+    // we want to reset the statefile, to avoid an immediate sync in some cases
+    // (e.g. going from monthly to weekly in the second week of the month)
+    if prune_schedule_changed {
+        crate::config::jobstate::create_state_file("prune", &name)?;
+    }
 
     Ok(())
 }
@@ -364,6 +376,8 @@ pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Erro
     }
 
     datastore::save_config(&config)?;
+
+    crate::config::jobstate::remove_state_file("prune", &name)?;
 
     Ok(())
 }
