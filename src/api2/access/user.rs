@@ -8,6 +8,7 @@ use proxmox::tools::fs::open_file_locked;
 use crate::api2::types::*;
 use crate::config::user;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
+use crate::config::cached_user_info::CachedUserInfo;
 
 pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .format(&PASSWORD_FORMAT)
@@ -25,10 +26,11 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
         items: { type: user::User },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Anybody,
+        description: "Returns all or just the logged-in user, depending on privileges.",
     },
 )]
-/// List all users
+/// List users
 pub fn list_users(
     _param: Value,
     _info: &ApiMethod,
@@ -37,11 +39,21 @@ pub fn list_users(
 
     let (config, digest) = user::config()?;
 
-    let list = config.convert_to_typed_array("user")?;
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let top_level_privs = user_info.lookup_privs(&userid, &["access", "users"]);
+    let top_level_allowed = (top_level_privs & PRIV_SYS_AUDIT) != 0;
+
+    let filter_by_privs = |user: &user::User| {
+        top_level_allowed || user.userid == userid
+    };
+
+    let list:Vec<user::User> = config.convert_to_typed_array("user")?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    Ok(list)
+    Ok(list.into_iter().filter(filter_by_privs).collect())
 }
 
 #[api(
@@ -124,7 +136,10 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
         type: user::User,
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
+            &Permission::UserParam("userid"),
+        ]),
     },
 )]
 /// Read user configuration data.
@@ -177,7 +192,10 @@ pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
         },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::UserParam("userid"),
+        ]),
     },
 )]
 /// Update user configuration.
@@ -258,7 +276,10 @@ pub fn update_user(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::UserParam("userid"),
+        ]),
     },
 )]
 /// Remove a user from the configuration file.
