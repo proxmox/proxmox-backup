@@ -197,7 +197,7 @@ create a datastore at the location ``/mnt/datastore/store1``:
 
 .. image:: images/screenshots/pbs-gui-disks-zfs-create.png
   :align: right
-  :alt: Create a directory
+  :alt: Create ZFS
 
 You can also create a ``zpool`` with various raid levels from **Administration
 -> Disks -> Zpool** in the web interface, or by using ``zpool create``. The command
@@ -208,8 +208,7 @@ mounts it on the root directory (default):
 
   # proxmox-backup-manager disk zpool create zpool1 --devices sdb,sdc --raidlevel mirror
 
-.. note::
-  You can also pass the ``--add-datastore`` parameter here, to automatically
+.. note:: You can also pass the ``--add-datastore`` parameter here, to automatically
   create a datastore from the disk.
 
 You can use ``disk fs list`` and ``disk zpool list`` to keep track of your
@@ -483,6 +482,7 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
+.. image:: images/screenshots/pbs-gui-permissions-add.png
   :align: right
   :alt: Add permissions for user
 
@@ -609,7 +609,6 @@ installation, from which you can `sync` datastores to a local datastore with a
 -> Remotes**. Alternatively, you can use the ``remote`` subcommand.
 
 .. image:: images/screenshots/pbs-gui-remote-add.png
-.. image:: images/screenshots/pbs-gui-permissions-add.png
   :align: right
   :alt: Add a remote
 
@@ -1394,7 +1393,7 @@ fingerprint by running the following command on the backup server:
 
 .. code-block:: console
 
-  # proxmox-backup-manager cert  info |grep Fingerprint
+  # proxmox-backup-manager cert info | grep Fingerprint
   Fingerprint (sha256): 64:d3:ff:3a:50:38:53:5a:9b:f7:50:...:ab:fe
 
 Please add that fingerprint to your configuration to establish a trust
