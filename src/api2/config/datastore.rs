@@ -175,6 +175,8 @@ pub enum DeletableProperty {
     gc_schedule,
     /// Delete the prune job schedule.
     prune_schedule,
+    /// Delete the verify schedule property
+    verify_schedule,
     /// Delete the keep-last property
     keep_last,
     /// Delete the keep-hourly property
@@ -289,6 +291,7 @@ pub fn update_datastore(
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::gc_schedule => { data.gc_schedule = None; },
                 DeletableProperty::prune_schedule => { data.prune_schedule = None; },
+                DeletableProperty::verify_schedule => { data.verify_schedule = None; },
                 DeletableProperty::keep_last => { data.keep_last = None; },
                 DeletableProperty::keep_hourly => { data.keep_hourly = None; },
                 DeletableProperty::keep_daily => { data.keep_daily = None; },
