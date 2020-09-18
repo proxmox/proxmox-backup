@@ -14,7 +14,7 @@ use crate::config::acl::{Role, ROLE_NAMES, PRIVILEGES};
         type: Array,
         items: {
             type: Object,
-            description: "User name with description.",
+            description: "Role with description and privileges.",
             properties: {
                 roleid: {
                     type: Role,
