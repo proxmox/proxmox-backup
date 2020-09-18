@@ -75,6 +75,10 @@ pub fn list_datastores(
                 optional: true,
                 schema: PRUNE_SCHEDULE_SCHEMA,
             },
+            "verify-schedule": {
+                optional: true,
+                schema: VERIFY_SCHEDULE_SCHEMA,
+            },
             "keep-last": {
                 optional: true,
                 schema: PRUNE_SCHEMA_KEEP_LAST,
@@ -204,6 +208,10 @@ pub enum DeletableProperty {
                 optional: true,
                 schema: PRUNE_SCHEDULE_SCHEMA,
             },
+            "verify-schedule": {
+                optional: true,
+                schema: VERIFY_SCHEDULE_SCHEMA,
+            },
             "keep-last": {
                 optional: true,
                 schema: PRUNE_SCHEMA_KEEP_LAST,
@@ -252,6 +260,7 @@ pub fn update_datastore(
     comment: Option<String>,
     gc_schedule: Option<String>,
     prune_schedule: Option<String>,
+    verify_schedule: Option<String>,
     keep_last: Option<u64>,
     keep_hourly: Option<u64>,
     keep_daily: Option<u64>,
@@ -301,6 +310,7 @@ pub fn update_datastore(
 
     if gc_schedule.is_some() { data.gc_schedule = gc_schedule; }
     if prune_schedule.is_some() { data.prune_schedule = prune_schedule; }
+    if verify_schedule.is_some() { data.verify_schedule = verify_schedule; }
 
     if keep_last.is_some() { data.keep_last = keep_last; }
     if keep_hourly.is_some() { data.keep_hourly = keep_hourly; }
