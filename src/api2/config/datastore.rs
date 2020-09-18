@@ -9,6 +9,7 @@ use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::backup::*;
+use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
 use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 
@@ -22,7 +23,7 @@ use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
         items: { type: datastore::DataStoreConfig },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_AUDIT, false),
+        permission: &Permission::Anybody,
     },
 )]
 /// List all datastores
@@ -33,11 +34,18 @@ pub fn list_datastores(
 
     let (config, digest) = datastore::config()?;
 
-    let list = config.convert_to_typed_array("datastore")?;
+    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    Ok(list)
+    let list:Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
+    let filter_by_privs = |store: &DataStoreConfig| {
+        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store.name]);
+        (user_privs & PRIV_DATASTORE_AUDIT) != 0
+    };
+
+    Ok(list.into_iter().filter(filter_by_privs).collect())
 }
 
 
