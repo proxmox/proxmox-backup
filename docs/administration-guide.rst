@@ -132,12 +132,13 @@ The command line tool to configure and manage the backup server is called
 :term:`DataStore`
 ~~~~~~~~~~~~~~~~~
 
-A datastore is a place where backups are stored. The current implementation
-uses a directory inside a standard unix file system (``ext4``, ``xfs``
-or ``zfs``) to store the backup data.
+A datastore refers to a location at which backups are stored. The current
+implementation uses a directory inside a standard unix file system (``ext4``,
+``xfs`` or ``zfs``) to store the backup data.
 
-Datastores are identified by a simple *ID*. You can configure it
-when setting up the backup server.
+Datastores are identified by a simple *ID*. You can configure this
+when setting up the datastore. The configuration information for datastores
+is stored in the file ``/etc/proxmox-backup/datastore.cfg``.
 
 .. note:: The `File Layout`_ requires the file system to support at least *65538*
    subdirectories per directory. That number comes from the 2\ :sup:`16`
@@ -214,12 +215,18 @@ mounts it on the root directory (default):
 You can use ``disk fs list`` and ``disk zpool list`` to keep track of your
 filesystems and zpools respectively.
 
-If a disk supports S.M.A.R.T. capability, and you have this enabled, you can
+Proxmox Backup Server uses the package smartmontools. This is a set of tools
+used to monitor and control the S.M.A.R.T. system for local hard disks. If a
+disk supports S.M.A.R.T. capability, and you have this enabled, you can
 display S.M.A.R.T. attributes from the web interface or by using the command:
 
 .. code-block:: console
 
   # proxmox-backup-manager disk smart-attributes sdX
+
+.. note:: This functionality may also be accessed directly through the use of
+  the ``smartctl`` command, which comes as part of the smartmontools package
+  (see ``man smartctl`` for more details).
 
 
 Datastore Configuration
@@ -377,7 +384,8 @@ choose the realm when you add a new user. Possible realms are:
       ``/etc/proxmox-backup/shadow.json``.
 
 After installation, there is a single user ``root@pam``, which
-corresponds to the Unix superuser. You can use the
+corresponds to the Unix superuser. User configuration information is stored in the file
+``/etc/proxmox-backup/user.cfg``. You can use the
 ``proxmox-backup-manager`` command line tool to list or manipulate
 users:
 
@@ -486,8 +494,25 @@ following roles exist:
   :align: right
   :alt: Add permissions for user
 
-You can manage datastore permissions from **Configuration -> Permissions** in
-the web interface. Likewise, you can use the ``acl`` subcommand to manage and
+Access permission information is stored in ``/etc/proxmox-backup/acl.cfg``. The
+file contains 5 fields, separated using a colon (':') as a delimiter. A typical
+entry takes the form:
+
+``acl:1:/datastore:john@pbs:DatastoreBackup``
+
+The data represented in each field is as follows:
+
+#. ``acl`` identifier
+#. A ``1`` or ``0``, representing whether propagation is enabled or disabled,
+   respectively
+#. The object on which the permission is set. This can be a specific object
+   (single datastore, remote, etc.) or a top level object, which with
+   propagation enabled, represents all children of the object also.
+#. The user for which the permission is set
+#. The role being set
+
+You can manage datastore permissions from **Configuration -> Permissions** in the
+web interface. Likewise, you can use the ``acl`` subcommand to manage and
 monitor user permissions from the command line. For example, the command below
 will add the user ``john@pbs`` as a **DatastoreAdmin** for the datastore
 ``store1``, located at ``/backup/disk1/store1``:
@@ -554,7 +579,8 @@ To get a list of available interfaces, use the following command:
   :alt: Add a network interface
 
 To add a new network interface, use the ``create`` subcommand with the relevant
-parameters. The following command shows a template for creating the bond shown
+parameters. For example, you may want to set up a bond, for the purpose of
+network redundancy. The following command shows a template for creating the bond shown
 in the list above:
 
 .. code-block:: console
@@ -596,6 +622,11 @@ is:
 
   # proxmox-backup-manager network reload
 
+.. note:: This command and corresponding GUI button rely on the ``ifreload``
+  command, from the package ``ifupdown2``. This package is included within the
+  Proxmox Backup Server installation, however, you may have to install it yourself,
+  if you have installed Proxmox Backup Server on top of Debian or Proxmox VE.
+
 You can also configure DNS settings, from the **DNS** section
 of **Configuration** or by using the ``dns`` subcommand of
 ``proxmox-backup-manager``.
@@ -606,7 +637,9 @@ of **Configuration** or by using the ``dns`` subcommand of
 A remote refers to a separate Proxmox Backup Server installation and a user on that
 installation, from which you can `sync` datastores to a local datastore with a
 `Sync Job`. You can configure remotes in the web interface, under **Configuration
--> Remotes**. Alternatively, you can use the ``remote`` subcommand.
+-> Remotes**. Alternatively, you can use the ``remote`` subcommand. The
+configuration information for remotes is stored in the file
+``/etc/proxmox-backup/remote.cfg``.
 
 .. image:: images/screenshots/pbs-gui-remote-add.png
   :align: right
@@ -650,13 +683,16 @@ Sync Jobs
 
 .. image:: images/screenshots/pbs-gui-syncjob-add.png
   :align: right
-  :alt: Add a remote
+  :alt: Add a Sync Job
 
-Sync jobs are configured to pull the contents of a datastore on a **Remote** to a
-local datastore. You can either start a sync job manually on the GUI or
-provide it with a schedule (see :ref:`calendar-events`) to run regularly. You can manage sync jobs
-under **Configuration -> Sync Jobs** in the web interface, or using the
-``proxmox-backup-manager sync-job`` command:
+Sync jobs are configured to pull the contents of a datastore on a **Remote** to
+a local datastore. You can manage sync jobs under **Configuration -> Sync Jobs**
+in the web interface, or using the ``proxmox-backup-manager sync-job`` command.
+The configuration information for sync jobs is stored at
+``/etc/proxmox-backup/sync.cfg``. To create a new sync job, click the add button
+in the GUI, or use the ``create`` subcommand. After creating a sync job, you can
+either start it manually on the GUI or provide it with a schedule (see
+:ref:`calendar-events`) to run regularly.
 
 .. code-block:: console
 
@@ -1411,6 +1447,10 @@ After that you should be able to see storage status with:
   Name             Type     Status           Total            Used       Available        %
   store2            pbs     active      3905109820      1336687816      2568422004   34.23%
 
+Having added the PBS datastore to `Proxmox VE`_, you can backup VMs and
+containers in the same way you would for any other storage device within the
+environment (see `PVE Admin Guide: Backup and Restore
+<https://pve.proxmox.com/pve-docs/pve-admin-guide.html#chapter_vzdump>`_.
 
 
 .. include:: command-line-tools.rst
