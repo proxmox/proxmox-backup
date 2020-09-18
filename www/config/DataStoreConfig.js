@@ -11,8 +11,9 @@ Ext.define('pbs-datastore-list', {
 Ext.define('pbs-data-store-config', {
     extend: 'Ext.data.Model',
     fields: [
-	'name', 'path', 'comment', 'gc-schedule', 'prune-schedule', 'keep-last',
-	'keep-hourly', 'keep-daily', 'keep-weekly', 'keep-monthly', 'keep-yearly',
+	'name', 'path', 'comment', 'gc-schedule', 'prune-schedule',
+	'verify-schedule', 'keep-last', 'keep-hourly', 'keep-daily',
+	'keep-weekly', 'keep-monthly', 'keep-yearly',
     ],
     proxy: {
         type: 'proxmox',

@@ -71,6 +71,15 @@ Ext.define('PBS.DataStoreEdit', {
 			    deleteEmpty: '{!isCreate}',
 			},
 		    },
+		{
+			xtype: 'pbsCalendarEvent',
+			name: 'verify-schedule',
+			fieldLabel: gettext("Verify Schedule"),
+			emptyText: gettext('none'),
+			cbind: {
+			    deleteEmpty: '{!isCreate}',
+			},
+		    },
 		],
 		columnB: [
 		    {
