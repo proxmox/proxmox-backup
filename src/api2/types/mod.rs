@@ -302,6 +302,11 @@ pub const PRUNE_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
     .schema();
 
+pub const VERIFY_SCHEDULE_SCHEMA: Schema = StringSchema::new(
+    "Run verify job at specified schedule.")
+    .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
+    .schema();
+
 pub const REMOTE_ID_SCHEMA: Schema = StringSchema::new("Remote ID.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
