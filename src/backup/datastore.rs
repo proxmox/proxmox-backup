@@ -70,10 +70,10 @@ impl DataStore {
 
         let path = store_config["path"].as_str().unwrap();
 
-        Self::open_with_path(store_name, path)
+        Self::open_with_path(store_name, Path::new(path))
     }
 
-    pub fn open_with_path(store_name: &str, path: &str) -> Result<Self, Error> {
+    pub fn open_with_path(store_name: &str, path: &Path) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         let gc_status = GarbageCollectionStatus::default();
