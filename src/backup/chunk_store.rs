@@ -104,11 +104,10 @@ impl ChunkStore {
             }
             let percentage = (i*100)/(64*1024);
             if percentage != last_percentage {
-                eprintln!("{}%", percentage);
+                // eprintln!("ChunkStore::create {}%", percentage);
                 last_percentage = percentage;
             }
         }
-
 
         Self::open(name, base)
     }
