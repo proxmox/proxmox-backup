@@ -1,3 +1,41 @@
+rust-proxmox-backup (0.8.17-1) unstable; urgency=medium
+
+  * src/client/pull.rs: open temporary manifest with truncate(true)
+
+  * depend on proxmox 0.4.1
+
+  * fix #3017: check array boundaries before using
+
+  * datastore/prune schedules: use JobState for tracking of schedules
+
+  * improve docs
+
+  * fix #3015: allow user self-service
+
+  * add verification scheduling to proxmox-backup-proxy
+
+  * fix #3014: allow DataStoreAdmins to list DS config
+
+  * depend on pxar 0.6.1
+
+  * fix #2942: implement lacp bond mode and bond_xmit_hash_policy
+
+  * api2/pull: make pull worker abortable
+
+  * fix #2870: renew tickets in HttpClient
+
+  * always allow retrieving (censored) subscription info
+
+  * fix #2957: allow Sys.Audit access to node RRD
+
+  * backup: check all referenced chunks actually exist
+
+  * backup: check verify state of previous backup before allowing reuse
+
+  * avoid chrono dependency
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 21 Sep 2020 14:08:32 +0200
+
 rust-proxmox-backup (0.8.16-1) unstable; urgency=medium
 
   * BackupDir: make constructor fallible
