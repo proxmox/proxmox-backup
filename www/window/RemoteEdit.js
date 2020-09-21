@@ -3,6 +3,8 @@ Ext.define('PBS.window.RemoteEdit', {
     alias: 'widget.pbsRemoteEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'backup_remote',
+
     userid: undefined,
 
     isAdd: true,

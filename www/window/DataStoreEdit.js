@@ -3,6 +3,9 @@ Ext.define('PBS.DataStoreEdit', {
     alias: 'widget.pbsDataStoreEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
+
+    onlineHelp: 'datastore_intro',
+
     subject: gettext('Datastore'),
     isAdd: true,
 

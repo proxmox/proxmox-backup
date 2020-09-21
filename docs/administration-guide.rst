@@ -127,7 +127,7 @@ Backup Server Management
 The command line tool to configure and manage the backup server is called
 :command:`proxmox-backup-manager`.
 
-
+.. _datastore_intro:
 
 :term:`DataStore`
 ~~~~~~~~~~~~~~~~~
@@ -364,7 +364,7 @@ directories will store the chunked data after a backup operation has been execut
  276489 drwxr-xr-x 3 backup backup 4.0K Jul  8 12:35 ..
  276490 drwxr-x--- 1 backup backup 1.1M Jul  8 12:35 .
 
-
+.. _user_mgmt:
 
 User Management
 ~~~~~~~~~~~~~~~
@@ -447,6 +447,8 @@ Or completely remove the user with:
 
   # proxmox-backup-manager user remove john@pbs
 
+
+.. _user_acl:
 
 Access Control
 ~~~~~~~~~~~~~~
@@ -630,6 +632,8 @@ is:
 You can also configure DNS settings, from the **DNS** section
 of **Configuration** or by using the ``dns`` subcommand of
 ``proxmox-backup-manager``.
+
+.. _backup_remote:
 
 :term:`Remote`
 ~~~~~~~~~~~~~~

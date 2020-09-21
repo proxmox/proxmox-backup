@@ -3,6 +3,8 @@ Ext.define('PBS.window.ACLEdit', {
     alias: 'widget.pbsACLAdd',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'user_acl',
+
     url: '/access/acl',
     method: 'PUT',
     isAdd: true,

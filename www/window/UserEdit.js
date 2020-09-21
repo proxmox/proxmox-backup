@@ -3,6 +3,8 @@ Ext.define('PBS.window.UserEdit', {
     alias: 'widget.pbsUserEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'user_mgmt',
+
     userid: undefined,
 
     isAdd: true,
