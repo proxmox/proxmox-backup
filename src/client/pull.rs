@@ -55,6 +55,7 @@ async fn download_manifest(
     let mut tmp_manifest_file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .read(true)
         .open(&filename)?;
 
