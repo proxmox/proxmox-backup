@@ -222,6 +222,7 @@ async fn pull_snapshot(
                 try_client_log_download(worker, reader, &client_log_name).await?;
             }
             worker.log("no data changes");
+            let _ = std::fs::remove_file(&tmp_manifest_name);
             return Ok(()); // nothing changed
         }
     }
