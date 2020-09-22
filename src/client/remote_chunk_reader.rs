@@ -15,7 +15,7 @@ pub struct RemoteChunkReader {
     client: Arc<BackupReader>,
     crypt_config: Option<Arc<CryptConfig>>,
     crypt_mode: CryptMode,
-    cache_hint: HashMap<[u8; 32], usize>,
+    cache_hint: Arc<HashMap<[u8; 32], usize>>,
     cache: Arc<Mutex<HashMap<[u8; 32], Vec<u8>>>>,
 }
 
@@ -33,7 +33,7 @@ impl RemoteChunkReader {
             client,
             crypt_config,
             crypt_mode,
-            cache_hint,
+            cache_hint: Arc::new(cache_hint),
             cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
