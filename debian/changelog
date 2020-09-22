@@ -1,3 +1,9 @@
+rust-proxmox-backup (0.8.19-1) unstable; urgency=medium
+
+  * src/api2/reader.rs: use std::fs::read instead of tokio::fs::read
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 22 Sep 2020 13:30:27 +0200
+
 rust-proxmox-backup (0.8.18-1) unstable; urgency=medium
 
   * src/client/pull.rs: allow up to 20 concurrent download streams
