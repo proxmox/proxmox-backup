@@ -1,3 +1,11 @@
+rust-proxmox-backup (0.8.18-1) unstable; urgency=medium
+
+  * src/client/pull.rs: allow up to 20 concurrent download streams
+
+  * docs: add version and date to HTML index
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 22 Sep 2020 12:39:26 +0200
+
 rust-proxmox-backup (0.8.17-1) unstable; urgency=medium
 
   * src/client/pull.rs: open temporary manifest with truncate(true)
