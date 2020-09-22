@@ -229,8 +229,7 @@ fn download_chunk(
 
         env.debug(format!("download chunk {:?}", path));
 
-        let data = tokio::fs::read(path)
-            .await
+        let data = tools::runtime::block_in_place(|| std::fs::read(path))
             .map_err(move |err| http_err!(BAD_REQUEST, "reading file {:?} failed: {}", path2, err))?;
 
         let body = Body::from(data);
