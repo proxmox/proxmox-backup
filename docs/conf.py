@@ -181,6 +181,24 @@ html_theme_options = {
     'font_family': 'Open Sans, sans-serif',
 }
 
+# Alabaster theme recommends setting this fixed.
+# If you switch theme this needs to removed, probably.
+html_sidebars = {
+    '**': [
+        'sidebar-header.html',
+        'searchbox.html',
+        'navigation.html',
+        'relations.html',
+    ],
+
+    'index': [
+        'sidebar-header.html',
+        'searchbox.html',
+        'index-sidebar.html',
+    ]
+}
+
+
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
 
@@ -225,10 +243,6 @@ html_static_path = ['_static']
 # typographically correct entities.
 #
 # html_use_smartypants = True
-
-# Custom sidebar templates, maps document names to template names.
-#
-# html_sidebars = {}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.

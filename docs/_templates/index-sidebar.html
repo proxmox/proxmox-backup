@@ -1,0 +1,11 @@
+<h3>Navigation</h3>
+{{ toctree(includehidden=theme_sidebar_includehidden, collapse=True, titles_only=True) }}
+{% if theme_extra_nav_links %}
+<hr />
+<h3>Links</h3>
+<ul>
+    {% for text, uri in theme_extra_nav_links.items() %}
+    <li class="toctree-l1"><a href="{{ uri }}">{{ text }}</a></li>
+    {% endfor %}
+</ul>
+{% endif %}
