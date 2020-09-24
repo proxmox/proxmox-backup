@@ -32,7 +32,17 @@ div.sphinxsidebar form.search {
 div.sphinxsidebar h3 {
     width: 100%;
 }
+
+div.sphinxsidebar h1.logo-name {
+    display: none;
+}
 @media screen and (max-width: 875px) {
+    div.sphinxsidebar p.logo {
+        display: initial;
+    }
+    div.sphinxsidebar h1.logo-name {
+        display: block;
+    }
     div.sphinxsidebar span {
         color: #AAA;
     }
