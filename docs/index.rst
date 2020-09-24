@@ -45,9 +45,10 @@ in the section entitled "GNU Free Documentation License".
 
     .. toctree::
        :maxdepth: 2
+       :hidden:
        :caption: Developer Appendix
 
        todos.rst
 
 
-* :ref:`genindex`
+.. # * :ref:`genindex`
