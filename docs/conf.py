@@ -162,18 +162,19 @@ html_theme = 'alabaster'
 #
 html_theme_options = {
     'fixed_sidebar': True,
-    #'sidebar_includehidden': False,
-    'sidebar_collapse': False, # FIXME: documented, but does not works?!
-    'show_relbar_bottom': True, # FIXME: documented, but does not works?!
+    'sidebar_includehidden': False,
+    'sidebar_collapse': False,
+    'globaltoc_collapse': False,
+    'show_relbar_bottom': True,
     'show_powered_by': False,
 
-    'logo': 'proxmox-logo.svg',
-    'logo_name': True, # show project name below logo
-    #'logo_text_align': 'center',
-    #'description': 'Fast, Secure & Efficient.',
+    'extra_nav_links': {
+        'Proxmox Homepage': 'https://proxmox.com',
+        'PDF': 'proxmox-backup.pdf',
+    },
 
-    'sidebar_width': '300px',
-    'page_width': '1280px',
+    'sidebar_width': '320px',
+    'page_width': '1320px',
     # font styles
     'head_font_family': 'Lato, sans-serif',
     'caption_font_family': 'Lato, sans-serif',
