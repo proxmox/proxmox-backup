@@ -198,7 +198,10 @@ impl DataBlob {
             Ok(data)
         } else if magic == &COMPRESSED_BLOB_MAGIC_1_0 {
             let data_start = std::mem::size_of::<DataBlobHeader>();
-            let data = zstd::block::decompress(&self.raw_data[data_start..], MAX_BLOB_SIZE)?;
+            let mut reader = &self.raw_data[data_start..];
+            let data = zstd::stream::decode_all(&mut reader)?;
+            // zstd::block::decompress is abou 10% slower
+            // let data = zstd::block::decompress(&self.raw_data[data_start..], MAX_BLOB_SIZE)?;
             if let Some(digest) = digest {
                 Self::verify_digest(&data, None, digest)?;
             }
