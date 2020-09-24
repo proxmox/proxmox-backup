@@ -13,3 +13,22 @@ div.body img {
 pre {
     padding: 5px 10px;
 }
+
+li a.current {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+}
+ul li.toctree-l1 {
+    margin-top: 0.5em;
+}
+ul li.toctree-l1 > a {
+    color: #000;
+}
+
+div.sphinxsidebar form.search {
+    margin-bottom: 5px;
+}
+
+div.sphinxsidebar h3 {
+    width: 100%;
+}
