@@ -32,3 +32,11 @@ div.sphinxsidebar form.search {
 div.sphinxsidebar h3 {
     width: 100%;
 }
+@media screen and (max-width: 875px) {
+    div.sphinxsidebar span {
+        color: #AAA;
+    }
+    ul li.toctree-l1 > a {
+        color: #FFF;
+    }
+}
