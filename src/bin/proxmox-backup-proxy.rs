@@ -434,7 +434,7 @@ async fn schedule_datastore_prune() {
 
                 job.start(&worker.upid().to_string())?;
 
-                let result = {
+                let result = try_block!({
 
                     worker.log(format!("Starting datastore prune on store \"{}\"", store));
                     worker.log(format!("task triggered by schedule '{}'", event_str));
@@ -463,7 +463,7 @@ async fn schedule_datastore_prune() {
                         }
                     }
                     Ok(())
-                };
+                });
 
                 let status = worker.create_state(&result);
 
