@@ -74,7 +74,7 @@ onlinehelpinfo:
 	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
 .PHONY: html
-html: ${GENERATED_SYNOPSIS}
+html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	cp images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	cp custom.css $(BUILDDIR)/html/_static/
