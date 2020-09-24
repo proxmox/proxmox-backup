@@ -21,6 +21,8 @@ use proxmox_backup::backup::{
     load_and_decrypt_key,
     CryptConfig,
     KeyDerivationConfig,
+    DataBlob,
+    DataChunkBuilder,
 };
 
 use proxmox_backup::client::*;
@@ -60,6 +62,9 @@ struct Speed {
         "aes256_gcm": {
             type: Speed,
         },
+        "verify": {
+            type: Speed,
+        },
     },
 )]
 #[derive(Copy, Clone, Serialize)]
@@ -75,8 +80,9 @@ struct BenchmarkResult {
     decompress: Speed,
     /// AES256 GCM encryption speed
     aes256_gcm: Speed,
+    /// Verify speed
+    verify: Speed,
 }
-
 
 static BENCHMARK_RESULT_2020_TOP: BenchmarkResult =  BenchmarkResult {
     tls: Speed {
@@ -85,19 +91,23 @@ static BENCHMARK_RESULT_2020_TOP: BenchmarkResult =  BenchmarkResult {
     },
     sha256: Speed {
         speed: None,
-        top: 1_000_000.0 * 2120.0, // AMD Ryzen 7 2700X
+        top: 1_000_000.0 * 2022.0, // AMD Ryzen 7 2700X
     },
     compress: Speed {
         speed: None,
-        top: 1_000_000.0 * 2158.0, // AMD Ryzen 7 2700X
+        top: 1_000_000.0 * 752.0, // AMD Ryzen 7 2700X
     },
     decompress: Speed {
         speed: None,
-        top: 1_000_000.0 * 8062.0, // AMD Ryzen 7 2700X
+        top: 1_000_000.0 * 1198.0, // AMD Ryzen 7 2700X
     },
     aes256_gcm: Speed {
         speed: None,
-        top: 1_000_000.0 * 3803.0, // AMD Ryzen 7 2700X
+        top: 1_000_000.0 * 3645.0, // AMD Ryzen 7 2700X
+    },
+    verify: Speed {
+        speed: None,
+        top: 1_000_000.0 * 758.0, // AMD Ryzen 7 2700X
     },
 };
 
@@ -194,7 +204,10 @@ fn render_result(
         .column(ColumnConfig::new("decompress")
                 .header("ZStd level 1 decompression speed")
                 .right_align(false).renderer(render_speed))
-        .column(ColumnConfig::new("aes256_gcm")
+        .column(ColumnConfig::new("verify")
+                .header("Chunk verification speed")
+                .right_align(false).renderer(render_speed))
+       .column(ColumnConfig::new("aes256_gcm")
                 .header("AES256 GCM encryption speed")
                 .right_align(false).renderer(render_speed));
 
@@ -257,7 +270,17 @@ fn test_crypt_speed(
 
     let crypt_config = CryptConfig::new(testkey)?;
 
-    let random_data = proxmox::sys::linux::random_data(1024*1024)?;
+    //let random_data = proxmox::sys::linux::random_data(1024*1024)?;
+    let mut random_data = vec![];
+        // generate pseudo random byte sequence
+        for i in 0..256*1024 {
+            for j in 0..4 {
+                let byte = ((i >> (j<<3))&0xff) as u8;
+                random_data.push(byte);
+            }
+        }
+
+    assert_eq!(random_data.len(), 1024*1024);
 
     let start_time = std::time::Instant::now();
 
@@ -321,6 +344,24 @@ fn test_crypt_speed(
     benchmark_result.aes256_gcm.speed = Some(speed);
 
     eprintln!("AES256/GCM speed: {:.2} MB/s", speed/1_000_000_.0);
+
+
+    let start_time = std::time::Instant::now();
+
+    let (chunk, digest) = DataChunkBuilder::new(&random_data)
+        .compress(true)
+        .build()?;
+
+    let mut bytes = 0;
+    loop  {
+        chunk.verify_unencrypted(random_data.len(), &digest)?;
+        bytes += random_data.len();
+        if start_time.elapsed().as_micros() > 1_000_000 { break; }
+    }
+    let speed = (bytes as f64)/start_time.elapsed().as_secs_f64();
+    benchmark_result.verify.speed = Some(speed);
+
+    eprintln!("Verify speed: {:.2} MB/s", speed/1_000_000_.0);
 
     Ok(())
 }
