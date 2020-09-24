@@ -202,40 +202,14 @@ async fn schedule_tasks() -> Result<(), Error> {
     Ok(())
 }
 
-fn lookup_last_worker(worker_type: &str, worker_id: &str) -> Result<Option<server::UPID>, Error> {
-
-    let list = proxmox_backup::server::read_task_list()?;
-
-    let mut last: Option<&server::UPID> = None;
-
-    for entry in list.iter() {
-        if entry.upid.worker_type == worker_type {
-            if let Some(ref id) = entry.upid.worker_id {
-                if id == worker_id {
-                    match last {
-                        Some(ref upid) => {
-                            if upid.starttime < entry.upid.starttime {
-                                last = Some(&entry.upid)
-                            }
-                        }
-                        None => {
-                            last = Some(&entry.upid)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(last.cloned())
-}
-
-
 async fn schedule_datastore_garbage_collection() {
 
     use proxmox_backup::backup::DataStore;
     use proxmox_backup::server::{UPID, WorkerTask};
-    use proxmox_backup::config::datastore::{self, DataStoreConfig};
+    use proxmox_backup::config::{
+        jobstate::{self, Job},
+        datastore::{self, DataStoreConfig}
+    };
     use proxmox_backup::tools::systemd::time::{
         parse_calendar_event, compute_next_event};
 
@@ -291,11 +265,10 @@ async fn schedule_datastore_garbage_collection() {
                 }
             }
         } else {
-            match lookup_last_worker(worker_type, &store) {
-                Ok(Some(upid)) => upid.starttime,
-                Ok(None) => 0,
+            match jobstate::last_run_time(worker_type, &store) {
+                Ok(time) => time,
                 Err(err) => {
-                    eprintln!("lookup_last_job_start failed: {}", err);
+                    eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
                     continue;
                 }
             }
@@ -314,6 +287,11 @@ async fn schedule_datastore_garbage_collection() {
 
         if next > now  { continue; }
 
+        let mut job = match Job::new(worker_type, &store) {
+            Ok(job) => job,
+            Err(_) => continue, // could not get lock
+        };
+
         let store2 = store.clone();
 
         if let Err(err) = WorkerTask::new_thread(
@@ -322,9 +300,20 @@ async fn schedule_datastore_garbage_collection() {
             Userid::backup_userid().clone(),
             false,
             move |worker| {
+                job.start(&worker.upid().to_string())?;
+
                 worker.log(format!("starting garbage collection on store {}", store));
                 worker.log(format!("task triggered by schedule '{}'", event_str));
-                datastore.garbage_collection(&worker)
+
+                let result = datastore.garbage_collection(&worker);
+
+                let status = worker.create_state(&result);
+
+                if let Err(err) = job.finish(status) {
+                    eprintln!("could not finish job state for {}: {}", worker_type, err);
+                }
+
+                result
             }
         ) {
             eprintln!("unable to start garbage collection on store {} - {}", store2, err);
@@ -482,7 +471,10 @@ async fn schedule_datastore_prune() {
 async fn schedule_datastore_verification() {
     use proxmox_backup::backup::{DataStore, verify_all_backups};
     use proxmox_backup::server::{WorkerTask};
-    use proxmox_backup::config::datastore::{self, DataStoreConfig};
+    use proxmox_backup::config::{
+        jobstate::{self, Job},
+        datastore::{self, DataStoreConfig}
+    };
     use proxmox_backup::tools::systemd::time::{
         parse_calendar_event, compute_next_event};
 
@@ -526,16 +518,10 @@ async fn schedule_datastore_verification() {
 
         let worker_type = "verify";
 
-        let last = match lookup_last_worker(worker_type, &store) {
-            Ok(Some(upid)) => {
-                if proxmox_backup::server::worker_is_active_local(&upid) {
-                    continue;
-                }
-                upid.starttime
-            }
-            Ok(None) => 0,
+        let last = match jobstate::last_run_time(worker_type, &store) {
+            Ok(time) => time,
             Err(err) => {
-                eprintln!("lookup_last_job_start failed: {}", err);
+                eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
                 continue;
             }
         };
@@ -553,6 +539,11 @@ async fn schedule_datastore_verification() {
 
         if next > now { continue; }
 
+        let mut job = match Job::new(worker_type, &store) {
+            Ok(job) => job,
+            Err(_) => continue, // could not get lock
+        };
+
         let worker_id = store.clone();
         let store2 = store.clone();
         if let Err(err) = WorkerTask::new_thread(
@@ -561,18 +552,29 @@ async fn schedule_datastore_verification() {
             Userid::backup_userid().clone(),
             false,
             move |worker| {
+                job.start(&worker.upid().to_string())?;
                 worker.log(format!("starting verification on store {}", store2));
                 worker.log(format!("task triggered by schedule '{}'", event_str));
-                if let Ok(failed_dirs) = verify_all_backups(datastore, worker.clone()) {
+                let result = try_block!({
+                    let failed_dirs = verify_all_backups(datastore, worker.clone())?;
                     if failed_dirs.len() > 0 {
                         worker.log("Failed to verify following snapshots:");
                         for dir in failed_dirs {
                             worker.log(format!("\t{}", dir));
                         }
-                        bail!("verification failed - please check the log for details");
+                        Err(format_err!("verification failed - please check the log for details"))
+                    } else {
+                        Ok(())
                     }
+                });
+
+                let status = worker.create_state(&result);
+
+                if let Err(err) = job.finish(status) {
+                    eprintln!("could not finish job state for {}: {}", worker_type, err);
                 }
-                Ok(())
+
+                result
             },
         ) {
             eprintln!("unable to start verification on store {} - {}", store, err);

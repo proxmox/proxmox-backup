@@ -132,6 +132,8 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
     datastore::save_config(&config)?;
 
     crate::config::jobstate::create_state_file("prune", &datastore.name)?;
+    crate::config::jobstate::create_state_file("garbage_collection", &datastore.name)?;
+    crate::config::jobstate::create_state_file("verify", &datastore.name)?;
 
     Ok(())
 }
@@ -313,13 +315,23 @@ pub fn update_datastore(
         }
     }
 
-    if gc_schedule.is_some() { data.gc_schedule = gc_schedule; }
+    let mut gc_schedule_changed = false;
+    if gc_schedule.is_some() {
+        gc_schedule_changed = data.gc_schedule != gc_schedule;
+        data.gc_schedule = gc_schedule;
+    }
+
     let mut prune_schedule_changed = false;
     if prune_schedule.is_some() {
-        prune_schedule_changed = true;
+        prune_schedule_changed = data.prune_schedule != prune_schedule;
         data.prune_schedule = prune_schedule;
     }
-    if verify_schedule.is_some() { data.verify_schedule = verify_schedule; }
+
+    let mut verify_schedule_changed = false;
+    if verify_schedule.is_some() {
+        verify_schedule_changed = data.verify_schedule != verify_schedule;
+        data.verify_schedule = verify_schedule;
+    }
 
     if keep_last.is_some() { data.keep_last = keep_last; }
     if keep_hourly.is_some() { data.keep_hourly = keep_hourly; }
@@ -332,10 +344,18 @@ pub fn update_datastore(
 
     datastore::save_config(&config)?;
 
-    // we want to reset the statefile, to avoid an immediate sync in some cases
+    // we want to reset the statefiles, to avoid an immediate action in some cases
     // (e.g. going from monthly to weekly in the second week of the month)
+    if gc_schedule_changed {
+        crate::config::jobstate::create_state_file("garbage_collection", &name)?;
+    }
+
     if prune_schedule_changed {
         crate::config::jobstate::create_state_file("prune", &name)?;
+    }
+
+    if verify_schedule_changed {
+        crate::config::jobstate::create_state_file("verify", &name)?;
     }
 
     Ok(())
@@ -377,7 +397,10 @@ pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Erro
 
     datastore::save_config(&config)?;
 
-    crate::config::jobstate::remove_state_file("prune", &name)?;
+    // ignore errors
+    let _ = crate::config::jobstate::remove_state_file("prune", &name);
+    let _ = crate::config::jobstate::remove_state_file("garbage_collection", &name);
+    let _ = crate::config::jobstate::remove_state_file("verify", &name);
 
     Ok(())
 }
