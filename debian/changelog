@@ -1,3 +1,17 @@
+rust-proxmox-backup (0.8.21-1) unstable; urgency=medium
+
+  * depend on crossbeam-channel
+
+  * speedup sync jobs (allow up to 4 worker threads)
+
+  * improve docs
+
+  * use jobstate mechanism for verify/garbage_collection schedules
+
+  * proxy: fix error handling in prune scheduling
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 25 Sep 2020 13:20:19 +0200
+
 rust-proxmox-backup (0.8.20-1) unstable; urgency=medium
 
   * improve sync speed
