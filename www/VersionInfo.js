@@ -1,19 +1,18 @@
-/*global Proxmox*/
-Ext.define('PBS.view.main.VersionInfo',{
+Ext.define('PBS.view.main.VersionInfo', {
     extend: 'Ext.Component',
     xtype: 'versioninfo',
 
     makeApiCall: true,
 
     data: {
-	version: false
+	version: false,
     },
 
     tpl: [
 	'Backup Server',
 	'<tpl if="version">',
 	' {version}-{release}',
-	'</tpl>'
+	'</tpl>',
     ],
 
     initComponent: function() {
@@ -26,8 +25,8 @@ Ext.define('PBS.view.main.VersionInfo',{
 		method: 'GET',
 		success: function(response) {
 		    me.update(response.result.data);
-		}
+		},
 	    });
 	}
-    }
+    },
 });

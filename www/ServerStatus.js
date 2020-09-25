@@ -6,14 +6,14 @@ Ext.define('pve-rrd-node', {
 	    // percentage
 	    convert: function(value) {
 		return value*100;
-	    }
+	    },
 	},
 	{
 	    name: 'iowait',
 	    // percentage
 	    convert: function(value) {
 		return value*100;
-	    }
+	    },
 	},
 	'netin',
 	'netout',
@@ -33,15 +33,15 @@ Ext.define('pve-rrd-node', {
 		let ios = 0;
 		if (data.read_ios !== undefined) { ios += data.read_ios; }
 		if (data.write_ios !== undefined) { ios += data.write_ios; }
-		if (ios == 0 || data.io_ticks === undefined) {
+		if (ios === 0 || data.io_ticks === undefined) {
 		    return undefined;
 		}
 		return (data.io_ticks*1000.0)/ios;
-	    }
+	    },
 	},
 	'loadavg',
-	{ type: 'date', dateFormat: 'timestamp', name: 'time' }
-    ]
+	{ type: 'date', dateFormat: 'timestamp', name: 'time' },
+    ],
 });
 Ext.define('PBS.ServerStatus', {
     extend: 'Ext.panel.Panel',
@@ -62,7 +62,7 @@ Ext.define('PBS.ServerStatus', {
 		waitMsgTarget: me,
 		failure: function(response, opts) {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
-		}
+		},
 	    });
 	};
 
@@ -73,7 +73,7 @@ Ext.define('PBS.ServerStatus', {
 	    handler: function() {
 		node_command('reboot');
 	    },
-	    iconCls: 'fa fa-undo'
+	    iconCls: 'fa fa-undo',
 	});
 
 	var shutdownBtn = Ext.create('Proxmox.button.Button', {
@@ -83,7 +83,7 @@ Ext.define('PBS.ServerStatus', {
 	    handler: function() {
 		node_command('shutdown');
 	    },
-	    iconCls: 'fa fa-power-off'
+	    iconCls: 'fa fa-power-off',
 	});
 
 	var consoleBtn = Ext.create('Proxmox.button.Button', {
@@ -91,14 +91,14 @@ Ext.define('PBS.ServerStatus', {
 	    iconCls: 'fa fa-terminal',
 	    handler: function() {
 		Proxmox.Utils.openXtermJsViewer('shell', 0, Proxmox.NodeName);
-	    }
+	    },
 	});
 
-	me.tbar = [ consoleBtn, restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' } ];
+	me.tbar = [consoleBtn, restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' }];
 
 	var rrdstore = Ext.create('Proxmox.data.RRDStore', {
 	    rrdurl: "/api2/json/nodes/localhost/rrd",
-	    model: 'pve-rrd-node'
+	    model: 'pve-rrd-node',
 	});
 
 	me.items = {
@@ -109,72 +109,72 @@ Ext.define('PBS.ServerStatus', {
 	    defaults: {
 		minHeight: 320,
 		padding: 5,
-		columnWidth: 1
+		columnWidth: 1,
 	    },
 	    items: [
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('CPU usage'),
-		    fields: ['cpu','iowait'],
+		    fields: ['cpu', 'iowait'],
 		    fieldTitles: [gettext('CPU usage'), gettext('IO wait')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Server load'),
 		    fields: ['loadavg'],
 		    fieldTitles: [gettext('Load average')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Memory usage'),
-		    fields: ['memtotal','memused'],
+		    fields: ['memtotal', 'memused'],
 		    fieldTitles: [gettext('Total'), gettext('RAM usage')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Swap usage'),
-		    fields: ['swaptotal','swapused'],
+		    fields: ['swaptotal', 'swapused'],
 		    fieldTitles: [gettext('Total'), gettext('Swap usage')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Network traffic'),
-		    fields: ['netin','netout'],
-		    store: rrdstore
+		    fields: ['netin', 'netout'],
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk usage'),
-		    fields: ['total','used'],
+		    fields: ['total', 'used'],
 		    fieldTitles: [gettext('Total'), gettext('Disk usage')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk Transfer Rate (bytes/second)'),
-		    fields: ['read_bytes','write_bytes'],
+		    fields: ['read_bytes', 'write_bytes'],
 		    fieldTitles: [gettext('Read'), gettext('Write')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk Input/Output Operations per Second (IOPS)'),
-		    fields: ['read_ios','write_ios'],
+		    fields: ['read_ios', 'write_ios'],
 		    fieldTitles: [gettext('Read'), gettext('Write')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
 		{
 		    xtype: 'proxmoxRRDChart',
 		    title: gettext('Root Disk IO Delay (ms)'),
 		    fields: ['io_delay'],
 		    fieldTitles: [gettext('IO Delay')],
-		    store: rrdstore
+		    store: rrdstore,
 		},
-	    ]
+	    ],
 	};
 
 	me.listeners = {
@@ -187,6 +187,6 @@ Ext.define('PBS.ServerStatus', {
 	};
 
 	me.callParent();
-    }
+    },
 
 });

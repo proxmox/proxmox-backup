@@ -7,7 +7,6 @@ Ext.define('PBS.LoginView', {
 
 	submitForm: function() {
 	    var me = this;
-	    var view = me.getView();
 	    var loginForm = me.lookupReference('loginForm');
 	    var unField = me.lookupReference('usernameField');
 	    var saveunField = me.lookupReference('saveunField');
@@ -19,7 +18,7 @@ Ext.define('PBS.LoginView', {
 	    let params = loginForm.getValues();
 
 	    params.username = params.username + '@' + params.realm;
-	    delete(params.realm);
+	    delete params.realm;
 
 	    if (loginForm.isVisible()) {
 		loginForm.mask(gettext('Please wait...'), 'x-mask-loading');
@@ -48,9 +47,9 @@ Ext.define('PBS.LoginView', {
 		    loginForm.unmask();
 		    Ext.MessageBox.alert(
 			gettext('Error'),
-			gettext('Login failed. Please try again')
+			gettext('Login failed. Please try again'),
 		    );
-		}
+		},
 	    });
 	},
 
@@ -63,7 +62,7 @@ Ext.define('PBS.LoginView', {
 			    pf.focus(false);
 			}
 		    }
-		}
+		},
 	    },
 	    'field[name=lang]': {
 		change: function(f, value) {
@@ -71,10 +70,10 @@ Ext.define('PBS.LoginView', {
 		    Ext.util.Cookies.set('PBSLangCookie', value, dt);
 		    this.getView().mask(gettext('Please wait...'), 'x-mask-loading');
 		    window.location.reload();
-		}
+		},
 	    },
 	    'button[reference=loginButton]': {
-		click: 'submitForm'
+		click: 'submitForm',
 	    },
 	    'window[reference=loginwindow]': {
 		show: function() {
@@ -85,21 +84,21 @@ Ext.define('PBS.LoginView', {
 		    var checked = sp.get(checkboxField.getStateId());
 		    checkboxField.setValue(checked);
 
-		    if(checked === true) {
+		    if (checked === true) {
 			var username = sp.get(unField.getStateId());
 			unField.setValue(username);
 			var pwField = this.lookupReference('passwordField');
 			pwField.focus();
 		    }
-		}
-	    }
-	}
+		},
+	    },
+	},
     },
 
     plugins: 'viewport',
 
     layout: {
-	type: 'border'
+	type: 'border',
     },
 
     items: [
@@ -108,7 +107,7 @@ Ext.define('PBS.LoginView', {
 	    xtype: 'container',
 	    layout: {
 		type: 'hbox',
-		align: 'middle'
+		align: 'middle',
 	    },
 	    margin: '2 5 2 5',
 	    height: 38,
@@ -119,12 +118,12 @@ Ext.define('PBS.LoginView', {
 		},
 		{
 		    xtype: 'versioninfo',
-		    makeApiCall: false
-		}
-	    ]
+		    makeApiCall: false,
+		},
+	    ],
 	},
 	{
-	    region: 'center'
+	    region: 'center',
 	},
 	{
 	    xtype: 'window',
@@ -138,7 +137,7 @@ Ext.define('PBS.LoginView', {
 	    defaultFocus: 'usernameField',
 
 	    layout: {
-		type: 'auto'
+		type: 'auto',
 	    },
 
 	    title: gettext('Proxmox Backup Server Login'),
@@ -147,7 +146,7 @@ Ext.define('PBS.LoginView', {
 		{
 		    xtype: 'form',
 		    layout: {
-			type: 'form'
+			type: 'form',
 		    },
 		    defaultButton: 'loginButton',
 		    url: '/api2/extjs/access/ticket',
@@ -155,7 +154,7 @@ Ext.define('PBS.LoginView', {
 
 		    fieldDefaults: {
 			labelAlign: 'right',
-			allowBlank: false
+			allowBlank: false,
 		    },
 
 		    items: [
@@ -165,7 +164,7 @@ Ext.define('PBS.LoginView', {
 			    name: 'username',
 			    itemId: 'usernameField',
 			    reference: 'usernameField',
-			    stateId: 'login-username'
+			    stateId: 'login-username',
 			},
 			{
 			    xtype: 'textfield',
@@ -177,7 +176,7 @@ Ext.define('PBS.LoginView', {
 			},
 			{
 			    xtype: 'pmxRealmComboBox',
-			    name: 'realm'
+			    name: 'realm',
 			},
 			{
 			    xtype: 'proxmoxLanguageSelector',
@@ -185,8 +184,8 @@ Ext.define('PBS.LoginView', {
 			    value: Ext.util.Cookies.get('PBSLangCookie') || Proxmox.defaultLang || 'en',
 			    name: 'lang',
 			    reference: 'langField',
-			    submitValue: false
-			}
+			    submitValue: false,
+			},
 		    ],
 		    buttons: [
 			{
@@ -197,16 +196,16 @@ Ext.define('PBS.LoginView', {
 			    stateId: 'login-saveusername',
 			    labelWidth: 250,
 			    labelAlign: 'right',
-			    submitValue: false
+			    submitValue: false,
 			},
 			{
 			    text: gettext('Login'),
 			    reference: 'loginButton',
-			    formBind: true
-			}
-		    ]
-		}
-	    ]
-	}
-    ]
+			    formBind: true,
+			},
+		    ],
+		},
+	    ],
+	},
+    ],
 });

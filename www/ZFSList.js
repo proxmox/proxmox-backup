@@ -14,7 +14,7 @@ Ext.define('PBS.admin.ZFSList', {
 		nodename: me.nodename,
 		listeners: {
 		    destroy: function() { me.reload(); },
-		}
+		},
 	    }).show();
 	},
 
@@ -49,7 +49,7 @@ Ext.define('PBS.admin.ZFSList', {
 	    }
 
 	    let url = `/api2/json/nodes/${view.nodename}/disks/zfs`;
-	    view.getStore().getProxy().setUrl(url)
+	    view.getStore().getProxy().setUrl(url);
 
 	    Proxmox.Utils.monStoreErrors(view, view.getStore(), true);
 
@@ -61,34 +61,34 @@ Ext.define('PBS.admin.ZFSList', {
 	{
 	    text: gettext('Name'),
 	    dataIndex: 'name',
-	    flex: 1
+	    flex: 1,
 	},
 	{
 	    header: gettext('Size'),
 	    renderer: Proxmox.Utils.format_size,
-	    dataIndex: 'size'
+	    dataIndex: 'size',
 	},
 	{
 	    header: gettext('Free'),
 	    renderer: Proxmox.Utils.format_size,
-	    dataIndex: 'free'
+	    dataIndex: 'free',
 	},
 	{
 	    header: gettext('Allocated'),
 	    renderer: Proxmox.Utils.format_size,
-	    dataIndex: 'alloc'
+	    dataIndex: 'alloc',
 	},
 	{
 	    header: gettext('Fragmentation'),
 	    renderer: function(value) {
 		return value.toString() + '%';
 	    },
-	    dataIndex: 'frag'
+	    dataIndex: 'frag',
 	},
 	{
 	    header: gettext('Health'),
 	    renderer: Proxmox.Utils.render_zfs_health,
-	    dataIndex: 'health'
+	    dataIndex: 'health',
 	},
 	{
 	    header: gettext('Deduplication'),
@@ -96,8 +96,8 @@ Ext.define('PBS.admin.ZFSList', {
 	    renderer: function(value) {
 		return value.toFixed(2).toString() + 'x';
 	    },
-	    dataIndex: 'dedup'
-	}
+	    dataIndex: 'dedup',
+	},
     ],
 
     rootVisible: false,
@@ -118,7 +118,7 @@ Ext.define('PBS.admin.ZFSList', {
 	    xtype: 'proxmoxButton',
 	    disabled: true,
 	    handler: 'openDetailWindow',
-	}
+	},
     ],
 
     listeners: {
@@ -130,7 +130,7 @@ Ext.define('PBS.admin.ZFSList', {
 	proxy: {
 	    type: 'proxmox',
 	},
-	sorters: 'name'
+	sorters: 'name',
     },
 });
 
