@@ -13,7 +13,7 @@ Ext.define('pbs-datastore-statistics', {
 		    }
 		    return last;
 		});
-	    }
+	    },
 	},
 	{
 	    name: 'usage',
@@ -25,13 +25,13 @@ Ext.define('pbs-datastore-statistics', {
 		} else {
 		    return -1;
 		}
-	    }
+	    },
 	},
     ],
 
     proxy: {
         type: 'proxmox',
-	url: "/api2/json/status/datastore-usage"
+	url: "/api2/json/status/datastore-usage",
     },
     idProperty: 'store',
 });
@@ -57,7 +57,7 @@ Ext.define('PBS.DatastoreStatistics', {
 
 	    let timespan = (estimate - now)/1000;
 
-	    if (+estimate <= +now || isNaN(timespan)) {
+	    if (Number(estimate) <= Number(now) || isNaN(timespan)) {
 		return gettext('Never');
 	    }
 
@@ -131,8 +131,8 @@ Ext.define('PBS.DatastoreStatistics', {
 		lineWidth: 0,
 		chartRangeMin: 0,
 		chartRangeMax: 1,
-		tipTpl: '{y:number("0.00")*100}%'
-	    }
+		tipTpl: '{y:number("0.00")*100}%',
+	    },
 	},
     ],
 
@@ -150,4 +150,4 @@ Ext.define('PBS.DatastoreStatistics', {
 	},
     },
 
-})
+});

@@ -80,7 +80,7 @@ Ext.define('PBS.RunningTasks', {
 	    dataIndex: 'duration',
 	    renderer: function(value, md, record) {
 		return Proxmox.Utils.format_duration_human((Date.now() - record.data.starttime)/1000);
-	    }
+	    },
 	},
 	{
 	    xtype: 'actioncolumn',

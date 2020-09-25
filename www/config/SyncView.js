@@ -69,7 +69,7 @@ Ext.define('PBS.config.SyncJobView', {
 	    if (!upid) return;
 
 	    Ext.create('Proxmox.window.TaskViewer', {
-		upid
+		upid,
 	    }).show();
 	},
 
@@ -116,13 +116,13 @@ Ext.define('PBS.config.SyncJobView', {
 		    text = Proxmox.Utils.unknownText;
 		    break;
 		case 'error':
-		    icon =  'times critical';
+		    icon = 'times critical';
 		    text = Proxmox.Utils.errorText + ': ' + value;
 		    break;
 		case 'warning':
 		    icon = 'exclamation warning';
 		    break;
-		case  'ok':
+		case 'ok':
 		    icon = 'check good';
 		    text = gettext("OK");
 	    }

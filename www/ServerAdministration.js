@@ -1,4 +1,3 @@
-/*global Proxmox*/
 Ext.define('PBS.ServerAdministration', {
     extend: 'Ext.tab.Panel',
     alias: 'widget.pbsServerAdministration',
@@ -14,13 +13,13 @@ Ext.define('PBS.ServerAdministration', {
         init: function(view) {
 	    var upgradeBtn = view.lookupReference('upgradeBtn');
 	    upgradeBtn.setDisabled(!(Proxmox.UserName && Proxmox.UserName === 'root@pam'));
-	}
+	},
     },
 
     items: [
 	{
 	    xtype: 'pbsServerStatus',
-	    itemId: 'status'
+	    itemId: 'status',
 	},
 	{
 	    xtype: 'proxmoxNodeServiceView',
@@ -32,7 +31,7 @@ Ext.define('PBS.ServerAdministration', {
 		'proxmox-backup': true,
 		'proxmox-backup-proxy': true,
 	    },
-	    nodename: 'localhost'
+	    nodename: 'localhost',
 	},
 	{
 	    xtype: 'proxmoxNodeAPT',
@@ -44,10 +43,10 @@ Ext.define('PBS.ServerAdministration', {
 		text: gettext('Upgrade'),
 		handler: function() {
 		    Proxmox.Utils.openXtermJsViewer('upgrade', 0, 'localhost');
-		}
+		},
 	    },
 	    itemId: 'updates',
-	    nodename: 'localhost'
+	    nodename: 'localhost',
 	},
 	{
 	    xtype: 'proxmoxJournalView',
@@ -60,9 +59,9 @@ Ext.define('PBS.ServerAdministration', {
 	    itemId: 'tasks',
 	    title: gettext('Tasks'),
 	    height: 'auto',
-	    nodename: 'localhost'
-	}
-    ]
+	    nodename: 'localhost',
+	},
+    ],
 });
 
 

@@ -1,7 +1,7 @@
 Ext.define('pbs-file-tree', {
     extend: 'Ext.data.Model',
 
-    fields: [ 'filepath', 'text', 'type', 'size',
+    fields: ['filepath', 'text', 'type', 'size',
 	{
 	    name: 'mtime',
 	    type: 'date',
@@ -43,7 +43,7 @@ Ext.define('pbs-file-tree', {
 
 		return `fa fa-${icon}`;
 	    },
-	}
+	},
     ],
     idProperty: 'filepath',
 });
@@ -85,15 +85,15 @@ Ext.define("PBS.window.FileBrowser", {
 		'backup-type': view['backup-type'],
 		'backup-time': view['backup-time'],
 	    };
-	    params['filepath'] = data.filepath;
+	    params.filepath = data.filepath;
 	    atag.download = data.text;
-	    atag.href = me.buildUrl(`/api2/json/admin/datastore/${view.datastore}/pxar-file-download`, params);
+	    atag.href = me
+	        .buildUrl(`/api2/json/admin/datastore/${view.datastore}/pxar-file-download`, params);
 	    atag.click();
 	},
 
 	fileChanged: function() {
 	    let me = this;
-	    let view = me.getView();
 	    let tree = me.lookup('tree');
 	    let selection = tree.getSelection();
 	    if (!selection || selection.length < 1) return;
@@ -204,7 +204,7 @@ Ext.define("PBS.window.FileBrowser", {
 
 			    return asize - bsize;
 			},
-		    }
+		    },
 		},
 		{
 		    text: gettext('Modified'),
@@ -226,10 +226,10 @@ Ext.define("PBS.window.FileBrowser", {
 			    case 's': return gettext('Socket');
 			    default: return Proxmox.Utils.unknownText;
 			}
-		    }
+		    },
 		},
-	    ]
-	}
+	    ],
+	},
     ],
 
     buttons: [
@@ -238,6 +238,6 @@ Ext.define("PBS.window.FileBrowser", {
 	    handler: 'downloadFile',
 	    reference: 'downloadBtn',
 	    disabled: true,
-	}
+	},
     ],
 });

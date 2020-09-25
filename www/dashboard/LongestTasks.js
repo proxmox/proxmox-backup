@@ -14,7 +14,6 @@ Ext.define('PBS.LongestTasks', {
 
 	openTask: function(record) {
 	    let me = this;
-	    let view = me.getView();
 	    Ext.create('Proxmox.window.TaskViewer', {
 		upid: record.data.upid,
 		endtime: record.data.endtime,
@@ -72,7 +71,7 @@ Ext.define('PBS.LongestTasks', {
 	    model: 'proxmox-tasks',
 	    proxy: {
 		type: 'memory',
-	    }
+	    },
 	},
     },
 

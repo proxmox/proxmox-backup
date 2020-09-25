@@ -1,4 +1,3 @@
-/*global Blob,Proxmox*/
 Ext.define('PBS.SubscriptionKeyEdit', {
     extend: 'Proxmox.window.Edit',
 
@@ -12,8 +11,8 @@ Ext.define('PBS.SubscriptionKeyEdit', {
 	xtype: 'textfield',
 	name: 'key',
 	value: '',
-	fieldLabel: gettext('Subscription Key')
-    }
+	fieldLabel: gettext('Subscription Key'),
+    },
 });
 
 Ext.define('PBS.Subscription', {
@@ -27,10 +26,10 @@ Ext.define('PBS.Subscription', {
     onlineHelp: 'getting_help',
 
     viewConfig: {
-	enableTextSelection: true
+	enableTextSelection: true,
     },
 
-    initComponent : function() {
+    initComponent: function() {
 	var me = this;
 
 	var reload = function() {
@@ -40,7 +39,6 @@ Ext.define('PBS.Subscription', {
 	var baseurl = '/nodes/localhost/subscription';
 
 	var render_status = function(value) {
-
 	    var message = me.getObjectValue('message');
 
 	    if (message) {
@@ -51,31 +49,31 @@ Ext.define('PBS.Subscription', {
 
 	var rows = {
 	    productname: {
-		header: gettext('Type')
+		header: gettext('Type'),
 	    },
 	    key: {
-		header: gettext('Subscription Key')
+		header: gettext('Subscription Key'),
 	    },
 	    status: {
 		header: gettext('Status'),
-		renderer: render_status
+		renderer: render_status,
 	    },
 	    message: {
-		visible: false
+		visible: false,
 	    },
 	    serverid: {
-		header: gettext('Server ID')
+		header: gettext('Server ID'),
 	    },
 	    sockets: {
-		header: gettext('Sockets')
+		header: gettext('Sockets'),
 	    },
 	    checktime: {
 		header: gettext('Last checked'),
-		renderer: Proxmox.Utils.render_timestamp
+		renderer: Proxmox.Utils.render_timestamp,
 	    },
 	    nextduedate: {
-		header: gettext('Next due date')
-	    }
+		header: gettext('Next due date'),
+	    },
 	};
 
 	Ext.apply(me, {
@@ -86,11 +84,11 @@ Ext.define('PBS.Subscription', {
 		    text: gettext('Upload Subscription Key'),
 		    handler: function() {
 			var win = Ext.create('PBS.SubscriptionKeyEdit', {
-			    url: '/api2/extjs/' + baseurl
+			    url: '/api2/extjs/' + baseurl,
 			});
 			win.show();
 			win.on('destroy', reload);
-		    }
+		    },
 		},
 		{
 		    text: gettext('Check'),
@@ -103,16 +101,16 @@ Ext.define('PBS.Subscription', {
 			    failure: function(response, opts) {
 				Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 			    },
-			    callback: reload
+			    callback: reload,
 			});
-		    }
-		}
+		    },
+		},
 	    ],
-	    rows: rows
+	    rows: rows,
 	});
 
 	me.callParent();
 
 	reload();
-    }
+    },
 });

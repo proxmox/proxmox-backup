@@ -1,4 +1,3 @@
-/*global Proxmox */
 Ext.ns('PBS');
 
 console.log("Starting Backup Server GUI");
@@ -7,7 +6,6 @@ Ext.define('PBS.Utils', {
     singleton: true,
 
     updateLoginData: function(data) {
-
 	Proxmox.Utils.setAuthData(data);
     },
 
@@ -74,13 +72,13 @@ Ext.define('PBS.Utils', {
     render_datastore_worker_id: function(id, what) {
 	const res = id.match(/^(\S+?)_(\S+?)_(\S+?)(_(.+))?$/);
 	if (res) {
-	    let datastore = res[1], type = res[2], id = res[3];
+	    let datastore = res[1], backupGroup = `${res[2]}/${res[3]}`;
 	    if (res[4] !== undefined) {
 		let datetime = Ext.Date.parse(parseInt(res[5], 16), 'U');
 		let utctime = PBS.Utils.render_datetime_utc(datetime);
-		return `Datastore ${datastore} ${what} ${type}/${id}/${utctime}`;
+		return `Datastore ${datastore} ${what} ${backupGroup}/${utctime}`;
 	    } else {
-		return `Datastore ${datastore} ${what} ${type}/${id}`;
+		return `Datastore ${datastore} ${what} ${backupGroup}`;
 	    }
 	}
 	return `Datastore ${what} ${id}`;
@@ -91,21 +89,13 @@ Ext.define('PBS.Utils', {
 
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
-	    garbage_collection: ['Datastore', gettext('Garbage collect') ],
-	    sync: ['Datastore', gettext('Remote Sync') ],
-	    syncjob: [gettext('Sync Job'), gettext('Remote Sync') ],
-	    prune: (type, id) => {
-		return PBS.Utils.render_datastore_worker_id(id, gettext('Prune'));
-	    },
-	    verify: (type, id) => {
-		return PBS.Utils.render_datastore_worker_id(id, gettext('Verify'));
-	    },
-	    backup: (type, id) => {
-		return PBS.Utils.render_datastore_worker_id(id, gettext('Backup'));
-	    },
-	    reader: (type, id) => {
-		return PBS.Utils.render_datastore_worker_id(id, gettext('Read objects'));
-	    },
+	    garbage_collection: ['Datastore', gettext('Garbage collect')],
+	    sync: ['Datastore', gettext('Remote Sync')],
+	    syncjob: [gettext('Sync Job'), gettext('Remote Sync')],
+	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
+	    verify: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Verify')),
+	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
+	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
 	});
-    }
+    },
 });

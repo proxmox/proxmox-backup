@@ -1,5 +1,3 @@
-/*global Proxmox*/
-
 Ext.define('PBS.SystemConfiguration', {
     extend: 'Ext.tab.Panel',
     xtype: 'pbsSystemConfiguration',
@@ -16,23 +14,23 @@ Ext.define('PBS.SystemConfiguration', {
 	    layout: {
 		type: 'vbox',
 		align: 'stretch',
-		multi: true
+		multi: true,
 	    },
 	    defaults: {
 		collapsible: true,
 		animCollapse: false,
-		margin: '10 10 0 10'
+		margin: '10 10 0 10',
 	    },
 	    items: [
 		{
 		    title: gettext('Time'),
 		    xtype: 'proxmoxNodeTimeView',
-		    nodename: 'localhost'
+		    nodename: 'localhost',
 		},
 		{
 		    title: gettext('DNS'),
 		    xtype: 'proxmoxNodeDNSView',
-		    nodename: 'localhost'
+		    nodename: 'localhost',
 		},
 		{
 		    flex: 1,
@@ -41,28 +39,22 @@ Ext.define('PBS.SystemConfiguration', {
 		    xtype: 'proxmoxNodeNetworkView',
 		    showApplyBtn: true,
 		    types: ['bond', 'bridge', 'vlan'],
-		    nodename: 'localhost'
+		    nodename: 'localhost',
 		},
-	    ]
-//	},
-//	{
-//	    itemId: 'options',
-//          title: gettext('Options'),
-//	    html: "TESWT"
-//	    xtype: 'pbsSystemOptions'
-	}
+	    ],
+	},
     ],
 
     initComponent: function() {
-	var me = this;
+	let me = this;
 
 	me.callParent();
 
-	var networktime = me.getComponent('network');
+	let networktime = me.getComponent('network');
 	Ext.Array.forEach(networktime.query(), function(item) {
-	    item.relayEvents(networktime, [ 'activate', 'deactivate', 'destroy']);
+	    item.relayEvents(networktime, ['activate', 'deactivate', 'destroy']);
 	});
-    }
+    },
 });
 
 

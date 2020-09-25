@@ -69,7 +69,7 @@ Ext.define('PBS.TaskSummary', {
 	    disableSelection: true,
 
 	    store: {
-		data: []
+		data: [],
 	    },
 
 	    columns: [
@@ -90,7 +90,7 @@ Ext.define('PBS.TaskSummary', {
 		    renderer: 'render_count',
 		},
 	    ],
-	}
+	},
     ],
 
 });
