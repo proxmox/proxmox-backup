@@ -33,6 +33,9 @@ pub mod statistics;
 pub mod systemd;
 pub mod nom;
 
+mod parallel_handler;
+pub use parallel_handler::*;
+
 mod wrapped_reader_stream;
 pub use wrapped_reader_stream::*;
 
