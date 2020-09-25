@@ -303,6 +303,7 @@ pub fn list_tasks(
     limit: u64,
     errors: bool,
     running: bool,
+    userfilter: Option<String>,
     param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
@@ -315,7 +316,6 @@ pub fn list_tasks(
 
     let store = param["store"].as_str();
 
-    let userfilter = param["userfilter"].as_str();
 
     let list = server::read_task_list()?;
 
@@ -327,7 +327,7 @@ pub fn list_tasks(
         if !list_all && info.upid.userid != userid { continue; }
 
 
-        if let Some(userid) = userfilter {
+        if let Some(userid) = &userfilter {
             if !info.upid.userid.as_str().contains(userid) { continue; }
         }
 
