@@ -13,7 +13,7 @@ Ext.define('PBS.Dashboard', {
 		width: 300,
 		title: gettext('Dashboard Options'),
 		layout: {
-		    type: 'auto'
+		    type: 'auto',
 		},
 		items: [{
 		    xtype: 'form',
@@ -28,7 +28,7 @@ Ext.define('PBS.Dashboard', {
 			minValue: 1,
 			maxValue: 24,
 			value: viewModel.get('hours'),
-			fieldLabel: gettext('Hours to show')
+			fieldLabel: gettext('Hours to show'),
 		    }],
 		    buttons: [{
 			text: gettext('Save'),
@@ -39,9 +39,9 @@ Ext.define('PBS.Dashboard', {
 			    var hours = win.down('#hours').getValue();
 			    me.setHours(hours, true);
 			    win.close();
-			}
-		    }]
-		}]
+			},
+		    }],
+		}],
 	    }).show();
 	},
 
@@ -119,7 +119,7 @@ Ext.define('PBS.Dashboard', {
 			    el.select();
 			    document.execCommand("copy");
 			},
-			text: gettext('Copy')
+			text: gettext('Copy'),
 		    },
 		    {
 			text: gettext('Ok'),
@@ -140,10 +140,10 @@ Ext.define('PBS.Dashboard', {
 	    me.lookup('longesttasks').updateTasks(top10);
 
 	    let data = {
-		backup: {  error: 0, warning: 0, ok: 0, },
-		prune: { error: 0, warning: 0, ok: 0, },
-		garbage_collection: { error: 0, warning: 0, ok: 0, },
-		sync: {  error: 0, warning: 0, ok: 0, },
+		backup: { error: 0, warning: 0, ok: 0 },
+		prune: { error: 0, warning: 0, ok: 0 },
+		garbage_collection: { error: 0, warning: 0, ok: 0 },
+		sync: { error: 0, warning: 0, ok: 0 },
 	    };
 
 	    records.forEach(record => {
@@ -166,7 +166,7 @@ Ext.define('PBS.Dashboard', {
 	    var sp = Ext.state.Manager.getProvider();
 	    var hours = sp.get('dashboard-hours') || 12;
 	    me.setHours(hours, false);
-	}
+	},
     },
 
     viewModel: {
@@ -177,7 +177,7 @@ Ext.define('PBS.Dashboard', {
 	    fingerprint: "",
 	    'bytes_in': 0,
 	    'bytes_out': 0,
-	    'avg_ptime': 0.0
+	    'avg_ptime': 0.0,
 	},
 
 	formulas: {
@@ -194,11 +194,11 @@ Ext.define('PBS.Dashboard', {
 		autoDestroy: true,
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/nodes/localhost/status'
+		    url: '/api2/json/nodes/localhost/status',
 		},
 		listeners: {
-		    load: 'updateUsageStats'
-		}
+		    load: 'updateUsageStats',
+		},
 	    },
 	    subscription: {
 		storeid: 'dash-subscription',
@@ -209,11 +209,11 @@ Ext.define('PBS.Dashboard', {
 		autoDestroy: true,
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/nodes/localhost/subscription'
+		    url: '/api2/json/nodes/localhost/subscription',
 		},
 		listeners: {
-		    load: 'updateSubscription'
-		}
+		    load: 'updateSubscription',
+		},
 	    },
 	    tasks: {
 		storeid: 'dash-tasks',
@@ -225,19 +225,19 @@ Ext.define('PBS.Dashboard', {
 		model: 'proxmox-tasks',
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/status/tasks'
+		    url: '/api2/json/status/tasks',
 		},
 		listeners: {
-		    load: 'updateTasks'
-		}
+		    load: 'updateTasks',
+		},
 	    },
-	}
+	},
     },
 
     title: gettext('Dashboard') + ' - WIP',
 
     layout: {
-	type: 'column'
+	type: 'column',
     },
 
     bodyPadding: '20 0 0 20',
@@ -245,7 +245,7 @@ Ext.define('PBS.Dashboard', {
     defaults: {
 	columnWidth: 0.49,
 	xtype: 'panel',
-	margin: '0 20 20 0'
+	margin: '0 20 20 0',
     },
 
     scrollable: true,
@@ -268,27 +268,27 @@ Ext.define('PBS.Dashboard', {
 	    ],
 	    layout: {
 		type: 'hbox',
-		align: 'center'
+		align: 'center',
 	    },
 	    defaults: {
 		xtype: 'proxmoxGauge',
 		spriteFontSize: '20px',
-		flex: 1
+		flex: 1,
 	    },
 	    items: [
 		{
 		    title: gettext('CPU'),
-		    reference: 'cpu'
+		    reference: 'cpu',
 		},
 		{
 		    title: gettext('Memory'),
-		    reference: 'mem'
+		    reference: 'mem',
 		},
 		{
 		    title: gettext('Root Disk'),
-		    reference: 'root'
-		}
-	    ]
+		    reference: 'root',
+		},
+	    ],
 	},
 	{
 	    xtype: 'pbsDatastoresStatistics',
@@ -314,7 +314,7 @@ Ext.define('PBS.Dashboard', {
 	    reference: 'subscription',
 	    xtype: 'pbsSubscriptionInfo',
 	},
-    ]
+    ],
 });
 
 Ext.define('PBS.dashboard.SubscriptionInfo', {
@@ -322,7 +322,7 @@ Ext.define('PBS.dashboard.SubscriptionInfo', {
     xtype: 'pbsSubscriptionInfo',
 
     style: {
-	cursor: 'pointer'
+	cursor: 'pointer',
     },
 
     layout: {
@@ -382,7 +382,7 @@ Ext.define('PBS.dashboard.SubscriptionInfo', {
 	    fn: function() {
 		var mainview = this.component.up('mainview');
 		mainview.getController().redirectTo('pbsSubscription');
-	    }
-	}
-    }
+	    },
+	},
+    },
 });

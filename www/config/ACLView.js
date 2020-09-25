@@ -47,7 +47,7 @@ Ext.define('PBS.config.ACLView', {
 	removeACL: function(btn, event, rec) {
 	    let me = this;
 	    Proxmox.Utils.API2Request({
-		url:'/access/acl',
+		url: '/access/acl',
 		method: 'PUT',
 		params: {
 		    'delete': 1,
@@ -58,7 +58,7 @@ Ext.define('PBS.config.ACLView', {
 		callback: function() {
 		    me.reload();
 		},
-		failure: function (response, opts) {
+		failure: function(response, opts) {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		},
 	    });

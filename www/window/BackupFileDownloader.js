@@ -71,11 +71,11 @@ Ext.define('PBS.window.BackupFileDownloader', {
 
 	control: {
 	    'proxmoxComboGrid': {
-		change: 'changeFile'
+		change: 'changeFile',
 	    },
 	    'button': {
 		click: 'downloadFile',
-	    }
+	    },
 	},
     },
 
@@ -89,7 +89,7 @@ Ext.define('PBS.window.BackupFileDownloader', {
 	    emptyText: gettext('No file selected'),
 	    fieldLabel: gettext('File'),
 	    store: {
-		fields: ['filename', 'size', 'crypt-mode',],
+		fields: ['filename', 'size', 'crypt-mode'],
 		idProperty: ['filename'],
 	    },
 	    listConfig: {
@@ -115,7 +115,7 @@ Ext.define('PBS.window.BackupFileDownloader', {
 				mode = PBS.Utils.cryptmap.indexOf(value);
 			    }
 			    return PBS.Utils.cryptText[mode] || Proxmox.Utils.unknownText;
-			}
+			},
 		    },
 		],
 	    },
@@ -133,7 +133,7 @@ Ext.define('PBS.window.BackupFileDownloader', {
 	    reference: 'encryptedHint',
 	    hidden: true,
 	    value: gettext('Encrypted Files cannot be decoded on the server directly. Please use the client where the decryption key is located.'),
-	}
+	},
     ],
 
     buttons: [

@@ -30,8 +30,8 @@ Ext.define('PBS.window.CreateZFS', {
 		    xtype: 'proxmoxcheckbox',
 		    name: 'add-datastore',
 		    fieldLabel: gettext('Add as Datastore'),
-		    value: '1'
-		}
+		    value: '1',
+		},
 	    ],
 	    column2: [
 		{
@@ -45,8 +45,8 @@ Ext.define('PBS.window.CreateZFS', {
 			['raid10', 'RAID10'],
 			['raidz', 'RAIDZ'],
 			['raidz2', 'RAIDZ2'],
-			['raidz3', 'RAIDZ3']
-		    ]
+			['raidz3', 'RAIDZ3'],
+		    ],
 		},
 		{
 		    xtype: 'proxmoxKVComboBox',
@@ -59,8 +59,8 @@ Ext.define('PBS.window.CreateZFS', {
 			['gzip', 'gzip'],
 			['lz4', 'lz4'],
 			['lzjb', 'lzjb'],
-			['zle', 'zle']
-		    ]
+			['zle', 'zle'],
+		    ],
 		},
 		{
 		    xtype: 'proxmoxintegerfield',
@@ -68,8 +68,8 @@ Ext.define('PBS.window.CreateZFS', {
 		    minValue: 9,
 		    maxValue: 16,
 		    value: '12',
-		    name: 'ashift'
-		}
+		    name: 'ashift',
+		},
 	    ],
 	    columnB: [
 		{
@@ -80,8 +80,8 @@ Ext.define('PBS.window.CreateZFS', {
 		    valueField: 'name',
 		    height: 200,
 		    emptyText: gettext('No Disks unused'),
-		}
-	    ]
+		},
+	    ],
 	},
 	{
 	    xtype: 'displayfield',

@@ -1,11 +1,11 @@
 Ext.define('pbs-datastore-list', {
     extend: 'Ext.data.Model',
-    fields: [ 'name', 'comment' ],
+    fields: ['name', 'comment'],
     proxy: {
         type: 'proxmox',
-	url: "/api2/json/admin/datastore"
+	url: "/api2/json/admin/datastore",
     },
-    idProperty: 'store'
+    idProperty: 'store',
 });
 
 Ext.define('pbs-data-store-config', {
@@ -209,7 +209,7 @@ Ext.define('PBS.DataStoreConfig', {
 		    dataIndex: 'keep-yearly',
 		    width: 70,
 		},
-	    ]
+	    ],
 	},
 	{
 	    header: gettext('Comment'),

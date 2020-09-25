@@ -1,6 +1,6 @@
 Ext.define('pmx-remotes', {
     extend: 'Ext.data.Model',
-    fields: [ 'name', 'host', 'userid', 'fingerprint', 'comment' ],
+    fields: ['name', 'host', 'userid', 'fingerprint', 'comment'],
     idProperty: 'name',
     proxy: {
 	type: 'proxmox',
