@@ -6,9 +6,9 @@ Ext.define('pbs-prune-list', {
 	{
 	    name: 'backup-time',
 	    type: 'date',
-	    dateFormat: 'timestamp'
+	    dateFormat: 'timestamp',
 	},
-    ]
+    ],
 });
 
 Ext.define('PBS.DataStorePruneInputPanel', {
@@ -52,21 +52,21 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		method: "POST",
 		params: params,
 		callback: function() {
-		    return; // for easy breakpoint setting
+		     // for easy breakpoint setting
 		},
-		failure: function (response, opts) {
+		failure: function(response, opts) {
 		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		},
 		success: function(response, options) {
 		    var data = response.result.data;
 		    view.prune_store.setData(data);
-		}
+		},
 	    });
 	},
 
 	control: {
-	    field: { change: 'reload' }
-	}
+	    field: { change: 'reload' },
+	},
     },
 
     column1: [
@@ -111,16 +111,16 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 	    allowBlank: true,
 	    fieldLabel: gettext('keep-yearly'),
 	    minValue: 1,
-	}
+	},
     ],
 
 
-    initComponent : function() {
+    initComponent: function() {
         var me = this;
 
 	me.prune_store = Ext.create('Ext.data.Store', {
 	    model: 'pbs-prune-list',
-	    sorters: { property: 'backup-time', direction: 'DESC' }
+	    sorters: { property: 'backup-time', direction: 'DESC' },
 	});
 
 	me.column2 = [
@@ -145,14 +145,14 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		    },
 		    {
 			text: "keep",
-			dataIndex: 'keep'
-		    }
-		]
-	    }
+			dataIndex: 'keep',
+		    },
+		],
+	    },
 	];
 
 	me.callParent();
-    }
+    },
 });
 
 Ext.define('PBS.DataStorePrune', {
@@ -163,7 +163,7 @@ Ext.define('PBS.DataStorePrune', {
 
     isCreate: true,
 
-    initComponent : function() {
+    initComponent: function() {
         var me = this;
 
 	if (!me.datastore) {
@@ -183,10 +183,10 @@ Ext.define('PBS.DataStorePrune', {
 		xtype: 'pbsDataStorePruneInputPanel',
 		url: '/api2/extjs/admin/datastore/' + me.datastore + "/prune",
 		backup_type: me.backup_type,
-		backup_id: me.backup_id
-	    }]
+		backup_id: me.backup_id,
+	    }],
 	});
 
 	me.callParent();
-    }
+    },
 });

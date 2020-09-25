@@ -1,4 +1,3 @@
-/*global Proxmox*/
 Ext.define('PBS.Application', {
     extend: 'Ext.app.Application',
 
@@ -6,7 +5,7 @@ Ext.define('PBS.Application', {
     appProperty: 'app',
 
     stores: [
-	'NavigationStore'
+	'NavigationStore',
     ],
 
     layout: 'fit',
@@ -29,7 +28,7 @@ Ext.define('PBS.Application', {
 	PBS.view = view;
 	me.view = view;
 
-	if (me.currentView != undefined) {
+	if (me.currentView !== undefined) {
 	    me.currentView.destroy();
 	}
 
@@ -58,7 +57,7 @@ Ext.define('PBS.Application', {
 	} else {
 	    me.changeView('mainview', true);
 	}
-    }
+    },
 });
 
 Ext.application('PBS.Application');

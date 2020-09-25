@@ -10,7 +10,7 @@ Ext.define('PBS.store.NavigationStore', {
 		text: gettext('Dashboard'),
 		iconCls: 'fa fa-tachometer',
 		path: 'pbsDashboard',
-		leaf: true
+		leaf: true,
 	    },
 	    {
 		text: gettext('Configuration'),
@@ -22,13 +22,13 @@ Ext.define('PBS.store.NavigationStore', {
 			text: gettext('User Management'),
 			iconCls: 'fa fa-user',
 			path: 'pbsUserView',
-			leaf: true
+			leaf: true,
 		    },
 		    {
 			text: gettext('Permissions'),
 			iconCls: 'fa fa-unlock',
 			path: 'pbsACLView',
-			leaf: true
+			leaf: true,
 		    },
 		    {
 			text: gettext('Remotes'),
@@ -46,9 +46,9 @@ Ext.define('PBS.store.NavigationStore', {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
-			leaf: true
-		    }
-		]
+			leaf: true,
+		    },
+		],
 	    },
 	    {
 		text: gettext('Administration'),
@@ -75,19 +75,19 @@ Ext.define('PBS.store.NavigationStore', {
 				path: 'pbsZFSList',
 				leaf: true,
 			    },
-			]
-		    }
-		]
+			],
+		    },
+		],
 	    },
 	    {
 		text: gettext('Datastore'),
 		iconCls: 'fa fa-archive',
 		path: 'pbsDataStoreConfig',
 		expanded: true,
-		leaf: false
+		leaf: false,
 	    },
-	]
-    }
+	],
+    },
 });
 
 Ext.define('PBS.view.main.NavigationTree', {
@@ -98,13 +98,12 @@ Ext.define('PBS.view.main.NavigationTree', {
 	xclass: 'Ext.app.ViewController',
 
 	init: function(view) {
-
 	    view.rstore = Ext.create('Proxmox.data.UpdateStore', {
 		autoStart: true,
 		interval: 15 * 1000,
 		storeId: 'pbs-datastore-list',
 		storeid: 'pbs-datastore-list',
-		model: 'pbs-datastore-list'
+		model: 'pbs-datastore-list',
 	    });
 
 	    view.rstore.on('load', this.onLoad, this);
@@ -119,7 +118,7 @@ Ext.define('PBS.view.main.NavigationTree', {
 
 	    // FIXME: newly added always get appended to the end..
 	    records.sort((a, b) => {
-		if (a.id > b.id) return  1;
+		if (a.id > b.id) return 1;
 		if (a.id < b.id) return -1;
 		return 0;
 	    });
@@ -128,29 +127,28 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    var length = records.length;
 	    var lookup_hash = {};
 	    for (var i = 0; i < length; i++) {
-		var name = records[i].id;
+		let name = records[i].id;
 		lookup_hash[name] = true;
 		if (!list.findChild('text', name, false)) {
 		    list.appendChild({
 			text: name,
 			path: `DataStore-${name}`,
 			iconCls: 'fa fa-database',
-			leaf: true
+			leaf: true,
 		    });
 		}
 	    }
 
 	    var erase_list = [];
 	    list.eachChild(function(node) {
-		var name = node.data.text;
+		let name = node.data.text;
 		if (!lookup_hash[name]) {
 		    erase_list.push(node);
 		}
 	    });
 
 	    Ext.Array.forEach(erase_list, function(node) { node.erase(); });
-
-	}
+	},
     },
 
     select: function(path) {
@@ -163,5 +161,5 @@ Ext.define('PBS.view.main.NavigationTree', {
     expanderOnly: true,
     expanderFirst: false,
     store: 'NavigationStore',
-    ui: 'nav'
+    ui: 'nav',
 });
