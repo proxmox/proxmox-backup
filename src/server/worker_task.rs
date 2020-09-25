@@ -413,15 +413,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
         }
     });
 
-    let mut raw = String::new();
-    for info in &task_list {
-        if let Some(status) = &info.state {
-            raw.push_str(&format!("{} {:08X} {}\n", info.upid_str, status.endtime(), status));
-        } else {
-            raw.push_str(&info.upid_str);
-            raw.push('\n');
-        }
-    }
+    let raw = render_task_list(&task_list[..]);
 
     replace_file(
         PROXMOX_BACKUP_ACTIVE_TASK_FN,
@@ -441,6 +433,26 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
 /// The list is sorted by `(starttime, endtime)` in ascending order
 pub fn read_task_list() -> Result<Vec<TaskListInfo>, Error> {
     update_active_workers(None)
+}
+
+fn render_task_line(info: &TaskListInfo) -> String {
+    let mut raw = String::new();
+    if let Some(status) = &info.state {
+        raw.push_str(&format!("{} {:08X} {}\n", info.upid_str, status.endtime(), status));
+    } else {
+        raw.push_str(&info.upid_str);
+        raw.push('\n');
+    }
+
+    raw
+}
+
+fn render_task_list(list: &[TaskListInfo]) -> String {
+    let mut raw = String::new();
+    for info in list {
+        raw.push_str(&render_task_line(&info));
+    }
+    raw
 }
 
 /// Launch long running worker tasks.
