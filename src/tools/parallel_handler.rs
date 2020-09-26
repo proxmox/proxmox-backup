@@ -57,7 +57,7 @@ impl <I: Send + Sync + 'static> ParallelHandler<I> {
         threads: usize,
         handler_fn: F,
     ) -> Self
-        where F: Fn(I) -> Result<(), Error> + Send + Sync + Clone + 'static,
+        where F: Fn(I) -> Result<(), Error> + Send + Clone + 'static,
     {
         let mut handles = Vec::new();
         let (input_tx, input_rx) = bounded::<I>(threads);
