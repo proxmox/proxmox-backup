@@ -21,7 +21,6 @@ use proxmox_backup::backup::{
     load_and_decrypt_key,
     CryptConfig,
     KeyDerivationConfig,
-    DataBlob,
     DataChunkBuilder,
 };
 
