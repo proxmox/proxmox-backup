@@ -5,13 +5,21 @@ use std::time::Instant;
 
 use anyhow::{bail, format_err, Error};
 
-use crate::server::WorkerTask;
-use crate::api2::types::*;
-
-use super::{
-    DataStore, DataBlob, BackupGroup, BackupDir, BackupInfo, IndexFile,
-    CryptMode,
-    FileInfo, ArchiveType, archive_type,
+use crate::{
+    server::WorkerTask,
+    api2::types::*,
+    backup::{
+        DataStore,
+        DataBlob,
+        BackupGroup,
+        BackupDir,
+        BackupInfo,
+        IndexFile,
+        CryptMode,
+        FileInfo,
+        ArchiveType,
+        archive_type,
+    },
 };
 
 fn verify_blob(datastore: Arc<DataStore>, backup_dir: &BackupDir, info: &FileInfo) -> Result<(), Error> {
