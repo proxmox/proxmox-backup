@@ -1,7 +1,7 @@
 use std::thread::{JoinHandle};
 use std::sync::{Arc, Mutex};
 use crossbeam_channel::{bounded, Sender};
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 
 /// A handle to send data toö the worker thread (implements clone)
 pub struct SendHandle<I> {
@@ -9,7 +9,7 @@ pub struct SendHandle<I> {
     abort: Arc<Mutex<Option<String>>>,
 }
 
-impl <I: Send + Sync +'static> SendHandle<I> {
+impl <I: Send> SendHandle<I> {
 
     /// Returns the first error happened, if any
     pub fn check_abort(&self) -> Result<(), Error> {
@@ -23,8 +23,10 @@ impl <I: Send + Sync +'static> SendHandle<I> {
     /// Send data to the worker threads
     pub fn send(&self, input: I) -> Result<(), Error> {
         self.check_abort()?;
-        self.input.send(input)?;
-        Ok(())
+        match self.input.send(input) {
+            Ok(()) => Ok(()),
+            Err(_) => bail!("send failed - channel closed"),
+        }
     }
 }
 
@@ -49,7 +51,7 @@ impl <I> Clone for SendHandle<I> {
     }
 }
 
-impl <'a, I: Send + Sync + 'static> ParallelHandler<'a, I> {
+impl <'a, I: Send + 'static> ParallelHandler<'a, I> {
 
     /// Create a new thread pool, each thread processing incoming data
     /// with 'handler_fn'.
