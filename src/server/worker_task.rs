@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{Read, Write, BufRead, BufReader};
 use std::panic::UnwindSafe;
@@ -19,6 +19,7 @@ use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOpti
 
 use super::UPID;
 
+use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::FileLogger;
 use crate::api2::types::Userid;
 
@@ -491,6 +492,101 @@ where
     };
 
     read_task_file(file)
+}
+
+enum TaskFile {
+    Active,
+    Index,
+    Archive,
+    End,
+}
+
+pub struct TaskListInfoIterator {
+    list: VecDeque<TaskListInfo>,
+    file: TaskFile,
+    archive: Option<LogRotateFiles>,
+    lock: Option<File>,
+}
+
+impl TaskListInfoIterator {
+    pub fn new(active_only: bool) -> Result<Self, Error> {
+        let (read_lock, active_list) = {
+            let lock = lock_task_list_files(false)?;
+            let active_list = read_task_file_from_path(PROXMOX_BACKUP_ACTIVE_TASK_FN)?;
+
+            let needs_update = active_list
+                .iter()
+                .any(|info| info.state.is_none() && !worker_is_active_local(&info.upid));
+
+            if needs_update {
+                drop(lock);
+                update_active_workers(None)?;
+                let lock = lock_task_list_files(false)?;
+                let active_list = read_task_file_from_path(PROXMOX_BACKUP_ACTIVE_TASK_FN)?;
+                (lock, active_list)
+            } else {
+                (lock, active_list)
+            }
+        };
+
+        let archive = if active_only {
+            None
+        } else {
+            let logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, true).ok_or_else(|| format_err!("could not get archive file names"))?;
+            Some(logrotate.files())
+        };
+
+        let file = if active_only { TaskFile::End } else { TaskFile::Active };
+        let lock = if active_only { None } else { Some(read_lock) };
+
+        Ok(Self {
+            list: active_list.into(),
+            file,
+            archive,
+            lock,
+        })
+    }
+}
+
+impl Iterator for TaskListInfoIterator {
+    type Item = Result<TaskListInfo, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(element) = self.list.pop_back() {
+                return Some(Ok(element));
+            } else {
+                match self.file {
+                    TaskFile::Active => {
+                        let index = match read_task_file_from_path(PROXMOX_BACKUP_INDEX_TASK_FN) {
+                            Ok(index) => index,
+                            Err(err) => return Some(Err(err)),
+                        };
+                        self.list.append(&mut index.into());
+                        self.file = TaskFile::Index;
+                    },
+                    TaskFile::Index | TaskFile::Archive => {
+                        if let Some(mut archive) = self.archive.take() {
+                            if let Some(file) = archive.next() {
+                                let list = match read_task_file(file) {
+                                    Ok(list) => list,
+                                    Err(err) => return Some(Err(err)),
+                                };
+                                self.list.append(&mut list.into());
+                                self.archive = Some(archive);
+                                self.file = TaskFile::Archive;
+                                continue;
+                            }
+                        }
+                        self.file = TaskFile::End;
+                        self.lock.take();
+                        return None;
+                    }
+                    TaskFile::End => return None,
+                }
+            }
+        }
+    }
 }
 
 /// Launch long running worker tasks.
