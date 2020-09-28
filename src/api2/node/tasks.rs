@@ -10,7 +10,7 @@ use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use crate::tools;
 use crate::api2::types::*;
-use crate::server::{self, UPID, TaskState};
+use crate::server::{self, UPID, TaskState, TaskListInfoIterator};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -316,56 +316,54 @@ pub fn list_tasks(
 
     let store = param["store"].as_str();
 
+    let list = TaskListInfoIterator::new(running)?;
 
-    let list = server::read_task_list()?;
+    let result: Vec<TaskListItem> = list
+        .take_while(|info| !info.is_err())
+        .filter_map(|info| {
+        let info = match info {
+            Ok(info) => info,
+            Err(_) => return None,
+        };
 
-    let mut result = vec![];
-
-    let mut count = 0;
-
-    for info in list {
-        if !list_all && info.upid.userid != userid { continue; }
-
+        if !list_all && info.upid.userid != userid { return None; }
 
         if let Some(userid) = &userfilter {
-            if !info.upid.userid.as_str().contains(userid) { continue; }
+            if !info.upid.userid.as_str().contains(userid) { return None; }
         }
 
         if let Some(store) = store {
             // Note: useful to select all tasks spawned by proxmox-backup-client
             let worker_id = match &info.upid.worker_id {
                 Some(w) => w,
-                None => continue, // skip
+                None => return None, // skip
             };
 
             if info.upid.worker_type == "backup" || info.upid.worker_type == "restore" ||
                 info.upid.worker_type == "prune"
             {
                 let prefix = format!("{}_", store);
-                if !worker_id.starts_with(&prefix) { continue; }
+                if !worker_id.starts_with(&prefix) { return None; }
             } else if info.upid.worker_type == "garbage_collection" {
-                if worker_id != store { continue; }
+                if worker_id != store { return None; }
             } else {
-                continue; // skip
+                return None; // skip
             }
         }
 
-        if let Some(ref state) = info.state {
-            if running { continue; }
-            match state {
-                crate::server::TaskState::OK { .. } if errors => continue,
-                _ => {},
-            }
+        match info.state {
+            Some(crate::server::TaskState::OK { .. }) if errors => return None,
+            _ => {},
         }
 
-        if (count as u64) < start {
-            count += 1;
-            continue;
-        } else {
-            count += 1;
-        }
+        Some(info.into())
+    }).skip(start as usize)
+        .take(limit as usize)
+        .collect();
 
-        if (result.len() as u64) < limit { result.push(info.into()); };
+    let mut count = result.len() + start as usize;
+    if result.len() > 0 && result.len() >= limit as usize { // we have a 'virtual' entry as long as we have any new
+        count += 1;
     }
 
     rpcenv["total"] = Value::from(count);
