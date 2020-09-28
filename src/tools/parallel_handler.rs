@@ -162,13 +162,8 @@ impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
 impl<'a, I> Drop for ParallelHandler<'a, I> {
     fn drop(&mut self) {
         drop(self.input.take());
-        loop {
-            match self.handles.pop() {
-                Some(handle) => {
-                    let _ = handle.join();
-                }
-                None => break,
-            }
+        while let Some(handle) = self.handles.pop() {
+            let _ = handle.join();
         }
     }
 }
