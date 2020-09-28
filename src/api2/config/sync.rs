@@ -69,7 +69,7 @@ pub fn list_sync_jobs(
 /// Create a new sync job.
 pub fn create_sync_job(param: Value) -> Result<(), Error> {
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let sync_job: sync::SyncJobConfig = serde_json::from_value(param.clone())?;
 
@@ -187,7 +187,7 @@ pub fn update_sync_job(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     // pass/compare digest
     let (mut config, expected_digest) = sync::config()?;
@@ -250,7 +250,7 @@ pub fn update_sync_job(
 /// Remove a sync job configuration
 pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = sync::config()?;
 

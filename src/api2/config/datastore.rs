@@ -112,7 +112,7 @@ pub fn list_datastores(
 /// Create new datastore config.
 pub fn create_datastore(param: Value) -> Result<(), Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let datastore: datastore::DataStoreConfig = serde_json::from_value(param.clone())?;
 
@@ -277,7 +277,7 @@ pub fn update_datastore(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     // pass/compare digest
     let (mut config, expected_digest) = datastore::config()?;
@@ -381,7 +381,7 @@ pub fn update_datastore(
 /// Remove a datastore configuration.
 pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = datastore::config()?;
 

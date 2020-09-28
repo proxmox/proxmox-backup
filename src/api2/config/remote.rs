@@ -79,7 +79,7 @@ pub fn list_remotes(
 /// Create new remote.
 pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let mut data = param.clone();
     data["password"] = Value::from(base64::encode(password.as_bytes()));
@@ -195,7 +195,7 @@ pub fn update_remote(
     digest: Option<String>,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = remote::config()?;
 
@@ -256,7 +256,7 @@ pub fn update_remote(
 /// Remove a remote from the configuration file.
 pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> {
 
-    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = remote::config()?;
 

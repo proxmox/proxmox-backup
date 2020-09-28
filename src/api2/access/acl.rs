@@ -175,7 +175,7 @@ pub fn update_acl(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let _lock = open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0))?;
+    let _lock = open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut tree, expected_digest) = acl::config()?;
 

@@ -97,7 +97,7 @@ where
 {
     let mut path = path.as_ref().to_path_buf();
     path.set_extension("lck");
-    let lock = open_file_locked(&path, Duration::new(10, 0))?;
+    let lock = open_file_locked(&path, Duration::new(10, 0), true)?;
     let backup_user = crate::backup::backup_user()?;
     nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
     Ok(lock)
