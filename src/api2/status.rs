@@ -182,7 +182,7 @@ fn datastore_status(
     input: {
         properties: {
             since: {
-                type: u64,
+                type: i64,
                 description: "Only list tasks since this UNIX epoch.",
                 optional: true,
             },
@@ -200,6 +200,7 @@ fn datastore_status(
 )]
 /// List tasks.
 pub fn list_tasks(
+    since: Option<i64>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
@@ -209,13 +210,28 @@ pub fn list_tasks(
     let user_privs = user_info.lookup_privs(&userid, &["system", "tasks"]);
 
     let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
+    let since = since.unwrap_or_else(|| 0);
 
-    // TODO: replace with call that gets all task since 'since' epoch
-    let list: Vec<TaskListItem> = server::read_task_list()?
-        .into_iter()
-        .map(TaskListItem::from)
-        .filter(|entry| list_all || entry.user == userid)
-        .collect();
+    let list: Vec<TaskListItem> = server::TaskListInfoIterator::new(false)?
+        .take_while(|info| {
+            match info {
+                Ok(info) => info.upid.starttime > since,
+                Err(_) => false
+            }
+        })
+        .filter_map(|info| {
+            match info {
+                Ok(info) => {
+                    if list_all || info.upid.userid == userid {
+                        Some(Ok(TaskListItem::from(info)))
+                    } else {
+                        None
+                    }
+                }
+                Err(err) => Some(Err(err))
+            }
+        })
+        .collect::<Result<Vec<TaskListItem>, Error>>()?;
 
     Ok(list.into())
 }
