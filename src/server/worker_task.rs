@@ -325,6 +325,15 @@ pub struct TaskListInfo {
     pub state: Option<TaskState>, // endtime, status
 }
 
+fn lock_task_list_files(exclusive: bool) -> Result<std::fs::File, Error> {
+    let backup_user = crate::backup::backup_user()?;
+
+    let lock = open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0), exclusive)?;
+    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
+
+    Ok(lock)
+}
+
 // atomically read/update the task list, update status of finished tasks
 // new_upid is added to the list when specified.
 // Returns a sorted list of known tasks,
@@ -332,8 +341,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
 
     let backup_user = crate::backup::backup_user()?;
 
-    let lock = open_file_locked(PROXMOX_BACKUP_TASK_LOCK_FN, std::time::Duration::new(10, 0), true)?;
-    nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
+    let lock = lock_task_list_files(true)?;
 
     let reader = match File::open(PROXMOX_BACKUP_ACTIVE_TASK_FN) {
         Ok(f) => Some(BufReader::new(f)),
