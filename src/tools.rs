@@ -32,6 +32,7 @@ pub mod ticket;
 pub mod statistics;
 pub mod systemd;
 pub mod nom;
+pub mod logrotate;
 
 mod parallel_handler;
 pub use parallel_handler::*;
