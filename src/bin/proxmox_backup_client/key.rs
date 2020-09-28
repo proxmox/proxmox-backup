@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::io::Write;
+use std::process::{Stdio, Command};
 
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
@@ -261,6 +263,66 @@ fn create_master_key() -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            path: {
+                description: "Key file. Without this the default key's will be used.",
+                optional: true,
+            },
+            subject: {
+                description: "Include the specified subject as titel text.",
+                optional: true,
+            },
+        },
+    },
+)]
+/// Generate a printable, human readable text file containing the encryption key.
+///
+/// This also includes a scanable QR code for fast key restore.
+fn paper_key(path: Option<String>, subject: Option<String>) -> Result<(), Error> {
+    let path = match path {
+        Some(path) => PathBuf::from(path),
+        None => {
+            let path = find_default_encryption_key()?
+                .ok_or_else(|| {
+                    format_err!("no encryption file provided and no default file found")
+                })?;
+            path
+        }
+    };
+
+    let data = file_get_contents(&path)?;
+    let key_config: KeyConfig = serde_json::from_slice(&data)?;
+    let key_text = serde_json::to_string_pretty(&key_config)?;
+
+    if let Some(subject) = subject {
+        println!("Subject: {}\n", subject);
+    }
+
+    println!("-----BEGIN PROXMOX BACKUP KEY-----");
+    println!("{}", key_text);
+    println!("-----END PROXMOX BACKUP KEY-----");
+
+    let mut child = Command::new("qrencode")
+        .args(&["-t", "utf8i", "-lm"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    {
+        let stdin = child.stdin.as_mut().expect("Failed to open stdin");
+        stdin.write_all(key_text.as_bytes()).expect("Failed to write to stdin");
+    }
+
+    let output = child.wait_with_output().expect("Failed to read stdout");
+
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+
+    Ok(())
+}
+
+
 pub fn cli() -> CliCommandMap {
     let key_create_cmd_def = CliCommand::new(&API_METHOD_CREATE)
         .arg_param(&["path"])
@@ -275,9 +337,14 @@ pub fn cli() -> CliCommandMap {
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
+    let paper_key_cmd_def = CliCommand::new(&API_METHOD_PAPER_KEY)
+        .arg_param(&["path"])
+        .completion_cb("path", tools::complete_file_name);
+
     CliCommandMap::new()
         .insert("create", key_create_cmd_def)
         .insert("create-master-key", key_create_master_key_cmd_def)
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)
+        .insert("paper-key", paper_key_cmd_def)
 }
