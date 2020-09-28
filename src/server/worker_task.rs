@@ -341,8 +341,7 @@ fn lock_task_list_files(exclusive: bool) -> Result<std::fs::File, Error> {
 
 // atomically read/update the task list, update status of finished tasks
 // new_upid is added to the list when specified.
-// Returns a sorted list of known tasks,
-fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, Error> {
+fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
 
     let backup_user = crate::backup::backup_user()?;
 
@@ -424,16 +423,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<Vec<TaskListInfo>, E
 
     drop(lock);
 
-    finish_list.append(&mut active_list);
-    finish_list.reverse();
-    Ok(finish_list)
-}
-
-/// Returns a sorted list of known tasks
-///
-/// The list is sorted by `(starttime, endtime)` in ascending order
-pub fn read_task_list() -> Result<Vec<TaskListInfo>, Error> {
-    update_active_workers(None)
+    Ok(())
 }
 
 fn render_task_line(info: &TaskListInfo) -> String {
