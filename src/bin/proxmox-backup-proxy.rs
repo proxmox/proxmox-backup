@@ -198,6 +198,7 @@ async fn schedule_tasks() -> Result<(), Error> {
     schedule_datastore_prune().await;
     schedule_datastore_verification().await;
     schedule_datastore_sync_jobs().await;
+    schedule_task_log_rotate().await;
 
     Ok(())
 }
@@ -653,6 +654,101 @@ async fn schedule_datastore_sync_jobs() {
             eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
         }
     }
+}
+
+async fn schedule_task_log_rotate() {
+    use proxmox_backup::{
+        config::jobstate::{self, Job},
+        server::rotate_task_log_archive,
+    };
+    use proxmox_backup::server::WorkerTask;
+    use proxmox_backup::tools::systemd::time::{
+        parse_calendar_event, compute_next_event};
+
+    let worker_type = "logrotate";
+    let job_id = "task-archive";
+
+    let last = match jobstate::last_run_time(worker_type, job_id) {
+        Ok(time) => time,
+        Err(err) => {
+            eprintln!("could not get last run time of task log archive rotation: {}", err);
+            return;
+        }
+    };
+
+    // schedule daily at 00:00 like normal logrotate
+    let schedule = "00:00";
+
+    let event = match parse_calendar_event(schedule) {
+        Ok(event) => event,
+        Err(err) => {
+            // should not happen?
+            eprintln!("unable to parse schedule '{}' - {}", schedule, err);
+            return;
+        }
+    };
+
+    let next = match compute_next_event(&event, last, false) {
+        Ok(Some(next)) => next,
+        Ok(None) => return,
+        Err(err) => {
+            eprintln!("compute_next_event for '{}' failed - {}", schedule, err);
+            return;
+        }
+    };
+
+    let now = proxmox::tools::time::epoch_i64();
+
+    if next > now {
+        // if we never ran the rotation, schedule instantly
+        match jobstate::JobState::load(worker_type, job_id) {
+            Ok(state) => match state {
+                jobstate::JobState::Created { .. } => {},
+                _ => return,
+            },
+            _ => return,
+        }
+    }
+
+    let mut job = match Job::new(worker_type, job_id) {
+        Ok(job) => job,
+        Err(_) => return, // could not get lock
+    };
+
+    if let Err(err) = WorkerTask::new_thread(
+        worker_type,
+        Some(job_id.to_string()),
+        Userid::backup_userid().clone(),
+        false,
+        move |worker| {
+            job.start(&worker.upid().to_string())?;
+            worker.log(format!("starting task log rotation"));
+            // one entry has normally about ~100-150 bytes
+            let max_size = 500000; // at least 5000 entries
+            let max_files = 20; // at least 100000 entries
+            let result = try_block!({
+                let has_rotated = rotate_task_log_archive(max_size, true, Some(max_files))?;
+                if has_rotated {
+                    worker.log(format!("task log archive was rotated"));
+                } else {
+                    worker.log(format!("task log archive was not rotated"));
+                }
+
+                Ok(())
+            });
+
+            let status = worker.create_state(&result);
+
+            if let Err(err) = job.finish(status) {
+                eprintln!("could not finish job state for {}: {}", worker_type, err);
+            }
+
+            result
+        },
+    ) {
+        eprintln!("unable to start task log rotation: {}", err);
+    }
+
 }
 
 async fn run_stat_generator() {

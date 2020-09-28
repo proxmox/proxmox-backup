@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
+use std::path::Path;
 use std::io::{Read, Write, BufRead, BufReader};
 use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -337,6 +338,27 @@ fn lock_task_list_files(exclusive: bool) -> Result<std::fs::File, Error> {
     nix::unistd::chown(PROXMOX_BACKUP_TASK_LOCK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
 
     Ok(lock)
+}
+
+/// checks if the Task Archive is bigger that 'size_threshold' bytes, and
+/// rotates it if it is
+pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: Option<usize>) -> Result<bool, Error> {
+    let _lock = lock_task_list_files(true)?;
+    let path = Path::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN);
+    let metadata = path.metadata()?;
+    if metadata.len() > size_threshold {
+        let mut logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, compress).ok_or_else(|| format_err!("could not get archive file names"))?;
+        let backup_user = crate::backup::backup_user()?;
+        logrotate.rotate(
+            CreateOptions::new()
+                .owner(backup_user.uid)
+                .group(backup_user.gid),
+            max_files,
+        )?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 // atomically read/update the task list, update status of finished tasks
