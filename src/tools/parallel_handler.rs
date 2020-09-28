@@ -49,7 +49,7 @@ impl<I> Clone for SendHandle<I> {
     fn clone(&self) -> Self {
         Self {
             input: self.input.clone(),
-            abort: self.abort.clone(),
+            abort: Arc::clone(&self.abort),
         }
     }
 }
@@ -67,7 +67,7 @@ impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
 
         for i in 0..threads {
             let input_rx = input_rx.clone();
-            let abort = abort.clone();
+            let abort = Arc::clone(&abort);
 
             // Erase the 'a lifetime bound. This is safe because we
             // join all thread in the drop handler.
