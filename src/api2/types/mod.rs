@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
-use proxmox::{IPRE, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
+use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
 use crate::backup::CryptMode;
 use crate::server::UPID;
@@ -65,7 +65,7 @@ const_regex!{
 
     pub DNS_NAME_OR_IP_REGEX = concat!(r"^", DNS_NAME!(), "|",  IPRE!(), r"$");
 
-    pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE!() ,"):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
+    pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE_BRACKET!() ,"):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
 
     pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 

@@ -737,6 +737,9 @@ on the backup server.
 The default value for ``username`` ist ``root@pam``.  If no server is specified,
 the default is the local host (``localhost``).
 
+Note that if the server is an IPv6 address, you have to write it with
+square brackets (e.g. [fe80::01]).
+
 You can pass the repository with the ``--repository`` command
 line option, or by setting the ``PBS_REPOSITORY`` environment
 variable.
