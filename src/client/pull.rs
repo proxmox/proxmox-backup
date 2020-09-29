@@ -439,7 +439,7 @@ pub async fn pull_group(
             .password(Some(auth_info.ticket.clone()))
             .fingerprint(fingerprint.clone());
 
-        let new_client = HttpClient::new(src_repo.host(), src_repo.user(), options)?;
+        let new_client = HttpClient::new(src_repo.host(), src_repo.port(), src_repo.user(), options)?;
 
         let reader = BackupReader::start(
             new_client,

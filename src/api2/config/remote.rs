@@ -60,6 +60,12 @@ pub fn list_remotes(
             host: {
                 schema: DNS_NAME_OR_IP_SCHEMA,
             },
+            port: {
+                description: "The (optional) port.",
+                type: u16,
+                optional: true,
+                default: 8007,
+            },
             userid: {
                 type: Userid,
             },
@@ -136,6 +142,8 @@ pub enum DeletableProperty {
     comment,
     /// Delete the fingerprint property.
     fingerprint,
+    /// Delete the port property.
+    port,
 }
 
 #[api(
@@ -152,6 +160,11 @@ pub enum DeletableProperty {
             host: {
                 optional: true,
                 schema: DNS_NAME_OR_IP_SCHEMA,
+            },
+            port: {
+                description: "The (optional) port.",
+                type: u16,
+                optional: true,
             },
             userid: {
                 optional: true,
@@ -188,6 +201,7 @@ pub fn update_remote(
     name: String,
     comment: Option<String>,
     host: Option<String>,
+    port: Option<u16>,
     userid: Option<Userid>,
     password: Option<String>,
     fingerprint: Option<String>,
@@ -211,6 +225,7 @@ pub fn update_remote(
             match delete_prop {
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::fingerprint => { data.fingerprint = None; },
+                DeletableProperty::port => { data.port = None; },
             }
         }
     }
@@ -224,6 +239,7 @@ pub fn update_remote(
         }
     }
     if let Some(host) = host { data.host = host; }
+    if port.is_some() { data.port = port; }
     if let Some(userid) = userid { data.userid = userid; }
     if let Some(password) = password { data.password = password; }
 

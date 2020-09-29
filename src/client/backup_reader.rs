@@ -54,7 +54,7 @@ impl BackupReader {
             "store": datastore,
             "debug": debug,
         });
-        let req = HttpClient::request_builder(client.server(), "GET", "/api2/json/reader", Some(param)).unwrap();
+        let req = HttpClient::request_builder(client.server(), client.port(), "GET", "/api2/json/reader", Some(param)).unwrap();
 
         let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_READER_PROTOCOL_ID_V1!())).await?;
 

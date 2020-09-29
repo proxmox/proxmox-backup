@@ -65,7 +65,7 @@ impl BackupWriter {
         });
 
         let req = HttpClient::request_builder(
-            client.server(), "GET", "/api2/json/backup", Some(param)).unwrap();
+            client.server(), client.port(), "GET", "/api2/json/backup", Some(param)).unwrap();
 
         let (h2, abort) = client.start_h2_connection(req, String::from(PROXMOX_BACKUP_PROTOCOL_ID_V1!())).await?;
 

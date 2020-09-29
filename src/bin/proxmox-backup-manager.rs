@@ -62,10 +62,10 @@ fn connect() -> Result<HttpClient, Error> {
         let ticket = Ticket::new("PBS", Userid::root_userid())?
             .sign(private_auth_key(), None)?;
         options = options.password(Some(ticket));
-        HttpClient::new("localhost", Userid::root_userid(), options)?
+        HttpClient::new("localhost", 8007, Userid::root_userid(), options)?
     } else {
         options = options.ticket_cache(true).interactive(true);
-        HttpClient::new("localhost", Userid::root_userid(), options)?
+        HttpClient::new("localhost", 8007, Userid::root_userid(), options)?
     };
 
     Ok(client)
@@ -410,6 +410,7 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
         let client = HttpClient::new(
             &remote.host,
+            remote.port.unwrap_or(8007),
             &remote.userid,
             options,
         )?;

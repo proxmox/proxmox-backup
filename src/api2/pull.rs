@@ -55,12 +55,12 @@ pub async fn get_pull_parameters(
         .password(Some(remote.password.clone()))
         .fingerprint(remote.fingerprint.clone());
 
-    let client = HttpClient::new(&remote.host, &remote.userid, options)?;
+    let client = HttpClient::new(&remote.host, remote.port.unwrap_or(8007), &remote.userid, options)?;
     let _auth_info = client.login() // make sure we can auth
         .await
         .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
 
-    let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote_store.to_string());
+    let src_repo = BackupRepository::new(Some(remote.userid), Some(remote.host), remote.port, remote_store.to_string());
 
     Ok((client, src_repo, tgt_store))
 }

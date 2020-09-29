@@ -732,10 +732,13 @@ Repository Locations
 The client uses the following notation to specify a datastore repository
 on the backup server.
 
-  [[username@]server:]datastore
+  [[username@]server[:port]:]datastore
 
 The default value for ``username`` ist ``root@pam``.  If no server is specified,
 the default is the local host (``localhost``).
+
+You can specify a port if your backup server is only reachable on a different
+port (e.g. with NAT and port forwarding).
 
 Note that if the server is an IPv6 address, you have to write it with
 square brackets (e.g. [fe80::01]).
@@ -744,6 +747,18 @@ You can pass the repository with the ``--repository`` command
 line option, or by setting the ``PBS_REPOSITORY`` environment
 variable.
 
+Here some examples of valid repositories and the real values
+
+================================ ============ ================== ===========
+Example                          User         Host:Port          Datastore
+================================ ============ ================== ===========
+mydatastore                      ``root@pam`` localhost:8007     mydatastore
+myhostname:mydatastore           ``root@pam`` myhostname:8007    mydatastore
+user@pbs@myhostname:mydatastore  ``user@pbs`` myhostname:8007    mydatastore
+192.168.55.55:1234:mydatastore   ``root@pam`` 192.168.55.55:1234 mydatastore
+[ff80::51]:mydatastore           ``root@pam`` [ff80::51]:8007    mydatastore
+[ff80::51]:1234:mydatastore      ``root@pam`` [ff80::51]:1234    mydatastore
+================================ ============ ================== ===========
 
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~

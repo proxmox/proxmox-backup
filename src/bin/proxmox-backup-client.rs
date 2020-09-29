@@ -192,7 +192,7 @@ pub fn complete_repository(_arg: &str, _param: &HashMap<String, String>) -> Vec<
     result
 }
 
-fn connect(server: &str, userid: &Userid) -> Result<HttpClient, Error> {
+fn connect(server: &str, port: u16, userid: &Userid) -> Result<HttpClient, Error> {
 
     let fingerprint = std::env::var(ENV_VAR_PBS_FINGERPRINT).ok();
 
@@ -211,7 +211,7 @@ fn connect(server: &str, userid: &Userid) -> Result<HttpClient, Error> {
         .fingerprint_cache(true)
         .ticket_cache(true);
 
-    HttpClient::new(server, userid, options)
+    HttpClient::new(server, port, userid, options)
 }
 
 async fn view_task_result(
@@ -365,7 +365,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/groups", repo.store());
 
@@ -438,7 +438,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let group: Option<BackupGroup> = if let Some(path) = param["group"].as_str() {
         Some(path.parse()?)
@@ -503,7 +503,7 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
     let path = tools::required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = path.parse()?;
 
-    let mut client = connect(repo.host(), repo.user())?;
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
 
@@ -533,7 +533,7 @@ async fn api_login(param: Value) -> Result<Value, Error> {
 
     let repo = extract_repository_from_value(&param)?;
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
     client.login().await?;
 
     record_repository(&repo);
@@ -590,7 +590,7 @@ async fn api_version(param: Value) -> Result<(), Error> {
 
     let repo = extract_repository_from_value(&param);
     if let Ok(repo) = repo {
-        let client = connect(repo.host(), repo.user())?;
+        let client = connect(repo.host(), repo.port(), repo.user())?;
 
         match client.get("api2/json/version", None).await {
             Ok(mut result) => version_info["server"] = result["data"].take(),
@@ -640,7 +640,7 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/files", repo.store());
 
@@ -684,7 +684,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let mut client = connect(repo.host(), repo.user())?;
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", repo.store());
 
@@ -996,7 +996,7 @@ async fn create_backup(
 
     let backup_time = backup_time_opt.unwrap_or_else(|| epoch_i64());
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
     record_repository(&repo);
 
     println!("Starting backup: {}/{}/{}", backup_type, backup_id, BackupDir::backup_time_to_string(backup_time)?);
@@ -1299,7 +1299,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
 
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     record_repository(&repo);
 
@@ -1472,7 +1472,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let snapshot = tools::required_string_param(&param, "snapshot")?;
     let snapshot: BackupDir = snapshot.parse()?;
 
-    let mut client = connect(repo.host(), repo.user())?;
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
 
     let (keydata, crypt_mode) = keyfile_parameters(&param)?;
 
@@ -1543,7 +1543,7 @@ fn prune<'a>(
 async fn prune_async(mut param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
 
-    let mut client = connect(repo.host(), repo.user())?;
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/prune", repo.store());
 
@@ -1626,7 +1626,7 @@ async fn status(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
@@ -1671,7 +1671,7 @@ async fn try_get(repo: &BackupRepository, url: &str) -> Value {
         .fingerprint_cache(true)
         .ticket_cache(true);
 
-    let client = match HttpClient::new(repo.host(), repo.user(), options) {
+    let client = match HttpClient::new(repo.host(), repo.port(), repo.user(), options) {
         Ok(v) => v,
         _ => return Value::Null,
     };

@@ -225,7 +225,7 @@ async fn test_upload_speed(
 
     let backup_time = proxmox::tools::time::epoch_i64();
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
     record_repository(&repo);
 
     if verbose { eprintln!("Connecting to backup server"); }

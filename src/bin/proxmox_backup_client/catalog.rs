@@ -79,7 +79,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
         }
     };
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let client = BackupReader::start(
         client,
@@ -153,7 +153,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
 /// Shell to interactively inspect and restore snapshots.
 async fn catalog_shell(param: Value) -> Result<(), Error> {
     let repo = extract_repository_from_value(&param)?;
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
     let path = tools::required_string_param(&param, "snapshot")?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
 

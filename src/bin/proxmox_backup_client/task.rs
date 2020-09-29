@@ -48,7 +48,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
 
     let repo = extract_repository_from_value(&param)?;
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     let limit = param["limit"].as_u64().unwrap_or(50) as usize;
     let running = !param["all"].as_bool().unwrap_or(false);
@@ -96,7 +96,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid =  tools::required_string_param(&param, "upid")?;
 
-    let client = connect(repo.host(), repo.user())?;
+    let client = connect(repo.host(), repo.port(), repo.user())?;
 
     display_task_log(client, upid, true).await?;
 
@@ -122,7 +122,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let upid_str =  tools::required_string_param(&param, "upid")?;
 
-    let mut client = connect(repo.host(), repo.user())?;
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
 
     let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
     let _ = client.delete(&path, None).await?;

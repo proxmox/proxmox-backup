@@ -19,14 +19,16 @@ pub struct BackupRepository {
     user: Option<Userid>,
     /// The host name or IP address
     host: Option<String>,
+    /// The port
+    port: Option<u16>,
     /// The name of the datastore
     store: String,
 }
 
 impl BackupRepository {
 
-    pub fn new(user: Option<Userid>, host: Option<String>, store: String) -> Self {
-        Self { user, host, store }
+    pub fn new(user: Option<Userid>, host: Option<String>, port: Option<u16>, store: String) -> Self {
+        Self { user, host, port, store }
     }
 
     pub fn user(&self) -> &Userid {
@@ -43,6 +45,13 @@ impl BackupRepository {
         "localhost"
     }
 
+    pub fn port(&self) -> u16 {
+        if let Some(port) = self.port {
+            return port;
+        }
+        8007
+    }
+
     pub fn store(&self) -> &str {
         &self.store
     }
@@ -50,13 +59,12 @@ impl BackupRepository {
 
 impl fmt::Display for BackupRepository {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-       if let Some(ref user) = self.user {
-           write!(f, "{}@{}:{}", user, self.host(), self.store)
-       } else if let Some(ref host) = self.host {
-           write!(f, "{}:{}", host, self.store)
-       } else {
-           write!(f, "{}", self.store)
-       }
+        match (&self.user, &self.host, self.port) {
+            (Some(user), _, _) => write!(f, "{}@{}:{}:{}", user, self.host(), self.port(), self.store),
+            (None, Some(host), None) => write!(f, "{}:{}", host, self.store),
+            (None, _, Some(port)) => write!(f, "{}:{}:{}", self.host(), port, self.store),
+            (None, None, None) => write!(f, "{}", self.store),
+        }
     }
 }
 
@@ -76,7 +84,8 @@ impl std::str::FromStr for BackupRepository {
         Ok(Self {
             user: cap.get(1).map(|m| Userid::try_from(m.as_str().to_owned())).transpose()?,
             host: cap.get(2).map(|m| m.as_str().to_owned()),
-            store: cap[3].to_owned(),
+            port: cap.get(3).map(|m| m.as_str().parse::<u16>()).transpose()?,
+            store: cap[4].to_owned(),
         })
     }
 }

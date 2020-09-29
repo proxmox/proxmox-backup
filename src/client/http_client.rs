@@ -99,6 +99,7 @@ impl HttpClientOptions {
 pub struct HttpClient {
     client: Client<HttpsConnector>,
     server: String,
+    port: u16,
     fingerprint: Arc<Mutex<Option<String>>>,
     first_auth: BroadcastFuture<()>,
     auth: Arc<RwLock<AuthInfo>>,
@@ -250,6 +251,7 @@ fn load_ticket_info(prefix: &str, server: &str, userid: &Userid) -> Option<(Stri
 impl HttpClient {
     pub fn new(
         server: &str,
+        port: u16,
         userid: &Userid,
         mut options: HttpClientOptions,
     ) -> Result<Self, Error> {
@@ -338,7 +340,7 @@ impl HttpClient {
                     let authinfo = auth2.read().unwrap().clone();
                     (authinfo.userid, authinfo.ticket)
                 };
-                match Self::credentials(client2.clone(), server2.clone(), userid, ticket).await {
+                match Self::credentials(client2.clone(), server2.clone(), port, userid, ticket).await {
                     Ok(auth) => {
                         if use_ticket_cache & &prefix2.is_some() {
                             let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.userid.to_string(), &auth.ticket, &auth.token);
@@ -358,6 +360,7 @@ impl HttpClient {
         let login_future = Self::credentials(
             client.clone(),
             server.to_owned(),
+            port,
             userid.to_owned(),
             password.to_owned(),
         ).map_ok({
@@ -377,6 +380,7 @@ impl HttpClient {
         Ok(Self {
             client,
             server: String::from(server),
+            port,
             fingerprint: verified_fingerprint,
             auth,
             ticket_abort,
@@ -486,7 +490,7 @@ impl HttpClient {
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
-        let req = Self::request_builder(&self.server, "GET", path, data).unwrap();
+        let req = Self::request_builder(&self.server, self.port, "GET", path, data)?;
         self.request(req).await
     }
 
@@ -495,7 +499,7 @@ impl HttpClient {
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
-        let req = Self::request_builder(&self.server, "DELETE", path, data).unwrap();
+        let req = Self::request_builder(&self.server, self.port, "DELETE", path, data)?;
         self.request(req).await
     }
 
@@ -504,7 +508,7 @@ impl HttpClient {
         path: &str,
         data: Option<Value>,
     ) -> Result<Value, Error> {
-        let req = Self::request_builder(&self.server, "POST", path, data).unwrap();
+        let req = Self::request_builder(&self.server, self.port, "POST", path, data)?;
         self.request(req).await
     }
 
@@ -513,7 +517,7 @@ impl HttpClient {
         path: &str,
         output: &mut (dyn Write + Send),
     ) -> Result<(), Error> {
-        let mut req = Self::request_builder(&self.server, "GET", path, None).unwrap();
+        let mut req = Self::request_builder(&self.server, self.port, "GET", path, None)?;
 
         let client = self.client.clone();
 
@@ -549,7 +553,7 @@ impl HttpClient {
     ) -> Result<Value, Error> {
 
         let path = path.trim_matches('/');
-        let mut url = format!("https://{}:8007/{}", &self.server, path);
+        let mut url = format!("https://{}:{}/{}", &self.server, self.port, path);
 
         if let Some(data) = data {
             let query = tools::json_object_to_query(data).unwrap();
@@ -624,11 +628,12 @@ impl HttpClient {
     async fn credentials(
         client: Client<HttpsConnector>,
         server: String,
+        port: u16,
         username: Userid,
         password: String,
     ) -> Result<AuthInfo, Error> {
         let data = json!({ "username": username, "password": password });
-        let req = Self::request_builder(&server, "POST", "/api2/json/access/ticket", Some(data)).unwrap();
+        let req = Self::request_builder(&server, port, "POST", "/api2/json/access/ticket", Some(data))?;
         let cred = Self::api_request(client, req).await?;
         let auth = AuthInfo {
             userid: cred["data"]["username"].as_str().unwrap().parse()?,
@@ -672,9 +677,13 @@ impl HttpClient {
         &self.server
     }
 
-    pub fn request_builder(server: &str, method: &str, path: &str, data: Option<Value>) -> Result<Request<Body>, Error> {
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub fn request_builder(server: &str, port: u16, method: &str, path: &str, data: Option<Value>) -> Result<Request<Body>, Error> {
         let path = path.trim_matches('/');
-        let url: Uri = format!("https://{}:8007/{}", server, path).parse()?;
+        let url: Uri = format!("https://{}:{}/{}", server, port, path).parse()?;
 
         if let Some(data) = data {
             if method == "POST" {
@@ -687,7 +696,7 @@ impl HttpClient {
                 return Ok(request);
             } else {
                 let query = tools::json_object_to_query(data)?;
-                let url: Uri = format!("https://{}:8007/{}?{}", server, path, query).parse()?;
+                let url: Uri = format!("https://{}:{}/{}?{}", server, port, path, query).parse()?;
                 let request = Request::builder()
                     .method(method)
                     .uri(url)
