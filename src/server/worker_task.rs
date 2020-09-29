@@ -418,9 +418,20 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
         }
     });
 
-    let start = (finish_list.len()-MAX_INDEX_TASKS).max(0);
+
+    let start = if finish_list.len() > MAX_INDEX_TASKS {
+        finish_list.len() - MAX_INDEX_TASKS
+    } else {
+        0
+    };
+
     let end = (start+MAX_INDEX_TASKS).min(finish_list.len());
-    let index_raw = render_task_list(&finish_list[start..end]);
+
+    let index_raw = if end > start {
+        render_task_list(&finish_list[start..end])
+    } else {
+        "".to_string()
+    };
 
     replace_file(
         PROXMOX_BACKUP_INDEX_TASK_FN,
