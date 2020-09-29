@@ -96,6 +96,7 @@ Ext.define('PBS.Utils', {
 	    verify: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Verify')),
 	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
 	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
+	    logrotate: [gettext('Log'), gettext('Rotation')],
 	});
     },
 });
