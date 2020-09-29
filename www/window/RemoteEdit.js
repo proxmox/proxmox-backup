@@ -48,6 +48,16 @@ Ext.define('PBS.window.RemoteEdit', {
 		name: 'host',
 		fieldLabel: gettext('Host'),
 	    },
+	    {
+		xtype: 'proxmoxintegerfield',
+		allowBlank: true,
+		minValue: 1,
+		maxValue: 2**16,
+		name: 'port',
+		emptyText: 8007,
+		deleteEmpty: true,
+		fieldLabel: gettext('Port'),
+	    },
 	],
 
 	column2: [

@@ -1,6 +1,15 @@
 Ext.define('pmx-remotes', {
     extend: 'Ext.data.Model',
-    fields: ['name', 'host', 'userid', 'fingerprint', 'comment'],
+    fields: ['name', 'host', 'port', 'userid', 'fingerprint', 'comment',
+	{
+	    name: 'server',
+	    calculate: function(data) {
+		let host = data.host || "localhost";
+		let port = data.port || "8007";
+		return `${host}:${port}`;
+	    }
+	}
+    ],
     idProperty: 'name',
     proxy: {
 	type: 'proxmox',
@@ -109,7 +118,7 @@ Ext.define('PBS.config.RemoteView', {
 	    header: gettext('Host'),
 	    width: 200,
 	    sortable: true,
-	    dataIndex: 'host',
+	    dataIndex: 'server',
 	},
 	{
 	    header: gettext('User name'),
