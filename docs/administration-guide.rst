@@ -734,7 +734,7 @@ on the backup server.
 
   [[username@]server:]datastore
 
-The default value for ``username`` ist ``root``.  If no server is specified,
+The default value for ``username`` ist ``root@pam``.  If no server is specified,
 the default is the local host (``localhost``).
 
 You can pass the repository with the ``--repository`` command
