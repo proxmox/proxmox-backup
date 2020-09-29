@@ -293,31 +293,63 @@ fn paper_key(path: Option<String>, subject: Option<String>) -> Result<(), Error>
     };
 
     let data = file_get_contents(&path)?;
-    let key_config: KeyConfig = serde_json::from_slice(&data)?;
-    let key_text = serde_json::to_string_pretty(&key_config)?;
+    let data = std::str::from_utf8(&data)?;
 
     if let Some(subject) = subject {
         println!("Subject: {}\n", subject);
     }
 
+    if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
+        //let rsa = openssl::rsa::Rsa::private_key_from_pem(data.as_bytes())?;
+
+        let lines: Vec<String> = data.lines()
+            .map(|s| s.trim_end())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+
+        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
+            bail!("unexpected key format");
+        }
+
+        if lines.len() < 20 {
+            bail!("unexpected key format");
+        }
+
+        const BLOCK_SIZE: usize = 5;
+        let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
+
+        for i in 0..blocks {
+            let start = i*BLOCK_SIZE;
+            let mut end = start + BLOCK_SIZE;
+            if end > lines.len() {
+                end = lines.len();
+            }
+            let data = &lines[start..end];
+
+            for l in start..end {
+                println!("LINE {:-2}: {}", l, lines[l]);
+            }
+            let data = data.join("\n");
+            let qr_code = generate_qr_code("utf8i", data.as_bytes())?;
+            println!("{}", qr_code);
+            println!("{}", char::from(12u8)); // page break
+
+        }
+        return Ok(());
+    }
+
+    let key_config: KeyConfig = serde_json::from_str(&data)?;
+    let key_text = serde_json::to_string_pretty(&key_config)?;
+
+
     println!("-----BEGIN PROXMOX BACKUP KEY-----");
     println!("{}", key_text);
     println!("-----END PROXMOX BACKUP KEY-----");
 
-    let mut child = Command::new("qrencode")
-        .args(&["-t", "utf8i", "-lm"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let qr_code = generate_qr_code("utf8i", key_text.as_bytes())?;
 
-    {
-        let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-        stdin.write_all(key_text.as_bytes()).expect("Failed to write to stdin");
-    }
-
-    let output = child.wait_with_output().expect("Failed to read stdout");
-
-    println!("{}", String::from_utf8_lossy(&output.stdout));
+    println!("{}", qr_code);
 
     Ok(())
 }
@@ -347,4 +379,28 @@ pub fn cli() -> CliCommandMap {
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)
         .insert("paper-key", paper_key_cmd_def)
+}
+
+fn generate_qr_code(output_type: &str, data: &[u8]) -> Result<String, Error> {
+
+    let mut child = Command::new("qrencode")
+        .args(&["-t", output_type, "-lm"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    {
+        let stdin = child.stdin.as_mut()
+            .ok_or_else(|| format_err!("Failed to open stdin"))?;
+        stdin.write_all(data)
+            .map_err(|_| format_err!("Failed to write to stdin"))?;
+    }
+
+    let output = child.wait_with_output()
+        .map_err(|_| format_err!("Failed to read stdout"))?;
+
+    let output = String::from_utf8(output.stdout)
+        .map_err(|_| format_err!("Failed to read stdout (got non-utf8 data)"))?;
+
+    Ok(output)
 }
