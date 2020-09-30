@@ -8,6 +8,13 @@ Ext.define('PBS.RunningTasks', {
     hideHeaders: true,
     rowLines: false,
 
+    scrollable: true,
+    maxHeight: 500,
+
+    viewConfig: {
+	deferEmptyText: false,
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
