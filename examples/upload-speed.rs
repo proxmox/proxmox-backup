@@ -14,7 +14,7 @@ async fn upload_speed() -> Result<f64, Error> {
         .interactive(true)
         .ticket_cache(true);
 
-    let client = HttpClient::new(host, username, options)?;
+    let client = HttpClient::new(host, 8007, username, options)?;
 
     let backup_time = proxmox::tools::time::epoch_i64();
 

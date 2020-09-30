@@ -32,7 +32,7 @@ async fn run() -> Result<(), Error> {
         .interactive(true)
         .ticket_cache(true);
 
-    let client = HttpClient::new(host, username, options)?;
+    let client = HttpClient::new(host, 8007, username, options)?;
 
     let backup_time = proxmox::tools::time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
