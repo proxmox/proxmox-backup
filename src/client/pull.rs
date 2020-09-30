@@ -394,6 +394,7 @@ pub async fn pull_group(
     tgt_store: Arc<DataStore>,
     group: &BackupGroup,
     delete: bool,
+    progress: Option<(usize, usize)>, // (groups_done, group_count)
 ) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", src_repo.store());
@@ -415,10 +416,20 @@ pub async fn pull_group(
 
     let mut remote_snapshots = std::collections::HashSet::new();
 
+    let (per_start, per_group) = if let Some((groups_done, group_count)) = progress {
+        let per_start = (groups_done as f64)/(group_count as f64);
+        let per_group = 1.0/(group_count as f64);
+        (per_start, per_group)
+    } else {
+        (0.0, 1.0)
+    };
+
     // start with 16384 chunks (up to 65GB)
     let downloaded_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*64)));
 
-    for item in list {
+    let snapshot_count = list.len();
+
+    for (pos, item) in list.into_iter().enumerate() {
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
 
         // in-progress backups can't be synced
@@ -451,7 +462,13 @@ pub async fn pull_group(
             true,
         ).await?;
 
-        pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot, downloaded_chunks.clone()).await?;
+        let result = pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot, downloaded_chunks.clone()).await;
+
+        let percentage = (pos as f64)/(snapshot_count as f64);
+        let percentage = per_start + percentage*per_group;
+        worker.log(format!("percentage done: {:.2}%", percentage*100.0));
+
+        result?; // stop on error
     }
 
     if delete {
@@ -501,6 +518,9 @@ pub async fn pull_store(
         new_groups.insert(BackupGroup::new(&item.backup_type, &item.backup_id));
     }
 
+    let group_count = list.len();
+    let mut groups_done = 0;
+
     for item in list {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
@@ -509,15 +529,24 @@ pub async fn pull_store(
         if userid != owner { // only the owner is allowed to create additional snapshots
             worker.log(format!("sync group {}/{} failed - owner check failed ({} != {})",
                                item.backup_type, item.backup_id, userid, owner));
-            errors = true;
-            continue; // do not stop here, instead continue
-        }
+            errors = true; // do not stop here, instead continue
 
-        if let Err(err) = pull_group(worker, client, src_repo, tgt_store.clone(), &group, delete).await {
-            worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
-            errors = true;
-            continue; // do not stop here, instead continue
+        } else {
+
+            if let Err(err) = pull_group(
+                worker,
+                client,
+                src_repo,
+                tgt_store.clone(),
+                &group,
+                delete,
+                Some((groups_done, group_count)),
+            ).await {
+                worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
+                errors = true; // do not stop here, instead continue
+            }
         }
+        groups_done += 1;
     }
 
     if delete {
