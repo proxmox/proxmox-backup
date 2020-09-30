@@ -357,8 +357,10 @@ pub fn create_zpool(
             let output = crate::tools::run_command(command, None)?;
             worker.log(output);
 
-            let import_unit = format!("zfs-import@{}.service", systemd::escape_unit(&name, false));
-            systemd::enable_unit(&import_unit)?;
+            if std::path::Path::new("/lib/systemd/system/zfs-import@.service").exists() {
+                let import_unit = format!("zfs-import@{}.service", systemd::escape_unit(&name, false));
+                systemd::enable_unit(&import_unit)?;
+            }
 
             if let Some(compression) = compression {
                 let mut command = std::process::Command::new("zfs");
