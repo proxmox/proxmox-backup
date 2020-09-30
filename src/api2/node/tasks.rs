@@ -352,6 +352,7 @@ pub fn list_tasks(
         }
 
         match info.state {
+            Some(_) if running => return None,
             Some(crate::server::TaskState::OK { .. }) if errors => return None,
             _ => {},
         }

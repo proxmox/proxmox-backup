@@ -539,7 +539,7 @@ impl TaskListInfoIterator {
 
             let needs_update = active_list
                 .iter()
-                .any(|info| info.state.is_none() && !worker_is_active_local(&info.upid));
+                .any(|info| info.state.is_some() || !worker_is_active_local(&info.upid));
 
             if needs_update {
                 drop(lock);
