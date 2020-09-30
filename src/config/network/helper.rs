@@ -149,7 +149,7 @@ pub fn compute_file_diff(filename: &str, shadow: &str) -> Result<String, Error> 
         .output()
         .map_err(|err| format_err!("failed to execute diff - {}", err))?;
 
-    let diff = crate::tools::command_output(output, Some(|c| c == 0 || c == 1))
+    let diff = crate::tools::command_output_as_string(output, Some(|c| c == 0 || c == 1))
         .map_err(|err| format_err!("diff failed: {}", err))?;
 
     Ok(diff)

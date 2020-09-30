@@ -405,7 +405,7 @@ pub fn normalize_uri_path(path: &str) -> Result<(String, Vec<&str>), Error> {
 pub fn command_output(
     output: std::process::Output,
     exit_code_check: Option<fn(i32) -> bool>,
-) -> Result<String, Error> {
+) -> Result<Vec<u8>, Error> {
 
     if !output.status.success() {
         match output.status.code() {
@@ -426,8 +426,19 @@ pub fn command_output(
         }
     }
 
-    let output = String::from_utf8(output.stdout)?;
+    Ok(output.stdout)
+}
 
+/// Helper to check result from std::process::Command output, returns String.
+///
+/// The exit_code_check() function should return true if the exit code
+/// is considered successful.
+pub fn command_output_as_string(
+    output: std::process::Output,
+    exit_code_check: Option<fn(i32) -> bool>,
+) -> Result<String, Error> {
+    let output = command_output(output, exit_code_check)?;
+    let output = String::from_utf8(output)?;
     Ok(output)
 }
 
@@ -439,7 +450,7 @@ pub fn run_command(
    let output = command.output()
         .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
 
-    let output = crate::tools::command_output(output, exit_code_check)
+    let output = crate::tools::command_output_as_string(output, exit_code_check)
         .map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
 
     Ok(output)
