@@ -6,6 +6,9 @@ Ext.define('pmx-remotes', {
 	    calculate: function(data) {
 		let host = data.host || "localhost";
 		let port = data.port || "8007";
+		if (Proxmox.Utils.IP64_match.test(host)) {
+		    host = `[${host}]`;
+		}
 		return `${host}:${port}`;
 	    }
 	}

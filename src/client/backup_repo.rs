@@ -28,6 +28,12 @@ pub struct BackupRepository {
 impl BackupRepository {
 
     pub fn new(user: Option<Userid>, host: Option<String>, port: Option<u16>, store: String) -> Self {
+        let host = match host {
+            Some(host) if (IP_V6_REGEX.regex_obj)().is_match(&host) => {
+                Some(format!("[{}]", host))
+            },
+            other => other,
+        };
         Self { user, host, port, store }
     }
 
