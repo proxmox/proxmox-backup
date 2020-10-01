@@ -478,6 +478,9 @@ impl DataStore {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
+            // avoids that we run GC if an old daemon process has still a
+            // running backup writer, which is not save as we have no "oldest
+            // writer" information and thus no safe atime cutoff
             let _exclusive_lock =  self.chunk_store.try_exclusive_lock()?;
 
             let phase1_start_time = unsafe { libc::time(std::ptr::null_mut()) };
