@@ -71,8 +71,8 @@ Ext.define('PBS.window.RemoteEdit', {
 
 			field.up('inputpanel').down('field[name=host]').setValue(host);
 			field.up('inputpanel').down('field[name=port]').setValue(port);
-		    }
-		}
+		    },
+		},
 	    },
 	    {
 		xtype: 'proxmoxtextfield',

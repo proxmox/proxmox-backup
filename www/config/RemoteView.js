@@ -13,8 +13,8 @@ Ext.define('pmx-remotes', {
 		    txt += `:${port}`;
 		}
 		return txt;
-	    }
-	}
+	    },
+	},
     ],
     idProperty: 'name',
     proxy: {
