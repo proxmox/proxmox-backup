@@ -60,7 +60,7 @@ impl RRA {
 
         let min_time = epoch - (RRD_DATA_ENTRIES as u64)*reso;
         let min_time = (min_time/reso + 1)*reso;
-        let mut t = last_update - (RRD_DATA_ENTRIES as u64)*reso;
+        let mut t = last_update.saturating_sub((RRD_DATA_ENTRIES as u64)*reso);
         let mut index = ((t/reso) % (RRD_DATA_ENTRIES as u64)) as usize;
         for _ in 0..RRD_DATA_ENTRIES {
             t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
