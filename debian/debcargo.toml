@@ -14,6 +14,7 @@ section = "admin"
 build_depends = [
   "debhelper (>= 12~)",
   "bash-completion",
+  "pve-eslint",
   "python3-docutils",
   "python3-pygments",
   "rsync",
