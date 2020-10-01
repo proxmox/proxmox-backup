@@ -59,18 +59,23 @@ OnlineHelpInfo.js:
 	$(MAKE) -C ../docs onlinehelpinfo
 	mv ../docs/output/scanrefs/OnlineHelpInfo.js .
 
-js/proxmox-backup-gui.js: js OnlineHelpInfo.js ${JSSRC}
+js/proxmox-backup-gui.js: .lint-incremental js OnlineHelpInfo.js ${JSSRC}
 	cat OnlineHelpInfo.js ${JSSRC} >$@.tmp
 	mv $@.tmp $@
 
-.PHONY: lint
-lint: ${JSSRC}
+.PHONY: check
+check:
 	eslint ${JSSRC}
+	touch ".lint-incremental"
+
+.lint-incremental: ${JSSRC}
+	eslint $?
+	touch "$@"
 
 .PHONY: clean
 clean:
-	find . -name '*~' -exec rm {} ';'	
-	rm -rf js
+	find . -name '*~' -exec rm {} ';'
+	rm -rf js .lint-incremental
 
 install: js/proxmox-backup-gui.js css/ext6-pbs.css index.hbs
 	install -dm755 $(DESTDIR)$(JSDIR)
