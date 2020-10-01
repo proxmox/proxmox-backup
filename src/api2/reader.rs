@@ -286,7 +286,7 @@ fn download_chunk_old(
 
 pub const API_METHOD_SPEEDTEST: ApiMethod = ApiMethod::new(
     &ApiHandler::AsyncHttp(&speedtest),
-    &ObjectSchema::new("Test 4M block download speed.", &[])
+    &ObjectSchema::new("Test 1M block download speed.", &[])
 );
 
 fn speedtest(
