@@ -38,11 +38,10 @@ impl<I: Send> SendHandle<I> {
 ///
 /// When done, the 'complete()' method needs to be called to check for
 /// outstanding errors.
-pub struct ParallelHandler<'a, I> {
+pub struct ParallelHandler<I> {
     handles: Vec<JoinHandle<()>>,
     name: String,
     input: Option<SendHandle<I>>,
-    _marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl<I> Clone for SendHandle<I> {
@@ -54,11 +53,11 @@ impl<I> Clone for SendHandle<I> {
     }
 }
 
-impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
+impl<I: Send + 'static> ParallelHandler<I> {
     /// Create a new thread pool, each thread processing incoming data
     /// with 'handler_fn'.
     pub fn new<F>(name: &str, threads: usize, handler_fn: F) -> Self
-        where F: Fn(I) -> Result<(), Error> + Send + Clone + 'a,
+        where F: Fn(I) -> Result<(), Error> + Send + Clone + 'static,
     {
         let mut handles = Vec::new();
         let (input_tx, input_rx) = bounded::<I>(threads);
@@ -68,13 +67,7 @@ impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
         for i in 0..threads {
             let input_rx = input_rx.clone();
             let abort = Arc::clone(&abort);
-
-            // Erase the 'a lifetime bound. This is safe because we
-            // join all thread in the drop handler.
-            let handler_fn: Box<dyn Fn(I) -> Result<(), Error> + Send + 'a> =
-                Box::new(handler_fn.clone());
-            let handler_fn: Box<dyn Fn(I) -> Result<(), Error> + Send + 'static> =
-                unsafe { std::mem::transmute(handler_fn) };
+            let handler_fn = handler_fn.clone();
 
             handles.push(
                 std::thread::Builder::new()
@@ -104,7 +97,6 @@ impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
                 input: input_tx,
                 abort,
             }),
-            _marker: std::marker::PhantomData,
         }
     }
 
@@ -164,7 +156,7 @@ impl<'a, I: Send + 'static> ParallelHandler<'a, I> {
 }
 
 // Note: We make sure that all threads will be joined
-impl<'a, I> Drop for ParallelHandler<'a, I> {
+impl<I> Drop for ParallelHandler<I> {
     fn drop(&mut self) {
         drop(self.input.take());
         while let Some(handle) = self.handles.pop() {

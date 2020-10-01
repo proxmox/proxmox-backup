@@ -84,7 +84,7 @@ fn verify_index_chunks(
     worker: Arc<WorkerTask>,
 ) -> Result<(), Error> {
 
-    let errors = AtomicUsize::new(0);
+    let errors = Arc::new(AtomicUsize::new(0));
 
     let start_time = Instant::now();
 
@@ -95,7 +95,7 @@ fn verify_index_chunks(
     let datastore2 = Arc::clone(&datastore);
     let corrupt_chunks2 = Arc::clone(&corrupt_chunks);
     let verified_chunks2 = Arc::clone(&verified_chunks);
-    let errors2 = &errors;
+    let errors2 = Arc::clone(&errors);
 
     let decoder_pool = ParallelHandler::new(
         "verify chunk decoder", 4,

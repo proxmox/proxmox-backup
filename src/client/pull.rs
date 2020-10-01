@@ -50,12 +50,13 @@ async fn pull_index_chunks<I: IndexFile>(
             })
     );
 
+    let target2 = target.clone();
     let verify_pool = ParallelHandler::new(
         "sync chunk writer", 4,
-        |(chunk, digest, size): (DataBlob, [u8;32], u64)|  {
+        move |(chunk, digest, size): (DataBlob, [u8;32], u64)|  {
             // println!("verify and write {}", proxmox::tools::digest_to_hex(&digest));
             chunk.verify_unencrypted(size as usize, &digest)?;
-            target.insert_chunk(&chunk, &digest)?;
+            target2.insert_chunk(&chunk, &digest)?;
             Ok(())
        }
     );
