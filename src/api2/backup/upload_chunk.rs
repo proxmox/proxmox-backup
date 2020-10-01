@@ -61,12 +61,15 @@ impl Future for UploadChunk {
                         let (is_duplicate, compressed_size) = match proxmox::try_block! {
                             let mut chunk = DataBlob::from_raw(raw_data)?;
 
-                            chunk.verify_unencrypted(this.size as usize, &this.digest)?;
+                            tools::runtime::block_in_place(|| {
+                                chunk.verify_unencrypted(this.size as usize, &this.digest)?;
 
-                            // always comput CRC at server side
-                            chunk.set_crc(chunk.compute_crc());
+                                // always comput CRC at server side
+                                chunk.set_crc(chunk.compute_crc());
 
-                            this.store.insert_chunk(&chunk, &this.digest)
+                                this.store.insert_chunk(&chunk, &this.digest)
+                            })
+
                         } {
                             Ok(res) => res,
                             Err(err) => break err,
