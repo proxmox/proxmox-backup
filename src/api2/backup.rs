@@ -200,7 +200,7 @@ async move {
             };
             if benchmark {
                 env.log("benchmark finished successfully");
-                env.remove_backup()?;
+                tools::runtime::block_in_place(|| env.remove_backup())?;
                 return Ok(());
             }
             match (res, env.ensure_finished()) {
@@ -222,7 +222,7 @@ async move {
                 (Err(err), Err(_)) => {
                     env.log(format!("backup failed: {}", err));
                     env.log("removing failed backup");
-                    env.remove_backup()?;
+                    tools::runtime::block_in_place(|| env.remove_backup())?;
                     Err(err)
                 },
             }
