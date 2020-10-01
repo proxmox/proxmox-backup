@@ -1,3 +1,34 @@
+rust-proxmox-backup (0.9.0-1) unstable; urgency=medium
+
+  * use ParallelHandler to verify chunks
+
+  * client: add new paper-key command to CLI tool
+
+  * server: split task list in active and archived
+
+  * tools: add logrotate module and use it for archived tasks, allowing to save
+    more than 100 thousands of tasks efficiently in the archive
+
+  * require square [brackets] for ipv6 addresses and fix ipv6 handling for
+    remotes/sync jobs
+
+  * ui: RemoteEdit: make comment and fingerprint deletable
+
+  * api/disks: create zfs: enable import systemd service unit for newly created
+    ZFS pools
+
+  * client and remotes: add support to specify a custom port number. The server
+    is still always listening on 8007, but you can now use things like reverse
+    proxies or port mapping.
+
+  * ui: RemoteEdit: allow to specify a port in the host field
+
+  * client pull: log progress
+
+  * various fixes and improvements
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 01 Oct 2020 16:19:40 +0200
+
 rust-proxmox-backup (0.8.21-1) unstable; urgency=medium
 
   * depend on crossbeam-channel
