@@ -18,9 +18,20 @@ use tokio::time::Instant;
 use url::form_urlencoded;
 
 use proxmox::http_err;
-use proxmox::api::{ApiHandler, ApiMethod, HttpError};
-use proxmox::api::{RpcEnvironment, RpcEnvironmentType, check_api_permission};
-use proxmox::api::schema::{ObjectSchema, parse_simple_value, verify_json_object, parse_parameter_strings};
+use proxmox::api::{
+    ApiHandler,
+    ApiMethod,
+    HttpError,
+    RpcEnvironment,
+    RpcEnvironmentType,
+    check_api_permission,
+};
+use proxmox::api::schema::{
+    ObjectSchema,
+    parse_parameter_strings,
+    parse_simple_value,
+    verify_json_object,
+};
 
 use super::environment::RestEnvironment;
 use super::formatter::*;
