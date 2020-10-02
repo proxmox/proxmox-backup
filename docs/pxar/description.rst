@@ -47,7 +47,7 @@ by running:
 Be aware that the shell itself will try to expand all of the glob patterns before
 invoking ``pxar``.
 In order to avoid this, all globs have to be quoted correctly.
- 
+
 It is possible to pass the ``--exclude`` parameter multiple times, in order to
 match more than one pattern. This allows you to use more complex
 file exclusion/inclusion behavior. However, it is recommended to use

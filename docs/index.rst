@@ -22,7 +22,16 @@ in the section entitled "GNU Free Documentation License".
 
    introduction.rst
    installation.rst
-   administration-guide.rst
+   terminology.rst
+   gui.rst
+   storage.rst
+   network-management.rst
+   user-management.rst
+   managing-remotes.rst
+   maintenance.rst
+   backup-client.rst
+   pve-integration.rst
+   pxar-tool.rst
    sysadmin.rst
    faq.rst
 

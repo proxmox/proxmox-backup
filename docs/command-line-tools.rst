@@ -12,7 +12,7 @@ Command Line Tools
 .. include:: proxmox-backup-manager/description.rst
 
 ``pxar``
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
 
 .. include:: pxar/description.rst
 
