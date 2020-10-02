@@ -7,6 +7,7 @@ pub mod reader;
 pub mod status;
 pub mod types;
 pub mod version;
+pub mod ping;
 pub mod pull;
 mod helpers;
 
@@ -22,6 +23,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("backup", &backup::ROUTER),
     ("config", &config::ROUTER),
     ("nodes", &NODES_ROUTER),
+    ("ping", &ping::ROUTER),
     ("pull", &pull::ROUTER),
     ("reader", &reader::ROUTER),
     ("status", &status::ROUTER),
