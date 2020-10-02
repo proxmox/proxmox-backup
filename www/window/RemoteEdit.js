@@ -82,7 +82,9 @@ Ext.define('PBS.window.RemoteEdit', {
 	    {
 		xtype: 'proxmoxtextfield',
 		hidden: true,
-		deleteEmpty: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 		name: 'port',
 	    },
 	],
@@ -110,13 +112,17 @@ Ext.define('PBS.window.RemoteEdit', {
 	    {
 		xtype: 'proxmoxtextfield',
 		name: 'fingerprint',
-		deleteEmpty: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 		fieldLabel: gettext('Fingerprint'),
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
 		name: 'comment',
-		deleteEmpty: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 		fieldLabel: gettext('Comment'),
 	    },
 	],
