@@ -22,6 +22,7 @@ use proxmox::api::{
     ApiHandler,
     ApiMethod,
     HttpError,
+    Permission,
     RpcEnvironment,
     RpcEnvironmentType,
     check_api_permission,
@@ -546,13 +547,16 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
             };
 
             let mut uri_param = HashMap::new();
+            let api_method = api.find_method(&components[2..], method.clone(), &mut uri_param);
 
-            if comp_len == 4 && components[2] == "access" && (
-                (components[3] == "ticket" && method ==  hyper::Method::POST) ||
-                (components[3] == "domains" && method ==  hyper::Method::GET)
-            ) {
-                // explicitly allow those calls without auth
-            } else {
+            let mut auth_required = true;
+            if let Some(api_method) = api_method {
+                if let Permission::World = *api_method.access.permission {
+                    auth_required = false; // no auth for endpoints with World permission
+                }
+            }
+
+            if auth_required {
                 let (ticket, token, _) = extract_auth_data(&parts.headers);
                 match check_auth(&method, &ticket, &token, &user_info) {
                     Ok(userid) => rpcenv.set_user(Some(userid.to_string())),
@@ -565,7 +569,7 @@ pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<R
                 }
             }
 
-            match api.find_method(&components[2..], method, &mut uri_param) {
+            match api_method {
                 None => {
                     let err = http_err!(NOT_FOUND, "Path '{}' not found.", path);
                     return Ok((formatter.format_error)(err));
