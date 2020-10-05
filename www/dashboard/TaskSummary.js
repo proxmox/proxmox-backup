@@ -7,30 +7,36 @@ Ext.define('PBS.TaskSummary', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	render_count: function(value, md, record, rowindex, colindex) {
+	render_icon: function(state, count) {
 	    let cls = 'question';
 	    let color = 'faded';
-	    switch (colindex) {
-		case 1:
+	    switch (state) {
+		case "error":
 		    cls = "times-circle";
 		    color = "critical";
 		    break;
-		case 2:
+		case "warning":
 		    cls = "exclamation-circle";
 		    color = "warning";
 		    break;
-		case 3:
+		case "ok":
 		    cls = "check-circle";
 		    color = "good";
 		    break;
 		default: break;
 	    }
 
-	    if (value < 1) {
+	    if (count < 1) {
 		color = "faded";
 	    }
 	    cls += " " + color;
-	    return `<i class="fa fa-${cls}"></i> ${value}`;
+	    return `<i class="fa fa-${cls}"></i>`;
+	},
+
+	render_count: function(value, md, record, rowindex, colindex) {
+	    let me = this;
+	    let icon = me.render_icon(me.states[colindex], value);
+	    return `${icon} ${value}`;
 	},
     },
 
