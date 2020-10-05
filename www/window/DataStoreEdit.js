@@ -30,7 +30,7 @@ Ext.define('PBS.DataStoreEdit', {
 	listeners: {
 	    tabchange: function(tb, newCard) {
 	        Ext.GlobalEvents.fireEvent('proxmoxShowHelp', newCard.onlineHelp);
-	    }
+	    },
 	},
 	items: [
 	    {
