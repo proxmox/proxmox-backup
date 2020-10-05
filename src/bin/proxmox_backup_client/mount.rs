@@ -182,10 +182,14 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
             nix::unistd::close(pipe).unwrap();
         }
 
-        let mut interrupt = signal(SignalKind::interrupt())?;
+        // handle SIGINT and SIGTERM
+        let mut interrupt_int = signal(SignalKind::interrupt())?;
+        let mut interrupt_term = signal(SignalKind::terminate())?;
+        let mut interrupt = futures::future::select(interrupt_int.next(), interrupt_term.next());
+
         select! {
             res = session.fuse() => res?,
-            _ = interrupt.recv().fuse() => {
+            _ = interrupt => {
                 // exit on interrupted
             }
         }
