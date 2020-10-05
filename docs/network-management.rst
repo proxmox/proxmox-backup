@@ -86,6 +86,3 @@ You can also configure DNS settings, from the **DNS** section
 of **Configuration** or by using the ``dns`` subcommand of
 ``proxmox-backup-manager``.
 
-.. _backup_remote:
-
-

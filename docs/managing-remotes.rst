@@ -1,6 +1,8 @@
 Managing Remotes
 ================
 
+.. _backup_remote:
+
 :term:`Remote`
 --------------
 

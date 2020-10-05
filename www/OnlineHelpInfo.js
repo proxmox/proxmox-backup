@@ -11,6 +11,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#chapter-zfs",
     "title": "ZFS on Linux"
   },
+  "backup-remote": {
+    "link": "/docs/managing-remotes.html#backup-remote",
+    "title": ":term:`Remote`"
+  },
   "syncjobs": {
     "link": "/docs/managing-remotes.html#syncjobs",
     "title": "Sync Jobs"
