@@ -1970,6 +1970,8 @@ fn main() {
         .insert("status", status_cmd_def)
         .insert("key", key::cli())
         .insert("mount", mount_cmd_def())
+        .insert("map", map_cmd_def())
+        .insert("unmap", unmap_cmd_def())
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli())
         .insert("version", version_cmd_def)

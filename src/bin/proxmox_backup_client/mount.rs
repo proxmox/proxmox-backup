@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::ffi::OsStr;
+use std::collections::HashMap;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -10,6 +11,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use nix::unistd::{fork, ForkResult, pipe};
 use futures::select;
 use futures::future::FutureExt;
+use futures::stream::{StreamExt, TryStreamExt};
 
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
@@ -23,6 +25,7 @@ use proxmox_backup::backup::{
     BackupDir,
     BackupGroup,
     BufferedDynamicReader,
+    AsyncIndexReader,
 };
 
 use proxmox_backup::client::*;
@@ -50,7 +53,34 @@ const API_METHOD_MOUNT: ApiMethod = ApiMethod::new(
             ("target", false, &StringSchema::new("Target directory path.").schema()),
             ("repository", true, &REPO_URL_SCHEMA),
             ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
-            ("verbose", true, &BooleanSchema::new("Verbose output.").default(false).schema()),
+            ("verbose", true, &BooleanSchema::new("Verbose output and stay in foreground.").default(false).schema()),
+        ]),
+    )
+);
+
+#[sortable]
+const API_METHOD_MAP: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&mount),
+    &ObjectSchema::new(
+        "Map a drive image from a VM backup to a local loopback device. Use 'unmap' to undo.
+WARNING: Only do this with *trusted* backups!",
+        &sorted!([
+            ("snapshot", false, &StringSchema::new("Group/Snapshot path.").schema()),
+            ("archive-name", false, &StringSchema::new("Backup archive name.").schema()),
+            ("repository", true, &REPO_URL_SCHEMA),
+            ("keyfile", true, &StringSchema::new("Path to encryption key.").schema()),
+            ("verbose", true, &BooleanSchema::new("Verbose output and stay in foreground.").default(false).schema()),
+        ]),
+    )
+);
+
+#[sortable]
+const API_METHOD_UNMAP: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&unmap),
+    &ObjectSchema::new(
+        "Unmap a loop device mapped with 'map' and release all resources.",
+        &sorted!([
+            ("loopdev", false, &StringSchema::new("Path to loopdev (/dev/loopX) or loop device number.").schema()),
         ]),
     )
 );
@@ -63,6 +93,22 @@ pub fn mount_cmd_def() -> CliCommand {
         .completion_cb("snapshot", complete_group_or_snapshot)
         .completion_cb("archive-name", complete_pxar_archive_name)
         .completion_cb("target", tools::complete_file_name)
+}
+
+pub fn map_cmd_def() -> CliCommand {
+
+    CliCommand::new(&API_METHOD_MAP)
+        .arg_param(&["snapshot", "archive-name"])
+        .completion_cb("repository", complete_repository)
+        .completion_cb("snapshot", complete_group_or_snapshot)
+        .completion_cb("archive-name", complete_pxar_archive_name)
+}
+
+pub fn unmap_cmd_def() -> CliCommand {
+
+    CliCommand::new(&API_METHOD_UNMAP)
+        .arg_param(&["loopdev"])
+        .completion_cb("loopdev", tools::complete_file_name)
 }
 
 fn mount(
@@ -100,8 +146,9 @@ fn mount(
 async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
-    let target = tools::required_string_param(&param, "target")?;
     let client = connect(repo.host(), repo.port(), repo.user())?;
+
+    let target = param["target"].as_str();
 
     record_repository(&repo);
 
@@ -124,9 +171,17 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     };
 
     let server_archive_name = if archive_name.ends_with(".pxar") {
+        if let None = target {
+            bail!("use the 'mount' command to mount pxar archives");
+        }
         format!("{}.didx", archive_name)
+    } else if archive_name.ends_with(".img") {
+        if let Some(_) = target {
+            bail!("use the 'map' command to map drive images");
+        }
+        format!("{}.fidx", archive_name)
     } else {
-        bail!("Can only mount pxar archives.");
+        bail!("Can only mount/map pxar archives and drive images.");
     };
 
     let client = BackupReader::start(
@@ -143,25 +198,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
 
     let file_info = manifest.lookup_file_info(&server_archive_name)?;
 
-    if server_archive_name.ends_with(".didx") {
-        let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
-        let most_used = index.find_most_used_chunks(8);
-        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
-        let reader = BufferedDynamicReader::new(index, chunk_reader);
-        let archive_size = reader.archive_size();
-        let reader: proxmox_backup::pxar::fuse::Reader =
-            Arc::new(BufferedDynamicReadAt::new(reader));
-        let decoder = proxmox_backup::pxar::fuse::Accessor::new(reader, archive_size).await?;
-        let options = OsStr::new("ro,default_permissions");
-
-        let session = proxmox_backup::pxar::fuse::Session::mount(
-            decoder,
-            &options,
-            false,
-            Path::new(target),
-        )
-        .map_err(|err| format_err!("pxar mount failed: {}", err))?;
-
+    let daemonize = || -> Result<(), Error> {
         if let Some(pipe) = pipe {
             nix::unistd::chdir(Path::new("/")).unwrap();
             // Finish creation of daemon by redirecting filedescriptors.
@@ -182,10 +219,35 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
             nix::unistd::close(pipe).unwrap();
         }
 
-        // handle SIGINT and SIGTERM
-        let mut interrupt_int = signal(SignalKind::interrupt())?;
-        let mut interrupt_term = signal(SignalKind::terminate())?;
-        let mut interrupt = futures::future::select(interrupt_int.next(), interrupt_term.next());
+        Ok(())
+    };
+
+    let options = OsStr::new("ro,default_permissions");
+
+    // handle SIGINT and SIGTERM
+    let mut interrupt_int = signal(SignalKind::interrupt())?;
+    let mut interrupt_term = signal(SignalKind::terminate())?;
+    let mut interrupt = futures::future::select(interrupt_int.next(), interrupt_term.next());
+
+    if server_archive_name.ends_with(".didx") {
+        let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
+        let most_used = index.find_most_used_chunks(8);
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), most_used);
+        let reader = BufferedDynamicReader::new(index, chunk_reader);
+        let archive_size = reader.archive_size();
+        let reader: proxmox_backup::pxar::fuse::Reader =
+            Arc::new(BufferedDynamicReadAt::new(reader));
+        let decoder = proxmox_backup::pxar::fuse::Accessor::new(reader, archive_size).await?;
+
+        let session = proxmox_backup::pxar::fuse::Session::mount(
+            decoder,
+            &options,
+            false,
+            Path::new(target.unwrap()),
+        )
+        .map_err(|err| format_err!("pxar mount failed: {}", err))?;
+
+        daemonize()?;
 
         select! {
             res = session.fuse() => res?,
@@ -193,9 +255,73 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
                 // exit on interrupted
             }
         }
+    } else if server_archive_name.ends_with(".fidx") {
+        let index = client.download_fixed_index(&manifest, &server_archive_name).await?;
+        let size = index.index_bytes();
+        let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), HashMap::new());
+        let reader = AsyncIndexReader::new(index, chunk_reader);
+
+        let mut session = tools::fuse_loop::FuseLoopSession::map_loop(size, reader, options).await?;
+        let loopdev = session.loopdev_path.clone();
+
+        let (st_send, st_recv) = futures::channel::mpsc::channel(1);
+        let (mut abort_send, abort_recv) = futures::channel::mpsc::channel(1);
+        let mut st_recv = st_recv.fuse();
+        let mut session_fut = session.main(st_send, abort_recv).boxed().fuse();
+
+        // poll until loop file is mapped (or errors)
+        select! {
+            res = session_fut => {
+                bail!("FUSE session unexpectedly ended before loop file mapping");
+            },
+            res = st_recv.try_next() => {
+                if let Err(err) = res {
+                    // init went wrong, abort now
+                    abort_send.try_send(()).map_err(|err|
+                        format_err!("error while sending abort signal - {}", err))?;
+                    // ignore and keep original error cause
+                    let _ = session_fut.await;
+                    return Err(err);
+                }
+            }
+        }
+
+        // daemonize only now to be able to print mapped loopdev or startup errors
+        println!("Image mapped as {}", loopdev);
+        daemonize()?;
+
+        // continue polling until complete or interrupted (which also happens on unmap)
+        select! {
+            res = session_fut => res?,
+            _ = interrupt => {
+                // exit on interrupted
+                abort_send.try_send(()).map_err(|err|
+                    format_err!("error while sending abort signal - {}", err))?;
+                session_fut.await?;
+            }
+        }
+
+        println!("Image unmapped");
     } else {
-        bail!("unknown archive file extension (expected .pxar)");
+        bail!("unknown archive file extension (expected .pxar or .img)");
     }
+
+    Ok(Value::Null)
+}
+
+fn unmap(
+    param: Value,
+    _info: &ApiMethod,
+    _rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let mut path = tools::required_string_param(&param, "loopdev")?.to_owned();
+
+    if let Ok(num) = path.parse::<u8>() {
+        path = format!("/dev/loop{}", num);
+    }
+
+    tools::fuse_loop::unmap(path)?;
 
     Ok(Value::Null)
 }

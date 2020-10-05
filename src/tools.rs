@@ -33,6 +33,8 @@ pub mod statistics;
 pub mod systemd;
 pub mod nom;
 pub mod logrotate;
+pub mod loopdev;
+pub mod fuse_loop;
 
 mod parallel_handler;
 pub use parallel_handler::*;
