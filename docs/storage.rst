@@ -116,7 +116,7 @@ configured. The datastore is identified by a simple *name* and points to a
 directory on the filesystem. Each datastore also has associated retention
 settings of how many backup snapshots for each interval of ``hourly``,
 ``daily``, ``weekly``, ``monthly``, ``yearly`` as well as a time-independent
-number of backups to keep in that store. :ref:`Pruning <pruning>` and
+number of backups to keep in that store. :ref:`backup-pruning` and
 :ref:`garbage collection <garbage-collection>` can also be configured to run
 periodically based on a configured schedule (see :ref:`calendar-events`) per datastore.
 
@@ -136,7 +136,7 @@ the menu tree and clicking **Create**. Here:
 * *GC Schedule* refers to the time and intervals at which garbage collection
   runs
 * *Prune Schedule* refers to the frequency at which pruning takes place
-* *Prune Options* set the amount of backups which you would like to keep (see :ref:`Pruning <pruning>`).
+* *Prune Options* set the amount of backups which you would like to keep (see :ref:`backup-pruning`).
 
 Alternatively you can create a new datastore from the command line. The
 following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`

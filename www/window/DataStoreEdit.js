@@ -3,9 +3,6 @@ Ext.define('PBS.DataStoreEdit', {
     alias: 'widget.pbsDataStoreEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
-
-    onlineHelp: 'datastore_intro',
-
     subject: gettext('Datastore'),
     isAdd: true,
 
@@ -30,10 +27,16 @@ Ext.define('PBS.DataStoreEdit', {
     items: {
 	xtype: 'tabpanel',
 	bodyPadding: 10,
+	listeners: {
+	    tabchange: function(tb, newCard) {
+	        Ext.GlobalEvents.fireEvent('proxmoxShowHelp', newCard.onlineHelp);
+	    }
+	},
 	items: [
 	    {
 		title: gettext('General'),
 		xtype: 'inputpanel',
+		onlineHelp: 'datastore_intro',
 		column1: [
 		    {
 			xtype: 'pmxDisplayEditField',
@@ -95,6 +98,7 @@ Ext.define('PBS.DataStoreEdit', {
 	    {
 		title: gettext('Prune Options'),
 		xtype: 'inputpanel',
+		onlineHelp: 'backup_pruning',
 		column1: [
 		    {
 			xtype: 'proxmoxintegerfield',

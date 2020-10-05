@@ -533,7 +533,7 @@ To remove the ticket, issue a logout:
   # proxmox-backup-client logout
 
 
-.. _pruning:
+.. _backup-pruning:
 
 Pruning and Removing Backups
 ----------------------------
