@@ -7,6 +7,20 @@ Ext.define('PBS.TaskSummary', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	types: [
+	    "backup",
+	    "prune",
+	    "garbage_collection",
+	    "sync",
+	],
+
+	titles: {
+	    "backup": gettext('Backups'),
+	    "prune": gettext('Prunes'),
+	    "garbage_collection": gettext('Garbage collections'),
+	    "sync": gettext('Syncs'),
+	},
+
 	render_icon: function(state, count) {
 	    let cls = 'question';
 	    let color = 'faded';
@@ -40,18 +54,15 @@ Ext.define('PBS.TaskSummary', {
 	},
     },
 
-    updateTasks: function(data) {
+    updateTasks: function(source) {
 	let me = this;
-	data.backup.type = gettext('Backups');
-	data.prune.type = gettext('Prunes');
-	data.garbage_collection.type = gettext('Garbage collections');
-	data.sync.type = gettext('Syncs');
-	me.lookup('grid').getStore().setData([
-	    data.backup,
-	    data.prune,
-	    data.garbage_collection,
-	    data.sync,
-	]);
+	let controller = me.getController();
+	let data = [];
+	controller.types.forEach((type) => {
+	    source[type].type = controller.titles[type];
+	    data.push(source[type]);
+	});
+	me.lookup('grid').getStore().setData(data);
     },
 
     layout: 'fit',
