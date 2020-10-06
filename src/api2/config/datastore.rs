@@ -11,7 +11,7 @@ use crate::api2::types::*;
 use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
-use crate::config::acl::{PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
+use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
 
 #[api(
     input: {
@@ -106,7 +106,7 @@ pub fn list_datastores(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_MODIFY, false),
+        permission: &Permission::Privilege(&["datastore"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
 /// Create new datastore config.

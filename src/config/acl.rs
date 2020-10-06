@@ -27,6 +27,7 @@ constnamedbitmap! {
         PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement");
 
         PRIV_DATASTORE_AUDIT("Datastore.Audit");
+        PRIV_DATASTORE_ALLOCATE("Datastore.Allocate");
         PRIV_DATASTORE_MODIFY("Datastore.Modify");
         PRIV_DATASTORE_READ("Datastore.Read");
 
