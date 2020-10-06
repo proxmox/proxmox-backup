@@ -361,7 +361,7 @@ To set up a master key:
 .. warning:: Without their key, backed up files will be inaccessible. Thus, you should
   keep keys ordered and in a place that is separate from the contents being
   backed up. It can happen, for example, that you back up an entire system, using
-  a key on that system. If the system then becomes inaccessable for any reason
+  a key on that system. If the system then becomes inaccessible for any reason
   and needs to be restored, this will not be possible as the encryption key will be
   lost along with the broken system. In preparation for the worst case scenario,
   you should consider keeping a paper copy of this key locked away in
