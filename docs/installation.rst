@@ -5,6 +5,8 @@ Installation
 can either be installed with a graphical installer or on top of
 Debian_ from the provided package repository.
 
+.. include:: system-requirements.rst
+
 .. include:: package-repositories.rst
 
 Server installation

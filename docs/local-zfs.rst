@@ -312,6 +312,8 @@ You can disable compression at any time with:
 
 Only new blocks will be affected by this change.
 
+.. _local_zfs_special_device:
+
 ZFS Special Device
 ^^^^^^^^^^^^^^^^^^
 
