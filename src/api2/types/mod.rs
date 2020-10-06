@@ -663,6 +663,20 @@ impl From<crate::server::TaskListInfo> for TaskListItem {
 }
 
 #[api()]
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TaskStateType {
+    /// Ok
+    OK,
+    /// Warning
+    Warning,
+    /// Error
+    Error,
+    /// Unknown
+    Unknown,
+}
+
+#[api()]
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Node Power command type.
