@@ -17,6 +17,7 @@ use crate::api2::types::{
     RRDMode,
     RRDTimeFrameResolution,
     TaskListItem,
+    TaskStateType,
     Userid,
 };
 
@@ -186,6 +187,19 @@ fn datastore_status(
                 description: "Only list tasks since this UNIX epoch.",
                 optional: true,
             },
+            typefilter: {
+                optional: true,
+                type: String,
+                description: "Only list tasks, whose type contains this string.",
+            },
+            statusfilter: {
+                optional: true,
+                type: Array,
+                description: "Only list tasks which have any one of the listed status.",
+                items: {
+                    type: TaskStateType,
+                },
+            },
         },
     },
     returns: {
@@ -201,6 +215,8 @@ fn datastore_status(
 /// List tasks.
 pub fn list_tasks(
     since: Option<i64>,
+    typefilter: Option<String>,
+    statusfilter: Option<Vec<TaskStateType>>,
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
@@ -223,6 +239,27 @@ pub fn list_tasks(
             match info {
                 Ok(info) => {
                     if list_all || info.upid.userid == userid {
+                        if let Some(filter) = &typefilter {
+                            if !info.upid.worker_type.contains(filter) {
+                                return None;
+                            }
+                        }
+
+                        if let Some(filters) = &statusfilter {
+                            if let Some(state) = &info.state {
+                                let statetype = match state {
+                                    server::TaskState::OK { .. } => TaskStateType::OK,
+                                    server::TaskState::Unknown { .. } => TaskStateType::Unknown,
+                                    server::TaskState::Error { .. } => TaskStateType::Error,
+                                    server::TaskState::Warning { .. } => TaskStateType::Warning,
+                                };
+
+                                if !filters.contains(&statetype) {
+                                    return None;
+                                }
+                            }
+                        }
+
                         Some(Ok(TaskListItem::from(info)))
                     } else {
                         None
