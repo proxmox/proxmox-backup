@@ -258,6 +258,7 @@ Ext.define('PBS.Dashboard', {
     tools: [
 	{
 	    type: 'gear',
+	    tooltip: gettext('Edit dashboard settings'),
 	    handler: 'openDashboardOptions',
 	},
     ],
