@@ -12,37 +12,37 @@ use ::serde::{Deserialize, Serialize};
 use serde::de::{value, IntoDeserializer};
 
 use proxmox::tools::{fs::replace_file, fs::CreateOptions};
-use proxmox::constnamemap;
+use proxmox::constnamedbitmap;
 use proxmox::api::{api, schema::*};
 
 use crate::api2::types::Userid;
 
 // define Privilege bitfield
 
-constnamemap! {
+constnamedbitmap! {
     /// Contains a list of Privileges
     PRIVILEGES: u64 => {
-        PRIV_SYS_AUDIT("Sys.Audit")                         = 1 << 0;
-        PRIV_SYS_MODIFY("Sys.Modify")                       = 1 << 1;
-        PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement")    = 1 << 2;
+        PRIV_SYS_AUDIT("Sys.Audit");
+        PRIV_SYS_MODIFY("Sys.Modify");
+        PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement");
 
-        PRIV_DATASTORE_AUDIT("Datastore.Audit")             = 1 << 3;
-        PRIV_DATASTORE_MODIFY("Datastore.Modify")           = 1 << 4;
-        PRIV_DATASTORE_READ("Datastore.Read")               = 1 << 5;
+        PRIV_DATASTORE_AUDIT("Datastore.Audit");
+        PRIV_DATASTORE_MODIFY("Datastore.Modify");
+        PRIV_DATASTORE_READ("Datastore.Read");
 
         /// Datastore.Backup also requires backup ownership
-        PRIV_DATASTORE_BACKUP("Datastore.Backup")           = 1 << 6;
+        PRIV_DATASTORE_BACKUP("Datastore.Backup");
         /// Datastore.Prune also requires backup ownership
-        PRIV_DATASTORE_PRUNE("Datastore.Prune")             = 1 << 7;
+        PRIV_DATASTORE_PRUNE("Datastore.Prune");
 
-        PRIV_PERMISSIONS_MODIFY("Permissions.Modify")       = 1 << 8;
+        PRIV_PERMISSIONS_MODIFY("Permissions.Modify");
 
-        PRIV_REMOTE_AUDIT("Remote.Audit")                   = 1 << 9;
-        PRIV_REMOTE_MODIFY("Remote.Modify")                 = 1 << 10;
-        PRIV_REMOTE_READ("Remote.Read")                     = 1 << 11;
-        PRIV_REMOTE_PRUNE("Remote.Prune")                   = 1 << 12;
+        PRIV_REMOTE_AUDIT("Remote.Audit");
+        PRIV_REMOTE_MODIFY("Remote.Modify");
+        PRIV_REMOTE_READ("Remote.Read");
+        PRIV_REMOTE_PRUNE("Remote.Prune");
 
-        PRIV_SYS_CONSOLE("Sys.Console")                     = 1 << 13;
+        PRIV_SYS_CONSOLE("Sys.Console");
     }
 }
 
