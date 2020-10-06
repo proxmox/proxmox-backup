@@ -28,7 +28,7 @@ Ext.define('PBS.Dashboard', {
 			minValue: 1,
 			maxValue: 60,
 			value: viewModel.get('days'),
-			fieldLabel: gettext('Hours to show'),
+			fieldLabel: gettext('Days to show'),
 		    }],
 		    buttons: [{
 			text: gettext('Save'),
