@@ -166,7 +166,7 @@ Ext.define('PBS.Dashboard', {
 		}
 	    });
 
-	    me.lookup('tasksummary').updateTasks(data);
+	    me.lookup('tasksummary').updateTasks(data, viewModel.get('sinceEpoch'));
 	},
 
 	init: function(view) {

@@ -7,6 +7,13 @@ Ext.define('PBS.TaskSummary', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
+	states: [
+	    "",
+	    "error",
+	    "warning",
+	    "ok",
+	],
+
 	types: [
 	    "backup",
 	    "prune",
@@ -20,6 +27,130 @@ Ext.define('PBS.TaskSummary', {
 	    "prune": gettext('Prunes'),
 	    "garbage_collection": gettext('Garbage collections'),
 	    "sync": gettext('Syncs'),
+	    "verify": gettext('Verify'),
+	},
+
+	openTaskList: function(grid, td, cellindex, record, tr, rowindex) {
+	    let me = this;
+	    let view = me.getView();
+
+	    if (cellindex > 0) {
+		let tasklist = view.tasklist;
+		let state = me.states[cellindex];
+		let type = me.types[rowindex];
+		let filterParam = {
+		    'statusfilter': state,
+		    'typefilter': type,
+		};
+
+		if (me.since) {
+		    filterParam.since = me.since;
+		}
+
+		if (record.data[state] === 0) {
+		    return;
+		}
+
+		if (tasklist === undefined) {
+		    tasklist = Ext.create('Ext.grid.Panel', {
+			tools: [{
+			    handler: () => tasklist.setVisible(false),
+			}],
+			floating: true,
+			scrollable: true,
+
+			height: 400,
+			width: 600,
+
+			columns: [
+			    {
+				text: gettext('Task'),
+				dataIndex: 'upid',
+				renderer: Proxmox.Utils.render_upid,
+				flex: 1,
+			    },
+			    {
+				header: gettext("Start Time"),
+				dataIndex: 'starttime',
+				width: 130,
+				renderer: function(value) {
+				    return Ext.Date.format(value, "M d H:i:s");
+				},
+			    },
+			    {
+				xtype: 'actioncolumn',
+				width: 40,
+				items: [
+				    {
+					iconCls: 'fa fa-chevron-right',
+					tooltip: gettext('Open Task'),
+					handler: function(g, rowIndex) {
+					    let rec = tasklist.getStore().getAt(rowIndex);
+					    tasklist.setVisible(false);
+					    Ext.create('Proxmox.window.TaskViewer', {
+						upid: rec.data.upid,
+						endtime: rec.data.endtime,
+						listeners: {
+						    close: () => tasklist.setVisible(true),
+						},
+					    }).show();
+					},
+				    },
+				],
+			    },
+			],
+
+			store: {
+			    sorters: [
+				{
+				    property: 'starttime',
+				    direction: 'DESC',
+				},
+			    ],
+			    type: 'store',
+			    model: 'proxmox-tasks',
+			    proxy: {
+				type: 'proxmox',
+				url: "/api2/json/status/tasks",
+			    },
+			},
+		    });
+
+		    view.on('destroy', function() {
+			tasklist.setVisible(false);
+			tasklist.destroy();
+			tasklist = undefined;
+		    });
+
+		    view.tasklist = tasklist;
+		} else {
+		    let cidx = tasklist.cidx;
+		    let ridx = tasklist.ridx;
+
+		    if (cidx === cellindex && ridx === rowindex && tasklist.isVisible()) {
+			tasklist.setVisible(false);
+			return;
+		    }
+		}
+
+		tasklist.cidx = cellindex;
+		tasklist.ridx = rowindex;
+
+		let task = me.titles[type];
+		let status = "";
+		switch (state) {
+		    case 'ok': status = gettext("OK"); break;
+		    case 'warnings': status = gettext("Warning"); break;
+		    case 'error': status = Proxmox.Utils.errorText; break;
+		}
+		let icon = me.render_icon(state, 1);
+		tasklist.setTitle(`${task} - ${status} ${icon}`);
+		tasklist.getStore().getProxy().setExtraParams(filterParam);
+		tasklist.getStore().removeAll();
+
+		tasklist.showBy(td, 'bl-tl');
+		setTimeout(() => tasklist.getStore().reload(), 10);
+	    }
 	},
 
 	render_icon: function(state, count) {
@@ -55,7 +186,7 @@ Ext.define('PBS.TaskSummary', {
 	},
     },
 
-    updateTasks: function(source) {
+    updateTasks: function(source, since) {
 	let me = this;
 	let controller = me.getController();
 	let data = [];
@@ -64,6 +195,7 @@ Ext.define('PBS.TaskSummary', {
 	    data.push(source[type]);
 	});
 	me.lookup('grid').getStore().setData(data);
+	controller.since = since;
     },
 
     layout: 'fit',
@@ -88,6 +220,10 @@ Ext.define('PBS.TaskSummary', {
 
 	    store: {
 		data: [],
+	    },
+
+	    listeners: {
+		cellclick: 'openTaskList',
 	    },
 
 	    columns: [
