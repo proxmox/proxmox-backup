@@ -151,7 +151,8 @@ Ext.define('PBS.Dashboard', {
 	    };
 
 	    records.forEach(record => {
-		let type = record.data.worker_type;
+		let task = record.data;
+		let type = task.worker_type;
 		if (type === 'syncjob') {
 		    type = 'sync';
 		}
@@ -160,8 +161,8 @@ Ext.define('PBS.Dashboard', {
 		    type = 'verify';
 		}
 
-		if (data[type] && record.data.status) {
-		    let parsed = Proxmox.Utils.parse_task_status(record.data.status);
+		if (data[type] && task.status) {
+		    let parsed = Proxmox.Utils.parse_task_status(task.status);
 		    data[type][parsed]++;
 		}
 	    });
