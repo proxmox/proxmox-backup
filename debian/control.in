@@ -19,7 +19,9 @@ Description: Proxmox Backup Server daemon with tools and GUI
 
 Package: proxmox-backup-client
 Architecture: any
-Depends: qrencode ${misc:Depends}, ${shlibs:Depends}
+Depends: qrencode,
+         ${misc:Depends},
+         ${shlibs:Depends},
 Description: Proxmox Backup Client tools
  This package contains the Proxmox Backup client, which provides a
  simple command line tool to create and restore backups.
