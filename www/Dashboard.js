@@ -21,23 +21,23 @@ Ext.define('PBS.Dashboard', {
 		    defaultButton: 'savebutton',
 		    items: [{
 			xtype: 'proxmoxintegerfield',
-			itemId: 'hours',
+			itemId: 'days',
 			labelWidth: 100,
 			anchor: '100%',
 			allowBlank: false,
 			minValue: 1,
-			maxValue: 24,
-			value: viewModel.get('hours'),
+			maxValue: 60,
+			value: viewModel.get('days'),
 			fieldLabel: gettext('Hours to show'),
 		    }],
 		    buttons: [{
 			text: gettext('Save'),
-			reference: 'loginButton',
+			reference: 'savebutton',
 			formBind: true,
 			handler: function() {
 			    var win = this.up('window');
-			    var hours = win.down('#hours').getValue();
-			    me.setHours(hours, true);
+			    var days = win.down('#days').getValue();
+			    me.setDays(days, true);
 			    win.close();
 			},
 		    }],
@@ -45,15 +45,17 @@ Ext.define('PBS.Dashboard', {
 	    }).show();
 	},
 
-	setHours: function(hours, setState) {
+	setDays: function(days, setState) {
 	    var me = this;
 	    var viewModel = me.getViewModel();
-	    viewModel.set('hours', hours);
+	    viewModel.set('days', days);
 	    viewModel.notify();
+
+	    viewModel.getStore('tasks').reload();
 
 	    if (setState) {
 		var sp = Ext.state.Manager.getProvider();
-		sp.set('dashboard-hours', hours);
+		sp.set('dashboard-days', days);
 	    }
 	},
 
@@ -164,24 +166,20 @@ Ext.define('PBS.Dashboard', {
 	init: function(view) {
 	    var me = this;
 	    var sp = Ext.state.Manager.getProvider();
-	    var hours = sp.get('dashboard-hours') || 12;
-	    me.setHours(hours, false);
+	    var days = sp.get('dashboard-days') || 30;
+	    me.setDays(days, false);
 	},
     },
 
     viewModel: {
 	data: {
-	    timespan: 300, // in seconds
-	    hours: 12, // in hours
-	    error_shown: false,
 	    fingerprint: "",
-	    'bytes_in': 0,
-	    'bytes_out': 0,
-	    'avg_ptime': 0.0,
+	    days: 30,
 	},
 
 	formulas: {
 	    disableFPButton: (get) => get('fingerprint') === "",
+	    sinceEpoch: (get) => (Date.now()/1000 - get('days') * 24*3600).toFixed(0),
 	},
 
 	stores: {
@@ -226,6 +224,9 @@ Ext.define('PBS.Dashboard', {
 		proxy: {
 		    type: 'proxmox',
 		    url: '/api2/json/status/tasks',
+		    extraParams: {
+			since: '{sinceEpoch}',
+		    },
 		},
 		listeners: {
 		    load: 'updateTasks',
@@ -234,7 +235,7 @@ Ext.define('PBS.Dashboard', {
 	},
     },
 
-    title: gettext('Dashboard') + ' - WIP',
+    title: gettext('Dashboard'),
 
     layout: {
 	type: 'column',
@@ -247,6 +248,13 @@ Ext.define('PBS.Dashboard', {
 	xtype: 'panel',
 	margin: '0 20 20 0',
     },
+
+    tools: [
+	{
+	    type: 'gear',
+	    handler: 'openDashboardOptions',
+	},
+    ],
 
     scrollable: true,
 
@@ -296,6 +304,10 @@ Ext.define('PBS.Dashboard', {
 	},
 	{
 	    xtype: 'pbsLongestTasks',
+	    bind: {
+		title: gettext('Longest Tasks') + ' (' +
+		Ext.String.format(gettext('{0} days'), '{days}') + ')',
+	    },
 	    reference: 'longesttasks',
 	    height: 250,
 	},
@@ -304,6 +316,10 @@ Ext.define('PBS.Dashboard', {
 	    height: 250,
 	},
 	{
+	    bind: {
+		title: gettext('Task Summary') + ' (' +
+		Ext.String.format(gettext('{0} days'), '{days}') + ')',
+	    },
 	    xtype: 'pbsTaskSummary',
 	    reference: 'tasksummary',
 	},

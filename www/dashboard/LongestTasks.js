@@ -2,7 +2,7 @@ Ext.define('PBS.LongestTasks', {
     extend: 'Ext.grid.Panel',
     alias: 'widget.pbsLongestTasks',
 
-    title: gettext('Longest Tasks (last Month)'),
+    title: gettext('Longest Tasks'),
 
     hideHeaders: true,
     rowLines: false,

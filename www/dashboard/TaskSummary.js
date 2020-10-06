@@ -2,7 +2,7 @@ Ext.define('PBS.TaskSummary', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.pbsTaskSummary',
 
-    title: gettext('Task Summary (last Month)'),
+    title: gettext('Task Summary'),
 
     controller: {
 	xclass: 'Ext.app.ViewController',
