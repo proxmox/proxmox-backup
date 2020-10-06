@@ -34,6 +34,7 @@ use crate::{
     REPO_URL_SCHEMA,
     extract_repository_from_value,
     complete_pxar_archive_name,
+    complete_img_archive_name,
     complete_group_or_snapshot,
     complete_repository,
     record_repository,
@@ -101,7 +102,7 @@ pub fn map_cmd_def() -> CliCommand {
         .arg_param(&["snapshot", "archive-name"])
         .completion_cb("repository", complete_repository)
         .completion_cb("snapshot", complete_group_or_snapshot)
-        .completion_cb("archive-name", complete_pxar_archive_name)
+        .completion_cb("archive-name", complete_img_archive_name)
 }
 
 pub fn unmap_cmd_def() -> CliCommand {

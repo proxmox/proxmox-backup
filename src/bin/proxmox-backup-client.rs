@@ -1824,10 +1824,22 @@ fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<Stri
 pub fn complete_pxar_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     complete_server_file_name(arg, param)
         .iter()
-        .filter_map(|v| {
-            let name = tools::format::strip_server_file_expenstion(&v);
-            if name.ends_with(".pxar") {
-                Some(name)
+        .filter_map(|name| {
+            if name.ends_with(".pxar.didx") {
+                Some(tools::format::strip_server_file_expenstion(name))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+pub fn complete_img_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    complete_server_file_name(arg, param)
+        .iter()
+        .filter_map(|name| {
+            if name.ends_with(".img.fidx") {
+                Some(tools::format::strip_server_file_expenstion(name))
             } else {
                 None
             }
