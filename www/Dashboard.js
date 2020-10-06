@@ -136,6 +136,7 @@ Ext.define('PBS.Dashboard', {
 	updateTasks: function(store, records, success) {
 	    if (!success) return;
 	    let me = this;
+	    let viewModel = me.getViewModel();
 
 	    records.sort((a, b) => a.data.duration - b.data.duration);
 	    let top10 = records.slice(-10);
@@ -146,12 +147,17 @@ Ext.define('PBS.Dashboard', {
 		prune: { error: 0, warning: 0, ok: 0 },
 		garbage_collection: { error: 0, warning: 0, ok: 0 },
 		sync: { error: 0, warning: 0, ok: 0 },
+		verify: { error: 0, warning: 0, ok: 0 },
 	    };
 
 	    records.forEach(record => {
 		let type = record.data.worker_type;
 		if (type === 'syncjob') {
 		    type = 'sync';
+		}
+
+		if (type.startsWith('verify')) {
+		    type = 'verify';
 		}
 
 		if (data[type] && record.data.status) {

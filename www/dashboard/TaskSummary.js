@@ -12,6 +12,7 @@ Ext.define('PBS.TaskSummary', {
 	    "prune",
 	    "garbage_collection",
 	    "sync",
+	    "verify",
 	],
 
 	titles: {
