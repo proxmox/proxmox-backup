@@ -1,3 +1,5 @@
+//! Map a raw data reader as a loop device via FUSE
+
 use anyhow::{Error, format_err, bail};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -18,6 +20,10 @@ use super::loopdev;
 
 const RUN_DIR: &'static str = "/run/pbs-loopdev";
 
+/// Represents an ongoing FUSE-session that has been mapped onto a loop device.
+/// Create with map_loop, then call 'main' and poll until startup_chan reports
+/// success. Then, daemonize or otherwise finish setup, and continue polling
+/// main's future until completion.
 pub struct FuseLoopSession<R: AsyncRead + AsyncSeek + Unpin> {
     session: Option<Fuse>,
     stat: libc::stat,
