@@ -38,7 +38,7 @@ Ext.define('PBS.SystemConfiguration', {
 		    title: gettext('Network Interfaces'),
 		    xtype: 'proxmoxNodeNetworkView',
 		    showApplyBtn: true,
-		    types: ['bond', 'bridge', 'vlan'],
+		    types: ['bond', 'bridge'],
 		    nodename: 'localhost',
 		},
 	    ],
