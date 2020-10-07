@@ -1,7 +1,7 @@
 use anyhow::{Error};
 use serde_json::Value;
 
-pub fn strip_server_file_expenstion(name: &str) -> String {
+pub fn strip_server_file_extension(name: &str) -> String {
 
     if name.ends_with(".didx") || name.ends_with(".fidx") || name.ends_with(".blob") {
         name[..name.len()-5].to_owned()
@@ -12,7 +12,7 @@ pub fn strip_server_file_expenstion(name: &str) -> String {
 
 pub fn render_backup_file_list(files: &[String]) -> String {
     let mut files: Vec<String> = files.iter()
-        .map(|v| strip_server_file_expenstion(&v))
+        .map(|v| strip_server_file_extension(&v))
         .collect();
 
     files.sort();

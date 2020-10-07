@@ -1817,7 +1817,7 @@ async fn complete_server_file_name_do(param: &HashMap<String, String>) -> Vec<St
 fn complete_archive_name(arg: &str, param: &HashMap<String, String>) -> Vec<String> {
     complete_server_file_name(arg, param)
         .iter()
-        .map(|v| tools::format::strip_server_file_expenstion(&v))
+        .map(|v| tools::format::strip_server_file_extension(&v))
         .collect()
 }
 
@@ -1826,7 +1826,7 @@ pub fn complete_pxar_archive_name(arg: &str, param: &HashMap<String, String>) ->
         .iter()
         .filter_map(|name| {
             if name.ends_with(".pxar.didx") {
-                Some(tools::format::strip_server_file_expenstion(name))
+                Some(tools::format::strip_server_file_extension(name))
             } else {
                 None
             }
@@ -1839,7 +1839,7 @@ pub fn complete_img_archive_name(arg: &str, param: &HashMap<String, String>) -> 
         .iter()
         .filter_map(|name| {
             if name.ends_with(".img.fidx") {
-                Some(tools::format::strip_server_file_expenstion(name))
+                Some(tools::format::strip_server_file_extension(name))
             } else {
                 None
             }

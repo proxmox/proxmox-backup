@@ -262,7 +262,7 @@ impl BackupWriter {
         let archive = if self.verbose {
             archive_name.to_string()
         } else {
-            crate::tools::format::strip_server_file_expenstion(archive_name.clone())
+            crate::tools::format::strip_server_file_extension(archive_name.clone())
         };
         if archive_name != CATALOG_NAME {
             let speed: HumanByte = ((uploaded * 1_000_000) / (duration.as_micros() as usize)).into();
