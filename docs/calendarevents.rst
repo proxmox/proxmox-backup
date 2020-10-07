@@ -13,7 +13,7 @@ by the systemd Time and Date Specification (see `systemd.time manpage`_)
 called `calendar events` for its schedules.
 
 `Calendar events` are expressions to specify one or more points in time.
-They are mostly compatible with systemds calendar events.
+They are mostly compatible with systemd's calendar events.
 
 The general format is as follows:
 
@@ -27,7 +27,7 @@ If the weekday or date part is omitted, all (week)days are included.
 If the time part is omitted, the time 00:00:00 is implied.
 (e.g. '2020-01-01' refers to '2020-01-01 00:00:00')
 
-Weekdays are specified with the abbreviated english version:
+Weekdays are specified with the abbreviated English version:
 `mon, tue, wed, thu, fri, sat, sun`.
 
 Each field can contain multiple values in the following formats:
@@ -48,7 +48,7 @@ Value                              Syntax
 `daily`                            `*-*-* 00:00:00`
 `weekly`                           `mon *-*-* 00:00:00`
 `monthly`                          `*-*-01 00:00:00`
-`yearly` or `annualy`              `*-01-01 00:00:00`
+`yearly` or `annually`              `*-01-01 00:00:00`
 `quarterly`                        `*-01,04,07,10-01 00:00:00`
 `semiannually` or `semi-annually`  `*-01,07-01 00:00:00`
 =================================  ==============================
@@ -80,7 +80,7 @@ Differences to systemd
 
 Not all features of systemd calendar events are implemented:
 
-* no unix timestamps (e.g. `@12345`): instead use date and time to specify
+* no Unix timestamps (e.g. `@12345`): instead use date and time to specify
   a specific point in time
 * no timezone: all schedules use the set timezone on the server
 * no sub-second resolution

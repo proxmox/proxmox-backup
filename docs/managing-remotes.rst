@@ -17,7 +17,7 @@ configuration information for remotes is stored in the file
   :align: right
   :alt: Add a remote
 
-To add a remote, you need its hostname or ip, a userid and password on the
+To add a remote, you need its hostname or IP, a userid and password on the
 remote, and its certificate fingerprint. To get the fingerprint, use the
 ``proxmox-backup-manager cert info`` command on the remote, or navigate to
 **Dashboard** in the remote's web interface and select **Show Fingerprint**.

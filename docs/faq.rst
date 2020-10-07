@@ -34,7 +34,7 @@ How long will my Proxmox Backup Server version be supported?
 Can I copy or synchronize my datastore to another location?
 -----------------------------------------------------------
 
-Proxmox Backup Server allows you to copy or synchroize datastores to other
+Proxmox Backup Server allows you to copy or synchronize datastores to other
 locations, through the use of *Remotes* and *Sync Jobs*. *Remote* is the term
 given to a separate server, which has a datastore that can be synced to a local store.
 A *Sync Job* is the process which is used to pull the contents of a datastore from

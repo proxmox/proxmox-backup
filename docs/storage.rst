@@ -89,7 +89,7 @@ display S.M.A.R.T. attributes from the web interface or by using the command:
 -----------------
 
 A datastore refers to a location at which backups are stored. The current
-implementation uses a directory inside a standard unix file system (``ext4``,
+implementation uses a directory inside a standard Unix file system (``ext4``,
 ``xfs`` or ``zfs``) to store the backup data.
 
 Datastores are identified by a simple *ID*. You can configure this

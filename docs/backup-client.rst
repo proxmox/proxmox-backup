@@ -12,7 +12,7 @@ on the backup server.
 
   [[username@]server[:port]:]datastore
 
-The default value for ``username`` ist ``root@pam``.  If no server is specified,
+The default value for ``username`` is ``root@pam``.  If no server is specified,
 the default is the local host (``localhost``).
 
 You can specify a port if your backup server is only reachable on a different
@@ -138,7 +138,7 @@ After this you can execute all commands without specifying the ``--repository``
 option.
 
 One single backup is allowed to contain more than one archive. For example, if
-you want to backup two disks mounted at ``/mmt/disk1`` and ``/mnt/disk2``:
+you want to backup two disks mounted at ``/mnt/disk1`` and ``/mnt/disk2``:
 
 .. code-block:: console
 
@@ -431,7 +431,7 @@ to use the interactive recovery shell.
   bin        boot       dev        etc        home       lib        lib32
   ...
 
-The interactive recovery shell is a minimalistic command line interface that
+The interactive recovery shell is a minimal command line interface that
 utilizes the metadata stored in the catalog to quickly list, navigate and
 search files in a file archive.
 To restore files, you can select them individually or match them with a glob
@@ -447,7 +447,7 @@ working directory and list directory contents in the archive.
 ``pwd`` shows the full path of the current working directory with respect to the
 archive root.
 
-Being able to quickly search the contents of the archive is a commmonly needed feature.
+Being able to quickly search the contents of the archive is a commonly needed feature.
 That's where the catalog is most valuable.
 For example:
 
@@ -669,7 +669,7 @@ unused data blocks are removed.
   TASK OK
 
 
-.. todo:: howto run garbage-collection at regular intervalls (cron)
+.. todo:: howto run garbage-collection at regular intervals (cron)
 
 Benchmarking
 ------------

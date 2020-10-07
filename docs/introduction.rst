@@ -104,7 +104,7 @@ Software Stack
 
 Proxmox Backup Server consists of multiple components:
 
-* A server-daemon providing, among other things, a RESTfull API, super-fast
+* A server-daemon providing, among other things, a RESTful API, super-fast
   asynchronous tasks, lightweight usage statistic collection, scheduling
   events, strict separation of privileged and unprivileged execution
   environments

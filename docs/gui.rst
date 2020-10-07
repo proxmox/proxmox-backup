@@ -33,7 +33,7 @@ Login
   :alt: PBS login window
 
 When you connect to the web interface, you will first see the login window.
-Proxmox Backup Server supports various languages and authentication backends
+Proxmox Backup Server supports various languages and authentication back ends
 (*Realms*), both of which can be selected here.
 
 .. note:: For convenience, you can save the username on the client side, by

@@ -84,7 +84,7 @@ support, and a set of common and useful packages.
   when LVM_ or ZFS_ is used. The network configuration is completely up to you
   as well.
 
-.. note:: You can access the webinterface of the Proxmox Backup Server with
+.. note:: You can access the web interface of the Proxmox Backup Server with
   your web browser, using HTTPS on port 8007. For example at
  ``https://<ip-or-dns-name>:8007``
 
@@ -105,7 +105,7 @@ After configuring the
    still access the backups.
 
 .. note::
-  You can access the webinterface of the Proxmox Backup Server with your web
+  You can access the web interface of the Proxmox Backup Server with your web
   browser, using HTTPS on port 8007. For example at ``https://<ip-or-dns-name>:8007``
 
 Client installation

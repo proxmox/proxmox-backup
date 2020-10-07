@@ -220,7 +220,7 @@ and you can install it using `apt-get`:
   # apt-get install zfs-zed
 
 To activate the daemon it is necessary to edit `/etc/zfs/zed.d/zed.rc` with your
-favourite editor, and uncomment the `ZED_EMAIL_ADDR` setting:
+favorite editor, and uncomment the `ZED_EMAIL_ADDR` setting:
 
 .. code-block:: console
 
@@ -262,7 +262,7 @@ to an external Storage.
 
 We strongly recommend to use enough memory, so that you normally do not
 run into low memory situations. Should you need or want to add swap, it is
-preferred to create a partition on a physical disk and use it as swapdevice.
+preferred to create a partition on a physical disk and use it as swap device.
 You can leave some space free for this purpose in the advanced options of the
 installer. Additionally, you can lower the `swappiness` value. 
 A good value for servers is 10:

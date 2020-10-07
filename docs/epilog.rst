@@ -1,6 +1,6 @@
 .. Epilog (included at top of each file)
    
-   We use this file to define external links and commone replacement
+   We use this file to define external links and common replacement
    patterns.
 
 .. |VERSION| replace:: 1.0
