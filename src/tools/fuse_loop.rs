@@ -236,7 +236,7 @@ pub fn cleanup_unused_run_files(filter_name: Option<String>) {
 
                 // clean leftover FUSE instances (e.g. user called 'losetup -d' or similar)
                 // does nothing if files are already stagnant (e.g. instance crashed etc...)
-                if let Ok(_) = unmap_from_backing(&path) {
+                if let Ok(_) = unmap_from_backing(&path, None) {
                     // we have reaped some leftover instance, tell the user
                     eprintln!(
                         "Cleaned up dangling mapping '{}': no loop device assigned",
@@ -280,19 +280,53 @@ fn get_backing_file(loopdev: &str) -> Result<String, Error> {
     Ok(backing_file.to_owned())
 }
 
-fn unmap_from_backing(backing_file: &Path) -> Result<(), Error> {
+// call in broken state: we found the mapping, but the client is already dead,
+// only thing to do is clean up what we can
+fn emerg_cleanup (loopdev: Option<&str>, mut backing_file: PathBuf) {
+    eprintln!(
+        "warning: found mapping with dead process ({:?}), attempting cleanup",
+        &backing_file
+    );
+
+    if let Some(loopdev) = loopdev {
+        let _ = loopdev::unassign(loopdev);
+    }
+
+    // killing the backing process does not cancel the FUSE mount automatically
+    let mut command = std::process::Command::new("fusermount");
+    command.arg("-u");
+    command.arg(&backing_file);
+    let _ = crate::tools::run_command(command, None);
+
+    let _ = remove_file(&backing_file);
+    backing_file.set_extension("pid");
+    let _ = remove_file(&backing_file);
+}
+
+fn unmap_from_backing(backing_file: &Path, loopdev: Option<&str>) -> Result<(), Error> {
     let mut pid_path = PathBuf::from(backing_file);
     pid_path.set_extension("pid");
 
-    let pid_str = read_to_string(&pid_path).map_err(|err|
-        format_err!("error reading pidfile {:?}: {}", &pid_path, err))?;
+    let pid_str = read_to_string(&pid_path).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            emerg_cleanup(loopdev, backing_file.to_owned());
+        }
+        format_err!("error reading pidfile {:?}: {}", &pid_path, err)
+    })?;
     let pid = pid_str.parse::<i32>().map_err(|err|
         format_err!("malformed PID ({}) in pidfile - {}", pid_str, err))?;
 
     let pid = Pid::from_raw(pid);
 
     // send SIGINT to trigger cleanup and exit in target process
-    signal::kill(pid, Signal::SIGINT)?;
+    match signal::kill(pid, Signal::SIGINT) {
+        Ok(()) => {},
+        Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
+            emerg_cleanup(loopdev, backing_file.to_owned());
+            return Ok(());
+        },
+        Err(e) => return Err(e.into()),
+    }
 
     // block until unmap is complete or timeout
     let start = time::epoch_i64();
@@ -364,16 +398,16 @@ pub fn unmap_loopdev<S: AsRef<str>>(loopdev: S) -> Result<(), Error> {
     }
 
     let backing_file = get_backing_file(loopdev)?;
-    unmap_from_backing(Path::new(&backing_file))
+    unmap_from_backing(Path::new(&backing_file), Some(loopdev))
 }
 
 /// Try and unmap a running proxmox-backup-client instance from the given name
 pub fn unmap_name<S: AsRef<str>>(name: S) -> Result<(), Error> {
-    for (mapping, _) in find_all_mappings()? {
+    for (mapping, loopdev) in find_all_mappings()? {
         if mapping.ends_with(name.as_ref()) {
             let mut path = PathBuf::from(RUN_DIR);
             path.push(&mapping);
-            return unmap_from_backing(&path);
+            return unmap_from_backing(&path, loopdev.as_deref());
         }
     }
     Err(format_err!("no mapping for name '{}' found", name.as_ref()))
