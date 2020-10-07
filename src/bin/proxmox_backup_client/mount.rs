@@ -83,7 +83,8 @@ const API_METHOD_UNMAP: ApiMethod = ApiMethod::new(
         "Unmap a loop device mapped with 'map' and release all resources.",
         &sorted!([
             ("name", true, &StringSchema::new(
-                "Archive name, path to loopdev (/dev/loopX) or loop device number. Omit to list all current mappings."
+                concat!("Archive name, path to loopdev (/dev/loopX) or loop device number. ",
+                        "Omit to list all current mappings and force cleaning up leftover instances.")
             ).schema()),
         ]),
     )
@@ -337,6 +338,7 @@ fn unmap(
     let mut name = match param["name"].as_str() {
         Some(name) => name.to_owned(),
         None => {
+            tools::fuse_loop::cleanup_unused_run_files(None);
             let mut any = false;
             for (backing, loopdev) in tools::fuse_loop::find_all_mappings()? {
                 let name = tools::systemd::unescape_unit(&backing)?;

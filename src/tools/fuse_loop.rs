@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncReadExt, AsyncSeekExt};
 use futures::stream::{StreamExt, TryStreamExt};
 use futures::channel::mpsc::{Sender, Receiver};
 
-use proxmox::{try_block, const_regex};
+use proxmox::const_regex;
 use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
 use super::fs;
@@ -55,6 +55,11 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         let mut pid_path = path.clone();
         pid_path.set_extension("pid");
 
+        // cleanup previous instance with same name
+        // if loopdev is actually still mapped, this will do nothing and the
+        // create_new below will fail as intended
+        cleanup_unused_run_files(Some(name.as_ref().to_owned()));
+
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(_) => { /* file created, continue on */ },
             Err(e) => {
@@ -66,40 +71,27 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
             },
         }
 
-        let res: Result<(Fuse, String), Error> = try_block!{
-            let session = Fuse::builder("pbs-block-dev")?
-                .options_os(options)?
-                .enable_read()
-                .build()?
-                .mount(&path)?;
+        let session = Fuse::builder("pbs-block-dev")?
+            .options_os(options)?
+            .enable_read()
+            .build()?
+            .mount(&path)?;
 
-            let loopdev_path = loopdev::get_or_create_free_dev().map_err(|err| {
-                format_err!("loop-control GET_FREE failed - {}", err)
-            })?;
+        let loopdev_path = loopdev::get_or_create_free_dev().map_err(|err| {
+            format_err!("loop-control GET_FREE failed - {}", err)
+        })?;
 
-            // write pidfile so unmap can later send us a signal to exit
-            Self::write_pidfile(&pid_path)?;
+        // write pidfile so unmap can later send us a signal to exit
+        Self::write_pidfile(&pid_path)?;
 
-            Ok((session, loopdev_path))
-        };
-
-        match res {
-            Ok((session, loopdev_path)) =>
-                Ok(Self {
-                    session: Some(session),
-                    reader,
-                    stat: minimal_stat(size as i64),
-                    fuse_path: path.to_string_lossy().into_owned(),
-                    pid_path: pid_path.to_string_lossy().into_owned(),
-                    loopdev_path,
-                }),
-            Err(e) => {
-                // best-effort temp file cleanup in case of error
-                let _ = remove_file(&path);
-                let _ = remove_file(&pid_path);
-                Err(e)
-            }
-        }
+        Ok(Self {
+            session: Some(session),
+            reader,
+            stat: minimal_stat(size as i64),
+            fuse_path: path.to_string_lossy().into_owned(),
+            pid_path: pid_path.to_string_lossy().into_owned(),
+            loopdev_path,
+        })
     }
 
     fn write_pidfile(path: &Path) -> Result<(), Error> {
@@ -226,6 +218,38 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
         // non-error FUSE exit
         cleanup(session);
         Ok(())
+    }
+}
+
+/// Clean up leftover files as well as FUSE instances without a loop device
+/// connected. Best effort, never returns an error.
+/// If filter_name is Some("..."), only this name will be cleaned up.
+pub fn cleanup_unused_run_files(filter_name: Option<String>) {
+    if let Ok(maps) = find_all_mappings() {
+        for (name, loopdev) in maps {
+            if loopdev.is_none() &&
+                (filter_name.is_none() || &name == filter_name.as_ref().unwrap())
+            {
+                let mut path = PathBuf::from(RUN_DIR);
+                path.push(&name);
+
+                // clean leftover FUSE instances (e.g. user called 'losetup -d' or similar)
+                // does nothing if files are already stagnant (e.g. instance crashed etc...)
+                if let Ok(_) = unmap_from_backing(&path) {
+                    // we have reaped some leftover instance, tell the user
+                    eprintln!(
+                        "Cleaned up dangling mapping '{}': no loop device assigned",
+                        &name
+                    );
+                }
+
+                // remove remnant files
+                // these we're not doing anything, so no need to inform the user
+                let _ = remove_file(&path);
+                path.set_extension("pid");
+                let _ = remove_file(&path);
+            }
+        }
     }
 }
 
