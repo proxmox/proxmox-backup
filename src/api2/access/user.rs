@@ -1,5 +1,7 @@
 use anyhow::{bail, Error};
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::api::router::SubdirMap;
@@ -19,8 +21,90 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
     .schema();
 
 #[api(
+    properties: {
+        userid: {
+            type: Userid,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+        enable: {
+            optional: true,
+            schema: user::ENABLE_USER_SCHEMA,
+        },
+        expire: {
+            optional: true,
+            schema: user::EXPIRE_USER_SCHEMA,
+        },
+        firstname: {
+            optional: true,
+            schema: user::FIRST_NAME_SCHEMA,
+        },
+        lastname: {
+            schema: user::LAST_NAME_SCHEMA,
+            optional: true,
+         },
+        email: {
+            schema: user::EMAIL_SCHEMA,
+            optional: true,
+        },
+        tokens: {
+            type: Array,
+            optional: true,
+            description: "List of user's API tokens.",
+            items: {
+                type: user::ApiToken
+            },
+        },
+    }
+)]
+#[derive(Serialize,Deserialize)]
+/// User properties with added list of ApiTokens
+pub struct UserWithTokens {
+    pub userid: Userid,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub comment: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub enable: Option<bool>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub expire: Option<i64>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub firstname: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub lastname: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub tokens: Option<Vec<user::ApiToken>>,
+}
+
+impl UserWithTokens {
+    fn new(user: user::User) -> Self {
+        Self {
+            userid: user.userid,
+            comment: user.comment,
+            enable: user.enable,
+            expire: user.expire,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            email: user.email,
+            tokens: None,
+        }
+    }
+}
+
+
+#[api(
     input: {
-        properties: {},
+        properties: {
+            include_tokens: {
+                type: bool,
+                description: "Include user's API tokens in returned list.",
+                optional: true,
+                default: false,
+            },
+        },
     },
     returns: {
         description: "List users (with config digest).",
@@ -34,10 +118,10 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
 )]
 /// List users
 pub fn list_users(
-    _param: Value,
+    include_tokens: bool,
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<user::User>, Error> {
+) -> Result<Vec<UserWithTokens>, Error> {
 
     let (config, digest) = user::config()?;
 
@@ -54,11 +138,40 @@ pub fn list_users(
         top_level_allowed || user.userid == userid
     };
 
+
     let list:Vec<user::User> = config.convert_to_typed_array("user")?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    Ok(list.into_iter().filter(filter_by_privs).collect())
+    let iter = list.into_iter().filter(filter_by_privs);
+    let list = if include_tokens {
+        let tokens:Vec<user::ApiToken> = config.convert_to_typed_array("token")?;
+        let mut user_to_tokens = tokens
+            .into_iter()
+            .fold(
+                HashMap::new(),
+                |mut map: HashMap<Userid, Vec<user::ApiToken>>, token: user::ApiToken| {
+                if token.tokenid.is_token() {
+                    map
+                        .entry(token.tokenid.user().clone())
+                        .or_default()
+                        .push(token);
+                }
+                map
+            });
+        iter
+            .map(|user: user::User| {
+                let mut user = UserWithTokens::new(user);
+                user.tokens = user_to_tokens.remove(&user.userid);
+                user
+            })
+            .collect()
+    } else {
+        iter.map(|user: user::User| UserWithTokens::new(user))
+            .collect()
+    };
+
+    Ok(list)
 }
 
 #[api(
