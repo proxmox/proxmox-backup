@@ -16,6 +16,7 @@ use futures::stream::{StreamExt, TryStreamExt};
 use futures::channel::mpsc::{Sender, Receiver};
 
 use proxmox::const_regex;
+use proxmox::tools::time;
 use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
 use super::fs;
@@ -288,8 +289,28 @@ fn unmap_from_backing(backing_file: &Path) -> Result<(), Error> {
     let pid = pid_str.parse::<i32>().map_err(|err|
         format_err!("malformed PID ({}) in pidfile - {}", pid_str, err))?;
 
+    let pid = Pid::from_raw(pid);
+
     // send SIGINT to trigger cleanup and exit in target process
-    signal::kill(Pid::from_raw(pid), Signal::SIGINT)?;
+    signal::kill(pid, Signal::SIGINT)?;
+
+    // block until unmap is complete or timeout
+    let start = time::epoch_i64();
+    loop {
+        match signal::kill(pid, None) {
+            Ok(_) => {
+                // 10 second timeout, then assume failure
+                if (time::epoch_i64() - start) > 10 {
+                    return Err(format_err!("timed out waiting for PID '{}' to exit", &pid));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            },
+            Err(nix::Error::Sys(nix::errno::Errno::ESRCH)) => {
+                break;
+            },
+            Err(e) => return Err(e.into()),
+        }
+    }
 
     Ok(())
 }
