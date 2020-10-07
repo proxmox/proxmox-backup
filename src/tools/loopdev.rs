@@ -1,3 +1,5 @@
+//! Helpers to work with /dev/loop* devices
+
 use anyhow::Error;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
