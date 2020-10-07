@@ -1,12 +1,14 @@
 use anyhow::{bail, Error};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::{Schema, StringSchema};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
 use crate::config::user;
+use crate::config::token_shadow;
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -307,12 +309,340 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
     Ok(())
 }
 
-const ITEM_ROUTER: Router = Router::new()
+#[api(
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+            tokenname: {
+                type: Tokenname,
+            },
+        },
+    },
+    returns: {
+        description: "Get API token metadata (with config digest).",
+        type: user::ApiToken,
+    },
+    access: {
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
+            &Permission::UserParam("userid"),
+        ]),
+    },
+)]
+/// Read user's API token metadata
+pub fn read_token(
+    userid: Userid,
+    tokenname: Tokenname,
+    _info: &ApiMethod,
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<user::ApiToken, Error> {
+
+    let (config, digest) = user::config()?;
+
+    let tokenid = Authid::from((userid, Some(tokenname)));
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+    config.lookup("token", &tokenid.to_string())
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+            tokenname: {
+                type: Tokenname,
+            },
+            comment: {
+                optional: true,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            enable: {
+                schema: user::ENABLE_USER_SCHEMA,
+                optional: true,
+            },
+            expire: {
+                schema: user::EXPIRE_USER_SCHEMA,
+                optional: true,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::UserParam("userid"),
+        ]),
+    },
+    returns: {
+        description: "API token identifier + generated secret.",
+        properties: {
+            value: {
+                type: String,
+                description: "The API token secret",
+            },
+            tokenid: {
+                type: String,
+                description: "The API token identifier",
+            },
+        },
+    },
+)]
+/// Generate a new API token with given metadata
+pub fn generate_token(
+    userid: Userid,
+    tokenname: Tokenname,
+    comment: Option<String>,
+    enable: Option<bool>,
+    expire: Option<i64>,
+    digest: Option<String>,
+) -> Result<Value, Error> {
+
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+
+    let (mut config, expected_digest) = user::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
+
+    let tokenid = Authid::from((userid.clone(), Some(tokenname.clone())));
+    let tokenid_string = tokenid.to_string();
+
+    if let Some(_) = config.sections.get(&tokenid_string) {
+        bail!("token '{}' for user '{}' already exists.", tokenname.as_str(), userid);
+    }
+
+    let secret = format!("{:x}", proxmox::tools::uuid::Uuid::generate());
+    token_shadow::set_secret(&tokenid, &secret)?;
+
+    let token = user::ApiToken {
+        tokenid: tokenid.clone(),
+        comment,
+        enable,
+        expire,
+    };
+
+    config.set_data(&tokenid_string, "token", &token)?;
+
+    user::save_config(&config)?;
+
+    Ok(json!({
+        "tokenid": tokenid_string,
+        "value": secret
+    }))
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+            tokenname: {
+                type: Tokenname,
+            },
+            comment: {
+                optional: true,
+                schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            enable: {
+                schema: user::ENABLE_USER_SCHEMA,
+                optional: true,
+            },
+            expire: {
+                schema: user::EXPIRE_USER_SCHEMA,
+                optional: true,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::UserParam("userid"),
+        ]),
+    },
+)]
+/// Update user's API token metadata
+pub fn update_token(
+    userid: Userid,
+    tokenname: Tokenname,
+    comment: Option<String>,
+    enable: Option<bool>,
+    expire: Option<i64>,
+    digest: Option<String>,
+) -> Result<(), Error> {
+
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+
+    let (mut config, expected_digest) = user::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
+
+    let tokenid = Authid::from((userid, Some(tokenname)));
+    let tokenid_string = tokenid.to_string();
+
+    let mut data: user::ApiToken = config.lookup("token", &tokenid_string)?;
+
+    if let Some(comment) = comment {
+        let comment = comment.trim().to_string();
+        if comment.is_empty() {
+            data.comment = None;
+        } else {
+            data.comment = Some(comment);
+        }
+    }
+
+    if let Some(enable) = enable {
+        data.enable = if enable { None } else { Some(false) };
+    }
+
+    if let Some(expire) = expire {
+        data.expire = if expire > 0 { Some(expire) } else { None };
+    }
+
+    config.set_data(&tokenid_string, "token", &data)?;
+
+    user::save_config(&config)?;
+
+    Ok(())
+}
+
+#[api(
+    protected: true,
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+            tokenname: {
+                type: Tokenname,
+            },
+            digest: {
+                optional: true,
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_PERMISSIONS_MODIFY, false),
+            &Permission::UserParam("userid"),
+        ]),
+    },
+)]
+/// Delete a user's API token
+pub fn delete_token(
+    userid: Userid,
+    tokenname: Tokenname,
+    digest: Option<String>,
+) -> Result<(), Error> {
+
+    let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+
+    let (mut config, expected_digest) = user::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
+
+    let tokenid = Authid::from((userid.clone(), Some(tokenname.clone())));
+    let tokenid_string = tokenid.to_string();
+
+    match config.sections.get(&tokenid_string) {
+        Some(_) => { config.sections.remove(&tokenid_string); },
+        None => bail!("token '{}' of user '{}' does not exist.", tokenname.as_str(), userid),
+    }
+
+    token_shadow::delete_secret(&tokenid)?;
+
+    user::save_config(&config)?;
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            userid: {
+                type: Userid,
+            },
+        },
+    },
+    returns: {
+        description: "List user's API tokens (with config digest).",
+        type: Array,
+        items: { type: user::ApiToken },
+    },
+    access: {
+        permission: &Permission::Or(&[
+            &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
+            &Permission::UserParam("userid"),
+        ]),
+    },
+)]
+/// List user's API tokens
+pub fn list_tokens(
+    userid: Userid,
+    _info: &ApiMethod,
+    mut rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Vec<user::ApiToken>, Error> {
+
+    let (config, digest) = user::config()?;
+
+    let list:Vec<user::ApiToken> = config.convert_to_typed_array("token")?;
+
+    rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
+
+    let filter_by_owner = |token: &user::ApiToken| {
+        if token.tokenid.is_token() {
+           token.tokenid.user() == &userid
+        } else {
+            false
+        }
+    };
+
+    Ok(list.into_iter().filter(filter_by_owner).collect())
+}
+
+const TOKEN_ITEM_ROUTER: Router = Router::new()
+    .get(&API_METHOD_READ_TOKEN)
+    .put(&API_METHOD_UPDATE_TOKEN)
+    .post(&API_METHOD_GENERATE_TOKEN)
+    .delete(&API_METHOD_DELETE_TOKEN);
+
+const TOKEN_ROUTER: Router = Router::new()
+    .get(&API_METHOD_LIST_TOKENS)
+    .match_all("tokenname", &TOKEN_ITEM_ROUTER);
+
+const USER_SUBDIRS: SubdirMap = &[
+    ("token", &TOKEN_ROUTER),
+];
+
+const USER_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_USER)
     .put(&API_METHOD_UPDATE_USER)
-    .delete(&API_METHOD_DELETE_USER);
+    .delete(&API_METHOD_DELETE_USER)
+    .subdirs(USER_SUBDIRS);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_USERS)
     .post(&API_METHOD_CREATE_USER)
-    .match_all("userid", &ITEM_ROUTER);
+    .match_all("userid", &USER_ROUTER);
