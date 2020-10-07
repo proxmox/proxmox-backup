@@ -4,6 +4,7 @@ use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::ffi::OsStr;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
@@ -81,7 +82,9 @@ const API_METHOD_UNMAP: ApiMethod = ApiMethod::new(
     &ObjectSchema::new(
         "Unmap a loop device mapped with 'map' and release all resources.",
         &sorted!([
-            ("loopdev", false, &StringSchema::new("Path to loopdev (/dev/loopX) or loop device number.").schema()),
+            ("name", true, &StringSchema::new(
+                "Archive name, path to loopdev (/dev/loopX) or loop device number. Omit to list all current mappings."
+            ).schema()),
         ]),
     )
 );
@@ -108,8 +111,20 @@ pub fn map_cmd_def() -> CliCommand {
 pub fn unmap_cmd_def() -> CliCommand {
 
     CliCommand::new(&API_METHOD_UNMAP)
-        .arg_param(&["loopdev"])
-        .completion_cb("loopdev", tools::complete_file_name)
+        .arg_param(&["name"])
+        .completion_cb("name", complete_mapping_names)
+}
+
+fn complete_mapping_names<S: BuildHasher>(_arg: &str, _param: &HashMap<String, String, S>)
+    -> Vec<String>
+{
+    match tools::fuse_loop::find_all_mappings() {
+        Ok(mappings) => mappings
+            .filter_map(|(name, _)| {
+                tools::systemd::unescape_unit(&name).ok()
+            }).collect(),
+        Err(_) => Vec::new()
+    }
 }
 
 fn mount(
@@ -262,7 +277,10 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         let chunk_reader = RemoteChunkReader::new(client.clone(), crypt_config, file_info.chunk_crypt_mode(), HashMap::new());
         let reader = AsyncIndexReader::new(index, chunk_reader);
 
-        let mut session = tools::fuse_loop::FuseLoopSession::map_loop(size, reader, options).await?;
+        let name = &format!("{}:{}/{}", repo.to_string(), path, archive_name);
+        let name_escaped = tools::systemd::escape_unit(name, false);
+
+        let mut session = tools::fuse_loop::FuseLoopSession::map_loop(size, reader, &name_escaped, options).await?;
         let loopdev = session.loopdev_path.clone();
 
         let (st_send, st_recv) = futures::channel::mpsc::channel(1);
@@ -288,7 +306,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
         }
 
         // daemonize only now to be able to print mapped loopdev or startup errors
-        println!("Image mapped as {}", loopdev);
+        println!("Image '{}' mapped on {}", name, loopdev);
         daemonize()?;
 
         // continue polling until complete or interrupted (which also happens on unmap)
@@ -316,13 +334,33 @@ fn unmap(
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let mut path = tools::required_string_param(&param, "loopdev")?.to_owned();
+    let mut name = match param["name"].as_str() {
+        Some(name) => name.to_owned(),
+        None => {
+            let mut any = false;
+            for (backing, loopdev) in tools::fuse_loop::find_all_mappings()? {
+                let name = tools::systemd::unescape_unit(&backing)?;
+                println!("{}:\t{}", loopdev.unwrap_or("(unmapped)".to_owned()), name);
+                any = true;
+            }
+            if !any {
+                println!("Nothing mapped.");
+            }
+            return Ok(Value::Null);
+        },
+    };
 
-    if let Ok(num) = path.parse::<u8>() {
-        path = format!("/dev/loop{}", num);
+    // allow loop device number alone
+    if let Ok(num) = name.parse::<u8>() {
+        name = format!("/dev/loop{}", num);
     }
 
-    tools::fuse_loop::unmap(path)?;
+    if name.starts_with("/dev/loop") {
+        tools::fuse_loop::unmap_loopdev(name)?;
+    } else {
+        let name = tools::systemd::escape_unit(&name, false);
+        tools::fuse_loop::unmap_name(name)?;
+    }
 
     Ok(Value::Null)
 }

@@ -3,22 +3,28 @@
 use anyhow::{Error, format_err, bail};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::fs::{File, remove_file, read_to_string};
+use std::fs::{File, remove_file, read_to_string, OpenOptions};
 use std::io::SeekFrom;
 use std::io::prelude::*;
+use std::collections::HashMap;
 
-use nix::unistd::{Pid, mkstemp};
+use nix::unistd::Pid;
 use nix::sys::signal::{self, Signal};
 
 use tokio::io::{AsyncRead, AsyncSeek, AsyncReadExt, AsyncSeekExt};
 use futures::stream::{StreamExt, TryStreamExt};
 use futures::channel::mpsc::{Sender, Receiver};
 
-use proxmox::try_block;
+use proxmox::{try_block, const_regex};
 use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
+use super::fs;
 
 const RUN_DIR: &'static str = "/run/pbs-loopdev";
+
+const_regex! {
+    pub LOOPDEV_REGEX = r"^loop\d+$";
+}
 
 /// Represents an ongoing FUSE-session that has been mapped onto a loop device.
 /// Create with map_loop, then call 'main' and poll until startup_chan reports
@@ -37,18 +43,28 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
 
     /// Prepare for mapping the given reader as a block device node at
     /// /dev/loopN. Creates a temporary file for FUSE and a PID file for unmap.
-    pub async fn map_loop(size: u64, mut reader: R, options: &OsStr)
+    pub async fn map_loop<P: AsRef<str>>(size: u64, mut reader: R, name: P, options: &OsStr)
         -> Result<Self, Error>
     {
         // attempt a single read to check if the reader is configured correctly
         let _ = reader.read_u8().await?;
 
         std::fs::create_dir_all(RUN_DIR)?;
-        let mut base_path = PathBuf::from(RUN_DIR);
-        base_path.push("XXXXXX"); // template for mkstemp
-        let (_, path) = mkstemp(&base_path)?;
+        let mut path = PathBuf::from(RUN_DIR);
+        path.push(name.as_ref());
         let mut pid_path = path.clone();
         pid_path.set_extension("pid");
+
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(_) => { /* file created, continue on */ },
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::AlreadyExists {
+                    bail!("the given archive is already mapped, cannot map twice");
+                } else {
+                    bail!("error while creating backing file ({:?}) - {}", &path, e);
+                }
+            },
+        }
 
         let res: Result<(Fuse, String), Error> = try_block!{
             let session = Fuse::builder("pbs-block-dev")?
@@ -213,12 +229,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> FuseLoopSession<R> {
     }
 }
 
-/// Try and unmap a running proxmox-backup-client instance from the given
-/// /dev/loopN device
-pub fn unmap(loopdev: String) -> Result<(), Error> {
-    if loopdev.len() < 10 || !loopdev.starts_with("/dev/loop") {
-        bail!("malformed loopdev path, must be in format '/dev/loopX'");
-    }
+fn get_backing_file(loopdev: &str) -> Result<String, Error> {
     let num = loopdev.split_at(9).1.parse::<u8>().map_err(|err|
         format_err!("malformed loopdev path, does not end with valid number - {}", err))?;
 
@@ -232,6 +243,7 @@ pub fn unmap(loopdev: String) -> Result<(), Error> {
     })?;
 
     let backing_file = backing_file.trim();
+
     if !backing_file.starts_with(RUN_DIR) {
         bail!(
             "loopdev {} is in use, but not by proxmox-backup-client (mapped to '{}')",
@@ -240,6 +252,10 @@ pub fn unmap(loopdev: String) -> Result<(), Error> {
         );
     }
 
+    Ok(backing_file.to_owned())
+}
+
+fn unmap_from_backing(backing_file: &Path) -> Result<(), Error> {
     let mut pid_path = PathBuf::from(backing_file);
     pid_path.set_extension("pid");
 
@@ -252,6 +268,70 @@ pub fn unmap(loopdev: String) -> Result<(), Error> {
     signal::kill(Pid::from_raw(pid), Signal::SIGINT)?;
 
     Ok(())
+}
+
+/// Returns an Iterator over a set of currently active mappings, i.e.
+/// FuseLoopSession instances. Returns ("backing-file-name", Some("/dev/loopX"))
+/// where .1 is None when a user has manually called 'losetup -d' or similar but
+/// the FUSE instance is still running.
+pub fn find_all_mappings() -> Result<impl Iterator<Item = (String, Option<String>)>, Error> {
+    // get map of all /dev/loop mappings belonging to us
+    let mut loopmap = HashMap::new();
+    for ent in fs::scan_subdir(libc::AT_FDCWD, Path::new("/dev/"), &LOOPDEV_REGEX)? {
+        match ent {
+            Ok(ent) => {
+                let loopdev = format!("/dev/{}", ent.file_name().to_string_lossy());
+                match get_backing_file(&loopdev) {
+                    Ok(file) => {
+                        // insert filename only, strip RUN_DIR/
+                        loopmap.insert(file[RUN_DIR.len()+1..].to_owned(), loopdev);
+                    },
+                    Err(_) => {},
+                }
+            },
+            Err(_) => {},
+        }
+    }
+
+    Ok(fs::read_subdir(libc::AT_FDCWD, Path::new(RUN_DIR))?
+        .filter_map(move |ent| {
+            match ent {
+                Ok(ent) => {
+                    let file = ent.file_name().to_string_lossy();
+                    if file == "." || file == ".." || file.ends_with(".pid") {
+                        None
+                    } else {
+                        let loopdev = loopmap.get(file.as_ref()).map(String::to_owned);
+                        Some((file.into_owned(), loopdev))
+                    }
+                },
+                Err(_) => None,
+            }
+        }))
+}
+
+/// Try and unmap a running proxmox-backup-client instance from the given
+/// /dev/loopN device
+pub fn unmap_loopdev<S: AsRef<str>>(loopdev: S) -> Result<(), Error> {
+    let loopdev = loopdev.as_ref();
+    if loopdev.len() < 10 || !loopdev.starts_with("/dev/loop") {
+        bail!("malformed loopdev path, must be in format '/dev/loopX'");
+    }
+
+    let backing_file = get_backing_file(loopdev)?;
+    unmap_from_backing(Path::new(&backing_file))
+}
+
+/// Try and unmap a running proxmox-backup-client instance from the given name
+pub fn unmap_name<S: AsRef<str>>(name: S) -> Result<(), Error> {
+    for (mapping, _) in find_all_mappings()? {
+        if mapping.ends_with(name.as_ref()) {
+            let mut path = PathBuf::from(RUN_DIR);
+            path.push(&mapping);
+            return unmap_from_backing(&path);
+        }
+    }
+    Err(format_err!("no mapping for name '{}' found", name.as_ref()))
 }
 
 fn minimal_stat(size: i64) -> libc::stat {
