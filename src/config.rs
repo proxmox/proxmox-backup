@@ -21,6 +21,7 @@ pub mod datastore;
 pub mod network;
 pub mod remote;
 pub mod sync;
+pub mod token_shadow;
 pub mod user;
 pub mod verify;
 
