@@ -123,14 +123,23 @@ impl CachedUserInfo {
     }
 
     pub fn lookup_privs(&self, auth_id: &Authid, path: &[&str]) -> u64 {
+        let (privs, _) = self.lookup_privs_details(auth_id, path);
+        privs
+    }
+
+    pub fn lookup_privs_details(&self, auth_id: &Authid, path: &[&str]) -> (u64, u64) {
         if self.is_superuser(auth_id) {
-            return ROLE_ADMIN;
+            return (ROLE_ADMIN, ROLE_ADMIN);
         }
 
         let roles = self.acl_tree.roles(auth_id, path);
         let mut privs: u64 = 0;
-        for role in roles {
+        let mut propagated_privs: u64 = 0;
+        for (role, propagate) in roles {
             if let Some((role_privs, _)) = ROLE_NAMES.get(role.as_str()) {
+                if propagate {
+                    propagated_privs |= role_privs;
+                }
                 privs |= role_privs;
             }
         }
@@ -139,10 +148,14 @@ impl CachedUserInfo {
             // limit privs to that of owning user
             let user_auth_id = Authid::from(auth_id.user().clone());
             privs &= self.lookup_privs(&user_auth_id, path);
+            let (owner_privs, owner_propagated_privs) = self.lookup_privs_details(&user_auth_id, path);
+            privs &= owner_privs;
+            propagated_privs &= owner_propagated_privs;
         }
 
-        privs
+        (privs, propagated_privs)
     }
+
 }
 
 impl UserInformation for CachedUserInfo {

@@ -1,6 +1,8 @@
 use anyhow::{bail, format_err, Error};
 
 use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use proxmox::api::{api, RpcEnvironment, Permission};
 use proxmox::api::router::{Router, SubdirMap};
@@ -12,8 +14,9 @@ use crate::auth_helpers::*;
 use crate::api2::types::*;
 use crate::tools::{FileLogOptions, FileLogger};
 
+use crate::config::acl as acl_config;
+use crate::config::acl::{PRIVILEGES, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::config::acl::{PRIVILEGES, PRIV_PERMISSIONS_MODIFY};
 
 pub mod user;
 pub mod domain;
@@ -238,12 +241,138 @@ fn change_password(
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            auth_id: {
+                type: Authid,
+                optional: true,
+            },
+            path: {
+                schema: ACL_PATH_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Anybody,
+        description: "Requires Sys.Audit on '/access', limited to own privileges otherwise.",
+    },
+    returns: {
+        description: "Map of ACL path to Map of privilege to propagate bit",
+        type: Object,
+        properties: {},
+        additional_properties: true,
+    },
+)]
+/// List permissions of given or currently authenticated user / API token.
+///
+/// Optionally limited to specific path.
+pub fn list_permissions(
+    auth_id: Option<Authid>,
+    path: Option<String>,
+    rpcenv: &dyn RpcEnvironment,
+) -> Result<HashMap<String, HashMap<String, bool>>, Error> {
+    let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let user_info = CachedUserInfo::new()?;
+    let user_privs = user_info.lookup_privs(&current_auth_id, &["access"]);
+
+    let auth_id = if user_privs & PRIV_SYS_AUDIT == 0 {
+        match auth_id {
+            Some(auth_id) => {
+                if auth_id == current_auth_id {
+                    auth_id
+                } else if auth_id.is_token()
+                    && !current_auth_id.is_token()
+                    && auth_id.user() == current_auth_id.user() {
+                    auth_id
+                } else {
+                    bail!("not allowed to list permissions of {}", auth_id);
+                }
+            },
+            None => current_auth_id,
+        }
+    } else {
+        match auth_id {
+            Some(auth_id) => auth_id,
+            None => current_auth_id,
+        }
+    };
+
+
+    fn populate_acl_paths(
+        mut paths: HashSet<String>,
+        node: acl_config::AclTreeNode,
+        path: &str
+    ) -> HashSet<String> {
+        for (sub_path, child_node) in node.children {
+            let sub_path = format!("{}/{}", path, &sub_path);
+            paths = populate_acl_paths(paths, child_node, &sub_path);
+            paths.insert(sub_path);
+        }
+        paths
+    }
+
+    let paths = match path {
+        Some(path) => {
+            let mut paths = HashSet::new();
+            paths.insert(path);
+            paths
+        },
+        None => {
+            let mut paths = HashSet::new();
+
+            let (acl_tree, _) = acl_config::config()?;
+            paths = populate_acl_paths(paths, acl_tree.root, "");
+
+            // default paths, returned even if no ACL exists
+            paths.insert("/".to_string());
+            paths.insert("/access".to_string());
+            paths.insert("/datastore".to_string());
+            paths.insert("/remote".to_string());
+            paths.insert("/system".to_string());
+
+            paths
+        },
+    };
+
+    let map = paths
+        .into_iter()
+        .fold(HashMap::new(), |mut map: HashMap<String, HashMap<String, bool>>, path: String| {
+            let split_path = acl_config::split_acl_path(path.as_str());
+            let (privs, propagated_privs) = user_info.lookup_privs_details(&auth_id, &split_path);
+
+            match privs {
+                0 => map, // Don't leak ACL paths where we don't have any privileges
+                _ => {
+                    let priv_map = PRIVILEGES
+                        .iter()
+                        .fold(HashMap::new(), |mut priv_map, (name, value)| {
+                            if value & privs != 0 {
+                                priv_map.insert(name.to_string(), value & propagated_privs != 0);
+                            }
+                            priv_map
+                        });
+
+                    map.insert(path, priv_map);
+                    map
+                },
+            }});
+
+    Ok(map)
+}
+
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("acl", &acl::ROUTER),
     (
         "password", &Router::new()
             .put(&API_METHOD_CHANGE_PASSWORD)
+    ),
+    (
+        "permissions", &Router::new()
+            .get(&API_METHOD_LIST_PERMISSIONS)
     ),
     (
         "ticket", &Router::new()

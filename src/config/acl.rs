@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
+use std::collections::{HashMap, BTreeMap, BTreeSet};
 use std::path::{PathBuf, Path};
 use std::sync::{Arc, RwLock};
 use std::str::FromStr;
@@ -246,9 +246,9 @@ impl AclTreeNode {
         }
     }
 
-    pub fn extract_roles(&self, auth_id: &Authid, all: bool) -> HashSet<String> {
+    pub fn extract_roles(&self, auth_id: &Authid, all: bool) -> HashMap<String, bool> {
         let user_roles = self.extract_user_roles(auth_id, all);
-        if !user_roles.is_empty() {
+        if !user_roles.is_empty() || auth_id.is_token() {
             // user privs always override group privs
             return user_roles
         };
@@ -256,33 +256,33 @@ impl AclTreeNode {
         self.extract_group_roles(auth_id.user(), all)
     }
 
-    pub fn extract_user_roles(&self, auth_id: &Authid, all: bool) -> HashSet<String> {
+    pub fn extract_user_roles(&self, auth_id: &Authid, all: bool) -> HashMap<String, bool> {
 
-        let mut set = HashSet::new();
+        let mut map = HashMap::new();
 
         let roles = match self.users.get(auth_id) {
             Some(m) => m,
-            None => return set,
+            None => return map,
         };
 
         for (role, propagate) in roles {
             if *propagate || all {
                 if role == ROLE_NAME_NO_ACCESS {
-                    // return a set with a single role 'NoAccess'
-                    let mut set = HashSet::new();
-                    set.insert(role.to_string());
-                    return set;
+                    // return a map with a single role 'NoAccess'
+                    let mut map = HashMap::new();
+                    map.insert(role.to_string(), false);
+                    return map;
                 }
-                set.insert(role.to_string());
+                map.insert(role.to_string(), *propagate);
             }
         }
 
-        set
+        map
     }
 
-    pub fn extract_group_roles(&self, _user: &Userid, all: bool) -> HashSet<String> {
+    pub fn extract_group_roles(&self, _user: &Userid, all: bool) -> HashMap<String, bool> {
 
-        let mut set = HashSet::new();
+        let mut map = HashMap::new();
 
         for (_group, roles) in &self.groups {
             let is_member = false; // fixme: check if user is member of the group
@@ -291,17 +291,17 @@ impl AclTreeNode {
             for (role, propagate) in roles {
                 if *propagate || all {
                     if role == ROLE_NAME_NO_ACCESS {
-                        // return a set with a single role 'NoAccess'
-                        let mut set = HashSet::new();
-                        set.insert(role.to_string());
-                        return set;
+                        // return a map with a single role 'NoAccess'
+                        let mut map = HashMap::new();
+                        map.insert(role.to_string(), false);
+                        return map;
                     }
-                    set.insert(role.to_string());
+                    map.insert(role.to_string(), *propagate);
                 }
             }
         }
 
-        set
+        map
     }
 
     pub fn delete_group_role(&mut self, group: &str, role: &str) {
@@ -346,7 +346,9 @@ impl AclTreeNode {
 impl AclTree {
 
     pub fn new() -> Self {
-        Self { root: AclTreeNode::new() }
+        Self {
+            root: AclTreeNode::new(),
+        }
     }
 
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
@@ -512,7 +514,8 @@ impl AclTree {
             bail!("expected '0' or '1' for propagate flag.");
         };
 
-        let path = split_acl_path(items[2]);
+        let path_str = items[2];
+        let path = split_acl_path(path_str);
         let node = self.get_or_insert_node(&path);
 
         let uglist: Vec<&str> = items[3].split(',').map(|v| v.trim()).collect();
@@ -576,25 +579,26 @@ impl AclTree {
         Ok(tree)
     }
 
-    pub fn roles(&self, auth_id: &Authid, path: &[&str]) -> HashSet<String> {
+    pub fn roles(&self, auth_id: &Authid, path: &[&str]) -> HashMap<String, bool> {
 
         let mut node = &self.root;
-        let mut role_set = node.extract_roles(auth_id, path.is_empty());
+        let mut role_map = node.extract_roles(auth_id, path.is_empty());
 
         for (pos, comp) in path.iter().enumerate() {
             let last_comp = (pos + 1) == path.len();
             node = match node.children.get(*comp) {
                 Some(n) => n,
-                None => return role_set, // path not found
+                None => return role_map, // path not found
             };
-            let new_set = node.extract_roles(auth_id, last_comp);
-            if !new_set.is_empty() {
-                // overwrite previous settings
-                role_set = new_set;
+
+            let new_map = node.extract_roles(auth_id, last_comp);
+            if !new_map.is_empty() {
+                // overwrite previous maptings
+                role_map = new_map;
             }
         }
 
-        role_set
+        role_map
     }
 }
 
@@ -686,7 +690,7 @@ mod test {
 
         let path_vec = super::split_acl_path(path);
         let mut roles = tree.roles(auth_id, &path_vec)
-            .iter().map(|v| v.clone()).collect::<Vec<String>>();
+            .iter().map(|(v, _)| v.clone()).collect::<Vec<String>>();
         roles.sort();
         let roles = roles.join(",");
 
