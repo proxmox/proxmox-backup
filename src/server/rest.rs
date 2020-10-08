@@ -504,7 +504,6 @@ fn check_auth(
 
     if method != hyper::Method::GET {
         if let Some(token) = token {
-            println!("CSRF prevention token: {:?}", token);
             verify_csrf_prevention_token(csrf_secret(), &userid, &token, -300, ticket_lifetime)?;
         } else {
             bail!("missing CSRF prevention token");
