@@ -375,7 +375,7 @@ pub fn update_datastore(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_MODIFY, false),
+        permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_ALLOCATE, false),
     },
 )]
 /// Remove a datastore configuration.
