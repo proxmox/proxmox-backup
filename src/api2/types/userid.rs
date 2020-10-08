@@ -397,10 +397,7 @@ impl TryFrom<String> for Userid {
 
 impl PartialEq<str> for Userid {
     fn eq(&self, rhs: &str) -> bool {
-        rhs.len() > self.name_len + 2 // make sure range access below is allowed
-        && rhs.starts_with(self.name().as_str())
-        && rhs.as_bytes()[self.name_len] == b'@'
-        && &rhs[(self.name_len + 1)..] == self.realm().as_str()
+        self.data == *rhs
     }
 }
 
