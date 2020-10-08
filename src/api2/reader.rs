@@ -94,7 +94,10 @@ fn upgrade_to_backup_reader_protocol(
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
         if !priv_read {
             let owner = datastore.get_owner(backup_dir.group())?;
-            if owner != auth_id {
+            let correct_owner = owner == auth_id
+                || (owner.is_token()
+                    && Authid::from(owner.user().clone()) == auth_id);
+            if !correct_owner {
                 bail!("backup owner check failed!");
             }
         }

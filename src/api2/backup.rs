@@ -108,7 +108,10 @@ async move {
     let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &auth_id)?;
 
     // permission check
-    if owner != auth_id && worker_type != "benchmark" {
+    let correct_owner = owner == auth_id
+        || (owner.is_token()
+            && Authid::from(owner.user().clone()) == auth_id);
+    if !correct_owner && worker_type != "benchmark" {
         // only the owner is allowed to create additional snapshots
         bail!("backup owner check failed ({} != {})", auth_id, owner);
     }
