@@ -201,7 +201,7 @@ pub fn update_remote(
     comment: Option<String>,
     host: Option<String>,
     port: Option<u16>,
-    userid: Option<Userid>,
+    userid: Option<Authid>,
     password: Option<String>,
     fingerprint: Option<String>,
     delete: Option<Vec<DeletableProperty>>,

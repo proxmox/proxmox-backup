@@ -21,7 +21,7 @@ use proxmox::{
 };
 
 use super::pipe_to_stream::PipeToSendStream;
-use crate::api2::types::Userid;
+use crate::api2::types::{Authid, Userid};
 use crate::tools::{
     self,
     BroadcastFuture,
@@ -31,7 +31,7 @@ use crate::tools::{
 
 #[derive(Clone)]
 pub struct AuthInfo {
-    pub userid: Userid,
+    pub auth_id: Authid,
     pub ticket: String,
     pub token: String,
 }
@@ -102,7 +102,7 @@ pub struct HttpClient {
     server: String,
     port: u16,
     fingerprint: Arc<Mutex<Option<String>>>,
-    first_auth: BroadcastFuture<()>,
+    first_auth: Option<BroadcastFuture<()>>,
     auth: Arc<RwLock<AuthInfo>>,
     ticket_abort: futures::future::AbortHandle,
     _options: HttpClientOptions,
@@ -251,7 +251,7 @@ impl HttpClient {
     pub fn new(
         server: &str,
         port: u16,
-        userid: &Userid,
+        auth_id: &Authid,
         mut options: HttpClientOptions,
     ) -> Result<Self, Error> {
 
@@ -311,6 +311,11 @@ impl HttpClient {
         let password = if let Some(password) = password {
             password
         } else {
+            let userid = if auth_id.is_token() {
+                bail!("API token secret must be provided!");
+            } else {
+                auth_id.user()
+            };
             let mut ticket_info = None;
             if use_ticket_cache {
                 ticket_info = load_ticket_info(options.prefix.as_ref().unwrap(), server, userid);
@@ -323,7 +328,7 @@ impl HttpClient {
         };
 
         let auth = Arc::new(RwLock::new(AuthInfo {
-            userid: userid.clone(),
+            auth_id: auth_id.clone(),
             ticket: password.clone(),
             token: "".to_string(),
         }));
@@ -336,14 +341,14 @@ impl HttpClient {
         let renewal_future = async move {
             loop {
                 tokio::time::delay_for(Duration::new(60*15,  0)).await; // 15 minutes
-                let (userid, ticket) = {
+                let (auth_id, ticket) = {
                     let authinfo = auth2.read().unwrap().clone();
-                    (authinfo.userid, authinfo.ticket)
+                    (authinfo.auth_id, authinfo.ticket)
                 };
-                match Self::credentials(client2.clone(), server2.clone(), port, userid, ticket).await {
+                match Self::credentials(client2.clone(), server2.clone(), port, auth_id.user().clone(), ticket).await {
                     Ok(auth) => {
                         if use_ticket_cache & &prefix2.is_some() {
-                            let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.userid.to_string(), &auth.ticket, &auth.token);
+                            let _ = store_ticket_info(prefix2.as_ref().unwrap(), &server2, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
                         }
                         *auth2.write().unwrap() = auth;
                     },
@@ -361,7 +366,7 @@ impl HttpClient {
             client.clone(),
             server.to_owned(),
             port,
-            userid.to_owned(),
+            auth_id.user().clone(),
             password.to_owned(),
         ).map_ok({
             let server = server.to_string();
@@ -370,12 +375,19 @@ impl HttpClient {
 
             move |auth| {
                 if use_ticket_cache & &prefix.is_some() {
-                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.userid.to_string(), &auth.ticket, &auth.token);
+                    let _ = store_ticket_info(prefix.as_ref().unwrap(), &server, &auth.auth_id.to_string(), &auth.ticket, &auth.token);
                 }
                 *authinfo.write().unwrap() = auth;
                 tokio::spawn(renewal_future);
             }
         });
+
+        let first_auth = if auth_id.is_token() {
+            // TODO check access here?
+            None
+        } else {
+            Some(BroadcastFuture::new(Box::new(login_future)))
+        };
 
         Ok(Self {
             client,
@@ -384,7 +396,7 @@ impl HttpClient {
             fingerprint: verified_fingerprint,
             auth,
             ticket_abort,
-            first_auth: BroadcastFuture::new(Box::new(login_future)),
+            first_auth,
             _options: options,
         })
     }
@@ -394,7 +406,10 @@ impl HttpClient {
     /// Login is done on demand, so this is only required if you need
     /// access to authentication data in 'AuthInfo'.
     pub async fn login(&self) -> Result<AuthInfo, Error> {
-        self.first_auth.listen().await?;
+        if let Some(future) = &self.first_auth {
+            future.listen().await?;
+        }
+
         let authinfo = self.auth.read().unwrap();
         Ok(authinfo.clone())
     }
@@ -477,10 +492,14 @@ impl HttpClient {
         let client = self.client.clone();
 
         let auth =  self.login().await?;
-
-        let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-        req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
-        req.headers_mut().insert("CSRFPreventionToken", HeaderValue::from_str(&auth.token).unwrap());
+        if auth.auth_id.is_token() {
+            let enc_api_token = format!("{}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
+        } else {
+            let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+            req.headers_mut().insert("CSRFPreventionToken", HeaderValue::from_str(&auth.token).unwrap());
+        }
 
         Self::api_request(client, req).await
     }
@@ -579,11 +598,18 @@ impl HttpClient {
         protocol_name: String,
     ) -> Result<(H2Client, futures::future::AbortHandle), Error> {
 
-        let auth = self.login().await?;
         let client = self.client.clone();
+        let auth =  self.login().await?;
 
-        let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
-        req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+        if auth.auth_id.is_token() {
+            let enc_api_token = format!("{}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
+        } else {
+            let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
+            req.headers_mut().insert("CSRFPreventionToken", HeaderValue::from_str(&auth.token).unwrap());
+        }
+
         req.headers_mut().insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
         let resp = client.request(req).await?;
@@ -636,7 +662,7 @@ impl HttpClient {
         let req = Self::request_builder(&server, port, "POST", "/api2/json/access/ticket", Some(data))?;
         let cred = Self::api_request(client, req).await?;
         let auth = AuthInfo {
-            userid: cred["data"]["username"].as_str().unwrap().parse()?,
+            auth_id: cred["data"]["username"].as_str().unwrap().parse()?,
             ticket: cred["data"]["ticket"].as_str().unwrap().to_owned(),
             token: cred["data"]["CSRFPreventionToken"].as_str().unwrap().to_owned(),
         };

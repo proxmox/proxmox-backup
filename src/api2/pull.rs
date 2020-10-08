@@ -56,7 +56,7 @@ pub async fn get_pull_parameters(
 
     let src_repo = BackupRepository::new(Some(remote.userid.clone()), Some(remote.host.clone()), remote.port, remote_store.to_string());
 
-    let client = HttpClient::new(&src_repo.host(), src_repo.port(), &src_repo.user(), options)?;
+    let client = HttpClient::new(&src_repo.host(), src_repo.port(), &src_repo.auth_id(), options)?;
     let _auth_info = client.login() // make sure we can auth
         .await
         .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;

@@ -62,10 +62,10 @@ fn connect() -> Result<HttpClient, Error> {
         let ticket = Ticket::new("PBS", Userid::root_userid())?
             .sign(private_auth_key(), None)?;
         options = options.password(Some(ticket));
-        HttpClient::new("localhost", 8007, Userid::root_userid(), options)?
+        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
     } else {
         options = options.ticket_cache(true).interactive(true);
-        HttpClient::new("localhost", 8007, Userid::root_userid(), options)?
+        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
     };
 
     Ok(client)

@@ -1,6 +1,6 @@
 use anyhow::{Error};
 
-use proxmox_backup::api2::types::Userid;
+use proxmox_backup::api2::types::Authid;
 use proxmox_backup::client::*;
 
 async fn upload_speed() -> Result<f64, Error> {
@@ -8,13 +8,13 @@ async fn upload_speed() -> Result<f64, Error> {
     let host = "localhost";
     let datastore = "store2";
 
-    let username = Userid::root_userid();
+    let auth_id = Authid::root_auth_id();
 
     let options = HttpClientOptions::new()
         .interactive(true)
         .ticket_cache(true);
 
-    let client = HttpClient::new(host, 8007, username, options)?;
+    let client = HttpClient::new(host, 8007, auth_id, options)?;
 
     let backup_time = proxmox::tools::time::epoch_i64();
 

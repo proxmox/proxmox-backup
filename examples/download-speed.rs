@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Error};
 
-use proxmox_backup::api2::types::Userid;
+use proxmox_backup::api2::types::Authid;
 use proxmox_backup::client::{HttpClient, HttpClientOptions, BackupReader};
 
 pub struct DummyWriter {
@@ -26,13 +26,13 @@ async fn run() -> Result<(), Error> {
 
     let host = "localhost";
 
-    let username = Userid::root_userid();
+    let auth_id = Authid::root_auth_id();
 
     let options = HttpClientOptions::new()
         .interactive(true)
         .ticket_cache(true);
 
-    let client = HttpClient::new(host, 8007, username, options)?;
+    let client = HttpClient::new(host, 8007, auth_id, options)?;
 
     let backup_time = proxmox::tools::time::parse_rfc3339("2019-06-28T10:49:48Z")?;
 
