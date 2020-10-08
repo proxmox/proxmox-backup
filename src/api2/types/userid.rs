@@ -131,13 +131,13 @@ impl std::ops::Deref for Username {
 
 impl Borrow<UsernameRef> for Username {
     fn borrow(&self) -> &UsernameRef {
-        UsernameRef::new(self.as_str())
+        UsernameRef::new(self.0.as_str())
     }
 }
 
 impl AsRef<UsernameRef> for Username {
     fn as_ref(&self) -> &UsernameRef {
-        UsernameRef::new(self.as_str())
+        self.borrow()
     }
 }
 
@@ -204,13 +204,13 @@ impl std::ops::Deref for Realm {
 
 impl Borrow<RealmRef> for Realm {
     fn borrow(&self) -> &RealmRef {
-        RealmRef::new(self.as_str())
+        RealmRef::new(self.0.as_str())
     }
 }
 
 impl AsRef<RealmRef> for Realm {
     fn as_ref(&self) -> &RealmRef {
-        RealmRef::new(self.as_str())
+        self.borrow()
     }
 }
 
