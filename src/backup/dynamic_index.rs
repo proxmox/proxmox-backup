@@ -90,12 +90,6 @@ impl DynamicIndexReader {
     }
 
     pub fn new(mut file: std::fs::File) -> Result<Self, Error> {
-        if let Err(err) =
-            nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockSharedNonblock)
-        {
-            bail!("unable to get shared lock - {}", err);
-        }
-
         // FIXME: This is NOT OUR job! Check the callers of this method and remove this!
         file.seek(SeekFrom::Start(0))?;
 
