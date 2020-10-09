@@ -22,6 +22,7 @@ or::
 to the proxmox dependency, and update the version to reflect the current,
 pre-release version number (e.g., "0.1.1-dev.1" instead of "0.1.0").
 
+
 Local cargo config
 ==================
 
@@ -35,3 +36,20 @@ checksums are not compatible.
 To reference new dependencies (or updated versions) that are not yet packaged,
 the dependency needs to point directly to a path or git source (e.g., see
 example for proxmox crate above).
+
+
+Build
+=====
+on Debian Buster
+
+Setup:
+  1. add 'deb http://repo.proxmox.com/staging/devel/ buster devel-10' to your sources.list
+  2. [sudo] wget http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
+  3. [sudo] apt update
+  4. [sudo] apt install devscripts debcargo
+  5. git clone git://git.proxmox.com/git/proxmox-backup.git
+  6. [sudo] mk-build-deps -i
+
+Note: 2. may be skipped if you already added the pve or pbs package repository
+
+You are now able to build using the Makefile or cargo itself.
