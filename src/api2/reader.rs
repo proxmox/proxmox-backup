@@ -194,6 +194,27 @@ fn download_file(
         path.push(&file_name);
 
         env.log(format!("download {:?}", path.clone()));
+ 
+        let index: Option<Box<dyn IndexFile + Send>> = match archive_type(&file_name)? {
+            ArchiveType::FixedIndex => {
+                let index = env.datastore.open_fixed_reader(&path)?;
+                Some(Box::new(index))
+            }
+            ArchiveType::DynamicIndex => {
+                let index = env.datastore.open_dynamic_reader(&path)?;
+                Some(Box::new(index))
+            }
+            _ => { None }
+        };
+
+        if let Some(index) = index {
+            env.log(format!("register chunks in '{}' as downloadable.", file_name));
+
+            for pos in 0..index.index_count() {
+                let info = index.chunk_info(pos).unwrap();
+                env.register_chunk(info.digest);
+            }
+        }
 
         helpers::create_download_response(path).await
     }.boxed()
@@ -223,6 +244,11 @@ fn download_chunk(
 
         let digest_str = tools::required_string_param(&param, "digest")?;
         let digest = proxmox::tools::hex_to_digest(digest_str)?;
+
+        if !env.check_chunk_access(digest) {
+            env.log(format!("attempted to download chunk {} which is not in registered chunk list", digest_str));
+            return Err(http_err!(UNAUTHORIZED, "download chunk {} not allowed", digest_str));
+        }
 
         let (path, _) = env.datastore.chunk_path(&digest);
         let path2 = path.clone();

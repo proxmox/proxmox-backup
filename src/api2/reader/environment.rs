@@ -1,5 +1,5 @@
-//use anyhow::{bail, format_err, Error};
-use std::sync::Arc;
+use std::sync::{Arc,RwLock};
+use std::collections::HashSet;
 
 use serde_json::{json, Value};
 
@@ -23,7 +23,7 @@ pub struct ReaderEnvironment {
     pub worker: Arc<WorkerTask>,
     pub datastore: Arc<DataStore>,
     pub backup_dir: BackupDir,
-    // state: Arc<Mutex<SharedBackupState>>
+    allowed_chunks: Arc<RwLock<HashSet<[u8;32]>>>,
 }
 
 impl ReaderEnvironment {
@@ -45,7 +45,7 @@ impl ReaderEnvironment {
             debug: false,
             formatter: &JSON_FORMATTER,
             backup_dir,
-            //state: Arc::new(Mutex::new(state)),
+            allowed_chunks: Arc::new(RwLock::new(HashSet::new())),
         }
     }
 
@@ -57,6 +57,15 @@ impl ReaderEnvironment {
         if self.debug { self.worker.log(msg); }
     }
 
+
+    pub fn register_chunk(&self, digest: [u8;32]) {
+        let mut allowed_chunks = self.allowed_chunks.write().unwrap();
+        allowed_chunks.insert(digest);
+    }
+
+    pub fn check_chunk_access(&self, digest: [u8;32]) -> bool {
+       self.allowed_chunks.read().unwrap().contains(&digest)
+    }
 }
 
 impl RpcEnvironment for ReaderEnvironment {
