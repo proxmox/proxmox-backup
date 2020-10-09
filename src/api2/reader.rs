@@ -14,7 +14,7 @@ use crate::api2::types::*;
 use crate::backup::*;
 use crate::server::{WorkerTask, H2Service};
 use crate::tools;
-use crate::config::acl::PRIV_DATASTORE_READ;
+use crate::config::acl::{PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::api2::helpers;
 
@@ -58,7 +58,15 @@ fn upgrade_to_backup_reader_protocol(
         let store = tools::required_string_param(&param, "store")?.to_owned();
 
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&userid, &["datastore", &store], PRIV_DATASTORE_READ, false)?;
+        let privs = user_info.lookup_privs(&userid, &["datastore", &store]);
+
+        let priv_read = privs & PRIV_DATASTORE_READ != 0;
+        let priv_backup = privs & PRIV_DATASTORE_BACKUP != 0;
+
+        // priv_backup needs owner check further down below!
+        if !priv_read && !priv_backup {
+            bail!("no permissions on /datastore/{}", store);
+        }
 
         let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -83,6 +91,13 @@ fn upgrade_to_backup_reader_protocol(
         let env_type = rpcenv.env_type();
 
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+        if !priv_read {
+            let owner = datastore.get_owner(backup_dir.group())?;
+            if owner != userid {
+                bail!("backup owner check failed!");
+            }
+        }
+
         let path = datastore.base_path();
 
         //let files = BackupInfo::list_files(&path, &backup_dir)?;
