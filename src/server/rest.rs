@@ -512,7 +512,7 @@ fn check_auth(
     Ok(userid)
 }
 
-pub async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Response<Body>, Error> {
+async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Response<Body>, Error> {
 
     let (parts, body) = req.into_parts();
 
