@@ -306,7 +306,7 @@ async fn schedule_datastore_garbage_collection() {
                 worker.log(format!("starting garbage collection on store {}", store));
                 worker.log(format!("task triggered by schedule '{}'", event_str));
 
-                let result = datastore.garbage_collection(&worker);
+                let result = datastore.garbage_collection(&*worker, worker.upid());
 
                 let status = worker.create_state(&result);
 
@@ -557,7 +557,8 @@ async fn schedule_datastore_verification() {
                 worker.log(format!("starting verification on store {}", store2));
                 worker.log(format!("task triggered by schedule '{}'", event_str));
                 let result = try_block!({
-                    let failed_dirs = verify_all_backups(datastore, worker.clone())?;
+                    let failed_dirs =
+                        verify_all_backups(datastore, worker.clone(), worker.upid())?;
                     if failed_dirs.len() > 0 {
                         worker.log("Failed to verify following snapshots:");
                         for dir in failed_dirs {

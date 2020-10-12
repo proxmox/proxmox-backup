@@ -11,7 +11,7 @@ use crate::tools;
 use crate::api2::types::GarbageCollectionStatus;
 
 use super::DataBlob;
-use crate::server::WorkerTask;
+use crate::task::TaskState;
 
 /// File system based chunk store
 pub struct ChunkStore {
@@ -278,7 +278,7 @@ impl ChunkStore {
         oldest_writer: i64,
         phase1_start_time: i64,
         status: &mut GarbageCollectionStatus,
-        worker: &WorkerTask,
+        worker: &dyn TaskState,
     ) -> Result<(), Error> {
         use nix::sys::stat::fstatat;
         use nix::unistd::{unlinkat, UnlinkatFlags};
@@ -297,10 +297,15 @@ impl ChunkStore {
         for (entry, percentage, bad) in self.get_chunk_iterator()? {
             if last_percentage != percentage {
                 last_percentage = percentage;
-                worker.log(format!("percentage done: phase2 {}% (processed {} chunks)", percentage, chunk_count));
+                crate::task_log!(
+                    worker,
+                    "percentage done: phase2 {}% (processed {} chunks)",
+                    percentage,
+                    chunk_count,
+                );
             }
 
-            worker.fail_on_abort()?;
+            worker.check_abort()?;
             tools::fail_on_shutdown()?;
 
             let (dirfd, entry) = match entry {
@@ -334,12 +339,13 @@ impl ChunkStore {
                         Ok(_) => {
                             match unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
                                 Err(err) =>
-                                    worker.warn(format!(
+                                    crate::task_warn!(
+                                        worker,
                                         "unlinking corrupt chunk {:?} failed on store '{}' - {}",
                                         filename,
                                         self.name,
                                         err,
-                                    )),
+                                    ),
                                 Ok(_) => {
                                     status.removed_bad += 1;
                                     status.removed_bytes += stat.st_size as u64;
@@ -351,11 +357,12 @@ impl ChunkStore {
                         },
                         Err(err) => {
                             // some other error, warn user and keep .bad file around too
-                            worker.warn(format!(
+                            crate::task_warn!(
+                                worker,
                                 "error during stat on '{:?}' - {}",
                                 orig_filename,
                                 err,
-                            ));
+                            );
                         }
                     }
                 } else if stat.st_atime < min_atime {

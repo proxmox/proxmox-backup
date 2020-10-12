@@ -518,7 +518,14 @@ pub fn verify(
 
             let failed_dirs = if let Some(backup_dir) = backup_dir {
                 let mut res = Vec::new();
-                if !verify_backup_dir(datastore, &backup_dir, verified_chunks, corrupt_chunks, worker.clone())? {
+                if !verify_backup_dir(
+                    datastore,
+                    &backup_dir,
+                    verified_chunks,
+                    corrupt_chunks,
+                    worker.clone(),
+                    worker.upid().clone(),
+                )? {
                     res.push(backup_dir.to_string());
                 }
                 res
@@ -530,10 +537,11 @@ pub fn verify(
                     corrupt_chunks,
                     None,
                     worker.clone(),
+                    worker.upid(),
                 )?;
                 failed_dirs
             } else {
-                verify_all_backups(datastore, worker.clone())?
+                verify_all_backups(datastore, worker.clone(), worker.upid())?
             };
             if failed_dirs.len() > 0 {
                 worker.log("Failed to verify following snapshots:");
@@ -770,7 +778,7 @@ fn start_garbage_collection(
         to_stdout,
         move |worker| {
             worker.log(format!("starting garbage collection on store {}", store));
-            datastore.garbage_collection(&worker)
+            datastore.garbage_collection(&*worker, worker.upid())
         },
     )?;
 

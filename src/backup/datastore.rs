@@ -18,11 +18,12 @@ use super::manifest::{MANIFEST_BLOB_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
-use crate::server::WorkerTask;
+use crate::task::TaskState;
 use crate::tools;
 use crate::tools::format::HumanByte;
 use crate::tools::fs::{lock_dir_noblock, DirLockGuard};
 use crate::api2::types::{GarbageCollectionStatus, Userid};
+use crate::server::UPID;
 
 lazy_static! {
     static ref DATASTORE_MAP: Mutex<HashMap<String, Arc<DataStore>>> = Mutex::new(HashMap::new());
@@ -411,25 +412,34 @@ impl DataStore {
         index: I,
         file_name: &Path, // only used for error reporting
         status: &mut GarbageCollectionStatus,
-        worker: &WorkerTask,
+        worker: &dyn TaskState,
     ) -> Result<(), Error> {
 
         status.index_file_count += 1;
         status.index_data_bytes += index.index_bytes();
 
         for pos in 0..index.index_count() {
-            worker.fail_on_abort()?;
+            worker.check_abort()?;
             tools::fail_on_shutdown()?;
             let digest = index.index_digest(pos).unwrap();
             if let Err(err) = self.chunk_store.touch_chunk(digest) {
-                worker.warn(&format!("warning: unable to access chunk {}, required by {:?} - {}",
-                      proxmox::tools::digest_to_hex(digest), file_name, err));
+                crate::task_warn!(
+                    worker,
+                    "warning: unable to access chunk {}, required by {:?} - {}",
+                    proxmox::tools::digest_to_hex(digest),
+                    file_name,
+                    err,
+                );
             }
         }
         Ok(())
     }
 
-    fn mark_used_chunks(&self, status: &mut GarbageCollectionStatus, worker: &WorkerTask) -> Result<(), Error> {
+    fn mark_used_chunks(
+        &self,
+        status: &mut GarbageCollectionStatus,
+        worker: &dyn TaskState,
+    ) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
 
@@ -441,7 +451,7 @@ impl DataStore {
 
         for path in image_list {
 
-            worker.fail_on_abort()?;
+            worker.check_abort()?;
             tools::fail_on_shutdown()?;
 
             if let Ok(archive_type) = archive_type(&path) {
@@ -457,8 +467,13 @@ impl DataStore {
 
             let percentage = done*100/image_count;
             if percentage > last_percentage {
-                worker.log(format!("percentage done: phase1 {}% ({} of {} index files)",
-                                   percentage, done, image_count));
+                crate::task_log!(
+                    worker,
+                    "percentage done: phase1 {}% ({} of {} index files)",
+                    percentage,
+                    done,
+                    image_count,
+                );
                 last_percentage = percentage;
             }
         }
@@ -474,7 +489,7 @@ impl DataStore {
         if let Ok(_) = self.gc_mutex.try_lock() { false } else { true }
     }
 
-    pub fn garbage_collection(&self, worker: &WorkerTask) -> Result<(), Error> {
+    pub fn garbage_collection(&self, worker: &dyn TaskState, upid: &UPID) -> Result<(), Error> {
 
         if let Ok(ref mut _mutex) = self.gc_mutex.try_lock() {
 
@@ -487,36 +502,59 @@ impl DataStore {
             let oldest_writer = self.chunk_store.oldest_writer().unwrap_or(phase1_start_time);
 
             let mut gc_status = GarbageCollectionStatus::default();
-            gc_status.upid = Some(worker.to_string());
+            gc_status.upid = Some(upid.to_string());
 
-            worker.log("Start GC phase1 (mark used chunks)");
+            crate::task_log!(worker, "Start GC phase1 (mark used chunks)");
 
-            self.mark_used_chunks(&mut gc_status, &worker)?;
+            self.mark_used_chunks(&mut gc_status, worker)?;
 
-            worker.log("Start GC phase2 (sweep unused chunks)");
-            self.chunk_store.sweep_unused_chunks(oldest_writer, phase1_start_time, &mut gc_status, &worker)?;
+            crate::task_log!(worker, "Start GC phase2 (sweep unused chunks)");
+            self.chunk_store.sweep_unused_chunks(
+                oldest_writer,
+                phase1_start_time,
+                &mut gc_status,
+                worker,
+            )?;
 
-            worker.log(&format!("Removed garbage: {}", HumanByte::from(gc_status.removed_bytes)));
-            worker.log(&format!("Removed chunks: {}", gc_status.removed_chunks));
+            crate::task_log!(
+                worker,
+                "Removed garbage: {}",
+                HumanByte::from(gc_status.removed_bytes),
+            );
+            crate::task_log!(worker, "Removed chunks: {}", gc_status.removed_chunks);
             if gc_status.pending_bytes > 0 {
-                worker.log(&format!("Pending removals: {} (in {} chunks)", HumanByte::from(gc_status.pending_bytes), gc_status.pending_chunks));
+                crate::task_log!(
+                    worker,
+                    "Pending removals: {} (in {} chunks)",
+                    HumanByte::from(gc_status.pending_bytes),
+                    gc_status.pending_chunks,
+                );
             }
             if gc_status.removed_bad > 0 {
-                worker.log(&format!("Removed bad files: {}", gc_status.removed_bad));
+                crate::task_log!(worker, "Removed bad files: {}", gc_status.removed_bad);
             }
 
-            worker.log(&format!("Original data usage: {}", HumanByte::from(gc_status.index_data_bytes)));
+            crate::task_log!(
+                worker,
+                "Original data usage: {}",
+                HumanByte::from(gc_status.index_data_bytes),
+            );
 
             if gc_status.index_data_bytes > 0 {
                 let comp_per = (gc_status.disk_bytes as f64 * 100.)/gc_status.index_data_bytes as f64;
-                worker.log(&format!("On-Disk usage: {} ({:.2}%)", HumanByte::from(gc_status.disk_bytes), comp_per));
+                crate::task_log!(
+                    worker,
+                    "On-Disk usage: {} ({:.2}%)",
+                    HumanByte::from(gc_status.disk_bytes),
+                    comp_per,
+                );
             }
 
-            worker.log(&format!("On-Disk chunks: {}", gc_status.disk_chunks));
+            crate::task_log!(worker, "On-Disk chunks: {}", gc_status.disk_chunks);
 
             if gc_status.disk_chunks > 0 {
                 let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
-                worker.log(&format!("Average chunk size: {}", HumanByte::from(avg_chunk)));
+                crate::task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
             }
 
             *self.last_gc_status.lock().unwrap() = gc_status;
