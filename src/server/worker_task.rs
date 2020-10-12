@@ -851,3 +851,19 @@ impl WorkerTask {
         &self.upid
     }
 }
+
+impl crate::task::TaskState for WorkerTask {
+    fn check_abort(&self) -> Result<(), Error> {
+        self.fail_on_abort()
+    }
+
+    fn log(&self, level: log::Level, message: &std::fmt::Arguments) {
+        match level {
+            log::Level::Error => self.warn(&message.to_string()),
+            log::Level::Warn => self.warn(&message.to_string()),
+            log::Level::Info => self.log(&message.to_string()),
+            log::Level::Debug => self.log(&format!("DEBUG: {}", message)),
+            log::Level::Trace => self.log(&format!("TRACE: {}", message)),
+        }
+    }
+}

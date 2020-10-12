@@ -1,3 +1,5 @@
+pub mod task;
+
 #[macro_use]
 pub mod buildcfg;
 
