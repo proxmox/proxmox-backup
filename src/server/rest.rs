@@ -368,13 +368,10 @@ fn get_index(
         "debug": debug,
     });
 
-    let mut ct = "text/html";
-
-    let index = match api.render_template(template_file, &data) {
-        Ok(index) => index,
+    let (ct, index) = match api.render_template(template_file, &data) {
+        Ok(index) => ("text/html", index),
         Err(err) => {
-            ct = "text/plain";
-            format!("Error rendering template: {}", err)
+            ("text/plain", format!("Error rendering template: {}", err))
         }
     };
 
