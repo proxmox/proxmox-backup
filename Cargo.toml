@@ -39,7 +39,7 @@ percent-encoding = "2.1"
 pin-utils = "0.1.0"
 pathpatterns = "0.1.2"
 proxmox = { version = "0.4.3", features = [ "sortable-macro", "api-macro", "websocket" ] }
-#proxmox = { git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
+#proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "websocket" ] }
 proxmox-fuse = "0.1.0"
 pxar = { version = "0.6.1", features = [ "tokio-io", "futures-io" ] }

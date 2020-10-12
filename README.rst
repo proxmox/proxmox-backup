@@ -13,7 +13,7 @@ Versioning of proxmox helper crates
 
 To use current git master code of the proxmox* helper crates, add::
 
-   git = "ssh://gitolite3@proxdev.maurer-it.com/rust/proxmox"
+   git = "ssh://git.proxmox.com/git/proxmox"
 
 or::
 
@@ -43,7 +43,7 @@ Build
 on Debian Buster
 
 Setup:
-  1. add 'deb http://repo.proxmox.com/staging/devel/ buster devel-10' to your sources.list
+  1. add 'deb http://download.proxmox.com/debian/devel/ buster main' to your sources.list
   2. [sudo] wget http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-6.x.gpg
   3. [sudo] apt update
   4. [sudo] apt install devscripts debcargo
