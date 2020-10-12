@@ -140,9 +140,10 @@ impl tower_service::Service<Request<Body>> for ApiService {
         let path = req.uri().path().to_owned();
         let method = req.method().clone();
 
+        let config = Arc::clone(&self.api_config);
         let peer = self.peer;
-        handle_request(self.api_config.clone(), req)
-            .map(move |result| match result {
+        async move {
+            match handle_request(config, req).await {
                 Ok(res) => {
                     log_response(&peer, method, &path, &res);
                     Ok::<_, Self::Error>(res)
@@ -160,8 +161,9 @@ impl tower_service::Service<Request<Body>> for ApiService {
                         Ok(resp)
                     }
                 }
-            })
-            .boxed()
+            }
+        }
+        .boxed()
     }
 }
 
