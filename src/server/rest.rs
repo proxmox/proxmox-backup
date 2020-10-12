@@ -329,16 +329,16 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
 
 fn get_index(
     userid: Option<Userid>,
-    token: Option<String>,
+    csrf_token: Option<String>,
     language: Option<String>,
     api: &Arc<ApiConfig>,
     parts: Parts,
 ) ->  Response<Body> {
 
     let nodename = proxmox::tools::nodename();
-    let userid = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
+    let user = userid.as_ref().map(|u| u.as_str()).unwrap_or("");
 
-    let token = token.unwrap_or_else(|| String::from(""));
+    let csrf_token = csrf_token.unwrap_or_else(|| String::from(""));
 
     let mut debug = false;
     let mut template_file = "index";
@@ -362,8 +362,8 @@ fn get_index(
 
     let data = json!({
         "NodeName": nodename,
-        "UserName": userid,
-        "CSRFPreventionToken": token,
+        "UserName": user,
+        "CSRFPreventionToken": csrf_token,
         "language": lang,
         "debug": debug,
     });
