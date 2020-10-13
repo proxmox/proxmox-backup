@@ -1492,12 +1492,62 @@ fn set_notes(
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "backup-type": {
+                schema: BACKUP_TYPE_SCHEMA,
+            },
+            "backup-id": {
+                schema: BACKUP_ID_SCHEMA,
+            },
+            "new-owner": {
+                type: Userid,
+            },
+        },
+   },
+   access: {
+       permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY, true),
+   },
+)]
+/// Change owner of a backup group
+fn set_backup_owner(
+    store: String,
+    backup_type: String,
+    backup_id: String,
+    new_owner: Userid,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let backup_group = BackupGroup::new(backup_type, backup_id);
+
+    let user_info = CachedUserInfo::new()?;
+
+    if !user_info.is_active_user(&new_owner) {
+        bail!("user '{}' is inactive or non-existent", new_owner);
+    }
+
+    datastore.set_owner(&backup_group, &new_owner, true)?;
+
+    Ok(())
+}
+
 #[sortable]
 const DATASTORE_INFO_SUBDIRS: SubdirMap = &[
     (
         "catalog",
         &Router::new()
             .get(&API_METHOD_CATALOG)
+    ),
+    (
+        "change-owner",
+        &Router::new()
+            .post(&API_METHOD_SET_BACKUP_OWNER)
     ),
     (
         "download",

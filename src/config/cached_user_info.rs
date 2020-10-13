@@ -96,9 +96,7 @@ impl CachedUserInfo {
         }
         Ok(())
     }
-}
 
-impl CachedUserInfo {
     pub fn is_superuser(&self, userid: &Userid) -> bool {
         userid == "root@pam"
     }
