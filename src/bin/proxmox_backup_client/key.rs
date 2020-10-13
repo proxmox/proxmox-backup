@@ -346,7 +346,7 @@ pub fn cli() -> CliCommandMap {
         .insert("create-master-key", key_create_master_key_cmd_def)
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)
-        .insert("paper-key", paper_key_cmd_def)
+        .insert("paperkey", paper_key_cmd_def)
 }
 
 fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
