@@ -36,6 +36,7 @@ use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
+use proxmox_backup::config::user::complete_user_name;
 use proxmox_backup::backup::{
     archive_type,
     decrypt_key,
@@ -410,6 +411,45 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
     format_and_print_result_full(&mut data, info, &output_format, &options);
 
     Ok(Value::Null)
+}
+
+#[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            group: {
+                type: String,
+                description: "Backup group.",
+            },
+            "new-owner": {
+                type: Userid,
+            },
+        }
+   }
+)]
+/// Change owner of a backup group
+async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let mut client = connect(repo.host(), repo.port(), repo.user())?;
+
+    param.as_object_mut().unwrap().remove("repository");
+
+    let group: BackupGroup = group.parse()?;
+
+    param["backup-type"] = group.backup_type().into();
+    param["backup-id"] = group.backup_id().into();
+
+    let path = format!("api2/json/admin/datastore/{}/change-owner", repo.store());
+    client.post(&path, Some(param)).await?;
+
+    record_repository(&repo);
+
+    Ok(())
 }
 
 #[api(
@@ -1967,6 +2007,12 @@ fn main() {
     let version_cmd_def = CliCommand::new(&API_METHOD_API_VERSION)
         .completion_cb("repository", complete_repository);
 
+    let change_owner_cmd_def = CliCommand::new(&API_METHOD_CHANGE_BACKUP_OWNER)
+        .arg_param(&["group", "new-owner"])
+        .completion_cb("group", complete_backup_group)
+        .completion_cb("new-owner",  complete_user_name)
+        .completion_cb("repository", complete_repository);
+
     let cmd_def = CliCommandMap::new()
         .insert("backup", backup_cmd_def)
         .insert("upload-log", upload_log_cmd_def)
@@ -1987,7 +2033,8 @@ fn main() {
         .insert("catalog", catalog_mgmt_cli())
         .insert("task", task_mgmt_cli())
         .insert("version", version_cmd_def)
-        .insert("benchmark", benchmark_cmd_def);
+        .insert("benchmark", benchmark_cmd_def)
+        .insert("change-owner", change_owner_cmd_def);
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
