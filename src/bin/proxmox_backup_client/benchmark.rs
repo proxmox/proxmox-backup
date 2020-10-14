@@ -86,7 +86,7 @@ struct BenchmarkResult {
 static BENCHMARK_RESULT_2020_TOP: BenchmarkResult =  BenchmarkResult {
     tls: Speed {
         speed: None,
-        top: 1_000_000.0 * 690.0, // TLS to localhost, AMD Ryzen 7 2700X
+        top: 1_000_000.0 * 1235.0, // TLS to localhost, AMD Ryzen 7 2700X
     },
     sha256: Speed {
         speed: None,

@@ -69,7 +69,7 @@ async fn run() -> Result<(), Error> {
     let key_path = configdir!("/proxy.key");
     let cert_path = configdir!("/proxy.pem");
 
-    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
     acceptor.set_private_key_file(key_path, SslFiletype::PEM)
         .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
     acceptor.set_certificate_chain_file(cert_path)
