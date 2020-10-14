@@ -15,6 +15,17 @@ use super::IndexFile;
 use super::read_chunk::AsyncReadChunk;
 use super::index::ChunkReadInfo;
 
+// FIXME: This enum may not be required?
+// - Put the `WaitForData` case directly into a `read_future: Option<>`
+// - make the read loop as follows:
+//   * if read_buffer is not empty:
+//        use it
+//   * else if read_future is there:
+//        poll it
+//        if read: move data to read_buffer
+//   * else
+//        create read future
+#[allow(clippy::enum_variant_names)]
 enum AsyncIndexReaderState<S> {
     NoData,
     WaitForData(Pin<Box<dyn Future<Output = Result<(S, Vec<u8>), Error>> + Send + 'static>>),
@@ -118,9 +129,8 @@ where
                 }
                 AsyncIndexReaderState::WaitForData(ref mut future) => {
                     match ready!(future.as_mut().poll(cx)) {
-                        Ok((store, mut chunk_data)) => {
-                            this.read_buffer.clear();
-                            this.read_buffer.append(&mut chunk_data);
+                        Ok((store, chunk_data)) => {
+                            this.read_buffer = chunk_data;
                             this.state = AsyncIndexReaderState::HaveData;
                             this.store = Some(store);
                         }
