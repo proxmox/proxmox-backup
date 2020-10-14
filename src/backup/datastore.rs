@@ -207,10 +207,17 @@ impl DataStore {
         let _guard = tools::fs::lock_dir_noblock(&full_path, "backup group", "possible running backup")?;
 
         log::info!("removing backup group {:?}", full_path);
+
+        // remove all individual backup dirs first to ensure nothing is using them
+        for snap in backup_group.list_backups(&self.base_path())? {
+            self.remove_backup_dir(&snap.backup_dir, false)?;
+        }
+
+        // no snapshots left, we can now safely remove the empty folder
         std::fs::remove_dir_all(&full_path)
             .map_err(|err| {
                 format_err!(
-                    "removing backup group {:?} failed - {}",
+                    "removing backup group directory {:?} failed - {}",
                     full_path,
                     err,
                 )
