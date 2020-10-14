@@ -127,6 +127,7 @@ language.
 
 .. todo:: further explain the software stack
 
+
 Getting Help
 ------------
 
@@ -178,5 +179,29 @@ along with this program.  If not, see AGPL3_.
 History
 -------
 
-.. todo:: Add development History of the product
+Backup is, and always was, as central aspect of IT administration.
+The need to recover from data loss is fundamental and increases with
+virtualization.
 
+Not surprisingly, we shipped a backup tool with Proxmox VE from the
+beginning. The tool is called ``vzdump`` and is able to make
+consistent snapshots of running LXC containers and KVM virtual
+machines.
+
+But ``vzdump`` only allowed for full backups. While this is perfect
+for small backups, it becomes a burden for users with large VMs. Both
+backup time and space usage was too large for this case, specially
+when Users want to keep many backups of the same VMs. We need
+deduplication and incremental backups to solve those problems.
+
+Back in October 2018 development started. We had been looking into
+several technologies and frameworks and finally decided to use
+:term:`Rust` as implementation language to provide high speed and
+memory efficiency. The 2018-edition of Rust seemed to be promising and
+useful for our requirements.
+
+In July 2020 we released the first beta version of Proxmox Backup
+Server, followed by a first stable version in November 2020. With the
+support of incremental, fully deduplicated backups, Proxmox Backup
+significantly reduces the network load and saves valuable storage
+space.
