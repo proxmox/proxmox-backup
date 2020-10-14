@@ -265,11 +265,31 @@ impl Default for FSXAttr {
     }
 }
 
+/// Attempt to acquire a shared flock on the given path, 'what' and
+/// 'would_block_message' are used for error formatting.
+pub fn lock_dir_noblock_shared(
+    path: &std::path::Path,
+    what: &str,
+    would_block_msg: &str,
+) -> Result<DirLockGuard, Error> {
+    do_lock_dir_noblock(path, what, would_block_msg, false)
+}
 
+/// Attempt to acquire an exclusive flock on the given path, 'what' and
+/// 'would_block_message' are used for error formatting.
 pub fn lock_dir_noblock(
     path: &std::path::Path,
     what: &str,
     would_block_msg: &str,
+) -> Result<DirLockGuard, Error> {
+    do_lock_dir_noblock(path, what, would_block_msg, true)
+}
+
+fn do_lock_dir_noblock(
+    path: &std::path::Path,
+    what: &str,
+    would_block_msg: &str,
+    exclusive: bool,
 ) -> Result<DirLockGuard, Error> {
     let mut handle = Dir::open(path, OFlag::O_RDONLY, Mode::empty())
         .map_err(|err| {
@@ -278,7 +298,7 @@ pub fn lock_dir_noblock(
 
     // acquire in non-blocking mode, no point in waiting here since other
     // backups could still take a very long time
-    proxmox::tools::fs::lock_file(&mut handle, true, Some(std::time::Duration::from_nanos(0)))
+    proxmox::tools::fs::lock_file(&mut handle, exclusive, Some(std::time::Duration::from_nanos(0)))
         .map_err(|err| {
             format_err!(
                 "unable to acquire lock on {} directory {:?} - {}", what, path,

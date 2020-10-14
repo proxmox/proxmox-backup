@@ -16,7 +16,7 @@ use crate::backup::*;
 use crate::api2::types::*;
 use crate::config::acl::PRIV_DATASTORE_BACKUP;
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::tools::fs::lock_dir_noblock;
+use crate::tools::fs::lock_dir_noblock_shared;
 
 mod environment;
 use environment::*;
@@ -144,7 +144,7 @@ async move {
 
         // lock last snapshot to prevent forgetting/pruning it during backup
         let full_path = datastore.snapshot_path(&last.backup_dir);
-        Some(lock_dir_noblock(&full_path, "snapshot", "base snapshot is already locked by another operation")?)
+        Some(lock_dir_noblock_shared(&full_path, "snapshot", "base snapshot is already locked by another operation")?)
     } else {
         None
     };
