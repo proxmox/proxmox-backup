@@ -16,7 +16,6 @@ use proxmox::api::{
 use proxmox::api::router::SubdirMap;
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{replace_file, CreateOptions};
-use proxmox::try_block;
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
 
 use pxar::accessor::aio::Accessor;
@@ -692,53 +691,52 @@ fn prune(
     // We use a WorkerTask just to have a task log, but run synchrounously
     let worker = WorkerTask::new("prune", Some(worker_id), Userid::root_userid().clone(), true)?;
 
-    let result = try_block! {
-        if keep_all {
-            worker.log("No prune selection - keeping all files.");
-        } else {
-            worker.log(format!("retention options: {}", prune_options.cli_options_string()));
-            worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
-                               store, backup_type, backup_id));
-        }
+    if keep_all {
+        worker.log("No prune selection - keeping all files.");
+    } else {
+        worker.log(format!("retention options: {}", prune_options.cli_options_string()));
+        worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
+                            store, backup_type, backup_id));
+    }
 
-        for (info, mut keep) in prune_info {
-            if keep_all { keep = true; }
+    for (info, mut keep) in prune_info {
+        if keep_all { keep = true; }
 
-            let backup_time = info.backup_dir.backup_time();
-            let timestamp = info.backup_dir.backup_time_string();
-            let group = info.backup_dir.group();
+        let backup_time = info.backup_dir.backup_time();
+        let timestamp = info.backup_dir.backup_time_string();
+        let group = info.backup_dir.group();
 
 
-            let msg = format!(
-                "{}/{}/{} {}",
-                group.backup_type(),
-                group.backup_id(),
-                timestamp,
-                if keep { "keep" } else { "remove" },
-            );
+        let msg = format!(
+            "{}/{}/{} {}",
+            group.backup_type(),
+            group.backup_id(),
+            timestamp,
+            if keep { "keep" } else { "remove" },
+        );
 
-            worker.log(msg);
+        worker.log(msg);
 
-            prune_result.push(json!({
-                "backup-type": group.backup_type(),
-                "backup-id": group.backup_id(),
-                "backup-time": backup_time,
-                "keep": keep,
-            }));
+        prune_result.push(json!({
+            "backup-type": group.backup_type(),
+            "backup-id": group.backup_id(),
+            "backup-time": backup_time,
+            "keep": keep,
+        }));
 
-            if !(dry_run || keep) {
-                datastore.remove_backup_dir(&info.backup_dir, false)?;
+        if !(dry_run || keep) {
+            if let Err(err) = datastore.remove_backup_dir(&info.backup_dir, false) {
+                worker.warn(
+                    format!(
+                        "failed to remove dir {:?}: {}",
+                        info.backup_dir.relative_path(), err
+                    )
+                );
             }
         }
+    }
 
-        Ok(())
-    };
-
-    worker.log_result(&result);
-
-    if let Err(err) = result {
-        bail!("prune failed - {}", err);
-    };
+    worker.log_result(&Ok(()));
 
     Ok(json!(prune_result))
 }
