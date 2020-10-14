@@ -531,20 +531,22 @@ pub async fn pull_store(
                                item.backup_type, item.backup_id, userid, owner));
             errors = true; // do not stop here, instead continue
 
-        } else {
-
-            if let Err(err) = pull_group(
-                worker,
-                client,
-                src_repo,
-                tgt_store.clone(),
-                &group,
-                delete,
-                Some((groups_done, group_count)),
-            ).await {
-                worker.log(format!("sync group {}/{} failed - {}", item.backup_type, item.backup_id, err));
-                errors = true; // do not stop here, instead continue
-            }
+        } else if let Err(err) = pull_group(
+            worker,
+            client,
+            src_repo,
+            tgt_store.clone(),
+            &group,
+            delete,
+            Some((groups_done, group_count)),
+        ).await {
+            worker.log(format!(
+                "sync group {}/{} failed - {}",
+                item.backup_type,
+                item.backup_id,
+                err,
+            ));
+            errors = true; // do not stop here, instead continue
         }
     }
 

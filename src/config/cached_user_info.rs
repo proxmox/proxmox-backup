@@ -64,10 +64,8 @@ impl CachedUserInfo {
                 return false;
             }
             if let Some(expire) = info.expire {
-                if expire > 0 {
-                    if expire <= now() {
-                        return false;
-                    }
+                if expire > 0 && expire <= now() {
+                    return false;
                 }
             }
             return true;

@@ -164,8 +164,8 @@ fn list_groups(
 
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
         let owner = datastore.get_owner(group)?;
-        if !list_all {
-            if owner != userid { continue; }
+        if !list_all && owner != userid {
+            continue;
         }
 
         let result_item = GroupListItem {
@@ -355,8 +355,8 @@ pub fn list_snapshots (
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
         let owner = datastore.get_owner(group)?;
 
-        if !list_all {
-            if owner != userid { continue; }
+        if !list_all && owner != userid {
+            continue;
         }
 
         let mut size = None;

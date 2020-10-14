@@ -31,10 +31,8 @@ pub fn create_value_from_rrd(
                 } else {
                     result.push(json!({ "time": t }));
                 }
-            } else {
-                if let Some(value) = list[index] {
-                    result[index][name] = value.into();
-                }
+            } else if let Some(value) = list[index] {
+                result[index][name] = value.into();
             }
             t += reso;
         }

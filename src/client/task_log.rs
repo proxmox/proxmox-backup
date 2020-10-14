@@ -43,8 +43,8 @@ pub async fn display_task_log(
             } else {
                 break;
             }
-        } else {
-            if lines != limit { bail!("got wrong number of lines from server ({} != {})", lines, limit); }
+        } else if lines != limit {
+            bail!("got wrong number of lines from server ({} != {})", lines, limit);
         }
     }
 

@@ -10,7 +10,7 @@ use regex::Regex;
 
 use proxmox::*; // for IP macros
 
-pub static IPV4_REVERSE_MASK: &[&'static str] = &[
+pub static IPV4_REVERSE_MASK: &[&str] = &[
     "0.0.0.0",
     "128.0.0.0",
     "192.0.0.0",

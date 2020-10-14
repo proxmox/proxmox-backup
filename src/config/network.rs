@@ -289,8 +289,12 @@ impl Interface {
 
         if let Some(method6) = self.method6 {
             let mut skip_v6 = false; // avoid empty inet6 manual entry
-            if self.method.is_some() && method6 == NetworkConfigMethod::Manual {
-                if self.comments6.is_none() && self.options6.is_empty() { skip_v6 = true; }
+            if self.method.is_some()
+                && method6 == NetworkConfigMethod::Manual
+                && self.comments6.is_none()
+                && self.options6.is_empty()
+            {
+                skip_v6 = true;
             }
 
             if !skip_v6 {
