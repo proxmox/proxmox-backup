@@ -6,7 +6,6 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 use std::ffi::{CString, CStr};
 
-use base64;
 use anyhow::{bail, format_err, Error};
 use serde_json::json;
 
@@ -25,8 +24,7 @@ impl ProxmoxAuthenticator for PAM {
         let mut auth = pam::Authenticator::with_password("proxmox-backup-auth").unwrap();
         auth.get_handler().set_credentials(username.as_str(), password);
         auth.authenticate()?;
-        return Ok(());
-
+        Ok(())
     }
 
     fn store_password(&self, username: &UsernameRef, password: &str) -> Result<(), Error> {
@@ -99,7 +97,7 @@ pub fn encrypt_pw(password: &str) -> Result<String, Error> {
 
 pub fn verify_crypt_pw(password: &str, enc_password: &str) -> Result<(), Error> {
     let verify = crypt(password.as_bytes(), enc_password)?;
-    if &verify != enc_password {
+    if verify != enc_password {
         bail!("invalid credentials");
     }
     Ok(())

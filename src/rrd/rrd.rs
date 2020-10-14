@@ -272,7 +272,7 @@ impl RRD {
             t += reso; index = (index + 1) % RRD_DATA_ENTRIES;
         }
 
-        (start, reso, list.into())
+        (start, reso, list)
     }
 
     pub fn from_raw(mut raw: &[u8]) -> Result<Self, std::io::Error> {
@@ -289,7 +289,7 @@ impl RRD {
         }
 
         if rrd.magic != PROXMOX_RRD_MAGIC_1_0 {
-            let msg = format!("wrong magic number");
+            let msg = "wrong magic number".to_string();
             return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
         }
 

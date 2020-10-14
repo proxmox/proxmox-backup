@@ -251,8 +251,8 @@ async fn pull_snapshot(
         Err(err) => {
             match err.downcast_ref::<HttpError>() {
                 Some(HttpError { code, message }) => {
-                    match code {
-                        &StatusCode::NOT_FOUND => {
+                    match *code {
+                        StatusCode::NOT_FOUND => {
                             worker.log(format!("skipping snapshot {} - vanished since start of sync", snapshot));
                             return Ok(());
                         },
@@ -434,7 +434,7 @@ pub async fn pull_group(
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
 
         // in-progress backups can't be synced
-        if let None = item.size {
+        if item.size.is_none() {
             worker.log(format!("skipping snapshot {} - in-progress backup", snapshot));
             continue;
         }
@@ -520,9 +520,8 @@ pub async fn pull_store(
     }
 
     let group_count = list.len();
-    let mut groups_done = 0;
 
-    for item in list {
+    for (groups_done, item) in list.into_iter().enumerate() {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
         let (owner, _lock_guard) = tgt_store.create_locked_backup_group(&group, &userid)?;
@@ -547,7 +546,6 @@ pub async fn pull_store(
                 errors = true; // do not stop here, instead continue
             }
         }
-        groups_done += 1;
     }
 
     if delete {
