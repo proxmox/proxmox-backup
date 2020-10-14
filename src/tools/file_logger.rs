@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::Error;
 use std::io::Write;
 
 /// Log messages with timestamps into files
@@ -46,7 +46,6 @@ impl FileLogger {
     }
 
     pub fn log<S: AsRef<str>>(&mut self, msg: S) {
-
         let msg = msg.as_ref();
 
         let mut stdout = std::io::stdout();
