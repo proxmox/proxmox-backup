@@ -1519,7 +1519,7 @@ fn set_backup_owner(
     backup_type: String,
     backup_id: String,
     new_owner: Userid,
-    rpcenv: &mut dyn RpcEnvironment,
+    _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
     let datastore = DataStore::lookup_datastore(&store)?;
