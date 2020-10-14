@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::io::Write;
 //use std::os::unix::io::FromRawFd;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -38,7 +38,6 @@ impl Drop for PxarBackupStream {
 impl PxarBackupStream {
     pub fn new<W: Write + Send + 'static>(
         dir: Dir,
-        _path: PathBuf,
         device_set: Option<HashSet<u64>>,
         verbose: bool,
         skip_lost_and_found: bool,
@@ -102,11 +101,9 @@ impl PxarBackupStream {
         entries_max: usize,
     ) -> Result<Self, Error> {
         let dir = nix::dir::Dir::open(dirname, OFlag::O_DIRECTORY, Mode::empty())?;
-        let path = std::path::PathBuf::from(dirname);
 
         Self::new(
             dir,
-            path,
             device_set,
             verbose,
             skip_lost_and_found,
