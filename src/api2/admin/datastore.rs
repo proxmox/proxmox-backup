@@ -727,7 +727,7 @@ fn prune(
             }));
 
             if !(dry_run || keep) {
-                datastore.remove_backup_dir(&info.backup_dir, true)?;
+                datastore.remove_backup_dir(&info.backup_dir, false)?;
             }
         }
 
