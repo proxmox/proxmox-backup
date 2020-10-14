@@ -179,29 +179,28 @@ along with this program.  If not, see AGPL3_.
 History
 -------
 
-Backup is, and always was, as central aspect of IT administration.
-The need to recover from data loss is fundamental and increases with
+Backup is, and always has been, a central aspect of IT administration.
+The need to recover from data loss is fundamental and only increases with
 virtualization.
 
-Not surprisingly, we shipped a backup tool with Proxmox VE from the
-beginning. The tool is called ``vzdump`` and is able to make
+For this reason, we've been shipping a backup tool with Proxmox VE, from the
+beginning. This tool is called ``vzdump`` and is able to make
 consistent snapshots of running LXC containers and KVM virtual
 machines.
 
-But ``vzdump`` only allowed for full backups. While this is perfect
+However, ``vzdump`` only allows for full backups. While this is fine
 for small backups, it becomes a burden for users with large VMs. Both
-backup time and space usage was too large for this case, specially
-when Users want to keep many backups of the same VMs. We need
-deduplication and incremental backups to solve those problems.
+backup duration and storage usage are too high for this case, especially
+for users who want to keep many backups of the same VMs. To solve these
+problems, we needed to offer deduplication and incremental backups.
 
-Back in October 2018 development started. We had been looking into
+Back in October 2018, development started. We investigated
 several technologies and frameworks and finally decided to use
-:term:`Rust` as implementation language to provide high speed and
-memory efficiency. The 2018-edition of Rust seemed to be promising and
-useful for our requirements.
+:term:`Rust` as the implementation language, in order to provide high speed and
+memory efficiency. The 2018-edition of Rust seemed promising for our
+requirements.
 
-In July 2020 we released the first beta version of Proxmox Backup
-Server, followed by a first stable version in November 2020. With the
-support of incremental, fully deduplicated backups, Proxmox Backup
-significantly reduces the network load and saves valuable storage
-space.
+In July 2020, we released the first beta version of Proxmox Backup
+Server, followed by the first stable version in November 2020. With support for
+incremental, fully deduplicated backups, Proxmox Backup significantly reduces
+network load and saves valuable storage space.
