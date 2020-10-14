@@ -23,6 +23,7 @@ use crate::{
     task::TaskState,
     task_log,
     tools::ParallelHandler,
+    tools::fs::lock_dir_noblock_shared,
 };
 
 fn verify_blob(datastore: Arc<DataStore>, backup_dir: &BackupDir, info: &FileInfo) -> Result<(), Error> {
@@ -283,6 +284,21 @@ pub fn verify_backup_dir(
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: UPID,
 ) -> Result<bool, Error> {
+
+    let _guard_res = lock_dir_noblock_shared(
+        &datastore.snapshot_path(&backup_dir),
+        "snapshot",
+        "locked by another operation");
+    if let Err(err) = _guard_res {
+        task_log!(
+            worker,
+            "SKIPPED: verify {}:{} - could not acquire snapshot lock: {}",
+            datastore.name(),
+            backup_dir,
+            err,
+        );
+        return Ok(true);
+    }
 
     let mut manifest = match datastore.load_manifest(&backup_dir) {
         Ok((manifest, _)) => manifest,
