@@ -1,3 +1,51 @@
+rust-proxmox-backup (0.9.1-1) unstable; urgency=medium
+
+  * TLS speedups (use SslAcceptor::mozilla_intermediate_v5)
+
+  * introduction.rst: add History
+
+  * fix #2847: proxmox-backup-client: add change-owner cmd
+
+  * proxmox-backup-client key: rename 'paper-key' command to 'paperkey'
+
+  * don't require WorkerTask in backup/ (introduce TaskState trait)
+
+  * fix #3070: replace internal with public URLs
+
+  * backup: index readers: drop useless shared lock
+
+  * add "Build" section to README.rst
+
+  * reader: actually allow users to downlod their own backups
+
+  * reader: track index chunks and limit access
+
+  * Userid: fix borrow/deref recursion
+
+  * depend on proxmox 0.4.3
+
+  * api: datastore: require allocate privilege for deletion
+
+  * fuse_loop: handle unmap on crashed instance
+
+  * fuse_loop: wait for instance to close after killing
+
+  * fuse_loop: add automatic cleanup of run files and dangling instances
+
+  * mount/map: use names for map/unmap for easier use
+
+  * ui: network: remove create VLAN option
+
+  * ui: Dashboard/TaskSummary: add Verifies to the Summary
+
+  * ui: implment task history limit and make it configurable
+
+  * docs: installation: add system requirements section
+
+  * client: implement map/unmap commands for .img backups
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 14 Oct 2020 13:42:12 +0200
+
 rust-proxmox-backup (0.9.0-2) unstable; urgency=medium
 
   * ui: RemoteEdit: only send delete on update
