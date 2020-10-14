@@ -227,7 +227,7 @@ impl DataStore {
 
         let _guard;
         if !force {
-            _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or used as base")?;
+            _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
         }
 
         log::info!("removing backup snapshot {:?}", full_path);

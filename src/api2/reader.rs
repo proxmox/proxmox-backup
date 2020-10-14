@@ -17,6 +17,7 @@ use crate::tools;
 use crate::config::acl::{PRIV_DATASTORE_READ, PRIV_DATASTORE_BACKUP};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::api2::helpers;
+use crate::tools::fs::lock_dir_noblock_shared;
 
 mod environment;
 use environment::*;
@@ -98,6 +99,11 @@ fn upgrade_to_backup_reader_protocol(
             }
         }
 
+        let _guard = lock_dir_noblock_shared(
+            &datastore.snapshot_path(&backup_dir),
+            "snapshot",
+            "locked by another operation")?;
+
         let path = datastore.base_path();
 
         //let files = BackupInfo::list_files(&path, &backup_dir)?;
@@ -146,11 +152,14 @@ fn upgrade_to_backup_reader_protocol(
 
             use futures::future::Either;
             futures::future::select(req_fut, abort_future)
-                .map(|res| match res {
-                    Either::Left((Ok(res), _)) => Ok(res),
-                    Either::Left((Err(err), _)) => Err(err),
-                    Either::Right((Ok(res), _)) => Ok(res),
-                    Either::Right((Err(err), _)) => Err(err),
+                .map(move |res| {
+                    let _guard = _guard;
+                    match res {
+                        Either::Left((Ok(res), _)) => Ok(res),
+                        Either::Left((Err(err), _)) => Err(err),
+                        Either::Right((Ok(res), _)) => Ok(res),
+                        Either::Right((Err(err), _)) => Err(err),
+                    }
                 })
                 .map_ok(move |_| env.log("reader finished successfully"))
         })?;
