@@ -293,7 +293,7 @@ impl DataStore {
         let mut file = open_options.open(&path)
             .map_err(|err| format_err!("unable to create owner file {:?} - {}", path, err))?;
 
-        write!(file, "{}\n", userid)
+        writeln!(file, "{}", userid)
             .map_err(|err| format_err!("unable to write owner file  {:?} - {}", path, err))?;
 
         Ok(())

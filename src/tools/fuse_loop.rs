@@ -21,7 +21,7 @@ use proxmox_fuse::{*, requests::FuseRequest};
 use super::loopdev;
 use super::fs;
 
-const RUN_DIR: &'static str = "/run/pbs-loopdev";
+const RUN_DIR: &str = "/run/pbs-loopdev";
 
 const_regex! {
     pub LOOPDEV_REGEX = r"^loop\d+$";

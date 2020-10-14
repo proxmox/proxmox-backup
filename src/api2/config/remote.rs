@@ -1,7 +1,6 @@
 use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
-use base64;
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::open_file_locked;

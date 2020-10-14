@@ -266,10 +266,8 @@ impl SessionImpl {
     ) {
         let final_result = match err.downcast::<io::Error>() {
             Ok(err) => {
-                if err.kind() == io::ErrorKind::Other {
-                    if self.verbose {
-                        eprintln!("an IO error occurred: {}", err);
-                    }
+                if err.kind() == io::ErrorKind::Other && self.verbose {
+                    eprintln!("an IO error occurred: {}", err);
                 }
 
                 // fail the request

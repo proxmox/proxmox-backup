@@ -181,10 +181,8 @@ fn load_fingerprint(prefix: &str, server: &str) -> Option<String> {
 
     for line in raw.split('\n') {
         let items: Vec<String> = line.split_whitespace().map(String::from).collect();
-        if items.len() == 2 {
-            if &items[0] == server {
-                return Some(items[1].clone());
-            }
+        if items.len() == 2 && &items[0] == server {
+            return Some(items[1].clone());
         }
     }
 

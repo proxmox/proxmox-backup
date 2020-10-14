@@ -378,14 +378,12 @@ impl ChunkStore {
                     }
                     status.removed_chunks += 1;
                     status.removed_bytes += stat.st_size as u64;
+                } else if stat.st_atime < oldest_writer {
+                    status.pending_chunks += 1;
+                    status.pending_bytes += stat.st_size as u64;
                 } else {
-                    if stat.st_atime < oldest_writer {
-                        status.pending_chunks += 1;
-                        status.pending_bytes += stat.st_size as u64;
-                    } else {
-                        status.disk_chunks += 1;
-                        status.disk_bytes += stat.st_size as u64;
-                     }
+                    status.disk_chunks += 1;
+                    status.disk_bytes += stat.st_size as u64;
                 }
             }
             drop(lock);

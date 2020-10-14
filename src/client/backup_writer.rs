@@ -38,6 +38,9 @@ pub struct BackupStats {
     pub csum: [u8; 32],
 }
 
+type UploadQueueSender = mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>;
+type UploadResultReceiver = oneshot::Receiver<Result<(), Error>>;
+
 impl BackupWriter {
 
     fn new(h2: H2Client, abort: AbortHandle, crypt_config: Option<Arc<CryptConfig>>, verbose: bool) -> Arc<Self> {
@@ -262,7 +265,7 @@ impl BackupWriter {
         let archive = if self.verbose {
             archive_name.to_string()
         } else {
-            crate::tools::format::strip_server_file_extension(archive_name.clone())
+            crate::tools::format::strip_server_file_extension(archive_name)
         };
         if archive_name != CATALOG_NAME {
             let speed: HumanByte = ((uploaded * 1_000_000) / (duration.as_micros() as usize)).into();
@@ -335,14 +338,14 @@ impl BackupWriter {
         (verify_queue_tx, verify_result_rx)
     }
 
-    fn append_chunk_queue(h2: H2Client, wid: u64, path: String, verbose: bool) -> (
-        mpsc::Sender<(MergedChunkInfo, Option<h2::client::ResponseFuture>)>,
-        oneshot::Receiver<Result<(), Error>>,
-    ) {
+    fn append_chunk_queue(
+        h2: H2Client,
+        wid: u64,
+        path: String,
+        verbose: bool,
+    ) -> (UploadQueueSender, UploadResultReceiver) {
         let (verify_queue_tx, verify_queue_rx) = mpsc::channel(64);
         let (verify_result_tx, verify_result_rx) = oneshot::channel();
-
-        let h2_2 = h2.clone();
 
         // FIXME: async-block-ify this code!
         tokio::spawn(
@@ -381,7 +384,7 @@ impl BackupWriter {
                             let request = H2Client::request_builder("localhost", "PUT", &path, None, Some("application/json")).unwrap();
                             let param_data = bytes::Bytes::from(param.to_string().into_bytes());
                             let upload_data = Some(param_data);
-                            h2_2.send_request(request, upload_data)
+                            h2.send_request(request, upload_data)
                                 .and_then(move |response| {
                                     response
                                         .map_err(Error::from)
@@ -489,6 +492,10 @@ impl BackupWriter {
         Ok(manifest)
     }
 
+    // We have no `self` here for `h2` and `verbose`, the only other arg "common" with 1 other
+    // funciton in the same path is `wid`, so those 3 could be in a struct, but there's no real use
+    // since this is a private method.
+    #[allow(clippy::too_many_arguments)]
     fn upload_chunk_info_stream(
         h2: H2Client,
         wid: u64,
@@ -515,7 +522,7 @@ impl BackupWriter {
         let is_fixed_chunk_size = prefix == "fixed";
 
         let (upload_queue, upload_result) =
-            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path.to_owned(), verbose);
+            Self::append_chunk_queue(h2.clone(), wid, append_chunk_path, verbose);
 
         let start_time = std::time::Instant::now();
 
@@ -574,10 +581,12 @@ impl BackupWriter {
                     let digest = chunk_info.digest;
                     let digest_str = digest_to_hex(&digest);
 
-                    if false && verbose { // TO verbose, needs finer verbosity setting granularity
+                    /* too verbose, needs finer verbosity setting granularity
+                    if verbose {
                         println!("upload new chunk {} ({} bytes, offset {})", digest_str,
                                  chunk_info.chunk_len, offset);
                     }
+                    */
 
                     let chunk_data = chunk_info.chunk.into_inner();
                     let param = json!({

@@ -43,8 +43,8 @@ pub const ACL_NEXT_ENTRY: c_int  = 1;
 
 // acl to extended attribute names constants
 // from: acl/include/acl_ea.h
-pub const ACL_EA_ACCESS: &'static str = "system.posix_acl_access";
-pub const ACL_EA_DEFAULT: &'static str = "system.posix_acl_default";
+pub const ACL_EA_ACCESS: &str = "system.posix_acl_access";
+pub const ACL_EA_DEFAULT: &str = "system.posix_acl_default";
 pub const ACL_EA_VERSION: u32 = 0x0002;
 
 #[link(name = "acl")]
