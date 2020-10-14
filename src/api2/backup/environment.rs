@@ -473,12 +473,12 @@ impl BackupEnvironment {
         }
 
         // check manifest
-        let mut manifest = self.datastore.load_manifest_json(&self.backup_dir)
+        let (mut manifest, _) = self.datastore.load_manifest(&self.backup_dir)
             .map_err(|err| format_err!("unable to load manifest blob - {}", err))?;
 
         let stats = serde_json::to_value(state.backup_stat)?;
 
-        manifest["unprotected"]["chunk_upload_stats"] = stats;
+        manifest.unprotected["chunk_upload_stats"] = stats;
 
         self.datastore.store_manifest(&self.backup_dir, manifest)
             .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;

@@ -1428,9 +1428,9 @@ fn get_notes(
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
-    let manifest = datastore.load_manifest_json(&backup_dir)?;
+    let (manifest, _) = datastore.load_manifest(&backup_dir)?;
 
-    let notes = manifest["unprotected"]["notes"]
+    let notes = manifest.unprotected["notes"]
         .as_str()
         .unwrap_or("");
 
@@ -1481,9 +1481,9 @@ fn set_notes(
     let allowed = (user_privs & PRIV_DATASTORE_READ) != 0;
     if !allowed { check_backup_owner(&datastore, backup_dir.group(), &userid)?; }
 
-    let mut manifest = datastore.load_manifest_json(&backup_dir)?;
+    let (mut manifest, _) = datastore.load_manifest(&backup_dir)?;
 
-    manifest["unprotected"]["notes"] = notes.into();
+    manifest.unprotected["notes"] = notes.into();
 
     datastore.store_manifest(&backup_dir, manifest)?;
 
