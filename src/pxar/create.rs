@@ -235,7 +235,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 continue;
             }
 
-            (self.callback)(Path::new(OsStr::from_bytes(file_name)))?;
+            (self.callback)(&file_entry.path)?;
             self.path = file_entry.path;
             self.add_entry(encoder, dir_fd, &file_entry.name, &file_entry.stat)
                 .map_err(|err| self.wrap_err(err))?;

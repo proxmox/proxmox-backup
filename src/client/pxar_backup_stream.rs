@@ -40,7 +40,7 @@ impl PxarBackupStream {
         dir: Dir,
         _path: PathBuf,
         device_set: Option<HashSet<u64>>,
-        _verbose: bool,
+        verbose: bool,
         skip_lost_and_found: bool,
         catalog: Arc<Mutex<CatalogWriter<W>>>,
         patterns: Vec<MatchEntry>,
@@ -70,7 +70,12 @@ impl PxarBackupStream {
                         crate::pxar::Flags::DEFAULT,
                         device_set,
                         skip_lost_and_found,
-                        |_| Ok(()),
+                        |path| {
+                            if verbose {
+                                println!("{:?}", path);
+                            }
+                            Ok(())
+                        },
                         entries_max,
                         Some(&mut *catalog_guard),
                     ) {
