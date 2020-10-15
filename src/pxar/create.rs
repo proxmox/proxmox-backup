@@ -12,7 +12,7 @@ use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::stat::{FileStat, Mode};
 
-use pathpatterns::{MatchEntry, MatchList, MatchType, PatternFlag};
+use pathpatterns::{MatchEntry, MatchFlag, MatchList, MatchType, PatternFlag};
 use pxar::Metadata;
 use pxar::encoder::LinkOffset;
 
@@ -325,25 +325,31 @@ impl<'a, 'b> Archiver<'a, 'b> {
             }
 
             let mut buf;
-            let (line, mode) = if line[0] == b'/' {
+            let (line, mode, anchored) = if line[0] == b'/' {
                 buf = Vec::with_capacity(path_bytes.len() + 1 + line.len());
                 buf.extend(path_bytes);
                 buf.extend(line);
-                (&buf[..], MatchType::Exclude)
+                (&buf[..], MatchType::Exclude, true)
             } else if line.starts_with(b"!/") {
                 // inverted case with absolute path
                 buf = Vec::with_capacity(path_bytes.len() + line.len());
                 buf.extend(path_bytes);
                 buf.extend(&line[1..]); // without the '!'
-                (&buf[..], MatchType::Include)
+                (&buf[..], MatchType::Include, true)
             } else if line.starts_with(b"!") {
-                (&line[1..], MatchType::Include)
+                (&line[1..], MatchType::Include, false)
             } else {
-                (line, MatchType::Exclude)
+                (line, MatchType::Exclude, false)
             };
 
             match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, mode) {
-                Ok(pattern) => self.patterns.push(pattern),
+                Ok(pattern) => {
+                    if anchored {
+                        self.patterns.push(pattern.add_flags(MatchFlag::ANCHORED));
+                    } else {
+                        self.patterns.push(pattern);
+                    }
+                }
                 Err(err) => {
                     let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
                 }
@@ -1000,7 +1006,7 @@ fn process_acl(
 /// Since we are generating an *exclude* list, we need to invert this, so includes get a `'!'`
 /// prefix.
 fn generate_pxar_excludes_cli(patterns: &[MatchEntry]) -> Vec<u8> {
-    use pathpatterns::{MatchFlag, MatchPattern};
+    use pathpatterns::MatchPattern;
 
     let mut content = Vec::new();
 
