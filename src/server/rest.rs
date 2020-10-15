@@ -143,25 +143,18 @@ impl tower_service::Service<Request<Body>> for ApiService {
         let config = Arc::clone(&self.api_config);
         let peer = self.peer;
         async move {
-            match handle_request(config, req).await {
-                Ok(res) => {
-                    log_response(&peer, method, &path, &res);
-                    Ok::<_, Self::Error>(res)
-                }
+            let response = match handle_request(config, req).await {
+                Ok(response) => response,
                 Err(err) => {
-                    if let Some(apierr) = err.downcast_ref::<HttpError>() {
-                        let mut resp = Response::new(Body::from(apierr.message.clone()));
-                        *resp.status_mut() = apierr.code;
-                        log_response(&peer, method, &path, &resp);
-                        Ok(resp)
-                    } else {
-                        let mut resp = Response::new(Body::from(err.to_string()));
-                        *resp.status_mut() = StatusCode::BAD_REQUEST;
-                        log_response(&peer, method, &path, &resp);
-                        Ok(resp)
-                    }
+                    let (err, code) = match err.downcast_ref::<HttpError>() {
+                        Some(apierr) => (apierr.message.clone(), apierr.code),
+                        _ => (err.to_string(), StatusCode::BAD_REQUEST),
+                    };
+                    Response::builder().status(code).body(err.into())?
                 }
-            }
+            };
+            log_response(&peer, method, &path, &response);
+            Ok(response)
         }
         .boxed()
     }
