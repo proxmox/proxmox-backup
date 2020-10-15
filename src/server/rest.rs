@@ -111,7 +111,7 @@ pub struct ApiService {
 fn log_response(
     peer: &std::net::SocketAddr,
     method: hyper::Method,
-    path: &str,
+    path_query: &str,
     resp: &Response<Body>,
 ) {
 
@@ -119,7 +119,7 @@ fn log_response(
 
     // we also log URL-to-long requests, so avoid message bigger than PIPE_BUF (4k on Linux)
     // to profit from atomicty guarantees for O_APPEND opened logfiles
-    let path = &path[..MAX_URI_QUERY_LENGTH.min(path.len())];
+    let path = &path_query[..MAX_URI_QUERY_LENGTH.min(path_query.len())];
 
     let status = resp.status();
 
@@ -156,7 +156,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
     }
 
     fn call(&mut self, req: Request<Body>) -> Self::Future {
-        let path = req.uri().path().to_owned();
+        let path = req.uri().path_and_query().unwrap().as_str().to_owned();
         let method = req.method().clone();
 
         let config = Arc::clone(&self.api_config);
