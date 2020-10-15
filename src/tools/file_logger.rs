@@ -17,11 +17,26 @@ use std::io::Write;
 /// flog!(log, "A simple log: {}", "Hello!");
 /// ```
 
+#[derive(Debug, Default)]
+/// Options to control the behavior of a ['FileLogger'] instance
+pub struct FileLogOptions {
+    /// Open underlying log file in append mode, useful when multiple concurrent
+    /// writers log to the same file. For example, an HTTP access log.
+    pub append: bool,
+    /// Open underlying log file as readable
+    pub read: bool,
+    /// If set, ensure that the file is newly created or error out if already existing.
+    pub exclusive: bool,
+    /// Duplicate logged messages to STDOUT, like tee
+    pub to_stdout: bool,
+    /// Prefix messages logged to the file with the current local time as RFC 3339
+    pub prefix_time: bool,
+}
 
 #[derive(Debug)]
 pub struct FileLogger {
     file: std::fs::File,
-    to_stdout: bool,
+    options: FileLogOptions,
 }
 
 /// Log messages to [FileLogger](tools/struct.FileLogger.html)
@@ -33,23 +48,26 @@ macro_rules! flog {
 }
 
 impl FileLogger {
-
-    pub fn new<P: AsRef<std::path::Path>>(file_name: P, to_stdout: bool) -> Result<Self, Error> {
-
+    pub fn new<P: AsRef<std::path::Path>>(
+        file_name: P,
+        options: FileLogOptions,
+    ) -> Result<Self, Error> {
         let file = std::fs::OpenOptions::new()
-            .read(true)
+            .read(options.read)
             .write(true)
-            .create_new(true)
+            .append(options.append)
+            .create_new(options.exclusive)
+            .create(!options.exclusive)
             .open(file_name)?;
 
-        Ok(Self { file , to_stdout })
+        Ok(Self { file, options })
     }
 
     pub fn log<S: AsRef<str>>(&mut self, msg: S) {
         let msg = msg.as_ref();
 
-        let mut stdout = std::io::stdout();
-        if self.to_stdout {
+        if self.options.to_stdout {
+            let mut stdout = std::io::stdout();
             stdout.write_all(msg.as_bytes()).unwrap();
             stdout.write_all(b"\n").unwrap();
         }
@@ -57,19 +75,27 @@ impl FileLogger {
         let now = proxmox::tools::time::epoch_i64();
         let rfc3339 = proxmox::tools::time::epoch_to_rfc3339(now).unwrap();
 
-        let line = format!("{}: {}\n", rfc3339, msg);
+        let line = if self.options.prefix_time {
+            format!("{}: {}\n", rfc3339, msg)
+        } else {
+            format!("{}\n", msg)
+        };
         self.file.write_all(line.as_bytes()).unwrap();
     }
 }
 
 impl std::io::Write for FileLogger {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        if self.to_stdout { let _ = std::io::stdout().write(buf); }
+        if self.options.to_stdout {
+            let _ = std::io::stdout().write(buf);
+        }
         self.file.write(buf)
     }
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
-        if self.to_stdout { let _ = std::io::stdout().flush(); }
+        if self.options.to_stdout {
+            let _ = std::io::stdout().flush();
+        }
         self.file.flush()
     }
 }

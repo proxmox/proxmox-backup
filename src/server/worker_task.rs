@@ -21,7 +21,7 @@ use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOpti
 use super::UPID;
 
 use crate::tools::logrotate::{LogRotate, LogRotateFiles};
-use crate::tools::FileLogger;
+use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::Userid;
 
 macro_rules! PROXMOX_BACKUP_VAR_RUN_DIR_M { () => ("/run/proxmox-backup") }
@@ -672,7 +672,13 @@ impl WorkerTask {
 
         println!("FILE: {:?}", path);
 
-        let logger = FileLogger::new(&path, to_stdout)?;
+        let logger_options = FileLogOptions {
+            to_stdout: to_stdout,
+            exclusive: true,
+            read: true,
+            ..Default::default()
+        };
+        let logger = FileLogger::new(&path, logger_options)?;
         nix::unistd::chown(&path, Some(backup_user.uid), Some(backup_user.gid))?;
 
         let worker = Arc::new(Self {
