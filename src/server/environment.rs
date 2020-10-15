@@ -7,6 +7,7 @@ pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: Value,
     user: Option<String>,
+    client_ip: Option<std::net::SocketAddr>,
 }
 
 impl RestEnvironment {
@@ -14,6 +15,7 @@ impl RestEnvironment {
         Self {
             result_attributes: json!({}),
             user: None,
+            client_ip: None,
             env_type,
         }
     }
@@ -39,5 +41,13 @@ impl RpcEnvironment for RestEnvironment {
 
     fn get_user(&self) -> Option<String> {
         self.user.clone()
+    }
+
+    fn set_client_ip(&mut self, client_ip: Option<std::net::SocketAddr>) {
+        self.client_ip = client_ip;
+    }
+
+    fn get_client_ip(&self) -> Option<std::net::SocketAddr> {
+        self.client_ip.clone()
     }
 }

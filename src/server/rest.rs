@@ -9,13 +9,15 @@ use std::task::{Context, Poll};
 use anyhow::{bail, format_err, Error};
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures::stream::TryStreamExt;
-use hyper::header;
+use hyper::header::{self, HeaderMap};
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
+use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio::time::Instant;
 use url::form_urlencoded;
+use regex::Regex;
 
 use proxmox::http_err;
 use proxmox::api::{
@@ -127,6 +129,17 @@ fn log_response(
     }
 }
 
+fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"for="([^"]+)""#).unwrap();
+    }
+    let forwarded = headers.get(header::FORWARDED)?.to_str().ok()?;
+    let capture = RE.captures(&forwarded)?;
+    let rhost = capture.get(1)?.as_str();
+
+    rhost.parse().ok()
+}
+
 impl tower_service::Service<Request<Body>> for ApiService {
     type Response = Response<Body>;
     type Error = Error;
@@ -141,9 +154,12 @@ impl tower_service::Service<Request<Body>> for ApiService {
         let method = req.method().clone();
 
         let config = Arc::clone(&self.api_config);
-        let peer = self.peer;
+        let peer = match get_proxied_peer(req.headers()) {
+            Some(proxied_peer) => proxied_peer,
+            None => self.peer,
+        };
         async move {
-            let response = match handle_request(config, req).await {
+            let response = match handle_request(config, req, &peer).await {
                 Ok(response) => response,
                 Err(err) => {
                     let (err, code) = match err.downcast_ref::<HttpError>() {
@@ -246,6 +262,7 @@ async fn proxy_protected_request(
     info: &'static ApiMethod,
     mut parts: Parts,
     req_body: Body,
+    peer: &std::net::SocketAddr,
 ) -> Result<Response<Body>, Error> {
 
     let mut uri_parts = parts.uri.clone().into_parts();
@@ -256,7 +273,10 @@ async fn proxy_protected_request(
 
     parts.uri = new_uri;
 
-    let request = Request::from_parts(parts, req_body);
+    let mut request = Request::from_parts(parts, req_body);
+    request
+        .headers_mut()
+        .insert(header::FORWARDED, format!("for=\"{}\";", peer).parse().unwrap());
 
     let reload_timezone = info.reload_timezone;
 
@@ -505,7 +525,11 @@ fn check_auth(
     Ok(userid)
 }
 
-async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Response<Body>, Error> {
+async fn handle_request(
+    api: Arc<ApiConfig>,
+    req: Request<Body>,
+    peer: &std::net::SocketAddr,
+) -> Result<Response<Body>, Error> {
 
     let (parts, body) = req.into_parts();
 
@@ -516,6 +540,8 @@ async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Respo
 
     let env_type = api.env_type();
     let mut rpcenv = RestEnvironment::new(env_type);
+
+    rpcenv.set_client_ip(Some(*peer));
 
     let user_info = CachedUserInfo::new()?;
 
@@ -571,7 +597,7 @@ async fn handle_request(api: Arc<ApiConfig>, req: Request<Body>) -> Result<Respo
                     }
 
                     let result = if api_method.protected && env_type == RpcEnvironmentType::PUBLIC {
-                        proxy_protected_request(api_method, parts, body).await
+                        proxy_protected_request(api_method, parts, body, peer).await
                     } else {
                         handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param).await
                     };
