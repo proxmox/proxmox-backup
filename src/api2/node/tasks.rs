@@ -14,6 +14,16 @@ use crate::server::{self, UPID, TaskState, TaskListInfoIterator};
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
 
+fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
+    let task_auth_id = &upid.auth_id;
+    if auth_id == task_auth_id
+        || (task_auth_id.is_token() && &Authid::from(task_auth_id.user().clone()) == auth_id) {
+        Ok(())
+    } else {
+        let user_info = CachedUserInfo::new()?;
+        user_info.check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
+    }
+}
 
 #[api(
     input: {
@@ -57,8 +67,12 @@ use crate::config::cached_user_info::CachedUserInfo;
                 description: "Worker ID (arbitrary ASCII string)",
             },
             user: {
-                type: String,
+                type: Userid,
                 description: "The user who started the task.",
+            },
+            tokenid: {
+                type: Tokenname,
+                optional: true,
             },
             status: {
                 type: String,
@@ -85,11 +99,7 @@ async fn get_task_status(
     let upid = extract_upid(&param)?;
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-
-    if auth_id != upid.auth_id {
-        let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
-    }
+    check_task_access(&auth_id, &upid)?;
 
     let mut result = json!({
         "upid": param["upid"],
@@ -99,8 +109,12 @@ async fn get_task_status(
         "starttime": upid.starttime,
         "type": upid.worker_type,
         "id": upid.worker_id,
-        "user": upid.auth_id,
+        "user": upid.auth_id.user(),
     });
+
+    if upid.auth_id.is_token() {
+        result["tokenid"] = Value::from(upid.auth_id.tokenname().unwrap().as_str());
+    }
 
     if crate::server::worker_is_active(&upid).await? {
         result["status"] = Value::from("running");
@@ -163,10 +177,7 @@ async fn read_task_log(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    if auth_id != upid.auth_id {
-        let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
-    }
+    check_task_access(&auth_id, &upid)?;
 
     let test_status = param["test-status"].as_bool().unwrap_or(false);
 
@@ -326,7 +337,9 @@ pub fn list_tasks(
             Err(_) => return None,
         };
 
-        if !list_all && info.upid.auth_id != auth_id { return None; }
+        if !list_all && check_task_access(&auth_id, &info.upid).is_err() {
+            return None;
+        }
 
         if let Some(needle) = &userfilter {
             if !info.upid.auth_id.to_string().contains(needle) { return None; }

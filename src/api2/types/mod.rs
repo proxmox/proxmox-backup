@@ -692,7 +692,7 @@ pub struct DataStoreStatus {
 #[api(
     properties: {
         upid: { schema: UPID_SCHEMA },
-        userid: { type: Authid },
+        user: { type: Authid },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -712,7 +712,7 @@ pub struct TaskListItem {
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
     /// The authenticated entity who started the task
-    pub userid: Authid,
+    pub user: Authid,
     /// The task end time (Epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub endtime: Option<i64>,
@@ -735,7 +735,7 @@ impl From<crate::server::TaskListInfo> for TaskListItem {
             starttime: info.upid.starttime,
             worker_type: info.upid.worker_type,
             worker_id: info.upid.worker_id,
-            userid: info.upid.auth_id,
+            user: info.upid.auth_id,
             endtime,
             status,
         }
