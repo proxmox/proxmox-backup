@@ -1,7 +1,7 @@
 Introduction
 ============
 
-What is Proxmox Backup Server
+What is Proxmox Backup Server?
 -----------------------------
 
 Proxmox Backup Server is an enterprise-class, client-server backup software
@@ -10,12 +10,14 @@ physical hosts. It is specially optimized for the `Proxmox Virtual Environment`_
 platform and allows you to back up your data securely, even between remote
 sites, providing easy management with a web-based user interface.
 
-Proxmox Backup Server supports deduplication, compression, and authenticated
+It supports deduplication, compression, and authenticated
 encryption (AE_). Using :term:`Rust` as the implementation language guarantees high
 performance, low resource usage, and a safe, high-quality codebase.
 
-It features strong client-side encryption. Thus, it's possible to
-backup data to targets that are not fully trusted.
+Proxmox Backup uses state of the art cryptography for client communication and
+backup content :ref:`encryption <encryption>`. Encryption is done on the
+client side, making it safer to back up data to targets that are not fully
+trusted.
 
 
 Architecture

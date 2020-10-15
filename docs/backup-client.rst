@@ -246,6 +246,8 @@ Restoring this backup will result in:
     .  ..  file2
 
 
+.. _encryption:
+
 Encryption
 ----------
 
