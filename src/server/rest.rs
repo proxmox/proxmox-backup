@@ -52,6 +52,8 @@ pub struct RestServer {
     pub api_config: Arc<ApiConfig>,
 }
 
+const MAX_URI_QUERY_LENGTH: usize = 3072;
+
 impl RestServer {
 
     pub fn new(api_config: ApiConfig) -> Self {
@@ -114,6 +116,10 @@ fn log_response(
 ) {
 
     if resp.extensions().get::<NoLogExtension>().is_some() { return; };
+
+    // we also log URL-to-long requests, so avoid message bigger than PIPE_BUF (4k on Linux)
+    // to profit from atomicty guarantees for O_APPEND opened logfiles
+    let path = &path[..MAX_URI_QUERY_LENGTH.min(path.len())];
 
     let status = resp.status();
 
@@ -532,11 +538,18 @@ async fn handle_request(
 ) -> Result<Response<Body>, Error> {
 
     let (parts, body) = req.into_parts();
-
     let method = parts.method.clone();
     let (path, components) = tools::normalize_uri_path(parts.uri.path())?;
 
     let comp_len = components.len();
+
+    let query = parts.uri.query().unwrap_or_default();
+    if path.len() + query.len() > MAX_URI_QUERY_LENGTH {
+        return Ok(Response::builder()
+            .status(StatusCode::URI_TOO_LONG)
+            .body("".into())
+            .unwrap());
+    }
 
     let env_type = api.env_type();
     let mut rpcenv = RestEnvironment::new(env_type);
