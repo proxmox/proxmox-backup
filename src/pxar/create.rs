@@ -291,58 +291,61 @@ impl<'a, 'b> Archiver<'a, 'b> {
     }
 
     fn read_pxar_excludes(&mut self, parent: RawFd) -> Result<(), Error> {
-        let fd = self.open_file(parent, c_str!(".pxarexclude"), OFlag::O_RDONLY, false)?;
+        let fd = match self.open_file(parent, c_str!(".pxarexclude"), OFlag::O_RDONLY, false)? {
+            Some(fd) => fd,
+            None => return Ok(()),
+        };
 
         let old_pattern_count = self.patterns.len();
 
         let path_bytes = self.path.as_os_str().as_bytes();
 
-        if let Some(fd) = fd {
-            let file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
+        let file = unsafe { std::fs::File::from_raw_fd(fd.into_raw_fd()) };
 
-            use io::BufRead;
-            for line in io::BufReader::new(file).split(b'\n') {
-                let line = match line {
-                    Ok(line) => line,
-                    Err(err) => {
-                        let _ = writeln!(
-                            self.errors,
-                            "ignoring .pxarexclude after read error in {:?}: {}",
-                            self.path,
-                            err,
-                        );
-                        self.patterns.truncate(old_pattern_count);
-                        return Ok(());
-                    }
-                };
-
-                let line = crate::tools::strip_ascii_whitespace(&line);
-
-                if line.is_empty() || line[0] == b'#' {
-                    continue;
+        use io::BufRead;
+        for line in io::BufReader::new(file).split(b'\n') {
+            let line = match line {
+                Ok(line) => line,
+                Err(err) => {
+                    let _ = writeln!(
+                        self.errors,
+                        "ignoring .pxarexclude after read error in {:?}: {}",
+                        self.path,
+                        err,
+                    );
+                    self.patterns.truncate(old_pattern_count);
+                    return Ok(());
                 }
+            };
 
-                let mut buf;
-                let (line, mode) = if line[0] == b'/' {
-                    buf = Vec::with_capacity(path_bytes.len() + 1 + line.len());
-                    buf.extend(path_bytes);
-                    buf.extend(line);
-                    (&buf[..], MatchType::Exclude)
-                } else if line.starts_with(b"!/") {
-                    // inverted case with absolute path
-                    buf = Vec::with_capacity(path_bytes.len() + line.len());
-                    buf.extend(path_bytes);
-                    buf.extend(&line[1..]); // without the '!'
-                    (&buf[..], MatchType::Include)
-                } else {
-                    (line, MatchType::Exclude)
-                };
+            let line = crate::tools::strip_ascii_whitespace(&line);
 
-                match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, mode) {
-                    Ok(pattern) => self.patterns.push(pattern),
-                    Err(err) => {
-                        let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
-                    }
+            if line.is_empty() || line[0] == b'#' {
+                continue;
+            }
+
+            let mut buf;
+            let (line, mode) = if line[0] == b'/' {
+                buf = Vec::with_capacity(path_bytes.len() + 1 + line.len());
+                buf.extend(path_bytes);
+                buf.extend(line);
+                (&buf[..], MatchType::Exclude)
+            } else if line.starts_with(b"!/") {
+                // inverted case with absolute path
+                buf = Vec::with_capacity(path_bytes.len() + line.len());
+                buf.extend(path_bytes);
+                buf.extend(&line[1..]); // without the '!'
+                (&buf[..], MatchType::Include)
+            } else if line.starts_with(b"!") {
+                (&line[1..], MatchType::Include)
+            } else {
+                (line, MatchType::Exclude)
+            };
+
+            match MatchEntry::parse_pattern(line, PatternFlag::PATH_NAME, mode) {
+                Ok(pattern) => self.patterns.push(pattern),
+                Err(err) => {
+                    let _ = writeln!(self.errors, "bad pattern in {:?}: {}", self.path, err);
                 }
             }
         }
