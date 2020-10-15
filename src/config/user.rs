@@ -265,3 +265,34 @@ pub fn complete_authid(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
         Err(_) => vec![],
     }
 }
+
+// shell completion helper
+pub fn complete_token_name(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    let data = match config() {
+        Ok((data, _digest)) => data,
+        Err(_) => return Vec::new(),
+    };
+
+    match param.get("userid") {
+        Some(userid) => {
+            let user = data.lookup::<User>("user", userid);
+            let tokens = data.convert_to_typed_array("token");
+            match (user, tokens) {
+                (Ok(_), Ok(tokens)) => {
+                    tokens
+                        .into_iter()
+                        .filter_map(|token: ApiToken| {
+                            let tokenid = token.tokenid;
+                            if tokenid.is_token() && tokenid.user() == userid {
+                                Some(tokenid.tokenname().unwrap().as_str().to_string())
+                            } else {
+                                None
+                            }
+                        }).collect()
+                },
+                _ => vec![],
+            }
+        },
+        None => vec![],
+    }
+}
