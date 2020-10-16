@@ -116,6 +116,7 @@ fn log_response(
     method: hyper::Method,
     path_query: &str,
     resp: &Response<Body>,
+    user_agent: Option<String>,
 ) {
 
     if resp.extensions().get::<NoLogExtension>().is_some() { return; };
@@ -150,7 +151,7 @@ fn log_response(
             .lock()
             .unwrap()
             .log(format!(
-                "{} - {} [{}] \"{} {}\" {} {}",
+                "{} - {} [{}] \"{} {}\" {} {} {}",
                 peer.ip(),
                 user,
                 datetime,
@@ -158,6 +159,7 @@ fn log_response(
                 path,
                 status.as_str(),
                 resp.body().size_hint().lower(),
+                user_agent.unwrap_or("-".into()),
             ));
     }
 }
@@ -173,6 +175,15 @@ fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
     rhost.parse().ok()
 }
 
+fn get_user_agent(headers: &HeaderMap) -> Option<String> {
+    let agent = headers.get(header::USER_AGENT)?.to_str();
+    agent.map(|s| {
+        let mut s = s.to_owned();
+        s.truncate(128);
+        s
+    }).ok()
+}
+
 impl tower_service::Service<Request<Body>> for ApiService {
     type Response = Response<Body>;
     type Error = Error;
@@ -185,6 +196,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         let path = req.uri().path_and_query().unwrap().as_str().to_owned();
         let method = req.method().clone();
+        let user_agent = get_user_agent(req.headers());
 
         let config = Arc::clone(&self.api_config);
         let peer = match get_proxied_peer(req.headers()) {
@@ -203,7 +215,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
                 }
             };
             let logger = config.get_file_log();
-            log_response(logger, &peer, method, &path, &response);
+            log_response(logger, &peer, method, &path, &response, user_agent);
             Ok(response)
         }
         .boxed()
