@@ -460,13 +460,25 @@ impl DataStore {
             worker.check_abort()?;
             tools::fail_on_shutdown()?;
 
-            if let Ok(archive_type) = archive_type(&path) {
-                if archive_type == ArchiveType::FixedIndex {
-                    let index = self.open_fixed_reader(&path)?;
-                    self.index_mark_used_chunks(index, &path, status, worker)?;
-                } else if archive_type == ArchiveType::DynamicIndex {
-                    let index = self.open_dynamic_reader(&path)?;
-                    self.index_mark_used_chunks(index, &path, status, worker)?;
+            let full_path = self.chunk_store.relative_path(&path);
+            match std::fs::File::open(&full_path) {
+                Ok(file) => {
+                    if let Ok(archive_type) = archive_type(&path) {
+                        if archive_type == ArchiveType::FixedIndex {
+                            let index = FixedIndexReader::new(file)?;
+                            self.index_mark_used_chunks(index, &path, status, worker)?;
+                        } else if archive_type == ArchiveType::DynamicIndex {
+                            let index = DynamicIndexReader::new(file)?;
+                            self.index_mark_used_chunks(index, &path, status, worker)?;
+                        }
+                    }
+                }
+                Err(err) => {
+                    if err.kind() == std::io::ErrorKind::NotFound {
+                        // simply ignore vanished files
+                    } else {
+                        return Err(err.into());
+                    }
                 }
             }
             done += 1;
