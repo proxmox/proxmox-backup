@@ -1,12 +1,14 @@
 use anyhow::Error;
 use serde_json::Value;
 
+use std::collections::HashMap;
+
 use proxmox::api::{api, cli::*, RpcEnvironment, ApiHandler};
 
 use proxmox_backup::config;
 use proxmox_backup::tools;
 use proxmox_backup::api2;
-use proxmox_backup::api2::types::Userid;
+use proxmox_backup::api2::types::{ACL_PATH_SCHEMA, Authid, Userid};
 
 #[api(
     input: {
@@ -91,6 +93,64 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
 }
 
 
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            auth_id: {
+                type: Authid,
+            },
+            path: {
+                schema: ACL_PATH_SCHEMA,
+                optional: true,
+            },
+        }
+    }
+)]
+/// List permissions of user/token.
+fn list_permissions(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+
+    let output_format = get_output_format(&param);
+
+    let info = &api2::access::API_METHOD_LIST_PERMISSIONS;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    if output_format == "text" {
+        println!("Privileges with (*) have the propagate flag set\n");
+        let data:HashMap<String, HashMap<String, bool>> = serde_json::from_value(data)?;
+        let mut paths:Vec<String> = data.keys().cloned().collect();
+        paths.sort_unstable();
+        for path in paths {
+            println!("Path: {}", path);
+            let priv_map = data.get(&path).unwrap();
+            let mut privs:Vec<String> = priv_map.keys().cloned().collect();
+            if privs.is_empty() {
+                println!("- NoAccess");
+            } else {
+                privs.sort_unstable();
+                for privilege in privs {
+                    if *priv_map.get(&privilege).unwrap() {
+                        println!("- {} (*)", privilege);
+                    } else {
+                        println!("- {}", privilege);
+                    }
+                }
+            }
+        }
+    } else {
+        format_and_print_result(&mut data, &output_format);
+    }
+
+    Ok(Value::Null)
+}
+
+
 pub fn user_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
@@ -131,6 +191,13 @@ pub fn user_commands() -> CommandLineInterface {
                 .arg_param(&["userid", "tokenname"])
                 .completion_cb("userid", config::user::complete_userid)
                 .completion_cb("tokenname", config::user::complete_token_name)
+        )
+        .insert(
+            "permissions",
+            CliCommand::new(&&API_METHOD_LIST_PERMISSIONS)
+                .arg_param(&["auth_id"])
+                .completion_cb("auth_id", config::user::complete_authid)
+                .completion_cb("path", config::datastore::complete_acl_path)
         );
 
     cmd_def.into()
