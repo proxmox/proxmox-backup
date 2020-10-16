@@ -4,6 +4,8 @@
 pub const CONFIGDIR: &str = "/etc/proxmox-backup";
 pub const JS_DIR: &str = "/usr/share/javascript/proxmox-backup";
 
+pub const API_ACCESS_LOG_FN: &str = "/var/log/proxmox-backup/api/access.log";
+
 /// Prepend configuration directory to a file name
 ///
 /// This is a simply way to get the full path for configuration files.

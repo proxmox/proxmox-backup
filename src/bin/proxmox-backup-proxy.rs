@@ -63,6 +63,8 @@ async fn run() -> Result<(), Error> {
     config.register_template("index", &indexpath)?;
     config.register_template("console", "/usr/share/pve-xtermjs/index.html.hbs")?;
 
+    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN)?;
+
     let rest_server = RestServer::new(config);
 
     //openssl req -x509 -newkey rsa:4096 -keyout /etc/proxmox-backup/proxy.key -out /etc/proxmox-backup/proxy.pem -nodes

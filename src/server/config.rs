@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use std::fs::metadata;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 use anyhow::{bail, Error, format_err};
 use hyper::Method;
@@ -10,6 +10,9 @@ use handlebars::Handlebars;
 use serde::Serialize;
 
 use proxmox::api::{ApiMethod, Router, RpcEnvironmentType};
+use proxmox::tools::fs::{create_path, CreateOptions};
+
+use crate::tools::{FileLogger, FileLogOptions};
 
 pub struct ApiConfig {
     basedir: PathBuf,
@@ -18,6 +21,7 @@ pub struct ApiConfig {
     env_type: RpcEnvironmentType,
     templates: RwLock<Handlebars<'static>>,
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
+    request_log: Option<Mutex<FileLogger>>,
 }
 
 impl ApiConfig {
@@ -30,6 +34,7 @@ impl ApiConfig {
             env_type,
             templates: RwLock::new(Handlebars::new()),
             template_files: RwLock::new(HashMap::new()),
+            request_log: None,
         })
     }
 
@@ -117,5 +122,30 @@ impl ApiConfig {
 
             templates.render(name, data).map_err(|err| format_err!("{}", err))
         }
+    }
+
+    pub fn enable_file_log<P>(&mut self, path: P) -> Result<(), Error>
+    where
+        P: Into<PathBuf>
+    {
+        let path: PathBuf = path.into();
+        if let Some(base) = path.parent() {
+            if !base.exists() {
+                let backup_user = crate::backup::backup_user()?;
+                let opts = CreateOptions::new().owner(backup_user.uid).group(backup_user.gid);
+                create_path(base, None, Some(opts)).map_err(|err| format_err!("{}", err))?;
+            }
+        }
+
+        let logger_options = FileLogOptions {
+            append: true,
+            ..Default::default()
+        };
+        self.request_log = Some(Mutex::new(FileLogger::new(&path, logger_options)?));
+
+        Ok(())
+    }
+    pub fn get_file_log(&self) -> Option<&Mutex<FileLogger>> {
+        self.request_log.as_ref()
     }
 }

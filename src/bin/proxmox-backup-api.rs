@@ -49,8 +49,10 @@ async fn run() -> Result<(), Error> {
     }
     let _ = csrf_secret(); // load with lazy_static
 
-    let config = server::ApiConfig::new(
+    let mut config = server::ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED)?;
+
+    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN)?;
 
     let rest_server = RestServer::new(config);
 

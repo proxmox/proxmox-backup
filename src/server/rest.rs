@@ -3,13 +3,14 @@ use std::future::Future;
 use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use anyhow::{bail, format_err, Error};
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures::stream::TryStreamExt;
 use hyper::header::{self, HeaderMap};
+use hyper::body::HttpBody;
 use hyper::http::request::Parts;
 use hyper::{Body, Request, Response, StatusCode};
 use lazy_static::lazy_static;
@@ -43,6 +44,7 @@ use super::ApiConfig;
 use crate::auth_helpers::*;
 use crate::api2::types::Userid;
 use crate::tools;
+use crate::tools::FileLogger;
 use crate::tools::ticket::Ticket;
 use crate::config::cached_user_info::CachedUserInfo;
 
@@ -109,6 +111,7 @@ pub struct ApiService {
 }
 
 fn log_response(
+    logfile: Option<&Mutex<FileLogger>>,
     peer: &std::net::SocketAddr,
     method: hyper::Method,
     path_query: &str,
@@ -132,6 +135,30 @@ fn log_response(
         }
 
         log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, peer, message);
+    }
+    if let Some(logfile) = logfile {
+        let user = match resp.extensions().get::<Userid>() {
+            Some(userid) => userid.as_str(),
+            None => "-",
+        };
+        let now = proxmox::tools::time::epoch_i64();
+        // time format which apache/nginx use (by default), copied from pve-http-server
+        let datetime = proxmox::tools::time::strftime_local("%d/%m/%Y:%H:%M:%S %z", now)
+            .unwrap_or("-".into());
+
+        logfile
+            .lock()
+            .unwrap()
+            .log(format!(
+                "{} - {} [{}] \"{} {}\" {} {}",
+                peer.ip(),
+                user,
+                datetime,
+                method.as_str(),
+                path,
+                status.as_str(),
+                resp.body().size_hint().lower(),
+            ));
     }
 }
 
@@ -165,7 +192,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
             None => self.peer,
         };
         async move {
-            let response = match handle_request(config, req, &peer).await {
+            let response = match handle_request(Arc::clone(&config), req, &peer).await {
                 Ok(response) => response,
                 Err(err) => {
                     let (err, code) = match err.downcast_ref::<HttpError>() {
@@ -175,7 +202,8 @@ impl tower_service::Service<Request<Body>> for ApiService {
                     Response::builder().status(code).body(err.into())?
                 }
             };
-            log_response(&peer, method, &path, &response);
+            let logger = config.get_file_log();
+            log_response(logger, &peer, method, &path, &response);
             Ok(response)
         }
         .boxed()
@@ -394,11 +422,17 @@ fn get_index(
         }
     };
 
-    Response::builder()
+    let mut resp = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, ct)
         .body(index.into())
-        .unwrap()
+        .unwrap();
+
+    if let Some(userid) = userid {
+        resp.extensions_mut().insert(userid);
+    }
+
+    resp
 }
 
 fn extension_to_content_type(filename: &Path) -> (&'static str, bool) {
@@ -615,10 +649,17 @@ async fn handle_request(
                         handle_api_request(rpcenv, api_method, formatter, parts, body, uri_param).await
                     };
 
-                    if let Err(err) = result {
-                        return Ok((formatter.format_error)(err));
+                    let mut response = match result {
+                        Ok(resp) => resp,
+                        Err(err) => (formatter.format_error)(err),
+                    };
+
+                    if let Some(user) = user {
+                        let userid: Userid = user.parse()?;
+                        response.extensions_mut().insert(userid);
                     }
-                    return result;
+
+                    return Ok(response);
                 }
             }
 
