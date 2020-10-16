@@ -1,7 +1,7 @@
 use anyhow::Error;
 use std::io::Write;
 
-/// Log messages with timestamps into files
+/// Log messages with optional automatically added timestamps into files
 ///
 /// Logs messages to file, and optionally to standard output.
 ///
@@ -10,18 +10,25 @@ use std::io::Write;
 /// ```
 /// #[macro_use] extern crate proxmox_backup;
 /// # use anyhow::{bail, format_err, Error};
-/// use proxmox_backup::tools::FileLogger;
+/// use proxmox_backup::tools::{FileLogger, FileLogOptions};
 ///
 /// # std::fs::remove_file("test.log");
-/// let mut log = FileLogger::new("test.log", true).unwrap();
+/// let options = FileLogOptions {
+///     to_stdout: true,
+///     exclusive: true,
+///     ..Default::default()
+/// };
+/// let mut log = FileLogger::new("test.log", options).unwrap();
 /// flog!(log, "A simple log: {}", "Hello!");
 /// ```
 
 #[derive(Debug, Default)]
 /// Options to control the behavior of a ['FileLogger'] instance
 pub struct FileLogOptions {
-    /// Open underlying log file in append mode, useful when multiple concurrent
-    /// writers log to the same file. For example, an HTTP access log.
+    /// Open underlying log file in append mode, useful when multiple concurrent processes
+    /// want to log to the same file (e.g., HTTP access log). Note that it is only atomic
+    /// for writes smaller than the PIPE_BUF (4k on Linux).
+    /// Inside the same process you may need to still use an mutex, for shared access.
     pub append: bool,
     /// Open underlying log file as readable
     pub read: bool,
