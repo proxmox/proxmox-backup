@@ -472,16 +472,11 @@ impl BackupEnvironment {
             bail!("backup does not contain valid files (file count == 0)");
         }
 
-        // check manifest
-        let (mut manifest, _) = self.datastore.load_manifest(&self.backup_dir)
-            .map_err(|err| format_err!("unable to load manifest blob - {}", err))?;
-
+        // check for valid manifest and store stats
         let stats = serde_json::to_value(state.backup_stat)?;
-
-        manifest.unprotected["chunk_upload_stats"] = stats;
-
-        self.datastore.store_manifest(&self.backup_dir, manifest)
-            .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
+        self.datastore.update_manifest(&self.backup_dir, |manifest| {
+            manifest.unprotected["chunk_upload_stats"] = stats;
+        }).map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
 
         if let Some(base) = &self.last_backup {
             let path = self.datastore.snapshot_path(&base.backup_dir);

@@ -3,17 +3,19 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::convert::TryFrom;
+use std::time::Duration;
+use std::fs::File;
 
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
-use proxmox::tools::fs::{replace_file, CreateOptions};
+use proxmox::tools::fs::{replace_file, CreateOptions, open_file_locked};
 
 use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::ChunkStore;
 use super::dynamic_index::{DynamicIndexReader, DynamicIndexWriter};
 use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
-use super::manifest::{MANIFEST_BLOB_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
+use super::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
 use crate::config::datastore;
@@ -231,9 +233,10 @@ impl DataStore {
 
         let full_path = self.snapshot_path(backup_dir);
 
-        let _guard;
+        let (_guard, _manifest_guard);
         if !force {
             _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
+            _manifest_guard = self.lock_manifest(backup_dir);
         }
 
         log::info!("removing backup snapshot {:?}", full_path);
@@ -629,8 +632,27 @@ impl DataStore {
             digest_str,
             err,
         ))
-     }
+    }
 
+    fn lock_manifest(
+        &self,
+        backup_dir: &BackupDir,
+    ) -> Result<File, Error> {
+        let mut path = self.base_path();
+        path.push(backup_dir.relative_path());
+        path.push(&MANIFEST_LOCK_NAME);
+
+        // update_manifest should never take a long time, so if someone else has
+        // the lock we can simply block a bit and should get it soon
+        open_file_locked(&path, Duration::from_secs(5), true)
+            .map_err(|err| {
+                format_err!(
+                    "unable to acquire manifest lock {:?} - {}", &path, err
+                )
+            })
+    }
+
+    /// Load the manifest without a lock. Must not be written back.
     pub fn load_manifest(
         &self,
         backup_dir: &BackupDir,
@@ -641,11 +663,19 @@ impl DataStore {
         Ok((manifest, raw_size))
     }
 
-    pub fn store_manifest(
+    /// Update the manifest of the specified snapshot. Never write a manifest directly,
+    /// only use this method - anything else may break locking guarantees.
+    pub fn update_manifest(
         &self,
         backup_dir: &BackupDir,
-        manifest: BackupManifest,
+        update_fn: impl FnOnce(&mut BackupManifest),
     ) -> Result<(), Error> {
+
+        let _guard = self.lock_manifest(backup_dir)?;
+        let (mut manifest, _) = self.load_manifest(&backup_dir)?;
+
+        update_fn(&mut manifest);
+
         let manifest = serde_json::to_value(manifest)?;
         let manifest = serde_json::to_string_pretty(&manifest)?;
         let blob = DataBlob::encode(manifest.as_bytes(), None, true)?;
@@ -655,6 +685,7 @@ impl DataStore {
         path.push(backup_dir.relative_path());
         path.push(MANIFEST_BLOB_NAME);
 
+        // atomic replace invalidates flock - no other writes past this point!
         replace_file(&path, raw_data, CreateOptions::new())?;
 
         Ok(())

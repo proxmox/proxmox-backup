@@ -300,7 +300,7 @@ pub fn verify_backup_dir(
         return Ok(true);
     }
 
-    let mut manifest = match datastore.load_manifest(&backup_dir) {
+    let manifest = match datastore.load_manifest(&backup_dir) {
         Ok((manifest, _)) => manifest,
         Err(err) => {
             task_log!(
@@ -367,9 +367,10 @@ pub fn verify_backup_dir(
         state: verify_result,
         upid,
     };
-    manifest.unprotected["verify_state"] = serde_json::to_value(verify_state)?;
-    datastore.store_manifest(&backup_dir, manifest)
-        .map_err(|err| format_err!("unable to store manifest blob - {}", err))?;
+    let verify_state = serde_json::to_value(verify_state)?;
+    datastore.update_manifest(&backup_dir, |manifest| {
+        manifest.unprotected["verify_state"] = verify_state;
+    }).map_err(|err| format_err!("unable to update manifest blob - {}", err))?;
 
     Ok(error_count == 0)
 }

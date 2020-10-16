@@ -8,6 +8,7 @@ use ::serde::{Deserialize, Serialize};
 use crate::backup::{BackupDir, CryptMode, CryptConfig};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
+pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
 
 mod hex_csum {
