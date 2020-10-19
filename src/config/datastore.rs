@@ -157,12 +157,12 @@ pub fn complete_acl_path(_arg: &str, _param: &HashMap<String, String>) -> Vec<St
     let mut list = Vec::new();
 
     list.push(String::from("/"));
-    list.push(String::from("/storage"));
-    list.push(String::from("/storage/"));
+    list.push(String::from("/datastore"));
+    list.push(String::from("/datastore/"));
 
     if let Ok((data, _digest)) = config() {
         for id in data.sections.keys() {
-            list.push(format!("/storage/{}", id));
+            list.push(format!("/datastore/{}", id));
         }
     }
 
