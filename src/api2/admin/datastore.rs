@@ -1489,7 +1489,7 @@ fn set_notes(
 }
 
 #[api(
-   input: {
+    input: {
         properties: {
             store: {
                 schema: DATASTORE_SCHEMA,
@@ -1504,10 +1504,10 @@ fn set_notes(
                 type: Userid,
             },
         },
-   },
-   access: {
-       permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY, true),
-   },
+    },
+    access: {
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY, true),
+    },
 )]
 /// Change owner of a backup group
 fn set_backup_owner(
