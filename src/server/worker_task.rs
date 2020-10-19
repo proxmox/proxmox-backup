@@ -675,6 +675,7 @@ impl WorkerTask {
         let logger_options = FileLogOptions {
             to_stdout: to_stdout,
             exclusive: true,
+            prefix_time: true,
             read: true,
             ..Default::default()
         };
