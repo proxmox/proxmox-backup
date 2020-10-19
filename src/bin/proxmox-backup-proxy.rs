@@ -1,5 +1,6 @@
 use std::sync::{Arc};
 use std::path::{Path, PathBuf};
+use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -16,7 +17,16 @@ use proxmox_backup::server;
 use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
-use proxmox_backup::tools::disks::{ DiskManage, zfs_pool_stats };
+use proxmox_backup::tools::{
+    disks::{
+        DiskManage,
+        zfs_pool_stats,
+    },
+    socket::{
+        set_tcp_keepalive,
+        PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
+    },
+};
 
 use proxmox_backup::api2::pull::do_sync_job;
 
@@ -89,6 +99,9 @@ async fn run() -> Result<(), Error> {
                     let acceptor = Arc::clone(&acceptor);
                     async move {
                         sock.set_nodelay(true).unwrap();
+
+                        let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+
                         Ok(tokio_openssl::accept(&acceptor, sock)
                             .await
                             .ok() // handshake errors aren't be fatal, so return None to filter

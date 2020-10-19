@@ -2,6 +2,7 @@ use std::io::Write;
 use std::task::{Context, Poll};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
+use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -26,7 +27,15 @@ use proxmox::{
 use super::pipe_to_stream::PipeToSendStream;
 use crate::api2::types::Userid;
 use crate::tools::async_io::EitherStream;
-use crate::tools::{self, BroadcastFuture, DEFAULT_ENCODE_SET};
+use crate::tools::{
+    self,
+    BroadcastFuture,
+    DEFAULT_ENCODE_SET,
+    socket::{
+        set_tcp_keepalive,
+        PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
+    },
+};
 
 #[derive(Clone)]
 pub struct AuthInfo {
@@ -608,7 +617,7 @@ impl HttpClient {
             .await?;
 
         let connection = connection
-            .map_err(|_| panic!("HTTP/2.0 connection failed"));
+            .map_err(|_| eprintln!("HTTP/2.0 connection failed"));
 
         let (connection, abort) = futures::future::abortable(connection);
         // A cancellable future returns an Option which is None when cancelled and
@@ -969,6 +978,9 @@ impl hyper::service::Service<Uri> for HttpsConnector {
 
             let config = this.ssl_connector.configure();
             let conn = this.http.call(dst).await?;
+
+            let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
+
             if is_https {
                 let conn = tokio_openssl::connect(config?, &host, conn).await?;
                 Ok(MaybeTlsStream::Right(conn))
