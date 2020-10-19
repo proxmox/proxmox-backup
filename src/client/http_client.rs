@@ -296,6 +296,7 @@ impl HttpClient {
         httpc.set_nodelay(true); // important for h2 download performance!
         httpc.enforce_http(false); // we want https...
 
+        httpc.set_connect_timeout(Some(std::time::Duration::new(10, 0)));
         let https = HttpsConnector::with_connector(httpc, ssl_connector_builder.build());
 
         let client = Client::builder()
