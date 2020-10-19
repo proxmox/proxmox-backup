@@ -16,7 +16,7 @@ rust-proxmox-backup (0.9.1-1) unstable; urgency=medium
 
   * add "Build" section to README.rst
 
-  * reader: actually allow users to downlod their own backups
+  * reader: actually allow users to download their own backups
 
   * reader: track index chunks and limit access
 
@@ -38,7 +38,7 @@ rust-proxmox-backup (0.9.1-1) unstable; urgency=medium
 
   * ui: Dashboard/TaskSummary: add Verifies to the Summary
 
-  * ui: implment task history limit and make it configurable
+  * ui: implement task history limit and make it configurable
 
   * docs: installation: add system requirements section
 
