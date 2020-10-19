@@ -542,18 +542,18 @@ fn extract_auth_data(headers: &http::HeaderMap) -> (Option<String>, Option<Strin
         }
     }
 
-    let token = match headers.get("CSRFPreventionToken").map(|v| v.to_str()) {
+    let csrf_token = match headers.get("CSRFPreventionToken").map(|v| v.to_str()) {
         Some(Ok(v)) => Some(v.to_owned()),
         _ => None,
     };
 
-    (ticket, token, language)
+    (ticket, csrf_token, language)
 }
 
 fn check_auth(
     method: &hyper::Method,
     ticket: &Option<String>,
-    token: &Option<String>,
+    csrf_token: &Option<String>,
     user_info: &CachedUserInfo,
 ) -> Result<Userid, Error> {
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
@@ -567,8 +567,8 @@ fn check_auth(
     }
 
     if method != hyper::Method::GET {
-        if let Some(token) = token {
-            verify_csrf_prevention_token(csrf_secret(), &userid, &token, -300, ticket_lifetime)?;
+        if let Some(csrf_token) = csrf_token {
+            verify_csrf_prevention_token(csrf_secret(), &userid, &csrf_token, -300, ticket_lifetime)?;
         } else {
             bail!("missing CSRF prevention token");
         }
@@ -630,8 +630,8 @@ async fn handle_request(
             }
 
             if auth_required {
-                let (ticket, token, _) = extract_auth_data(&parts.headers);
-                match check_auth(&method, &ticket, &token, &user_info) {
+                let (ticket, csrf_token, _) = extract_auth_data(&parts.headers);
+                match check_auth(&method, &ticket, &csrf_token, &user_info) {
                     Ok(userid) => rpcenv.set_user(Some(userid.to_string())),
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
@@ -684,12 +684,12 @@ async fn handle_request(
         }
 
         if comp_len == 0 {
-            let (ticket, token, language) = extract_auth_data(&parts.headers);
+            let (ticket, csrf_token, language) = extract_auth_data(&parts.headers);
             if ticket != None {
-                match check_auth(&method, &ticket, &token, &user_info) {
+                match check_auth(&method, &ticket, &csrf_token, &user_info) {
                     Ok(userid) => {
-                        let new_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
-                        return Ok(get_index(Some(userid), Some(new_token), language, &api, parts));
+                        let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
+                        return Ok(get_index(Some(userid), Some(new_csrf_token), language, &api, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
