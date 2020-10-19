@@ -93,22 +93,27 @@ pub fn create_task_control_socket() -> Result<(), Error> {
         "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, *MY_PID);
 
     let control_future = super::create_control_socket(socketname, |param| {
-        let param = param.as_object()
+        let param = param
+            .as_object()
             .ok_or_else(|| format_err!("unable to parse parameters (expected json object)"))?;
         if param.keys().count() != 2 { bail!("wrong number of parameters"); }
 
-        let command = param["command"].as_str()
+        let command = param["command"]
+            .as_str()
             .ok_or_else(|| format_err!("unable to parse parameters (missing command)"))?;
 
         // we have only two commands for now
-        if !(command == "abort-task" || command == "status") { bail!("got unknown command '{}'", command); }
+        if !(command == "abort-task" || command == "status") {
+            bail!("got unknown command '{}'", command);
+        }
 
-        let upid_str = param["upid"].as_str()
+        let upid_str = param["upid"]
+            .as_str()
             .ok_or_else(|| format_err!("unable to parse parameters (missing upid)"))?;
 
         let upid = upid_str.parse::<UPID>()?;
 
-        if !((upid.pid == *MY_PID) && (upid.pstart == *MY_PID_PSTART)) {
+        if !(upid.pid == *MY_PID && upid.pstart == *MY_PID_PSTART) {
             bail!("upid does not belong to this process");
         }
 
@@ -560,7 +565,8 @@ impl TaskListInfoIterator {
         let archive = if active_only {
             None
         } else {
-            let logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, true).ok_or_else(|| format_err!("could not get archive file names"))?;
+            let logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, true)
+                .ok_or_else(|| format_err!("could not get archive file names"))?;
             Some(logrotate.files())
         };
 

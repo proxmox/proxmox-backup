@@ -14,10 +14,10 @@ use proxmox_backup::api2::types::Userid;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
-use proxmox_backup::tools::daemon;
 use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
+    daemon,
     disks::{
         DiskManage,
         zfs_pool_stats,
@@ -739,10 +739,11 @@ async fn schedule_task_log_rotate() {
         move |worker| {
             job.start(&worker.upid().to_string())?;
             worker.log(format!("starting task log rotation"));
-            // one entry has normally about ~100-150 bytes
-            let max_size = 500000; // at least 5000 entries
-            let max_files = 20; // at least 100000 entries
+
             let result = try_block!({
+                // rotate task log archive
+                let max_size = 500000; // a normal entry has about 100b, so ~ 5000 entries/file
+                let max_files = 20; // times twenty files gives at least 100000 task entries
                 let has_rotated = rotate_task_log_archive(max_size, true, Some(max_files))?;
                 if has_rotated {
                     worker.log(format!("task log archive was rotated"));
