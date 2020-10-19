@@ -216,7 +216,7 @@ async move {
                 (Ok(_), Err(err)) => {
                     env.log(format!("backup ended and finish failed: {}", err));
                     env.log("removing unfinished backup");
-                    env.remove_backup()?;
+                    tools::runtime::block_in_place(|| env.remove_backup())?;
                     Err(err)
                 },
                 (Err(err), Err(_)) => {
