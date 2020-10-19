@@ -38,6 +38,10 @@ pub struct FileLogOptions {
     pub to_stdout: bool,
     /// Prefix messages logged to the file with the current local time as RFC 3339
     pub prefix_time: bool,
+    /// if set, the file is tried to be chowned by the backup:backup user/group
+    /// Note, this is not designed race free as anybody could set it to another user afterwards
+    /// anyway. It must thus be used by all processes which doe not run as backup uid/gid.
+    pub owned_by_backup: bool,
 }
 
 #[derive(Debug)]
@@ -65,7 +69,12 @@ impl FileLogger {
             .append(options.append)
             .create_new(options.exclusive)
             .create(!options.exclusive)
-            .open(file_name)?;
+            .open(&file_name)?;
+
+        if options.owned_by_backup {
+            let backup_user = crate::backup::backup_user()?;
+            nix::unistd::chown(file_name.as_ref(), Some(backup_user.uid), Some(backup_user.gid))?;
+        }
 
         Ok(Self { file, options })
     }

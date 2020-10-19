@@ -139,6 +139,7 @@ impl ApiConfig {
 
         let logger_options = FileLogOptions {
             append: true,
+            owned_by_backup: true,
             ..Default::default()
         };
         self.request_log = Some(Mutex::new(FileLogger::new(&path, logger_options)?));
