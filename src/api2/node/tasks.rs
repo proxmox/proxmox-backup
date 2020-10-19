@@ -27,7 +27,7 @@ use crate::config::cached_user_info::CachedUserInfo;
         },
     },
     returns: {
-        description: "Task status nformation.",
+        description: "Task status information.",
         properties: {
             node: {
                 schema: NODE_SCHEMA,
@@ -72,7 +72,7 @@ use crate::config::cached_user_info::CachedUserInfo;
         },
     },
     access: {
-        description: "Users can access there own tasks, or need Sys.Audit on /system/tasks.",
+        description: "Users can access their own tasks, or need Sys.Audit on /system/tasks.",
         permission: &Permission::Anybody,
     },
 )]
