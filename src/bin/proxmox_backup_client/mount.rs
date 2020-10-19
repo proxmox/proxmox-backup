@@ -144,7 +144,7 @@ fn mount(
     // Process should be deamonized.
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
     let pipe = pipe()?;
-    match fork() {
+    match unsafe { fork() } {
         Ok(ForkResult::Parent { .. }) => {
             nix::unistd::close(pipe.1).unwrap();
             // Blocks the parent process until we are ready to go in the child

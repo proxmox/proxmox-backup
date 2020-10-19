@@ -101,10 +101,10 @@ impl Reloader {
 
         // Start ourselves in the background:
         use nix::unistd::{fork, ForkResult};
-        match fork() {
+        match unsafe { fork() } {
             Ok(ForkResult::Child) => {
                 // Double fork so systemd can supervise us without nagging...
-                match fork() {
+                match unsafe { fork() } {
                     Ok(ForkResult::Child) => {
                         std::mem::drop(pold);
                         // At this point we call pre-exec helpers. We must be certain that if they fail for
