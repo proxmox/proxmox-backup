@@ -46,17 +46,18 @@ impl DataStore {
 
         let (config, _digest) = datastore::config()?;
         let config: datastore::DataStoreConfig = config.lookup("datastore", name)?;
+        let path = PathBuf::from(&config.path);
 
         let mut map = DATASTORE_MAP.lock().unwrap();
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
-            if datastore.chunk_store.base == PathBuf::from(&config.path) {
+            if datastore.chunk_store.base == path {
                 return Ok(datastore.clone());
             }
         }
 
-        let datastore = DataStore::open(name)?;
+        let datastore = DataStore::open_with_path(name, &path, config)?;
 
         let datastore = Arc::new(datastore);
         map.insert(name.to_string(), datastore.clone());
@@ -64,18 +65,7 @@ impl DataStore {
         Ok(datastore)
     }
 
-    pub fn open(store_name: &str) -> Result<Self, Error> {
-
-        let (config, _digest) = datastore::config()?;
-        let (_, store_config) = config.sections.get(store_name)
-            .ok_or(format_err!("no such datastore '{}'", store_name))?;
-
-        let path = store_config["path"].as_str().unwrap();
-
-        Self::open_with_path(store_name, Path::new(path))
-    }
-
-    pub fn open_with_path(store_name: &str, path: &Path) -> Result<Self, Error> {
+    fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         let gc_status = GarbageCollectionStatus::default();
