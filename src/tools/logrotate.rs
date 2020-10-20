@@ -6,7 +6,7 @@ use std::io::Read;
 use anyhow::{bail, Error};
 use nix::unistd;
 
-use proxmox::tools::fs::{CreateOptions, make_tmp_file, replace_file};
+use proxmox::tools::fs::{CreateOptions, make_tmp_file};
 
 /// Used for rotating log files and iterating over them
 pub struct LogRotate {
@@ -108,8 +108,6 @@ impl LogRotate {
             rename(&filenames[0], &filenames[1])?;
         }
 
-        // create empty original file
-        replace_file(&filenames[0], b"", options)?;
 
         if let Some(max_files) = max_files {
             // delete all files > max_files
