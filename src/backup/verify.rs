@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{Ordering, AtomicUsize};
 use std::time::Instant;
+use nix::dir::Dir;
 
 use anyhow::{bail, format_err, Error};
 
@@ -284,22 +285,43 @@ pub fn verify_backup_dir(
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: UPID,
 ) -> Result<bool, Error> {
-
-    let _guard_res = lock_dir_noblock_shared(
+    let snap_lock = lock_dir_noblock_shared(
         &datastore.snapshot_path(&backup_dir),
         "snapshot",
         "locked by another operation");
-    if let Err(err) = _guard_res {
-        task_log!(
-            worker,
-            "SKIPPED: verify {}:{} - could not acquire snapshot lock: {}",
-            datastore.name(),
+    match snap_lock {
+        Ok(snap_lock) => verify_backup_dir_with_lock(
+            datastore,
             backup_dir,
-            err,
-        );
-        return Ok(true);
+            verified_chunks,
+            corrupt_chunks,
+            worker,
+            upid,
+            snap_lock
+        ),
+        Err(err) => {
+            task_log!(
+                worker,
+                "SKIPPED: verify {}:{} - could not acquire snapshot lock: {}",
+                datastore.name(),
+                backup_dir,
+                err,
+            );
+            Ok(true)
+        }
     }
+}
 
+/// See verify_backup_dir
+pub fn verify_backup_dir_with_lock(
+    datastore: Arc<DataStore>,
+    backup_dir: &BackupDir,
+    verified_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
+    corrupt_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
+    worker: Arc<dyn TaskState + Send + Sync>,
+    upid: UPID,
+    _snap_lock: Dir,
+) -> Result<bool, Error> {
     let manifest = match datastore.load_manifest(&backup_dir) {
         Ok((manifest, _)) => manifest,
         Err(err) => {
