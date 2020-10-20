@@ -20,6 +20,7 @@ JSSRC=							\
 	config/DataStoreConfig.js			\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
+	window/VerifyJobEdit.js				\
 	window/RemoteEdit.js				\
 	window/SyncJobEdit.js				\
 	window/ACLEdit.js				\
