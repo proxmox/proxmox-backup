@@ -414,13 +414,13 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
             println!("</p>");
 
             let data = data.join("\n");
-            let qr_code = generate_qr_code("png", data.as_bytes())?;
+            let qr_code = generate_qr_code("svg", data.as_bytes())?;
             let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
 
             println!("<center>");
             println!("<img");
             println!("width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt);
-            println!("src=\"data:image/png;base64,{}\"/>", qr_code);
+            println!("src=\"data:image/svg+xml;base64,{}\"/>", qr_code);
             println!("</center>");
             println!("</div>");
        }
@@ -447,13 +447,13 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
 
     println!("</p>");
 
-    let qr_code = generate_qr_code("png", key_text.as_bytes())?;
+    let qr_code = generate_qr_code("svg", key_text.as_bytes())?;
     let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
 
     println!("<center>");
     println!("<img");
     println!("width=\"{}pt\" height=\"{}pt\"", img_size_pt, img_size_pt);
-    println!("src=\"data:image/png;base64,{}\"/>", qr_code);
+    println!("src=\"data:image/svg+xml;base64,{}\"/>", qr_code);
     println!("</center>");
 
     println!("</div>");
