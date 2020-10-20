@@ -302,7 +302,7 @@ pub const PRUNE_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
     .schema();
 
-pub const VERIFY_SCHEDULE_SCHEMA: Schema = StringSchema::new(
+pub const VERIFICATION_SCHEDULE_SCHEMA: Schema = StringSchema::new(
     "Run verify job at specified schedule.")
     .format(&ApiStringFormat::VerifyFn(crate::tools::systemd::time::verify_calendar_event))
     .schema();

@@ -77,7 +77,7 @@ pub fn list_datastores(
             },
             "verify-schedule": {
                 optional: true,
-                schema: VERIFY_SCHEDULE_SCHEMA,
+                schema: VERIFICATION_SCHEDULE_SCHEMA,
             },
             "keep-last": {
                 optional: true,
@@ -216,7 +216,7 @@ pub enum DeletableProperty {
             },
             "verify-schedule": {
                 optional: true,
-                schema: VERIFY_SCHEDULE_SCHEMA,
+                schema: VERIFICATION_SCHEDULE_SCHEMA,
             },
             "keep-last": {
                 optional: true,

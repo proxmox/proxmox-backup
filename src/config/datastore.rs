@@ -46,7 +46,7 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
         },
         "verify-schedule": {
             optional: true,
-            schema: VERIFY_SCHEDULE_SCHEMA,
+            schema: VERIFICATION_SCHEDULE_SCHEMA,
         },
         "keep-last": {
             optional: true,
