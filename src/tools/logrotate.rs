@@ -46,6 +46,35 @@ impl LogRotate {
         }
     }
 
+    fn compress(file: &PathBuf, options: &CreateOptions) -> Result<(), Error> {
+        let mut source = File::open(file)?;
+        let (fd, tmp_path) = make_tmp_file(file, options.clone())?;
+        let target = unsafe { File::from_raw_fd(fd) };
+        let mut encoder = match zstd::stream::write::Encoder::new(target, 0) {
+            Ok(encoder) => encoder,
+            Err(err) => {
+                let _ = unistd::unlink(&tmp_path);
+                bail!("creating zstd encoder failed - {}", err);
+            }
+        };
+
+        if let Err(err) = std::io::copy(&mut source, &mut encoder) {
+            let _ = unistd::unlink(&tmp_path);
+            bail!("zstd encoding failed for file {:?} - {}", file, err);
+        }
+
+        if let Err(err) = encoder.finish() {
+            let _ = unistd::unlink(&tmp_path);
+            bail!("zstd finish failed for file {:?} - {}", file, err);
+        }
+
+        if let Err(err) = rename(&tmp_path, file) {
+            let _ = unistd::unlink(&tmp_path);
+            bail!("rename failed for file {:?} - {}", file, err);
+        }
+        Ok(())
+    }
+
     /// Rotates the files up to 'max_files'
     /// if the 'compress' option was given it will compress the newest file
     ///
@@ -77,37 +106,12 @@ impl LogRotate {
         }
 
         if self.compress {
-            let mut source = File::open(&filenames[0])?;
-            let (fd, tmp_path) = make_tmp_file(&filenames[1], options.clone())?;
-            let target = unsafe { File::from_raw_fd(fd) };
-            let mut encoder = match zstd::stream::write::Encoder::new(target, 0) {
-                Ok(encoder) => encoder,
-                Err(err) => {
-                    let _ = unistd::unlink(&tmp_path);
-                    bail!("creating zstd encoder failed - {}", err);
-                }
-            };
-
-            if let Err(err) = std::io::copy(&mut source, &mut encoder) {
-                let _ = unistd::unlink(&tmp_path);
-                bail!("zstd encoding failed for file {:?} - {}", &filenames[1], err);
+            if filenames[0].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
+                Self::compress(&filenames[0], &options)?;
             }
-
-            if let Err(err) = encoder.finish() {
-                let _ = unistd::unlink(&tmp_path);
-                bail!("zstd finish failed for file {:?} - {}", &filenames[1], err);
-            }
-
-            if let Err(err) = rename(&tmp_path, &filenames[1]) {
-                let _ = unistd::unlink(&tmp_path);
-                bail!("rename failed for file {:?} - {}", &filenames[1], err);
-            }
-
-            unistd::unlink(&filenames[0])?;
         } else {
             rename(&filenames[0], &filenames[1])?;
         }
-
 
         if let Some(max_files) = max_files {
             // delete all files > max_files
