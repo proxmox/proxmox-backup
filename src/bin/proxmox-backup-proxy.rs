@@ -29,6 +29,7 @@ use proxmox_backup::tools::{
 };
 
 use proxmox_backup::api2::pull::do_sync_job;
+use proxmox_backup::backup::do_verification_job;
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
@@ -213,6 +214,7 @@ async fn schedule_tasks() -> Result<(), Error> {
     schedule_datastore_prune().await;
     schedule_datastore_verification().await;
     schedule_datastore_sync_jobs().await;
+    schedule_datastore_verify_jobs().await;
     schedule_task_log_rotate().await;
 
     Ok(())
@@ -668,6 +670,66 @@ async fn schedule_datastore_sync_jobs() {
 
         if let Err(err) = do_sync_job(job, job_config, &userid, Some(event_str)) {
             eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
+        }
+    }
+}
+
+async fn schedule_datastore_verify_jobs() {
+    use proxmox_backup::{
+        config::{verify::{self, VerificationJobConfig}, jobstate::{self, Job}},
+        tools::systemd::time::{parse_calendar_event, compute_next_event},
+    };
+    let config = match verify::config() {
+        Err(err) => {
+            eprintln!("unable to read verification job config - {}", err);
+            return;
+        }
+        Ok((config, _digest)) => config,
+    };
+    for (job_id, (_, job_config)) in config.sections {
+        let job_config: VerificationJobConfig = match serde_json::from_value(job_config) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("verification job config from_value failed - {}", err);
+                continue;
+            }
+        };
+        let event_str = match job_config.schedule {
+            Some(ref event_str) => event_str.clone(),
+            None => continue,
+        };
+        let event = match parse_calendar_event(&event_str) {
+            Ok(event) => event,
+            Err(err) => {
+                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
+                continue;
+            }
+        };
+        let worker_type = "verificationjob";
+        let last = match jobstate::last_run_time(worker_type, &job_id) {
+            Ok(time) => time,
+            Err(err) => {
+                eprintln!("could not get last run time of {} {}: {}", worker_type, job_id, err);
+                continue;
+            }
+        };
+        let next = match compute_next_event(&event, last, false) {
+            Ok(Some(next)) => next,
+            Ok(None) => continue,
+            Err(err) => {
+                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
+                continue;
+            }
+        };
+        let now = proxmox::tools::time::epoch_i64();
+        if next > now { continue; }
+        let job = match Job::new(worker_type, &job_id) {
+            Ok(job) => job,
+            Err(_) => continue, // could not get lock
+        };
+        let userid = Userid::backup_userid().clone();
+        if let Err(err) = do_verification_job(job, job_config, &userid, Some(event_str)) {
+            eprintln!("unable to start datastore verification job {} - {}", &job_id, err);
         }
     }
 }
