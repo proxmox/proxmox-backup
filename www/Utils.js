@@ -91,9 +91,12 @@ Ext.define('PBS.Utils', {
 	Proxmox.Utils.override_task_descriptions({
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
 	    sync: ['Datastore', gettext('Remote Sync')],
+	    verify: ['Datastore', gettext('Verification')],
+	    verify_group: ['Group', gettext('Verification')],
+	    verify_snapshot: ['Snapshot', gettext('Verification')],
 	    syncjob: [gettext('Sync Job'), gettext('Remote Sync')],
+	    verifyjob: [gettext('Verify Job'), gettext('Scheduled Verification')],
 	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
-	    verify: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Verify')),
 	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
 	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
 	    logrotate: [gettext('Log'), gettext('Rotation')],
