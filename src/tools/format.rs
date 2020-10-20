@@ -50,6 +50,19 @@ pub fn render_bool_with_default_true(value: &Value, _record: &Value) -> Result<S
     Ok((if value { "1" } else { "0" }).to_string())
 }
 
+pub fn render_bytes_human_readable(value: &Value, _record: &Value) -> Result<String, Error> {
+    if value.is_null() { return Ok(String::new()); }
+    let text = match value.as_u64() {
+        Some(bytes) => {
+            HumanByte::from(bytes).to_string()
+        }
+        None => {
+            value.to_string()
+        }
+    };
+    Ok(text)
+}
+
 pub struct HumanByte {
     b: usize,
 }

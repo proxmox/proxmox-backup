@@ -510,7 +510,7 @@ async fn list_snapshots(param: Value) -> Result<Value, Error> {
         .sortby("backup-id", false)
         .sortby("backup-time", false)
         .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
-        .column(ColumnConfig::new("size"))
+        .column(ColumnConfig::new("size").renderer(tools::format::render_bytes_human_readable))
         .column(ColumnConfig::new("files").renderer(render_files))
         ;
 
