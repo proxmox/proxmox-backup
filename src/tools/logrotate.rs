@@ -100,17 +100,16 @@ impl LogRotate {
         filenames.push(PathBuf::from(next_filename));
         let count = filenames.len();
 
-        // rotate all but the first, that we maybe have to compress
-        for i in (1..count-1).rev() {
+        for i in (0..count-1).rev() {
             rename(&filenames[i], &filenames[i+1])?;
         }
 
         if self.compress {
-            if filenames[0].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
-                Self::compress(&filenames[0], &options)?;
+            for i in 2..count-1 {
+                if filenames[i].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
+                    Self::compress(&filenames[i], &options)?;
+                }
             }
-        } else {
-            rename(&filenames[0], &filenames[1])?;
         }
 
         if let Some(max_files) = max_files {
