@@ -492,17 +492,20 @@ pub fn verify(
 
     let mut backup_dir = None;
     let mut backup_group = None;
+    let mut worker_type = "verify";
 
     match (backup_type, backup_id, backup_time) {
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_time);
             let dir = BackupDir::new(backup_type, backup_id, backup_time)?;
             backup_dir = Some(dir);
+            worker_type = "verify_snapshot";
         }
         (Some(backup_type), Some(backup_id), None) => {
             worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
             let group = BackupGroup::new(backup_type, backup_id);
             backup_group = Some(group);
+            worker_type = "verify_group";
         }
         (None, None, None) => {
             worker_id = store.clone();
@@ -514,7 +517,7 @@ pub fn verify(
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let upid_str = WorkerTask::new_thread(
-        "verify",
+        worker_type,
         Some(worker_id.clone()),
         userid,
         to_stdout,
