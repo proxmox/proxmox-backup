@@ -16,6 +16,7 @@ JSSRC=							\
 	config/RemoteView.js				\
 	config/ACLView.js				\
 	config/SyncView.js				\
+	config/VerifyView.js				\
 	config/DataStoreConfig.js			\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
