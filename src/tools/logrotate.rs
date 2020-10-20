@@ -113,7 +113,6 @@ impl LogRotate {
         }
 
         if let Some(max_files) = max_files {
-            // delete all files > max_files
             for file in filenames.iter().skip(max_files) {
                 if let Err(err) = unistd::unlink(file) {
                     eprintln!("could not remove {:?}: {}", &file, err);
