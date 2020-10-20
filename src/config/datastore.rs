@@ -44,10 +44,6 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
             optional: true,
             schema: PRUNE_SCHEDULE_SCHEMA,
         },
-        "verify-schedule": {
-            optional: true,
-            schema: VERIFICATION_SCHEDULE_SCHEMA,
-        },
         "keep-last": {
             optional: true,
             schema: PRUNE_SCHEMA_KEEP_LAST,
@@ -90,8 +86,6 @@ pub struct DataStoreConfig {
     pub gc_schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub prune_schedule: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub verify_schedule: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub keep_last: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]

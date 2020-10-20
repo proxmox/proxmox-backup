@@ -75,10 +75,6 @@ pub fn list_datastores(
                 optional: true,
                 schema: PRUNE_SCHEDULE_SCHEMA,
             },
-            "verify-schedule": {
-                optional: true,
-                schema: VERIFICATION_SCHEDULE_SCHEMA,
-            },
             "keep-last": {
                 optional: true,
                 schema: PRUNE_SCHEMA_KEEP_LAST,
@@ -133,7 +129,6 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     crate::config::jobstate::create_state_file("prune", &datastore.name)?;
     crate::config::jobstate::create_state_file("garbage_collection", &datastore.name)?;
-    crate::config::jobstate::create_state_file("verify", &datastore.name)?;
 
     Ok(())
 }
@@ -179,8 +174,6 @@ pub enum DeletableProperty {
     gc_schedule,
     /// Delete the prune job schedule.
     prune_schedule,
-    /// Delete the verify schedule property
-    verify_schedule,
     /// Delete the keep-last property
     keep_last,
     /// Delete the keep-hourly property
@@ -213,10 +206,6 @@ pub enum DeletableProperty {
             "prune-schedule": {
                 optional: true,
                 schema: PRUNE_SCHEDULE_SCHEMA,
-            },
-            "verify-schedule": {
-                optional: true,
-                schema: VERIFICATION_SCHEDULE_SCHEMA,
             },
             "keep-last": {
                 optional: true,
@@ -266,7 +255,6 @@ pub fn update_datastore(
     comment: Option<String>,
     gc_schedule: Option<String>,
     prune_schedule: Option<String>,
-    verify_schedule: Option<String>,
     keep_last: Option<u64>,
     keep_hourly: Option<u64>,
     keep_daily: Option<u64>,
@@ -295,7 +283,6 @@ pub fn update_datastore(
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::gc_schedule => { data.gc_schedule = None; },
                 DeletableProperty::prune_schedule => { data.prune_schedule = None; },
-                DeletableProperty::verify_schedule => { data.verify_schedule = None; },
                 DeletableProperty::keep_last => { data.keep_last = None; },
                 DeletableProperty::keep_hourly => { data.keep_hourly = None; },
                 DeletableProperty::keep_daily => { data.keep_daily = None; },
@@ -327,12 +314,6 @@ pub fn update_datastore(
         data.prune_schedule = prune_schedule;
     }
 
-    let mut verify_schedule_changed = false;
-    if verify_schedule.is_some() {
-        verify_schedule_changed = data.verify_schedule != verify_schedule;
-        data.verify_schedule = verify_schedule;
-    }
-
     if keep_last.is_some() { data.keep_last = keep_last; }
     if keep_hourly.is_some() { data.keep_hourly = keep_hourly; }
     if keep_daily.is_some() { data.keep_daily = keep_daily; }
@@ -352,10 +333,6 @@ pub fn update_datastore(
 
     if prune_schedule_changed {
         crate::config::jobstate::create_state_file("prune", &name)?;
-    }
-
-    if verify_schedule_changed {
-        crate::config::jobstate::create_state_file("verify", &name)?;
     }
 
     Ok(())
@@ -400,7 +377,6 @@ pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Erro
     // ignore errors
     let _ = crate::config::jobstate::remove_state_file("prune", &name);
     let _ = crate::config::jobstate::remove_state_file("garbage_collection", &name);
-    let _ = crate::config::jobstate::remove_state_file("verify", &name);
 
     Ok(())
 }

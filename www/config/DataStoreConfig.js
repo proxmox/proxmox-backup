@@ -12,7 +12,7 @@ Ext.define('pbs-data-store-config', {
     extend: 'Ext.data.Model',
     fields: [
 	'name', 'path', 'comment', 'gc-schedule', 'prune-schedule',
-	'verify-schedule', 'keep-last', 'keep-hourly', 'keep-daily',
+	'keep-last', 'keep-hourly', 'keep-daily',
 	'keep-weekly', 'keep-monthly', 'keep-yearly',
     ],
     proxy: {
