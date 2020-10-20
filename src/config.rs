@@ -23,6 +23,7 @@ pub mod network;
 pub mod remote;
 pub mod sync;
 pub mod user;
+pub mod verify;
 
 /// Check configuration directory permissions
 ///

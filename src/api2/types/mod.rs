@@ -324,6 +324,16 @@ pub const REMOVE_VANISHED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
     .default(true)
     .schema();
 
+pub const IGNORE_VERIFIED_BACKUPS_SCHEMA: Schema = BooleanSchema::new(
+    "Do not verify backups that are already verified if their verification is not outdated.")
+    .default(true)
+    .schema();
+
+pub const VERIFICATION_OUTDATED_AFTER_SCHEMA: Schema = IntegerSchema::new(
+    "Days after that a verification becomes outdated")
+    .minimum(1)
+    .schema();
+
 pub const SINGLE_LINE_COMMENT_SCHEMA: Schema = StringSchema::new("Comment (single line).")
     .format(&SINGLE_LINE_COMMENT_FORMAT)
     .schema();
