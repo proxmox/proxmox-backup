@@ -18,7 +18,7 @@ use super::fixed_index::{FixedIndexReader, FixedIndexWriter};
 use super::manifest::{MANIFEST_BLOB_NAME, MANIFEST_LOCK_NAME, CLIENT_LOG_BLOB_NAME, BackupManifest};
 use super::index::*;
 use super::{DataBlob, ArchiveType, archive_type};
-use crate::config::datastore;
+use crate::config::datastore::{self, DataStoreConfig};
 use crate::task::TaskState;
 use crate::tools;
 use crate::tools::format::HumanByte;
@@ -65,7 +65,7 @@ impl DataStore {
         Ok(datastore)
     }
 
-    fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
+    fn open_with_path(store_name: &str, path: &Path, _config: DataStoreConfig) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         let gc_status = GarbageCollectionStatus::default();
