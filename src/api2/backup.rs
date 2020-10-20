@@ -182,8 +182,22 @@ async move {
                 http.http2_initial_connection_window_size(window_size);
                 http.http2_max_frame_size(4*1024*1024);
 
+                let env3 = env2.clone();
                 http.serve_connection(conn, service)
-                    .map_err(Error::from)
+                    .map(move |result| {
+                        match result {
+                            Err(err) => {
+                                // Avoid  Transport endpoint is not connected (os error 107)
+                                // fixme: find a better way to test for that error
+                                if err.to_string().starts_with("connection error") && env3.finished() {
+                                    Ok(())
+                                } else {
+                                    Err(Error::from(err))
+                                }
+                            }
+                            Ok(()) => Ok(()),
+                        }
+                    })
             });
         let mut abort_future = abort_future
             .map(|_| Err(format_err!("task aborted")));

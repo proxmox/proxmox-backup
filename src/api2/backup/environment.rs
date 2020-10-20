@@ -567,6 +567,12 @@ impl BackupEnvironment {
         Ok(())
     }
 
+    /// Return true if the finished flag is set
+    pub fn finished(&self) -> bool {
+        let state = self.state.lock().unwrap();
+        state.finished
+    }
+
     /// Remove complete backup
     pub fn remove_backup(&self) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
