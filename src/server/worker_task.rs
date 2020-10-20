@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
-use std::path::Path;
 use std::io::{Read, Write, BufRead, BufReader};
 use std::panic::UnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -349,26 +348,11 @@ fn lock_task_list_files(exclusive: bool) -> Result<std::fs::File, Error> {
 /// rotates it if it is
 pub fn rotate_task_log_archive(size_threshold: u64, compress: bool, max_files: Option<usize>) -> Result<bool, Error> {
     let _lock = lock_task_list_files(true)?;
-    let path = Path::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN);
-    let metadata = match path.metadata() {
-        Ok(metadata) => metadata,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(err) =>  bail!("unable to open task archive - {}", err),
-    };
 
-    if metadata.len() > size_threshold {
-        let mut logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, compress).ok_or_else(|| format_err!("could not get archive file names"))?;
-        let backup_user = crate::backup::backup_user()?;
-        logrotate.rotate(
-            CreateOptions::new()
-                .owner(backup_user.uid)
-                .group(backup_user.gid),
-            max_files,
-        )?;
-        Ok(true)
-    } else {
-        Ok(false)
-    }
+    let mut logrotate = LogRotate::new(PROXMOX_BACKUP_ARCHIVE_TASK_FN, compress)
+        .ok_or(format_err!("could not get archive file names"))?;
+
+    logrotate.rotate(size_threshold, None, max_files)
 }
 
 // atomically read/update the task list, update status of finished tasks

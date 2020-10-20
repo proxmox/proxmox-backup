@@ -83,7 +83,7 @@ impl LogRotate {
     /// foo.1.zst => foo.2.zst
     /// foo       => foo.1.zst
     ///           => foo
-    pub fn rotate(&mut self, options: CreateOptions, max_files: Option<usize>) -> Result<(), Error> {
+    pub fn do_rotate(&mut self, options: CreateOptions, max_files: Option<usize>) -> Result<(), Error> {
         let mut filenames: Vec<PathBuf> = self.file_names().collect();
         if filenames.is_empty() {
             return Ok(()); // no file means nothing to rotate
@@ -122,6 +122,35 @@ impl LogRotate {
         }
 
         Ok(())
+    }
+
+    pub fn rotate(
+        &mut self,
+        max_size: u64,
+        options: Option<CreateOptions>,
+        max_files: Option<usize>
+    ) -> Result<bool, Error> {
+
+        let options = match options {
+            Some(options) => options,
+            None => {
+                let backup_user = crate::backup::backup_user()?;
+                CreateOptions::new().owner(backup_user.uid).group(backup_user.gid)
+            },
+        };
+
+        let metadata = match self.base_path.metadata() {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(err) =>  bail!("unable to open task archive - {}", err),
+        };
+
+        if metadata.len() > max_size {
+            self.do_rotate(options, max_files)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
