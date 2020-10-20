@@ -38,6 +38,7 @@ pub struct DataStore {
     chunk_store: Arc<ChunkStore>,
     gc_mutex: Mutex<bool>,
     last_gc_status: Mutex<GarbageCollectionStatus>,
+    verify_new: bool,
 }
 
 impl DataStore {
@@ -52,7 +53,9 @@ impl DataStore {
 
         if let Some(datastore) = map.get(name) {
             // Compare Config - if changed, create new Datastore object!
-            if datastore.chunk_store.base == path {
+            if datastore.chunk_store.base == path &&
+                datastore.verify_new == config.verify_new.unwrap_or(false)
+            {
                 return Ok(datastore.clone());
             }
         }
@@ -65,7 +68,7 @@ impl DataStore {
         Ok(datastore)
     }
 
-    fn open_with_path(store_name: &str, path: &Path, _config: DataStoreConfig) -> Result<Self, Error> {
+    fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
         let gc_status = GarbageCollectionStatus::default();
@@ -74,6 +77,7 @@ impl DataStore {
             chunk_store: Arc::new(chunk_store),
             gc_mutex: Mutex::new(false),
             last_gc_status: Mutex::new(gc_status),
+            verify_new: config.verify_new.unwrap_or(false),
         })
     }
 
@@ -679,5 +683,9 @@ impl DataStore {
         replace_file(&path, raw_data, CreateOptions::new())?;
 
         Ok(())
+    }
+
+    pub fn verify_new(&self) -> bool {
+        self.verify_new
     }
 }

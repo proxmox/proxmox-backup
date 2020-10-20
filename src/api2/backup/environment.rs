@@ -1,6 +1,7 @@
 use anyhow::{bail, format_err, Error};
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use nix::dir::Dir;
 
 use ::serde::{Serialize};
 use serde_json::{json, Value};
@@ -492,6 +493,54 @@ impl BackupEnvironment {
         state.finished = true;
 
         Ok(())
+    }
+
+    /// If verify-new is set on the datastore, this will run a new verify task
+    /// for the backup. If not, this will return and also drop the passed lock
+    /// immediately.
+    pub fn verify_after_complete(&self, snap_lock: Dir) -> Result<(), Error> {
+        self.ensure_finished()?;
+
+        if !self.datastore.verify_new() {
+            // no verify requested, do nothing
+            return Ok(());
+        }
+
+        let worker_id = format!("{}_{}_{}_{:08X}",
+            self.datastore.name(),
+            self.backup_dir.group().backup_type(),
+            self.backup_dir.group().backup_id(),
+            self.backup_dir.backup_time());
+
+        let datastore = self.datastore.clone();
+        let backup_dir = self.backup_dir.clone();
+
+        WorkerTask::new_thread(
+            "verify",
+            Some(worker_id),
+            self.user.clone(),
+            false,
+            move |worker| {
+                worker.log("Automatically verifying newly added snapshot");
+
+                let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
+                let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
+
+                if !verify_backup_dir_with_lock(
+                    datastore,
+                    &backup_dir,
+                    verified_chunks,
+                    corrupt_chunks,
+                    worker.clone(),
+                    worker.upid().clone(),
+                    snap_lock,
+                )? {
+                    bail!("verification failed - please check the log for details");
+                }
+
+                Ok(())
+            },
+        ).map(|_| ())
     }
 
     pub fn log<S: AsRef<str>>(&self, msg: S) {

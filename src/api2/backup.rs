@@ -149,7 +149,7 @@ async move {
         None
     };
 
-    let (path, is_new, _snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
+    let (path, is_new, snap_guard) = datastore.create_locked_backup_dir(&backup_dir)?;
     if !is_new { bail!("backup directory already exists."); }
 
 
@@ -191,7 +191,7 @@ async move {
         async move {
             // keep flock until task ends
             let _group_guard = _group_guard;
-            let _snap_guard = _snap_guard;
+            let snap_guard = snap_guard;
             let _last_guard = _last_guard;
 
             let res = select!{
@@ -203,14 +203,26 @@ async move {
                 tools::runtime::block_in_place(|| env.remove_backup())?;
                 return Ok(());
             }
+
+            let verify = |env: BackupEnvironment| {
+                if let Err(err) = env.verify_after_complete(snap_guard) {
+                    env.log(format!(
+                        "backup finished, but starting the requested verify task failed: {}",
+                        err
+                    ));
+                }
+            };
+
             match (res, env.ensure_finished()) {
                 (Ok(_), Ok(())) => {
                     env.log("backup finished successfully");
+                    verify(env);
                     Ok(())
                 },
                 (Err(err), Ok(())) => {
                     // ignore errors after finish
                     env.log(format!("backup had errors but finished: {}", err));
+                    verify(env);
                     Ok(())
                 },
                 (Ok(_), Err(err)) => {

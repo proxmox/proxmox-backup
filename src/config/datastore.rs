@@ -72,6 +72,10 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
             optional: true,
             schema: PRUNE_SCHEMA_KEEP_YEARLY,
         },
+        "verify-new": {
+            optional: true,
+            type: bool,
+        },
     }
 )]
 #[serde(rename_all="kebab-case")]
@@ -100,6 +104,9 @@ pub struct DataStoreConfig {
     pub keep_monthly: Option<u64>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub keep_yearly: Option<u64>,
+    /// If enabled, all backups will be verified right after completion.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub verify_new: Option<bool>,
 }
 
 fn init() -> SectionConfig {
