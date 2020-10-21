@@ -16,14 +16,13 @@ const_regex! {
     FILENAME_EXTRACT_REGEX = r"^.*/.*?_(.*)_Packages$";
 }
 
-// FIXME: Replace with call to 'apt changelog <pkg> --print-uris'. Currently
-// not possible as our packages do not have a URI set in their Release file
+// FIXME: once the 'changelog' API call switches over to 'apt-get changelog' only,
+// consider removing this function entirely, as it's value is never used anywhere
+// then (widget-toolkit doesn't use the value either)
 fn get_changelog_url(
     package: &str,
     filename: &str,
-    source_pkg: &str,
     version: &str,
-    source_version: &str,
     origin: &str,
     component: &str,
 ) -> Result<String, Error> {
@@ -32,25 +31,24 @@ fn get_changelog_url(
     }
 
     if origin == "Debian" {
-        let source_version = (VERSION_EPOCH_REGEX.regex_obj)().replace_all(source_version, "");
-
-        let prefix = if source_pkg.starts_with("lib") {
-            source_pkg.get(0..4)
-        } else {
-            source_pkg.get(0..1)
+        let mut command = std::process::Command::new("apt-get");
+        command.arg("changelog");
+        command.arg("--print-uris");
+        command.arg(package);
+        let output = crate::tools::run_command(command, None)?; // format: 'http://foo/bar' package.changelog
+        let output = match output.splitn(2, ' ').next() {
+            Some(output) => {
+                if output.len() < 2 {
+                    bail!("invalid output (URI part too short) from 'apt-get changelog --print-uris: {}", output)
+                }
+                output[1..output.len()-1].to_owned()
+            },
+            None => bail!("invalid output from 'apt-get changelog --print-uris': {}", output)
         };
-
-        let prefix = match prefix {
-            Some(p) => p,
-            None => bail!("cannot get starting characters of package name '{}'", package)
-        };
-
-        // note: security updates seem to not always upload a changelog for
-        // their package version, so this only works *most* of the time
-        return Ok(format!("https://metadata.ftp-master.debian.org/changelogs/main/{}/{}/{}_{}_changelog",
-                          prefix, source_pkg, source_pkg, source_version));
-
+        return Ok(output);
     } else if origin == "Proxmox" {
+        // FIXME: Use above call to 'apt changelog <pkg> --print-uris' as well.
+        // Currently not possible as our packages do not have a URI set in their Release file.
         let version = (VERSION_EPOCH_REGEX.regex_obj)().replace_all(version, "");
 
         let base = match (FILENAME_EXTRACT_REGEX.regex_obj)().captures(filename) {
@@ -162,14 +160,12 @@ fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(filter: F)
                         }
 
                         let filename = pkg_file.file_name();
-                        let source_pkg = ver.source_package();
-                        let source_ver = ver.source_version();
                         let component = pkg_file.component();
 
                         // build changelog URL from gathered information
                         // ignore errors, use empty changelog instead
-                        let url = get_changelog_url(&package, &filename, &source_pkg,
-                            &version, &source_ver, &origin_res, &component);
+                        let url = get_changelog_url(&package, &filename,
+                            &version, &origin_res, &component);
                         if let Ok(url) = url {
                             change_log_url = url;
                         }
