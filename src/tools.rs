@@ -44,6 +44,10 @@ pub use parallel_handler::*;
 mod wrapped_reader_stream;
 pub use wrapped_reader_stream::*;
 
+mod async_channel_writer;
+pub use async_channel_writer::*;
+
+
 mod std_channel_writer;
 pub use std_channel_writer::*;
 
