@@ -69,7 +69,7 @@ Ext.define('PBS.config.VerifyJobView', {
 	    if (!upid) return;
 
 	    Ext.create('Proxmox.window.TaskViewer', {
-		upid
+		upid,
 	    }).show();
 	},
 
