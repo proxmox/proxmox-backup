@@ -1,8 +1,6 @@
 use std::io::Write;
-use std::task::{Context, Poll};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
-use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use futures::*;
@@ -19,22 +17,16 @@ use xdg::BaseDirectories;
 use proxmox::{
     api::error::HttpError,
     sys::linux::tty,
-    tools::{
-        fs::{file_get_json, replace_file, CreateOptions},
-    }
+    tools::fs::{file_get_json, replace_file, CreateOptions},
 };
 
 use super::pipe_to_stream::PipeToSendStream;
 use crate::api2::types::Userid;
-use crate::tools::async_io::EitherStream;
 use crate::tools::{
     self,
     BroadcastFuture,
     DEFAULT_ENCODE_SET,
-    socket::{
-        set_tcp_keepalive,
-        PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
-    },
+    http::HttpsConnector,
 };
 
 #[derive(Clone)]
@@ -301,7 +293,7 @@ impl HttpClient {
             ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
         }
 
-        let mut httpc = hyper::client::HttpConnector::new();
+        let mut httpc = HttpConnector::new();
         httpc.set_nodelay(true); // important for h2 download performance!
         httpc.enforce_http(false); // we want https...
 
@@ -927,66 +919,5 @@ impl H2Client {
 
             Ok(request)
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct HttpsConnector {
-    http: HttpConnector,
-    ssl_connector: std::sync::Arc<SslConnector>,
-}
-
-impl HttpsConnector {
-    pub fn with_connector(mut http: HttpConnector, ssl_connector: SslConnector) -> Self {
-        http.enforce_http(false);
-
-        Self {
-            http,
-            ssl_connector: std::sync::Arc::new(ssl_connector),
-        }
-    }
-}
-
-type MaybeTlsStream = EitherStream<
-    tokio::net::TcpStream,
-    tokio_openssl::SslStream<tokio::net::TcpStream>,
->;
-
-impl hyper::service::Service<Uri> for HttpsConnector {
-    type Response = MaybeTlsStream;
-    type Error = Error;
-    type Future = std::pin::Pin<Box<
-        dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static
-    >>;
-
-    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        // This connector is always ready, but others might not be.
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, dst: Uri) -> Self::Future {
-        let mut this = self.clone();
-        async move {
-            let is_https = dst
-                .scheme()
-                .ok_or_else(|| format_err!("missing URL scheme"))?
-                == "https";
-            let host = dst
-                .host()
-                .ok_or_else(|| format_err!("missing hostname in destination url?"))?
-                .to_string();
-
-            let config = this.ssl_connector.configure();
-            let conn = this.http.call(dst).await?;
-
-            let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
-
-            if is_https {
-                let conn = tokio_openssl::connect(config?, &host, conn).await?;
-                Ok(MaybeTlsStream::Right(conn))
-            } else {
-                Ok(MaybeTlsStream::Left(conn))
-            }
-        }.boxed()
     }
 }

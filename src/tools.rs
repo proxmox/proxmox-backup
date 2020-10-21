@@ -37,6 +37,7 @@ pub mod loopdev;
 pub mod fuse_loop;
 pub mod socket;
 pub mod zip;
+pub mod http;
 
 mod parallel_handler;
 pub use parallel_handler::*;
