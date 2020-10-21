@@ -63,6 +63,19 @@ Ext.define('PBS.config.UserView', {
 	    }).show();
 	},
 
+	showPermissions: function() {
+	    let me = this;
+	    let view = me.getView();
+	    let selection = view.getSelection();
+
+	    if (selection.length < 1) return;
+
+	    Ext.create('Proxmox.PermissionView', {
+		auth_id: selection[0].data.userid,
+		auth_id_name: 'auth_id',
+	    }).show();
+	},
+
 	renderUsername: function(userid) {
 	    return Ext.String.htmlEncode(userid.match(/^(.+)@([^@]+)$/)[1]);
 	},
@@ -121,6 +134,12 @@ Ext.define('PBS.config.UserView', {
 	    baseurl: '/access/users/',
 	    enableFn: (rec) => rec.data.userid !== 'root@pam',
 	    callback: 'reload',
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Permissions'),
+	    handler: 'showPermissions',
+	    disabled: true,
 	},
     ],
 
