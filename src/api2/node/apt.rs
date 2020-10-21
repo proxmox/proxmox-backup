@@ -90,106 +90,124 @@ fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(filter: F)
     let mut cache_iter = cache.iter();
 
     loop {
-        let view = match cache_iter.next() {
-            Some(view) => view,
-            None => break
-        };
 
-        let current_version = view.current_version();
-        let candidate_version = view.candidate_version();
-
-        let (current_version, candidate_version) = match (current_version, candidate_version) {
-            (Some(cur), Some(can)) => (cur, can), // package installed and there is an update
-            (Some(cur), None) => (cur.clone(), cur), // package installed and up-to-date
-            (None, Some(_)) => continue, // package could be installed
-            (None, None) => continue, // broken
-        };
-
-        // get additional information via nested APT 'iterators'
-        let mut view_iter = view.versions();
-        while let Some(ver) = view_iter.next() {
-
-            let package = view.name();
-            let version = ver.version();
-            let mut origin_res = "unknown".to_owned();
-            let mut section_res = "unknown".to_owned();
-            let mut priority_res = "unknown".to_owned();
-            let mut change_log_url = "".to_owned();
-            let mut short_desc = package.clone();
-            let mut long_desc = "".to_owned();
-
-            let fd = FilterData {
-                installed_version: &current_version,
-                candidate_version: &candidate_version,
-                active_version: &version,
-            };
-
-            if filter(fd) {
-                if let Some(section) = ver.section() {
-                    section_res = section;
+        match cache_iter.next() {
+            Some(view) => {
+                let di = query_detailed_info(&filter, view);
+                if let Some(info) = di {
+                    ret.push(info);
                 }
-
-                if let Some(prio) = ver.priority_type() {
-                    priority_res = prio;
-                }
-
-                // assume every package has only one origin file (not
-                // origin, but origin *file*, for some reason those seem to
-                // be different concepts in APT)
-                let mut origin_iter = ver.origin_iter();
-                let origin = origin_iter.next();
-                if let Some(origin) = origin {
-
-                    if let Some(sd) = origin.short_desc() {
-                        short_desc = sd;
-                    }
-
-                    if let Some(ld) = origin.long_desc() {
-                        long_desc = ld;
-                    }
-
-                    // the package files appear in priority order, meaning
-                    // the one for the candidate version is first - this is fine
-                    // however, as the source package should be the same for all
-                    // versions anyway
-                    let mut pkg_iter = origin.file();
-                    let pkg_file = pkg_iter.next();
-                    if let Some(pkg_file) = pkg_file {
-                        if let Some(origin_name) = pkg_file.origin() {
-                            origin_res = origin_name;
-                        }
-
-                        let filename = pkg_file.file_name();
-                        let component = pkg_file.component();
-
-                        // build changelog URL from gathered information
-                        // ignore errors, use empty changelog instead
-                        let url = get_changelog_url(&package, &filename,
-                            &version, &origin_res, &component);
-                        if let Ok(url) = url {
-                            change_log_url = url;
-                        }
-                    }
-                }
-
-                let info = APTUpdateInfo {
-                    package,
-                    title: short_desc,
-                    arch: view.arch(),
-                    description: long_desc,
-                    change_log_url,
-                    origin: origin_res,
-                    version: candidate_version.clone(),
-                    old_version: current_version.clone(),
-                    priority: priority_res,
-                    section: section_res,
-                };
-                ret.push(info);
+            },
+            None => {
+                break;
             }
         }
     }
 
     return ret;
+}
+
+fn query_detailed_info<'a, F, V>(
+    filter: F,
+    view: V,
+) -> Option<APTUpdateInfo>
+where
+    F: Fn(FilterData) -> bool,
+    V: std::ops::Deref<Target = apt_pkg_native::sane::PkgView<'a>>
+{
+    let current_version = view.current_version();
+    let candidate_version = view.candidate_version();
+
+    let (current_version, candidate_version) = match (current_version, candidate_version) {
+        (Some(cur), Some(can)) => (cur, can), // package installed and there is an update
+        (Some(cur), None) => (cur.clone(), cur), // package installed and up-to-date
+        (None, Some(_)) => return None, // package could be installed
+        (None, None) => return None, // broken
+    };
+
+    // get additional information via nested APT 'iterators'
+    let mut view_iter = view.versions();
+    while let Some(ver) = view_iter.next() {
+
+        let package = view.name();
+        let version = ver.version();
+        let mut origin_res = "unknown".to_owned();
+        let mut section_res = "unknown".to_owned();
+        let mut priority_res = "unknown".to_owned();
+        let mut change_log_url = "".to_owned();
+        let mut short_desc = package.clone();
+        let mut long_desc = "".to_owned();
+
+        let fd = FilterData {
+            installed_version: &current_version,
+            candidate_version: &candidate_version,
+            active_version: &version,
+        };
+
+        if filter(fd) {
+            if let Some(section) = ver.section() {
+                section_res = section;
+            }
+
+            if let Some(prio) = ver.priority_type() {
+                priority_res = prio;
+            }
+
+            // assume every package has only one origin file (not
+            // origin, but origin *file*, for some reason those seem to
+            // be different concepts in APT)
+            let mut origin_iter = ver.origin_iter();
+            let origin = origin_iter.next();
+            if let Some(origin) = origin {
+
+                if let Some(sd) = origin.short_desc() {
+                    short_desc = sd;
+                }
+
+                if let Some(ld) = origin.long_desc() {
+                    long_desc = ld;
+                }
+
+                // the package files appear in priority order, meaning
+                // the one for the candidate version is first - this is fine
+                // however, as the source package should be the same for all
+                // versions anyway
+                let mut pkg_iter = origin.file();
+                let pkg_file = pkg_iter.next();
+                if let Some(pkg_file) = pkg_file {
+                    if let Some(origin_name) = pkg_file.origin() {
+                        origin_res = origin_name;
+                    }
+
+                    let filename = pkg_file.file_name();
+                    let component = pkg_file.component();
+
+                    // build changelog URL from gathered information
+                    // ignore errors, use empty changelog instead
+                    let url = get_changelog_url(&package, &filename,
+                        &version, &origin_res, &component);
+                    if let Ok(url) = url {
+                        change_log_url = url;
+                    }
+                }
+            }
+
+            return Some(APTUpdateInfo {
+                package,
+                title: short_desc,
+                arch: view.arch(),
+                description: long_desc,
+                change_log_url,
+                origin: origin_res,
+                version: candidate_version.clone(),
+                old_version: current_version.clone(),
+                priority: priority_res,
+                section: section_res,
+            });
+        }
+    }
+
+    return None;
 }
 
 #[api(
