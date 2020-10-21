@@ -220,12 +220,10 @@ fn store_ticket_info(prefix: &str, server: &str, username: &str, ticket: &str, t
     let empty = serde_json::map::Map::new();
     for (server, info) in data.as_object().unwrap_or(&empty) {
         for (user, uinfo) in info.as_object().unwrap_or(&empty) {
-            if user == username {
-                if let Some(timestamp) = uinfo["timestamp"].as_i64() {
-                    let age = now - timestamp;
-                    if age < ticket_lifetime {
-                        new_data[server][username] = uinfo.clone();
-                    }
+            if let Some(timestamp) = uinfo["timestamp"].as_i64() {
+                let age = now - timestamp;
+                if age < ticket_lifetime {
+                    new_data[server][user] = uinfo.clone();
                 }
             }
         }
