@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use apt_pkg_native::Cache;
-use anyhow::{Error, bail};
+use anyhow::{Error, bail, format_err};
 use serde_json::{json, Value};
 
 use proxmox::{list_subdirs_api_method, const_regex};
@@ -9,6 +9,7 @@ use proxmox::api::{api, RpcEnvironment, RpcEnvironmentType, Permission};
 use proxmox::api::router::{Router, SubdirMap};
 
 use crate::server::WorkerTask;
+use crate::tools::http;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
 use crate::api2::types::{APTUpdateInfo, NODE_SCHEMA, Userid, UPID_SCHEMA};
@@ -373,7 +374,67 @@ pub fn apt_update_database(
     Ok(upid_str)
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+            name: {
+                description: "Package name to get changelog of.",
+                type: String,
+            },
+            version: {
+                description: "Package version to get changelog of. Omit to use candidate version.",
+                type: String,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_MODIFY, false),
+    },
+)]
+/// Retrieve the changelog of the specified package.
+fn apt_get_changelog(
+    param: Value,
+) -> Result<Value, Error> {
+
+    let name = crate::tools::required_string_param(&param, "name")?.to_owned();
+    let version = param["version"].as_str();
+
+    let pkg_info = list_installed_apt_packages(|data| {
+        match version {
+            Some(version) => version == data.active_version,
+            None => data.active_version == data.candidate_version
+        }
+    }, Some(&name));
+
+    if pkg_info.len() == 0 {
+        bail!("Package '{}' not found", name);
+    }
+
+    let changelog_url = &pkg_info[0].change_log_url;
+    // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
+    if changelog_url.starts_with("http://download.proxmox.com/") {
+        let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url))
+            .map_err(|err| format_err!("Error downloading changelog: {}", err))?;
+        return Ok(json!(changelog));
+    } else {
+        let mut command = std::process::Command::new("apt-get");
+        command.arg("changelog");
+        command.arg("-qq"); // don't display download progress
+        command.arg(name);
+        let output = crate::tools::run_command(command, None)?;
+        return Ok(json!(output));
+    }
+}
+
 const SUBDIRS: SubdirMap = &[
+    ("changelog", &Router::new().get(&API_METHOD_APT_GET_CHANGELOG)),
     ("update", &Router::new()
         .get(&API_METHOD_APT_UPDATE_AVAILABLE)
         .post(&API_METHOD_APT_UPDATE_DATABASE)
