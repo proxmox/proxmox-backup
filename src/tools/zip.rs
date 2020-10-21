@@ -354,21 +354,23 @@ impl ZipEntry {
 /// ```no_run
 /// use proxmox_backup::tools::zip::*;
 /// use tokio::fs::File;
+/// use tokio::prelude::*;
+/// use anyhow::{Error, Result};
 ///
-/// #[tokio::async]
-/// async fn main() ->  std::io::Result<()> {
+/// #[tokio::main]
+/// async fn main() -> Result<(), Error> {
 ///     let target = File::open("foo.zip").await?;
 ///     let mut source = File::open("foo.txt").await?;
 ///
 ///     let mut zip = ZipEncoder::new(target);
-///     zip.add_entry(ZipEntry {
+///     zip.add_entry(ZipEntry::new(
 ///         "foo.txt",
 ///         0,
 ///         0o100755,
 ///         true,
-///     }, source).await?;
+///     ), Some(source)).await?;
 ///
-///     zip.finish().await?
+///     zip.finish().await?;
 ///
 ///     Ok(())
 /// }
