@@ -87,6 +87,9 @@ Ext.define("PBS.window.FileBrowser", {
 	    };
 	    params.filepath = data.filepath;
 	    atag.download = data.text;
+	    if (data.type === 'd') {
+		atag.download += ".zip";
+	    }
 	    atag.href = me
 	        .buildUrl(`/api2/json/admin/datastore/${view.datastore}/pxar-file-download`, params);
 	    atag.click();
@@ -105,6 +108,11 @@ Ext.define("PBS.window.FileBrowser", {
 		case 'h':
 		case 'f':
 		    canDownload = true;
+		    break;
+		case 'd':
+		    if (data.depth > 1) {
+			canDownload = true;
+		    }
 		    break;
 		default: break;
 	    }
