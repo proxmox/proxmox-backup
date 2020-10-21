@@ -71,7 +71,16 @@ fn get_changelog_url(
     bail!("unknown origin ({}) or component ({})", origin, component)
 }
 
-fn list_installed_apt_packages<F: Fn(&str, &str, &str) -> bool>(filter: F)
+struct FilterData<'a> {
+    // this is version info returned by APT
+    installed_version: &'a str,
+    candidate_version: &'a str,
+
+    // this is the version info the filter is supposed to check
+    active_version: &'a str,
+}
+
+fn list_installed_apt_packages<F: Fn(FilterData) -> bool>(filter: F)
     -> Vec<APTUpdateInfo> {
 
     let mut ret = Vec::new();
@@ -88,19 +97,22 @@ fn list_installed_apt_packages<F: Fn(&str, &str, &str) -> bool>(filter: F)
             None => break
         };
 
-        let current_version = match view.current_version() {
-            Some(vers) => vers,
-            None => continue
-        };
-        let candidate_version = match view.candidate_version() {
-            Some(vers) => vers,
-            // if there's no candidate (i.e. no update) get info of currently
-            // installed version instead
-            None => current_version.clone()
+        let current_version = view.current_version();
+        let candidate_version = view.candidate_version();
+
+        let (current_version, candidate_version) = match (current_version, candidate_version) {
+            (Some(cur), Some(can)) => (cur, can), // package installed and there is an update
+            (Some(cur), None) => (cur.clone(), cur), // package installed and up-to-date
+            (None, Some(_)) => continue, // package could be installed
+            (None, None) => continue, // broken
         };
 
-        let package = view.name();
-        if filter(&package, &current_version, &candidate_version) {
+        // get additional information via nested APT 'iterators'
+        let mut view_iter = view.versions();
+        while let Some(ver) = view_iter.next() {
+
+            let package = view.name();
+            let version = ver.version();
             let mut origin_res = "unknown".to_owned();
             let mut section_res = "unknown".to_owned();
             let mut priority_res = "unknown".to_owned();
@@ -108,74 +120,76 @@ fn list_installed_apt_packages<F: Fn(&str, &str, &str) -> bool>(filter: F)
             let mut short_desc = package.clone();
             let mut long_desc = "".to_owned();
 
-            // get additional information via nested APT 'iterators'
-            let mut view_iter = view.versions();
-            while let Some(ver) = view_iter.next() {
-                if ver.version() == candidate_version {
-                    if let Some(section) = ver.section() {
-                        section_res = section;
-                    }
-
-                    if let Some(prio) = ver.priority_type() {
-                        priority_res = prio;
-                    }
-
-                    // assume every package has only one origin file (not
-                    // origin, but origin *file*, for some reason those seem to
-                    // be different concepts in APT)
-                    let mut origin_iter = ver.origin_iter();
-                    let origin = origin_iter.next();
-                    if let Some(origin) = origin {
-
-                        if let Some(sd) = origin.short_desc() {
-                            short_desc = sd;
-                        }
-
-                        if let Some(ld) = origin.long_desc() {
-                            long_desc = ld;
-                        }
-
-                        // the package files appear in priority order, meaning
-                        // the one for the candidate version is first
-                        let mut pkg_iter = origin.file();
-                        let pkg_file = pkg_iter.next();
-                        if let Some(pkg_file) = pkg_file {
-                            if let Some(origin_name) = pkg_file.origin() {
-                                origin_res = origin_name;
-                            }
-
-                            let filename = pkg_file.file_name();
-                            let source_pkg = ver.source_package();
-                            let source_ver = ver.source_version();
-                            let component = pkg_file.component();
-
-                            // build changelog URL from gathered information
-                            // ignore errors, use empty changelog instead
-                            let url = get_changelog_url(&package, &filename, &source_pkg,
-                                &candidate_version, &source_ver, &origin_res, &component);
-                            if let Ok(url) = url {
-                                change_log_url = url;
-                            }
-                        }
-                    }
-
-                    break;
-                }
-            }
-
-            let info = APTUpdateInfo {
-                package,
-                title: short_desc,
-                arch: view.arch(),
-                description: long_desc,
-                change_log_url,
-                origin: origin_res,
-                version: candidate_version,
-                old_version: current_version,
-                priority: priority_res,
-                section: section_res,
+            let fd = FilterData {
+                installed_version: &current_version,
+                candidate_version: &candidate_version,
+                active_version: &version,
             };
-            ret.push(info);
+
+            if filter(fd) {
+                if let Some(section) = ver.section() {
+                    section_res = section;
+                }
+
+                if let Some(prio) = ver.priority_type() {
+                    priority_res = prio;
+                }
+
+                // assume every package has only one origin file (not
+                // origin, but origin *file*, for some reason those seem to
+                // be different concepts in APT)
+                let mut origin_iter = ver.origin_iter();
+                let origin = origin_iter.next();
+                if let Some(origin) = origin {
+
+                    if let Some(sd) = origin.short_desc() {
+                        short_desc = sd;
+                    }
+
+                    if let Some(ld) = origin.long_desc() {
+                        long_desc = ld;
+                    }
+
+                    // the package files appear in priority order, meaning
+                    // the one for the candidate version is first - this is fine
+                    // however, as the source package should be the same for all
+                    // versions anyway
+                    let mut pkg_iter = origin.file();
+                    let pkg_file = pkg_iter.next();
+                    if let Some(pkg_file) = pkg_file {
+                        if let Some(origin_name) = pkg_file.origin() {
+                            origin_res = origin_name;
+                        }
+
+                        let filename = pkg_file.file_name();
+                        let source_pkg = ver.source_package();
+                        let source_ver = ver.source_version();
+                        let component = pkg_file.component();
+
+                        // build changelog URL from gathered information
+                        // ignore errors, use empty changelog instead
+                        let url = get_changelog_url(&package, &filename, &source_pkg,
+                            &version, &source_ver, &origin_res, &component);
+                        if let Ok(url) = url {
+                            change_log_url = url;
+                        }
+                    }
+                }
+
+                let info = APTUpdateInfo {
+                    package,
+                    title: short_desc,
+                    arch: view.arch(),
+                    description: long_desc,
+                    change_log_url,
+                    origin: origin_res,
+                    version: candidate_version.clone(),
+                    old_version: current_version.clone(),
+                    priority: priority_res,
+                    section: section_res,
+                };
+                ret.push(info);
+            }
         }
     }
 
@@ -201,8 +215,11 @@ fn list_installed_apt_packages<F: Fn(&str, &str, &str) -> bool>(filter: F)
 )]
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Value, Error> {
-    let ret = list_installed_apt_packages(|_pkg, cur_ver, can_ver| cur_ver != can_ver);
-    Ok(json!(ret))
+    let all_upgradeable = list_installed_apt_packages(|data|
+        data.candidate_version == data.active_version &&
+        data.installed_version != data.candidate_version
+    );
+    Ok(json!(all_upgradeable))
 }
 
 #[api(
