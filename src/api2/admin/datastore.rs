@@ -2,7 +2,7 @@ use std::collections::{HashSet, HashMap};
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::sync::{Arc, Mutex};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use anyhow::{bail, format_err, Error};
@@ -1248,12 +1248,12 @@ fn catalog(
     Ok(res.into())
 }
 
-fn recurse_files<T, W>(
-    mut zip: ZipEncoder<W>,
-    mut decoder: Accessor<T>,
-    prefix: PathBuf,
+fn recurse_files<'a, T, W>(
+    zip: &'a mut ZipEncoder<W>,
+    decoder: &'a mut Accessor<T>,
+    prefix: &'a Path,
     file: FileEntry<T>,
-) -> Pin<Box<dyn Future<Output = Result<(ZipEncoder<W>, Accessor<T>), Error>> + Send + 'static>>
+) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
 where
     T: Clone + pxar::accessor::ReadAt + Unpin + Send + Sync + 'static,
     W: tokio::io::AsyncWrite + Unpin + Send + 'static,
@@ -1298,16 +1298,13 @@ where
                 zip.add_entry::<FileContents<T>>(entry, None).await?;
                 while let Some(entry) = readdir.next().await {
                     let entry = entry?.decode_entry().await?;
-                    let (zip_tmp, decoder_tmp) =
-                        recurse_files(zip, decoder, prefix.clone(), entry).await?;
-                    zip = zip_tmp;
-                    decoder = decoder_tmp;
+                    recurse_files(zip, decoder, prefix, entry).await?;
                 }
             }
             _ => {} // ignore all else
         };
 
-        Ok((zip, decoder))
+        Ok(())
     })
 }
 
@@ -1420,10 +1417,11 @@ fn pxar_file_download(
                 }
 
                 let channelwriter = AsyncChannelWriter::new(sender, 1024 * 1024);
-                let zipencoder = ZipEncoder::new(channelwriter);
 
                 crate::server::spawn_internal_task(async move {
-                    let (mut zipencoder, _) = recurse_files(zipencoder, decoder, prefix, file)
+                    let mut zipencoder = ZipEncoder::new(channelwriter);
+                    let mut decoder = decoder;
+                    recurse_files(&mut zipencoder, &mut decoder, &prefix, file)
                         .await
                         .map_err(|err| eprintln!("error during creating of zip: {}", err))?;
 
