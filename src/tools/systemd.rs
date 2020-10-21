@@ -130,3 +130,32 @@ pub fn stop_unit(unit: &str) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn test_escape_unit() -> Result<(), Error> {
+
+    fn test_escape(i: &str, expected: &str, is_path: bool) {
+        let escaped = escape_unit(i, is_path);
+        assert_eq!(escaped, expected);
+        let unescaped = unescape_unit(&escaped).unwrap();
+        if is_path {
+            let mut p = i.trim_matches('/');
+            if p.is_empty() { p = "/"; }
+            assert_eq!(p, unescaped);
+        } else {
+            assert_eq!(i, unescaped);
+        }
+    }
+
+    test_escape(".test", "\\x2etest", false);
+    test_escape("t.est", "t.est", false);
+    test_escape("_test_", "_test_", false);
+
+    test_escape("/", "-", false);
+    test_escape("//", "--", false);
+
+    test_escape("/", "-", true);
+    test_escape("//", "-", true);
+
+    Ok(())
+}
