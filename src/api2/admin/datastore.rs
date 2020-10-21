@@ -1271,8 +1271,8 @@ where
                     true,
                 );
                 zip.add_entry(entry, Some(file.contents().await?))
-                    .await
-                    .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                   .await
+                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
             }
             EntryKind::Hardlink(_) => {
                 let realfile = decoder.follow_hardlink(&file).await?;
@@ -1283,8 +1283,8 @@ where
                     true,
                 );
                 zip.add_entry(entry, Some(realfile.contents().await?))
-                    .await
-                    .map_err(|err| format_err!("could not send file entry: {}", err))?;
+                   .await
+                   .map_err(|err| format_err!("could not send file entry: {}", err))?;
             }
             EntryKind::Directory => {
                 let dir = file.enter_directory().await?;
