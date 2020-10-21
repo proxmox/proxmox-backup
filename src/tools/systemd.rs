@@ -25,7 +25,12 @@ pub fn escape_unit(mut unit: &str, is_path: bool) -> String {
             escaped.push('-');
             continue;
         }
-        if (i == 0 && *c == b'.') || !((*c >= b'0' && *c <= b'9') || (*c >= b'A' && *c <= b'Z') || (*c >= b'a' && *c <= b'z')) {
+        if (i == 0 && *c == b'.')
+            || !(*c == b'_' ||
+                 *c == b'.' ||
+                 (*c >= b'0' && *c <= b'9') ||
+                 (*c >= b'A' && *c <= b'Z') ||
+                 (*c >= b'a' && *c <= b'z')) {
             escaped.push_str(&format!("\\x{:0x}", c));
         } else {
             escaped.push(*c as char);
