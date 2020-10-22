@@ -108,7 +108,7 @@ fn upgrade_to_backup_reader_protocol(
 
         //let files = BackupInfo::list_files(&path, &backup_dir)?;
 
-        let worker_id = format!("{}_{}_{}_{:08X}", store, backup_type, backup_id, backup_dir.backup_time());
+        let worker_id = format!("{}:{}/{}/{:08X}", store, backup_type, backup_id, backup_dir.backup_time());
 
         WorkerTask::spawn("reader", Some(worker_id), userid.clone(), true, move |worker| {
             let mut env = ReaderEnvironment::new(

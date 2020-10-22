@@ -506,7 +506,7 @@ impl BackupEnvironment {
             return Ok(());
         }
 
-        let worker_id = format!("{}_{}_{}_{:08X}",
+        let worker_id = format!("{}:{}/{}/{:08X}",
             self.datastore.name(),
             self.backup_dir.group().backup_type(),
             self.backup_dir.group().backup_id(),

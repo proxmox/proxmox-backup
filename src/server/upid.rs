@@ -75,11 +75,6 @@ impl UPID {
         if worker_type.contains(bad) {
             bail!("illegal characters in worker type '{}'", worker_type);
         }
-        if let Some(ref worker_id) = worker_id {
-            if worker_id.contains(bad) {
-                bail!("illegal characters in worker id '{}'", worker_id);
-            }
-        }
 
         static WORKER_TASK_NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -112,13 +107,21 @@ impl std::str::FromStr for UPID {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(cap) = PROXMOX_UPID_REGEX.captures(s) {
+
+            let worker_id = if cap["wid"].is_empty() {
+                None
+            } else {
+                let wid = crate::tools::systemd::unescape_unit(&cap["wid"])?;
+                Some(wid)
+            };
+
             Ok(UPID {
                 pid: i32::from_str_radix(&cap["pid"], 16).unwrap(),
                 pstart: u64::from_str_radix(&cap["pstart"], 16).unwrap(),
                 starttime: i64::from_str_radix(&cap["starttime"], 16).unwrap(),
                 task_id: usize::from_str_radix(&cap["task_id"], 16).unwrap(),
                 worker_type: cap["wtype"].to_string(),
-                worker_id: if cap["wid"].is_empty() { None } else { Some(cap["wid"].to_string()) },
+                worker_id,
                 userid: cap["userid"].parse()?,
                 node: cap["node"].to_string(),
             })
@@ -133,7 +136,11 @@ impl std::fmt::Display for UPID {
 
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 
-        let wid = if let Some(ref id) = self.worker_id { id } else { "" };
+        let wid = if let Some(ref id) = self.worker_id {
+            crate::tools::systemd::escape_unit(id, false)
+        } else {
+            String::new()
+        };
 
         // Note: pstart can be > 32bit if uptime > 497 days, so this can result in
         // more that 8 characters for pstart

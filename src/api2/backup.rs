@@ -86,7 +86,7 @@ async move {
         bail!("unexpected http version '{:?}' (expected version < 2)", parts.version);
     }
 
-    let worker_id = format!("{}_{}_{}", store, backup_type, backup_id);
+    let worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
 
     let env_type = rpcenv.env_type();
 

@@ -628,7 +628,7 @@ async fn schedule_task_log_rotate() {
         parse_calendar_event, compute_next_event};
 
     let worker_type = "logrotate";
-    let job_id = "task-archive";
+    let job_id = "task_archive";
 
     let last = match jobstate::last_run_time(worker_type, job_id) {
         Ok(time) => time,
