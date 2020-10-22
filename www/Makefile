@@ -13,6 +13,7 @@ JSSRC=							\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
+	config/TokenView.js				\
 	config/RemoteView.js				\
 	config/ACLView.js				\
 	config/SyncView.js				\
@@ -27,6 +28,7 @@ JSSRC=							\
 	window/SyncJobEdit.js				\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
+	window/TokenEdit.js				\
 	window/VerifyJobEdit.js				\
 	window/ZFSCreate.js				\
 	dashboard/DataStoreStatistics.js		\

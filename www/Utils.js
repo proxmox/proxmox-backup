@@ -84,6 +84,14 @@ Ext.define('PBS.Utils', {
 	return `Datastore ${what} ${id}`;
     },
 
+    extractTokenUser: function(tokenid) {
+	return tokenid.match(/^(.+)!([^!]+)$/)[1];
+    },
+
+    extractTokenName: function(tokenid) {
+	return tokenid.match(/^(.+)!([^!]+)$/)[2];
+    },
+
     constructor: function() {
 	var me = this;
 
