@@ -42,7 +42,7 @@ fn get_changelog_url(
         let output = match output.splitn(2, ' ').next() {
             Some(output) => {
                 if output.len() < 2 {
-                    bail!("invalid output (URI part too short) from 'apt-get changelog --print-uris: {}", output)
+                    bail!("invalid output (URI part too short) from 'apt-get changelog --print-uris': {}", output)
                 }
                 output[1..output.len()-1].to_owned()
             },
@@ -421,7 +421,7 @@ fn apt_get_changelog(
     // FIXME: use 'apt-get changelog' for proxmox packages as well, once repo supports it
     if changelog_url.starts_with("http://download.proxmox.com/") {
         let changelog = crate::tools::runtime::block_on(http::get_string(changelog_url))
-            .map_err(|err| format_err!("Error downloading changelog: {}", err))?;
+            .map_err(|err| format_err!("Error downloading changelog from '{}': {}", changelog_url, err))?;
         return Ok(json!(changelog));
     } else {
         let mut command = std::process::Command::new("apt-get");
