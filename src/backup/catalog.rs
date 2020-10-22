@@ -78,7 +78,7 @@ pub struct DirEntry {
 #[derive(Clone, Debug, PartialEq)]
 pub enum DirEntryAttribute {
     Directory { start: u64 },
-    File { size: u64, mtime: u64 },
+    File { size: u64, mtime: i64 },
     Symlink,
     Hardlink,
     BlockDevice,
@@ -89,7 +89,7 @@ pub enum DirEntryAttribute {
 
 impl DirEntry {
 
-    fn new(etype: CatalogEntryType, name: Vec<u8>, start: u64, size: u64, mtime:u64) -> Self {
+    fn new(etype: CatalogEntryType, name: Vec<u8>, start: u64, size: u64, mtime: i64) -> Self {
         match etype {
             CatalogEntryType::Directory => {
                 DirEntry { name, attr: DirEntryAttribute::Directory { start } }
@@ -184,7 +184,7 @@ impl DirInfo {
                 catalog_encode_u64(writer, name.len() as u64)?;
                 writer.write_all(name)?;
                 catalog_encode_u64(writer, *size)?;
-                catalog_encode_u64(writer, *mtime)?;
+                catalog_encode_i64(writer, *mtime)?;
             }
             DirEntry { name, attr: DirEntryAttribute::Symlink } => {
                 writer.write_all(&[CatalogEntryType::Symlink as u8])?;
@@ -234,7 +234,7 @@ impl DirInfo {
         Ok((self.name, data))
     }
 
-    fn parse<C: FnMut(CatalogEntryType, &[u8], u64, u64, u64) -> Result<bool, Error>>(
+    fn parse<C: FnMut(CatalogEntryType, &[u8], u64, u64, i64) -> Result<bool, Error>>(
         data: &[u8],
         mut callback: C,
     ) -> Result<(), Error> {
@@ -265,7 +265,7 @@ impl DirInfo {
                 }
                 CatalogEntryType::File => {
                     let size = catalog_decode_u64(&mut cursor)?;
-                    let mtime = catalog_decode_u64(&mut cursor)?;
+                    let mtime = catalog_decode_i64(&mut cursor)?;
                     callback(etype, name, 0, size, mtime)?
                 }
                 _ => {
@@ -362,7 +362,7 @@ impl <W: Write> BackupCatalogWriter for CatalogWriter<W> {
         Ok(())
     }
 
-    fn add_file(&mut self, name: &CStr, size: u64, mtime: u64) -> Result<(), Error> {
+    fn add_file(&mut self, name: &CStr, size: u64, mtime: i64) -> Result<(), Error> {
         let dir = self.dirstack.last_mut().ok_or_else(|| format_err!("outside root"))?;
         let name = name.to_bytes().to_vec();
         dir.entries.push(DirEntry { name, attr: DirEntryAttribute::File { size, mtime } });
@@ -587,14 +587,77 @@ impl <R: Read + Seek> CatalogReader<R> {
     }
 }
 
+/// Serialize i64 as short, variable length byte sequence
+///
+/// Stores 7 bits per byte, Bit 8 indicates the end of the sequence (when not set).
+/// If the value is negative, we end with a zero byte (0x00).
+pub fn catalog_encode_i64<W: Write>(writer: &mut W, v: i64) -> Result<(), Error> {
+    let mut enc = Vec::new();
+
+    let mut d = if v < 0 {
+        (-1 * (v + 1)) as u64 + 1 // also handles i64::MIN
+    } else {
+        v as u64
+    };
+
+    loop {
+        if d < 128 {
+            if v < 0 {
+                enc.push(128 | d as u8);
+                enc.push(0u8);
+            } else {
+                enc.push(d as u8);
+            }
+            break;
+        }
+        enc.push((128 | (d & 127)) as u8);
+        d = d >> 7;
+    }
+    writer.write_all(&enc)?;
+
+    Ok(())
+}
+
+/// Deserialize i64 from variable length byte sequence
+///
+/// We currently read maximal 11 bytes, which give a maximum of 70 bits + sign.
+/// this method is compatible with catalog_encode_u64 iff the
+/// value encoded is <= 2^63 (values > 2^63 cannot be represented in an i64)
+pub fn catalog_decode_i64<R: Read>(reader: &mut R) -> Result<i64, Error> {
+
+    let mut v: u64 = 0;
+    let mut buf = [0u8];
+
+    for i in 0..11 { // only allow 11 bytes (70 bits + sign marker)
+        if buf.is_empty() {
+            bail!("decode_i64 failed - unexpected EOB");
+        }
+        reader.read_exact(&mut buf)?;
+
+        let t = buf[0];
+
+        if t == 0 {
+            if v == 0 {
+                return Ok(0);
+            }
+            return Ok(((v - 1) as i64 * -1) - 1); // also handles i64::MIN
+        } else if t < 128 {
+            v |= (t as u64) << (i*7);
+            return Ok(v as i64);
+        } else {
+            v |= ((t & 127) as u64) << (i*7);
+        }
+    }
+
+    bail!("decode_i64 failed - missing end marker");
+}
+
 /// Serialize u64 as short, variable length byte sequence
 ///
 /// Stores 7 bits per byte, Bit 8 indicates the end of the sequence (when not set).
-/// We limit values to a maximum of 2^63.
 pub fn catalog_encode_u64<W: Write>(writer: &mut W, v: u64) -> Result<(), Error> {
     let mut enc = Vec::new();
 
-    if (v & (1<<63)) != 0 { bail!("catalog_encode_u64 failed - value >= 2^63"); }
     let mut d = v;
     loop {
         if d < 128 {
@@ -611,13 +674,14 @@ pub fn catalog_encode_u64<W: Write>(writer: &mut W, v: u64) -> Result<(), Error>
 
 /// Deserialize u64 from variable length byte sequence
 ///
-/// We currently read maximal 9 bytes, which give a maximum of 63 bits.
+/// We currently read maximal 10 bytes, which give a maximum of 70 bits,
+/// but we currently only encode up to 64 bits
 pub fn catalog_decode_u64<R: Read>(reader: &mut R) -> Result<u64, Error> {
 
     let mut v: u64 = 0;
     let mut buf = [0u8];
 
-    for i in 0..9 { // only allow 9 bytes (63 bits)
+    for i in 0..10 { // only allow 10 bytes (70 bits)
         if buf.is_empty() {
             bail!("decode_u64 failed - unexpected EOB");
         }
@@ -652,9 +716,58 @@ fn test_catalog_u64_encoder() {
         assert!(decoded == value);
     }
 
+    test_encode_decode(u64::MIN);
     test_encode_decode(126);
     test_encode_decode((1<<12)-1);
     test_encode_decode((1<<20)-1);
     test_encode_decode((1<<50)-1);
-    test_encode_decode((1<<63)-1);
+    test_encode_decode(u64::MAX);
+}
+
+#[test]
+fn test_catalog_i64_encoder() {
+
+    fn test_encode_decode(value: i64) {
+
+        let mut data = Vec::new();
+        catalog_encode_i64(&mut data, value).unwrap();
+
+        let slice = &mut &data[..];
+        let decoded = catalog_decode_i64(slice).unwrap();
+
+        assert!(decoded == value);
+    }
+
+    test_encode_decode(0);
+    test_encode_decode(-0);
+    test_encode_decode(126);
+    test_encode_decode(-126);
+    test_encode_decode((1<<12)-1);
+    test_encode_decode(-(1<<12)-1);
+    test_encode_decode((1<<20)-1);
+    test_encode_decode(-(1<<20)-1);
+    test_encode_decode(i64::MIN);
+    test_encode_decode(i64::MAX);
+}
+
+#[test]
+fn test_catalog_i64_compatibility() {
+
+    fn test_encode_decode(value: u64) {
+
+        let mut data = Vec::new();
+        catalog_encode_u64(&mut data, value).unwrap();
+
+        let slice = &mut &data[..];
+        let decoded = catalog_decode_i64(slice).unwrap() as u64;
+
+        assert!(decoded == value);
+    }
+
+    test_encode_decode(u64::MIN);
+    test_encode_decode(126);
+    test_encode_decode((1<<12)-1);
+    test_encode_decode((1<<20)-1);
+    test_encode_decode((1<<50)-1);
+    test_encode_decode(u64::MAX);
 }

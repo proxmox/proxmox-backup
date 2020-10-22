@@ -535,7 +535,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
 
                 let file_size = stat.st_size as u64;
                 if let Some(ref mut catalog) = self.catalog {
-                    catalog.add_file(c_file_name, file_size, stat.st_mtime as u64)?;
+                    catalog.add_file(c_file_name, file_size, stat.st_mtime)?;
                 }
 
                 let offset: LinkOffset =

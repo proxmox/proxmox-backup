@@ -9,7 +9,7 @@ use std::ffi::CStr;
 pub trait BackupCatalogWriter {
     fn start_directory(&mut self, name: &CStr) -> Result<(), Error>;
     fn end_directory(&mut self) -> Result<(), Error>;
-    fn add_file(&mut self, name: &CStr, size: u64, mtime: u64) -> Result<(), Error>;
+    fn add_file(&mut self, name: &CStr, size: u64, mtime: i64) -> Result<(), Error>;
     fn add_symlink(&mut self, name: &CStr) -> Result<(), Error>;
     fn add_hardlink(&mut self, name: &CStr) -> Result<(), Error>;
     fn add_block_device(&mut self, name: &CStr) -> Result<(), Error>;
