@@ -354,9 +354,11 @@ impl ChunkStore {
                         },
                         Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
                             // chunk hasn't been rewritten yet, keep .bad file
+                            status.still_bad += 1;
                         },
                         Err(err) => {
                             // some other error, warn user and keep .bad file around too
+                            status.still_bad += 1;
                             crate::task_warn!(
                                 worker,
                                 "error during stat on '{:?}' - {}",
