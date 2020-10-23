@@ -40,7 +40,7 @@ Ext.define('PBS.window.ACLEdit', {
 	{
 	    xtype: 'pbsUserSelector',
 	    fieldLabel: gettext('User'),
-	    name: 'userid',
+	    name: 'auth_id',
 	    allowBlank: false,
 	},
 	{

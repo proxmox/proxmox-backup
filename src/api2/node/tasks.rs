@@ -84,11 +84,11 @@ async fn get_task_status(
 
     let upid = extract_upid(&param)?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    if userid != upid.userid {
+    if auth_id != upid.auth_id {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+        user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
     }
 
     let mut result = json!({
@@ -99,7 +99,7 @@ async fn get_task_status(
         "starttime": upid.starttime,
         "type": upid.worker_type,
         "id": upid.worker_id,
-        "user": upid.userid,
+        "user": upid.auth_id,
     });
 
     if crate::server::worker_is_active(&upid).await? {
@@ -161,11 +161,11 @@ async fn read_task_log(
 
     let upid = extract_upid(&param)?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    if userid != upid.userid {
+    if auth_id != upid.auth_id {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
+        user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)?;
     }
 
     let test_status = param["test-status"].as_bool().unwrap_or(false);
@@ -234,11 +234,11 @@ fn stop_task(
 
     let upid = extract_upid(&param)?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    if userid != upid.userid {
+    if auth_id != upid.auth_id {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(&userid, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
+        user_info.check_privs(&auth_id, &["system", "tasks"], PRIV_SYS_MODIFY, false)?;
     }
 
     server::abort_worker_async(upid);
@@ -308,9 +308,9 @@ pub fn list_tasks(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&userid, &["system", "tasks"]);
+    let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);
 
     let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
 
@@ -326,10 +326,10 @@ pub fn list_tasks(
             Err(_) => return None,
         };
 
-        if !list_all && info.upid.userid != userid { return None; }
+        if !list_all && info.upid.auth_id != auth_id { return None; }
 
-        if let Some(userid) = &userfilter {
-            if !info.upid.userid.as_str().contains(userid) { return None; }
+        if let Some(needle) = &userfilter {
+            if !info.upid.auth_id.to_string().contains(needle) { return None; }
         }
 
         if let Some(store) = store {

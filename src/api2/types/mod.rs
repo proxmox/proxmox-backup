@@ -376,7 +376,7 @@ pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name
             },
         },
         owner: {
-            type: Userid,
+            type: Authid,
             optional: true,
         },
     },
@@ -394,7 +394,7 @@ pub struct GroupListItem {
     pub files: Vec<String>,
     /// The owner of group
     #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<Userid>,
+    pub owner: Option<Authid>,
 }
 
 #[api()]
@@ -452,7 +452,7 @@ pub struct SnapshotVerifyState {
             },
         },
         owner: {
-            type: Userid,
+            type: Authid,
             optional: true,
         },
     },
@@ -477,7 +477,7 @@ pub struct SnapshotListItem {
     pub size: Option<u64>,
     /// The owner of the snapshots group
     #[serde(skip_serializing_if="Option::is_none")]
-    pub owner: Option<Userid>,
+    pub owner: Option<Authid>,
 }
 
 #[api(
@@ -692,7 +692,7 @@ pub struct DataStoreStatus {
 #[api(
     properties: {
         upid: { schema: UPID_SCHEMA },
-        user: { type: Userid },
+        userid: { type: Authid },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -711,8 +711,8 @@ pub struct TaskListItem {
     pub worker_type: String,
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
-    /// The user who started the task
-    pub user: Userid,
+    /// The authenticated entity who started the task
+    pub userid: Authid,
     /// The task end time (Epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub endtime: Option<i64>,
@@ -735,7 +735,7 @@ impl From<crate::server::TaskListInfo> for TaskListItem {
             starttime: info.upid.starttime,
             worker_type: info.upid.worker_type,
             worker_id: info.upid.worker_id,
-            user: info.upid.userid,
+            userid: info.upid.auth_id,
             endtime,
             status,
         }

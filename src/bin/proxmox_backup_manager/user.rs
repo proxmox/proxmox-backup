@@ -62,13 +62,13 @@ pub fn user_commands() -> CommandLineInterface {
             "update",
             CliCommand::new(&api2::access::user::API_METHOD_UPDATE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", config::user::complete_user_name)
+                .completion_cb("userid", config::user::complete_userid)
         )
         .insert(
             "remove",
             CliCommand::new(&api2::access::user::API_METHOD_DELETE_USER)
                 .arg_param(&["userid"])
-                .completion_cb("userid", config::user::complete_user_name)
+                .completion_cb("userid", config::user::complete_userid)
         );
 
     cmd_def.into()

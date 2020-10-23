@@ -57,7 +57,7 @@ fn worker_task_abort() -> Result<(), Error> {
         let res = server::WorkerTask::new_thread(
             "garbage_collection",
             None,
-            proxmox_backup::api2::types::Userid::root_userid().clone(),
+            proxmox_backup::api2::types::Authid::root_auth_id().clone(),
             true,
             move |worker| {
                 println!("WORKER {}", worker);

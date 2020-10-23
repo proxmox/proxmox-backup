@@ -53,7 +53,7 @@ Ext.define('PBS.config.ACLView', {
 		    'delete': 1,
 		    path: rec.data.path,
 		    role: rec.data.roleid,
-		    userid: rec.data.ugid,
+		    auth_id: rec.data.ugid,
 		},
 		callback: function() {
 		    me.reload();

@@ -6,7 +6,7 @@ use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 pub struct RestEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: Value,
-    user: Option<String>,
+    auth_id: Option<String>,
     client_ip: Option<std::net::SocketAddr>,
 }
 
@@ -14,7 +14,7 @@ impl RestEnvironment {
     pub fn new(env_type: RpcEnvironmentType) -> Self {
         Self {
             result_attributes: json!({}),
-            user: None,
+            auth_id: None,
             client_ip: None,
             env_type,
         }
@@ -35,12 +35,12 @@ impl RpcEnvironment for RestEnvironment {
         self.env_type
     }
 
-    fn set_user(&mut self, user: Option<String>) {
-        self.user = user;
+    fn set_auth_id(&mut self, auth_id: Option<String>) {
+        self.auth_id = auth_id;
     }
 
-    fn get_user(&self) -> Option<String> {
-        self.user.clone()
+    fn get_auth_id(&self) -> Option<String> {
+        self.auth_id.clone()
     }
 
     fn set_client_ip(&mut self, client_ip: Option<std::net::SocketAddr>) {

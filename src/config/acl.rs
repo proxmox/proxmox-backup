@@ -15,7 +15,7 @@ use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 use proxmox::constnamedbitmap;
 use proxmox::api::{api, schema::*};
 
-use crate::api2::types::Userid;
+use crate::api2::types::{Authid,Userid};
 
 // define Privilege bitfield
 
@@ -231,7 +231,7 @@ pub struct AclTree {
 }
 
 pub struct AclTreeNode {
-    pub users: HashMap<Userid, HashMap<String, bool>>,
+    pub users: HashMap<Authid, HashMap<String, bool>>,
     pub groups: HashMap<String, HashMap<String, bool>>,
     pub children: BTreeMap<String, AclTreeNode>,
 }
@@ -246,21 +246,21 @@ impl AclTreeNode {
         }
     }
 
-    pub fn extract_roles(&self, user: &Userid, all: bool) -> HashSet<String> {
-        let user_roles = self.extract_user_roles(user, all);
+    pub fn extract_roles(&self, auth_id: &Authid, all: bool) -> HashSet<String> {
+        let user_roles = self.extract_user_roles(auth_id, all);
         if !user_roles.is_empty() {
             // user privs always override group privs
             return user_roles
         };
 
-        self.extract_group_roles(user, all)
+        self.extract_group_roles(auth_id.user(), all)
     }
 
-    pub fn extract_user_roles(&self, user: &Userid, all: bool) -> HashSet<String> {
+    pub fn extract_user_roles(&self, auth_id: &Authid, all: bool) -> HashSet<String> {
 
         let mut set = HashSet::new();
 
-        let roles = match self.users.get(user) {
+        let roles = match self.users.get(auth_id) {
             Some(m) => m,
             None => return set,
         };
@@ -312,8 +312,8 @@ impl AclTreeNode {
         roles.remove(role);
     }
 
-    pub fn delete_user_role(&mut self, userid: &Userid, role: &str) {
-        let roles = match self.users.get_mut(userid) {
+    pub fn delete_user_role(&mut self, auth_id: &Authid, role: &str) {
+        let roles = match self.users.get_mut(auth_id) {
             Some(r) => r,
             None => return,
         };
@@ -331,8 +331,8 @@ impl AclTreeNode {
         }
     }
 
-    pub fn insert_user_role(&mut self, user: Userid, role: String, propagate: bool) {
-        let map = self.users.entry(user).or_insert_with(|| HashMap::new());
+    pub fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
+        let map = self.users.entry(auth_id).or_insert_with(|| HashMap::new());
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -383,13 +383,13 @@ impl AclTree {
         node.delete_group_role(group, role);
     }
 
-    pub fn delete_user_role(&mut self, path: &str, userid: &Userid, role: &str) {
+    pub fn delete_user_role(&mut self, path: &str, auth_id: &Authid, role: &str) {
         let path = split_acl_path(path);
         let node = match self.get_node(&path) {
             Some(n) => n,
             None => return,
         };
-        node.delete_user_role(userid, role);
+        node.delete_user_role(auth_id, role);
     }
 
     pub fn insert_group_role(&mut self, path: &str, group: &str, role: &str, propagate: bool) {
@@ -398,10 +398,10 @@ impl AclTree {
         node.insert_group_role(group.to_string(), role.to_string(), propagate);
     }
 
-    pub fn insert_user_role(&mut self, path: &str, user: &Userid, role: &str, propagate: bool) {
+    pub fn insert_user_role(&mut self, path: &str, auth_id: &Authid, role: &str, propagate: bool) {
         let path = split_acl_path(path);
         let node = self.get_or_insert_node(&path);
-        node.insert_user_role(user.to_owned(), role.to_string(), propagate);
+        node.insert_user_role(auth_id.to_owned(), role.to_string(), propagate);
     }
 
     fn write_node_config(
@@ -413,18 +413,18 @@ impl AclTree {
         let mut role_ug_map0 = HashMap::new();
         let mut role_ug_map1 = HashMap::new();
 
-        for (user, roles) in &node.users {
+        for (auth_id, roles) in &node.users {
             // no need to save, because root is always 'Administrator'
-            if user == "root@pam" { continue; }
+            if !auth_id.is_token() && auth_id.user() == "root@pam" { continue; }
             for (role, propagate) in roles {
                 let role = role.as_str();
-                let user = user.to_string();
+                let auth_id = auth_id.to_string();
                 if *propagate {
                     role_ug_map1.entry(role).or_insert_with(|| BTreeSet::new())
-                        .insert(user);
+                        .insert(auth_id);
                 } else {
                     role_ug_map0.entry(role).or_insert_with(|| BTreeSet::new())
-                        .insert(user);
+                        .insert(auth_id);
                 }
             }
         }
@@ -576,10 +576,10 @@ impl AclTree {
         Ok(tree)
     }
 
-    pub fn roles(&self, userid: &Userid, path: &[&str]) -> HashSet<String> {
+    pub fn roles(&self, auth_id: &Authid, path: &[&str]) -> HashSet<String> {
 
         let mut node = &self.root;
-        let mut role_set = node.extract_roles(userid, path.is_empty());
+        let mut role_set = node.extract_roles(auth_id, path.is_empty());
 
         for (pos, comp) in path.iter().enumerate() {
             let last_comp = (pos + 1) == path.len();
@@ -587,7 +587,7 @@ impl AclTree {
                 Some(n) => n,
                 None => return role_set, // path not found
             };
-            let new_set = node.extract_roles(userid, last_comp);
+            let new_set = node.extract_roles(auth_id, last_comp);
             if !new_set.is_empty() {
                 // overwrite previous settings
                 role_set = new_set;
@@ -675,22 +675,22 @@ mod test {
     use anyhow::{Error};
     use super::AclTree;
 
-    use crate::api2::types::Userid;
+    use crate::api2::types::Authid;
 
     fn check_roles(
         tree: &AclTree,
-        user: &Userid,
+        auth_id: &Authid,
         path: &str,
         expected_roles: &str,
     ) {
 
         let path_vec = super::split_acl_path(path);
-        let mut roles = tree.roles(user, &path_vec)
+        let mut roles = tree.roles(auth_id, &path_vec)
             .iter().map(|v| v.clone()).collect::<Vec<String>>();
         roles.sort();
         let roles = roles.join(",");
 
-        assert_eq!(roles, expected_roles, "\nat check_roles for '{}' on '{}'", user, path);
+        assert_eq!(roles, expected_roles, "\nat check_roles for '{}' on '{}'", auth_id, path);
     }
 
     #[test]
@@ -721,13 +721,13 @@ acl:1:/storage:user1@pbs:Admin
 acl:1:/storage/store1:user1@pbs:DatastoreBackup
 acl:1:/storage/store2:user2@pbs:DatastoreBackup
 "###)?;
-        let user1: Userid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pbs".parse()?;
         check_roles(&tree, &user1, "/", "");
         check_roles(&tree, &user1, "/storage", "Admin");
         check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
         check_roles(&tree, &user1, "/storage/store2", "Admin");
 
-        let user2: Userid = "user2@pbs".parse()?;
+        let user2: Authid = "user2@pbs".parse()?;
         check_roles(&tree, &user2, "/", "");
         check_roles(&tree, &user2, "/storage", "");
         check_roles(&tree, &user2, "/storage/store1", "");
@@ -744,7 +744,7 @@ acl:1:/:user1@pbs:Admin
 acl:1:/storage:user1@pbs:NoAccess
 acl:1:/storage/store1:user1@pbs:DatastoreBackup
 "###)?;
-        let user1: Userid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pbs".parse()?;
         check_roles(&tree, &user1, "/", "Admin");
         check_roles(&tree, &user1, "/storage", "NoAccess");
         check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
@@ -770,7 +770,7 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
         let mut tree = AclTree::new();
 
-        let user1: Userid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pbs".parse()?;
 
         tree.insert_user_role("/", &user1, "Admin", true);
         tree.insert_user_role("/", &user1, "Audit", true);
@@ -794,7 +794,7 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
         let mut tree = AclTree::new();
 
-        let user1: Userid = "user1@pbs".parse()?;
+        let user1: Authid = "user1@pbs".parse()?;
 
         tree.insert_user_role("/storage", &user1, "NoAccess", true);
 

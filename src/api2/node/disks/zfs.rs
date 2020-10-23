@@ -256,7 +256,7 @@ pub fn create_zpool(
 
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let add_datastore = add_datastore.unwrap_or(false);
 
@@ -316,7 +316,7 @@ pub fn create_zpool(
     }
 
      let upid_str = WorkerTask::new_thread(
-        "zfscreate", Some(name.clone()), userid, to_stdout, move |worker|
+        "zfscreate", Some(name.clone()), auth_id, to_stdout, move |worker|
         {
             worker.log(format!("create {:?} zpool '{}' on devices '{}'", raidlevel, name, devices_text));
 

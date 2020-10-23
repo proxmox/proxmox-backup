@@ -91,10 +91,12 @@ async fn termproxy(
     cmd: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
+    // intentionally user only for now
     let userid: Userid = rpcenv
-        .get_user()
+        .get_auth_id()
         .ok_or_else(|| format_err!("unknown user"))?
         .parse()?;
+    let auth_id = Authid::from(userid.clone());
 
     if userid.realm() != "pam" {
         bail!("only pam users can use the console");
@@ -137,7 +139,7 @@ async fn termproxy(
     let upid = WorkerTask::spawn(
         "termproxy",
         None,
-        userid,
+        auth_id,
         false,
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port
@@ -272,7 +274,8 @@ fn upgrade_to_websocket(
     rpcenv: Box<dyn RpcEnvironment>,
 ) -> ApiResponseFuture {
     async move {
-        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+        // intentionally user only for now
+        let userid: Userid = rpcenv.get_auth_id().unwrap().parse()?;
         let ticket = tools::required_string_param(&param, "vncticket")?;
         let port: u16 = tools::required_integer_param(&param, "port")? as u16;
 

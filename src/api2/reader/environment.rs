@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::api2::types::Userid;
+use crate::api2::types::Authid;
 use crate::backup::*;
 use crate::server::formatter::*;
 use crate::server::WorkerTask;
@@ -17,7 +17,7 @@ use crate::server::WorkerTask;
 pub struct ReaderEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: Value,
-    user: Userid,
+    auth_id: Authid,
     pub debug: bool,
     pub formatter: &'static OutputFormatter,
     pub worker: Arc<WorkerTask>,
@@ -29,7 +29,7 @@ pub struct ReaderEnvironment {
 impl ReaderEnvironment {
     pub fn new(
         env_type: RpcEnvironmentType,
-        user: Userid,
+        auth_id: Authid,
         worker: Arc<WorkerTask>,
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
@@ -39,7 +39,7 @@ impl ReaderEnvironment {
         Self {
             result_attributes: json!({}),
             env_type,
-            user,
+            auth_id,
             worker,
             datastore,
             debug: false,
@@ -82,12 +82,12 @@ impl RpcEnvironment for ReaderEnvironment {
         self.env_type
     }
 
-    fn set_user(&mut self, _user: Option<String>) {
-        panic!("unable to change user");
+    fn set_auth_id(&mut self, _auth_id: Option<String>) {
+        panic!("unable to change auth_id");
     }
 
-    fn get_user(&self) -> Option<String> {
-        Some(self.user.to_string())
+    fn get_auth_id(&self) -> Option<String> {
+        Some(self.auth_id.to_string())
     }
 }
 

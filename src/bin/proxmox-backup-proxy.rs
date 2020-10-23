@@ -30,7 +30,7 @@ use proxmox_backup::{
 };
 
 
-use proxmox_backup::api2::types::Userid;
+use proxmox_backup::api2::types::{Authid, Userid};
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
@@ -334,7 +334,7 @@ async fn schedule_datastore_garbage_collection() {
         if let Err(err) = WorkerTask::new_thread(
             worker_type,
             Some(store.clone()),
-            Userid::backup_userid().clone(),
+            Authid::backup_auth_id().clone(),
             false,
             move |worker| {
                 job.start(&worker.upid().to_string())?;
@@ -463,7 +463,7 @@ async fn schedule_datastore_prune() {
         if let Err(err) = WorkerTask::new_thread(
             worker_type,
             Some(store.clone()),
-            Userid::backup_userid().clone(),
+            Authid::backup_auth_id().clone(),
             false,
             move |worker| {
 
@@ -579,9 +579,9 @@ async fn schedule_datastore_sync_jobs() {
             Err(_) => continue, // could not get lock
         };
 
-        let userid = Userid::backup_userid();
+        let auth_id = Authid::backup_auth_id();
 
-        if let Err(err) = do_sync_job(job, job_config, userid, Some(event_str)) {
+        if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str)) {
             eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
         }
     }
@@ -642,8 +642,8 @@ async fn schedule_datastore_verify_jobs() {
             Ok(job) => job,
             Err(_) => continue, // could not get lock
         };
-        let userid = Userid::backup_userid().clone();
-        if let Err(err) = do_verification_job(job, job_config, &userid, Some(event_str)) {
+        let auth_id = Authid::backup_auth_id();
+        if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str)) {
             eprintln!("unable to start datastore verification job {} - {}", &job_id, err);
         }
     }
@@ -704,7 +704,7 @@ async fn schedule_task_log_rotate() {
     if let Err(err) = WorkerTask::new_thread(
         worker_type,
         Some(job_id.to_string()),
-        Userid::backup_userid().clone(),
+        Authid::backup_auth_id().clone(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;

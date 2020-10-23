@@ -6,7 +6,7 @@ use proxmox::api::schema::{ApiStringFormat, Schema, StringSchema};
 use proxmox::const_regex;
 use proxmox::sys::linux::procfs;
 
-use crate::api2::types::Userid;
+use crate::api2::types::Authid;
 
 /// Unique Process/Task Identifier
 ///
@@ -34,8 +34,8 @@ pub struct UPID {
     pub worker_type: String,
     /// Worker ID (arbitrary ASCII string)
     pub worker_id: Option<String>,
-    /// The user who started the task
-    pub userid: Userid,
+    /// The authenticated entity who started the task
+    pub auth_id: Authid,
     /// The node name.
     pub node: String,
 }
@@ -47,7 +47,7 @@ const_regex! {
     pub PROXMOX_UPID_REGEX = concat!(
         r"^UPID:(?P<node>[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?):(?P<pid>[0-9A-Fa-f]{8}):",
         r"(?P<pstart>[0-9A-Fa-f]{8,9}):(?P<task_id>[0-9A-Fa-f]{8,16}):(?P<starttime>[0-9A-Fa-f]{8}):",
-        r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<userid>[^:\s]+):$"
+        r"(?P<wtype>[^:\s]+):(?P<wid>[^:\s]*):(?P<authid>[^:\s]+):$"
     );
 }
 
@@ -65,7 +65,7 @@ impl UPID {
     pub fn new(
         worker_type: &str,
         worker_id: Option<String>,
-        userid: Userid,
+        auth_id: Authid,
     ) -> Result<Self, Error> {
 
         let pid = unsafe { libc::getpid() };
@@ -87,7 +87,7 @@ impl UPID {
             task_id,
             worker_type: worker_type.to_owned(),
             worker_id,
-            userid,
+            auth_id,
             node: proxmox::tools::nodename().to_owned(),
         })
     }
@@ -122,7 +122,7 @@ impl std::str::FromStr for UPID {
                 task_id: usize::from_str_radix(&cap["task_id"], 16).unwrap(),
                 worker_type: cap["wtype"].to_string(),
                 worker_id,
-                userid: cap["userid"].parse()?,
+                auth_id: cap["authid"].parse()?,
                 node: cap["node"].to_string(),
             })
         } else {
@@ -146,6 +146,6 @@ impl std::fmt::Display for UPID {
         // more that 8 characters for pstart
 
         write!(f, "UPID:{}:{:08X}:{:08X}:{:08X}:{:08X}:{}:{}:{}:",
-               self.node, self.pid, self.pstart, self.task_id, self.starttime, self.worker_type, wid, self.userid)
+               self.node, self.pid, self.pstart, self.task_id, self.starttime, self.worker_type, wid, self.auth_id)
     }
 }

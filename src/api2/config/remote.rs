@@ -66,7 +66,7 @@ pub fn list_remotes(
                 default: 8007,
             },
             userid: {
-                type: Userid,
+                type: Authid,
             },
             password: {
                 schema: remote::REMOTE_PASSWORD_SCHEMA,
@@ -167,7 +167,7 @@ pub enum DeletableProperty {
             },
             userid: {
                 optional: true,
-                type: Userid,
+                type: Authid,
             },
             password: {
                 optional: true,

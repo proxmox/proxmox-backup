@@ -45,7 +45,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
             type: u16,
         },
         userid: {
-            type: Userid,
+            type: Authid,
         },
         password: {
             schema: REMOTE_PASSWORD_SCHEMA,

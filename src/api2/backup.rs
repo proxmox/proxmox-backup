@@ -59,12 +59,12 @@ async move {
     let debug = param["debug"].as_bool().unwrap_or(false);
     let benchmark = param["benchmark"].as_bool().unwrap_or(false);
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let store = tools::required_string_param(&param, "store")?.to_owned();
 
     let user_info = CachedUserInfo::new()?;
-    user_info.check_privs(&userid, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
+    user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_BACKUP, false)?;
 
     let datastore = DataStore::lookup_datastore(&store)?;
 
@@ -105,12 +105,12 @@ async move {
     };
 
     // lock backup group to only allow one backup per group at a time
-    let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &userid)?;
+    let (owner, _group_guard) = datastore.create_locked_backup_group(&backup_group, &auth_id)?;
 
     // permission check
-    if owner != userid && worker_type != "benchmark" {
+    if owner != auth_id && worker_type != "benchmark" {
         // only the owner is allowed to create additional snapshots
-        bail!("backup owner check failed ({} != {})", userid, owner);
+        bail!("backup owner check failed ({} != {})", auth_id, owner);
     }
 
     let last_backup = {
@@ -153,9 +153,9 @@ async move {
     if !is_new { bail!("backup directory already exists."); }
 
 
-    WorkerTask::spawn(worker_type, Some(worker_id), userid.clone(), true, move |worker| {
+    WorkerTask::spawn(worker_type, Some(worker_id), auth_id.clone(), true, move |worker| {
         let mut env = BackupEnvironment::new(
-            env_type, userid, worker.clone(), datastore, backup_dir);
+            env_type, auth_id, worker.clone(), datastore, backup_dir);
 
         env.debug = debug;
         env.last_backup = last_backup;

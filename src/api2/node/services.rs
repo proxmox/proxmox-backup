@@ -182,7 +182,7 @@ fn get_service_state(
     Ok(json_service_state(&service, status))
 }
 
-fn run_service_command(service: &str, cmd: &str, userid: Userid) -> Result<Value, Error> {
+fn run_service_command(service: &str, cmd: &str, auth_id: Authid) -> Result<Value, Error> {
 
     let workerid = format!("srv{}", &cmd);
 
@@ -196,7 +196,7 @@ fn run_service_command(service: &str, cmd: &str, userid: Userid) -> Result<Value
     let upid = WorkerTask::new_thread(
         &workerid,
         Some(service.clone()),
-        userid,
+        auth_id,
         false,
         move |_worker| {
 
@@ -244,11 +244,11 @@ fn start_service(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("starting service {}", service);
 
-    run_service_command(&service, "start", userid)
+    run_service_command(&service, "start", auth_id)
 }
 
 #[api(
@@ -274,11 +274,11 @@ fn stop_service(
     rpcenv: &mut dyn RpcEnvironment,
  ) -> Result<Value, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("stopping service {}", service);
 
-    run_service_command(&service, "stop", userid)
+    run_service_command(&service, "stop", auth_id)
 }
 
 #[api(
@@ -304,15 +304,15 @@ fn restart_service(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("re-starting service {}", service);
 
     if &service == "proxmox-backup-proxy" {
         // special case, avoid aborting running tasks
-        run_service_command(&service, "reload", userid)
+        run_service_command(&service, "reload", auth_id)
     } else {
-        run_service_command(&service, "restart", userid)
+        run_service_command(&service, "restart", auth_id)
     }
 }
 
@@ -339,11 +339,11 @@ fn reload_service(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     log::info!("reloading service {}", service);
 
-    run_service_command(&service, "reload", userid)
+    run_service_command(&service, "reload", auth_id)
 }
 
 

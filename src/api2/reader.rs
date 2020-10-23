@@ -55,11 +55,11 @@ fn upgrade_to_backup_reader_protocol(
     async move {
         let debug = param["debug"].as_bool().unwrap_or(false);
 
-        let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
         let store = tools::required_string_param(&param, "store")?.to_owned();
 
         let user_info = CachedUserInfo::new()?;
-        let privs = user_info.lookup_privs(&userid, &["datastore", &store]);
+        let privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
 
         let priv_read = privs & PRIV_DATASTORE_READ != 0;
         let priv_backup = privs & PRIV_DATASTORE_BACKUP != 0;
@@ -94,7 +94,7 @@ fn upgrade_to_backup_reader_protocol(
         let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
         if !priv_read {
             let owner = datastore.get_owner(backup_dir.group())?;
-            if owner != userid {
+            if owner != auth_id {
                 bail!("backup owner check failed!");
             }
         }
@@ -110,10 +110,10 @@ fn upgrade_to_backup_reader_protocol(
 
         let worker_id = format!("{}:{}/{}/{:08X}", store, backup_type, backup_id, backup_dir.backup_time());
 
-        WorkerTask::spawn("reader", Some(worker_id), userid.clone(), true, move |worker| {
+        WorkerTask::spawn("reader", Some(worker_id), auth_id.clone(), true, move |worker| {
             let mut env = ReaderEnvironment::new(
                 env_type,
-                userid,
+                auth_id,
                 worker.clone(),
                 datastore,
                 backup_dir,

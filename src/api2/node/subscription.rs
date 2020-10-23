@@ -7,7 +7,7 @@ use crate::tools;
 use crate::tools::subscription::{self, SubscriptionStatus, SubscriptionInfo};
 use crate::config::acl::{PRIV_SYS_AUDIT,PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::api2::types::{NODE_SCHEMA, Userid};
+use crate::api2::types::{NODE_SCHEMA, Authid};
 
 #[api(
     input: {
@@ -100,9 +100,9 @@ fn get_subscription(
         },
     };
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&userid, &[]);
+    let user_privs = user_info.lookup_privs(&auth_id, &[]);
 
     if (user_privs & PRIV_SYS_AUDIT) == 0 {
         // not enough privileges for full state

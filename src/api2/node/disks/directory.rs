@@ -134,7 +134,7 @@ pub fn create_datastore_disk(
 
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let info = get_disk_usage_info(&disk, true)?;
 
@@ -143,7 +143,7 @@ pub fn create_datastore_disk(
     }
 
     let upid_str = WorkerTask::new_thread(
-        "dircreate", Some(name.clone()), userid, to_stdout, move |worker|
+        "dircreate", Some(name.clone()), auth_id, to_stdout, move |worker|
         {
             worker.log(format!("create datastore '{}' on disk {}", name, disk));
 

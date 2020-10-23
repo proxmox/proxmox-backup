@@ -12,7 +12,7 @@ use crate::server::WorkerTask;
 use crate::tools::http;
 
 use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
-use crate::api2::types::{APTUpdateInfo, NODE_SCHEMA, Userid, UPID_SCHEMA};
+use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
 
 const_regex! {
     VERSION_EPOCH_REGEX = r"^\d+:";
@@ -351,11 +351,11 @@ pub fn apt_update_database(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
     let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
 
-    let upid_str = WorkerTask::new_thread("aptupdate", None, userid, to_stdout, move |worker| {
+    let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |worker| {
         if !quiet { worker.log("starting apt-get update") }
 
         // TODO: set proxy /etc/apt/apt.conf.d/76pbsproxy like PVE

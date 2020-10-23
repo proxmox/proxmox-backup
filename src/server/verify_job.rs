@@ -17,7 +17,7 @@ use crate::{
 pub fn do_verification_job(
     mut job: Job,
     verification_job: VerificationJobConfig,
-    userid: &Userid,
+    auth_id: &Authid,
     schedule: Option<String>,
 ) -> Result<String, Error> {
 
@@ -48,14 +48,14 @@ pub fn do_verification_job(
         }
     };
 
-    let email = crate::server::lookup_user_email(userid);
+    let email = crate::server::lookup_user_email(auth_id.user());
 
     let job_id = job.jobname().to_string();
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(
         &worker_type,
         Some(job.jobname().to_string()),
-        userid.clone(),
+        auth_id.clone(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;

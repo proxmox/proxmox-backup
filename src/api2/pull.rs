@@ -20,7 +20,7 @@ use crate::config::{
 
 
 pub fn check_pull_privs(
-    userid: &Userid,
+    auth_id: &Authid,
     store: &str,
     remote: &str,
     remote_store: &str,
@@ -29,11 +29,11 @@ pub fn check_pull_privs(
 
     let user_info = CachedUserInfo::new()?;
 
-    user_info.check_privs(userid, &["datastore", store], PRIV_DATASTORE_BACKUP, false)?;
-    user_info.check_privs(userid, &["remote", remote, remote_store], PRIV_REMOTE_READ, false)?;
+    user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_BACKUP, false)?;
+    user_info.check_privs(auth_id, &["remote", remote, remote_store], PRIV_REMOTE_READ, false)?;
 
     if delete {
-        user_info.check_privs(userid, &["datastore", store], PRIV_DATASTORE_PRUNE, false)?;
+        user_info.check_privs(auth_id, &["datastore", store], PRIV_DATASTORE_PRUNE, false)?;
     }
 
     Ok(())
@@ -68,19 +68,19 @@ pub async fn get_pull_parameters(
 pub fn do_sync_job(
     mut job: Job,
     sync_job: SyncJobConfig,
-    userid: &Userid,
+    auth_id: &Authid,
     schedule: Option<String>,
 ) -> Result<String, Error> {
 
     let job_id = job.jobname().to_string();
     let worker_type = job.jobtype().to_string();
 
-    let email = crate::server::lookup_user_email(userid);
+    let email = crate::server::lookup_user_email(auth_id.user());
 
     let upid_str = WorkerTask::spawn(
         &worker_type,
         Some(job.jobname().to_string()),
-        userid.clone(),
+        auth_id.clone(),
         false,
         move |worker| async move {
 
@@ -101,7 +101,9 @@ pub fn do_sync_job(
                 worker.log(format!("Sync datastore '{}' from '{}/{}'",
                         sync_job.store, sync_job.remote, sync_job.remote_store));
 
-                crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, Userid::backup_userid().clone()).await?;
+                let backup_auth_id = Authid::backup_auth_id();
+
+                crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, backup_auth_id.clone()).await?;
 
                 worker.log(format!("sync job '{}' end", &job_id));
 
@@ -173,19 +175,19 @@ async fn pull (
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let delete = remove_vanished.unwrap_or(true);
 
-    check_pull_privs(&userid, &store, &remote, &remote_store, delete)?;
+    check_pull_privs(&auth_id, &store, &remote, &remote_store, delete)?;
 
     let (client, src_repo, tgt_store) = get_pull_parameters(&store, &remote, &remote_store).await?;
 
     // fixme: set to_stdout to false?
-    let upid_str = WorkerTask::spawn("sync", Some(store.clone()), userid.clone(), true, move |worker| async move {
+    let upid_str = WorkerTask::spawn("sync", Some(store.clone()), auth_id.clone(), true, move |worker| async move {
 
         worker.log(format!("sync datastore '{}' start", store));
 
-        let pull_future = pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, userid);
+        let pull_future = pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, auth_id);
         let future = select!{
             success = pull_future.fuse() => success,
             abort = worker.abort_future().map(|_| Err(format_err!("pull aborted"))) => abort,

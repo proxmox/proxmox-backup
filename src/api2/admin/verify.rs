@@ -101,11 +101,11 @@ fn run_verification_job(
     let (config, _digest) = verify::config()?;
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let job = Job::new("verificationjob", &id)?;
 
-    let upid_str = do_verification_job(job, verification_job, &userid, None)?;
+    let upid_str = do_verification_job(job, verification_job, &auth_id, None)?;
 
     Ok(upid_str)
 }

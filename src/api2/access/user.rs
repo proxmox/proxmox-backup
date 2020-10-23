@@ -39,10 +39,13 @@ pub fn list_users(
 
     let (config, digest) = user::config()?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    // intentionally user only for now
+    let userid: Userid = rpcenv.get_auth_id().unwrap().parse()?;
+    let auth_id = Authid::from(userid.clone());
+
     let user_info = CachedUserInfo::new()?;
 
-    let top_level_privs = user_info.lookup_privs(&userid, &["access", "users"]);
+    let top_level_privs = user_info.lookup_privs(&auth_id, &["access", "users"]);
     let top_level_allowed = (top_level_privs & PRIV_SYS_AUDIT) != 0;
 
     let filter_by_privs = |user: &user::User| {

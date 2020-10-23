@@ -16,9 +16,9 @@ use crate::api2::types::{
     DATASTORE_SCHEMA,
     RRDMode,
     RRDTimeFrameResolution,
+    Authid,
     TaskListItem,
     TaskStateType,
-    Userid,
 };
 
 use crate::server;
@@ -87,13 +87,13 @@ fn datastore_status(
 
     let (config, _digest) = datastore::config()?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     let mut list = Vec::new();
 
     for (store, (_, _)) in &config.sections {
-        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store]);
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if !allowed {
             continue;
@@ -221,9 +221,9 @@ pub fn list_tasks(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&userid, &["system", "tasks"]);
+    let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);
 
     let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
     let since = since.unwrap_or_else(|| 0);
@@ -238,7 +238,7 @@ pub fn list_tasks(
         .filter_map(|info| {
             match info {
                 Ok(info) => {
-                    if list_all || info.upid.userid == userid {
+                    if list_all || info.upid.auth_id == auth_id {
                         if let Some(filter) = &typefilter {
                             if !info.upid.worker_type.contains(filter) {
                                 return None;

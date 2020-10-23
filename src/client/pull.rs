@@ -491,7 +491,7 @@ pub async fn pull_store(
     src_repo: &BackupRepository,
     tgt_store: Arc<DataStore>,
     delete: bool,
-    userid: Userid,
+    auth_id: Authid,
 ) -> Result<(), Error> {
 
     // explicit create shared lock to prevent GC on newly created chunks
@@ -524,11 +524,11 @@ pub async fn pull_store(
     for (groups_done, item) in list.into_iter().enumerate() {
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
-        let (owner, _lock_guard) = tgt_store.create_locked_backup_group(&group, &userid)?;
+        let (owner, _lock_guard) = tgt_store.create_locked_backup_group(&group, &auth_id)?;
         // permission check
-        if userid != owner { // only the owner is allowed to create additional snapshots
+        if auth_id != owner { // only the owner is allowed to create additional snapshots
             worker.log(format!("sync group {}/{} failed - owner check failed ({} != {})",
-                               item.backup_type, item.backup_id, userid, owner));
+                               item.backup_type, item.backup_id, auth_id, owner));
             errors = true; // do not stop here, instead continue
 
         } else if let Err(err) = pull_group(

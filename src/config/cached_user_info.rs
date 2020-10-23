@@ -9,10 +9,10 @@ use lazy_static::lazy_static;
 use proxmox::api::UserInformation;
 
 use super::acl::{AclTree, ROLE_NAMES, ROLE_ADMIN};
-use super::user::User;
-use crate::api2::types::Userid;
+use super::user::{ApiToken, User};
+use crate::api2::types::{Authid, Userid};
 
-/// Cache User/Group/Acl configuration data for fast permission tests
+/// Cache User/Group/Token/Acl configuration data for fast permission tests
 pub struct CachedUserInfo {
     user_cfg: Arc<SectionConfigData>,
     acl_tree: Arc<AclTree>,
@@ -57,8 +57,10 @@ impl CachedUserInfo {
         Ok(config)
     }
 
-    /// Test if a user account is enabled and not expired
-    pub fn is_active_user(&self, userid: &Userid) -> bool {
+    /// Test if a authentication id is enabled and not expired
+    pub fn is_active_auth_id(&self, auth_id: &Authid) -> bool {
+        let userid = auth_id.user();
+
         if let Ok(info) = self.user_cfg.lookup::<User>("user", userid.as_str()) {
             if !info.enable.unwrap_or(true) {
                 return false;
@@ -68,24 +70,41 @@ impl CachedUserInfo {
                     return false;
                 }
             }
-            return true;
         } else {
             return false;
         }
+
+        if auth_id.is_token() {
+            if let Ok(info) = self.user_cfg.lookup::<ApiToken>("token", &auth_id.to_string()) {
+                if !info.enable.unwrap_or(true) {
+                    return false;
+                }
+                if let Some(expire) = info.expire {
+                    if expire > 0 && expire <= now() {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     pub fn check_privs(
         &self,
-        userid: &Userid,
+        auth_id: &Authid,
         path: &[&str],
         required_privs: u64,
         partial: bool,
     ) -> Result<(), Error> {
-        let user_privs = self.lookup_privs(&userid, path);
+        let privs = self.lookup_privs(&auth_id, path);
         let allowed = if partial {
-            (user_privs & required_privs) != 0
+            (privs & required_privs) != 0
         } else {
-            (user_privs & required_privs) == required_privs
+            (privs & required_privs) == required_privs
         };
         if !allowed {
             // printing the path doesn't leaks any information as long as we
@@ -95,27 +114,33 @@ impl CachedUserInfo {
         Ok(())
     }
 
-    pub fn is_superuser(&self, userid: &Userid) -> bool {
-        userid == "root@pam"
+    pub fn is_superuser(&self, auth_id: &Authid) -> bool {
+        !auth_id.is_token() && auth_id.user() == "root@pam"
     }
 
     pub fn is_group_member(&self, _userid: &Userid, _group: &str) -> bool {
         false
     }
 
-    pub fn lookup_privs(&self, userid: &Userid, path: &[&str]) -> u64 {
-
-        if self.is_superuser(userid) {
+    pub fn lookup_privs(&self, auth_id: &Authid, path: &[&str]) -> u64 {
+        if self.is_superuser(auth_id) {
             return ROLE_ADMIN;
         }
 
-        let roles = self.acl_tree.roles(userid, path);
+        let roles = self.acl_tree.roles(auth_id, path);
         let mut privs: u64 = 0;
         for role in roles {
             if let Some((role_privs, _)) = ROLE_NAMES.get(role.as_str()) {
                 privs |= role_privs;
             }
         }
+
+        if auth_id.is_token() {
+            // limit privs to that of owning user
+            let user_auth_id = Authid::from(auth_id.user().clone());
+            privs &= self.lookup_privs(&user_auth_id, path);
+        }
+
         privs
     }
 }
@@ -129,9 +154,9 @@ impl UserInformation for CachedUserInfo {
         false
     }
 
-    fn lookup_privs(&self, userid: &str, path: &[&str]) -> u64 {
-        match userid.parse::<Userid>() {
-            Ok(userid) => Self::lookup_privs(self, &userid, path),
+    fn lookup_privs(&self, auth_id: &str, path: &[&str]) -> u64 {
+        match auth_id.parse::<Authid>() {
+            Ok(auth_id) => Self::lookup_privs(self, &auth_id, path),
             Err(_) => 0,
         }
     }

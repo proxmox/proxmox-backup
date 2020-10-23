@@ -13,7 +13,7 @@ use crate::tools::disks::{
 };
 use crate::server::WorkerTask;
 
-use crate::api2::types::{Userid, UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
+use crate::api2::types::{Authid, UPID_SCHEMA, NODE_SCHEMA, BLOCKDEVICE_NAME_SCHEMA};
 
 pub mod directory;
 pub mod zfs;
@@ -140,7 +140,7 @@ pub fn initialize_disk(
 
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     let info = get_disk_usage_info(&disk, true)?;
 
@@ -149,7 +149,7 @@ pub fn initialize_disk(
     }
 
     let upid_str = WorkerTask::new_thread(
-        "diskinit", Some(disk.clone()), userid, to_stdout, move |worker|
+        "diskinit", Some(disk.clone()), auth_id, to_stdout, move |worker|
         {
             worker.log(format!("initialize disk {}", disk));
 

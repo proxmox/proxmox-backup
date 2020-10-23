@@ -36,7 +36,7 @@ use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
-use proxmox_backup::config::user::complete_user_name;
+use proxmox_backup::config::user::complete_userid;
 use proxmox_backup::backup::{
     archive_type,
     decrypt_key,
@@ -425,7 +425,7 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
                 description: "Backup group.",
             },
             "new-owner": {
-                type: Userid,
+                type: Authid,
             },
         }
    }
@@ -2013,7 +2013,7 @@ fn main() {
     let change_owner_cmd_def = CliCommand::new(&API_METHOD_CHANGE_BACKUP_OWNER)
         .arg_param(&["group", "new-owner"])
         .completion_cb("group", complete_backup_group)
-        .completion_cb("new-owner",  complete_user_name)
+        .completion_cb("new-owner",  complete_userid)
         .completion_cb("repository", complete_repository);
 
     let cmd_def = CliCommandMap::new()

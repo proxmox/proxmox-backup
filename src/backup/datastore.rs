@@ -23,7 +23,7 @@ use crate::task::TaskState;
 use crate::tools;
 use crate::tools::format::HumanByte;
 use crate::tools::fs::{lock_dir_noblock, DirLockGuard};
-use crate::api2::types::{GarbageCollectionStatus, Userid};
+use crate::api2::types::{Authid, GarbageCollectionStatus};
 use crate::server::UPID;
 
 lazy_static! {
@@ -276,8 +276,8 @@ impl DataStore {
 
     /// Returns the backup owner.
     ///
-    /// The backup owner is the user who first created the backup group.
-    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<Userid, Error> {
+    /// The backup owner is the entity who first created the backup group.
+    pub fn get_owner(&self, backup_group: &BackupGroup) -> Result<Authid, Error> {
         let mut full_path = self.base_path();
         full_path.push(backup_group.group_path());
         full_path.push("owner");
@@ -289,7 +289,7 @@ impl DataStore {
     pub fn set_owner(
         &self,
         backup_group: &BackupGroup,
-        userid: &Userid,
+        auth_id: &Authid,
         force: bool,
     ) -> Result<(), Error> {
         let mut path = self.base_path();
@@ -309,7 +309,7 @@ impl DataStore {
         let mut file = open_options.open(&path)
             .map_err(|err| format_err!("unable to create owner file {:?} - {}", path, err))?;
 
-        writeln!(file, "{}", userid)
+        writeln!(file, "{}", auth_id)
             .map_err(|err| format_err!("unable to write owner file  {:?} - {}", path, err))?;
 
         Ok(())
@@ -324,8 +324,8 @@ impl DataStore {
     pub fn create_locked_backup_group(
         &self,
         backup_group: &BackupGroup,
-        userid: &Userid,
-    ) -> Result<(Userid, DirLockGuard), Error> {
+        auth_id: &Authid,
+    ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
         let base_path = self.base_path();
 
@@ -339,7 +339,7 @@ impl DataStore {
         match std::fs::create_dir(&full_path) {
             Ok(_) => {
                 let guard = lock_dir_noblock(&full_path, "backup group", "another backup is already running")?;
-                self.set_owner(backup_group, userid, false)?;
+                self.set_owner(backup_group, auth_id, false)?;
                 let owner = self.get_owner(backup_group)?; // just to be sure
                 Ok((owner, guard))
             }

@@ -140,9 +140,9 @@ pub fn read_acl(
                 optional: true,
                 schema: ACL_PROPAGATE_SCHEMA,
             },
-            userid: {
+            auth_id: {
                 optional: true,
-                type: Userid,
+                type: Authid,
             },
             group: {
                 optional: true,
@@ -168,7 +168,7 @@ pub fn update_acl(
     path: String,
     role: String,
     propagate: Option<bool>,
-    userid: Option<Userid>,
+    auth_id: Option<Authid>,
     group: Option<String>,
     delete: Option<bool>,
     digest: Option<String>,
@@ -190,11 +190,12 @@ pub fn update_acl(
 
     if let Some(ref _group) = group {
         bail!("parameter 'group' - groups are currently not supported.");
-    } else if let Some(ref userid) = userid {
+    } else if let Some(ref auth_id) = auth_id {
         if !delete { // Note: we allow to delete non-existent users
             let user_cfg = crate::config::user::cached_config()?;
-            if user_cfg.sections.get(&userid.to_string()).is_none() {
-                bail!("no such user.");
+            if user_cfg.sections.get(&auth_id.to_string()).is_none() {
+                bail!(format!("no such {}.",
+                              if auth_id.is_token() { "API token" } else { "user" }));
             }
         }
     } else {
@@ -205,11 +206,11 @@ pub fn update_acl(
         acl::check_acl_path(&path)?;
     }
 
-    if let Some(userid) = userid {
+    if let Some(auth_id) = auth_id {
         if delete {
-            tree.delete_user_role(&path, &userid, &role);
+            tree.delete_user_role(&path, &auth_id, &role);
         } else {
-            tree.insert_user_role(&path, &userid, &role, propagate);
+            tree.insert_user_role(&path, &auth_id, &role, propagate);
         }
     } else if let Some(group) = group {
         if delete {

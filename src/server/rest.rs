@@ -42,7 +42,7 @@ use super::formatter::*;
 use super::ApiConfig;
 
 use crate::auth_helpers::*;
-use crate::api2::types::Userid;
+use crate::api2::types::{Authid, Userid};
 use crate::tools;
 use crate::tools::FileLogger;
 use crate::tools::ticket::Ticket;
@@ -138,9 +138,9 @@ fn log_response(
         log::error!("{} {}: {} {}: [client {}] {}", method.as_str(), path, status.as_str(), reason, peer, message);
     }
     if let Some(logfile) = logfile {
-        let user = match resp.extensions().get::<Userid>() {
-            Some(userid) => userid.as_str(),
-            None => "-",
+        let auth_id = match resp.extensions().get::<Authid>() {
+            Some(auth_id) => auth_id.to_string(),
+            None => "-".to_string(),
         };
         let now = proxmox::tools::time::epoch_i64();
         // time format which apache/nginx use (by default), copied from pve-http-server
@@ -153,7 +153,7 @@ fn log_response(
             .log(format!(
                 "{} - {} [{}] \"{} {}\" {} {} {}",
                 peer.ip(),
-                user,
+                auth_id,
                 datetime,
                 method.as_str(),
                 path,
@@ -441,7 +441,7 @@ fn get_index(
         .unwrap();
 
     if let Some(userid) = userid {
-        resp.extensions_mut().insert(userid);
+        resp.extensions_mut().insert(Authid::from((userid, None)));
     }
 
     resp
@@ -555,14 +555,15 @@ fn check_auth(
     ticket: &Option<String>,
     csrf_token: &Option<String>,
     user_info: &CachedUserInfo,
-) -> Result<Userid, Error> {
+) -> Result<Authid, Error> {
     let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
     let ticket = ticket.as_ref().map(String::as_str);
     let userid: Userid = Ticket::parse(&ticket.ok_or_else(|| format_err!("missing ticket"))?)?
         .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?;
 
-    if !user_info.is_active_user(&userid) {
+    let auth_id = Authid::from(userid.clone());
+    if !user_info.is_active_auth_id(&auth_id) {
         bail!("user account disabled or expired.");
     }
 
@@ -574,7 +575,7 @@ fn check_auth(
         }
     }
 
-    Ok(userid)
+    Ok(Authid::from(userid))
 }
 
 async fn handle_request(
@@ -632,7 +633,7 @@ async fn handle_request(
             if auth_required {
                 let (ticket, csrf_token, _) = extract_auth_data(&parts.headers);
                 match check_auth(&method, &ticket, &csrf_token, &user_info) {
-                    Ok(userid) => rpcenv.set_user(Some(userid.to_string())),
+                    Ok(authid) => rpcenv.set_auth_id(Some(authid.to_string())),
                     Err(err) => {
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
@@ -648,8 +649,8 @@ async fn handle_request(
                     return Ok((formatter.format_error)(err));
                 }
                 Some(api_method) => {
-                    let user = rpcenv.get_user();
-                    if !check_api_permission(api_method.access.permission, user.as_deref(), &uri_param, user_info.as_ref()) {
+                    let auth_id = rpcenv.get_auth_id();
+                    if !check_api_permission(api_method.access.permission, auth_id.as_deref(), &uri_param, user_info.as_ref()) {
                         let err = http_err!(FORBIDDEN, "permission check failed");
                         tokio::time::delay_until(Instant::from_std(access_forbidden_time)).await;
                         return Ok((formatter.format_error)(err));
@@ -666,9 +667,9 @@ async fn handle_request(
                         Err(err) => (formatter.format_error)(err),
                     };
 
-                    if let Some(user) = user {
-                        let userid: Userid = user.parse()?;
-                        response.extensions_mut().insert(userid);
+                    if let Some(auth_id) = auth_id {
+                        let auth_id: Authid = auth_id.parse()?;
+                        response.extensions_mut().insert(auth_id);
                     }
 
                     return Ok(response);
@@ -687,9 +688,10 @@ async fn handle_request(
             let (ticket, csrf_token, language) = extract_auth_data(&parts.headers);
             if ticket != None {
                 match check_auth(&method, &ticket, &csrf_token, &user_info) {
-                    Ok(userid) => {
-                        let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), &userid);
-                        return Ok(get_index(Some(userid), Some(new_csrf_token), language, &api, parts));
+                    Ok(auth_id) => {
+                        let userid = auth_id.user();
+                        let new_csrf_token = assemble_csrf_prevention_token(csrf_secret(), userid);
+                        return Ok(get_index(Some(userid.clone()), Some(new_csrf_token), language, &api, parts));
                     }
                     _ => {
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;

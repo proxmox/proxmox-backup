@@ -35,14 +35,14 @@ pub fn list_datastores(
 
     let (config, digest) = datastore::config()?;
 
-    let userid: Userid = rpcenv.get_user().unwrap().parse()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
     let list:Vec<DataStoreConfig> = config.convert_to_typed_array("datastore")?;
     let filter_by_privs = |store: &DataStoreConfig| {
-        let user_privs = user_info.lookup_privs(&userid, &["datastore", &store.name]);
+        let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store.name]);
         (user_privs & PRIV_DATASTORE_AUDIT) != 0
     };
 

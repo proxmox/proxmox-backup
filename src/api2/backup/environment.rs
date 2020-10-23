@@ -10,7 +10,7 @@ use proxmox::tools::digest_to_hex;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::api::{RpcEnvironment, RpcEnvironmentType};
 
-use crate::api2::types::Userid;
+use crate::api2::types::Authid;
 use crate::backup::*;
 use crate::server::WorkerTask;
 use crate::server::formatter::*;
@@ -104,7 +104,7 @@ impl SharedBackupState {
 pub struct BackupEnvironment {
     env_type: RpcEnvironmentType,
     result_attributes: Value,
-    user: Userid,
+    auth_id: Authid,
     pub debug: bool,
     pub formatter: &'static OutputFormatter,
     pub worker: Arc<WorkerTask>,
@@ -117,7 +117,7 @@ pub struct BackupEnvironment {
 impl BackupEnvironment {
     pub fn new(
         env_type: RpcEnvironmentType,
-        user: Userid,
+        auth_id: Authid,
         worker: Arc<WorkerTask>,
         datastore: Arc<DataStore>,
         backup_dir: BackupDir,
@@ -137,7 +137,7 @@ impl BackupEnvironment {
         Self {
             result_attributes: json!({}),
             env_type,
-            user,
+            auth_id,
             worker,
             datastore,
             debug: false,
@@ -518,7 +518,7 @@ impl BackupEnvironment {
         WorkerTask::new_thread(
             "verify",
             Some(worker_id),
-            self.user.clone(),
+            self.auth_id.clone(),
             false,
             move |worker| {
                 worker.log("Automatically verifying newly added snapshot");
@@ -599,12 +599,12 @@ impl RpcEnvironment for BackupEnvironment {
         self.env_type
     }
 
-    fn set_user(&mut self, _user: Option<String>) {
-        panic!("unable to change user");
+    fn set_auth_id(&mut self, _auth_id: Option<String>) {
+        panic!("unable to change auth_id");
     }
 
-    fn get_user(&self) -> Option<String> {
-        Some(self.user.to_string())
+    fn get_auth_id(&self) -> Option<String> {
+        Some(self.auth_id.to_string())
     }
 }
 

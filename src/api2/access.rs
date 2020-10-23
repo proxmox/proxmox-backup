@@ -31,7 +31,8 @@ fn authenticate_user(
 ) -> Result<bool, Error> {
     let user_info = CachedUserInfo::new()?;
 
-    if !user_info.is_active_user(&userid) {
+    let auth_id = Authid::from(userid.clone());
+    if !user_info.is_active_auth_id(&auth_id) {
         bail!("user account disabled or expired.");
     }
 
@@ -69,8 +70,7 @@ fn authenticate_user(
                             path_vec.push(part);
                         }
                     }
-
-                    user_info.check_privs(userid, &path_vec, *privilege, false)?;
+                    user_info.check_privs(&auth_id, &path_vec, *privilege, false)?;
                     return Ok(false);
                 }
             }
@@ -213,9 +213,10 @@ fn change_password(
 ) -> Result<Value, Error> {
 
     let current_user: Userid = rpcenv
-        .get_user()
+        .get_auth_id()
         .ok_or_else(|| format_err!("unknown user"))?
         .parse()?;
+    let current_auth = Authid::from(current_user.clone());
 
     let mut allowed = userid == current_user;
 
@@ -223,7 +224,7 @@ fn change_password(
 
     if !allowed {
         let user_info = CachedUserInfo::new()?;
-        let privs = user_info.lookup_privs(&current_user, &[]);
+        let privs = user_info.lookup_privs(&current_auth, &[]);
         if (privs & PRIV_PERMISSIONS_MODIFY) != 0 { allowed = true; }
     }
 
