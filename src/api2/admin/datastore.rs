@@ -423,6 +423,37 @@ pub fn list_snapshots (
     Ok(snapshots)
 }
 
+// returns a map from type to (group_count, snapshot_count)
+fn get_snaphots_count(store: &DataStore) -> Result<HashMap<String, (usize, usize)>, Error> {
+    let base_path = store.base_path();
+    let backup_list = BackupInfo::list_backups(&base_path)?;
+    let mut groups = HashSet::new();
+    let mut result: HashMap<String, (usize, usize)> = HashMap::new();
+    for info in backup_list {
+        let group = info.backup_dir.group();
+
+        let id = group.backup_id();
+        let backup_type = group.backup_type();
+
+        let mut new_id = false;
+
+        if groups.insert(format!("{}-{}", &backup_type, &id)) {
+            new_id = true;
+        }
+
+        if let Some(mut counts) = result.get_mut(backup_type) {
+            counts.1 += 1;
+            if new_id {
+                counts.0 +=1;
+            }
+        } else {
+            result.insert(backup_type.to_string(), (1, 1));
+        }
+    }
+
+    Ok(result)
+}
+
 #[api(
     input: {
         properties: {
@@ -432,7 +463,21 @@ pub fn list_snapshots (
         },
     },
     returns: {
-        type: StorageStatus,
+        description: "The overall Datastore status and information.",
+        type: Object,
+        properties: {
+            storage: {
+                type: StorageStatus,
+            },
+            counts: {
+                description: "Group and Snapshot counts per Type",
+                type: Object,
+                properties: { },
+            },
+            "gc-status": {
+                type: GarbageCollectionStatus,
+            },
+        },
     },
     access: {
         permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
@@ -443,9 +488,19 @@ pub fn status(
     store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<StorageStatus, Error> {
+) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
-    crate::tools::disks::disk_usage(&datastore.base_path())
+    let storage_status = crate::tools::disks::disk_usage(&datastore.base_path())?;
+    let counts = get_snaphots_count(&datastore)?;
+    let gc_status = datastore.last_gc_status();
+
+    let res = json!({
+        "storage": storage_status,
+        "counts": counts,
+        "gc-status": gc_status,
+    });
+
+    Ok(res)
 }
 
 #[api(
