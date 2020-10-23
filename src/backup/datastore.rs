@@ -9,7 +9,7 @@ use std::fs::File;
 use anyhow::{bail, format_err, Error};
 use lazy_static::lazy_static;
 
-use proxmox::tools::fs::{replace_file, CreateOptions, open_file_locked};
+use proxmox::tools::fs::{replace_file, file_read_optional_string, CreateOptions, open_file_locked};
 
 use super::backup_info::{BackupGroup, BackupDir};
 use super::chunk_store::ChunkStore;
@@ -71,7 +71,20 @@ impl DataStore {
     fn open_with_path(store_name: &str, path: &Path, config: DataStoreConfig) -> Result<Self, Error> {
         let chunk_store = ChunkStore::open(store_name, path)?;
 
-        let gc_status = GarbageCollectionStatus::default();
+        let mut gc_status_path = chunk_store.base_path();
+        gc_status_path.push(".gc-status");
+
+        let gc_status = if let Some(state) = file_read_optional_string(gc_status_path)? {
+            match serde_json::from_str(&state) {
+                Ok(state) => state,
+                Err(err) => {
+                    eprintln!("error reading gc-status: {}", err);
+                    GarbageCollectionStatus::default()
+                }
+            }
+        } else {
+            GarbageCollectionStatus::default()
+        };
 
         Ok(Self {
             chunk_store: Arc::new(chunk_store),
@@ -570,6 +583,23 @@ impl DataStore {
             if gc_status.disk_chunks > 0 {
                 let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
                 crate::task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
+            }
+
+            if let Ok(serialized) = serde_json::to_string(&gc_status) {
+                let mut path = self.base_path();
+                path.push(".gc-status");
+
+                let backup_user = crate::backup::backup_user()?;
+                let mode = nix::sys::stat::Mode::from_bits_truncate(0o0644);
+                // set the correct owner/group/permissions while saving file
+                // owner(rw) = backup, group(r)= backup
+                let options = CreateOptions::new()
+                    .perm(mode)
+                    .owner(backup_user.uid)
+                    .group(backup_user.gid);
+
+                // ignore errors
+                let _ = replace_file(path, serialized.as_bytes(), options);
             }
 
             *self.last_gc_status.lock().unwrap() = gc_status;
