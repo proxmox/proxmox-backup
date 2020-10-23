@@ -14,9 +14,11 @@ mod macros;
 #[macro_use]
 mod userid;
 pub use userid::{Realm, RealmRef};
+pub use userid::{Tokenname, TokennameRef};
 pub use userid::{Username, UsernameRef};
 pub use userid::Userid;
-pub use userid::PROXMOX_GROUP_ID_SCHEMA;
+pub use userid::Authid;
+pub use userid::{PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA, PROXMOX_GROUP_ID_SCHEMA};
 
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
