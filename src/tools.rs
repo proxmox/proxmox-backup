@@ -327,7 +327,7 @@ pub fn get_hardware_address() -> Result<String, Error> {
     let contents = proxmox::tools::fs::file_get_contents(FILENAME)?;
     let digest = md5sum(&contents)?;
 
-    Ok(proxmox::tools::bin_to_hex(&digest))
+    Ok(proxmox::tools::bin_to_hex(&digest).to_uppercase())
 }
 
 pub fn assert_if_modified(digest1: &str, digest2: &str) -> Result<(), Error> {
