@@ -305,7 +305,7 @@ pub fn update_apt_auth(key: Option<String>, password: Option<String>) -> Result<
     match (key, password) {
         (Some(key), Some(password)) => {
             let conf = format!(
-                "machine enterprise.proxmox.com/debian/pbs\n login {}\n password {}",
+                "machine enterprise.proxmox.com/debian/pbs\n login {}\n password {}\n",
                 key,
                 password,
             );
