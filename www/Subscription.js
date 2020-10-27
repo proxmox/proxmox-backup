@@ -20,7 +20,6 @@ Ext.define('PBS.Subscription', {
     xtype: 'pbsSubscription',
 
     title: gettext('Subscription'),
-
     border: true,
 
     onlineHelp: 'getting_help',
@@ -30,24 +29,12 @@ Ext.define('PBS.Subscription', {
     },
 
     initComponent: function() {
-	var me = this;
+	let me = this;
 
-	var reload = function() {
-	    me.rstore.load();
-	};
+	let reload = () => me.rstore.load();
+	let baseurl = '/nodes/localhost/subscription';
 
-	var baseurl = '/nodes/localhost/subscription';
-
-	var render_status = function(value) {
-	    var message = me.getObjectValue('message');
-
-	    if (message) {
-		return value + ": " + message;
-	    }
-	    return value;
-	};
-
-	var rows = {
+	let rows = {
 	    productname: {
 		header: gettext('Type'),
 	    },
@@ -56,16 +43,20 @@ Ext.define('PBS.Subscription', {
 	    },
 	    status: {
 		header: gettext('Status'),
-		renderer: render_status,
+		renderer: (value) => {
+		    value = Ext.String.capitalize(value);
+		    let message = me.getObjectValue('message');
+		    if (message) {
+			return value + ": " + message;
+		    }
+		    return value;
+		},
 	    },
 	    message: {
 		visible: false,
 	    },
 	    serverid: {
 		header: gettext('Server ID'),
-	    },
-	    sockets: {
-		header: gettext('Sockets'),
 	    },
 	    checktime: {
 		header: gettext('Last checked'),
@@ -77,13 +68,13 @@ Ext.define('PBS.Subscription', {
 	};
 
 	Ext.apply(me, {
-	    url: '/api2/json' + baseurl,
+	    url: `/api2/json${baseurl}`,
 	    cwidth1: 170,
 	    tbar: [
 		{
 		    text: gettext('Upload Subscription Key'),
 		    handler: function() {
-			var win = Ext.create('PBS.SubscriptionKeyEdit', {
+			let win = Ext.create('PBS.SubscriptionKeyEdit', {
 			    url: '/api2/extjs/' + baseurl,
 			});
 			win.show();
