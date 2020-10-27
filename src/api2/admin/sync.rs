@@ -15,7 +15,12 @@ use crate::tools::systemd::time::{
 
 #[api(
     input: {
-        properties: {},
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+                optional: true,
+            },
+        },
     },
     returns: {
         description: "List configured jobs and their status.",
@@ -25,13 +30,23 @@ use crate::tools::systemd::time::{
 )]
 /// List all sync jobs
 pub fn list_sync_jobs(
+    store: Option<String>,
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SyncJobStatus>, Error> {
 
     let (config, digest) = sync::config()?;
 
-    let mut list: Vec<SyncJobStatus> = config.convert_to_typed_array("sync")?;
+    let mut list: Vec<SyncJobStatus> = config
+        .convert_to_typed_array("sync")?
+        .into_iter()
+        .filter(|job: &SyncJobStatus| {
+            if let Some(store) = &store {
+                &job.store == store
+            } else {
+                true
+            }
+        }).collect();
 
     for job in &mut list {
         let last_state = JobState::load("syncjob", &job.id)

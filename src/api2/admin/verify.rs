@@ -15,7 +15,12 @@ use crate::server::UPID;
 
 #[api(
     input: {
-        properties: {},
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+                optional: true,
+            },
+        },
     },
     returns: {
         description: "List configured jobs and their status.",
@@ -25,13 +30,23 @@ use crate::server::UPID;
 )]
 /// List all verification jobs
 pub fn list_verification_jobs(
+    store: Option<String>,
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<VerificationJobStatus>, Error> {
 
     let (config, digest) = verify::config()?;
 
-    let mut list: Vec<VerificationJobStatus> = config.convert_to_typed_array("verification")?;
+    let mut list: Vec<VerificationJobStatus> = config
+        .convert_to_typed_array("verification")?
+        .into_iter()
+        .filter(|job: &VerificationJobStatus| {
+            if let Some(store) = &store {
+                &job.store == store
+            } else {
+                true
+            }
+        }).collect();
 
     for job in &mut list {
         let last_state = JobState::load("verificationjob", &job.id)
