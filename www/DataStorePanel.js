@@ -10,6 +10,25 @@ Ext.define('PBS.DataStorePanel', {
 	};
     },
 
+    stateId: 'pbs-datastore-panel',
+    stateful: true,
+
+    stateEvents: ['tabchange'],
+
+    applyState: function(state) {
+	let me = this;
+	if (state.tab !== undefined) {
+	    me.setActiveTab(state.tab);
+	}
+    },
+
+    getState: function() {
+	let me = this;
+	return {
+	    tab: me.getActiveTab().getItemId(),
+	};
+    },
+
     border: false,
     defaults: {
 	border: false,
