@@ -1,3 +1,13 @@
+Ext.define('pbs-datastore-list', {
+    extend: 'Ext.data.Model',
+    fields: ['name', 'comment'],
+    proxy: {
+        type: 'proxmox',
+        url: "/api2/json/admin/datastore",
+    },
+    idProperty: 'store',
+});
+
 Ext.define('PBS.store.NavigationStore', {
     extend: 'Ext.data.TreeStore',
 
@@ -76,9 +86,18 @@ Ext.define('PBS.store.NavigationStore', {
 	    {
 		text: gettext('Datastore'),
 		iconCls: 'fa fa-archive',
-		path: 'pbsDataStoreConfig',
+		id: 'datastores',
 		expanded: true,
+		expandable: false,
 		leaf: false,
+		children: [
+		    {
+			text: gettext('Add Datastore'),
+			iconCls: 'fa fa-plus-circle',
+			leaf: true,
+			id: 'addbutton',
+		    },
+		],
 	    },
 	],
     },
@@ -110,21 +129,23 @@ Ext.define('PBS.view.main.NavigationTree', {
 
 	    let root = view.getStore().getRoot();
 
-	    // FIXME: newly added always get appended to the end..
-	    records.sort((a, b) => {
-		if (a.id > b.id) return 1;
-		if (a.id < b.id) return -1;
-		return 0;
-	    });
+	    records.sort((a, b) => a.id.localeCompare(b.id));
 
-	    var list = root.findChild('path', 'pbsDataStoreConfig', false);
+	    var list = root.findChild('id', 'datastores', false);
 	    var length = records.length;
 	    var lookup_hash = {};
-	    for (var i = 0; i < length; i++) {
+	    let j = 0;
+	    for (let i = 0; i < length; i++) {
 		let name = records[i].id;
 		lookup_hash[name] = true;
-		if (!list.findChild('text', name, false)) {
-		    list.appendChild({
+
+		while (name.localeCompare(list.getChildAt(j).data.text) > 0 &&
+		       (j + 1) < list.childNodes.length) {
+		    j++;
+		}
+
+		if (list.getChildAt(j).data.text.localeCompare(name) !== 0) {
+		    list.insertChild(j, {
 			text: name,
 			path: `DataStore-${name}`,
 			iconCls: 'fa fa-database',
@@ -136,12 +157,32 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    var erase_list = [];
 	    list.eachChild(function(node) {
 		let name = node.data.text;
-		if (!lookup_hash[name]) {
+		if (!lookup_hash[name] && node.data.id !== 'addbutton') {
 		    erase_list.push(node);
 		}
 	    });
 
-	    Ext.Array.forEach(erase_list, function(node) { node.erase(); });
+	    Ext.Array.forEach(erase_list, function(node) { list.removeChild(node, true); });
+	},
+    },
+
+    listeners: {
+	itemclick: function(tl, info) {
+	    if (info.node.data.id === 'datastores') {
+		return false;
+	    }
+	    if (info.node.data.id === 'addbutton') {
+		let me = this;
+		Ext.create('PBS.DataStoreEdit', {
+		    listeners: {
+			destroy: function() {
+			    me.rstore.reload();
+			},
+		    },
+		}).show();
+		return false;
+	    }
+	    return true;
 	},
     },
 
