@@ -325,8 +325,10 @@ pub fn md5sum(data: &[u8]) -> Result<DigestBytes, Error> {
 pub fn get_hardware_address() -> Result<String, Error> {
     static FILENAME: &str = "/etc/ssh/ssh_host_rsa_key.pub";
 
-    let contents = proxmox::tools::fs::file_get_contents(FILENAME)?;
-    let digest = md5sum(&contents)?;
+    let contents = proxmox::tools::fs::file_get_contents(FILENAME)
+        .map_err(|e| format_err!("Error getting host key - {}", e))?;
+    let digest = md5sum(&contents)
+        .map_err(|e| format_err!("Error digesting host key - {}", e))?;
 
     Ok(proxmox::tools::bin_to_hex(&digest).to_uppercase())
 }
