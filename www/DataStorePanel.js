@@ -20,6 +20,7 @@ Ext.define('PBS.DataStorePanel', {
 	    xtype: 'pbsDataStoreSummary',
 	    title: gettext('Summary'),
 	    itemId: 'summary',
+	    iconCls: 'fa fa-book',
 	    cbind: {
 		datastore: '{datastore}',
 	    },
@@ -27,6 +28,7 @@ Ext.define('PBS.DataStorePanel', {
 	{
 	    xtype: 'pbsDataStoreContent',
 	    itemId: 'content',
+	    iconCls: 'fa fa-th',
 	    cbind: {
 		datastore: '{datastore}',
 	    },
@@ -35,6 +37,23 @@ Ext.define('PBS.DataStorePanel', {
 	    title: gettext('Prune & Garbage collection'),
 	    xtype: 'pbsDataStorePruneAndGC',
 	    itemId: 'prunegc',
+	    iconCls: 'fa fa-trash-o',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
+	    iconCls: 'fa fa-refresh',
+	    itemId: 'syncjobs',
+	    xtype: 'pbsSyncJobView',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
+	    iconCls: 'fa fa-check-circle',
+	    itemId: 'verifyjobs',
+	    xtype: 'pbsVerifyJobView',
 	    cbind: {
 		datastore: '{datastore}',
 	    },
@@ -42,6 +61,7 @@ Ext.define('PBS.DataStorePanel', {
 	{
 	    itemId: 'acl',
 	    xtype: 'pbsACLView',
+	    iconCls: 'fa fa-unlock',
 	    aclExact: true,
 	    cbind: {
 		aclPath: '{aclPath}',

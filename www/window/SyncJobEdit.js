@@ -53,10 +53,12 @@ Ext.define('PBS.window.SyncJobEdit', {
 		name: 'remote-store',
 	    },
 	    {
-		fieldLabel: gettext('Local Datastore'),
-		xtype: 'pbsDataStoreSelector',
+		xtype: 'hiddenfield',
 		allowBlank: false,
 		name: 'store',
+		cbind: {
+		    value: '{datastore}',
+		},
 	    },
 	],
 

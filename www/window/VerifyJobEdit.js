@@ -41,10 +41,12 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		},
 	    },
 	    {
-		fieldLabel: gettext('Datastore'),
-		xtype: 'pbsDataStoreSelector',
+		xtype: 'hiddenfield',
 		allowBlank: false,
 		name: 'store',
+		cbind: {
+		    value: '{datastore}',
+		},
 	    },
 	    {
 		xtype: 'proxmoxintegerfield',

@@ -12,6 +12,7 @@ Ext.define('pbs-verify-jobs-status', {
 		return endtime - task.starttime;
 	    },
 	},
+	'comment',
     ],
     idProperty: 'id',
     proxy: {
@@ -34,7 +35,9 @@ Ext.define('PBS.config.VerifyJobView', {
 
 	addVerifyJob: function() {
 	    let me = this;
+	    let view = me.getView();
 	    Ext.create('PBS.window.VerifyJobEdit', {
+		datastore: view.datastore,
 		listeners: {
 		    destroy: function() {
 			me.reload();
@@ -50,6 +53,7 @@ Ext.define('PBS.config.VerifyJobView', {
 	    if (selection.length < 1) return;
 
 	    Ext.create('PBS.window.VerifyJobEdit', {
+		datastore: view.datastore,
 		id: selection[0].data.id,
 		listeners: {
 		    destroy: function() {
@@ -147,15 +151,22 @@ Ext.define('PBS.config.VerifyJobView', {
 	    return Proxmox.Utils.render_timestamp(value);
 	},
 
+	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
+	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
+
 	reload: function() { this.getView().getStore().rstore.load(); },
 
 	init: function(view) {
+	    view.getStore().rstore.getProxy().setExtraParams({
+		store: view.datastore,
+	    });
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
     },
 
     listeners: {
-	activate: 'reload',
+	activate: 'startStore',
+	deactivate: 'stopStore',
 	itemdblclick: 'editVerifyJob',
     },
 
@@ -168,7 +179,6 @@ Ext.define('PBS.config.VerifyJobView', {
 	    type: 'update',
 	    storeid: 'pbs-verify-jobs-status',
 	    model: 'pbs-verify-jobs-status',
-	    autoStart: true,
 	    interval: 5000,
 	},
     },
@@ -218,12 +228,6 @@ Ext.define('PBS.config.VerifyJobView', {
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'id',
-	},
-	{
-	    header: gettext('Datastore'),
-	    width: 100,
-	    sortable: true,
-	    dataIndex: 'store',
 	},
 	{
 	    header: gettext('Days valid'),

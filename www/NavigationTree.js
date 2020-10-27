@@ -37,18 +37,6 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
-			text: gettext('Sync Jobs'),
-			iconCls: 'fa fa-refresh',
-			path: 'pbsSyncJobView',
-			leaf: true,
-		    },
-		    {
-			text: gettext('Verify Jobs'),
-			iconCls: 'fa fa-check-circle',
-			path: 'pbsVerifyJobView',
-			leaf: true,
-		    },
-		    {
 			text: gettext('Subscription'),
 			iconCls: 'fa fa-support',
 			path: 'pbsSubscription',
