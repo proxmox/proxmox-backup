@@ -34,3 +34,6 @@ pub mod jobstate;
 
 mod verify_job;
 pub use verify_job::*;
+
+mod email_notifications;
+pub use email_notifications::*;

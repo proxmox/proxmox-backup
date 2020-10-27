@@ -240,10 +240,18 @@ async fn schedule_tasks() -> Result<(), Error> {
 
 async fn schedule_datastore_garbage_collection() {
 
-    use proxmox_backup::config::datastore::{
-        self,
-        DataStoreConfig,
+    use proxmox_backup::config::{
+        datastore::{
+            self,
+            DataStoreConfig,
+        },
+        user::{
+            self,
+            User,
+        },
     };
+
+    let email = server::lookup_user_email(Userid::root_userid());
 
     let config = match datastore::config() {
         Err(err) => {
@@ -325,6 +333,7 @@ async fn schedule_datastore_garbage_collection() {
         };
 
         let store2 = store.clone();
+        let email2 = email.clone();
 
         if let Err(err) = WorkerTask::new_thread(
             worker_type,
@@ -343,6 +352,13 @@ async fn schedule_datastore_garbage_collection() {
 
                 if let Err(err) = job.finish(status) {
                     eprintln!("could not finish job state for {}: {}", worker_type, err);
+                }
+
+                if let Some(email2) = email2 {
+                    let gc_status = datastore.last_gc_status();
+                    if let Err(err) = crate::server::send_gc_status(&email2, datastore.name(), &gc_status, &result) {
+                        eprintln!("send gc notification failed: {}", err);
+                    }
                 }
 
                 result

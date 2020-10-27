@@ -46,6 +46,8 @@ pub fn do_verification_job(
         })
     }
 
+    let email = crate::server::lookup_user_email(userid);
+
     let job_id = job.jobname().to_string();
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(
@@ -101,6 +103,12 @@ pub fn do_verification_job(
                     err
                 ),
                 Ok(_) => (),
+            }
+
+            if let Some(email) = email {
+                if let Err(err) = crate::server::send_verify_status(&email, verification_job, &result) {
+                    eprintln!("send verify notification failed: {}", err);
+                }
             }
 
             result
