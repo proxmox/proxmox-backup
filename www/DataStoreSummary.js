@@ -160,7 +160,7 @@ Ext.define('PBS.DataStoreInfo', {
 	},
 	{
 	    iconCls: 'fa fa-fw fa-compress',
-	    title: gettext('Deduplication'),
+	    title: gettext('Deduplication Factor'),
 	    printBar: false,
 	    bind: {
 		data: {
