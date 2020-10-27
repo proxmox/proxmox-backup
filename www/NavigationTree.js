@@ -163,6 +163,12 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    });
 
 	    Ext.Array.forEach(erase_list, function(node) { list.removeChild(node, true); });
+
+	    if (view.pathToSelect !== undefined) {
+		let path = view.pathToSelect;
+		delete view.pathToSelect;
+		view.select(path, true);
+	    }
 	},
     },
 
@@ -186,10 +192,20 @@ Ext.define('PBS.view.main.NavigationTree', {
 	},
     },
 
-    select: function(path) {
+    select: function(path, silent) {
 	var me = this;
-	var item = me.getStore().findRecord('path', path, 0, false, true, true);
-	me.setSelection(item);
+	if (me.rstore.isLoaded()) {
+	    if (silent) {
+		me.suspendEvents(false);
+	    }
+	    var item = me.getStore().findRecord('path', path, 0, false, true, true);
+	    me.setSelection(item);
+	    if (silent) {
+		me.resumeEvents(true);
+	    }
+	} else {
+	    me.pathToSelect = path;
+	}
     },
 
     animation: false,

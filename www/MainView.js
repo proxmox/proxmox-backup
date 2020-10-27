@@ -67,46 +67,48 @@ Ext.define('PBS.MainView', {
 	    var contentpanel = me.lookupReference('contentpanel');
 	    var lastpanel = contentpanel.getLayout().getActiveItem();
 
+	    let tabChangeListener = function(tp, newc, oldc) {
+		let newpath = path;
+
+		// only add the subpath part for the
+		// non-default tabs
+		if (tp.items.findIndex('id', newc.id) !== 0) {
+		    newpath += `:${newc.getItemId()}`;
+		}
+
+		me.redirectTo(newpath);
+	    };
+
+	    let xtype = path;
 	    var obj;
+	    let datastore;
 	    if (PBS.Utils.isDataStorePath(path)) {
-		let datastore = PBS.Utils.getDataStoreFromPath(path);
-		obj = contentpanel.add({
-		    xtype: 'pbsDataStorePanel',
-		    nodename: 'localhost',
-		    datastore,
-		});
-	    } else {
-		obj = contentpanel.add({
-		    xtype: path,
-		    nodename: 'localhost',
-		    border: false,
-		});
+		datastore = PBS.Utils.getDataStoreFromPath(path);
+		if (lastpanel && lastpanel.xtype === 'pbsDataStorePanel' && !subpath) {
+		    let activeTab = lastpanel.getActiveTab();
+		    let newpath = path;
+		    if (lastpanel.items.indexOf(activeTab) !== 0) {
+			subpath = activeTab.getItemId();
+			newpath += `:${subpath}`;
+		    }
+		    me.redirectTo(newpath);
+		}
+		xtype = 'pbsDataStorePanel';
 	    }
+	    obj = contentpanel.add({
+		xtype,
+		datastore,
+		nodename: 'localhost',
+		border: false,
+		activeTab: subpath || 0,
+		listeners: {
+		    tabchange: tabChangeListener,
+		},
+	    });
 
 	    var treelist = me.lookupReference('navtree');
 
-	    treelist.suspendEvents();
-	    if (subpath === undefined) {
-		treelist.select(path);
-	    } else {
-		treelist.select(path + ':' + subpath);
-	    }
-	    treelist.resumeEvents();
-
-	    if (Ext.isFunction(obj.setActiveTab)) {
-		obj.setActiveTab(subpath || 0);
-		obj.addListener('tabchange', function(tabpanel, newc, oldc) {
-		    var newpath = path;
-
-		    // only add the subpath part for the
-		    // non-default tabs
-		    if (tabpanel.items.findIndex('id', newc.id) !== 0) {
-			newpath += ":" + newc.getItemId();
-		    }
-
-		    me.redirectTo(newpath);
-		});
-	    }
+	    treelist.select(path, true);
 
 	    contentpanel.setActiveItem(obj);
 
