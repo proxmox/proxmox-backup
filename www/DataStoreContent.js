@@ -285,6 +285,23 @@ Ext.define('PBS.DataStoreContent', {
 	    win.show();
 	},
 
+	verifyAll: function() {
+	    var view = this.getView();
+
+	    Proxmox.Utils.API2Request({
+		url: `/admin/datastore/${view.datastore}/verify`,
+		method: 'POST',
+		failure: function(response) {
+		    Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+		},
+		success: function(response, options) {
+		    Ext.create('Proxmox.window.TaskViewer', {
+			upid: response.result.data,
+		    }).show();
+		},
+	    });
+	},
+
 	onVerify: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 	    view = me.getView();
@@ -678,6 +695,12 @@ Ext.define('PBS.DataStoreContent', {
 	    text: gettext('Reload'),
 	    iconCls: 'fa fa-refresh',
 	    handler: 'reload',
+	},
+	'-',
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Verify All'),
+	    handler: 'verifyAll',
 	},
 	'->',
 	{
