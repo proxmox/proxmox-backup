@@ -96,6 +96,16 @@ Ext.define('PBS.Subscription', {
 			});
 		    },
 		},
+		{
+		    text: gettext('Remove Subscription'),
+		    xtype: 'proxmoxStdRemoveButton',
+		    confirmMsg: gettext('Are you sure you want to remove the subscription key?'),
+		    baseurl: baseurl,
+		    dangerous: true,
+		    selModel: false,
+		    callback: reload,
+		},
+		//'-',
 	    ],
 	    rows: rows,
 	});
