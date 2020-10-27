@@ -40,9 +40,10 @@ JSSRC=							\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
+	DataStoreSummary.js				\
+	DataStoreNotes.js				\
 	DataStorePruneAndGC.js				\
 	DataStorePrune.js				\
-	DataStoreStatistic.js				\
 	DataStoreContent.js				\
 	DataStorePanel.js				\
 	ServerStatus.js					\

@@ -17,6 +17,14 @@ Ext.define('PBS.DataStorePanel', {
 
     items: [
 	{
+	    xtype: 'pbsDataStoreSummary',
+	    title: gettext('Summary'),
+	    itemId: 'summary',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
 	    xtype: 'pbsDataStoreContent',
 	    itemId: 'content',
 	    cbind: {
@@ -27,12 +35,6 @@ Ext.define('PBS.DataStorePanel', {
 	    title: gettext('Prune & Garbage collection'),
 	    xtype: 'pbsDataStorePruneAndGC',
 	    itemId: 'prunegc',
-	    cbind: {
-		datastore: '{datastore}',
-	    },
-	},
-	{
-	    xtype: 'pbsDataStoreStatistic',
 	    cbind: {
 		datastore: '{datastore}',
 	    },
