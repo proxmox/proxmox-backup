@@ -700,6 +700,7 @@ Ext.define('PBS.DataStoreContent', {
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Verify All'),
+	    confirmMsg: gettext('Do you want to verify all snapshots now?'),
 	    handler: 'verifyAll',
 	},
 	'->',
