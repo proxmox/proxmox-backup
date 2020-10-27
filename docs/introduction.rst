@@ -2,7 +2,7 @@ Introduction
 ============
 
 What is Proxmox Backup Server?
------------------------------
+------------------------------
 
 Proxmox Backup Server is an enterprise-class, client-server backup software
 package that backs up :term:`virtual machine`\ s, :term:`container`\ s, and
