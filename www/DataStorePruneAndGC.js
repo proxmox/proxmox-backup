@@ -47,7 +47,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	'-',
 	{
 	    xtype: 'proxmoxButton',
-	    text: gettext('Start GC'),
+	    text: gettext('Start Garbage Collection'),
 	    selModel: null,
 	    handler: 'garbageCollect',
 	},
@@ -64,7 +64,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	"gc-schedule": {
 	    required: true,
 	    defaultValue: Proxmox.Utils.NoneText,
-	    header: gettext('GC Schedule'),
+	    header: gettext('Garbage Collection Schedule'),
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('GC Schedule'),

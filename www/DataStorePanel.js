@@ -53,7 +53,7 @@ Ext.define('PBS.DataStorePanel', {
 	    },
 	},
 	{
-	    title: gettext('Prune & Garbage collection'),
+	    title: gettext('Prune & GC'),
 	    xtype: 'pbsDataStorePruneAndGC',
 	    itemId: 'prunegc',
 	    iconCls: 'fa fa-trash-o',
