@@ -36,6 +36,7 @@ pub mod logrotate;
 pub mod loopdev;
 pub mod fuse_loop;
 pub mod socket;
+pub mod subscription;
 pub mod zip;
 pub mod http;
 
