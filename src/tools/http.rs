@@ -5,6 +5,7 @@ use std::os::unix::io::AsRawFd;
 
 use hyper::{Uri, Body};
 use hyper::client::{Client, HttpConnector};
+use http::{Request, Response};
 use openssl::ssl::{SslConnector, SslMethod};
 use futures::*;
 
@@ -25,17 +26,46 @@ lazy_static! {
     };
 }
 
-pub async fn get_string<U: AsRef<str>>(uri: U) -> Result<String, Error> {
-    let res = HTTP_CLIENT.get(uri.as_ref().parse()?).await?;
+pub async fn get_string(uri: &str) -> Result<String, Error> {
+    let res = HTTP_CLIENT.get(uri.parse()?).await?;
 
     let status = res.status();
     if !status.is_success() {
         bail!("Got bad status '{}' from server", status)
     }
 
+    response_body_string(res).await
+}
+
+pub async fn response_body_string(res: Response<Body>) -> Result<String, Error> {
     let buf = hyper::body::to_bytes(res).await?;
     String::from_utf8(buf.to_vec())
         .map_err(|err| format_err!("Error converting HTTP result data: {}", err))
+}
+
+pub async fn post(
+    uri: &str,
+    body: Option<String>,
+    content_type: Option<&str>,
+) -> Result<Response<Body>, Error> {
+    let body = if let Some(body) = body {
+        Body::from(body)
+    } else {
+        Body::empty()
+    };
+    let content_type = content_type.unwrap_or("application/json");
+
+    let request = Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("User-Agent", "proxmox-backup-client/1.0")
+        .header(hyper::header::CONTENT_TYPE, content_type)
+        .body(body)?;
+
+
+    HTTP_CLIENT.request(request)
+        .map_err(Error::from)
+        .await
 }
 
 #[derive(Clone)]
