@@ -1,6 +1,6 @@
 use anyhow::{bail, Error};
 use serde_json::{json, Value};
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api, Permission, RpcEnvironment, RpcEnvironmentType,
