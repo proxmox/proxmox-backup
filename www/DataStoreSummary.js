@@ -109,7 +109,7 @@ Ext.define('PBS.DataStoreInfo', {
 
     items: [
 	{
-	    iconCls: 'fa fa-hdd-o',
+	    iconCls: 'fa fa-fw fa-hdd-o',
 	    title: gettext('Usage'),
 	    bind: {
 		data: {
@@ -124,7 +124,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    padding: '10 0 5 0',
 	},
 	{
-	    iconCls: 'fa fa-cube',
+	    iconCls: 'fa fa-fw fa-cube',
 	    title: gettext('CT'),
 	    printBar: false,
 	    bind: {
@@ -134,7 +134,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    },
 	},
 	{
-	    iconCls: 'fa fa-building',
+	    iconCls: 'fa fa-fw fa-building',
 	    title: gettext('Host'),
 	    printBar: false,
 	    bind: {
@@ -144,7 +144,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    },
 	},
 	{
-	    iconCls: 'fa fa-desktop',
+	    iconCls: 'fa fa-fw fa-desktop',
 	    title: gettext('VM'),
 	    printBar: false,
 	    bind: {
@@ -159,7 +159,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    padding: '10 0 5 0',
 	},
 	{
-	    iconCls: 'fa fa-compress',
+	    iconCls: 'fa fa-fw fa-compress',
 	    title: gettext('Deduplication'),
 	    printBar: false,
 	    bind: {
@@ -169,7 +169,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    },
 	},
 	{
-	    iconCls: 'fa fa-trash-o',
+	    iconCls: 'fa fa-fw fa-trash-o',
 	    title: gettext('Removed Bytes'),
 	    printBar: false,
 	    bind: {
@@ -179,7 +179,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    },
 	},
 	{
-	    iconCls: 'fa critical fa-exclamation-triangle',
+	    iconCls: 'fa critical fa-fw fa-exclamation-triangle',
 	    title: gettext('Bad Chunks'),
 	    printBar: false,
 	    bind: {
