@@ -40,6 +40,7 @@ JSSRC=							\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
+	DataStorePruneAndGC.js				\
 	DataStorePrune.js				\
 	DataStoreStatistic.js				\
 	DataStoreContent.js				\

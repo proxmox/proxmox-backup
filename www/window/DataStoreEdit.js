@@ -1,3 +1,81 @@
+Ext.define('PBS.panel.PruneInputPanel', {
+    extend: 'Proxmox.panel.InputPanel',
+    xtype: 'pbsPruneInputPanel',
+
+    mixins: ['Proxmox.Mixin.CBind'],
+
+    cbindData: function() {
+	let me = this;
+	me.isCreate = !!me.isCreate;
+	return {};
+    },
+
+    column1: [
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Last'),
+	    name: 'keep-last',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Daily'),
+	    name: 'keep-daily',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Monthly'),
+	    name: 'keep-monthly',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+    ],
+    column2: [
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Hourly'),
+	    name: 'keep-hourly',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Weekly'),
+	    name: 'keep-weekly',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+	{
+	    xtype: 'proxmoxintegerfield',
+	    fieldLabel: gettext('Keep Yearly'),
+	    name: 'keep-yearly',
+	    cbind: {
+		deleteEmpty: '{!isCreate}',
+	    },
+	    minValue: 1,
+	    allowBlank: true,
+	},
+    ],
+
+});
 Ext.define('PBS.DataStoreEdit', {
     extend: 'Proxmox.window.Edit',
     alias: 'widget.pbsDataStoreEdit',
@@ -88,72 +166,11 @@ Ext.define('PBS.DataStoreEdit', {
 	    },
 	    {
 		title: gettext('Prune Options'),
-		xtype: 'inputpanel',
+		xtype: 'pbsPruneInputPanel',
+		cbind: {
+		    isCreate: '{isCreate}',
+		},
 		onlineHelp: 'backup_pruning',
-		column1: [
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Last'),
-			name: 'keep-last',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Daily'),
-			name: 'keep-daily',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Monthly'),
-			name: 'keep-monthly',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		],
-		column2: [
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Hourly'),
-			name: 'keep-hourly',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Weekly'),
-			name: 'keep-weekly',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		    {
-			xtype: 'proxmoxintegerfield',
-			fieldLabel: gettext('Keep Yearly'),
-			name: 'keep-yearly',
-			cbind: {
-			    deleteEmpty: '{!isCreate}',
-			},
-			minValue: 1,
-			allowBlank: true,
-		    },
-		],
 	    },
 	],
     },

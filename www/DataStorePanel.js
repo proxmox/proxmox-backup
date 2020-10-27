@@ -18,6 +18,15 @@ Ext.define('PBS.DataStorePanel', {
     items: [
 	{
 	    xtype: 'pbsDataStoreContent',
+	    itemId: 'content',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
+	    title: gettext('Prune & Garbage collection'),
+	    xtype: 'pbsDataStorePruneAndGC',
+	    itemId: 'prunegc',
 	    cbind: {
 		datastore: '{datastore}',
 	    },
