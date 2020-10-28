@@ -28,16 +28,23 @@ Ext.define('PBS.window.SyncJobEdit', {
 
     items: {
 	xtype: 'inputpanel',
+	onGetValues: function(values) {
+	    let me = this;
+
+	    if (!values.id && me.up('pbsSyncJobEdit').isCreate) {
+		values.id = 'auto-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 23);
+	    }
+	    return values;
+	},
 	column1: [
 	    {
-		fieldLabel: gettext('Sync Job ID'),
-		xtype: 'pmxDisplayEditField',
-		name: 'id',
-		renderer: Ext.htmlEncode,
+		xtype: 'displayfield',
+		name: 'store',
+		fieldLabel: gettext('Local Datastore'),
 		allowBlank: false,
-		minLength: 4,
+		submitValue: true,
 		cbind: {
-		    editable: '{isCreate}',
+		    value: '{datastore}',
 		},
 	    },
 	    {
@@ -52,12 +59,18 @@ Ext.define('PBS.window.SyncJobEdit', {
 		allowBlank: false,
 		name: 'remote-store',
 	    },
+	],
+	advancedColumn1: [
 	    {
-		xtype: 'hiddenfield',
-		allowBlank: false,
-		name: 'store',
+		xtype: 'pmxDisplayEditField',
+		name: 'id',
+		fieldLabel: gettext('Sync Job ID'),
+		emptyText: gettext('Automatic'),
+		renderer: Ext.htmlEncode,
+		allowBlank: true,
+		minLength: 4,
 		cbind: {
-		    value: '{datastore}',
+		    editable: '{isCreate}',
 		},
 	    },
 	],
@@ -74,7 +87,8 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Schedule'),
 		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
-		emptyText: gettext('none'),
+		value: 'hourly',
+		emptyText: gettext('none (disabled)'),
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
