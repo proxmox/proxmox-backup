@@ -34,7 +34,7 @@ pub fn do_verification_job(
         }
         let manifest = match datastore2.load_manifest(&backup_info.backup_dir) {
             Ok((manifest, _)) => manifest,
-            Err(_) => return false,
+            Err(_) => return true,
         };
 
         let raw_verify_state = manifest.unprotected["verify_state"].clone();
