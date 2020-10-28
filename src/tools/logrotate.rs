@@ -46,9 +46,9 @@ impl LogRotate {
         }
     }
 
-    fn compress(file: &PathBuf, options: &CreateOptions) -> Result<(), Error> {
-        let mut source = File::open(file)?;
-        let (fd, tmp_path) = make_tmp_file(file, options.clone())?;
+    fn compress(source_path: &PathBuf, target_path: &PathBuf, options: &CreateOptions) -> Result<(), Error> {
+        let mut source = File::open(source_path)?;
+        let (fd, tmp_path) = make_tmp_file(target_path, options.clone())?;
         let target = unsafe { File::from_raw_fd(fd) };
         let mut encoder = match zstd::stream::write::Encoder::new(target, 0) {
             Ok(encoder) => encoder,
@@ -60,18 +60,23 @@ impl LogRotate {
 
         if let Err(err) = std::io::copy(&mut source, &mut encoder) {
             let _ = unistd::unlink(&tmp_path);
-            bail!("zstd encoding failed for file {:?} - {}", file, err);
+            bail!("zstd encoding failed for file {:?} - {}", target_path, err);
         }
 
         if let Err(err) = encoder.finish() {
             let _ = unistd::unlink(&tmp_path);
-            bail!("zstd finish failed for file {:?} - {}", file, err);
+            bail!("zstd finish failed for file {:?} - {}", target_path, err);
         }
 
-        if let Err(err) = rename(&tmp_path, file) {
+        if let Err(err) = rename(&tmp_path, target_path) {
             let _ = unistd::unlink(&tmp_path);
-            bail!("rename failed for file {:?} - {}", file, err);
+            bail!("rename failed for file {:?} - {}", target_path, err);
         }
+
+        if let Err(err) = unistd::unlink(source_path) {
+            bail!("unlink failed for file {:?} - {}", source_path, err);
+        }
+
         Ok(())
     }
 
@@ -80,9 +85,8 @@ impl LogRotate {
     ///
     /// e.g. rotates
     /// foo.2.zst => foo.3.zst
-    /// foo.1.zst => foo.2.zst
-    /// foo       => foo.1.zst
-    ///           => foo
+    /// foo.1     => foo.2.zst
+    /// foo       => foo.1
     pub fn do_rotate(&mut self, options: CreateOptions, max_files: Option<usize>) -> Result<(), Error> {
         let mut filenames: Vec<PathBuf> = self.file_names().collect();
         if filenames.is_empty() {
@@ -90,12 +94,7 @@ impl LogRotate {
         }
 
         let mut next_filename = self.base_path.clone().canonicalize()?.into_os_string();
-
-        if self.compress {
-            next_filename.push(format!(".{}.zst", filenames.len()));
-        } else {
-            next_filename.push(format!(".{}", filenames.len()));
-        }
+        next_filename.push(format!(".{}", filenames.len()));
 
         filenames.push(PathBuf::from(next_filename));
         let count = filenames.len();
@@ -105,9 +104,11 @@ impl LogRotate {
         }
 
         if self.compress {
-            for i in 2..count-1 {
+            for i in 2..count {
                 if filenames[i].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
-                    Self::compress(&filenames[i], &options)?;
+                    let mut target = filenames[i].clone().into_os_string();
+                    target.push(".zstd");
+                    Self::compress(&filenames[i], &target.into(), &options)?;
                 }
             }
         }
