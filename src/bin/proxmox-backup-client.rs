@@ -1657,7 +1657,10 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
                optional: true,
            },
        }
-   }
+   },
+    returns: {
+        type: StorageStatus,
+    },
 )]
 /// Get repository status.
 async fn status(param: Value) -> Result<Value, Error> {
@@ -1671,7 +1674,7 @@ async fn status(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
     let mut result = client.get(&path, None).await?;
-    let mut data = result["data"].take();
+    let mut data = result["data"]["storage"].take();
 
     record_repository(&repo);
 
@@ -1690,7 +1693,7 @@ async fn status(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
         .column(ColumnConfig::new("avail").renderer(render_total_percentage));
 
-    let schema = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_STATUS;
+    let schema = &API_RETURN_SCHEMA_STATUS;
 
     format_and_print_result_full(&mut data, schema, &output_format, &options);
 
