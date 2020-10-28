@@ -5,8 +5,8 @@ use proxmox::{list_subdirs_api_method, sortable};
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
 
 use crate::api2::types::*;
-use crate::backup::do_verification_job;
-use crate::config::jobstate::{Job, JobState};
+use crate::server::do_verification_job;
+use crate::server::jobstate::{Job, JobState};
 use crate::config::verify;
 use crate::config::verify::{VerificationJobConfig, VerificationJobStatus};
 use serde_json::Value;

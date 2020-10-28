@@ -80,7 +80,7 @@ pub fn create_verification_job(param: Value) -> Result<(), Error> {
 
     verify::save_config(&config)?;
 
-    crate::config::jobstate::create_state_file("verificationjob", &verification_job.id)?;
+    crate::server::jobstate::create_state_file("verificationjob", &verification_job.id)?;
 
     Ok(())
 }
@@ -258,7 +258,7 @@ pub fn delete_verification_job(id: String, digest: Option<String>) -> Result<(),
 
     verify::save_config(&config)?;
 
-    crate::config::jobstate::remove_state_file("verificationjob", &id)?;
+    crate::server::jobstate::remove_state_file("verificationjob", &id)?;
 
     Ok(())
 }

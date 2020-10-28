@@ -9,7 +9,7 @@ use crate::api2::types::*;
 use crate::api2::pull::do_sync_job;
 use crate::config::sync::{self, SyncJobStatus, SyncJobConfig};
 use crate::server::UPID;
-use crate::config::jobstate::{Job, JobState};
+use crate::server::jobstate::{Job, JobState};
 use crate::tools::systemd::time::{
     parse_calendar_event, compute_next_event};
 

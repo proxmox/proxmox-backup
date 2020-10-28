@@ -83,7 +83,7 @@ pub fn create_sync_job(param: Value) -> Result<(), Error> {
 
     sync::save_config(&config)?;
 
-    crate::config::jobstate::create_state_file("syncjob", &sync_job.id)?;
+    crate::server::jobstate::create_state_file("syncjob", &sync_job.id)?;
 
     Ok(())
 }
@@ -266,7 +266,7 @@ pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> 
 
     sync::save_config(&config)?;
 
-    crate::config::jobstate::remove_state_file("syncjob", &id)?;
+    crate::server::jobstate::remove_state_file("syncjob", &id)?;
 
     Ok(())
 }

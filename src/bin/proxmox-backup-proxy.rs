@@ -10,11 +10,30 @@ use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
 
+use proxmox_backup::{
+    backup::DataStore,
+    server::{
+        UPID,
+        WorkerTask,
+        ApiConfig,
+        rest::*,
+        jobstate::{
+            self,
+            Job,
+        },
+        rotate_task_log_archive,
+    },
+    tools::systemd::time::{
+        parse_calendar_event,
+        compute_next_event,
+    },
+};
+
+
 use proxmox_backup::api2::types::Userid;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
-use proxmox_backup::server::{ApiConfig, rest::*};
 use proxmox_backup::auth_helpers::*;
 use proxmox_backup::tools::{
     daemon,
@@ -29,7 +48,7 @@ use proxmox_backup::tools::{
 };
 
 use proxmox_backup::api2::pull::do_sync_job;
-use proxmox_backup::backup::do_verification_job;
+use proxmox_backup::server::do_verification_job;
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
@@ -221,14 +240,10 @@ async fn schedule_tasks() -> Result<(), Error> {
 
 async fn schedule_datastore_garbage_collection() {
 
-    use proxmox_backup::backup::DataStore;
-    use proxmox_backup::server::{UPID, WorkerTask};
-    use proxmox_backup::config::{
-        jobstate::{self, Job},
-        datastore::{self, DataStoreConfig}
+    use proxmox_backup::config::datastore::{
+        self,
+        DataStoreConfig,
     };
-    use proxmox_backup::tools::systemd::time::{
-        parse_calendar_event, compute_next_event};
 
     let config = match datastore::config() {
         Err(err) => {
@@ -340,15 +355,17 @@ async fn schedule_datastore_garbage_collection() {
 
 async fn schedule_datastore_prune() {
 
-    use proxmox_backup::backup::{
-        PruneOptions, DataStore, BackupGroup, compute_prune_info};
-    use proxmox_backup::server::{WorkerTask};
-    use proxmox_backup::config::{
-        jobstate::{self, Job},
-        datastore::{self, DataStoreConfig}
+    use proxmox_backup::{
+        backup::{
+            PruneOptions,
+            BackupGroup,
+            compute_prune_info,
+        },
+        config::datastore::{
+            self,
+            DataStoreConfig,
+        },
     };
-    use proxmox_backup::tools::systemd::time::{
-        parse_calendar_event, compute_next_event};
 
     let config = match datastore::config() {
         Err(err) => {
@@ -487,9 +504,9 @@ async fn schedule_datastore_prune() {
 
 async fn schedule_datastore_sync_jobs() {
 
-    use proxmox_backup::{
-        config::{ sync::{self, SyncJobConfig}, jobstate::{self, Job} },
-        tools::systemd::time::{ parse_calendar_event, compute_next_event },
+    use proxmox_backup::config::sync::{
+        self,
+        SyncJobConfig,
     };
 
     let config = match sync::config() {
@@ -559,10 +576,12 @@ async fn schedule_datastore_sync_jobs() {
 }
 
 async fn schedule_datastore_verify_jobs() {
-    use proxmox_backup::{
-        config::{verify::{self, VerificationJobConfig}, jobstate::{self, Job}},
-        tools::systemd::time::{parse_calendar_event, compute_next_event},
+
+    use proxmox_backup::config::verify::{
+        self,
+        VerificationJobConfig,
     };
+
     let config = match verify::config() {
         Err(err) => {
             eprintln!("unable to read verification job config - {}", err);
@@ -619,13 +638,6 @@ async fn schedule_datastore_verify_jobs() {
 }
 
 async fn schedule_task_log_rotate() {
-    use proxmox_backup::{
-        config::jobstate::{self, Job},
-        server::rotate_task_log_archive,
-    };
-    use proxmox_backup::server::WorkerTask;
-    use proxmox_backup::tools::systemd::time::{
-        parse_calendar_event, compute_next_event};
 
     let worker_type = "logrotate";
     let job_id = "task_archive";

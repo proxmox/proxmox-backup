@@ -7,14 +7,13 @@ use futures::{select, future::FutureExt};
 use proxmox::api::api;
 use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
-use crate::server::{WorkerTask};
+use crate::server::{WorkerTask, jobstate::Job};
 use crate::backup::DataStore;
 use crate::client::{HttpClient, HttpClientOptions, BackupRepository, pull::pull_store};
 use crate::api2::types::*;
 use crate::config::{
     remote,
     sync::SyncJobConfig,
-    jobstate::Job,
     acl::{PRIV_DATASTORE_BACKUP, PRIV_DATASTORE_PRUNE, PRIV_REMOTE_READ},
     cached_user_info::CachedUserInfo,
 };

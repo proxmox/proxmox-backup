@@ -12,6 +12,7 @@ use crate::backup::*;
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::datastore::{self, DataStoreConfig, DIR_NAME_SCHEMA};
 use crate::config::acl::{PRIV_DATASTORE_ALLOCATE, PRIV_DATASTORE_AUDIT, PRIV_DATASTORE_MODIFY};
+use crate::server::jobstate;
 
 #[api(
     input: {
@@ -127,8 +128,8 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     datastore::save_config(&config)?;
 
-    crate::config::jobstate::create_state_file("prune", &datastore.name)?;
-    crate::config::jobstate::create_state_file("garbage_collection", &datastore.name)?;
+    jobstate::create_state_file("prune", &datastore.name)?;
+    jobstate::create_state_file("garbage_collection", &datastore.name)?;
 
     Ok(())
 }
@@ -328,11 +329,11 @@ pub fn update_datastore(
     // we want to reset the statefiles, to avoid an immediate action in some cases
     // (e.g. going from monthly to weekly in the second week of the month)
     if gc_schedule_changed {
-        crate::config::jobstate::create_state_file("garbage_collection", &name)?;
+        jobstate::create_state_file("garbage_collection", &name)?;
     }
 
     if prune_schedule_changed {
-        crate::config::jobstate::create_state_file("prune", &name)?;
+        jobstate::create_state_file("prune", &name)?;
     }
 
     Ok(())
@@ -375,8 +376,8 @@ pub fn delete_datastore(name: String, digest: Option<String>) -> Result<(), Erro
     datastore::save_config(&config)?;
 
     // ignore errors
-    let _ = crate::config::jobstate::remove_state_file("prune", &name);
-    let _ = crate::config::jobstate::remove_state_file("garbage_collection", &name);
+    let _ = jobstate::remove_state_file("prune", &name);
+    let _ = jobstate::remove_state_file("garbage_collection", &name);
 
     Ok(())
 }
