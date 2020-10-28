@@ -519,25 +519,25 @@ Ext.define('PBS.DataStoreContent', {
 	    items: [
 		{
 		    handler: 'onVerify',
-		    tooltip: gettext('Verify'),
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
 		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
 		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
 		{
 		    handler: 'onPrune',
-		    tooltip: gettext('Prune'),
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
 		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-scissors' : 'pmx-hidden',
 		    isDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
 		},
 		{
 		    handler: 'onForget',
-		    tooltip: gettext('Forget Snapshot'),
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Permanently forget snapshot '{0}'"), v),
 		    getClass: (v, m, rec) => !rec.data.leaf && rec.parentNode.id !== 'root' ? 'fa critical fa-trash-o' : 'pmx-hidden',
 		    isDisabled: (v, r, c, i, rec) => rec.data.leaf || rec.parentNode.id === 'root',
 		},
 		{
 		    handler: 'downloadFile',
-		    tooltip: gettext('Download'),
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Download '{0}'"), v),
 		    getClass: (v, m, rec) => rec.data.leaf && rec.data.filename ? 'fa fa-download' : 'pmx-hidden',
 		    isDisabled: (v, r, c, i, rec) => !rec.data.leaf || !rec.data.filename || rec.data['crypt-mode'] > 2,
 		},
