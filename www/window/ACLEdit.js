@@ -14,7 +14,53 @@ Ext.define('PBS.window.ACLEdit', {
     // caller can give a static path
     path: undefined,
 
-    subject: gettext('User Permission'),
+    initComponent: function() {
+	let me = this;
+
+	me.items = [];
+
+	me.items.push({
+	    xtype: 'pbsPermissionPathSelector',
+	    fieldLabel: gettext('Path'),
+	    editable: !me.path,
+	    value: me.path,
+	    name: 'path',
+	    allowBlank: false,
+	});
+
+	if (me.aclType === 'user') {
+	    me.subject = gettext('User Permission');
+	    me.items.push({
+		xtype: 'pbsUserSelector',
+		fieldLabel: gettext('User'),
+		name: 'auth_id',
+		allowBlank: false,
+	    });
+	} else if (me.aclType === 'token') {
+	    me.subject = gettext('API Token Permission');
+	    me.items.push({
+		xtype: 'pbsTokenSelector',
+		fieldLabel: gettext('API Token'),
+		name: 'auth_id',
+		allowBlank: false,
+	    });
+	}
+	me.items.push({
+	    xtype: 'pmxRoleSelector',
+	    name: 'role',
+	    value: 'NoAccess',
+	    fieldLabel: gettext('Role'),
+	});
+	me.items.push({
+	    xtype: 'proxmoxcheckbox',
+	    name: 'propagate',
+	    checked: true,
+	    uncheckedValue: 0,
+	    fieldLabel: gettext('Propagate'),
+	});
+
+	me.callParent();
+    },
 
     getValues: function(dirtyOnly) {
 	let me = this;
@@ -26,35 +72,4 @@ Ext.define('PBS.window.ACLEdit', {
 	return values;
     },
 
-    items: [
-	{
-	    xtype: 'pbsPermissionPathSelector',
-	    fieldLabel: gettext('Path'),
-	    cbind: {
-		editable: '{!path}',
-		value: '{path}',
-	    },
-	    name: 'path',
-	    allowBlank: false,
-	},
-	{
-	    xtype: 'pbsUserSelector',
-	    fieldLabel: gettext('User'),
-	    name: 'auth_id',
-	    allowBlank: false,
-	},
-	{
-	    xtype: 'pmxRoleSelector',
-	    name: 'role',
-	    value: 'NoAccess',
-	    fieldLabel: gettext('Role'),
-	},
-	{
-	    xtype: 'proxmoxcheckbox',
-	    name: 'propagate',
-	    checked: true,
-	    uncheckedValue: 0,
-	    fieldLabel: gettext('Propagate'),
-	},
-    ],
 });

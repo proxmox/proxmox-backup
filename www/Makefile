@@ -6,6 +6,7 @@ IMAGES := \
 
 JSSRC=							\
 	form/UserSelector.js				\
+	form/TokenSelector.js				\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
 	form/CalendarEvent.js				\

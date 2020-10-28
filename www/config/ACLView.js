@@ -31,18 +31,34 @@ Ext.define('PBS.config.ACLView', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	addACL: function() {
+	addUserACL: function() {
 	    let me = this;
 	    let view = me.getView();
-            Ext.create('PBS.window.ACLEdit', {
+	    Ext.create('PBS.window.ACLEdit', {
 		path: view.aclPath,
+		aclType: 'user',
 		listeners: {
 		    destroy: function() {
 			me.reload();
 		    },
 		},
-            }).show();
+	    }).show();
 	},
+
+	addTokenACL: function() {
+	    let me = this;
+	    let view = me.getView();
+	    Ext.create('PBS.window.ACLEdit', {
+		path: view.aclPath,
+		aclType: 'token',
+		listeners: {
+		    destroy: function() {
+			me.reload();
+		    },
+		},
+	    }).show();
+	},
+
 
 	removeACL: function(btn, event, rec) {
 	    let me = this;
@@ -106,10 +122,22 @@ Ext.define('PBS.config.ACLView', {
 
     tbar: [
 	{
-	    xtype: 'proxmoxButton',
 	    text: gettext('Add'),
-	    handler: 'addACL',
-	    selModel: false,
+	    menu: {
+		xtype: 'menu',
+		items: [
+		    {
+			text: gettext('User Permission'),
+			iconCls: 'fa fa-fw fa-user',
+			handler: 'addUserACL',
+		    },
+		    {
+			text: gettext('API Token Permission'),
+			iconCls: 'fa fa-fw fa-user-o',
+			handler: 'addTokenACL',
+		    },
+		],
+	    },
 	},
 	{
 	    xtype: 'proxmoxStdRemoveButton',
@@ -127,7 +155,7 @@ Ext.define('PBS.config.ACLView', {
 	    dataIndex: 'path',
 	},
 	{
-	    header: gettext('User/Group'),
+	    header: gettext('User/Group/API Token'),
 	    width: 100,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
