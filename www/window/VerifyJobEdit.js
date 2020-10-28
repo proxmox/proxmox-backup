@@ -12,6 +12,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
     subject: gettext('VerifyJob'),
 
     fieldDefaults: { labelWidth: 120 },
+    defaultFocus: 'field[name="ignore-verified"]',
 
     cbindData: function(initialConfig) {
 	let me = this;
@@ -26,55 +27,83 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	return { };
     },
 
+    viewModel: {
+	data: {
+	    'ignore-verified': true,
+	},
+    },
+
     items: {
 	xtype: 'inputpanel',
+	onGetValues: function(values) {
+	    let me = this;
+
+	    if (!values.id && me.up('pbsVerifyJobEdit').isCreate) {
+		values.id = 'auto-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 23);
+	    }
+	    return values;
+	},
 	column1: [
 	    {
-		fieldLabel: gettext('Verify Job ID'),
-		xtype: 'pmxDisplayEditField',
-		name: 'id',
-		renderer: Ext.htmlEncode,
-		allowBlank: false,
-		minLength: 4,
-		cbind: {
-		    editable: '{isCreate}',
-		},
-	    },
-	    {
-		xtype: 'hiddenfield',
-		allowBlank: false,
+		xtype: 'displayfield',
 		name: 'store',
+		fieldLabel: gettext('Datastore'),
+		allowBlank: false,
+		submitValue: true,
 		cbind: {
 		    value: '{datastore}',
 		},
 	    },
 	    {
-		xtype: 'proxmoxintegerfield',
-		fieldLabel: gettext('Days valid'),
-		minValue: 1,
-		value: '',
-		allowBlank: true,
-		name: 'outdated-after',
-		emptyText: gettext('no expiration'),
+		xtype: 'pbsCalendarEvent',
+		name: 'schedule',
+		fieldLabel: gettext('Schedule'),
+		emptyText: gettext('none (disabled)'),
+		value: 'daily',
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
+		},
+	    },
+	],
+	advancedColumn1: [
+	    {
+		xtype: 'pmxDisplayEditField',
+		name: 'id',
+		fieldLabel: gettext('Verify Job ID'),
+		emptyText: gettext('Automatic'),
+		renderer: Ext.htmlEncode,
+		allowBlank: true,
+		minLength: 4,
+		cbind: {
+		    editable: '{isCreate}',
 		},
 	    },
 	],
 
 	column2: [
 	    {
-		fieldLabel: gettext('Ignore verified'),
 		xtype: 'proxmoxcheckbox',
 		name: 'ignore-verified',
+		fieldLabel: gettext('Skip verified snapshots'),
+		labelWidth: 150,
 		uncheckedValue: false,
 		value: true,
+		bind: {
+		    value: '{ignore-verified}',
+		},
 	    },
 	    {
-		fieldLabel: gettext('Schedule'),
-		xtype: 'pbsCalendarEvent',
-		name: 'schedule',
-		emptyText: gettext('none'),
+		xtype: 'proxmoxintegerfield',
+		name: 'outdated-after',
+		fieldLabel: gettext('Re-Verify After (days)'),
+		labelWidth: 150,
+		minValue: 1,
+		value: 30,
+		allowBlank: true,
+		emptyText: gettext('Never'),
+		bind: {
+		    disabled: '{!ignore-verified}',
+		},
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
 		},
