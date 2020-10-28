@@ -7,6 +7,7 @@ use proxmox::tools::fs::open_file_locked;
 use crate::api2::types::*;
 use crate::config::acl;
 use crate::config::acl::{Role, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
+use crate::config::cached_user_info::CachedUserInfo;
 
 #[api(
     properties: {
@@ -43,8 +44,23 @@ fn extract_acl_node_data(
     path: &str,
     list: &mut Vec<AclListItem>,
     exact: bool,
+    token_user: &Option<Authid>,
 ) {
+    // tokens can't have tokens, so we can early return
+    if let Some(token_user) = token_user {
+        if token_user.is_token() {
+            return;
+        }
+    }
+
     for (user, roles) in &node.users {
+        if let Some(token_user) = token_user {
+            if !user.is_token()
+                || user.user() != token_user.user() {
+                 continue;
+            }
+        }
+
         for (role, propagate) in roles {
             list.push(AclListItem {
                 path: if path.is_empty() { String::from("/") } else { path.to_string() },
@@ -56,6 +72,10 @@ fn extract_acl_node_data(
         }
     }
     for (group, roles) in &node.groups {
+        if let Some(_) = token_user {
+            continue;
+        }
+
         for (role, propagate) in roles {
             list.push(AclListItem {
                 path: if path.is_empty() { String::from("/") } else { path.to_string() },
@@ -71,7 +91,7 @@ fn extract_acl_node_data(
     }
     for (comp, child) in &node.children {
         let new_path = format!("{}/{}", path, comp);
-        extract_acl_node_data(child, &new_path, list, exact);
+        extract_acl_node_data(child, &new_path, list, exact, token_user);
     }
 }
 
@@ -98,7 +118,8 @@ fn extract_acl_node_data(
         }
     },
     access: {
-        permission: &Permission::Privilege(&["access", "acl"], PRIV_SYS_AUDIT, false),
+        permission: &Permission::Anybody,
+        description: "Returns all ACLs if user has Sys.Audit on '/access/acl', or just the ACLs containing the user's API tokens.",
     },
 )]
 /// Read Access Control List (ACLs).
@@ -107,18 +128,26 @@ pub fn read_acl(
     exact: bool,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<AclListItem>, Error> {
+    let auth_id = rpcenv.get_auth_id().unwrap().parse()?;
 
-    //let auth_user = rpcenv.get_user().unwrap();
+    let user_info = CachedUserInfo::new()?;
+
+    let top_level_privs = user_info.lookup_privs(&auth_id, &["access", "acl"]);
+    let auth_id_filter = if (top_level_privs & PRIV_SYS_AUDIT) == 0 {
+        Some(auth_id)
+    } else {
+        None
+    };
 
     let (mut tree, digest) = acl::config()?;
 
     let mut list: Vec<AclListItem> = Vec::new();
     if let Some(path) = &path {
         if let Some(node) = &tree.find_node(path) {
-            extract_acl_node_data(&node, path, &mut list, exact);
+            extract_acl_node_data(&node, path, &mut list, exact, &auth_id_filter);
         }
     } else {
-        extract_acl_node_data(&tree.root, "", &mut list, exact);
+        extract_acl_node_data(&tree.root, "", &mut list, exact, &auth_id_filter);
     }
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
@@ -160,7 +189,8 @@ pub fn read_acl(
        },
     },
     access: {
-        permission: &Permission::Privilege(&["access", "acl"], PRIV_PERMISSIONS_MODIFY, false),
+        permission: &Permission::Anybody,
+        description: "Requires Permissions.Modify on '/access/acl', limited to updating ACLs of the user's API tokens otherwise."
     },
 )]
 /// Update Access Control List (ACLs).
@@ -172,8 +202,31 @@ pub fn update_acl(
     group: Option<String>,
     delete: Option<bool>,
     digest: Option<String>,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let user_info = CachedUserInfo::new()?;
+
+    let top_level_privs = user_info.lookup_privs(&current_auth_id, &["access", "acl"]);
+    if top_level_privs & PRIV_PERMISSIONS_MODIFY == 0 {
+        if let Some(_) = group {
+            bail!("Unprivileged users are not allowed to create group ACL item.");
+        }
+
+        match &auth_id {
+            Some(auth_id) => {
+                if current_auth_id.is_token() {
+                    bail!("Unprivileged API tokens can't set ACL items.");
+                } else if !auth_id.is_token() {
+                    bail!("Unprivileged users can only set ACL items for API tokens.");
+                } else if auth_id.user() != current_auth_id.user() {
+                    bail!("Unprivileged users can only set ACL items for their own API tokens.");
+                }
+            },
+            None => { bail!("Unprivileged user needs to provide auth_id to update ACL item."); },
+        };
+    }
 
     let _lock = open_file_locked(acl::ACL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
