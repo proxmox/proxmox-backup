@@ -213,6 +213,13 @@ p.logs {
     cursor: default;
 }
 
+span.snapshot-comment-column {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    display: inline-block;
+    width: calc(100% - 18px);
+}
+
 .x-action-col-icon.good:before {
     color: #21BF4B;
 }

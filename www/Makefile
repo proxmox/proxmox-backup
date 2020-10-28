@@ -17,17 +17,18 @@ JSSRC=							\
 	config/ACLView.js				\
 	config/SyncView.js				\
 	config/VerifyView.js				\
+	window/ACLEdit.js				\
+	window/BackupFileDownloader.js			\
+	window/CreateDirectory.js			\
+	window/DataStoreEdit.js				\
+	window/FileBrowser.js				\
+	window/NotesEdit.js				\
+	window/RemoteEdit.js				\
+	window/SyncJobEdit.js				\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
 	window/VerifyJobEdit.js				\
-	window/RemoteEdit.js				\
-	window/SyncJobEdit.js				\
-	window/ACLEdit.js				\
-	window/DataStoreEdit.js				\
-	window/CreateDirectory.js			\
 	window/ZFSCreate.js				\
-	window/FileBrowser.js				\
-	window/BackupFileDownloader.js			\
 	dashboard/DataStoreStatistics.js		\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\

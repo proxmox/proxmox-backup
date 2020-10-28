@@ -8,6 +8,7 @@ Ext.define('pbs-data-store-snapshots', {
 	    type: 'date',
 	    dateFormat: 'timestamp',
 	},
+	'comment',
 	'files',
 	'owner',
 	'verification',
@@ -342,6 +343,22 @@ Ext.define('PBS.DataStoreContent', {
 	    });
 	},
 
+	onNotesEdit: function(view, data) {
+	    let me = this;
+
+	    let url = `/admin/datastore/${view.datastore}/notes`;
+	    Ext.create('PBS.window.NotesEdit', {
+		url: url,
+		autoShow: true,
+		apiCallDone: () => me.reload(), // FIXME: do something more efficient?
+		extraRequestParams: {
+		    "backup-type": data["backup-type"],
+		    "backup-id": data["backup-id"],
+		    "backup-time": (data['backup-time'].getTime()/1000).toFixed(0),
+		},
+	    });
+	},
+
 	onForget: function(view, rI, cI, item, e, rec) {
 	    let me = this;
 	    view = this.getView();
@@ -511,6 +528,49 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext("Backup Group"),
 	    dataIndex: 'text',
 	    flex: 1,
+	},
+	{
+	    text: gettext('Comment'),
+	    dataIndex: 'comment',
+	    flex: 1,
+	    renderer: (v, meta, record) => {
+		let data = record.data;
+		if (!data || data.leaf || record.parentNode.id === 'root') {
+		    return '';
+		}
+		if (v === undefined || v === null) {
+		    v = '';
+		}
+		v = Ext.String.htmlEncode(v);
+		let icon = 'fa fa-fw fa-pencil';
+
+		return `<span class="snapshot-comment-column">${v}</span>
+		    <i data-qtip="${gettext('Edit')}" style="float: right;" class="${icon}"></i>`;
+	    },
+	    listeners: {
+		afterrender: function(component) {
+		    // a bit of a hack, but relatively easy, cheap and works out well.
+		    // more efficient to use one handler for the whole column than for each icon
+		    component.on('click', function(tree, cell, rowI, colI, e, rec) {
+			let el = e.target;
+			if (el.tagName !== "I" || !el.classList.contains("fa-pencil")) {
+			    return;
+			}
+			let view = tree.up();
+			let controller = view.controller;
+			controller.onNotesEdit(view, rec.data);
+		    });
+		},
+		dblclick: function(tree, el, row, col, ev, rec) {
+		    let data = rec.data || {};
+		    if (data.leaf || rec.parentNode.id === 'root') {
+			return;
+		    }
+		    let view = tree.up();
+		    let controller = view.controller;
+		    controller.onNotesEdit(view, rec.data);
+		},
+	    },
 	},
 	{
 	    header: gettext('Actions'),
