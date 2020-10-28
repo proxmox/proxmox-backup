@@ -224,3 +224,9 @@ p.logs {
 .x-action-col-icon.critical:before {
     color: #FF6C59;
 }
+
+.pve-icon-verify-lettering:after {
+    color: #464d4d;
+    font-weight: bold;
+    content: "V.";
+}

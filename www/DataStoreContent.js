@@ -520,7 +520,7 @@ Ext.define('PBS.DataStoreContent', {
 		{
 		    handler: 'onVerify',
 		    tooltip: gettext('Verify'),
-		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'fa fa-search',
+		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
 		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
 		},
 		{
