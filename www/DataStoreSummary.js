@@ -1,27 +1,27 @@
 Ext.define('pve-rrd-datastore', {
     extend: 'Ext.data.Model',
     fields: [
-        'used',
-        'total',
-        'read_ios',
-        'read_bytes',
-        'write_ios',
-        'write_bytes',
-        'io_ticks',
-        {
-            name: 'io_delay', calculate: function(data) {
-                let ios = 0;
-                if (data.read_ios !== undefined) { ios += data.read_ios; }
-                if (data.write_ios !== undefined) { ios += data.write_ios; }
-                if (data.io_ticks === undefined) {
-                    return undefined;
-                } else if (ios === 0) {
-                    return 0;
-                }
-                return (data.io_ticks*1000.0)/ios;
-            },
-        },
-        { type: 'date', dateFormat: 'timestamp', name: 'time' },
+	'used',
+	'total',
+	'read_ios',
+	'read_bytes',
+	'write_ios',
+	'write_bytes',
+	'io_ticks',
+	{
+	    name: 'io_delay', calculate: function(data) {
+		let ios = 0;
+		if (data.read_ios !== undefined) { ios += data.read_ios; }
+		if (data.write_ios !== undefined) { ios += data.write_ios; }
+		if (data.io_ticks === undefined) {
+		    return undefined;
+		} else if (ios === 0) {
+		    return 0;
+		}
+		return (data.io_ticks*1000.0)/ios;
+	    },
+	},
+	{ type: 'date', dateFormat: 'timestamp', name: 'time' },
     ],
 });
 
