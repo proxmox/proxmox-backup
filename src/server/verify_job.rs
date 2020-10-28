@@ -26,29 +26,32 @@ pub fn do_verification_job(
     let datastore2 = datastore.clone();
 
     let outdated_after = verification_job.outdated_after.clone();
-    let ignore_verified = verification_job.ignore_verified.unwrap_or(true);
+    let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
     let filter = move |backup_info: &BackupInfo| {
-        if !ignore_verified {
+        if !ignore_verified_snapshots {
             return true;
         }
         let manifest = match datastore2.load_manifest(&backup_info.backup_dir) {
             Ok((manifest, _)) => manifest,
-            Err(_) => return true,
+            Err(_) => return true, // include, so task picks this up as error
         };
 
         let raw_verify_state = manifest.unprotected["verify_state"].clone();
-        let last_state = match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
-            Ok(last_state) => last_state,
-            Err(_) => return true,
-        };
+        match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
+            Err(_) => return true, // no last verification, always include
+            Ok(last_verify) => {
+                match outdated_after {
+                    None => false, // never re-verify if ignored and no max age
+                    Some(max_age) => {
+                        let now = proxmox::tools::time::epoch_i64();
+                        let days_since_last_verify = (now - last_verify.upid.starttime) / 86400;
 
-        let now = proxmox::tools::time::epoch_i64();
-        let days_since_last_verify = (now - last_state.upid.starttime) / 86400;
-
-        outdated_after
-            .map(|v| days_since_last_verify > v)
-            .unwrap_or(true)
+                        days_since_last_verify > max_age
+                    }
+                }
+            }
+        }
     };
 
     let email = crate::server::lookup_user_email(userid);

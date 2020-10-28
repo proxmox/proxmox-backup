@@ -442,7 +442,7 @@ pub fn verify_backup_group(
         if filter(&info) == false {
             task_log!(
                 worker,
-                "SKIPPED: verify {}:{} (already verified)",
+                "SKIPPED: verify {}:{} (recently verified)",
                 datastore.name(),
                 info.backup_dir,
             );
