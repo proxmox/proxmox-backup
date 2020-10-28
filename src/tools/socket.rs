@@ -9,7 +9,7 @@ pub const PROXMOX_BACKUP_TCP_KEEPALIVE_TIME: u32 = 120;
 ///
 /// See "man 7 tcp" for details.
 ///
-/// The default on Linix is 7200 (2 hours) which is much too long for
+/// The default on Linux is 7200 (2 hours) which is far too long for
 /// our backup tools.
 pub fn set_tcp_keepalive(
     socket_fd: RawFd,
