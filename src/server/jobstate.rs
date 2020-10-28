@@ -15,7 +15,7 @@
 //! ```no_run
 //! # use anyhow::{bail, Error};
 //! # use proxmox_backup::server::TaskState;
-//! # use proxmox_backup::config::jobstate::*;
+//! # use proxmox_backup::server::jobstate::*;
 //! # fn some_code() -> TaskState { TaskState::OK { endtime: 0 } }
 //! # fn code() -> Result<(), Error> {
 //! // locks the correct file under /var/lib
