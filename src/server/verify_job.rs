@@ -1,7 +1,4 @@
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
-
-use anyhow::{bail, Error};
+use anyhow::{format_err, Error};
 
 use crate::{
     server::WorkerTask,
@@ -11,7 +8,7 @@ use crate::{
     backup::{
         DataStore,
         BackupInfo,
-        verify_backup_dir,
+        verify_all_backups,
     },
     task_log,
 };
@@ -23,28 +20,36 @@ pub fn do_verification_job(
     userid: &Userid,
     schedule: Option<String>,
 ) -> Result<String, Error> {
+
     let datastore = DataStore::lookup_datastore(&verification_job.store)?;
 
-    let mut backups_to_verify = BackupInfo::list_backups(&datastore.base_path())?;
-    if verification_job.ignore_verified.unwrap_or(true) {
-        backups_to_verify.retain(|backup_info| {
-            let manifest = match datastore.load_manifest(&backup_info.backup_dir) {
-                Ok((manifest, _)) => manifest,
-                Err(_) => return false,
-            };
+    let datastore2 = datastore.clone();
 
-            let raw_verify_state = manifest.unprotected["verify_state"].clone();
-            let last_state = match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
-                Ok(last_state) => last_state,
-                Err(_) => return true,
-            };
+    let outdated_after = verification_job.outdated_after.clone();
+    let ignore_verified = verification_job.ignore_verified.unwrap_or(true);
 
-            let now = proxmox::tools::time::epoch_i64();
-            let days_since_last_verify = (now - last_state.upid.starttime) / 86400;
-            verification_job.outdated_after.is_some()
-                && days_since_last_verify > verification_job.outdated_after.unwrap()
-        })
-    }
+    let filter = move |backup_info: &BackupInfo| {
+        if !ignore_verified {
+            return true;
+        }
+        let manifest = match datastore2.load_manifest(&backup_info.backup_dir) {
+            Ok((manifest, _)) => manifest,
+            Err(_) => return false,
+        };
+
+        let raw_verify_state = manifest.unprotected["verify_state"].clone();
+        let last_state = match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
+            Ok(last_state) => last_state,
+            Err(_) => return true,
+        };
+
+        let now = proxmox::tools::time::epoch_i64();
+        let days_since_last_verify = (now - last_state.upid.starttime) / 86400;
+
+        outdated_after
+            .map(|v| days_since_last_verify > v)
+            .unwrap_or(true)
+    };
 
     let email = crate::server::lookup_user_email(userid);
 
@@ -59,42 +64,18 @@ pub fn do_verification_job(
             job.start(&worker.upid().to_string())?;
 
             task_log!(worker,"Starting datastore verify job '{}'", job_id);
-            task_log!(worker,"verifying {} backups", backups_to_verify.len());
             if let Some(event_str) = schedule {
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
             }
 
-            let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024 * 16)));
-            let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
-            let result = proxmox::try_block!({
-                let mut failed_dirs: Vec<String> = Vec::new();
+            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), &filter);
+            let job_result = match result {
+                Ok(ref errors) if errors.is_empty() => Ok(()),
+                Ok(_) => Err(format_err!("verification failed - please check the log for details")),
+                Err(_) => Err(format_err!("verification failed - job aborted")),
+            };
 
-                for backup_info in backups_to_verify {
-                    let verification_result = verify_backup_dir(
-                        datastore.clone(),
-                        &backup_info.backup_dir,
-                        verified_chunks.clone(),
-                        corrupt_chunks.clone(),
-                        worker.clone(),
-                        worker.upid().clone()
-                    );
-
-                    if let Ok(false) = verification_result {
-                        failed_dirs.push(backup_info.backup_dir.to_string());
-                    } // otherwise successful or aborted
-                }
-
-                if !failed_dirs.is_empty() {
-                    task_log!(worker,"Failed to verify following snapshots:",);
-                    for dir in failed_dirs {
-                        task_log!(worker, "\t{}", dir)
-                    }
-                    bail!("verification failed - please check the log for details");
-                }
-                Ok(())
-            });
-
-            let status = worker.create_state(&result);
+            let status = worker.create_state(&job_result);
 
             match job.finish(status) {
                 Err(err) => eprintln!(
@@ -111,7 +92,7 @@ pub fn do_verification_job(
                 }
             }
 
-            result
+            job_result
         },
     )?;
     Ok(upid_str)

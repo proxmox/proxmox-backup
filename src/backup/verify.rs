@@ -404,7 +404,7 @@ pub fn verify_backup_dir_with_lock(
 /// Returns
 /// - Ok((count, failed_dirs)) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_backup_group(
+pub fn verify_backup_group<F: Fn(&BackupInfo) -> bool>(
     datastore: Arc<DataStore>,
     group: &BackupGroup,
     verified_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
@@ -412,6 +412,7 @@ pub fn verify_backup_group(
     progress: Option<(usize, usize)>, // (done, snapshot_count)
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
+    filter: &F,
 ) -> Result<(usize, Vec<String>), Error> {
 
     let mut errors = Vec::new();
@@ -437,6 +438,17 @@ pub fn verify_backup_group(
     BackupInfo::sort_list(&mut list, false); // newest first
     for info in list {
         count += 1;
+
+        if filter(&info) == false {
+            task_log!(
+                worker,
+                "SKIPPED: verify {}:{} (already verified)",
+                datastore.name(),
+                info.backup_dir,
+            );
+            continue;
+        }
+
         if !verify_backup_dir(
             datastore.clone(),
             &info.backup_dir,
@@ -470,10 +482,11 @@ pub fn verify_backup_group(
 /// Returns
 /// - Ok(failed_dirs) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_all_backups(
+pub fn verify_all_backups<F: Fn(&BackupInfo) -> bool>(
     datastore: Arc<DataStore>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
+    filter: &F,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
 
@@ -518,6 +531,7 @@ pub fn verify_all_backups(
             Some((done, snapshot_count)),
             worker.clone(),
             upid,
+            filter,
         )?;
         errors.append(&mut group_errors);
 

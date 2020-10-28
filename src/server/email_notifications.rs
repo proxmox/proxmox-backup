@@ -57,7 +57,11 @@ const VERIFY_ERR_TEMPLATE: &str = r###"
 Job ID:    {{job.id}}
 Datastore: {{job.store}}
 
-Verification failed: {{error}}
+Verification failed on these snapshots:
+
+{{#each errors}}
+  {{this}}
+{{/each}}
 
 "###;
 
@@ -150,27 +154,31 @@ pub fn send_gc_status(
 pub fn send_verify_status(
     email: &str,
     job: VerificationJobConfig,
-    result: &Result<(), Error>,
+    result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
 
 
     let text = match result {
-        Ok(()) => {
+        Ok(errors) if errors.is_empty() => {
             let data = json!({ "job": job });
             HANDLEBARS.render("verify_ok_template", &data)?
         }
-        Err(err) => {
-            let data = json!({ "job": job, "error": err.to_string() });
+        Ok(errors) => {
+            let data = json!({ "job": job, "errors": errors });
             HANDLEBARS.render("verify_err_template", &data)?
+        }
+        Err(_) => {
+            // aboreted job - do not send any email
+            return Ok(());
         }
     };
 
     let subject = match result {
-        Ok(()) => format!(
+        Ok(errors) if errors.is_empty() => format!(
             "Verify Datastore '{}' successful",
             job.store,
         ),
-        Err(_) => format!(
+        _ => format!(
             "Verify Datastore '{}' failed",
             job.store,
         ),
