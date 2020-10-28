@@ -404,7 +404,7 @@ pub fn verify_backup_dir_with_lock(
 /// Returns
 /// - Ok((count, failed_dirs)) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_backup_group<F: Fn(&BackupInfo) -> bool>(
+pub fn verify_backup_group(
     datastore: Arc<DataStore>,
     group: &BackupGroup,
     verified_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
@@ -412,7 +412,7 @@ pub fn verify_backup_group<F: Fn(&BackupInfo) -> bool>(
     progress: Option<(usize, usize)>, // (done, snapshot_count)
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
-    filter: &F,
+    filter: &dyn Fn(&BackupInfo) -> bool,
 ) -> Result<(usize, Vec<String>), Error> {
 
     let mut errors = Vec::new();
@@ -482,11 +482,11 @@ pub fn verify_backup_group<F: Fn(&BackupInfo) -> bool>(
 /// Returns
 /// - Ok(failed_dirs) where failed_dirs had verification errors
 /// - Err(_) if task was aborted
-pub fn verify_all_backups<F: Fn(&BackupInfo) -> bool>(
+pub fn verify_all_backups(
     datastore: Arc<DataStore>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
-    filter: &F,
+    filter: &dyn Fn(&BackupInfo) -> bool,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
 
