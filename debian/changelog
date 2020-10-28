@@ -1,3 +1,83 @@
+rust-proxmox-backup (0.9.2-1) unstable; urgency=medium
+
+  * rework server web-interface, move more datastore related panels as tabs
+    inside the datastore view
+
+  * prune: never fail, just warn about failed removals
+
+  * prune/forget: skip snapshots with open readers (restore, verification)
+
+  * datastore: always ensure to remove individual snapshots before their group
+
+  * pxar: fix relative '!' rules in .pxarexclude
+
+  * pxar: anchor pxarexcludes starting with a slash
+
+  * GC: mark phase: ignore vanished index files
+
+  * server/rest: forward real client IP on proxied request and log it in
+    failed authentication requests
+
+  * server: rest: implement max URI path and query length request limits
+
+  * server/rest: implement request access log and log the query part of
+    URL and the user agent
+
+  * api: access: log to separate file, use syslog to errors only to reduce
+    syslog spam
+
+  * client: set HTTP connect timeout to 10 seconds
+
+  * client: sent TCP keep-alive after 2 minutes instead of the Linux default
+    of two hours.
+
+  * CLI completion: fix ACL path completion
+
+  * fix #2988: allow one to enable automatic verification after finishing a
+    snapshot, can be controlled as a per-datastore option
+
+  * various log-rotation improvements
+
+  * proxmox-backup-client: use HumanByte to render snapshot size
+
+  * paperkey: use svg as image format to provide better scalability
+
+  * backup: avoid Transport endpoint is not connected error
+
+  * fix #3038: check user before renewing ticket
+
+  * ui/tools: add zip module and allow to download an archive directory as a zip
+
+  * ui and api: add verification job config, allowing to schedule more
+    flexible jobs, filtering out already and/or recently verified snapshots
+    NOTE: the previous simple "verify all" schedule was dropped from the
+    datastore content, and does *not* gets migrated to the new job config.
+
+  * tasks: use systemd escape to decode/encode the task worker ID, avoiding
+    some display problems with problematic characters
+
+  * fix #2934: list also new to-be-installed packages in updates
+
+  * apt: add /changelog API call similar to PVE
+
+  * api: add world accessible ping dummy endpoint, to cheaply check for a
+    running PBS instance.
+
+  * ui: add datastore summary panel and move Statistics into it
+
+  * ui: navigation: add 'Add Datastore' button below datastore list
+
+  * ui: datastore panel: save and restore selected tab statefully
+
+  * send notification mails to email of root@pam account for GC and verify
+    jobs
+
+  * ui: datastore: use simple V. for verify action button
+
+  * ui: datastore: show snapshot manifest comment and allow to edit them
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 28 Oct 2020 21:27:02 +0100
+
 rust-proxmox-backup (0.9.1-1) unstable; urgency=medium
 
   * TLS speedups (use SslAcceptor::mozilla_intermediate_v5)
