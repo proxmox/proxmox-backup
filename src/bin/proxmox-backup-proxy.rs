@@ -245,10 +245,6 @@ async fn schedule_datastore_garbage_collection() {
             self,
             DataStoreConfig,
         },
-        user::{
-            self,
-            User,
-        },
     };
 
     let email = server::lookup_user_email(Userid::root_userid());
