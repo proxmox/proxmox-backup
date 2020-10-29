@@ -1,3 +1,9 @@
+rust-proxmox-backup (0.9.4-2) unstable; urgency=medium
+
+  * make postinst (update) script more resilient
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 29 Oct 2020 20:09:30 +0100
+
 rust-proxmox-backup (0.9.4-1) unstable; urgency=medium
 
   * implement API-token
