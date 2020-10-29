@@ -559,11 +559,11 @@ impl DataStore {
                 );
             }
             if gc_status.removed_bad > 0 {
-                crate::task_log!(worker, "Removed bad files: {}", gc_status.removed_bad);
+                crate::task_log!(worker, "Removed bad chunks: {}", gc_status.removed_bad);
             }
 
             if gc_status.still_bad > 0 {
-                crate::task_log!(worker, "Bad chunks: {}", gc_status.still_bad);
+                crate::task_log!(worker, "Leftover bad chunks: {}", gc_status.still_bad);
             }
 
             crate::task_log!(
