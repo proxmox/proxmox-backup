@@ -1,3 +1,19 @@
+rust-proxmox-backup (0.9.4-1) unstable; urgency=medium
+
+  * implement API-token
+
+  * client/remote: allow using API-token + secret
+
+  * ui/cli: implement API-token management interface and commands
+
+  * ui: add widget to view the effective permissions of a user or token
+
+  * ui: datastore summary: handle error when havin zero snapshot of any type
+
+  * ui: move user, token and permissions into an access control tab panel
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 29 Oct 2020 17:19:13 +0100
+
 rust-proxmox-backup (0.9.3-1) unstable; urgency=medium
 
   * fix #2998: encode mtime as i64 instead of u64
