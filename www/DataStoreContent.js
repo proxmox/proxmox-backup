@@ -542,7 +542,7 @@ Ext.define('PBS.DataStoreContent', {
 		    v = '';
 		}
 		v = Ext.String.htmlEncode(v);
-		let icon = 'fa fa-fw fa-pencil';
+		let icon = 'fa fa-fw fa-pencil pointer';
 
 		return `<span class="snapshot-comment-column">${v}</span>
 		    <i data-qtip="${gettext('Edit')}" style="float: right;" class="${icon}"></i>`;
