@@ -72,6 +72,7 @@ Ext.define('PBS.DataStoreInfo', {
 			(gcstatus['disk-bytes'] || Infinity);
 
 	    let countstext = function(count) {
+		count = count || {};
 		return `${count.groups || 0} ${gettext('Groups')}, ${count.snapshots || 0} ${gettext('Snapshots')}`;
 	    };
 
