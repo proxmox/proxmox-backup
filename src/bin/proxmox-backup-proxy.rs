@@ -579,9 +579,9 @@ async fn schedule_datastore_sync_jobs() {
             Err(_) => continue, // could not get lock
         };
 
-        let userid = Userid::backup_userid().clone();
+        let userid = Userid::backup_userid();
 
-        if let Err(err) = do_sync_job(job, job_config, &userid, Some(event_str)) {
+        if let Err(err) = do_sync_job(job, job_config, userid, Some(event_str)) {
             eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
         }
     }
