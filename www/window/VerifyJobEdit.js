@@ -65,20 +65,6 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		},
 	    },
 	],
-	advancedColumn1: [
-	    {
-		xtype: 'pmxDisplayEditField',
-		name: 'id',
-		fieldLabel: gettext('Verify Job ID'),
-		emptyText: gettext('Automatic'),
-		renderer: Ext.htmlEncode,
-		allowBlank: true,
-		minLength: 4,
-		cbind: {
-		    editable: '{isCreate}',
-		},
-	    },
-	],
 
 	column2: [
 	    {

@@ -60,20 +60,6 @@ Ext.define('PBS.window.SyncJobEdit', {
 		name: 'remote-store',
 	    },
 	],
-	advancedColumn1: [
-	    {
-		xtype: 'pmxDisplayEditField',
-		name: 'id',
-		fieldLabel: gettext('Sync Job ID'),
-		emptyText: gettext('Automatic'),
-		renderer: Ext.htmlEncode,
-		allowBlank: true,
-		minLength: 4,
-		cbind: {
-		    editable: '{isCreate}',
-		},
-	    },
-	],
 
 	column2: [
 	    {
