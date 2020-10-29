@@ -374,7 +374,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
             }
 
             if !worker_is_active_local(&info.upid) {
-                println!("Detected stopped UPID {}", &info.upid_str);
+                println!("Detected stopped task '{}'", &info.upid_str);
                 let now = proxmox::tools::time::epoch_i64();
                 let status = upid_read_status(&info.upid)
                     .unwrap_or_else(|_| TaskState::Unknown { endtime: now });
@@ -652,15 +652,13 @@ impl WorkerTask {
 
         let mut path = std::path::PathBuf::from(PROXMOX_BACKUP_TASK_DIR);
 
-        path.push(format!("{:02X}", upid.pstart % 256));
+        path.push(format!("{:02X}", upid.pstart & 255));
 
         let backup_user = crate::backup::backup_user()?;
 
         create_path(&path, None, Some(CreateOptions::new().owner(backup_user.uid).group(backup_user.gid)))?;
 
         path.push(upid.to_string());
-
-        println!("FILE: {:?}", path);
 
         let logger_options = FileLogOptions {
             to_stdout: to_stdout,
