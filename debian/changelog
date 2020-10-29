@@ -1,3 +1,19 @@
+rust-proxmox-backup (0.9.3-1) unstable; urgency=medium
+
+  * fix #2998: encode mtime as i64 instead of u64
+
+  * GC: log the number of leftover bad chunks we could not yet cleanup, as no
+    valid one replaced them. Also log deduplication factor.
+
+  * send sync job status emails
+
+  * api: datstore status: introduce proper structs and restore compatibility
+    to 0.9.1
+
+  * ui: drop id field from verify/sync add window, they are now seen as internal
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 29 Oct 2020 14:58:13 +0100
+
 rust-proxmox-backup (0.9.2-2) unstable; urgency=medium
 
   * rework server web-interface, move more datastore related panels as tabs
