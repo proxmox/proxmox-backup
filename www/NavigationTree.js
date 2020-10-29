@@ -29,21 +29,9 @@ Ext.define('PBS.store.NavigationStore', {
 		expanded: true,
 		children: [
 		    {
-			text: gettext('User Management'),
-			iconCls: 'fa fa-user',
-			path: 'pbsUserView',
-			leaf: true,
-		    },
-		    {
-			text: gettext('API Token'),
-			iconCls: 'fa fa-user-o',
-			path: 'pbsTokenView',
-			leaf: true,
-		    },
-		    {
-			text: gettext('Permissions'),
-			iconCls: 'fa fa-unlock',
-			path: 'pbsACLView',
+			text: gettext('Access Control'),
+			iconCls: 'fa fa-key',
+			path: 'pbsAccessControlPanel',
 			leaf: true,
 		    },
 		    {
