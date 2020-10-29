@@ -35,8 +35,6 @@ pub const PROXMOX_BACKUP_ACTIVE_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_
 pub const PROXMOX_BACKUP_INDEX_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/index");
 pub const PROXMOX_BACKUP_ARCHIVE_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/archive");
 
-const MAX_INDEX_TASKS: usize = 1000;
-
 lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
 
@@ -363,7 +361,10 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
 
     let lock = lock_task_list_files(true)?;
 
+    // TODO remove with 1.x
     let mut finish_list: Vec<TaskListInfo> = read_task_file_from_path(PROXMOX_BACKUP_INDEX_TASK_FN)?;
+    let had_index_file = !finish_list.is_empty();
+
     let mut active_list: Vec<TaskListInfo> = read_task_file_from_path(PROXMOX_BACKUP_ACTIVE_TASK_FN)?
         .into_iter()
         .filter_map(|info| {
@@ -412,33 +413,10 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
         }
     });
 
-
-    let start = if finish_list.len() > MAX_INDEX_TASKS {
-        finish_list.len() - MAX_INDEX_TASKS
-    } else {
-        0
-    };
-
-    let end = (start+MAX_INDEX_TASKS).min(finish_list.len());
-
-    let index_raw = if end > start {
-        render_task_list(&finish_list[start..end])
-    } else {
-        "".to_string()
-    };
-
-    replace_file(
-        PROXMOX_BACKUP_INDEX_TASK_FN,
-        index_raw.as_bytes(),
-        CreateOptions::new()
-            .owner(backup_user.uid)
-            .group(backup_user.gid),
-    )?;
-
-    if !finish_list.is_empty() && start > 0 {
+    if !finish_list.is_empty() {
         match std::fs::OpenOptions::new().append(true).create(true).open(PROXMOX_BACKUP_ARCHIVE_TASK_FN) {
             Ok(mut writer) => {
-                for info in &finish_list[0..start] {
+                for info in &finish_list {
                     writer.write_all(render_task_line(&info).as_bytes())?;
                 }
             },
@@ -446,6 +424,12 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
         }
 
         nix::unistd::chown(PROXMOX_BACKUP_ARCHIVE_TASK_FN, Some(backup_user.uid), Some(backup_user.gid))?;
+    }
+
+    // TODO Remove with 1.x
+    // for compatibility, if we had an INDEX file, we do not need it anymore
+    if had_index_file {
+        let _ = nix::unistd::unlink(PROXMOX_BACKUP_INDEX_TASK_FN);
     }
 
     drop(lock);
@@ -511,16 +495,9 @@ where
     read_task_file(file)
 }
 
-enum TaskFile {
-    Active,
-    Index,
-    Archive,
-    End,
-}
-
 pub struct TaskListInfoIterator {
     list: VecDeque<TaskListInfo>,
-    file: TaskFile,
+    end: bool,
     archive: Option<LogRotateFiles>,
     lock: Option<File>,
 }
@@ -535,7 +512,10 @@ impl TaskListInfoIterator {
                 .iter()
                 .any(|info| info.state.is_some() || !worker_is_active_local(&info.upid));
 
-            if needs_update {
+            // TODO remove with 1.x
+            let index_exists = std::path::Path::new(PROXMOX_BACKUP_INDEX_TASK_FN).is_file();
+
+            if needs_update || index_exists {
                 drop(lock);
                 update_active_workers(None)?;
                 let lock = lock_task_list_files(false)?;
@@ -554,12 +534,11 @@ impl TaskListInfoIterator {
             Some(logrotate.files())
         };
 
-        let file = if active_only { TaskFile::End } else { TaskFile::Active };
         let lock = if active_only { None } else { Some(read_lock) };
 
         Ok(Self {
             list: active_list.into(),
-            file,
+            end: active_only,
             archive,
             lock,
         })
@@ -573,35 +552,23 @@ impl Iterator for TaskListInfoIterator {
         loop {
             if let Some(element) = self.list.pop_back() {
                 return Some(Ok(element));
+            } else if self.end {
+                    return None;
             } else {
-                match self.file {
-                    TaskFile::Active => {
-                        let index = match read_task_file_from_path(PROXMOX_BACKUP_INDEX_TASK_FN) {
-                            Ok(index) => index,
+                if let Some(mut archive) = self.archive.take() {
+                    if let Some(file) = archive.next() {
+                        let list = match read_task_file(file) {
+                            Ok(list) => list,
                             Err(err) => return Some(Err(err)),
                         };
-                        self.list.append(&mut index.into());
-                        self.file = TaskFile::Index;
-                    },
-                    TaskFile::Index | TaskFile::Archive => {
-                        if let Some(mut archive) = self.archive.take() {
-                            if let Some(file) = archive.next() {
-                                let list = match read_task_file(file) {
-                                    Ok(list) => list,
-                                    Err(err) => return Some(Err(err)),
-                                };
-                                self.list.append(&mut list.into());
-                                self.archive = Some(archive);
-                                self.file = TaskFile::Archive;
-                                continue;
-                            }
-                        }
-                        self.file = TaskFile::End;
-                        self.lock.take();
-                        return None;
+                        self.list.append(&mut list.into());
+                        self.archive = Some(archive);
+                        continue;
                     }
-                    TaskFile::End => return None,
                 }
+
+                self.end = true;
+                self.lock.take();
             }
         }
     }
