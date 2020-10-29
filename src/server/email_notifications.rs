@@ -7,6 +7,7 @@ use proxmox::tools::email::sendmail;
 
 use crate::{
     config::verify::VerificationJobConfig,
+    config::sync::SyncJobConfig,
     api2::types::{
         Userid,
         GarbageCollectionStatus,
@@ -68,6 +69,28 @@ Verification failed on these snapshots:
 
 "###;
 
+const SYNC_OK_TEMPLATE: &str = r###"
+
+Job ID:       {{job.id}}
+Datastore:    {{job.store}}
+Remote:       {{job.remote}}
+Remote Store: {{job.remote-store}}
+
+Synchronization successful.
+
+"###;
+
+const SYNC_ERR_TEMPLATE: &str = r###"
+
+Job ID:       {{job.id}}
+Datastore:    {{job.store}}
+Remote:       {{job.remote}}
+Remote Store: {{job.remote-store}}
+
+Synchronization failed: {{error}}
+
+"###;
+
 lazy_static::lazy_static!{
 
     static ref HANDLEBARS: Handlebars<'static> = {
@@ -83,6 +106,9 @@ lazy_static::lazy_static!{
 
         hb.register_template_string("verify_ok_template", VERIFY_OK_TEMPLATE).unwrap();
         hb.register_template_string("verify_err_template", VERIFY_ERR_TEMPLATE).unwrap();
+
+        hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE).unwrap();
+        hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE).unwrap();
 
         hb
     };
@@ -192,6 +218,41 @@ pub fn send_verify_status(
         _ => format!(
             "Verify Datastore '{}' failed",
             job.store,
+        ),
+    };
+
+    send_job_status_mail(email, &subject, &text)?;
+
+    Ok(())
+}
+
+pub fn send_sync_status(
+    email: &str,
+    job: &SyncJobConfig,
+    result: &Result<(), Error>,
+) -> Result<(), Error> {
+
+    let text = match result {
+        Ok(()) => {
+            let data = json!({ "job": job });
+            HANDLEBARS.render("sync_ok_template", &data)?
+        }
+        Err(err) => {
+            let data = json!({ "job": job, "error": err.to_string() });
+            HANDLEBARS.render("sync_err_template", &data)?
+        }
+    };
+
+    let subject = match result {
+        Ok(()) => format!(
+            "Sync remote '{}' datastore '{}' successful",
+            job.remote,
+            job.remote_store,
+        ),
+        Err(_) => format!(
+            "Sync remote '{}' datastore '{}' failed",
+            job.remote,
+            job.remote_store,
         ),
     };
 

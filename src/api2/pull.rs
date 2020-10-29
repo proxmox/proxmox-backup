@@ -75,6 +75,8 @@ pub fn do_sync_job(
     let job_id = job.jobname().to_string();
     let worker_type = job.jobtype().to_string();
 
+    let email = crate::server::lookup_user_email(userid);
+
     let upid_str = WorkerTask::spawn(
         &worker_type,
         Some(job.jobname().to_string()),
@@ -85,6 +87,7 @@ pub fn do_sync_job(
             job.start(&worker.upid().to_string())?;
 
             let worker2 = worker.clone();
+            let sync_job2 = sync_job.clone();
 
             let worker_future = async move {
 
@@ -107,12 +110,12 @@ pub fn do_sync_job(
 
             let mut abort_future = worker2.abort_future().map(|_| Err(format_err!("sync aborted")));
 
-            let res = select!{
+            let result = select!{
                 worker = worker_future.fuse() => worker,
                 abort = abort_future => abort,
             };
 
-            let status = worker2.create_state(&res);
+            let status = worker2.create_state(&result);
 
             match job.finish(status) {
                 Ok(_) => {},
@@ -121,7 +124,13 @@ pub fn do_sync_job(
                 }
             }
 
-            res
+            if let Some(email) = email {
+                if let Err(err) = crate::server::send_sync_status(&email, &sync_job2, &result) {
+                    eprintln!("send sync notification failed: {}", err);
+                }
+            }
+
+            result
         })?;
 
     Ok(upid_str)

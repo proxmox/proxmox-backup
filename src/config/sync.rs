@@ -51,7 +51,7 @@ lazy_static! {
     }
 )]
 #[serde(rename_all="kebab-case")]
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Clone)]
 /// Sync Job
 pub struct SyncJobConfig {
     pub id: String,
