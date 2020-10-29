@@ -48,21 +48,23 @@ Ext.define('PBS.DataStoreInfo', {
 	    let vm = me.getViewModel();
 
 	    let counts = store.getById('counts').data.value;
-	    let storage = store.getById('storage').data.value;
+	    let total = store.getById('total').data.value;
+	    let used = store.getById('used').data.value;
 
-	    let used = Proxmox.Utils.format_size(storage.used);
-	    let total = Proxmox.Utils.format_size(storage.total);
-	    let percent = 100*storage.used/storage.total;
-	    if (storage.total === 0) {
+	    let percent = 100*used/total;
+	    if (total === 0) {
 		percent = 0;
 	    }
 	    let used_percent = `${percent.toFixed(2)}%`;
 
 	    let usage = used_percent + ' (' +
-		Ext.String.format(gettext('{0} of {1}'),
-				  used, total) + ')';
+		Ext.String.format(
+		    gettext('{0} of {1}'),
+		    Proxmox.Utils.format_size(used),
+		    Proxmox.Utils.format_size(total),
+		) + ')';
 	    vm.set('usagetext', usage);
-	    vm.set('usage', storage.used/storage.total);
+	    vm.set('usage', used/total);
 
 	    let gcstatus = store.getById('gc-status').data.value;
 
@@ -70,12 +72,12 @@ Ext.define('PBS.DataStoreInfo', {
 			(gcstatus['disk-bytes'] || Infinity);
 
 	    let countstext = function(count) {
-		return `${count[0]} ${gettext('Groups')}, ${count[1]} ${gettext('Snapshots')}`;
+		return `${count.groups || 0} ${gettext('Groups')}, ${count.snapshots || 0} ${gettext('Snapshots')}`;
 	    };
 
-	    vm.set('ctcount', countstext(counts.ct || [0, 0]));
-	    vm.set('vmcount', countstext(counts.vm || [0, 0]));
-	    vm.set('hostcount', countstext(counts.host || [0, 0]));
+	    vm.set('ctcount', countstext(counts.ct));
+	    vm.set('vmcount', countstext(counts.vm));
+	    vm.set('hostcount', countstext(counts.host));
 	    vm.set('deduplication', dedup.toFixed(2));
 	    vm.set('stillbad', gcstatus['still-bad']);
 	    vm.set('removedbytes', Proxmox.Utils.format_size(gcstatus['removed-bytes']));

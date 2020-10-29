@@ -423,12 +423,18 @@ pub fn list_snapshots (
     Ok(snapshots)
 }
 
-// returns a map from type to (group_count, snapshot_count)
-fn get_snaphots_count(store: &DataStore) -> Result<HashMap<String, (usize, usize)>, Error> {
+fn get_snapshots_count(store: &DataStore) -> Result<Counts, Error> {
     let base_path = store.base_path();
     let backup_list = BackupInfo::list_backups(&base_path)?;
     let mut groups = HashSet::new();
-    let mut result: HashMap<String, (usize, usize)> = HashMap::new();
+
+    let mut result = Counts {
+        ct: None,
+        host: None,
+        vm: None,
+        other: None,
+    };
+
     for info in backup_list {
         let group = info.backup_dir.group();
 
@@ -441,13 +447,23 @@ fn get_snaphots_count(store: &DataStore) -> Result<HashMap<String, (usize, usize
             new_id = true;
         }
 
-        if let Some(mut counts) = result.get_mut(backup_type) {
-            counts.1 += 1;
-            if new_id {
-                counts.0 +=1;
-            }
-        } else {
-            result.insert(backup_type.to_string(), (1, 1));
+        let mut counts = match backup_type {
+            "ct" => result.ct.take().unwrap_or(Default::default()),
+            "host" => result.host.take().unwrap_or(Default::default()),
+            "vm" => result.vm.take().unwrap_or(Default::default()),
+            _ => result.other.take().unwrap_or(Default::default()),
+        };
+
+        counts.snapshots += 1;
+        if new_id {
+            counts.groups +=1;
+        }
+
+        match backup_type {
+            "ct" => result.ct = Some(counts),
+            "host" => result.host = Some(counts),
+            "vm" => result.vm = Some(counts),
+            _ => result.other = Some(counts),
         }
     }
 
@@ -463,21 +479,7 @@ fn get_snaphots_count(store: &DataStore) -> Result<HashMap<String, (usize, usize
         },
     },
     returns: {
-        description: "The overall Datastore status and information.",
-        type: Object,
-        properties: {
-            storage: {
-                type: StorageStatus,
-            },
-            counts: {
-                description: "Group and Snapshot counts per Type",
-                type: Object,
-                properties: { },
-            },
-            "gc-status": {
-                type: GarbageCollectionStatus,
-            },
-        },
+        type: DataStoreStatus,
     },
     access: {
         permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
@@ -488,19 +490,19 @@ pub fn status(
     store: String,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<DataStoreStatus, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
-    let storage_status = crate::tools::disks::disk_usage(&datastore.base_path())?;
-    let counts = get_snaphots_count(&datastore)?;
+    let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
+    let counts = get_snapshots_count(&datastore)?;
     let gc_status = datastore.last_gc_status();
 
-    let res = json!({
-        "storage": storage_status,
-        "counts": counts,
-        "gc-status": gc_status,
-    });
-
-    Ok(res)
+    Ok(DataStoreStatus {
+        total: storage.total,
+        used: storage.used,
+        avail: storage.avail,
+        gc_status,
+        counts,
+    })
 }
 
 #[api(

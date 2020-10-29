@@ -622,6 +622,71 @@ pub struct StorageStatus {
     pub avail: u64,
 }
 
+#[api()]
+#[derive(Serialize, Deserialize, Default)]
+/// Backup Type group/snapshot counts.
+pub struct TypeCounts {
+    /// The number of groups of the type.
+    pub groups: u64,
+    /// The number of snapshots of the type.
+    pub snapshots: u64,
+}
+
+#[api(
+    properties: {
+        ct: {
+            type: TypeCounts,
+            optional: true,
+        },
+        host: {
+            type: TypeCounts,
+            optional: true,
+        },
+        vm: {
+            type: TypeCounts,
+            optional: true,
+        },
+        other: {
+            type: TypeCounts,
+            optional: true,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+/// Counts of groups/snapshots per BackupType.
+pub struct Counts {
+    /// The counts for CT backups
+    pub ct: Option<TypeCounts>,
+    /// The counts for Host backups
+    pub host: Option<TypeCounts>,
+    /// The counts for VM backups
+    pub vm: Option<TypeCounts>,
+    /// The counts for other backup types
+    pub other: Option<TypeCounts>,
+}
+
+#[api(
+    properties: {
+        "gc-status": { type: GarbageCollectionStatus, },
+        counts: { type: Counts, }
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Overall Datastore status and useful information.
+pub struct DataStoreStatus {
+    /// Total space (bytes).
+    pub total: u64,
+    /// Used space (bytes).
+    pub used: u64,
+    /// Available space (bytes).
+    pub avail: u64,
+    /// Status of last GC
+    pub gc_status: GarbageCollectionStatus,
+    /// Group/Snapshot counts
+    pub counts: Counts,
+}
+
 #[api(
     properties: {
         upid: { schema: UPID_SCHEMA },

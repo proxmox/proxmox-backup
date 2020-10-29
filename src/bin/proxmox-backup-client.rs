@@ -1674,7 +1674,7 @@ async fn status(param: Value) -> Result<Value, Error> {
     let path = format!("api2/json/admin/datastore/{}/status", repo.store());
 
     let mut result = client.get(&path, None).await?;
-    let mut data = result["data"]["storage"].take();
+    let mut data = result["data"].take();
 
     record_repository(&repo);
 
