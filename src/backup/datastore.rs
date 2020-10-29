@@ -562,6 +562,10 @@ impl DataStore {
                 crate::task_log!(worker, "Removed bad files: {}", gc_status.removed_bad);
             }
 
+            if gc_status.still_bad > 0 {
+                crate::task_log!(worker, "Bad chunks: {}", gc_status.removed_bad);
+            }
+
             crate::task_log!(
                 worker,
                 "Original data usage: {}",
