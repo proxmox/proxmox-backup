@@ -109,7 +109,7 @@ impl UserWithTokens {
     returns: {
         description: "List users (with config digest).",
         type: Array,
-        items: { type: user::User },
+        items: { type: UserWithTokens },
     },
     access: {
         permission: &Permission::Anybody,
