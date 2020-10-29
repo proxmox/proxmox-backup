@@ -14,6 +14,7 @@ use crate::{
         BackupGroup,
         BackupDir,
         BackupInfo,
+        BackupManifest,
         IndexFile,
         CryptMode,
         FileInfo,
@@ -284,6 +285,7 @@ pub fn verify_backup_dir(
     corrupt_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: UPID,
+    filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<bool, Error> {
     let snap_lock = lock_dir_noblock_shared(
         &datastore.snapshot_path(&backup_dir),
@@ -297,6 +299,7 @@ pub fn verify_backup_dir(
             corrupt_chunks,
             worker,
             upid,
+            filter,
             snap_lock
         ),
         Err(err) => {
@@ -320,6 +323,7 @@ pub fn verify_backup_dir_with_lock(
     corrupt_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: UPID,
+    filter: Option<&dyn Fn(&BackupManifest) -> bool>,
     _snap_lock: Dir,
 ) -> Result<bool, Error> {
     let manifest = match datastore.load_manifest(&backup_dir) {
@@ -335,6 +339,18 @@ pub fn verify_backup_dir_with_lock(
             return Ok(false);
         }
     };
+
+    if let Some(filter) = filter {
+        if filter(&manifest) == false {
+            task_log!(
+                worker,
+                "SKIPPED: verify {}:{} (recently verified)",
+                datastore.name(),
+                backup_dir,
+            );
+            return Ok(true);
+        }
+    }
 
     task_log!(worker, "verify {}:{}", datastore.name(), backup_dir);
 
@@ -412,7 +428,7 @@ pub fn verify_backup_group(
     progress: Option<(usize, usize)>, // (done, snapshot_count)
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
-    filter: &dyn Fn(&BackupInfo) -> bool,
+    filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<(usize, Vec<String>), Error> {
 
     let mut errors = Vec::new();
@@ -439,16 +455,6 @@ pub fn verify_backup_group(
     for info in list {
         count += 1;
 
-        if filter(&info) == false {
-            task_log!(
-                worker,
-                "SKIPPED: verify {}:{} (recently verified)",
-                datastore.name(),
-                info.backup_dir,
-            );
-            continue;
-        }
-
         if !verify_backup_dir(
             datastore.clone(),
             &info.backup_dir,
@@ -456,6 +462,7 @@ pub fn verify_backup_group(
             corrupt_chunks.clone(),
             worker.clone(),
             upid.clone(),
+            filter,
         )? {
             errors.push(info.backup_dir.to_string());
         }
@@ -486,7 +493,7 @@ pub fn verify_all_backups(
     datastore: Arc<DataStore>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
-    filter: &dyn Fn(&BackupInfo) -> bool,
+    filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
 

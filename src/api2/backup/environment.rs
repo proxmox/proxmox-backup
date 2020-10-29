@@ -533,6 +533,7 @@ impl BackupEnvironment {
                     corrupt_chunks,
                     worker.clone(),
                     worker.upid().clone(),
+                    None,
                     snap_lock,
                 )? {
                     bail!("verification failed - please check the log for details");

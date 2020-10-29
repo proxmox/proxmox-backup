@@ -7,7 +7,7 @@ use crate::{
     config::verify::VerificationJobConfig,
     backup::{
         DataStore,
-        BackupInfo,
+        BackupManifest,
         verify_all_backups,
     },
     task_log,
@@ -23,19 +23,13 @@ pub fn do_verification_job(
 
     let datastore = DataStore::lookup_datastore(&verification_job.store)?;
 
-    let datastore2 = datastore.clone();
-
     let outdated_after = verification_job.outdated_after.clone();
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
-    let filter = move |backup_info: &BackupInfo| {
+    let filter = move |manifest: &BackupManifest| {
         if !ignore_verified_snapshots {
             return true;
         }
-        let manifest = match datastore2.load_manifest(&backup_info.backup_dir) {
-            Ok((manifest, _)) => manifest,
-            Err(_) => return true, // include, so task picks this up as error
-        };
 
         let raw_verify_state = manifest.unprotected["verify_state"].clone();
         match serde_json::from_value::<SnapshotVerifyState>(raw_verify_state) {
@@ -71,7 +65,7 @@ pub fn do_verification_job(
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
             }
 
-            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), &filter);
+            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), Some(&filter));
             let job_result = match result {
                 Ok(ref errors) if errors.is_empty() => Ok(()),
                 Ok(_) => Err(format_err!("verification failed - please check the log for details")),

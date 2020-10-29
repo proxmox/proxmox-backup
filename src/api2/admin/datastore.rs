@@ -579,7 +579,6 @@ pub fn verify(
         move |worker| {
             let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
             let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
-            let filter = |_backup_info: &BackupInfo| { true };
 
             let failed_dirs = if let Some(backup_dir) = backup_dir {
                 let mut res = Vec::new();
@@ -590,6 +589,7 @@ pub fn verify(
                     corrupt_chunks,
                     worker.clone(),
                     worker.upid().clone(),
+                    None,
                 )? {
                     res.push(backup_dir.to_string());
                 }
@@ -603,11 +603,11 @@ pub fn verify(
                     None,
                     worker.clone(),
                     worker.upid(),
-                    &filter,
+                    None,
                 )?;
                 failed_dirs
             } else {
-                verify_all_backups(datastore, worker.clone(), worker.upid(), &filter)?
+                verify_all_backups(datastore, worker.clone(), worker.upid(), None)?
             };
             if failed_dirs.len() > 0 {
                 worker.log("Failed to verify following snapshots:");
