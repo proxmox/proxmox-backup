@@ -199,6 +199,7 @@ Ext.define('PBS.config.VerifyJobView', {
 	{
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/config/verify/',
+	    confirmMsg: gettext('Remove entry?'),
 	    callback: 'reload',
 	},
 	'-',

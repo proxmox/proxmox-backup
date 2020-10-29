@@ -199,6 +199,7 @@ Ext.define('PBS.config.SyncJobView', {
 	{
 	    xtype: 'proxmoxStdRemoveButton',
 	    baseurl: '/config/sync/',
+	    confirmMsg: gettext('Remove entry?'),
 	    callback: 'reload',
 	},
 	'-',
