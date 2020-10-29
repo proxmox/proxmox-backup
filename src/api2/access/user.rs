@@ -75,8 +75,8 @@ pub struct UserWithTokens {
     pub lastname: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub email: Option<String>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub tokens: Option<Vec<user::ApiToken>>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub tokens: Vec<user::ApiToken>,
 }
 
 impl UserWithTokens {
@@ -89,7 +89,7 @@ impl UserWithTokens {
             firstname: user.firstname,
             lastname: user.lastname,
             email: user.email,
-            tokens: None,
+            tokens: Vec::new(),
         }
     }
 }
@@ -145,7 +145,7 @@ pub fn list_users(
 
     let iter = list.into_iter().filter(filter_by_privs);
     let list = if include_tokens {
-        let tokens:Vec<user::ApiToken> = config.convert_to_typed_array("token")?;
+        let tokens: Vec<user::ApiToken> = config.convert_to_typed_array("token")?;
         let mut user_to_tokens = tokens
             .into_iter()
             .fold(
@@ -162,7 +162,7 @@ pub fn list_users(
         iter
             .map(|user: user::User| {
                 let mut user = UserWithTokens::new(user);
-                user.tokens = user_to_tokens.remove(&user.userid);
+                user.tokens = user_to_tokens.remove(&user.userid).unwrap_or_default();
                 user
             })
             .collect()
