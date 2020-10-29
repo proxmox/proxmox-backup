@@ -96,7 +96,7 @@ fn send_job_status_mail(
 
     // Note: OX has serious problems displaying text mails,
     // so we include html as well
-    let html = format!("<html><body><pre>\n{}\n<pre>", text);
+    let html = format!("<html><body><pre>\n{}\n<pre>", handlebars::html_escape(text));
 
     let nodename = proxmox::tools::nodename();
 
