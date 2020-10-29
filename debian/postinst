@@ -15,12 +15,21 @@ case "$1" in
 	fi
 	deb-systemd-invoke $_dh_action proxmox-backup.service proxmox-backup-proxy.service >/dev/null || true
 
-	flock -w 30 /etc/proxmox-backup/.datastore.lck sed -i '/^\s\+verify-schedule /d' /etc/proxmox-backup/datastore.cfg
-
+	# FIXME: Remove with 1.1
+	if test -n "$2"; then
+		if dpkg --compare-versions "$2" 'lt' '0.9.4-1'; then
+			if grep -q  -P -e '^\s\+verify-schedule ' /etc/proxmox-backup/datastore.cfg; then
+				echo "NOTE: drop all verify schedules from datastore config."
+				echo "You can now add more flexible verify jobs"
+				flock -w 30 /etc/proxmox-backup/.datastore.lck \
+				    sed -i '/^\s\+verify-schedule /d' /etc/proxmox-backup/datastore.cfg || true
+			fi
+		fi
+	fi
 	# FIXME: Remove in future version once we're sure no broken entries remain in anyone's files
 	if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then
 	    echo "Fixing up termproxy user id in task log..."
-	    flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::\([^@]\+\): /:termproxy::\1@pam: /' /var/log/proxmox-backup/tasks/active
+	    flock -w 30 /var/log/proxmox-backup/tasks/active.lock sed -i 's/:termproxy::\([^@]\+\): /:termproxy::\1@pam: /' /var/log/proxmox-backup/tasks/active || true
 	fi
     ;;
 
