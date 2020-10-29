@@ -16,19 +16,22 @@ use crate::{
 
 const GC_OK_TEMPLATE: &str = r###"
 
-Datastore:           {{datastore}}
-Task ID:             {{status.upid}}
-Index file count:    {{status.index-file-count}}
+Datastore:            {{datastore}}
+Task ID:              {{status.upid}}
+Index file count:     {{status.index-file-count}}
 
-Removed garbage:     {{human-bytes status.removed-bytes}}
-Removed chunks:      {{status.removed-chunks}}
-Remove bad files:    {{status.removed-bad}}
+Removed garbage:      {{human-bytes status.removed-bytes}}
+Removed chunks:       {{status.removed-chunks}}
+Remove bad files:     {{status.removed-bad}}
 
-Pending removals:    {{human-bytes status.pending-bytes}} (in {{status.pending-chunks}} chunks)
+Bad files:            {{status.still-bad}}
+Pending removals:     {{human-bytes status.pending-bytes}} (in {{status.pending-chunks}} chunks)
 
-Original Data usage: {{human-bytes status.index-data-bytes}}
-On Disk usage:       {{human-bytes status.disk-bytes}} ({{relative-percentage status.disk-bytes status.index-data-bytes}})
-On Disk chunks:      {{status.disk-chunks}}
+Original Data usage:  {{human-bytes status.index-data-bytes}}
+On Disk usage:        {{human-bytes status.disk-bytes}} ({{relative-percentage status.disk-bytes status.index-data-bytes}})
+On Disk chunks:       {{status.disk-chunks}}
+
+Deduplication Factor: {{deduplication-factor}}
 
 Garbage collection successful.
 
@@ -120,10 +123,18 @@ pub fn send_gc_status(
 
     let text = match result {
         Ok(()) => {
+            let deduplication_factor = if status.disk_bytes > 0 {
+                (status.index_data_bytes as f64)/(status.disk_bytes as f64)
+            } else {
+                1.0
+            };
+
             let data = json!({
                 "status": status,
                 "datastore": datastore,
+                "deduplication-factor": format!("{:.2}", deduplication_factor),
             });
+
             HANDLEBARS.render("gc_ok_template", &data)?
         }
         Err(err) => {

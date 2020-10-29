@@ -584,6 +584,14 @@ impl DataStore {
 
             crate::task_log!(worker, "On-Disk chunks: {}", gc_status.disk_chunks);
 
+            let deduplication_factor = if gc_status.disk_bytes > 0 {
+                (gc_status.index_data_bytes as f64)/(gc_status.disk_bytes as f64)
+            } else {
+                1.0
+            };
+
+            crate::task_log!(worker, "Deduplication factor: {:.2}", deduplication_factor);
+
             if gc_status.disk_chunks > 0 {
                 let avg_chunk = gc_status.disk_bytes/(gc_status.disk_chunks as u64);
                 crate::task_log!(worker, "Average chunk size: {}", HumanByte::from(avg_chunk));
