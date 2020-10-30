@@ -29,7 +29,7 @@ use crate::api2::types::{NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid};
     },
 )]
 /// Check and update subscription status.
-fn check_subscription(
+pub fn check_subscription(
     force: bool,
 ) -> Result<(), Error> {
     // FIXME: drop once proxmox-api-macro is bumped to >> 5.0.0-1
@@ -82,7 +82,7 @@ fn check_subscription(
     },
 )]
 /// Read subscription info.
-fn get_subscription(
+pub fn get_subscription(
     _param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<SubscriptionInfo, Error> {
@@ -134,7 +134,7 @@ fn get_subscription(
     },
 )]
 /// Set a subscription key and check it.
-fn set_subscription(
+pub fn set_subscription(
     key: String,
 ) -> Result<(), Error> {
 
@@ -162,7 +162,7 @@ fn set_subscription(
     },
 )]
 /// Delete subscription info.
-fn delete_subscription() -> Result<(), Error> {
+pub fn delete_subscription() -> Result<(), Error> {
 
     subscription::delete_subscription()
         .map_err(|err| format_err!("Deleting subscription failed: {}", err))?;

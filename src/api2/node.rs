@@ -28,6 +28,7 @@ pub mod disks;
 pub mod dns;
 pub mod network;
 pub mod tasks;
+pub mod subscription;
 
 pub(crate) mod rrd;
 
@@ -35,7 +36,6 @@ mod apt;
 mod journal;
 mod services;
 mod status;
-mod subscription;
 mod syslog;
 mod time;
 
