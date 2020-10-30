@@ -236,9 +236,19 @@ Ext.define('PBS.MainView', {
 		    iconCls: 'fa fa-user',
 		    menu: [
 			{
-			    reference: 'logoutButton',
+			    iconCls: 'fa fa-language',
+			    text: gettext('Language'),
+			    reference: 'languageButton',
+			    handler: () => Ext.create('Proxmox.window.LanguageEditWindow', {
+				cookieName: 'PBSLangCookie',
+				autoShow: true,
+			    }),
+			},
+			'-',
+			{
 			    iconCls: 'fa fa-sign-out',
 			    text: gettext('Logout'),
+			    reference: 'logoutButton',
 			},
 		    ],
 		},
