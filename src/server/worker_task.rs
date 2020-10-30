@@ -22,7 +22,7 @@ use crate::buildcfg;
 use crate::server;
 use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::{FileLogger, FileLogOptions};
-use crate::api2::types::Authid;
+use crate::api2::types::{Authid, TaskStateType};
 
 macro_rules! taskdir {
     ($subdir:expr) => (concat!(PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
@@ -239,6 +239,15 @@ impl TaskState {
             TaskState::OK { endtime } => endtime,
             TaskState::Warning { endtime, .. } => endtime,
             TaskState::Error { endtime, .. } => endtime,
+        }
+    }
+
+    pub fn tasktype(&self) -> TaskStateType {
+        match self {
+            TaskState::OK { .. } => TaskStateType::OK,
+            TaskState::Unknown { .. } => TaskStateType::Unknown,
+            TaskState::Error { .. } => TaskStateType::Error,
+            TaskState::Warning { .. } => TaskStateType::Warning,
         }
     }
 
