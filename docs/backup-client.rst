@@ -26,9 +26,9 @@ by setting the ``PBS_REPOSITORY`` environment variable.
 
 Here some examples of valid repositories and the real values
 
-================================ =================  ================== ===========
+================================ ================== ================== ===========
 Example                          User               Host:Port          Datastore
-================================ =================  ================== ===========
+================================ ================== ================== ===========
 mydatastore                      ``root@pam``       localhost:8007     mydatastore
 myhostname:mydatastore           ``root@pam``       myhostname:8007    mydatastore
 user@pbs@myhostname:mydatastore  ``user@pbs``       myhostname:8007    mydatastore
@@ -36,7 +36,7 @@ user@pbs!token@host:store        ``user@pbs!token`` myhostname:8007    mydatasto
 192.168.55.55:1234:mydatastore   ``root@pam``       192.168.55.55:1234 mydatastore
 [ff80::51]:mydatastore           ``root@pam``       [ff80::51]:8007    mydatastore
 [ff80::51]:1234:mydatastore      ``root@pam``       [ff80::51]:1234    mydatastore
-================================ =================   ================== ===========
+================================ ================== ================== ===========
 
 Environment Variables
 ---------------------
