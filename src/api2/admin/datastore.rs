@@ -1610,7 +1610,9 @@ fn get_notes(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_MODIFY, true),
+        permission: &Permission::Privilege(&["datastore", "{store}"],
+                                           PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_BACKUP,
+                                           true),
     },
 )]
 /// Set "notes" for a specific backup
@@ -1627,7 +1629,7 @@ fn set_notes(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_MODIFY)?;
 
     datastore.update_manifest(&backup_dir,|manifest| {
         manifest.unprotected["notes"] = notes.into();
