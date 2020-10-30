@@ -415,7 +415,7 @@ async fn schedule_datastore_prune() {
         }
 
         let worker_type = "prune";
-        if check_schedule(worker_type.to_string(), event_str.clone(), store.clone()) {
+        if check_schedule(worker_type, &event_str, &store) {
             let job = match Job::new(worker_type, &store) {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
@@ -459,7 +459,7 @@ async fn schedule_datastore_sync_jobs() {
         };
 
         let worker_type = "syncjob";
-        if check_schedule(worker_type.to_string(), event_str.clone(), job_id.clone()) {
+        if check_schedule(worker_type, &event_str, &job_id) {
             let job = match Job::new(worker_type, &job_id) {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
@@ -502,7 +502,7 @@ async fn schedule_datastore_verify_jobs() {
 
         let worker_type = "verificationjob";
         let auth_id = Authid::backup_auth_id().clone();
-        if check_schedule(worker_type.to_string(), event_str.clone(), job_id.clone()) {
+        if check_schedule(worker_type, &event_str, &job_id) {
             let job = match Job::new(&worker_type, &job_id) {
                 Ok(job) => job,
                 Err(_) => continue, // could not get lock
@@ -522,7 +522,7 @@ async fn schedule_task_log_rotate() {
     // schedule daily at 00:00 like normal logrotate
     let schedule = "00:00";
 
-    if !check_schedule(worker_type.to_string(), schedule.to_string(), job_id.to_string()) {
+    if !check_schedule(worker_type, schedule, job_id) {
         // if we never ran the rotation, schedule instantly
         match jobstate::JobState::load(worker_type, job_id) {
             Ok(state) => match state {
@@ -687,8 +687,8 @@ async fn generate_host_stats(save: bool) {
     });
 }
 
-fn check_schedule(worker_type: String, event_str: String, id: String) -> bool {
-    let event = match parse_calendar_event(&event_str) {
+fn check_schedule(worker_type: &str, event_str: &str, id: &str) -> bool {
+    let event = match parse_calendar_event(event_str) {
         Ok(event) => event,
         Err(err) => {
             eprintln!("unable to parse schedule '{}' - {}", event_str, err);
@@ -696,7 +696,7 @@ fn check_schedule(worker_type: String, event_str: String, id: String) -> bool {
         }
     };
 
-    let last = match jobstate::last_run_time(&worker_type, &id) {
+    let last = match jobstate::last_run_time(worker_type, &id) {
         Ok(time) => time,
         Err(err) => {
             eprintln!("could not get last run time of {} {}: {}", worker_type, id, err);
