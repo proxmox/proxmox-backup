@@ -569,8 +569,12 @@ fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
     }
 
     match headers.get(header::AUTHORIZATION).map(|v| v.to_str()) {
-        Some(Ok(v)) if v.starts_with("PBSAPIToken ") => {
-            Some(AuthData::ApiToken(v["PBSAPIToken ".len()..].to_owned()))
+        Some(Ok(v)) => {
+            if v.starts_with("PBSAPIToken ") || v.starts_with("PBSAPIToken=") {
+                Some(AuthData::ApiToken(v["PBSAPIToken ".len()..].to_owned()))
+            } else {
+                None
+            }
         },
         _ => None,
     }
