@@ -97,17 +97,20 @@ Ext.define('PBS.Utils', {
 
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
+	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
+	    dircreate: [gettext('Directory Storage'), gettext('Create')],
+	    dirremove: [gettext('Directory'), gettext('Remove')],
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
+	    logrotate: [gettext('Log'), gettext('Rotation')],
+	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
+	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
 	    sync: ['Datastore', gettext('Remote Sync')],
+	    syncjob: [gettext('Sync Job'), gettext('Remote Sync')],
 	    verify: ['Datastore', gettext('Verification')],
 	    verify_group: ['Group', gettext('Verification')],
 	    verify_snapshot: ['Snapshot', gettext('Verification')],
-	    syncjob: [gettext('Sync Job'), gettext('Remote Sync')],
 	    verifyjob: [gettext('Verify Job'), gettext('Scheduled Verification')],
-	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
-	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
-	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
-	    logrotate: [gettext('Log'), gettext('Rotation')],
+	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
     },
 });
