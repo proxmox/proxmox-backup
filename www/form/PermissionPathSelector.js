@@ -58,10 +58,13 @@ Ext.define('PBS.data.PermissionPathsStore', {
 Ext.define('PBS.form.PermissionPathSelector', {
     extend: 'Ext.form.field.ComboBox',
     xtype: 'pbsPermissionPathSelector',
+    mixins: ['Proxmox.Mixin.CBind'],
 
     valueField: 'value',
     displayField: 'value',
-    typeAhead: true,
+    cbind: {
+	typeAhead: '{editable}',
+    },
     anyMatch: true,
     queryMode: 'local',
 
