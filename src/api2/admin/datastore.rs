@@ -1562,7 +1562,7 @@ fn get_rrd_stats(
         },
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true),
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP, true),
     },
 )]
 /// Get "notes" for a specific backup
@@ -1578,7 +1578,7 @@ fn get_notes(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let backup_dir = BackupDir::new(backup_type, backup_id, backup_time)?;
 
-    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_READ)?;
+    check_priv_or_backup_owner(&datastore, backup_dir.group(), &auth_id, PRIV_DATASTORE_AUDIT)?;
 
     let (manifest, _) = datastore.load_manifest(&backup_dir)?;
 
