@@ -7,7 +7,7 @@ use crate::tools;
 use crate::tools::subscription::{self, SubscriptionStatus, SubscriptionInfo};
 use crate::config::acl::{PRIV_SYS_AUDIT,PRIV_SYS_MODIFY};
 use crate::config::cached_user_info::CachedUserInfo;
-use crate::api2::types::{NODE_SCHEMA, Authid};
+use crate::api2::types::{NODE_SCHEMA, SUBSCRIPTION_KEY_SCHEMA, Authid};
 
 #[api(
     input: {
@@ -124,9 +124,7 @@ fn get_subscription(
                 schema: NODE_SCHEMA,
             },
             key: {
-                description: "Proxmox Backup Server subscription key",
-                type: String,
-                max_length: 32,
+                schema: SUBSCRIPTION_KEY_SCHEMA,
             },
         },
     },

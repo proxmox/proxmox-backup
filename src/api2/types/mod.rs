@@ -73,6 +73,8 @@ const_regex!{
 
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 
+    pub SUBSCRIPTION_KEY_REGEX = concat!(r"^pbs(?:[cbsp])-[0-9a-f]{10}$");
+
     pub BLOCKDEVICE_NAME_REGEX = r"^(:?(:?h|s|x?v)d[a-z]+)|(:?nvme\d+n\d+)$";
 
     pub ZPOOL_NAME_REGEX = r"^[a-zA-Z][a-z0-9A-Z\-_.:]+$";
@@ -128,6 +130,9 @@ pub const CIDR_V6_FORMAT: ApiStringFormat =
 
 pub const CIDR_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&CIDR_REGEX);
+
+pub const SUBSCRIPTION_KEY_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&SUBSCRIPTION_KEY_REGEX);
 
 pub const BLOCKDEVICE_NAME_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&BLOCKDEVICE_NAME_REGEX);
@@ -346,6 +351,12 @@ pub const HOSTNAME_SCHEMA: Schema = StringSchema::new("Hostname (as defined in R
 
 pub const DNS_NAME_OR_IP_SCHEMA: Schema = StringSchema::new("DNS name or IP address.")
     .format(&DNS_NAME_OR_IP_FORMAT)
+    .schema();
+
+pub const SUBSCRIPTION_KEY_SCHEMA: Schema = StringSchema::new("Proxmox Backup Server subscription key.")
+    .format(&SUBSCRIPTION_KEY_FORMAT)
+    .min_length(15)
+    .max_length(16)
     .schema();
 
 pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name (/sys/block/<name>).")
