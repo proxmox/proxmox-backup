@@ -232,8 +232,9 @@ Ext.define('PBS.Dashboard', {
 		model: 'proxmox-tasks',
 		proxy: {
 		    type: 'proxmox',
-		    url: '/api2/json/status/tasks',
+		    url: '/api2/json/nodes/localhost/tasks',
 		    extraParams: {
+			limit: 0,
 			since: '{sinceEpoch}',
 		    },
 		},

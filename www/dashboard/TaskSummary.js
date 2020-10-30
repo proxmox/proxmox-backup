@@ -39,6 +39,7 @@ Ext.define('PBS.TaskSummary', {
 		let state = me.states[cellindex];
 		let type = me.types[rowindex];
 		let filterParam = {
+		    limit: 0,
 		    'statusfilter': state,
 		    'typefilter': type,
 		};
@@ -111,7 +112,7 @@ Ext.define('PBS.TaskSummary', {
 			    model: 'proxmox-tasks',
 			    proxy: {
 				type: 'proxmox',
-				url: "/api2/json/status/tasks",
+				url: "/api2/json/nodes/localhost/tasks",
 			    },
 			},
 		    });

@@ -296,6 +296,24 @@ fn stop_task(
                 type: String,
                 description: "Only list tasks from this user.",
             },
+            since: {
+                type: i64,
+                description: "Only list tasks since this UNIX epoch.",
+                optional: true,
+            },
+            typefilter: {
+                optional: true,
+                type: String,
+                description: "Only list tasks whose type contains this.",
+            },
+            statusfilter: {
+                optional: true,
+                type: Array,
+                description: "Only list tasks which have any one of the listed status.",
+                items: {
+                    type: TaskStateType,
+                },
+            },
         },
     },
     returns: {
@@ -315,6 +333,9 @@ pub fn list_tasks(
     errors: bool,
     running: bool,
     userfilter: Option<String>,
+    since: Option<i64>,
+    typefilter: Option<String>,
+    statusfilter: Option<Vec<TaskStateType>>,
     param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<TaskListItem>, Error> {
@@ -331,7 +352,13 @@ pub fn list_tasks(
     let limit = if limit > 0 { limit as usize } else { usize::MAX };
 
     let result: Vec<TaskListItem> = list
-        .take_while(|info| !info.is_err())
+        .take_while(|info| {
+            match (info, since) {
+                (Ok(info), Some(since)) => info.upid.starttime > since,
+                (Ok(_), None) => true,
+                (Err(_), _) => false,
+            }
+        })
         .filter_map(|info| {
         let info = match info {
             Ok(info) => info,
@@ -365,9 +392,21 @@ pub fn list_tasks(
             }
         }
 
-        match info.state {
-            Some(_) if running => return None,
-            Some(crate::server::TaskState::OK { .. }) if errors => return None,
+        if let Some(typefilter) = &typefilter {
+            if !info.upid.worker_type.contains(typefilter) {
+                return None;
+            }
+        }
+
+        match (&info.state, &statusfilter) {
+            (Some(_), _) if running => return None,
+            (Some(crate::server::TaskState::OK { .. }), _) if errors => return None,
+            (Some(state), Some(filters)) => {
+                if !filters.contains(&state.tasktype()) {
+                    return None;
+                }
+            },
+            (None, Some(_)) => return None,
             _ => {},
         }
 
