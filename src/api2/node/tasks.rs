@@ -271,7 +271,7 @@ fn stop_task(
             },
             limit: {
                 type: u64,
-                description: "Only list this amount of tasks.",
+                description: "Only list this amount of tasks. (0 means no limit)",
                 default: 50,
                 optional: true,
             },
@@ -328,6 +328,7 @@ pub fn list_tasks(
     let store = param["store"].as_str();
 
     let list = TaskListInfoIterator::new(running)?;
+    let limit = if limit > 0 { limit as usize } else { usize::MAX };
 
     let result: Vec<TaskListItem> = list
         .take_while(|info| !info.is_err())
@@ -372,11 +373,11 @@ pub fn list_tasks(
 
         Some(info.into())
     }).skip(start as usize)
-        .take(limit as usize)
+        .take(limit)
         .collect();
 
     let mut count = result.len() + start as usize;
-    if result.len() > 0 && result.len() >= limit as usize { // we have a 'virtual' entry as long as we have any new
+    if result.len() > 0 && result.len() >= limit { // we have a 'virtual' entry as long as we have any new
         count += 1;
     }
 
