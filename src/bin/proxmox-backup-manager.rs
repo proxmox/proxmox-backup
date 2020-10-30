@@ -368,6 +368,7 @@ fn main() {
         .insert("remote", remote_commands())
         .insert("garbage-collection", garbage_collection_commands())
         .insert("cert", cert_mgmt_cli())
+        .insert("subscription", subscription_commands())
         .insert("sync-job", sync_job_commands())
         .insert("task", task_mgmt_cli())
         .insert(

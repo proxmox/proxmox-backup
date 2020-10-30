@@ -14,5 +14,7 @@ mod sync;
 pub use sync::*;
 mod user;
 pub use user::*;
+mod subscription;
+pub use subscription::*;
 mod disk;
 pub use disk::*;
