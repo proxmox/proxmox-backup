@@ -30,7 +30,7 @@ use proxmox_backup::{
 };
 
 
-use proxmox_backup::api2::types::{Authid, Userid};
+use proxmox_backup::api2::types::Authid;
 use proxmox_backup::configdir;
 use proxmox_backup::buildcfg;
 use proxmox_backup::server;
@@ -322,7 +322,7 @@ async fn schedule_datastore_garbage_collection() {
 
         if next > now  { continue; }
 
-        let mut job = match Job::new(worker_type, &store) {
+        let job = match Job::new(worker_type, &store) {
             Ok(job) => job,
             Err(_) => continue, // could not get lock
         };
