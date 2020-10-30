@@ -414,47 +414,18 @@ async fn schedule_datastore_prune() {
             continue;
         }
 
-        let event = match parse_calendar_event(&event_str) {
-            Ok(event) => event,
-            Err(err) => {
-                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
-                continue;
-            }
-        };
-
         let worker_type = "prune";
+        if check_schedule(worker_type.to_string(), event_str.clone(), store.clone()) {
+            let job = match Job::new(worker_type, &store) {
+                Ok(job) => job,
+                Err(_) => continue, // could not get lock
+            };
 
-        let last = match jobstate::last_run_time(worker_type, &store) {
-            Ok(time) => time,
-            Err(err) => {
-                eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
-                continue;
+            let auth_id = Authid::backup_auth_id().clone();
+            if let Err(err) = do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str)) {
+                eprintln!("unable to start datastore prune job {} - {}", &store, err);
             }
         };
-
-        let next = match compute_next_event(&event, last, false) {
-            Ok(Some(next)) => next,
-            Ok(None) => continue,
-            Err(err) => {
-                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
-                continue;
-            }
-        };
-
-        let now = proxmox::tools::time::epoch_i64();
-
-        if next > now  { continue; }
-
-        let job = match Job::new(worker_type, &store) {
-            Ok(job) => job,
-            Err(_) => continue, // could not get lock
-        };
-
-        let auth_id = Authid::backup_auth_id();
-        if let Err(err) = do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str)) {
-            eprintln!("unable to start datastore prune job {} - {}", &store, err);
-        }
-
     }
 }
 
@@ -487,47 +458,18 @@ async fn schedule_datastore_sync_jobs() {
             None => continue,
         };
 
-        let event = match parse_calendar_event(&event_str) {
-            Ok(event) => event,
-            Err(err) => {
-                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
-                continue;
-            }
-        };
-
         let worker_type = "syncjob";
+        if check_schedule(worker_type.to_string(), event_str.clone(), job_id.clone()) {
+            let job = match Job::new(worker_type, &job_id) {
+                Ok(job) => job,
+                Err(_) => continue, // could not get lock
+            };
 
-        let last = match jobstate::last_run_time(worker_type, &job_id) {
-            Ok(time) => time,
-            Err(err) => {
-                eprintln!("could not get last run time of {} {}: {}", worker_type, job_id, err);
-                continue;
+            let auth_id = Authid::backup_auth_id().clone();
+            if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str)) {
+                eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
             }
         };
-
-        let next = match compute_next_event(&event, last, false) {
-            Ok(Some(next)) => next,
-            Ok(None) => continue,
-            Err(err) => {
-                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
-                continue;
-            }
-        };
-
-        let now = proxmox::tools::time::epoch_i64();
-
-        if next > now  { continue; }
-
-        let job = match Job::new(worker_type, &job_id) {
-            Ok(job) => job,
-            Err(_) => continue, // could not get lock
-        };
-
-        let auth_id = Authid::backup_auth_id();
-
-        if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str)) {
-            eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
-        }
     }
 }
 
@@ -557,39 +499,18 @@ async fn schedule_datastore_verify_jobs() {
             Some(ref event_str) => event_str.clone(),
             None => continue,
         };
-        let event = match parse_calendar_event(&event_str) {
-            Ok(event) => event,
-            Err(err) => {
-                eprintln!("unable to parse schedule '{}' - {}", event_str, err);
-                continue;
-            }
-        };
+
         let worker_type = "verificationjob";
-        let last = match jobstate::last_run_time(worker_type, &job_id) {
-            Ok(time) => time,
-            Err(err) => {
-                eprintln!("could not get last run time of {} {}: {}", worker_type, job_id, err);
-                continue;
+        let auth_id = Authid::backup_auth_id().clone();
+        if check_schedule(worker_type.to_string(), event_str.clone(), job_id.clone()) {
+            let job = match Job::new(&worker_type, &job_id) {
+                Ok(job) => job,
+                Err(_) => continue, // could not get lock
+            };
+            if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str)) {
+                eprintln!("unable to start datastore verification job {} - {}", &job_id, err);
             }
         };
-        let next = match compute_next_event(&event, last, false) {
-            Ok(Some(next)) => next,
-            Ok(None) => continue,
-            Err(err) => {
-                eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
-                continue;
-            }
-        };
-        let now = proxmox::tools::time::epoch_i64();
-        if next > now { continue; }
-        let job = match Job::new(worker_type, &job_id) {
-            Ok(job) => job,
-            Err(_) => continue, // could not get lock
-        };
-        let auth_id = Authid::backup_auth_id();
-        if let Err(err) = do_verification_job(job, job_config, &auth_id, Some(event_str)) {
-            eprintln!("unable to start datastore verification job {} - {}", &job_id, err);
-        }
     }
 }
 
@@ -598,38 +519,10 @@ async fn schedule_task_log_rotate() {
     let worker_type = "logrotate";
     let job_id = "task_archive";
 
-    let last = match jobstate::last_run_time(worker_type, job_id) {
-        Ok(time) => time,
-        Err(err) => {
-            eprintln!("could not get last run time of task log archive rotation: {}", err);
-            return;
-        }
-    };
-
     // schedule daily at 00:00 like normal logrotate
     let schedule = "00:00";
 
-    let event = match parse_calendar_event(schedule) {
-        Ok(event) => event,
-        Err(err) => {
-            // should not happen?
-            eprintln!("unable to parse schedule '{}' - {}", schedule, err);
-            return;
-        }
-    };
-
-    let next = match compute_next_event(&event, last, false) {
-        Ok(Some(next)) => next,
-        Ok(None) => return,
-        Err(err) => {
-            eprintln!("compute_next_event for '{}' failed - {}", schedule, err);
-            return;
-        }
-    };
-
-    let now = proxmox::tools::time::epoch_i64();
-
-    if next > now {
+    if !check_schedule(worker_type.to_string(), schedule.to_string(), job_id.to_string()) {
         // if we never ran the rotation, schedule instantly
         match jobstate::JobState::load(worker_type, job_id) {
             Ok(state) => match state {
@@ -792,6 +685,36 @@ async fn generate_host_stats(save: bool) {
         }
 
     });
+}
+
+fn check_schedule(worker_type: String, event_str: String, id: String) -> bool {
+    let event = match parse_calendar_event(&event_str) {
+        Ok(event) => event,
+        Err(err) => {
+            eprintln!("unable to parse schedule '{}' - {}", event_str, err);
+            return false;
+        }
+    };
+
+    let last = match jobstate::last_run_time(&worker_type, &id) {
+        Ok(time) => time,
+        Err(err) => {
+            eprintln!("could not get last run time of {} {}: {}", worker_type, id, err);
+            return false;
+        }
+    };
+
+    let next = match compute_next_event(&event, last, false) {
+        Ok(Some(next)) => next,
+        Ok(None) => return false,
+        Err(err) => {
+            eprintln!("compute_next_event for '{}' failed - {}", event_str, err);
+            return false;
+        }
+    };
+
+    let now = proxmox::tools::time::epoch_i64();
+    next <= now
 }
 
 fn gather_disk_stats(disk_manager: Arc<DiskManage>, path: &Path, rrd_prefix: &str, save: bool) {
