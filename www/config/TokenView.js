@@ -109,7 +109,7 @@ Ext.define('PBS.config.TokenView', {
 
 	    Ext.create('Proxmox.PermissionView', {
 		auth_id: selection[0].data.tokenid,
-		auth_id_name: 'auth_id',
+		auth_id_name: 'auth-id',
 	    }).show();
 	},
 

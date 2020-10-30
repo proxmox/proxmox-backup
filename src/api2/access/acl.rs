@@ -169,7 +169,7 @@ pub fn read_acl(
                 optional: true,
                 schema: ACL_PROPAGATE_SCHEMA,
             },
-            auth_id: {
+            "auth-id": {
                 optional: true,
                 type: Authid,
             },

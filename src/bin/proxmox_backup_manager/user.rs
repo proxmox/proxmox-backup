@@ -100,7 +100,7 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
-            auth_id: {
+            "auth-id": {
                 type: Authid,
             },
             path: {
@@ -195,8 +195,8 @@ pub fn user_commands() -> CommandLineInterface {
         .insert(
             "permissions",
             CliCommand::new(&&API_METHOD_LIST_PERMISSIONS)
-                .arg_param(&["auth_id"])
-                .completion_cb("auth_id", config::user::complete_authid)
+                .arg_param(&["auth-id"])
+                .completion_cb("auth-id", config::user::complete_authid)
                 .completion_cb("path", config::datastore::complete_acl_path)
         );
 

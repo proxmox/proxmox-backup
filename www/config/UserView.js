@@ -72,7 +72,7 @@ Ext.define('PBS.config.UserView', {
 
 	    Ext.create('Proxmox.PermissionView', {
 		auth_id: selection[0].data.userid,
-		auth_id_name: 'auth_id',
+		auth_id_name: 'auth-id',
 	    }).show();
 	},
 

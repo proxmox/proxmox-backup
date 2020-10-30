@@ -33,7 +33,7 @@ Ext.define('PBS.window.ACLEdit', {
 	    me.items.push({
 		xtype: 'pbsUserSelector',
 		fieldLabel: gettext('User'),
-		name: 'auth_id',
+		name: 'auth-id',
 		allowBlank: false,
 	    });
 	} else if (me.aclType === 'token') {
@@ -41,7 +41,7 @@ Ext.define('PBS.window.ACLEdit', {
 	    me.items.push({
 		xtype: 'pbsTokenSelector',
 		fieldLabel: gettext('API Token'),
-		name: 'auth_id',
+		name: 'auth-id',
 		allowBlank: false,
 	    });
 	}

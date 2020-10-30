@@ -244,7 +244,7 @@ fn change_password(
 #[api(
     input: {
         properties: {
-            auth_id: {
+            "auth-id": {
                 type: Authid,
                 optional: true,
             },
