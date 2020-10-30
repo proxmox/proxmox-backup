@@ -17,6 +17,7 @@ use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use tokio::fs::File;
 use tokio::time::Instant;
+use percent_encoding::percent_decode_str;
 use url::form_urlencoded;
 use regex::Regex;
 
@@ -568,7 +569,9 @@ fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
     }
 
     match headers.get("AUTHORIZATION").map(|v| v.to_str()) {
-        Some(Ok(v)) => Some(AuthData::ApiToken(v.to_owned())),
+        Some(Ok(v)) if v.starts_with("PBSAPIToken ") => {
+            Some(AuthData::ApiToken(v["PBSAPIToken ".len()..].to_owned()))
+        },
         _ => None,
     }
 }
@@ -609,6 +612,10 @@ fn check_auth(
 
             let tokensecret = parts.next()
                 .ok_or_else(|| format_err!("failed to split API token header"))?;
+            let tokensecret = percent_decode_str(tokensecret)
+                .decode_utf8()
+                .map_err(|_| format_err!("failed to decode API token header"))?;
+
             crate::config::token_shadow::verify_secret(&tokenid, &tokensecret)?;
 
             Ok(tokenid)

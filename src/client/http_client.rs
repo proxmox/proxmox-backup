@@ -493,7 +493,7 @@ impl HttpClient {
 
         let auth =  self.login().await?;
         if auth.auth_id.is_token() {
-            let enc_api_token = format!("{}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            let enc_api_token = format!("PBSAPIToken {}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
             req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
         } else {
             let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
@@ -602,7 +602,7 @@ impl HttpClient {
         let auth =  self.login().await?;
 
         if auth.auth_id.is_token() {
-            let enc_api_token = format!("{}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
+            let enc_api_token = format!("PBSAPIToken {}:{}", auth.auth_id, percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
             req.headers_mut().insert("Authorization", HeaderValue::from_str(&enc_api_token).unwrap());
         } else {
             let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
