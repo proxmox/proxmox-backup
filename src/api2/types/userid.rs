@@ -474,6 +474,12 @@ impl PartialEq for Userid {
     }
 }
 
+impl From<Authid> for Userid {
+    fn from(authid: Authid) -> Self {
+        authid.user
+    }
+}
+
 impl From<(Username, Realm)> for Userid {
     fn from(parts: (Username, Realm)) -> Self {
         Self::from((parts.0.as_ref(), parts.1.as_ref()))
