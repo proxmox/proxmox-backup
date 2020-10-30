@@ -59,7 +59,7 @@ Ext.define('PBS.ServerAdministration', {
 	    url: "/api2/extjs/nodes/localhost/journal",
 	},
 	{
-	    xtype: 'proxmoxNodeTasks',
+	    xtype: 'pbsNodeTasks',
 	    itemId: 'tasks',
 	    iconCls: 'fa fa-list-alt',
 	    title: gettext('Tasks'),

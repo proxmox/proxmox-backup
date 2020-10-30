@@ -36,6 +36,7 @@ JSSRC=							\
 	dashboard/LongestTasks.js			\
 	dashboard/RunningTasks.js			\
 	dashboard/TaskSummary.js			\
+	panel/Tasks.js					\
 	Utils.js					\
 	AccessControlPanel.js				\
 	ZFSList.js					\
