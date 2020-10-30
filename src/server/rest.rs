@@ -553,7 +553,7 @@ enum AuthData {
 }
 
 fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
-    if let Some(raw_cookie) = headers.get("COOKIE") {
+    if let Some(raw_cookie) = headers.get(header::COOKIE) {
         if let Ok(cookie) = raw_cookie.to_str() {
             if let Some(ticket) = tools::extract_cookie(cookie, "PBSAuthCookie") {
                 let csrf_token = match headers.get("CSRFPreventionToken").map(|v| v.to_str()) {
@@ -568,7 +568,7 @@ fn extract_auth_data(headers: &http::HeaderMap) -> Option<AuthData> {
         }
     }
 
-    match headers.get("AUTHORIZATION").map(|v| v.to_str()) {
+    match headers.get(header::AUTHORIZATION).map(|v| v.to_str()) {
         Some(Ok(v)) if v.starts_with("PBSAPIToken ") => {
             Some(AuthData::ApiToken(v["PBSAPIToken ".len()..].to_owned()))
         },
