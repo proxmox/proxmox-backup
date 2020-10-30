@@ -42,7 +42,6 @@ constnamedbitmap! {
         PRIV_REMOTE_AUDIT("Remote.Audit");
         PRIV_REMOTE_MODIFY("Remote.Modify");
         PRIV_REMOTE_READ("Remote.Read");
-        PRIV_REMOTE_PRUNE("Remote.Prune");
 
         PRIV_SYS_CONSOLE("Sys.Console");
     }
@@ -96,14 +95,12 @@ PRIV_REMOTE_AUDIT;
 pub const ROLE_REMOTE_ADMIN: u64 =
 PRIV_REMOTE_AUDIT |
 PRIV_REMOTE_MODIFY |
-PRIV_REMOTE_READ |
-PRIV_REMOTE_PRUNE;
+PRIV_REMOTE_READ;
 
 /// Remote.SyncOperator can do read and prune on the remote.
 pub const ROLE_REMOTE_SYNC_OPERATOR: u64 =
 PRIV_REMOTE_AUDIT |
-PRIV_REMOTE_READ |
-PRIV_REMOTE_PRUNE;
+PRIV_REMOTE_READ;
 
 pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
