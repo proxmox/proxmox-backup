@@ -49,6 +49,7 @@ use proxmox_backup::tools::{
 
 use proxmox_backup::api2::pull::do_sync_job;
 use proxmox_backup::server::do_verification_job;
+use proxmox_backup::server::do_prune_job;
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::setup_safe_path_env();
@@ -370,8 +371,6 @@ async fn schedule_datastore_prune() {
     use proxmox_backup::{
         backup::{
             PruneOptions,
-            BackupGroup,
-            compute_prune_info,
         },
         config::datastore::{
             self,
@@ -388,13 +387,6 @@ async fn schedule_datastore_prune() {
     };
 
     for (store, (_, store_config)) in config.sections {
-        let datastore = match DataStore::lookup_datastore(&store) {
-            Ok(datastore) => datastore,
-            Err(err) => {
-                eprintln!("lookup_datastore '{}' failed - {}", store, err);
-                continue;
-            }
-        };
 
         let store_config: DataStoreConfig = match serde_json::from_value(store_config) {
             Ok(c) => c,
@@ -453,64 +445,16 @@ async fn schedule_datastore_prune() {
 
         if next > now  { continue; }
 
-        let mut job = match Job::new(worker_type, &store) {
+        let job = match Job::new(worker_type, &store) {
             Ok(job) => job,
             Err(_) => continue, // could not get lock
         };
 
-        let store2 = store.clone();
-
-        if let Err(err) = WorkerTask::new_thread(
-            worker_type,
-            Some(store.clone()),
-            Authid::backup_auth_id().clone(),
-            false,
-            move |worker| {
-
-                job.start(&worker.upid().to_string())?;
-
-                let result = try_block!({
-
-                    worker.log(format!("Starting datastore prune on store \"{}\"", store));
-                    worker.log(format!("task triggered by schedule '{}'", event_str));
-                    worker.log(format!("retention options: {}", prune_options.cli_options_string()));
-
-                    let base_path = datastore.base_path();
-
-                    let groups = BackupGroup::list_groups(&base_path)?;
-                    for group in groups {
-                        let list = group.list_backups(&base_path)?;
-                        let mut prune_info = compute_prune_info(list, &prune_options)?;
-                        prune_info.reverse(); // delete older snapshots first
-
-                        worker.log(format!("Starting prune on store \"{}\" group \"{}/{}\"",
-                                store, group.backup_type(), group.backup_id()));
-
-                        for (info, keep) in prune_info {
-                            worker.log(format!(
-                                    "{} {}/{}/{}",
-                                    if keep { "keep" } else { "remove" },
-                                    group.backup_type(), group.backup_id(),
-                                    info.backup_dir.backup_time_string()));
-                            if !keep {
-                                datastore.remove_backup_dir(&info.backup_dir, true)?;
-                            }
-                        }
-                    }
-                    Ok(())
-                });
-
-                let status = worker.create_state(&result);
-
-                if let Err(err) = job.finish(status) {
-                    eprintln!("could not finish job state for {}: {}", worker_type, err);
-                }
-
-                result
-            }
-        ) {
-            eprintln!("unable to start datastore prune on store {} - {}", store2, err);
+        let auth_id = Authid::backup_auth_id();
+        if let Err(err) = do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str)) {
+            eprintln!("unable to start datastore prune job {} - {}", &store, err);
         }
+
     }
 }
 
