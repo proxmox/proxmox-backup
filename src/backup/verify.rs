@@ -482,7 +482,7 @@ pub fn verify_backup_group(
     Ok((count, errors))
 }
 
-/// Verify all backups inside a datastore
+/// Verify all (owned) backups inside a datastore
 ///
 /// Errors are logged to the worker log.
 ///
@@ -493,14 +493,41 @@ pub fn verify_all_backups(
     datastore: Arc<DataStore>,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
+    owner: Option<Authid>,
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
+
+    if let Some(owner) = &owner {
+        task_log!(
+            worker,
+            "verify datastore {} - limiting to backups owned by {}",
+            datastore.name(),
+            owner
+        );
+    }
+
+    let filter_by_owner = |group: &BackupGroup| {
+        if let Some(owner) = &owner {
+            match datastore.get_owner(group) {
+                Ok(ref group_owner) => {
+                    group_owner == owner
+                        || (group_owner.is_token()
+                            && !owner.is_token()
+                            && group_owner.user() == owner.user())
+                },
+                Err(_) => false,
+            }
+        } else {
+            true
+        }
+    };
 
     let mut list = match BackupGroup::list_groups(&datastore.base_path()) {
         Ok(list) => list
             .into_iter()
             .filter(|group| !(group.backup_type() == "host" && group.backup_id() == "benchmark"))
+            .filter(filter_by_owner)
             .collect::<Vec<BackupGroup>>(),
         Err(err) => {
             task_log!(

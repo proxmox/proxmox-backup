@@ -30,6 +30,7 @@ constnamedbitmap! {
         PRIV_DATASTORE_ALLOCATE("Datastore.Allocate");
         PRIV_DATASTORE_MODIFY("Datastore.Modify");
         PRIV_DATASTORE_READ("Datastore.Read");
+        PRIV_DATASTORE_VERIFY("Datastore.Verify");
 
         /// Datastore.Backup also requires backup ownership
         PRIV_DATASTORE_BACKUP("Datastore.Backup");
@@ -64,12 +65,14 @@ pub const ROLE_DATASTORE_ADMIN: u64 =
 PRIV_DATASTORE_AUDIT |
 PRIV_DATASTORE_MODIFY |
 PRIV_DATASTORE_READ |
+PRIV_DATASTORE_VERIFY |
 PRIV_DATASTORE_BACKUP |
 PRIV_DATASTORE_PRUNE;
 
-/// Datastore.Reader can read datastore content an do restore
+/// Datastore.Reader can read/verify datastore content and do restore
 pub const ROLE_DATASTORE_READER: u64 =
 PRIV_DATASTORE_AUDIT |
+PRIV_DATASTORE_VERIFY |
 PRIV_DATASTORE_READ;
 
 /// Datastore.Backup can do backup and restore, but no prune.

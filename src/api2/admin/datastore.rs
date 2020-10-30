@@ -42,6 +42,7 @@ use crate::config::acl::{
     PRIV_DATASTORE_READ,
     PRIV_DATASTORE_PRUNE,
     PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_VERIFY,
 };
 
 fn check_priv_or_backup_owner(
@@ -537,7 +538,7 @@ pub fn status(
         schema: UPID_SCHEMA,
     },
     access: {
-        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_READ | PRIV_DATASTORE_BACKUP, true), // fixme
+        permission: &Permission::Privilege(&["datastore", "{store}"], PRIV_DATASTORE_VERIFY | PRIV_DATASTORE_BACKUP, true),
     },
 )]
 /// Verify backups.
@@ -553,6 +554,7 @@ pub fn verify(
 ) -> Result<Value, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
 
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let worker_id;
 
     let mut backup_dir = None;
@@ -563,12 +565,18 @@ pub fn verify(
         (Some(backup_type), Some(backup_id), Some(backup_time)) => {
             worker_id = format!("{}:{}/{}/{:08X}", store, backup_type, backup_id, backup_time);
             let dir = BackupDir::new(backup_type, backup_id, backup_time)?;
+
+            check_priv_or_backup_owner(&datastore, dir.group(), &auth_id, PRIV_DATASTORE_VERIFY)?;
+
             backup_dir = Some(dir);
             worker_type = "verify_snapshot";
         }
         (Some(backup_type), Some(backup_id), None) => {
             worker_id = format!("{}:{}/{}", store, backup_type, backup_id);
             let group = BackupGroup::new(backup_type, backup_id);
+
+            check_priv_or_backup_owner(&datastore, &group, &auth_id, PRIV_DATASTORE_VERIFY)?;
+
             backup_group = Some(group);
             worker_type = "verify_group";
         }
@@ -578,13 +586,12 @@ pub fn verify(
         _ => bail!("parameters do not specify a backup group or snapshot"),
     }
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let upid_str = WorkerTask::new_thread(
         worker_type,
         Some(worker_id.clone()),
-        auth_id,
+        auth_id.clone(),
         to_stdout,
         move |worker| {
             let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
@@ -617,7 +624,16 @@ pub fn verify(
                 )?;
                 failed_dirs
             } else {
-                verify_all_backups(datastore, worker.clone(), worker.upid(), None)?
+                let privs = CachedUserInfo::new()?
+                    .lookup_privs(&auth_id, &["datastore", &store]);
+
+                let owner = if privs & PRIV_DATASTORE_VERIFY == 0 {
+                    Some(auth_id)
+                } else {
+                    None
+                };
+
+                verify_all_backups(datastore, worker.clone(), worker.upid(), owner, None)?
             };
             if failed_dirs.len() > 0 {
                 worker.log("Failed to verify following snapshots:");

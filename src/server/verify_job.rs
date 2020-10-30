@@ -65,7 +65,7 @@ pub fn do_verification_job(
                 task_log!(worker,"task triggered by schedule '{}'", event_str);
             }
 
-            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), Some(&filter));
+            let result = verify_all_backups(datastore, worker.clone(), worker.upid(), None, Some(&filter));
             let job_result = match result {
                 Ok(ref errors) if errors.is_empty() => Ok(()),
                 Ok(_) => Err(format_err!("verification failed - please check the log for details")),
