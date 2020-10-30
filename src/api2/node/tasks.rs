@@ -301,6 +301,11 @@ fn stop_task(
                 description: "Only list tasks since this UNIX epoch.",
                 optional: true,
             },
+            until: {
+                type: i64,
+                description: "Only list tasks until this UNIX epoch.",
+                optional: true,
+            },
             typefilter: {
                 optional: true,
                 type: String,
@@ -334,6 +339,7 @@ pub fn list_tasks(
     running: bool,
     userfilter: Option<String>,
     since: Option<i64>,
+    until: Option<i64>,
     typefilter: Option<String>,
     statusfilter: Option<Vec<TaskStateType>>,
     param: Value,
@@ -352,6 +358,13 @@ pub fn list_tasks(
     let limit = if limit > 0 { limit as usize } else { usize::MAX };
 
     let result: Vec<TaskListItem> = list
+        .skip_while(|info| {
+            match (info, until) {
+                (Ok(info), Some(until)) => info.upid.starttime > until,
+                (Ok(_), None) => false,
+                (Err(_), _) => false,
+            }
+        })
         .take_while(|info| {
             match (info, since) {
                 (Ok(info), Some(since)) => info.upid.starttime > since,
