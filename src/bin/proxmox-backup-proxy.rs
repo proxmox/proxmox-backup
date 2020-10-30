@@ -248,8 +248,6 @@ async fn schedule_datastore_garbage_collection() {
         },
     };
 
-    let email = server::lookup_user_email(Userid::root_userid());
-
     let config = match datastore::config() {
         Err(err) => {
             eprintln!("unable to read datastore config - {}", err);
@@ -329,39 +327,10 @@ async fn schedule_datastore_garbage_collection() {
             Err(_) => continue, // could not get lock
         };
 
-        let store2 = store.clone();
-        let email2 = email.clone();
+        let auth_id = Authid::backup_auth_id();
 
-        if let Err(err) = WorkerTask::new_thread(
-            worker_type,
-            Some(store.clone()),
-            Authid::backup_auth_id().clone(),
-            false,
-            move |worker| {
-                job.start(&worker.upid().to_string())?;
-
-                worker.log(format!("starting garbage collection on store {}", store));
-                worker.log(format!("task triggered by schedule '{}'", event_str));
-
-                let result = datastore.garbage_collection(&*worker, worker.upid());
-
-                let status = worker.create_state(&result);
-
-                if let Err(err) = job.finish(status) {
-                    eprintln!("could not finish job state for {}: {}", worker_type, err);
-                }
-
-                if let Some(email2) = email2 {
-                    let gc_status = datastore.last_gc_status();
-                    if let Err(err) = crate::server::send_gc_status(&email2, datastore.name(), &gc_status, &result) {
-                        eprintln!("send gc notification failed: {}", err);
-                    }
-                }
-
-                result
-            }
-        ) {
-            eprintln!("unable to start garbage collection on store {} - {}", store2, err);
+        if let Err(err) = crate::server::do_garbage_collection_job(job, datastore, auth_id, Some(event_str)) {
+            eprintln!("unable to start garbage collection job on datastore {} - {}", store, err);
         }
     }
 }

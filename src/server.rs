@@ -38,5 +38,8 @@ pub use verify_job::*;
 mod prune_job;
 pub use prune_job::*;
 
+mod gc_job;
+pub use gc_job::*;
+
 mod email_notifications;
 pub use email_notifications::*;
