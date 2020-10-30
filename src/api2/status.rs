@@ -17,17 +17,13 @@ use crate::api2::types::{
     RRDMode,
     RRDTimeFrameResolution,
     Authid,
-    TaskListItem,
-    TaskStateType,
 };
 
-use crate::server;
 use crate::backup::{DataStore};
 use crate::config::datastore;
 use crate::tools::statistics::{linear_regression};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::acl::{
-    PRIV_SYS_AUDIT,
     PRIV_DATASTORE_AUDIT,
     PRIV_DATASTORE_BACKUP,
 };
@@ -179,103 +175,8 @@ fn datastore_status(
     Ok(list.into())
 }
 
-#[api(
-    input: {
-        properties: {
-            since: {
-                type: i64,
-                description: "Only list tasks since this UNIX epoch.",
-                optional: true,
-            },
-            typefilter: {
-                optional: true,
-                type: String,
-                description: "Only list tasks, whose type contains this string.",
-            },
-            statusfilter: {
-                optional: true,
-                type: Array,
-                description: "Only list tasks which have any one of the listed status.",
-                items: {
-                    type: TaskStateType,
-                },
-            },
-        },
-    },
-    returns: {
-        description: "A list of tasks.",
-        type: Array,
-        items: { type: TaskListItem },
-    },
-    access: {
-        description: "Users can only see there own tasks, unless the have Sys.Audit on /system/tasks.",
-        permission: &Permission::Anybody,
-    },
-)]
-/// List tasks.
-pub fn list_tasks(
-    since: Option<i64>,
-    typefilter: Option<String>,
-    statusfilter: Option<Vec<TaskStateType>>,
-    _param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Vec<TaskListItem>, Error> {
-
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
-    let user_info = CachedUserInfo::new()?;
-    let user_privs = user_info.lookup_privs(&auth_id, &["system", "tasks"]);
-
-    let list_all = (user_privs & PRIV_SYS_AUDIT) != 0;
-    let since = since.unwrap_or_else(|| 0);
-
-    let list: Vec<TaskListItem> = server::TaskListInfoIterator::new(false)?
-        .take_while(|info| {
-            match info {
-                Ok(info) => info.upid.starttime > since,
-                Err(_) => false
-            }
-        })
-        .filter_map(|info| {
-            match info {
-                Ok(info) => {
-                    if list_all || info.upid.auth_id == auth_id {
-                        if let Some(filter) = &typefilter {
-                            if !info.upid.worker_type.contains(filter) {
-                                return None;
-                            }
-                        }
-
-                        if let Some(filters) = &statusfilter {
-                            if let Some(state) = &info.state {
-                                let statetype = match state {
-                                    server::TaskState::OK { .. } => TaskStateType::OK,
-                                    server::TaskState::Unknown { .. } => TaskStateType::Unknown,
-                                    server::TaskState::Error { .. } => TaskStateType::Error,
-                                    server::TaskState::Warning { .. } => TaskStateType::Warning,
-                                };
-
-                                if !filters.contains(&statetype) {
-                                    return None;
-                                }
-                            }
-                        }
-
-                        Some(Ok(TaskListItem::from(info)))
-                    } else {
-                        None
-                    }
-                }
-                Err(err) => Some(Err(err))
-            }
-        })
-        .collect::<Result<Vec<TaskListItem>, Error>>()?;
-
-    Ok(list.into())
-}
-
 const SUBDIRS: SubdirMap = &[
     ("datastore-usage", &Router::new().get(&API_METHOD_DATASTORE_STATUS)),
-    ("tasks", &Router::new().get(&API_METHOD_LIST_TASKS)),
 ];
 
 pub const ROUTER: Router = Router::new()
