@@ -2,10 +2,17 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment};
+use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
+
+use crate::config::acl::{
+    PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_VERIFY,
+};
+
 use crate::config::verify::{self, VerificationJobConfig};
 
 #[api(
@@ -16,6 +23,12 @@ use crate::config::verify::{self, VerificationJobConfig};
         description: "List configured jobs.",
         type: Array,
         items: { type: verify::VerificationJobConfig },
+    },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_VERIFY,
+            true),
     },
 )]
 /// List all verification jobs
@@ -61,7 +74,13 @@ pub fn list_verification_jobs(
                 schema: VERIFICATION_SCHEDULE_SCHEMA,
             },
         }
-    }
+    },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_VERIFY,
+            true),
+    },
 )]
 /// Create a new verification job.
 pub fn create_verification_job(param: Value) -> Result<(), Error> {
@@ -96,6 +115,12 @@ pub fn create_verification_job(param: Value) -> Result<(), Error> {
     returns: {
         description: "The verification job configuration.",
         type: verify::VerificationJobConfig,
+    },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_VERIFY,
+            true),
     },
 )]
 /// Read a verification job configuration.
@@ -167,6 +192,12 @@ pub enum DeletableProperty {
             },
         },
     },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_VERIFY,
+            true),
+    },
 )]
 /// Update verification job config.
 pub fn update_verification_job(
@@ -237,6 +268,12 @@ pub fn update_verification_job(
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
             },
         },
+    },
+    access: {
+        permission: &Permission::Privilege(
+            &["datastore", "{store}"],
+            PRIV_DATASTORE_VERIFY,
+            true),
     },
 )]
 /// Remove a verification job configuration
