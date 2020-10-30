@@ -92,6 +92,7 @@ pub fn do_sync_job(
             let worker_future = async move {
 
                 let delete = sync_job.remove_vanished.unwrap_or(true);
+                let sync_owner = sync_job.owner.unwrap_or(Authid::backup_auth_id().clone());
                 let (client, src_repo, tgt_store) = get_pull_parameters(&sync_job.store, &sync_job.remote, &sync_job.remote_store).await?;
 
                 worker.log(format!("Starting datastore sync job '{}'", job_id));
@@ -101,9 +102,7 @@ pub fn do_sync_job(
                 worker.log(format!("Sync datastore '{}' from '{}/{}'",
                         sync_job.store, sync_job.remote, sync_job.remote_store));
 
-                let backup_auth_id = Authid::backup_auth_id();
-
-                crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, backup_auth_id.clone()).await?;
+                crate::client::pull::pull_store(&worker, &client, &src_repo, tgt_store.clone(), delete, sync_owner).await?;
 
                 worker.log(format!("sync job '{}' end", &job_id));
 

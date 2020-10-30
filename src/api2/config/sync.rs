@@ -45,6 +45,10 @@ pub fn list_sync_jobs(
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            owner: {
+                type: Authid,
+                optional: true,
+            },
             remote: {
                 schema: REMOTE_ID_SCHEMA,
             },
@@ -120,6 +124,8 @@ pub fn read_sync_job(
 #[allow(non_camel_case_types)]
 /// Deletable property name
 pub enum DeletableProperty {
+    /// Delete the owner property.
+    owner,
     /// Delete the comment property.
     comment,
     /// Delete the job schedule.
@@ -137,6 +143,10 @@ pub enum DeletableProperty {
             },
             store: {
                 schema: DATASTORE_SCHEMA,
+                optional: true,
+            },
+            owner: {
+                type: Authid,
                 optional: true,
             },
             remote: {
@@ -178,6 +188,7 @@ pub enum DeletableProperty {
 pub fn update_sync_job(
     id: String,
     store: Option<String>,
+    owner: Option<Authid>,
     remote: Option<String>,
     remote_store: Option<String>,
     remove_vanished: Option<bool>,
@@ -202,6 +213,7 @@ pub fn update_sync_job(
      if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
+                DeletableProperty::owner => { data.owner = None; },
                 DeletableProperty::comment => { data.comment = None; },
                 DeletableProperty::schedule => { data.schedule = None; },
                 DeletableProperty::remove_vanished => { data.remove_vanished = None; },
@@ -221,8 +233,8 @@ pub fn update_sync_job(
     if let Some(store) = store { data.store = store; }
     if let Some(remote) = remote { data.remote = remote; }
     if let Some(remote_store) = remote_store { data.remote_store = remote_store; }
-        
-    
+    if let Some(owner) = owner { data.owner = owner; }
+
     if schedule.is_some() { data.schedule = schedule; }
     if remove_vanished.is_some() { data.remove_vanished = remove_vanished; }
 

@@ -1,7 +1,7 @@
 Ext.define('pbs-sync-jobs-status', {
     extend: 'Ext.data.Model',
     fields: [
-	'id', 'remote', 'remote-store', 'store', 'schedule',
+	'id', 'owner', 'remote', 'remote-store', 'store', 'schedule',
 	'next-run', 'last-run-upid', 'last-run-state', 'last-run-endtime',
 	{
 	    name: 'duration',
@@ -151,6 +151,11 @@ Ext.define('PBS.config.SyncJobView', {
 	    return Proxmox.Utils.render_timestamp(value);
 	},
 
+	render_optional_owner: function(value, metadata, record) {
+	    if (!value) return '-';
+	    return Ext.String.htmlEncode(value, metadata, record);
+	},
+
 	startStore: function() { this.getView().getStore().rstore.startUpdate(); },
 	stopStore: function() { this.getView().getStore().rstore.stopUpdate(); },
 
@@ -248,6 +253,13 @@ Ext.define('PBS.config.SyncJobView', {
 	    header: gettext('Local Store'),
 	    dataIndex: 'store',
 	    width: 120,
+	    sortable: true,
+	},
+	{
+	    header: gettext('Owner'),
+	    dataIndex: 'owner',
+	    renderer: 'render_optional_owner',
+	    flex: 2,
 	    sortable: true,
 	},
 	{

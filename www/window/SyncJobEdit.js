@@ -63,6 +63,26 @@ Ext.define('PBS.window.SyncJobEdit', {
 
 	column2: [
 	    {
+		fieldLabel: gettext('Owner'),
+		xtype: 'pbsUserSelector',
+		name: 'owner',
+		allowBlank: true,
+		emptyText: 'backup@pam',
+		getSubmitData: function() {
+		    let me = this;
+		    let name = me.getName();
+		    let val = me.getSubmitValue();
+
+		    let data = {};
+		    if (val === null || val === "") {
+			data.delete = name;
+		    } else {
+			data[name] = val;
+		    }
+		    return data;
+		},
+	    },
+	    {
 		fieldLabel: gettext('Remove vanished'),
 		xtype: 'proxmoxcheckbox',
 		name: 'remove-vanished',

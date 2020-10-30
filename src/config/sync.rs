@@ -30,6 +30,10 @@ lazy_static! {
         store: {
            schema: DATASTORE_SCHEMA,
         },
+        "owner": {
+            type: Authid,
+            optional: true,
+        },
         remote: {
             schema: REMOTE_ID_SCHEMA,
         },
@@ -56,6 +60,8 @@ lazy_static! {
 pub struct SyncJobConfig {
     pub id: String,
     pub store: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub owner: Option<Authid>,
     pub remote: String,
     pub remote_store: String,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -74,6 +80,10 @@ pub struct SyncJobConfig {
         },
         store: {
            schema: DATASTORE_SCHEMA,
+        },
+        owner: {
+            type: Authid,
+            optional: true,
         },
         remote: {
             schema: REMOTE_ID_SCHEMA,
@@ -121,6 +131,8 @@ pub struct SyncJobConfig {
 pub struct SyncJobStatus {
     pub id: String,
     pub store: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub owner: Option<Authid>,
     pub remote: String,
     pub remote_store: String,
     #[serde(skip_serializing_if="Option::is_none")]
