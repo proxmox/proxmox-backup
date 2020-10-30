@@ -21,7 +21,6 @@ lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
 
-
 #[api(
     properties: {
         id: {
@@ -70,6 +69,21 @@ pub struct SyncJobConfig {
     pub comment: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub schedule: Option<String>,
+}
+
+impl From<&SyncJobStatus> for SyncJobConfig {
+    fn from(job_status: &SyncJobStatus) -> Self {
+        Self {
+            id: job_status.id.clone(),
+            store: job_status.store.clone(),
+            owner: job_status.owner.clone(),
+            remote: job_status.remote.clone(),
+            remote_store: job_status.remote_store.clone(),
+            remove_vanished: job_status.remove_vanished.clone(),
+            comment: job_status.comment.clone(),
+            schedule: job_status.schedule.clone(),
+        }
+    }
 }
 
 // FIXME: generate duplicate schemas/structs from one listing?

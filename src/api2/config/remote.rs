@@ -6,6 +6,7 @@ use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
+use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
 
@@ -22,7 +23,8 @@ use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
         },
     },
     access: {
-        permission: &Permission::Privilege(&["remote"], PRIV_REMOTE_AUDIT, false),
+        description: "List configured remotes filtered by Remote.Audit privileges",
+        permission: &Permission::Anybody,
     },
 )]
 /// List all remotes
@@ -31,15 +33,24 @@ pub fn list_remotes(
     _info: &ApiMethod,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<remote::Remote>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = remote::config()?;
 
     let mut list: Vec<remote::Remote> = config.convert_to_typed_array("remote")?;
-
     // don't return password in api
     for remote in &mut list {
         remote.password = "".to_string();
     }
+
+    let list = list
+        .into_iter()
+        .filter(|remote| {
+            let privs = user_info.lookup_privs(&auth_id, &["remote", &remote.name]);
+            privs & PRIV_REMOTE_AUDIT != 0
+        })
+        .collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(list)

@@ -2,13 +2,72 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
-use proxmox::api::{api, Router, RpcEnvironment};
+use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
+
+use crate::config::acl::{
+    PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_BACKUP,
+    PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_PRUNE,
+    PRIV_REMOTE_AUDIT,
+    PRIV_REMOTE_READ,
+};
+
+use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::sync::{self, SyncJobConfig};
 
-// fixme: add access permissions
+pub fn check_sync_job_read_access(
+    user_info: &CachedUserInfo,
+    auth_id: &Authid,
+    job: &SyncJobConfig,
+) -> bool {
+    let datastore_privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+    if datastore_privs & PRIV_DATASTORE_AUDIT == 0 {
+        return false;
+    }
+
+    let remote_privs = user_info.lookup_privs(&auth_id, &["remote", &job.remote]);
+    remote_privs & PRIV_REMOTE_AUDIT != 0
+}
+// user can run the corresponding pull job
+pub fn check_sync_job_modify_access(
+    user_info: &CachedUserInfo,
+    auth_id: &Authid,
+    job: &SyncJobConfig,
+) -> bool {
+    let datastore_privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+    if datastore_privs & PRIV_DATASTORE_BACKUP == 0 {
+        return false;
+    }
+
+    if let Some(true) = job.remove_vanished {
+        if datastore_privs & PRIV_DATASTORE_PRUNE == 0 {
+            return false;
+        }
+    }
+
+    let correct_owner = match job.owner {
+        Some(ref owner) => {
+            owner == auth_id
+                || (owner.is_token()
+                    && !auth_id.is_token()
+                    && owner.user() == auth_id.user())
+        },
+        // default sync owner
+        None => auth_id == Authid::backup_auth_id(),
+    };
+
+    // same permission as changing ownership after syncing
+    if !correct_owner && datastore_privs & PRIV_DATASTORE_MODIFY == 0 {
+        return false;
+    }
+
+    let remote_privs = user_info.lookup_privs(&auth_id, &["remote", &job.remote, &job.remote_store]);
+    remote_privs & PRIV_REMOTE_READ != 0
+}
 
 #[api(
     input: {
@@ -19,12 +78,18 @@ use crate::config::sync::{self, SyncJobConfig};
         type: Array,
         items: { type: sync::SyncJobConfig },
     },
+    access: {
+        description: "Limited to sync job entries where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
+        permission: &Permission::Anybody,
+    },
 )]
 /// List all sync jobs
 pub fn list_sync_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<SyncJobConfig>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let (config, digest) = sync::config()?;
 
@@ -32,7 +97,11 @@ pub fn list_sync_jobs(
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
-    Ok(list)
+    let list = list
+        .into_iter()
+        .filter(|sync_job| check_sync_job_read_access(&user_info, &auth_id, &sync_job))
+        .collect();
+   Ok(list)
 }
 
 #[api(
@@ -69,13 +138,25 @@ pub fn list_sync_jobs(
             },
         },
     },
+    access: {
+        description: "User needs Datastore.Backup on target datastore, and Remote.Read on source remote. Additionally, remove_vanished requires Datastore.Prune, and any owner other than the user themselves requires Datastore.Modify",
+        permission: &Permission::Anybody,
+    },
 )]
 /// Create a new sync job.
-pub fn create_sync_job(param: Value) -> Result<(), Error> {
+pub fn create_sync_job(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let sync_job: sync::SyncJobConfig = serde_json::from_value(param.clone())?;
+    if !check_sync_job_modify_access(&user_info, &auth_id, &sync_job) {
+        bail!("permission check failed");
+    }
 
     let (mut config, _digest) = sync::config()?;
 
@@ -104,15 +185,26 @@ pub fn create_sync_job(param: Value) -> Result<(), Error> {
         description: "The sync job configuration.",
         type: sync::SyncJobConfig,
     },
+    access: {
+        description: "Limited to sync job entries where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
+        permission: &Permission::Anybody,
+    },
 )]
 /// Read a sync job configuration.
 pub fn read_sync_job(
     id: String,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<SyncJobConfig, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
     let (config, digest) = sync::config()?;
 
     let sync_job = config.lookup("sync", &id)?;
+    if !check_sync_job_read_access(&user_info, &auth_id, &sync_job) {
+        bail!("permission check failed");
+    }
+
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
     Ok(sync_job)
@@ -183,6 +275,10 @@ pub enum DeletableProperty {
             },
         },
     },
+    access: {
+        permission: &Permission::Anybody,
+        description: "User needs Datastore.Backup on target datastore, and Remote.Read on source remote. Additionally, remove_vanished requires Datastore.Prune, and any owner other than the user themselves requires Datastore.Modify",
+    },
 )]
 /// Update sync job config.
 pub fn update_sync_job(
@@ -196,7 +292,10 @@ pub fn update_sync_job(
     schedule: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
@@ -233,10 +332,14 @@ pub fn update_sync_job(
     if let Some(store) = store { data.store = store; }
     if let Some(remote) = remote { data.remote = remote; }
     if let Some(remote_store) = remote_store { data.remote_store = remote_store; }
-    if let Some(owner) = owner { data.owner = owner; }
+    if let Some(owner) = owner { data.owner = Some(owner); }
 
     if schedule.is_some() { data.schedule = schedule; }
     if remove_vanished.is_some() { data.remove_vanished = remove_vanished; }
+
+    if !check_sync_job_modify_access(&user_info, &auth_id, &data) {
+        bail!("permission check failed");
+    }
 
     config.set_data(&id, "sync", &data)?;
 
@@ -258,9 +361,19 @@ pub fn update_sync_job(
             },
         },
     },
+    access: {
+        permission: &Permission::Anybody,
+        description: "User needs Datastore.Backup on target datastore, and Remote.Read on source remote. Additionally, remove_vanished requires Datastore.Prune, and any owner other than the user themselves requires Datastore.Modify",
+    },
 )]
 /// Remove a sync job configuration
-pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> {
+pub fn delete_sync_job(
+    id: String,
+    digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let _lock = open_file_locked(sync::SYNC_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
@@ -271,10 +384,15 @@ pub fn delete_sync_job(id: String, digest: Option<String>) -> Result<(), Error> 
         crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
     }
 
-    match config.sections.get(&id) {
-        Some(_) => { config.sections.remove(&id); },
-        None => bail!("job '{}' does not exist.", id),
-    }
+    match config.lookup("sync", &id) {
+        Ok(job) => {
+            if !check_sync_job_modify_access(&user_info, &auth_id, &job) {
+                bail!("permission check failed");
+            }
+            config.sections.remove(&id);
+        },
+        Err(_) => { bail!("job '{}' does not exist.", id) },
+    };
 
     sync::save_config(&config)?;
 
