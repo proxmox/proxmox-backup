@@ -26,15 +26,23 @@ constnamedbitmap! {
         PRIV_SYS_MODIFY("Sys.Modify");
         PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement");
 
+        /// Datastore.Audit allows knowing about a datastore,
+        /// including reading the configuration entry and listing its contents
         PRIV_DATASTORE_AUDIT("Datastore.Audit");
+        /// Datastore.Allocate allows creating or deleting datastores
         PRIV_DATASTORE_ALLOCATE("Datastore.Allocate");
+        /// Datastore.Modify allows modifying a datastore and its contents
         PRIV_DATASTORE_MODIFY("Datastore.Modify");
+        /// Datastore.Read allows reading arbitrary backup contents
         PRIV_DATASTORE_READ("Datastore.Read");
+        /// Allows verifying a datastore
         PRIV_DATASTORE_VERIFY("Datastore.Verify");
 
-        /// Datastore.Backup also requires backup ownership
+        /// Datastore.Backup allows Datastore.Read|Verify and creating new snapshots,
+        /// but also requires backup ownership
         PRIV_DATASTORE_BACKUP("Datastore.Backup");
-        /// Datastore.Prune also requires backup ownership
+        /// Datastore.Prune allows deleting snapshots,
+        /// but also requires backup ownership
         PRIV_DATASTORE_PRUNE("Datastore.Prune");
 
         PRIV_PERMISSIONS_MODIFY("Permissions.Modify");
