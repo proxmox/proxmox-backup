@@ -102,7 +102,7 @@ API tokens serve two purposes:
 An API token consists of two parts: an identifier consisting of the user name,
 the realm and a tokenname (``user@realm!tokenname``), and a secret value. Both
 need to be provided to the client in place of the user ID (``user@realm``) and
-the user password.
+the user password, respectively.
 
 The API token is passed from the client to the server by setting the
 ``Authorization`` HTTP header with method ``PBSAPIToken`` to the value

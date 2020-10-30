@@ -12,31 +12,31 @@ on the backup server.
 
   [[username@]server[:port]:]datastore
 
-The default value for ``username`` is ``root@pam``.  If no server is specified,
+The default value for ``username`` is ``root@pam``. If no server is specified,
 the default is the local host (``localhost``).
 
 You can specify a port if your backup server is only reachable on a different
 port (e.g. with NAT and port forwarding).
 
-Note that if the server is an IPv6 address, you have to write it with
-square brackets (e.g. [fe80::01]).
+Note that if the server is an IPv6 address, you have to write it with square
+brackets (for example, `[fe80::01]`).
 
-You can pass the repository with the ``--repository`` command
-line option, or by setting the ``PBS_REPOSITORY`` environment
-variable.
+You can pass the repository with the ``--repository`` command line option, or
+by setting the ``PBS_REPOSITORY`` environment variable.
 
 Here some examples of valid repositories and the real values
 
-================================ ============ ================== ===========
-Example                          User         Host:Port          Datastore
-================================ ============ ================== ===========
-mydatastore                      ``root@pam`` localhost:8007     mydatastore
-myhostname:mydatastore           ``root@pam`` myhostname:8007    mydatastore
-user@pbs@myhostname:mydatastore  ``user@pbs`` myhostname:8007    mydatastore
-192.168.55.55:1234:mydatastore   ``root@pam`` 192.168.55.55:1234 mydatastore
-[ff80::51]:mydatastore           ``root@pam`` [ff80::51]:8007    mydatastore
-[ff80::51]:1234:mydatastore      ``root@pam`` [ff80::51]:1234    mydatastore
-================================ ============ ================== ===========
+================================ =================  ================== ===========
+Example                          User               Host:Port          Datastore
+================================ =================  ================== ===========
+mydatastore                      ``root@pam``       localhost:8007     mydatastore
+myhostname:mydatastore           ``root@pam``       myhostname:8007    mydatastore
+user@pbs@myhostname:mydatastore  ``user@pbs``       myhostname:8007    mydatastore
+user@pbs!token@host:store        ``user@pbs!token`` myhostname:8007    mydatastore
+192.168.55.55:1234:mydatastore   ``root@pam``       192.168.55.55:1234 mydatastore
+[ff80::51]:mydatastore           ``root@pam``       [ff80::51]:8007    mydatastore
+[ff80::51]:1234:mydatastore      ``root@pam``       [ff80::51]:1234    mydatastore
+================================ =================   ================== ===========
 
 Environment Variables
 ---------------------
@@ -45,16 +45,16 @@ Environment Variables
   The default backup repository.
 
 ``PBS_PASSWORD``
-  When set, this value is used for the password required for the
-  backup server.
+  When set, this value is used for the password required for the backup server.
+  You can also set this to a API token secret.
 
 ``PBS_ENCRYPTION_PASSWORD``
   When set, this value is used to access the secret encryption key (if
   protected by password).
 
 ``PBS_FINGERPRINT`` When set, this value is used to verify the server
-  certificate (only used if the system CA certificates cannot
-  validate the certificate).
+  certificate (only used if the system CA certificates cannot validate the
+  certificate).
 
 
 Output Format
