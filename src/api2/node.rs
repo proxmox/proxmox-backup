@@ -24,6 +24,7 @@ use crate::server::WorkerTask;
 use crate::tools;
 use crate::tools::ticket::{self, Empty, Ticket};
 
+pub mod apt;
 pub mod disks;
 pub mod dns;
 pub mod network;
@@ -32,7 +33,6 @@ pub mod subscription;
 
 pub(crate) mod rrd;
 
-mod apt;
 mod journal;
 mod services;
 mod status;

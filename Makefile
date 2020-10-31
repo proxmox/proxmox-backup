@@ -19,7 +19,8 @@ USR_SBIN := \
 SERVICE_BIN := \
 	proxmox-backup-api \
 	proxmox-backup-banner \
-	proxmox-backup-proxy
+	proxmox-backup-proxy \
+	proxmox-daily-update \
 
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release

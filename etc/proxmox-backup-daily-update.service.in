@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily Proxmox Backup Server update and maintenance activities
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-daily-update

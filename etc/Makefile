@@ -1,9 +1,11 @@
 include ../defines.mk
 
-UNITS :=
+UNITS := \
+	proxmox-backup-daily-update.timer \
 
 DYNAMIC_UNITS := \
 	proxmox-backup-banner.service \
+	proxmox-backup-daily-update.service \
 	proxmox-backup.service \
 	proxmox-backup-proxy.service
 

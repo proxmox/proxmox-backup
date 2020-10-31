@@ -1,10 +1,13 @@
 etc/proxmox-backup-proxy.service /lib/systemd/system/
 etc/proxmox-backup.service /lib/systemd/system/
 etc/proxmox-backup-banner.service /lib/systemd/system/
+etc/proxmox-backup-daily-update.service /lib/systemd/system/
+etc/proxmox-backup-daily-update.timer /lib/systemd/system/
 etc/pbstest-beta.list /etc/apt/sources.list.d/
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-api
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-proxy
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-banner
+usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-daily-update
 usr/sbin/proxmox-backup-manager
 usr/share/javascript/proxmox-backup/index.hbs
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
