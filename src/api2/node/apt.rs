@@ -39,6 +39,36 @@ fn apt_update_available(_param: Value) -> Result<Value, Error> {
     Ok(json!(all_upgradeable))
 }
 
+fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
+    if !quiet { worker.log("starting apt-get update") }
+
+    // TODO: set proxy /etc/apt/apt.conf.d/76pbsproxy like PVE
+
+    let mut command = std::process::Command::new("apt-get");
+    command.arg("update");
+
+    // apt "errors" quite easily, and run_command is a bit rigid, so handle this inline for now.
+    let output = command.output()
+        .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
+
+    if !quiet {
+        worker.log(String::from_utf8(output.stdout)?);
+    }
+
+    // TODO: improve run_command to allow outputting both, stderr and stdout
+    if !output.status.success() {
+        if output.status.code().is_some() {
+            let msg = String::from_utf8(output.stderr)
+                .map(|m| if m.is_empty() { String::from("no error message") } else { m })
+                .unwrap_or_else(|_| String::from("non utf8 error message (suppressed)"));
+            worker.warn(msg);
+        } else {
+            bail!("terminated by signal");
+        }
+    }
+    Ok(())
+}
+
 #[api(
     protected: true,
     input: {
@@ -72,18 +102,7 @@ pub fn apt_update_database(
     let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |worker| {
-        if !quiet { worker.log("starting apt-get update") }
-
-        // TODO: set proxy /etc/apt/apt.conf.d/76pbsproxy like PVE
-
-        let mut command = std::process::Command::new("apt-get");
-        command.arg("update");
-
-        let output = crate::tools::run_command(command, None)?;
-        if !quiet { worker.log(output) }
-
-        // TODO: add mail notify for new updates like PVE
-
+        do_apt_update(&worker, quiet)?;
         Ok(())
     })?;
 
