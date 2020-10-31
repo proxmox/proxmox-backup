@@ -7,7 +7,7 @@ Ext.define('PBS.TaskButton', {
 	badgeCls: '',
     },
 
-    iconCls: 'fa fa-list',
+    iconCls: 'fa fa-list-alt',
     userCls: 'pmx-has-badge',
     text: gettext('Tasks'),
 

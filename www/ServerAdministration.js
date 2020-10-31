@@ -20,11 +20,13 @@ Ext.define('PBS.ServerAdministration', {
 	{
 	    xtype: 'pbsServerStatus',
 	    itemId: 'status',
+	    iconCls: 'fa fa-area-chart',
 	},
 	{
 	    xtype: 'proxmoxNodeServiceView',
             title: gettext('Services'),
 	    itemId: 'services',
+	    iconCls: 'fa fa-cogs',
 	    restartCommand: 'reload', // avoid disruptions
 	    startOnlyServices: {
 		syslog: true,
@@ -36,6 +38,7 @@ Ext.define('PBS.ServerAdministration', {
 	{
 	    xtype: 'proxmoxNodeAPT',
             title: gettext('Updates'),
+	    iconCls: 'fa fa-refresh',
 	    upgradeBtn: {
 		xtype: 'button',
 		reference: 'upgradeBtn',
@@ -51,12 +54,14 @@ Ext.define('PBS.ServerAdministration', {
 	{
 	    xtype: 'proxmoxJournalView',
 	    itemId: 'logs',
+	    iconCls: 'fa fa-list',
 	    title: gettext('Syslog'),
 	    url: "/api2/extjs/nodes/localhost/journal",
 	},
 	{
 	    xtype: 'proxmoxNodeTasks',
 	    itemId: 'tasks',
+	    iconCls: 'fa fa-list-alt',
 	    title: gettext('Tasks'),
 	    height: 'auto',
 	    nodename: 'localhost',
