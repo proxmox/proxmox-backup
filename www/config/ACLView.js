@@ -20,9 +20,6 @@ Ext.define('PBS.config.ACLView', {
     extend: 'Ext.grid.GridPanel',
     alias: 'widget.pbsACLView',
 
-    stateful: true,
-    stateId: 'grid-acls',
-
     title: gettext('Permissions'),
 
     aclPath: undefined,
@@ -156,14 +153,14 @@ Ext.define('PBS.config.ACLView', {
 	},
 	{
 	    header: gettext('User/Group/API Token'),
-	    width: 150,
+	    width: 200,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'ugid',
 	},
 	{
 	    header: gettext('Role'),
-	    width: 100,
+	    width: 200,
 	    sortable: true,
 	    dataIndex: 'roleid',
 	},
