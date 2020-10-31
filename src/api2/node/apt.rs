@@ -26,17 +26,26 @@ use crate::api2::types::{Authid, APTUpdateInfo, NODE_SCHEMA, UPID_SCHEMA};
             type: APTUpdateInfo
         },
     },
+    protected: true,
     access: {
         permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
     },
 )]
 /// List available APT updates
 fn apt_update_available(_param: Value) -> Result<Value, Error> {
-    let all_upgradeable = apt::list_installed_apt_packages(|data| {
-        data.candidate_version == data.active_version &&
-        data.installed_version != Some(data.candidate_version)
-    }, None);
-    Ok(json!(all_upgradeable))
+
+    match apt::pkg_cache_expired() {
+        Ok(false) => {
+            if let Ok(Some(cache)) = apt::read_pkg_state() {
+                return Ok(json!(cache.package_status));
+            }
+        },
+        _ => (),
+    }
+
+    let cache = apt::update_cache()?;
+
+    return Ok(json!(cache.package_status));
 }
 
 fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {

@@ -1,11 +1,76 @@
 use std::collections::HashSet;
 
-use anyhow::{Error, bail};
+use anyhow::{Error, bail, format_err};
 use apt_pkg_native::Cache;
 
 use proxmox::const_regex;
+use proxmox::tools::fs::{file_read_optional_string, replace_file, CreateOptions};
 
 use crate::api2::types::APTUpdateInfo;
+
+const APT_PKG_STATE_FN: &str = "/var/lib/proxmox-backup/pkg-state.json";
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+/// Some information we cache about the package (update) state
+pub struct PkgState {
+    /// A list of pending updates
+    pub package_status: Vec<APTUpdateInfo>,
+}
+
+pub fn write_pkg_cache(state: &PkgState) -> Result<(), Error> {
+    let serialized_state = serde_json::to_string(state)?;
+
+    replace_file(APT_PKG_STATE_FN, &serialized_state.as_bytes(), CreateOptions::new())
+        .map_err(|err| format_err!("Error writing package cache - {}", err))?;
+    Ok(())
+}
+
+pub fn read_pkg_state() -> Result<Option<PkgState>, Error> {
+    let serialized_state = match file_read_optional_string(&APT_PKG_STATE_FN) {
+        Ok(Some(raw)) => raw,
+        Ok(None) => return Ok(None),
+        Err(err) => bail!("could not read cached package state file - {}", err),
+    };
+
+    serde_json::from_str(&serialized_state)
+        .map(|s| Some(s))
+        .map_err(|err| format_err!("could not parse cached package status - {}", err))
+}
+
+pub fn pkg_cache_expired () -> Result<bool, Error> {
+    if let Ok(pbs_cache) = std::fs::metadata(APT_PKG_STATE_FN) {
+        let apt_pkgcache = std::fs::metadata("/var/cache/apt/pkgcache.bin")?;
+        let dpkg_status = std::fs::metadata("/var/lib/dpkg/status")?;
+
+        let mtime = pbs_cache.modified()?;
+
+        if apt_pkgcache.modified()? <= mtime && dpkg_status.modified()? <= mtime {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+pub fn update_cache() -> Result<PkgState, Error> {
+        // update our cache
+        let all_upgradeable = list_installed_apt_packages(|data| {
+            data.candidate_version == data.active_version &&
+            data.installed_version != Some(data.candidate_version)
+        }, None);
+
+        let cache = match read_pkg_state() {
+            Ok(Some(mut cache)) => {
+                cache.package_status = all_upgradeable;
+                cache
+            },
+            _ => PkgState {
+                package_status: all_upgradeable,
+            },
+        };
+        write_pkg_cache(&cache)?;
+        Ok(cache)
+}
+
 
 const_regex! {
     VERSION_EPOCH_REGEX = r"^\d+:";
