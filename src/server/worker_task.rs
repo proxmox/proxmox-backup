@@ -602,18 +602,9 @@ struct WorkerTaskData {
     pub abort_listeners: Vec<oneshot::Sender<()>>,
 }
 
-impl Drop for WorkerTask {
-
-    fn drop(&mut self) {
-        println!("unregister worker");
-    }
-}
-
 impl WorkerTask {
 
     pub fn new(worker_type: &str, worker_id: Option<String>, auth_id: Authid, to_stdout: bool) -> Result<Arc<Self>, Error> {
-        println!("register worker");
-
         let upid = UPID::new(worker_type, worker_id, auth_id)?;
         let task_id = upid.task_id;
 
@@ -692,8 +683,6 @@ impl WorkerTask {
     ) -> Result<String, Error>
         where F: Send + UnwindSafe + 'static + FnOnce(Arc<WorkerTask>) -> Result<(), Error>
     {
-        println!("register worker thread");
-
         let worker = WorkerTask::new(worker_type, worker_id, auth_id, to_stdout)?;
         let upid_str = worker.upid.to_string();
 
