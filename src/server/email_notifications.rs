@@ -23,14 +23,14 @@ Index file count:     {{status.index-file-count}}
 
 Removed garbage:      {{human-bytes status.removed-bytes}}
 Removed chunks:       {{status.removed-chunks}}
-Remove bad files:     {{status.removed-bad}}
+Removed bad chunks:   {{status.removed-bad}}
 
-Bad files:            {{status.still-bad}}
+Leftover bad chunks:  {{status.still-bad}}
 Pending removals:     {{human-bytes status.pending-bytes}} (in {{status.pending-chunks}} chunks)
 
 Original Data usage:  {{human-bytes status.index-data-bytes}}
-On Disk usage:        {{human-bytes status.disk-bytes}} ({{relative-percentage status.disk-bytes status.index-data-bytes}})
-On Disk chunks:       {{status.disk-chunks}}
+On-Disk usage:        {{human-bytes status.disk-bytes}} ({{relative-percentage status.disk-bytes status.index-data-bytes}})
+On-Disk chunks:       {{status.disk-chunks}}
 
 Deduplication Factor: {{deduplication-factor}}
 
