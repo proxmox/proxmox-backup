@@ -149,31 +149,30 @@ Ext.define('PBS.config.ACLView', {
     columns: [
 	{
 	    header: gettext('Path'),
-	    width: 200,
+	    width: 250,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'path',
 	},
 	{
 	    header: gettext('User/Group/API Token'),
-	    width: 100,
+	    width: 150,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
 	    dataIndex: 'ugid',
 	},
 	{
 	    header: gettext('Role'),
-	    width: 80,
+	    width: 100,
 	    sortable: true,
 	    dataIndex: 'roleid',
 	},
 	{
 	    header: gettext('Propagate'),
-	    width: 150,
+	    flex: 1, // last element flex looks better
 	    sortable: true,
 	    renderer: Proxmox.Utils.format_boolean,
 	    dataIndex: 'propagate',
 	},
     ],
-
 });
