@@ -26,7 +26,7 @@ Ext.define('PBS.config.VerifyJobView', {
     alias: 'widget.pbsVerifyJobView',
 
     stateful: true,
-    stateId: 'grid-verify-jobs',
+    stateId: 'grid-verify-jobs-v1',
 
     title: gettext('Verify Jobs'),
 

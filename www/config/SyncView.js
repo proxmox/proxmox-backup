@@ -26,7 +26,7 @@ Ext.define('PBS.config.SyncJobView', {
     alias: 'widget.pbsSyncJobView',
 
     stateful: true,
-    stateId: 'grid-sync-jobs',
+    stateId: 'grid-sync-jobs-v1',
 
     title: gettext('Sync Jobs'),
 
