@@ -205,7 +205,7 @@ pub fn send_verify_status(
             HANDLEBARS.render("verify_err_template", &data)?
         }
         Err(_) => {
-            // aboreted job - do not send any email
+            // aborted job - do not send any email
             return Ok(());
         }
     };
