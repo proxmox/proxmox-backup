@@ -85,6 +85,13 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
             node: {
                 schema: NODE_SCHEMA,
             },
+            notify: {
+                type: bool,
+                description: r#"Send notification mail about new package updates availanle to the
+                    email address configured for 'root@pam')."#,
+                optional: true,
+                default: false,
+            },
             quiet: {
                 description: "Only produces output suitable for logging, omitting progress indicators.",
                 type: bool,
@@ -102,16 +109,46 @@ fn do_apt_update(worker: &WorkerTask, quiet: bool) -> Result<(), Error> {
 )]
 /// Update the APT database
 pub fn apt_update_database(
+    notify: Option<bool>,
     quiet: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+    // FIXME: change to non-option in signature and drop below once we have proxmox-api-macro 0.2.3
     let quiet = quiet.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_QUIET);
+    let notify = notify.unwrap_or(API_METHOD_APT_UPDATE_DATABASE_PARAM_DEFAULT_NOTIFY);
 
     let upid_str = WorkerTask::new_thread("aptupdate", None, auth_id, to_stdout, move |worker| {
         do_apt_update(&worker, quiet)?;
+
+        let mut cache = apt::update_cache()?;
+
+        if notify {
+            let mut notified = match cache.notified {
+                Some(notified) => notified,
+                None => std::collections::HashMap::new(),
+            };
+            let mut to_notify: Vec<&APTUpdateInfo> = Vec::new();
+
+            for pkg in &cache.package_status {
+                match notified.insert(pkg.package.to_owned(), pkg.version.to_owned()) {
+                    Some(notified_version) => {
+                        if notified_version != pkg.version {
+                            to_notify.push(pkg);
+                        }
+                    },
+                    None => to_notify.push(pkg),
+                }
+            }
+            if !to_notify.is_empty() {
+                crate::server::send_updates_available(&to_notify)?;
+            }
+            cache.notified = Some(notified);
+            apt::write_pkg_cache(&cache)?;
+        }
+
         Ok(())
     })?;
 

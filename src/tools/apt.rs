@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::collections::HashMap;
 
 use anyhow::{Error, bail, format_err};
 use apt_pkg_native::Cache;
@@ -11,8 +12,11 @@ use crate::api2::types::APTUpdateInfo;
 const APT_PKG_STATE_FN: &str = "/var/lib/proxmox-backup/pkg-state.json";
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-/// Some information we cache about the package (update) state
+/// Some information we cache about the package (update) state, like what pending update version
+/// we already notfied an user about
 pub struct PkgState {
+    /// simple map from package name to most recently notified (emailed) version
+    pub notified: Option<HashMap<String, String>>,
     /// A list of pending updates
     pub package_status: Vec<APTUpdateInfo>,
 }
@@ -64,6 +68,7 @@ pub fn update_cache() -> Result<PkgState, Error> {
                 cache
             },
             _ => PkgState {
+                notified: None,
                 package_status: all_upgradeable,
             },
         };

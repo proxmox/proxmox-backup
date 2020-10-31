@@ -9,8 +9,9 @@ use crate::{
     config::verify::VerificationJobConfig,
     config::sync::SyncJobConfig,
     api2::types::{
-        Userid,
+        APTUpdateInfo,
         GarbageCollectionStatus,
+        Userid,
     },
     tools::format::HumanByte,
 };
@@ -91,6 +92,16 @@ Synchronization failed: {{error}}
 
 "###;
 
+const PACKAGE_UPDATES_TEMPLATE: &str = r###"
+Proxmox Backup Server has the following updates available:
+{{#each updates }}
+  {{Package}}: {{OldVersion}} -> {{Version~}}
+{{/each }}
+
+To upgrade visit the webinderface: <https://{{fqdn}}:{{port}}/#pbsServerAdministration:updates>
+"###;
+
+
 lazy_static::lazy_static!{
 
     static ref HANDLEBARS: Handlebars<'static> = {
@@ -109,6 +120,8 @@ lazy_static::lazy_static!{
 
         hb.register_template_string("sync_ok_template", SYNC_OK_TEMPLATE).unwrap();
         hb.register_template_string("sync_err_template", SYNC_ERR_TEMPLATE).unwrap();
+
+        hb.register_template_string("package_update_template", PACKAGE_UPDATES_TEMPLATE).unwrap();
 
         hb
     };
@@ -258,6 +271,25 @@ pub fn send_sync_status(
 
     send_job_status_mail(email, &subject, &text)?;
 
+    Ok(())
+}
+
+pub fn send_updates_available(
+    updates: &Vec<&APTUpdateInfo>,
+) -> Result<(), Error> {
+    // update mails always go to the root@pam configured email..
+    if let Some(email) = lookup_user_email(Userid::root_userid()) {
+        let nodename = proxmox::tools::nodename();
+        let subject = format!("New software packages available ({})", nodename);
+
+        let text = HANDLEBARS.render("package_update_template", &json!({
+            "fqdn": nix::sys::utsname::uname().nodename(), // FIXME: add get_fqdn helper like PVE?
+            "port": 8007, // user will surely request that they can change this
+            "updates": updates,
+        }))?;
+
+        send_job_status_mail(&email, &subject, &text)?;
+    }
     Ok(())
 }
 
