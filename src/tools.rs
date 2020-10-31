@@ -19,6 +19,7 @@ use proxmox::tools::vec;
 pub use proxmox::tools::fd::Fd;
 
 pub mod acl;
+pub mod apt;
 pub mod async_io;
 pub mod borrow;
 pub mod cert;
