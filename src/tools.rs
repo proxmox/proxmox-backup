@@ -462,7 +462,7 @@ pub fn run_command(
    let output = command.output()
         .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
 
-    let output = crate::tools::command_output_as_string(output, exit_code_check)
+    let output = command_output_as_string(output, exit_code_check)
         .map_err(|err| format_err!("command {:?} failed - {}", command, err))?;
 
     Ok(output)
