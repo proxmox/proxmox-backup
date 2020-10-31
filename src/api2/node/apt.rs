@@ -143,6 +143,7 @@ pub fn apt_update_database(
                 }
             }
             if !to_notify.is_empty() {
+                to_notify.sort_unstable_by_key(|k| &k.package);
                 crate::server::send_updates_available(&to_notify)?;
             }
             cache.notified = Some(notified);
