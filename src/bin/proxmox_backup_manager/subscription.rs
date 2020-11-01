@@ -45,7 +45,7 @@ pub fn subscription_commands() -> CommandLineInterface {
             CliCommand::new(&api2::node::subscription::API_METHOD_CHECK_SUBSCRIPTION)
                 .fixed_param("node", "localhost".into())
         )
-        .insert("delete",
+        .insert("remove",
             CliCommand::new(&api2::node::subscription::API_METHOD_DELETE_SUBSCRIPTION)
                 .fixed_param("node", "localhost".into())
         )
