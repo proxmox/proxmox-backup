@@ -106,15 +106,21 @@ impl FileLogger {
             stdout.write_all(b"\n").unwrap();
         }
 
-        let now = proxmox::tools::time::epoch_i64();
-        let rfc3339 = proxmox::tools::time::epoch_to_rfc3339(now).unwrap();
-
         let line = if self.options.prefix_time {
+            let now = proxmox::tools::time::epoch_i64();
+            let rfc3339 = match proxmox::tools::time::epoch_to_rfc3339(now) {
+                Ok(rfc3339) => rfc3339,
+                Err(_) => "1970-01-01T00:00:00Z".into(), // for safety, should really not happen!
+            };
             format!("{}: {}\n", rfc3339, msg)
         } else {
             format!("{}\n", msg)
         };
-        self.file.write_all(line.as_bytes()).unwrap();
+        if let Err(err) = self.file.write_all(line.as_bytes()) {
+            // avoid panicking, log methods should not do that
+            // FIXME: or, return result???
+            eprintln!("error writing to log file - {}", err);
+        }
     }
 }
 
