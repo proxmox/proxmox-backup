@@ -95,21 +95,21 @@ impl LogRotate {
 
         let mut next_filename = self.base_path.clone().canonicalize()?.into_os_string();
         next_filename.push(format!(".{}", filenames.len()));
+        if self.compress {
+            next_filename.push(".zst");
+        }
 
         filenames.push(PathBuf::from(next_filename));
         let count = filenames.len();
 
         for i in (0..count-1).rev() {
-            rename(&filenames[i], &filenames[i+1])?;
-        }
-
-        if self.compress {
-            for i in 2..count {
-                if filenames[i].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
-                    let mut target = filenames[i].clone().into_os_string();
-                    target.push(".zst");
-                    Self::compress(&filenames[i], &target.into(), &options)?;
-                }
+            if self.compress
+                && filenames[i+0].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst"
+                && filenames[i+1].extension().unwrap_or(std::ffi::OsStr::new("")) == "zst"
+            {
+                Self::compress(&filenames[i], &filenames[i+1], &options)?;
+            } else {
+                rename(&filenames[i], &filenames[i+1])?;
             }
         }
 
