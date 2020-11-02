@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 
 use super::manifest::MANIFEST_BLOB_NAME;
 
-macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9][A-Za-z0-9_-]+") }
+macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9_][A-Za-z0-9._\-]*") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
 macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z") }
 
