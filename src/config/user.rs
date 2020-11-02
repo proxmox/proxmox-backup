@@ -241,6 +241,14 @@ pub fn save_config(config: &SectionConfigData) -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(test)]
+pub(crate) fn test_cfg_from_str(raw: &str) -> Result<(SectionConfigData, [u8;32]), Error> {
+    let cfg = init();
+    let parsed = cfg.parse("test_user_cfg", raw)?;
+
+    Ok((parsed, [0;32]))
+}
+
 // shell completion helper
 pub fn complete_userid(_arg: &str, _param: &HashMap<String, String>) -> Vec<String> {
     match config() {

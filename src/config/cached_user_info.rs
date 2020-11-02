@@ -57,6 +57,14 @@ impl CachedUserInfo {
         Ok(config)
     }
 
+    #[cfg(test)]
+    pub(crate) fn test_new(user_cfg: SectionConfigData, acl_tree: AclTree) -> Self {
+        Self {
+            user_cfg: Arc::new(user_cfg),
+            acl_tree: Arc::new(acl_tree),
+        }
+    }
+
     /// Test if a authentication id is enabled and not expired
     pub fn is_active_auth_id(&self, auth_id: &Authid) -> bool {
         let userid = auth_id.user();
