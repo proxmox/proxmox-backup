@@ -37,6 +37,11 @@ Deduplication Factor: {{deduplication-factor}}
 
 Garbage collection successful.
 
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{datastore}}>
+
 "###;
 
 
@@ -46,6 +51,11 @@ Datastore: {{datastore}}
 
 Garbage collection failed: {{error}}
 
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
+
 "###;
 
 const VERIFY_OK_TEMPLATE: &str = r###"
@@ -54,6 +64,11 @@ Job ID:    {{job.id}}
 Datastore: {{job.store}}
 
 Verification successful.
+
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
 
 "###;
 
@@ -68,6 +83,11 @@ Verification failed on these snapshots:
   {{this~}}
 {{/each}}
 
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
+
 "###;
 
 const SYNC_OK_TEMPLATE: &str = r###"
@@ -78,6 +98,11 @@ Remote:       {{job.remote}}
 Remote Store: {{job.remote-store}}
 
 Synchronization successful.
+
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#DataStore-{{job.store}}>
 
 "###;
 
@@ -90,6 +115,11 @@ Remote Store: {{job.remote-store}}
 
 Synchronization failed: {{error}}
 
+
+Please visit the web interface for futher details:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:tasks>
+
 "###;
 
 const PACKAGE_UPDATES_TEMPLATE: &str = r###"
@@ -98,7 +128,10 @@ Proxmox Backup Server has the following updates available:
   {{Package}}: {{OldVersion}} -> {{Version~}}
 {{/each }}
 
-To upgrade visit the webinderface: <https://{{fqdn}}:{{port}}/#pbsServerAdministration:updates>
+To upgrade visit the web interface:
+
+<https://{{fqdn}}:{{port}}/#pbsServerAdministration:updates>
+
 "###;
 
 
@@ -160,6 +193,13 @@ pub fn send_gc_status(
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
 
+    let (fqdn, port) = get_server_url();
+    let mut data = json!({
+        "datastore": datastore,
+        "fqdn": fqdn,
+        "port": port,
+    });
+
     let text = match result {
         Ok(()) => {
             let deduplication_factor = if status.disk_bytes > 0 {
@@ -168,19 +208,13 @@ pub fn send_gc_status(
                 1.0
             };
 
-            let data = json!({
-                "status": status,
-                "datastore": datastore,
-                "deduplication-factor": format!("{:.2}", deduplication_factor),
-            });
+            data["status"] = json!(status);
+            data["deduplication-factor"] = format!("{:.2}", deduplication_factor).into();
 
             HANDLEBARS.render("gc_ok_template", &data)?
         }
         Err(err) => {
-            let data = json!({
-                "error": err.to_string(),
-                "datastore": datastore,
-            });
+            data["error"] = err.to_string().into();
             HANDLEBARS.render("gc_err_template", &data)?
         }
     };
@@ -207,14 +241,19 @@ pub fn send_verify_status(
     result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
 
+    let (fqdn, port) = get_server_url();
+    let mut data = json!({
+        "job": job,
+        "fqdn": fqdn,
+        "port": port,
+    });
 
     let text = match result {
         Ok(errors) if errors.is_empty() => {
-            let data = json!({ "job": job });
             HANDLEBARS.render("verify_ok_template", &data)?
         }
         Ok(errors) => {
-            let data = json!({ "job": job, "errors": errors });
+            data["errors"] = json!(errors);
             HANDLEBARS.render("verify_err_template", &data)?
         }
         Err(_) => {
@@ -245,13 +284,19 @@ pub fn send_sync_status(
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
 
+    let (fqdn, port) = get_server_url();
+    let mut data = json!({
+        "job": job,
+        "fqdn": fqdn,
+        "port": port,
+    });
+
     let text = match result {
         Ok(()) => {
-            let data = json!({ "job": job });
             HANDLEBARS.render("sync_ok_template", &data)?
         }
         Err(err) => {
-            let data = json!({ "job": job, "error": err.to_string() });
+            data["error"] = err.to_string().into();
             HANDLEBARS.render("sync_err_template", &data)?
         }
     };
@@ -274,6 +319,25 @@ pub fn send_sync_status(
     Ok(())
 }
 
+fn get_server_url() -> (String, usize) {
+
+    // user will surely request that they can change this
+
+    let nodename = proxmox::tools::nodename();
+    let mut fqdn = nodename.to_owned();
+
+    if let Ok(resolv_conf) = crate::api2::node::dns::read_etc_resolv_conf() {
+        if let Some(search) = resolv_conf["search"].as_str() {
+            fqdn.push('.');
+            fqdn.push_str(search);
+        }
+    }
+
+    let port = 8007;
+
+    (fqdn, port)
+}
+
 pub fn send_updates_available(
     updates: &Vec<&APTUpdateInfo>,
 ) -> Result<(), Error> {
@@ -282,9 +346,11 @@ pub fn send_updates_available(
         let nodename = proxmox::tools::nodename();
         let subject = format!("New software packages available ({})", nodename);
 
+        let (fqdn, port) = get_server_url();
+
         let text = HANDLEBARS.render("package_update_template", &json!({
-            "fqdn": nix::sys::utsname::uname().nodename(), // FIXME: add get_fqdn helper like PVE?
-            "port": 8007, // user will surely request that they can change this
+            "fqdn": fqdn,
+            "port": port,
             "updates": updates,
         }))?;
 
