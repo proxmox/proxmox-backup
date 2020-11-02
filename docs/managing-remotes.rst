@@ -79,4 +79,17 @@ either start it manually on the GUI or provide it with a schedule (see
   └────────────┴───────┴────────┴──────────────┴───────────┴─────────┘
   # proxmox-backup-manager sync-job remove pbs2-local
 
+For setting up sync jobs, the configuring user needs the following permissions:
 
+#. ``Remote.Read`` on the ``/remote/{remote}/{remote-store}`` path
+#. at least ``Datastore.Backup`` on the local target datastore (``/datastore/{store}``)
+
+If the ``remove-vanished`` option is set, ``Datastore.Prune`` is required on
+the local datastore as well. If the ``owner`` option is not set (defaulting to
+``backup@pam``) or set to something other than the configuring user,
+``Datastore.Modify`` is required as well.
+
+.. note:: A sync job can only sync backup groups that the configured remote's
+  user/API token can read. If a remote is configured with a user/API token that
+  only has ``Datastore.Backup`` privileges, only the limited set of accessible
+  snapshots owned by that user/API token can be synced.
