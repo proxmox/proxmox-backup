@@ -475,10 +475,22 @@ impl DataStore {
                 Ok(file) => {
                     if let Ok(archive_type) = archive_type(&path) {
                         if archive_type == ArchiveType::FixedIndex {
-                            let index = FixedIndexReader::new(file)?;
+                            let index = FixedIndexReader::new(file).map_err(|err| {
+                                    format_err!(
+                                        "cannot read fixed index {}: {}",
+                                        full_path.to_string_lossy(),
+                                        err
+                                    )
+                            })?;
                             self.index_mark_used_chunks(index, &path, status, worker)?;
                         } else if archive_type == ArchiveType::DynamicIndex {
-                            let index = DynamicIndexReader::new(file)?;
+                            let index = DynamicIndexReader::new(file).map_err(|err| {
+                                    format_err!(
+                                        "cannot read dynamic index {}: {}",
+                                        full_path.to_string_lossy(),
+                                        err
+                                    )
+                            })?;
                             self.index_mark_used_chunks(index, &path, status, worker)?;
                         }
                     }
@@ -487,7 +499,11 @@ impl DataStore {
                     if err.kind() == std::io::ErrorKind::NotFound {
                         // simply ignore vanished files
                     } else {
-                        return Err(err.into());
+                        return Err(format_err!(
+                            "cannot open index {}: {}",
+                            full_path.to_string_lossy(),
+                            err
+                        ));
                     }
                 }
             }
