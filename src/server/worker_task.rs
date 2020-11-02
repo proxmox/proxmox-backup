@@ -19,21 +19,19 @@ use proxmox::tools::fs::{create_path, open_file_locked, replace_file, CreateOpti
 
 use super::UPID;
 
+use crate::buildcfg;
 use crate::tools::logrotate::{LogRotate, LogRotateFiles};
 use crate::tools::{FileLogger, FileLogOptions};
 use crate::api2::types::Authid;
 
-macro_rules! PROXMOX_BACKUP_VAR_RUN_DIR_M { () => ("/run/proxmox-backup") }
-macro_rules! PROXMOX_BACKUP_LOG_DIR_M { () => ("/var/log/proxmox-backup") }
-macro_rules! PROXMOX_BACKUP_TASK_DIR_M { () => (concat!( PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks")) }
-
-pub const PROXMOX_BACKUP_VAR_RUN_DIR: &str = PROXMOX_BACKUP_VAR_RUN_DIR_M!();
-pub const PROXMOX_BACKUP_LOG_DIR: &str = PROXMOX_BACKUP_LOG_DIR_M!();
-pub const PROXMOX_BACKUP_TASK_DIR: &str = PROXMOX_BACKUP_TASK_DIR_M!();
-pub const PROXMOX_BACKUP_TASK_LOCK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/.active.lock");
-pub const PROXMOX_BACKUP_ACTIVE_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/active");
-pub const PROXMOX_BACKUP_INDEX_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/index");
-pub const PROXMOX_BACKUP_ARCHIVE_TASK_FN: &str = concat!(PROXMOX_BACKUP_TASK_DIR_M!(), "/archive");
+macro_rules! taskdir {
+    ($subdir:expr) => (concat!(PROXMOX_BACKUP_LOG_DIR_M!(), "/tasks", $subdir))
+}
+pub const PROXMOX_BACKUP_TASK_DIR: &str = taskdir!("/");
+pub const PROXMOX_BACKUP_TASK_LOCK_FN: &str = taskdir!("/.active.lock");
+pub const PROXMOX_BACKUP_ACTIVE_TASK_FN: &str = taskdir!("/active");
+pub const PROXMOX_BACKUP_INDEX_TASK_FN: &str = taskdir!("/index");
+pub const PROXMOX_BACKUP_ARCHIVE_TASK_FN: &str = taskdir!("/archive");
 
 lazy_static! {
     static ref WORKER_TASK_LIST: Mutex<HashMap<usize, Arc<WorkerTask>>> = Mutex::new(HashMap::new());
@@ -55,7 +53,7 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
     }
 
     let socketname = format!(
-        "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, upid.pid);
+        "\0{}/proxmox-task-control-{}.sock", buildcfg::PROXMOX_BACKUP_RUN_DIR, upid.pid);
 
     let cmd = json!({
         "command": "status",
@@ -87,7 +85,7 @@ pub fn worker_is_active_local(upid: &UPID) -> bool {
 pub fn create_task_control_socket() -> Result<(), Error> {
 
     let socketname = format!(
-        "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, *MY_PID);
+        "\0{}/proxmox-task-control-{}.sock", buildcfg::PROXMOX_BACKUP_RUN_DIR, *MY_PID);
 
     let control_future = super::create_control_socket(socketname, |param| {
         let param = param
@@ -153,7 +151,7 @@ pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
     let target_pid = upid.pid;
 
     let socketname = format!(
-        "\0{}/proxmox-task-control-{}.sock", PROXMOX_BACKUP_VAR_RUN_DIR, target_pid);
+        "\0{}/proxmox-task-control-{}.sock", buildcfg::PROXMOX_BACKUP_RUN_DIR, target_pid);
 
     let cmd = json!({
         "command": "abort-task",
@@ -189,9 +187,9 @@ pub fn create_task_log_dirs() -> Result<(), Error> {
             .owner(backup_user.uid)
             .group(backup_user.gid);
 
-        create_path(PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
+        create_path(buildcfg::PROXMOX_BACKUP_LOG_DIR, None, Some(opts.clone()))?;
         create_path(PROXMOX_BACKUP_TASK_DIR, None, Some(opts.clone()))?;
-        create_path(PROXMOX_BACKUP_VAR_RUN_DIR, None, Some(opts))?;
+        create_path(buildcfg::PROXMOX_BACKUP_RUN_DIR, None, Some(opts))?;
         Ok(())
     }).map_err(|err: Error| format_err!("unable to create task log dir - {}", err))?;
 
