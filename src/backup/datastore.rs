@@ -458,54 +458,35 @@ impl DataStore {
     ) -> Result<(), Error> {
 
         let image_list = self.list_images()?;
-
         let image_count = image_list.len();
 
         let mut done = 0;
-
         let mut last_percentage: usize = 0;
 
-        for path in image_list {
+        for img in image_list {
 
             worker.check_abort()?;
             tools::fail_on_shutdown()?;
 
-            let full_path = self.chunk_store.relative_path(&path);
-            match std::fs::File::open(&full_path) {
+            let path = self.chunk_store.relative_path(&img);
+            match std::fs::File::open(&path) {
                 Ok(file) => {
-                    if let Ok(archive_type) = archive_type(&path) {
+                    if let Ok(archive_type) = archive_type(&img) {
                         if archive_type == ArchiveType::FixedIndex {
-                            let index = FixedIndexReader::new(file).map_err(|err| {
-                                    format_err!(
-                                        "cannot read fixed index {}: {}",
-                                        full_path.to_string_lossy(),
-                                        err
-                                    )
+                            let index = FixedIndexReader::new(file).map_err(|e| {
+                                format_err!("can't read index '{}' - {}", path.to_string_lossy(), e)
                             })?;
-                            self.index_mark_used_chunks(index, &path, status, worker)?;
+                            self.index_mark_used_chunks(index, &img, status, worker)?;
                         } else if archive_type == ArchiveType::DynamicIndex {
-                            let index = DynamicIndexReader::new(file).map_err(|err| {
-                                    format_err!(
-                                        "cannot read dynamic index {}: {}",
-                                        full_path.to_string_lossy(),
-                                        err
-                                    )
+                            let index = DynamicIndexReader::new(file).map_err(|e| {
+                                format_err!("can't read index '{}' - {}", path.to_string_lossy(), e)
                             })?;
-                            self.index_mark_used_chunks(index, &path, status, worker)?;
+                            self.index_mark_used_chunks(index, &img, status, worker)?;
                         }
                     }
                 }
-                Err(err) => {
-                    if err.kind() == std::io::ErrorKind::NotFound {
-                        // simply ignore vanished files
-                    } else {
-                        return Err(format_err!(
-                            "cannot open index {}: {}",
-                            full_path.to_string_lossy(),
-                            err
-                        ));
-                    }
-                }
+                Err(err) if err.kind() == io::ErrorKind::NotFound => (), // ignore vanished files
+                Err(err) => bail!("can't open index {} - {}", path.to_string_lossy(), err),
             }
             done += 1;
 
