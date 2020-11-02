@@ -68,6 +68,19 @@ impl FixedIndexReader {
         file.seek(SeekFrom::Start(0))?;
 
         let header_size = std::mem::size_of::<FixedIndexHeader>();
+
+        let rawfd = file.as_raw_fd();
+        let stat = match nix::sys::stat::fstat(rawfd) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat failed - {}", err),
+        };
+
+        let size = stat.st_size as usize;
+
+        if size < header_size {
+            bail!("index too small ({})", stat.st_size);
+        }
+
         let header: Box<FixedIndexHeader> = unsafe { file.read_host_value_boxed()? };
 
         if header.magic != super::FIXED_SIZED_CHUNK_INDEX_1_0 {
@@ -81,12 +94,6 @@ impl FixedIndexReader {
         let index_length = ((size + chunk_size - 1) / chunk_size) as usize;
         let index_size = index_length * 32;
 
-        let rawfd = file.as_raw_fd();
-
-        let stat = match nix::sys::stat::fstat(rawfd) {
-            Ok(stat) => stat,
-            Err(err) => bail!("fstat failed - {}", err),
-        };
 
         let expected_index_size = (stat.st_size as usize) - header_size;
         if index_size != expected_index_size {

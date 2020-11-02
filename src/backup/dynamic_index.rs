@@ -95,6 +95,18 @@ impl DynamicIndexReader {
 
         let header_size = std::mem::size_of::<DynamicIndexHeader>();
 
+        let rawfd = file.as_raw_fd();
+        let stat = match nix::sys::stat::fstat(rawfd) {
+            Ok(stat) => stat,
+            Err(err) => bail!("fstat failed - {}", err),
+        };
+
+        let size = stat.st_size as usize;
+
+        if size < header_size {
+            bail!("index too small ({})", stat.st_size);
+        }
+
         let header: Box<DynamicIndexHeader> = unsafe { file.read_host_value_boxed()? };
 
         if header.magic != super::DYNAMIC_SIZED_CHUNK_INDEX_1_0 {
@@ -103,13 +115,7 @@ impl DynamicIndexReader {
 
         let ctime = proxmox::tools::time::epoch_i64();
 
-        let rawfd = file.as_raw_fd();
-
-        let stat = nix::sys::stat::fstat(rawfd)?;
-
-        let size = stat.st_size as usize;
-
-        let index_size = size - header_size;
+        let index_size = stat.st_size as usize - header_size;
         let index_count = index_size / 40;
         if index_count * 40 != index_size {
             bail!("got unexpected file size");
