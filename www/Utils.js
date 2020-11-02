@@ -109,7 +109,7 @@ Ext.define('PBS.Utils', {
 	    verify: ['Datastore', gettext('Verification')],
 	    verify_group: ['Group', gettext('Verification')],
 	    verify_snapshot: ['Snapshot', gettext('Verification')],
-	    verifyjob: [gettext('Verify Job'), gettext('Scheduled Verification')],
+	    verificationjob: [gettext('Verify Job'), gettext('Scheduled Verification')],
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
     },
