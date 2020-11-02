@@ -52,6 +52,8 @@ async fn run() -> Result<(), Error> {
     let mut config = server::ApiConfig::new(
         buildcfg::JS_DIR, &proxmox_backup::api2::ROUTER, RpcEnvironmentType::PRIVILEGED)?;
 
+    let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
+
     config.enable_file_log(buildcfg::API_ACCESS_LOG_FN)?;
 
     let rest_server = RestServer::new(config);
@@ -79,7 +81,8 @@ async fn run() -> Result<(), Error> {
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({
-        server::create_task_control_socket()?;
+        server::register_task_control_commands(&mut commando_sock)?;
+        commando_sock.spawn()?;
         server::server_state_init()?;
         Ok(())
     });

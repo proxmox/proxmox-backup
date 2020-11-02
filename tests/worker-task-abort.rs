@@ -42,8 +42,10 @@ fn worker_task_abort() -> Result<(), Error> {
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
 
+        let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
+
         let init_result: Result<(), Error> = try_block!({
-            server::create_task_control_socket()?;
+            server::register_task_control_commands(&mut commando_sock)?;
             server::server_state_init()?;
             Ok(())
         });
