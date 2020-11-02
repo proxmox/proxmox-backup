@@ -86,20 +86,35 @@ impl <R: BufRead> NetworkParser<R> {
         Ok(())
     }
 
-    fn parse_iface_address(&mut self, interface: &mut Interface) -> Result<(), Error> {
-        self.eat(Token::Address)?;
-        let cidr = self.next_text()?;
+    fn parse_netmask(&mut self) -> Result<u8, Error> {
+        self.eat(Token::Netmask)?;
+        let netmask = self.next_text()?;
 
-        let (_address, _mask, ipv6) = parse_cidr(&cidr)?;
-        if ipv6 {
-            interface.set_cidr_v6(cidr)?;
+        let mask = if let Some(mask) = IPV4_MASK_HASH_LOCALNET.get(netmask.as_str())  {
+            *mask
         } else {
-            interface.set_cidr_v4(cidr)?;
-        }
+            match u8::from_str_radix(netmask.as_str(), 10) {
+                Ok(mask) => mask,
+                Err(err) => {
+                    bail!("unable to parse netmask '{}'", netmask);
+                }
+            }
+        };
 
         self.eat(Token::Newline)?;
 
-        Ok(())
+        Ok(mask)
+    }
+
+    fn parse_iface_address(&mut self) -> Result<(String, Option<u8>, bool), Error> {
+        self.eat(Token::Address)?;
+        let cidr = self.next_text()?;
+
+        let (_address, mask, ipv6) = parse_address_or_cidr(&cidr)?;
+
+        self.eat(Token::Newline)?;
+
+        Ok((cidr, mask, ipv6))
     }
 
     fn parse_iface_gateway(&mut self, interface: &mut Interface) -> Result<(), Error> {
@@ -191,6 +206,9 @@ impl <R: BufRead> NetworkParser<R> {
         address_family_v6: bool,
     ) -> Result<(), Error> {
 
+        let mut netmask = None;
+        let mut address_list = Vec::new();
+
         loop {
             match self.peek()? {
                 Token::Attribute => { self.eat(Token::Attribute)?; },
@@ -214,8 +232,15 @@ impl <R: BufRead> NetworkParser<R> {
             }
 
             match self.peek()? {
-                Token::Address => self.parse_iface_address(interface)?,
+                Token::Address => {
+                    let (cidr, mask, is_v6) = self.parse_iface_address()?;
+                    address_list.push((cidr, mask, is_v6));
+                }
                 Token::Gateway => self.parse_iface_gateway(interface)?,
+                Token::Netmask => {
+                    //Note: netmask is deprecated, but we try to do our best
+                    netmask = Some(self.parse_netmask()?);
+                }
                 Token::MTU => {
                     let mtu = self.parse_iface_mtu()?;
                     interface.mtu = Some(mtu);
@@ -255,8 +280,6 @@ impl <R: BufRead> NetworkParser<R> {
                     interface.bond_xmit_hash_policy = Some(policy);
                     self.eat(Token::Newline)?;
                 }
-                Token::Netmask => bail!("netmask is deprecated and no longer supported"),
-
                 _ => { // parse addon attributes
                     let option = self.parse_to_eol()?;
                     if !option.is_empty() {
@@ -267,6 +290,38 @@ impl <R: BufRead> NetworkParser<R> {
                         }
                    };
                  },
+            }
+        }
+
+        if let Some(netmask) = netmask {
+            if address_list.len() > 1 {
+                bail!("unable to apply netmask to multiple addresses (please use cidr notation)");
+            } else if address_list.len() == 1 {
+                let (mut cidr, mask, is_v6) = address_list.pop().unwrap();
+                if mask.is_some()  {
+                    // address already has a mask  - ignore netmask
+                } else {
+                    check_netmask(netmask, is_v6)?;
+                    cidr.push_str(&format!("/{}", netmask));
+                }
+                if is_v6 {
+                    interface.set_cidr_v6(cidr)?;
+                } else {
+                    interface.set_cidr_v4(cidr)?;
+                }
+            } else {
+                // no address - simply ignore useless netmask
+            }
+        } else {
+            for (cidr, mask, is_v6) in address_list {
+                if mask.is_none() {
+                    bail!("missing netmask in '{}'", cidr);
+                }
+                if is_v6 {
+                    interface.set_cidr_v6(cidr)?;
+                } else {
+                    interface.set_cidr_v4(cidr)?;
+                }
             }
         }
 

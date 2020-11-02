@@ -57,38 +57,57 @@ lazy_static! {
 }
 
 pub fn parse_cidr(cidr: &str) -> Result<(String, u8, bool), Error> {
+    let (address, mask, is_v6) = parse_address_or_cidr(cidr)?;
+    if let Some(mask) = mask {
+        return Ok((address, mask, is_v6));
+    } else {
+        bail!("missing netmask in '{}'", cidr);
+    }
+}
+
+pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
+    if is_v6 {
+        if !(mask >= 1 && mask <= 128) {
+            bail!("IPv6 mask '{}' is out of range (1..128).", mask);
+        }
+    } else {
+        if !(mask > 0 && mask <= 32) {
+            bail!("IPv4 mask '{}' is out of range (1..32).", mask);
+        }
+    }
+    Ok(())
+}
+
+// parse ip address with otional cidr mask
+pub fn parse_address_or_cidr(cidr: &str) -> Result<(String, Option<u8>, bool), Error> {
 
     lazy_static! {
         pub static ref CIDR_V4_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))$")
+            concat!(r"^(", IPV4RE!(), r")(?:/(\d{1,2}))?$")
         ).unwrap();
         pub static ref CIDR_V6_REGEX: Regex = Regex::new(
-            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))$")
+            concat!(r"^(", IPV6RE!(), r")(?:/(\d{1,3}))?$")
         ).unwrap();
     }
 
     if let Some(caps) = CIDR_V4_REGEX.captures(&cidr) {
         let address = &caps[1];
-        let mask = &caps[2];
-        let mask = u8::from_str_radix(mask, 10)
-            .map(|mask| {
-                if !(mask > 0 && mask <= 32) {
-                    bail!("IPv4 mask '{}' is out of range (1..32).", mask);
-                }
-                Ok(mask)
-            })?;
-        return Ok((address.to_string(), mask.unwrap(), false));
+        if let Some(mask) = caps.get(2) {
+            let mask = u8::from_str_radix(mask.as_str(), 10)?;
+            check_netmask(mask, false)?;
+            return Ok((address.to_string(), Some(mask), false));
+        } else {
+            return Ok((address.to_string(), None, false));
+        }
     } else if let Some(caps) = CIDR_V6_REGEX.captures(&cidr) {
         let address = &caps[1];
-        let mask = &caps[2];
-        let mask = u8::from_str_radix(mask, 10)
-            .map(|mask| {
-                if !(mask >= 1 && mask <= 128) {
-                    bail!("IPv6 mask '{}' is out of range (1..128).", mask);
-                }
-                Ok(mask)
-            })?;
-        return Ok((address.to_string(), mask.unwrap(), true));
+        if let Some(mask) = caps.get(2) {
+            let mask = u8::from_str_radix(mask.as_str(), 10)?;
+            check_netmask(mask, true)?;
+            return Ok((address.to_string(), Some(mask), true));
+        } else {
+            return Ok((address.to_string(), None, true));
+        }
     } else {
         bail!("invalid address/mask '{}'", cidr);
     }
