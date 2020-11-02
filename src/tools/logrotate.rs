@@ -107,7 +107,7 @@ impl LogRotate {
             for i in 2..count {
                 if filenames[i].extension().unwrap_or(std::ffi::OsStr::new("")) != "zst" {
                     let mut target = filenames[i].clone().into_os_string();
-                    target.push(".zstd");
+                    target.push(".zst");
                     Self::compress(&filenames[i], &target.into(), &options)?;
                 }
             }
