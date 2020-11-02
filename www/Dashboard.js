@@ -63,7 +63,9 @@ Ext.define('PBS.Dashboard', {
 	updateSubscription: function(store, records, success) {
 	    if (!success) { return; }
 	    let me = this;
-	    let subStatus = records[0].data.status === 'Active' ? 2 : 0; // 2 = all good, 1 = different leves, 0 = none
+	    let status = records[0].data.status || 'unknown';
+	    // 2 = all good, 1 = different leves, 0 = none
+	    let subStatus = status.toLowerCase() === 'active' ? 2 : 0;
 	    me.lookup('subscription').setSubStatus(subStatus);
 	},
 
