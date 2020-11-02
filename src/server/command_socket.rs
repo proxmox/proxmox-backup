@@ -1,13 +1,13 @@
 use anyhow::{bail, format_err, Error};
 
-use futures::*;
-
-use tokio::net::UnixListener;
-
-use std::path::PathBuf;
-use serde_json::Value;
-use std::sync::Arc;
+use std::collections::HashMap;
 use std::os::unix::io::AsRawFd;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use futures::*;
+use tokio::net::UnixListener;
+use serde_json::Value;
 use nix::sys::socket;
 
 /// Listens on a Unix Socket to handle simple command asynchronously
@@ -139,4 +139,77 @@ pub async fn send_command<P>(
                 }
             }
         }).await
+}
+
+/// A callback for a specific commando socket.
+pub type CommandoSocketFn = Box<(dyn Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static)>;
+
+/// Tooling to get a single control command socket where one can register multiple commands
+/// dynamically.
+/// You need to call `spawn()` to make the socket active.
+pub struct CommandoSocket {
+    socket: PathBuf,
+    commands: HashMap<String, CommandoSocketFn>,
+}
+
+impl CommandoSocket {
+    pub fn new<P>(path: P) -> Self
+        where P: Into<PathBuf>,
+    {
+        CommandoSocket {
+            socket: path.into(),
+            commands: HashMap::new(),
+        }
+    }
+
+    /// Spawn the socket and consume self, meaning you cannot register commands anymore after
+    /// calling this.
+    pub fn spawn(self) -> Result<(), Error> {
+        let control_future = create_control_socket(self.socket.to_owned(), move |param| {
+            let param = param
+                .as_object()
+                .ok_or_else(|| format_err!("unable to parse parameters (expected json object)"))?;
+
+            let command = match param.get("command") {
+                Some(Value::String(command)) => command.as_str(),
+                None => bail!("no command"),
+                _ => bail!("unable to parse command"),
+            };
+
+            if !self.commands.contains_key(command) {
+                bail!("got unknown command '{}'", command);
+            }
+
+            match self.commands.get(command) {
+                None => bail!("got unknown command '{}'", command),
+                Some(handler) => {
+                    let args = param.get("args"); //.unwrap_or(&Value::Null);
+                    (handler)(args)
+                },
+            }
+        })?;
+
+        tokio::spawn(control_future);
+
+        Ok(())
+    }
+
+    /// Register a new command with a callback.
+    pub fn register_command<F>(
+        &mut self,
+        command: String,
+        handler: F,
+    ) -> Result<(), Error>
+    where
+        F: Fn(Option<&Value>) -> Result<Value, Error> + Send + Sync + 'static,
+    {
+
+        if self.commands.contains_key(&command) {
+            bail!("command '{}' already exists!", command);
+        }
+
+        self.commands.insert(command, Box::new(handler));
+
+        Ok(())
+    }
 }
