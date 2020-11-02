@@ -491,7 +491,7 @@ async fn schedule_datastore_verify_jobs() {
 async fn schedule_task_log_rotate() {
 
     let worker_type = "logrotate";
-    let job_id = "task_archive";
+    let job_id = "access-log_and_task-archive";
 
     // schedule daily at 00:00 like normal logrotate
     let schedule = "00:00";
@@ -514,7 +514,7 @@ async fn schedule_task_log_rotate() {
 
     if let Err(err) = WorkerTask::new_thread(
         worker_type,
-        Some(job_id.to_string()),
+        None,
         Authid::backup_auth_id().clone(),
         false,
         move |worker| {
