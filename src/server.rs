@@ -4,6 +4,7 @@
 //! services. We want async IO, so this is built on top of
 //! tokio/hyper.
 
+use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
 
@@ -22,6 +23,18 @@ pub fn pid() -> i32 {
 
 pub fn pstart() -> u64 {
     *PSTART
+}
+
+pub fn write_pid(pid_fn: &str) -> Result<(), Error> {
+    let pid_str = format!("{}\n", *PID);
+    let opts = proxmox::tools::fs::CreateOptions::new();
+    proxmox::tools::fs::replace_file(pid_fn, pid_str.as_bytes(), opts)
+}
+
+pub fn read_pid(pid_fn: &str) -> Result<i32, Error> {
+    let pid = proxmox::tools::fs::file_get_contents(pid_fn)?;
+    let pid = std::str::from_utf8(&pid)?.trim();
+    pid.parse().map_err(|err| format_err!("could not parse pid - {}", err))
 }
 
 pub fn ctrl_sock_from_pid(pid: i32) -> String {

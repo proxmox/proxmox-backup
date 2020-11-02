@@ -78,6 +78,7 @@ async fn run() -> Result<(), Error> {
         },
     );
 
+    server::write_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     daemon::systemd_notify(daemon::SystemdNotify::Ready)?;
 
     let init_result: Result<(), Error> = try_block!({

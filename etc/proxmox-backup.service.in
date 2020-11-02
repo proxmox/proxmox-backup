@@ -7,6 +7,7 @@ After=network.target
 Type=notify
 ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-api
 ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/proxmox-backup/api.pid
 Restart=on-failure
 
 [Install]

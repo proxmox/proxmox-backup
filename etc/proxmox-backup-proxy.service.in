@@ -9,6 +9,7 @@ After=proxmox-backup.service
 Type=notify
 ExecStart=%LIBEXECDIR%/proxmox-backup/proxmox-backup-proxy
 ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/proxmox-backup/proxy.pid
 Restart=on-failure
 User=%PROXY_USER%
 Group=%PROXY_USER%
