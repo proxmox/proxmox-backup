@@ -65,7 +65,7 @@ Datastore: {{job.store}}
 Verification failed on these snapshots:
 
 {{#each errors}}
-  {{this}}
+  {{this~}}
 {{/each}}
 
 "###;
