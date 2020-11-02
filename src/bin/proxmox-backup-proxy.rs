@@ -334,7 +334,7 @@ async fn schedule_datastore_garbage_collection() {
 
         let auth_id = Authid::backup_auth_id();
 
-        if let Err(err) = crate::server::do_garbage_collection_job(job, datastore, auth_id, Some(event_str)) {
+        if let Err(err) = crate::server::do_garbage_collection_job(job, datastore, auth_id, Some(event_str), false) {
             eprintln!("unable to start garbage collection job on datastore {} - {}", store, err);
         }
     }
