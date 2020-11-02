@@ -41,6 +41,7 @@ use proxmox_backup::tools::{
         DiskManage,
         zfs_pool_stats,
     },
+    logrotate::LogRotate,
     socket::{
         set_tcp_keepalive,
         PROXMOX_BACKUP_TCP_KEEPALIVE_TIME,
@@ -96,7 +97,7 @@ async fn run() -> Result<(), Error> {
 
     let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
 
-    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN)?;
+    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
 
     let rest_server = RestServer::new(config);
 
@@ -531,6 +532,21 @@ async fn schedule_task_log_rotate() {
                     worker.log(format!("task log archive was not rotated"));
                 }
 
+                let max_size = 32 * 1024 * 1024 - 1;
+                let max_files = 14;
+                let mut logrotate = LogRotate::new(buildcfg::API_ACCESS_LOG_FN, true)
+                        .ok_or_else(|| format_err!("could not get API access log file names"))?;
+
+                let has_rotated = logrotate.rotate(max_size, None, Some(max_files))?;
+                if has_rotated {
+                    println!("rotated access log, telling daemons to re-open log file");
+                    proxmox_backup::tools::runtime::block_on(command_reopen_logfiles())?;
+
+                    worker.log(format!("API access log was rotated"));
+                } else {
+                    worker.log(format!("API access log was not rotated"));
+                }
+
                 Ok(())
             });
 
@@ -546,6 +562,22 @@ async fn schedule_task_log_rotate() {
         eprintln!("unable to start task log rotation: {}", err);
     }
 
+}
+
+async fn command_reopen_logfiles() -> Result<(), Error> {
+    // only care about the most recent daemon instance for each, proxy & api, as other older ones
+    // should not respond to new requests anyway, but only finish their current one and then exit.
+    let sock = server::our_ctrl_sock();
+    server::send_command(sock, serde_json::json!({
+        "command": "api-access-log-reopen",
+    })).await?;
+
+    let pid = server::read_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
+    let sock = server::ctrl_sock_from_pid(pid);
+    server::send_command(sock, serde_json::json!({
+        "command": "api-access-log-reopen",
+    })).await?;
+    Ok(())
 }
 
 async fn run_stat_generator() {

@@ -54,7 +54,7 @@ async fn run() -> Result<(), Error> {
 
     let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
 
-    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN)?;
+    config.enable_file_log(buildcfg::API_ACCESS_LOG_FN, &mut commando_sock)?;
 
     let rest_server = RestServer::new(config);
 

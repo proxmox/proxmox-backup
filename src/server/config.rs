@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use std::fs::metadata;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{bail, Error, format_err};
 use hyper::Method;
@@ -21,7 +21,7 @@ pub struct ApiConfig {
     env_type: RpcEnvironmentType,
     templates: RwLock<Handlebars<'static>>,
     template_files: RwLock<HashMap<String, (SystemTime, PathBuf)>>,
-    request_log: Option<Mutex<FileLogger>>,
+    request_log: Option<Arc<Mutex<FileLogger>>>,
 }
 
 impl ApiConfig {
@@ -124,7 +124,11 @@ impl ApiConfig {
         }
     }
 
-    pub fn enable_file_log<P>(&mut self, path: P) -> Result<(), Error>
+    pub fn enable_file_log<P>(
+        &mut self,
+        path: P,
+        commando_sock: &mut super::CommandoSocket,
+    ) -> Result<(), Error>
     where
         P: Into<PathBuf>
     {
@@ -142,11 +146,19 @@ impl ApiConfig {
             owned_by_backup: true,
             ..Default::default()
         };
-        self.request_log = Some(Mutex::new(FileLogger::new(&path, logger_options)?));
+        let request_log = Arc::new(Mutex::new(FileLogger::new(&path, logger_options)?));
+        self.request_log = Some(Arc::clone(&request_log));
+
+        commando_sock.register_command("api-access-log-reopen".into(), move |_args| {
+            println!("re-opening log file");
+            request_log.lock().unwrap().reopen()?;
+            Ok(serde_json::Value::Null)
+        })?;
 
         Ok(())
     }
-    pub fn get_file_log(&self) -> Option<&Mutex<FileLogger>> {
+
+    pub fn get_file_log(&self) -> Option<&Arc<Mutex<FileLogger>>> {
         self.request_log.as_ref()
     }
 }

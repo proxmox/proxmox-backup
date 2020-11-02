@@ -112,7 +112,7 @@ pub struct ApiService {
 }
 
 fn log_response(
-    logfile: Option<&Mutex<FileLogger>>,
+    logfile: Option<&Arc<Mutex<FileLogger>>>,
     peer: &std::net::SocketAddr,
     method: hyper::Method,
     path_query: &str,
