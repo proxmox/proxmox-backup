@@ -20,6 +20,12 @@ Ext.define('PBS.AccessControlPanel', {
 	    iconCls: 'fa fa-user',
 	},
 	{
+	    xtype: 'pbsTfaView',
+	    title: gettext('Two Factor Authentication'),
+	    itemId: 'tfa',
+	    iconCls: 'fa fa-key',
+	},
+	{
 	    xtype: 'pbsTokenView',
 	    title: gettext('API Token'),
 	    itemId: 'apitokens',

@@ -297,4 +297,63 @@ Ext.define('PBS.Utils', {
 	    zfscreate: [gettext('ZFS Storage'), gettext('Create')],
 	});
     },
+
+    // Convert an ArrayBuffer to a base64url encoded string.
+    // A `null` value will be preserved for convenience.
+    bytes_to_base64url: function(bytes) {
+	if (bytes === null) {
+	    return null;
+	}
+
+	return btoa(Array
+	    .from(new Uint8Array(bytes))
+	    .map(val => String.fromCharCode(val))
+	    .join(''),
+	)
+	.replace(/\+/g, '-')
+	.replace(/\//g, '_')
+	.replace(/[=]/g, '');
+    },
+
+    // Convert an a base64url string to an ArrayBuffer.
+    // A `null` value will be preserved for convenience.
+    base64url_to_bytes: function(b64u) {
+	if (b64u === null) {
+	    return null;
+	}
+
+	return new Uint8Array(
+	    atob(b64u
+		.replace(/-/g, '+')
+		.replace(/_/g, '/'),
+	    )
+	    .split('')
+	    .map(val => val.charCodeAt(0)),
+	);
+    },
+});
+
+Ext.define('PBS.Async', {
+    singleton: true,
+
+    // Returns a Promise resolving to the result of an `API2Request`.
+    api2: function(reqOpts) {
+	return new Promise((resolve, reject) => {
+	    delete reqOpts.callback; // not allowed in this api
+	    reqOpts.success = response => resolve(response);
+	    reqOpts.failure = response => {
+		if (response.result && response.result.message) {
+		    reject(response.result.message);
+		} else {
+		    reject("api call failed");
+		}
+	    };
+	    Proxmox.Utils.API2Request(reqOpts);
+	});
+    },
+
+    // Delay for a number of milliseconds.
+    sleep: function(millis) {
+	return new Promise((resolve, _reject) => setTimeout(resolve, millis));
+    },
 });

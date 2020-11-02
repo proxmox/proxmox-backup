@@ -24,12 +24,16 @@ JSSRC=							\
 	data/RunningTasksStore.js			\
 	button/TaskButton.js				\
 	config/UserView.js				\
+	config/TfaView.js				\
 	config/TokenView.js				\
 	config/RemoteView.js				\
 	config/ACLView.js				\
 	config/SyncView.js				\
 	config/VerifyView.js				\
 	window/ACLEdit.js				\
+	window/AddTfaRecovery.js			\
+	window/AddTotp.js				\
+	window/AddWebauthn.js				\
 	window/BackupFileDownloader.js			\
 	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
@@ -42,6 +46,7 @@ JSSRC=							\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
 	window/TokenEdit.js				\
+	window/TfaEdit.js				\
 	window/VerifyJobEdit.js				\
 	window/ZFSCreate.js				\
 	dashboard/DataStoreStatistics.js		\
