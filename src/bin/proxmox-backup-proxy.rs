@@ -295,22 +295,11 @@ async fn schedule_datastore_garbage_collection() {
 
         let worker_type = "garbage_collection";
 
-        let stat = datastore.last_gc_status();
-        let last = if let Some(upid_str) = stat.upid {
-            match upid_str.parse::<UPID>() {
-                Ok(upid) => upid.starttime,
-                Err(err) => {
-                    eprintln!("unable to parse upid '{}' - {}", upid_str, err);
-                    continue;
-                }
-            }
-        } else {
-            match jobstate::last_run_time(worker_type, &store) {
-                Ok(time) => time,
-                Err(err) => {
-                    eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
-                    continue;
-                }
+        let last = match jobstate::last_run_time(worker_type, &store) {
+            Ok(time) => time,
+            Err(err) => {
+                eprintln!("could not get last run time of {} {}: {}", worker_type, store, err);
+                continue;
             }
         };
 
