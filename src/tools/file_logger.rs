@@ -47,6 +47,7 @@ pub struct FileLogOptions {
 #[derive(Debug)]
 pub struct FileLogger {
     file: std::fs::File,
+    file_name: std::path::PathBuf,
     options: FileLogOptions,
 }
 
@@ -63,6 +64,23 @@ impl FileLogger {
         file_name: P,
         options: FileLogOptions,
     ) -> Result<Self, Error> {
+        let file = Self::open(&file_name, &options)?;
+
+        let file_name: std::path::PathBuf = file_name.as_ref().to_path_buf();
+
+        Ok(Self { file, file_name, options })
+    }
+
+    pub fn reopen(&mut self) -> Result<&Self, Error> {
+        let file = Self::open(&self.file_name, &self.options)?;
+        self.file = file;
+        Ok(self)
+    }
+
+    fn open<P: AsRef<std::path::Path>>(
+        file_name: P,
+        options: &FileLogOptions,
+    ) -> Result<std::fs::File, Error> {
         let file = std::fs::OpenOptions::new()
             .read(options.read)
             .write(true)
@@ -76,7 +94,7 @@ impl FileLogger {
             nix::unistd::chown(file_name.as_ref(), Some(backup_user.uid), Some(backup_user.gid))?;
         }
 
-        Ok(Self { file, options })
+        Ok(file)
     }
 
     pub fn log<S: AsRef<str>>(&mut self, msg: S) {
