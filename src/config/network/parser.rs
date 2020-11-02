@@ -96,7 +96,7 @@ impl <R: BufRead> NetworkParser<R> {
             match u8::from_str_radix(netmask.as_str(), 10) {
                 Ok(mask) => mask,
                 Err(err) => {
-                    bail!("unable to parse netmask '{}'", netmask);
+                    bail!("unable to parse netmask '{}' - {}", netmask, err);
                 }
             }
         };
