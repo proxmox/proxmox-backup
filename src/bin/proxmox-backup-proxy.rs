@@ -13,7 +13,6 @@ use proxmox::api::RpcEnvironmentType;
 use proxmox_backup::{
     backup::DataStore,
     server::{
-        UPID,
         WorkerTask,
         ApiConfig,
         rest::*,
