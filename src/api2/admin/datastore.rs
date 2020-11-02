@@ -29,7 +29,7 @@ use crate::backup::*;
 use crate::config::datastore;
 use crate::config::cached_user_info::CachedUserInfo;
 
-use crate::server::WorkerTask;
+use crate::server::{jobstate::Job, WorkerTask};
 use crate::tools::{
     self,
     zip::{ZipEncoder, ZipEntry},
@@ -856,20 +856,13 @@ fn start_garbage_collection(
     let datastore = DataStore::lookup_datastore(&store)?;
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    println!("Starting garbage collection on store {}", store);
+    let job =  Job::new("garbage_collection", &store)
+        .map_err(|_| format_err!("garbage collection already running"))?;
 
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
-    let upid_str = WorkerTask::new_thread(
-        "garbage_collection",
-        Some(store.clone()),
-        auth_id.clone(),
-        to_stdout,
-        move |worker| {
-            worker.log(format!("starting garbage collection on store {}", store));
-            datastore.garbage_collection(&*worker, worker.upid())
-        },
-    )?;
+    let upid_str = crate::server::do_garbage_collection_job(job, datastore, &auth_id, None, to_stdout)
+        .map_err(|err| format_err!("unable to start garbage collection job on datastore {} - {}", store, err))?;
 
     Ok(json!(upid_str))
 }
