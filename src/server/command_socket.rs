@@ -11,7 +11,7 @@ use serde_json::Value;
 use nix::sys::socket;
 
 /// Listens on a Unix Socket to handle simple command asynchronously
-pub fn create_control_socket<P, F>(path: P, func: F) -> Result<impl Future<Output = ()>, Error>
+fn create_control_socket<P, F>(path: P, func: F) -> Result<impl Future<Output = ()>, Error>
 where
     P: Into<PathBuf>,
     F: Fn(Value) -> Result<Value, Error> + Send + Sync + 'static,
