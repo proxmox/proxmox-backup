@@ -354,6 +354,21 @@ async fn verify(
     Ok(Value::Null)
 }
 
+#[api()]
+/// System report
+async fn report() -> Result<Value, Error> {
+    let client = connect()?;
+
+    let path = format!("api2/json/nodes/localhost/report");
+
+    let result = client.get(&path, None).await?;
+
+    let data = &result["data"];
+    println!("{}",data.to_string().replace("\\n", "\n"));
+
+    Ok(Value::Null)
+}
+
 fn main() {
 
     proxmox_backup::tools::setup_safe_path_env();
@@ -384,6 +399,9 @@ fn main() {
             CliCommand::new(&API_METHOD_VERIFY)
                 .arg_param(&["store"])
                 .completion_cb("store", config::datastore::complete_datastore_name)
+        )
+        .insert("report",
+            CliCommand::new(&API_METHOD_REPORT)
         );
 
 
