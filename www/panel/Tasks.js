@@ -84,6 +84,7 @@ Ext.define('PBS.node.Tasks', {
 	},
 
 	formulas: {
+	    filterIcon: (get) => 'fa fa-filter' + (get('showFilter') ? ' info-blue' : ''),
 	    extraParams: function(get) {
 		let me = this;
 		let params = {};
@@ -145,18 +146,23 @@ Ext.define('PBS.node.Tasks', {
 		{
 		    xtype: 'proxmoxButton',
 		    text: gettext('View'),
+		    iconCls: 'fa fa-window-restore',
 		    disabled: true,
 		    handler: 'showTaskLog',
 		},
 		{
 		    xtype: 'button',
 		    text: gettext('Reload'),
+		    iconCls: 'fa fa-refresh',
 		    handler: 'reload',
 		},
 		'->',
 		{
 		    xtype: 'button',
 		    enableToggle: true,
+		    bind: {
+			iconCls: '{filterIcon}',
+		    },
 		    text: gettext('Filter'),
 		    stateful: true,
 		    stateId: 'task-showfilter',
