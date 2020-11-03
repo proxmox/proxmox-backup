@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    tt, code {
+	background-color: #ecf0f3;
+	color: #222;
+    }
+    pre, tt, code {
+	font-family: 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
+	font-size: 0.9em;
+    }
+    div.note {
+	background-color: #EEE;
+	border: 1px solid #CCC;
+    }
+</style>
+</head>
+<body>
+<p>A simulator to experiment with different backup schedules and prune
+options.</p>
+
+<h3>Schedule</h3>
+<p>Select weekdays with the combobox and input hour and minute
+specification separated by a colon, i.e. <code>HOUR:MINUTE</code>. Each of
+<code>HOUR</code> and <code>MINUTE</code> can be either a single value or
+one of the following:</p>
+<ul class="simple">
+<li>a comma-separated list: e.g., <code>01,02,03</code></li>
+<li>a range: e.g., <code>01..10</code></li>
+<li>a repetition: e.g, <code>05/10</code> (means starting at <code>5</code> every <code>10</code>)</li>
+<li>a combination of the above: e.g., <code>01,05..10,12/02</code></li>
+<li>a <code>*</code> for every possible value</li>
+</ul>
+
+<h3>Pruning</h3>
+<p>Prune lets you systematically delete older backups, retaining backups for
+the last given number of time intervals. The following retention options are
+available:</p>
+<dl class="docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">keep-last</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> backup snapshots.</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">keep-hourly</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> hours. If there is more than one
+backup for a single hour, only the latest is kept.</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">keep-daily</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> days. If there is more than one
+backup for a single day, only the latest is kept.</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">keep-weekly</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> weeks. If there is more than one
+backup for a single week, only the latest is kept.
+<div class="last admonition note">
+<p class="last"><b>Note:</b> Weeks start on Monday and end on Sunday. The software
+uses the <a class="reference external" href="https://en.wikipedia.org/wiki/ISO_week_date">ISO week date</a> system and handles weeks at
+the end of the year correctly.</p>
+</div>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">keep-monthly</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> months. If there is more than one
+backup for a single month, only the latest is kept.</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">keep-yearly</span> <span class="pre">&lt;N&gt;</span></code></dt>
+<dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> years. If there is more than one
+backup for a single year, only the latest is kept.</dd>
+</dl>
+<p>The retention options are processed in the order given above. Each option
+only covers backups within its time period. The next option does not take care
+of already covered backups. It will only consider older backups.</p>
+<p>For example, in a week covered by <code>keep-weekly</code>, one backup is
+kept while all others are removed; <code>keep-monthly</code> then does not
+consider backups from that week anymore, even if part of the week is part of
+an earlier month.</p>
+</body>
+</html>
