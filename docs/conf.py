@@ -171,6 +171,7 @@ html_theme_options = {
     'extra_nav_links': {
         'Proxmox Homepage': 'https://proxmox.com',
         'PDF': 'proxmox-backup.pdf',
+        'Prune Simulator' : 'prune-simulator/index.html',
     },
 
     'sidebar_width': '320px',

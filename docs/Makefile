@@ -14,6 +14,10 @@ MANUAL_PAGES := 			\
 	proxmox-backup-client.1		\
 	proxmox-backup-manager.1
 
+PRUNE_SIMULATOR_FILES := 					\
+	prune-simulator/index.html				\
+	prune-simulator/documentation.html			\
+	prune-simulator/prune-simulator.js
 
 # Sphinx documentation setup
 SPHINXOPTS    =
@@ -74,10 +78,11 @@ onlinehelpinfo:
 	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
 .PHONY: html
-html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py
+html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
-	cp images/proxmox-logo.svg $(BUILDDIR)/html/_static/
-	cp custom.css $(BUILDDIR)/html/_static/
+	install -m 0644 custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
+	install -dm 0755 $(BUILDDIR)/html/prune-simulator
+	install -m 0644 ${PRUNE_SIMULATOR_FILES} $(BUILDDIR)/html/prune-simulator
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
