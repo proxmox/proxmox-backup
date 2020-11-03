@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{self, Write};
 
 use anyhow::{format_err, Error};
 use serde_json::{json, Value};
@@ -357,15 +358,8 @@ async fn verify(
 #[api()]
 /// System report
 async fn report() -> Result<Value, Error> {
-    let client = connect()?;
-
-    let path = format!("api2/json/nodes/localhost/report");
-
-    let result = client.get(&path, None).await?;
-
-    let data = &result["data"];
-    println!("{}",data.to_string().replace("\\n", "\n"));
-
+    let report = proxmox_backup::server::generate_report();
+    io::stdout().write_all(report.as_bytes())?;
     Ok(Value::Null)
 }
 
