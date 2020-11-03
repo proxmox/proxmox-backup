@@ -84,3 +84,6 @@ pub use gc_job::*;
 
 mod email_notifications;
 pub use email_notifications::*;
+
+mod report;
+pub use report::*;

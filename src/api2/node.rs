@@ -38,6 +38,7 @@ mod services;
 mod status;
 mod syslog;
 mod time;
+mod report;
 
 pub const SHELL_CMD_SCHEMA: Schema = StringSchema::new("The command to run.")
     .format(&ApiStringFormat::Enum(&[
@@ -310,6 +311,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("dns", &dns::ROUTER),
     ("journal", &journal::ROUTER),
     ("network", &network::ROUTER),
+    ("report", &report::ROUTER),
     ("rrd", &rrd::ROUTER),
     ("services", &services::ROUTER),
     ("status", &status::ROUTER),
