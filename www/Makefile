@@ -52,6 +52,7 @@ JSSRC=							\
 	datastore/Prune.js				\
 	datastore/Content.js				\
 	datastore/Panel.js				\
+	BackupGroupChangeOwner.js			\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\

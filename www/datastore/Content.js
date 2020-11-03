@@ -268,6 +268,24 @@ Ext.define('PBS.DataStoreContent', {
 	    }
 	},
 
+	onChangeOwner: function(view, rI, cI, item, e, rec) {
+	    view = this.getView();
+
+	    if (!rec || !rec.data || rec.parentNode.id !== 'root' || !view.datastore) {
+		return;
+	    }
+
+	    let data = rec.data;
+
+	    let win = Ext.create('PBS.BackupGroupChangeOwner', {
+		datastore: view.datastore,
+		backup_type: data.backup_type,
+		backup_id: data.backup_id,
+		autoShow: true,
+	    });
+	    win.on('destroy', this.reload, this);
+	},
+
 	onPrune: function(view, rI, cI, item, e, rec) {
 	    view = this.getView();
 
@@ -582,7 +600,13 @@ Ext.define('PBS.DataStoreContent', {
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Verify '{0}'"), v),
 		    getClass: (v, m, rec) => rec.data.leaf ? 'pmx-hidden' : 'pve-icon-verify-lettering',
 		    isDisabled: (v, r, c, i, rec) => !!rec.data.leaf,
-		},
+                },
+                {
+		    handler: 'onChangeOwner',
+		    getClass: (v, m, rec) => rec.parentNode.id ==='root' ? 'fa fa-user' : 'pmx-hidden',
+		    getTip: (v, m, rec) => Ext.String.format(gettext("Change owner of '{0}'"), v),
+		    isDisabled: (v, r, c, i, rec) => rec.parentNode.id !=='root',
+                },
 		{
 		    handler: 'onPrune',
 		    getTip: (v, m, rec) => Ext.String.format(gettext("Prune '{0}'"), v),
