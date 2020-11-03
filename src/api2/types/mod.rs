@@ -5,7 +5,7 @@ use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
-use crate::backup::CryptMode;
+use crate::backup::{CryptMode, BACKUP_ID_REGEX};
 use crate::server::UPID;
 
 #[macro_use]
@@ -100,6 +100,9 @@ pub const CERT_FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+
+pub const BACKUP_ID_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&BACKUP_ID_REGEX);
 
 pub const SINGLE_LINE_COMMENT_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SINGLE_LINE_COMMENT_REGEX);
@@ -276,7 +279,7 @@ pub const BACKUP_TYPE_SCHEMA: Schema =
 
 pub const BACKUP_ID_SCHEMA: Schema =
     StringSchema::new("Backup ID.")
-    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .format(&BACKUP_ID_FORMAT)
     .schema();
 
 pub const BACKUP_TIME_SCHEMA: Schema =

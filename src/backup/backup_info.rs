@@ -1,11 +1,11 @@
 use crate::tools;
 
 use anyhow::{bail, format_err, Error};
-use regex::Regex;
 use std::os::unix::io::RawFd;
 
 use std::path::{PathBuf, Path};
-use lazy_static::lazy_static;
+
+use proxmox::const_regex;
 
 use super::manifest::MANIFEST_BLOB_NAME;
 
@@ -13,25 +13,19 @@ macro_rules! BACKUP_ID_RE { () => (r"[A-Za-z0-9_][A-Za-z0-9._\-]*") }
 macro_rules! BACKUP_TYPE_RE { () => (r"(?:host|vm|ct)") }
 macro_rules! BACKUP_TIME_RE { () => (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z") }
 
-lazy_static!{
-    static ref BACKUP_FILE_REGEX: Regex = Regex::new(
-        r"^.*\.([fd]idx|blob)$").unwrap();
+const_regex!{
+    BACKUP_FILE_REGEX = r"^.*\.([fd]idx|blob)$";
 
-    static ref BACKUP_TYPE_REGEX: Regex = Regex::new(
-        concat!(r"^(", BACKUP_TYPE_RE!(), r")$")).unwrap();
+    BACKUP_TYPE_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), r")$");
 
-    static ref BACKUP_ID_REGEX: Regex = Regex::new(
-        concat!(r"^", BACKUP_ID_RE!(), r"$")).unwrap();
+    pub BACKUP_ID_REGEX = concat!(r"^", BACKUP_ID_RE!(), r"$");
 
-    static ref BACKUP_DATE_REGEX: Regex = Regex::new(
-        concat!(r"^", BACKUP_TIME_RE!() ,r"$")).unwrap();
+    BACKUP_DATE_REGEX = concat!(r"^", BACKUP_TIME_RE!() ,r"$");
 
-    static ref GROUP_PATH_REGEX: Regex = Regex::new(
-        concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$")).unwrap();
+    GROUP_PATH_REGEX = concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), r")$");
 
-    static ref SNAPSHOT_PATH_REGEX: Regex = Regex::new(
-        concat!(r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$")).unwrap();
-
+    SNAPSHOT_PATH_REGEX = concat!(
+        r"^(", BACKUP_TYPE_RE!(), ")/(", BACKUP_ID_RE!(), ")/(", BACKUP_TIME_RE!(), r")$");
 }
 
 /// BackupGroup is a directory containing a list of BackupDir
