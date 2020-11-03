@@ -2,12 +2,18 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::config::datastore;
-use crate::tools::subscription::read_subscription;
 
 fn files() -> Vec<&'static str> {
     vec![
+        "/etc/hostname",
         "/etc/hosts",
         "/etc/network/interfaces",
+        "/etc/proxmox-backup/datastore.cfg",
+        "/etc/proxmox-backup/user.cfg",
+        "/etc/proxmox-backup/acl.cfg",
+        "/etc/proxmox-backup/remote.cfg",
+        "/etc/proxmox-backup/sync.cfg",
+        "/etc/proxmox-backup/verification.cfg",
     ]
 }
 
@@ -16,16 +22,15 @@ fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
     //  ("<command>", vec![<arg [, arg]>])
         ("df", vec!["-h"]),
         ("lsblk", vec!["--ascii"]),
+        ("zpool", vec!["status"]),
+        ("zfs", vec!["list"]),
+        ("proxmox-backup-manager", vec!["subscription", "get"]),
     ]
 }
 
     // (<description>, <function to call>)
 fn function_calls() -> Vec<(&'static str, fn() -> String)> {
     vec![
-        ("Subscription status", || match read_subscription() {
-            Ok(Some(sub_info)) => sub_info.status.to_string(),
-            _ => String::from("No subscription found"),
-        }),
         ("Datastores", || {
             let config = match datastore::config() {
                 Ok((config, _digest)) => config,
@@ -49,10 +54,10 @@ pub fn generate_report() -> String {
         .map(|file_name| {
             let content = match file_read_optional_string(Path::new(file_name)) {
                 Ok(Some(content)) => content,
+                Ok(None) => String::from("# file does not exists"),
                 Err(err) => err.to_string(),
-                _ => String::from("Could not be read!"),
             };
-            format!("# {}\n{}", file_name, content)
+            format!("# cat '{}'\n{}", file_name, content)
         })
         .collect::<Vec<String>>()
         .join("\n\n");
@@ -60,11 +65,15 @@ pub fn generate_report() -> String {
     let command_outputs = commands()
         .iter()
         .map(|(command, args)| {
-            let output = match Command::new(command).args(args).output() {
+            let output = Command::new(command)
+                .env("PROXMOX_OUTPUT_NO_BORDER", "1")
+                .args(args)
+                .output();
+            let output = match output {
                 Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
                 Err(err) => err.to_string(),
             };
-            format!("# {} {}\n{}", command, args.join(" "), output)
+            format!("# `{} {}`\n{}", command, args.join(" "), output)
         })
         .collect::<Vec<String>>()
         .join("\n\n");
@@ -76,7 +85,7 @@ pub fn generate_report() -> String {
         .join("\n\n");
 
     format!(
-        " FILES\n{}\n COMMANDS\n{}\n FUNCTIONS\n{}",
+        "= FILES =\n\n{}\n= COMMANDS =\n\n{}\n= FUNCTIONS =\n\n{}\n",
         file_contents, command_outputs, function_outputs
     )
 }
