@@ -138,7 +138,6 @@ Ext.define('PBS.node.Tasks', {
 	store: '{bufferedstore}',
     },
 
-
     dockedItems: [
 	{
 	    xtype: 'toolbar',
@@ -196,54 +195,15 @@ Ext.define('PBS.node.Tasks', {
 			type: 'vbox',
 			align: 'stretch',
 		    },
-		    items: [
-			{
-			    fieldLabel: gettext('Type'),
-			    bind: {
-				value: '{typefilter}',
-			    },
-			    xtype: 'pmxTaskTypeSelector',
-			},
-			{
-			    fieldLabel: gettext('Datastore'),
-			    xtype: 'pbsDataStoreSelector',
-			    emptyText: gettext('All'),
-			    bind: {
-				value: '{datastore}',
-			    },
-			    allowBlank: true,
-			},
-			{
-			    fieldLabel: gettext('States'),
-			    xtype: 'combobox',
-			    multiSelect: true,
-			    emptyText: gettext('All'),
-			    store: [
-				['ok', gettext('OK'), ],
-				['unknown', Proxmox.Utils.unknownText, ],
-				['warning', gettext('Warnings') ],
-				['error', gettext('Errors') ],
-			    ],
-			    bind: {
-				value: '{statusfilter}',
-			    },
-			},
-		    ]
-		},
-		{
-		    xtype: 'container',
-		    padding: 10,
-		    layout: {
-			type: 'vbox',
-			align: 'stretch',
+		    defaults: {
+			labelWidth: 80,
 		    },
+		    // cannot bind the values directly, as it then changes also
+		    // on blur, causing wrong reloads of the store
 		    items: [
-			// we cannot bind the values directly,
-			// since it then changes also on blur,
-			// causing wrong reloads of the store
 			{
-			    fieldLabel: gettext('Since'),
 			    xtype: 'datefield',
+			    fieldLabel: gettext('Since'),
 			    format: 'Y-m-d',
 			    bind: {
 				maxValue: '{until}',
@@ -253,8 +213,8 @@ Ext.define('PBS.node.Tasks', {
 			    },
 			},
 			{
-			    fieldLabel: gettext('Until'),
 			    xtype: 'datefield',
+			    fieldLabel: gettext('Until'),
 			    format: 'Y-m-d',
 			    bind: {
 				minValue: '{since}',
@@ -265,7 +225,65 @@ Ext.define('PBS.node.Tasks', {
 			},
 		    ],
 		},
-	    ]
+		{
+		    xtype: 'container',
+		    padding: 10,
+		    layout: {
+			type: 'vbox',
+			align: 'stretch',
+		    },
+		    defaults: {
+			labelWidth: 80,
+		    },
+		    items: [
+			{
+			    xtype: 'pmxTaskTypeSelector',
+			    fieldLabel: gettext('Task Type'),
+			    emptyText: gettext('All'),
+			    bind: {
+				value: '{typefilter}',
+			    },
+			},
+			{
+			    xtype: 'combobox',
+			    fieldLabel: gettext('Task Result'),
+			    emptyText: gettext('All'),
+			    multiSelect: true,
+			    store: [
+				['ok', gettext('OK')],
+				['unknown', Proxmox.Utils.unknownText],
+				['warning', gettext('Warnings')],
+				['error', gettext('Errors')],
+			    ],
+			    bind: {
+				value: '{statusfilter}',
+			    },
+			},
+		    ],
+		},
+		{
+		    xtype: 'container',
+		    padding: 10,
+		    layout: {
+			type: 'vbox',
+			align: 'stretch',
+		    },
+		    defaults: {
+			labelWidth: 80,
+		    },
+		    items: [
+			{
+			    xtype: 'pbsDataStoreSelector',
+			    fieldLabel: gettext('Datastore'),
+			    emptyText: gettext('All'),
+			    bind: {
+				value: '{datastore}',
+			    },
+			    allowBlank: true,
+			},
+		    ],
+		},
+	    ],
 	},
     ],
 
