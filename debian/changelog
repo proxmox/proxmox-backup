@@ -1,3 +1,45 @@
+rust-proxmox-backup (0.9.5-1) unstable; urgency=medium
+
+  * ui: user menu: allow one to change the language while staying logged in
+
+  * proxmox-backup-manager: add subscription commands
+
+  * server/rest: also accept = as token separator
+
+  * privs: allow reading snapshot notes with Datastore.Audit
+
+  * privs: enforce Datastore.Modify|Backup to set backup notes
+
+  * verify: introduce and use new Datastore.Verify privilege
+
+  * docs: add API tokens to documentation
+
+  * ui: various smaller layout and icon improvements
+
+  * api: implement apt pkg cache for caching pending updates
+
+  * api: apt: implement support to send notification email on new updates
+
+  * add daily update and maintenance task
+
+  * fix #2864: add owner option to sync
+
+  * sync: allow sync for non-superusers under special conditions
+
+  * config: support depreacated netmask when parsing interfaces file
+
+  * server: implement access log rotation with re-open via command socket
+
+  * garbage collect: improve index error messages
+
+  * fix #3039: use the same ID regex for info and api
+
+  * ui: administration: allow extensive filtering of the worker task
+
+  * report: add api endpoint and function to generate report
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 03 Nov 2020 17:41:17 +0100
+
 rust-proxmox-backup (0.9.4-2) unstable; urgency=medium
 
   * make postinst (update) script more resilient
