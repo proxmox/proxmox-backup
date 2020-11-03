@@ -1,22 +1,27 @@
 use std::path::Path;
 use std::process::Command;
 
-use lazy_static::lazy_static;
-
 use crate::config::datastore;
 use crate::tools::subscription::read_subscription;
 
-lazy_static! {
-    static ref FILES: Vec<&'static str> = vec!["/etc/hosts", "/etc/network/interfaces"];
+fn files() -> Vec<&'static str> {
+    vec![
+        "/etc/hosts",
+        "/etc/network/interfaces",
+    ]
+}
 
-    // (<command>, <arg [, arg]>)
-    static ref COMMANDS: Vec<(&'static str, Vec<&'static str>)> = vec![
-        ("/usr/bin/df", vec!["-h"]),
-        ("/usr/bin/lsblk", vec!["-ascii"])
-    ];
+fn commands() -> Vec<(&'static str, Vec<&'static str>)> {
+    vec![
+    //  ("<command>", vec![<arg [, arg]>])
+        ("df", vec!["-h"]),
+        ("lsblk", vec!["--ascii"]),
+    ]
+}
 
     // (<description>, <function to call>)
-    static ref FUNCTION_CALLS: Vec<(&'static str, fn() -> String)> = vec![
+fn function_calls() -> Vec<(&'static str, fn() -> String)> {
+    vec![
         ("Subscription status", || match read_subscription() {
             Ok(Some(sub_info)) => sub_info.status.to_string(),
             _ => String::from("No subscription found"),
@@ -33,13 +38,13 @@ lazy_static! {
             }
             list.join(", ")
         })
-    ];
+    ]
 }
 
 pub fn generate_report() -> String {
     use proxmox::tools::fs::file_read_optional_string;
 
-    let file_contents = FILES
+    let file_contents = files()
         .iter()
         .map(|file_name| {
             let content = match file_read_optional_string(Path::new(file_name)) {
@@ -52,7 +57,7 @@ pub fn generate_report() -> String {
         .collect::<Vec<String>>()
         .join("\n\n");
 
-    let command_outputs = COMMANDS
+    let command_outputs = commands()
         .iter()
         .map(|(command, args)| {
             let output = match Command::new(command).args(args).output() {
@@ -64,7 +69,7 @@ pub fn generate_report() -> String {
         .collect::<Vec<String>>()
         .join("\n\n");
 
-    let function_outputs = FUNCTION_CALLS
+    let function_outputs = function_calls()
         .iter()
         .map(|(desc, function)| format!("# {}\n{}", desc, function()))
         .collect::<Vec<String>>()
