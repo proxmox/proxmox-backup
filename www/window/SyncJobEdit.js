@@ -64,10 +64,11 @@ Ext.define('PBS.window.SyncJobEdit', {
 
 	column2: [
 	    {
-		fieldLabel: gettext('Owner'),
+		fieldLabel: gettext('Local Owner'),
 		xtype: 'pbsUserSelector',
 		name: 'owner',
 		allowBlank: true,
+		value: null,
 		emptyText: 'backup@pam',
 		skipEmptyText: true,
 		cbind: {
