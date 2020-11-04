@@ -68,8 +68,10 @@ Ext.define('PBS.DataStoreInfo', {
 
 	    let gcstatus = store.getById('gc-status').data.value;
 
-	    let dedup = (gcstatus['index-data-bytes'] || 0)/
-			(gcstatus['disk-bytes'] || Infinity);
+	    let dedup = 1.0;
+	    if (gcstatus['disk-bytes'] > 0) {
+		dedup = (gcstatus['index-data-bytes'] || 0)/gcstatus['disk-bytes'];
+	    }
 
 	    let countstext = function(count) {
 		count = count || {};
