@@ -410,7 +410,8 @@ pub async fn pull_group(
 
     list.sort_unstable_by(|a, b| a.backup_time.cmp(&b.backup_time));
 
-    let auth_info = client.login().await?;
+    client.login().await?; // make sure auth is complete
+
     let fingerprint = client.fingerprint();
 
     let last_sync = tgt_store.last_successful_backup(group)?;
@@ -446,6 +447,9 @@ pub async fn pull_group(
         if let Some(last_sync_time) = last_sync {
             if last_sync_time > backup_time { continue; }
         }
+
+        // get updated auth_info (new tickets)
+        let auth_info = client.login().await?;
 
         let options = HttpClientOptions::new()
             .password(Some(auth_info.ticket.clone()))

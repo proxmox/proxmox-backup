@@ -405,6 +405,9 @@ impl HttpClient {
     ///
     /// Login is done on demand, so this is only required if you need
     /// access to authentication data in 'AuthInfo'.
+    ///
+    /// Note: tickets a periodially re-newed, so one can use this
+    /// to query changed ticket.
     pub async fn login(&self) -> Result<AuthInfo, Error> {
         if let Some(future) = &self.first_auth {
             future.listen().await?;
