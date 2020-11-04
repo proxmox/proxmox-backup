@@ -68,18 +68,9 @@ Ext.define('PBS.window.SyncJobEdit', {
 		name: 'owner',
 		allowBlank: true,
 		emptyText: 'backup@pam',
-		getSubmitData: function() {
-		    let me = this;
-		    let name = me.getName();
-		    let val = me.getSubmitValue();
-
-		    let data = {};
-		    if (val === null || val === "") {
-			data.delete = name;
-		    } else {
-			data[name] = val;
-		    }
-		    return data;
+		skipEmptyText: true,
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
 		},
 	    },
 	    {
