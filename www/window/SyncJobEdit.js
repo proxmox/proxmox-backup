@@ -23,6 +23,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	me.url = id ? `${baseurl}/${id}` : baseurl;
 	me.method = id ? 'PUT' : 'POST';
 	me.autoLoad = !!id;
+	me.scheduleValue = id ? null : 'hourly';
 	return { };
     },
 
@@ -84,10 +85,10 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Schedule'),
 		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
-		value: 'hourly',
 		emptyText: gettext('none (disabled)'),
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
+		    value: '{scheduleValue}',
 		},
 	    },
 	],
