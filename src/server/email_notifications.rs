@@ -6,12 +6,14 @@ use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output
 use proxmox::tools::email::sendmail;
 
 use crate::{
+    config::datastore::DataStoreConfig,
     config::verify::VerificationJobConfig,
     config::sync::SyncJobConfig,
     api2::types::{
         APTUpdateInfo,
         GarbageCollectionStatus,
         Userid,
+        Notify,
     },
     tools::format::HumanByte,
 };
@@ -188,10 +190,15 @@ fn send_job_status_mail(
 
 pub fn send_gc_status(
     email: &str,
+    notify: Notify,
     datastore: &str,
     status: &GarbageCollectionStatus,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
+
+    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+        return Ok(());
+    }
 
     let (fqdn, port) = get_server_url();
     let mut data = json!({
@@ -237,9 +244,14 @@ pub fn send_gc_status(
 
 pub fn send_verify_status(
     email: &str,
+    notify: Notify,
     job: VerificationJobConfig,
     result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
+
+    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+        return Ok(());
+    }
 
     let (fqdn, port) = get_server_url();
     let mut data = json!({
@@ -280,9 +292,14 @@ pub fn send_verify_status(
 
 pub fn send_sync_status(
     email: &str,
+    notify: Notify,
     job: &SyncJobConfig,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
+
+    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+        return Ok(());
+    }
 
     let (fqdn, port) = get_server_url();
     let mut data = json!({
@@ -362,7 +379,7 @@ pub fn send_updates_available(
 /// Lookup users email address
 ///
 /// For "backup@pam", this returns the address from "root@pam".
-pub fn lookup_user_email(userid: &Userid) -> Option<String> {
+fn lookup_user_email(userid: &Userid) -> Option<String> {
 
     use crate::config::user::{self, User};
 
@@ -377,6 +394,36 @@ pub fn lookup_user_email(userid: &Userid) -> Option<String> {
     }
 
     None
+}
+
+/// Lookup Datastore notify settings
+pub fn lookup_datastore_notify_settings(
+    store: &str,
+) -> (Option<String>, Notify) {
+
+    let mut notify = Notify::Always;
+    let mut email = None;
+
+    let (config, _digest) = match crate::config::datastore::config() {
+        Ok(result) => result,
+        Err(_) => return (email, notify),
+    };
+
+    let config: DataStoreConfig = match config.lookup("datastore", store) {
+        Ok(result) => result,
+        Err(_) => return (email, notify),
+    };
+
+    email = match config.notify_user {
+        Some(ref userid) => lookup_user_email(userid),
+        None => lookup_user_email(Userid::backup_userid()),
+    };
+
+    if let Some(value) = config.notify {
+        notify = value;
+    }
+
+    (email, notify)
 }
 
 // Handlerbar helper functions

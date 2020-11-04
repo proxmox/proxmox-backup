@@ -48,7 +48,7 @@ pub fn do_verification_job(
         }
     };
 
-    let email = crate::server::lookup_user_email(auth_id.user());
+    let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
     let job_id = job.jobname().to_string();
     let worker_type = job.jobtype().to_string();
@@ -84,7 +84,7 @@ pub fn do_verification_job(
             }
 
             if let Some(email) = email {
-                if let Err(err) = crate::server::send_verify_status(&email, verification_job, &result) {
+                if let Err(err) = crate::server::send_verify_status(&email, notify, verification_job, &result) {
                     eprintln!("send verify notification failed: {}", err);
                 }
             }

@@ -17,9 +17,9 @@ pub fn do_garbage_collection_job(
     to_stdout: bool,
 ) -> Result<String, Error> {
 
-    let email = crate::server::lookup_user_email(auth_id.user());
-
     let store = datastore.name().to_string();
+
+    let (email, notify) = crate::server::lookup_datastore_notify_settings(&store);
 
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(
@@ -50,7 +50,7 @@ pub fn do_garbage_collection_job(
 
             if let Some(email) = email {
                 let gc_status = datastore.last_gc_status();
-                if let Err(err) = crate::server::send_gc_status(&email, &store, &gc_status, &result) {
+                if let Err(err) = crate::server::send_gc_status(&email, notify, &store, &gc_status, &result) {
                     eprintln!("send gc notification failed: {}", err);
                 }
             }
