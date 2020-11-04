@@ -12,6 +12,7 @@ Ext.define('PBS.window.SyncJobEdit', {
     subject: gettext('SyncJob'),
 
     fieldDefaults: { labelWidth: 120 },
+    defaultFocus: 'proxmoxtextfield[name=comment]',
 
     cbindData: function(initialConfig) {
 	let me = this;
@@ -49,21 +50,6 @@ Ext.define('PBS.window.SyncJobEdit', {
 		},
 	    },
 	    {
-		fieldLabel: gettext('Source Remote'),
-		xtype: 'pbsRemoteSelector',
-		allowBlank: false,
-		name: 'remote',
-	    },
-	    {
-		fieldLabel: gettext('Source Datastore'),
-		xtype: 'proxmoxtextfield',
-		allowBlank: false,
-		name: 'remote-store',
-	    },
-	],
-
-	column2: [
-	    {
 		fieldLabel: gettext('Local Owner'),
 		xtype: 'pbsUserSelector',
 		name: 'owner',
@@ -82,8 +68,23 @@ Ext.define('PBS.window.SyncJobEdit', {
 		uncheckedValue: false,
 		value: false,
 	    },
+	],
+
+	column2: [
 	    {
-		fieldLabel: gettext('Schedule'),
+		fieldLabel: gettext('Source Remote'),
+		xtype: 'pbsRemoteSelector',
+		allowBlank: false,
+		name: 'remote',
+	    },
+	    {
+		fieldLabel: gettext('Source Datastore'),
+		xtype: 'proxmoxtextfield',
+		allowBlank: false,
+		name: 'remote-store',
+	    },
+	    {
+		fieldLabel: gettext('Sync Schedule'),
 		xtype: 'pbsCalendarEvent',
 		name: 'schedule',
 		emptyText: gettext('none (disabled)'),
