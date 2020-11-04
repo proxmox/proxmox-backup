@@ -92,15 +92,15 @@ impl LogRotate {
         if filenames.is_empty() {
             return Ok(()); // no file means nothing to rotate
         }
+        let count = filenames.len() + 1;
 
         let mut next_filename = self.base_path.clone().canonicalize()?.into_os_string();
         next_filename.push(format!(".{}", filenames.len()));
-        if self.compress {
+        if self.compress && count > 2 {
             next_filename.push(".zst");
         }
 
         filenames.push(PathBuf::from(next_filename));
-        let count = filenames.len();
 
         for i in (0..count-1).rev() {
             if self.compress
