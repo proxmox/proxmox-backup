@@ -612,16 +612,22 @@ async fn command_reopen_logfiles() -> Result<(), Error> {
     // only care about the most recent daemon instance for each, proxy & api, as other older ones
     // should not respond to new requests anyway, but only finish their current one and then exit.
     let sock = server::our_ctrl_sock();
-    server::send_command(sock, serde_json::json!({
+    let f1 = server::send_command(sock, serde_json::json!({
         "command": "api-access-log-reopen",
-    })).await?;
+    }));
 
     let pid = server::read_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;
     let sock = server::ctrl_sock_from_pid(pid);
-    server::send_command(sock, serde_json::json!({
+    let f2 = server::send_command(sock, serde_json::json!({
         "command": "api-access-log-reopen",
-    })).await?;
-    Ok(())
+    }));
+
+    match futures::join!(f1, f2) {
+        (Err(e1), Err(e2)) => Err(format_err!("reopen commands failed, proxy: {}; api: {}", e1, e2)),
+        (Err(e1), Ok(_)) => Err(format_err!("reopen commands failed, proxy: {}", e1)),
+        (Ok(_), Err(e2)) => Err(format_err!("reopen commands failed, api: {}", e2)),
+        _ => Ok(()),
+    }
 }
 
 async fn run_stat_generator() {
