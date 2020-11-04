@@ -164,6 +164,15 @@ fn log_response(
             ));
     }
 }
+pub fn auth_logger() -> Result<FileLogger, Error> {
+    let logger_options = tools::FileLogOptions {
+        append: true,
+        prefix_time: true,
+        owned_by_backup: true,
+        ..Default::default()
+    };
+    FileLogger::new(crate::buildcfg::API_AUTH_LOG_FN, logger_options)
+}
 
 fn get_proxied_peer(headers: &HeaderMap) -> Option<std::net::SocketAddr> {
     lazy_static! {
@@ -687,6 +696,10 @@ async fn handle_request(
                 match auth_result {
                     Ok(authid) => rpcenv.set_auth_id(Some(authid.to_string())),
                     Err(err) => {
+                        let peer = peer.ip();
+                        auth_logger()?
+                            .log(format!("authentication failure; rhost={} msg={}", peer, err));
+
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
                         tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;

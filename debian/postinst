@@ -25,6 +25,9 @@ case "$1" in
 				    sed -i '/^\s\+verify-schedule /d' /etc/proxmox-backup/datastore.cfg || true
 			fi
 		fi
+		if dpkg --compare-versions "$2" 'le' '0.9.5-1'; then
+			chown --quiet backup:backup /var/log/proxmox-backup/api/auth.log || true
+		fi
 	fi
 	# FIXME: Remove in future version once we're sure no broken entries remain in anyone's files
 	if grep -q -e ':termproxy::[^@]\+: ' /var/log/proxmox-backup/tasks/active; then

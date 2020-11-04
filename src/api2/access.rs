@@ -12,7 +12,6 @@ use proxmox::{http_err, list_subdirs_api_method};
 use crate::tools::ticket::{self, Empty, Ticket};
 use crate::auth_helpers::*;
 use crate::api2::types::*;
-use crate::tools::{FileLogOptions, FileLogger};
 
 use crate::config::acl as acl_config;
 use crate::config::acl::{PRIVILEGES, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
@@ -144,20 +143,13 @@ fn create_ticket(
     port: Option<u16>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    let logger_options = FileLogOptions {
-        append: true,
-        prefix_time: true,
-        ..Default::default()
-    };
-    let mut auth_log = FileLogger::new("/var/log/proxmox-backup/api/auth.log", logger_options)?;
-
     match authenticate_user(&username, &password, path, privs, port) {
         Ok(true) => {
             let ticket = Ticket::new("PBS", &username)?.sign(private_auth_key(), None)?;
 
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
-            auth_log.log(format!("successful auth for user '{}'", username));
+            crate::server::rest::auth_logger()?.log(format!("successful auth for user '{}'", username));
 
             Ok(json!({
                 "username": username,
@@ -180,7 +172,7 @@ fn create_ticket(
                 username,
                 err.to_string()
             );
-            auth_log.log(&msg);
+            crate::server::rest::auth_logger()?.log(&msg);
             log::error!("{}", msg);
 
             Err(http_err!(UNAUTHORIZED, "permission check failed."))
