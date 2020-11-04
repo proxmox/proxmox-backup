@@ -65,6 +65,10 @@ Ext.define('PBS.window.SyncJobEdit', {
 		fieldLabel: gettext('Remove vanished'),
 		xtype: 'proxmoxcheckbox',
 		name: 'remove-vanished',
+		autoEl: {
+		    tag: 'div',
+		    'data-qtip': gettext('Remove snapshots from local datastore if they vanished from source datastore?'),
+		},
 		uncheckedValue: false,
 		value: false,
 	    },
