@@ -103,7 +103,7 @@ async fn pull_index_chunks<I: IndexFile>(
 
     let bytes = bytes.load(Ordering::SeqCst);
 
-    worker.log(format!("downloaded {} bytes ({} MiB/s)", bytes, (bytes as f64)/(1024.0*1024.0*elapsed)));
+    worker.log(format!("downloaded {} bytes ({:.2} MiB/s)", bytes, (bytes as f64)/(1024.0*1024.0*elapsed)));
 
     Ok(())
 }
