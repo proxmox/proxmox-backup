@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::Arc;
 use std::path::{Path, PathBuf};
 use std::os::unix::io::AsRawFd;
 
@@ -164,7 +164,7 @@ fn accept_connections(
 
     let (sender, receiver) = tokio::sync::mpsc::channel(1024);
 
-    let accept_counter = Arc::new(AtomicUsize::new(0));
+    let accept_counter = Arc::new(());
 
     const MAX_PENDING_ACCEPTS: usize = 1024;
 
@@ -180,11 +180,10 @@ fn accept_connections(
                     let acceptor = Arc::clone(&acceptor);
                     let mut sender = sender.clone();
 
-                    if accept_counter.load(Ordering::SeqCst) > MAX_PENDING_ACCEPTS {
+                    if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
                         eprintln!("connection rejected - to many open connections");
                         continue;
                     }
-                    accept_counter.fetch_add(1, Ordering::SeqCst);
 
                     let accept_counter = accept_counter.clone();
                     tokio::spawn(async move {
@@ -207,7 +206,7 @@ fn accept_connections(
                             }
                         }
 
-                        accept_counter.fetch_sub(1, Ordering::SeqCst);
+                        drop(accept_counter); // decrease reference count
                     });
                 }
             }
