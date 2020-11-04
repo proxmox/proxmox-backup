@@ -56,6 +56,12 @@ Ext.define('PBS.store.NavigationStore', {
 		leaf: false,
 		children: [
 		    {
+			text: gettext('Shell'),
+			iconCls: 'fa fa-terminal',
+			path: 'pbsXtermJsConsole',
+			leaf: true,
+		    },
+		    {
 			text: gettext('Disks'),
 			iconCls: 'fa fa-hdd-o',
 			path: 'pmxDiskList',
