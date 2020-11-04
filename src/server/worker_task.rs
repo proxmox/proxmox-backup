@@ -55,7 +55,9 @@ pub async fn worker_is_active(upid: &UPID) -> Result<bool, Error> {
     let sock = server::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-status",
-        "upid": upid.to_string(),
+        "args": {
+            "upid": upid.to_string(),
+        },
     });
     let status = super::send_command(sock, cmd).await?;
 
@@ -127,7 +129,9 @@ pub async fn abort_worker(upid: UPID) -> Result<(), Error> {
     let sock = server::ctrl_sock_from_pid(upid.pid);
     let cmd = json!({
         "command": "worker-task-abort",
-        "upid": upid.to_string(),
+        "args": {
+            "upid": upid.to_string(),
+        },
     });
     super::send_command(sock, cmd).map_ok(|_| ()).await
 }
