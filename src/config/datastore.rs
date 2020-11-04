@@ -32,6 +32,14 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
         path: {
             schema: DIR_NAME_SCHEMA,
         },
+        "notify-user": {
+            optional: true,
+            type: Userid,
+        },
+        "notify": {
+            optional: true,
+            type: Notify,
+        },
         comment: {
             optional: true,
             schema: SINGLE_LINE_COMMENT_SCHEMA,
@@ -101,6 +109,12 @@ pub struct DataStoreConfig {
     /// If enabled, all backups will be verified right after completion.
     #[serde(skip_serializing_if="Option::is_none")]
     pub verify_new: Option<bool>,
+    /// Send job email notification to this user
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub notify_user: Option<Userid>,
+    /// Send notification only for job errors
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub notify: Option<Notify>,
 }
 
 fn init() -> SectionConfig {

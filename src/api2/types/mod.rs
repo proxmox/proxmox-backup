@@ -1154,3 +1154,16 @@ pub struct APTUpdateInfo {
     /// URL under which the package's changelog can be retrieved
     pub change_log_url: String,
 }
+
+#[api()]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// When do we send notifications
+pub enum Notify {
+    /// Never send notification
+    Never,
+    /// Send notifications for failed and sucessful jobs
+    Always,
+    /// Send notifications for failed jobs only
+    Error,
+}

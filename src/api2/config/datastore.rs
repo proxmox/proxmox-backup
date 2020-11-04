@@ -68,6 +68,14 @@ pub fn list_datastores(
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
             },
+            "notify-user": {
+                optional: true,
+                type: Userid,
+            },
+            "notify": {
+                optional: true,
+                type: Notify,
+            },
             "gc-schedule": {
                 optional: true,
                 schema: GC_SCHEDULE_SCHEMA,
@@ -187,6 +195,10 @@ pub enum DeletableProperty {
     keep_monthly,
     /// Delete the keep-yearly property
     keep_yearly,
+    /// Delete the notify-user property
+    notify_user,
+    /// Delete the notify property
+    notify,
 }
 
 #[api(
@@ -199,6 +211,14 @@ pub enum DeletableProperty {
             comment: {
                 optional: true,
                 schema: SINGLE_LINE_COMMENT_SCHEMA,
+            },
+            "notify-user": {
+                optional: true,
+                type: Userid,
+            },
+            "notify": {
+                optional: true,
+                type: Notify,
             },
             "gc-schedule": {
                 optional: true,
@@ -262,6 +282,8 @@ pub fn update_datastore(
     keep_weekly: Option<u64>,
     keep_monthly: Option<u64>,
     keep_yearly: Option<u64>,
+    notify: Option<Notify>,
+    notify_user: Option<Userid>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
@@ -290,6 +312,8 @@ pub fn update_datastore(
                 DeletableProperty::keep_weekly => { data.keep_weekly = None; },
                 DeletableProperty::keep_monthly => { data.keep_monthly = None; },
                 DeletableProperty::keep_yearly => { data.keep_yearly = None; },
+                DeletableProperty::notify => { data.notify = None; },
+                DeletableProperty::notify_user => { data.notify_user = None; },
             }
         }
     }
@@ -321,6 +345,9 @@ pub fn update_datastore(
     if keep_weekly.is_some() { data.keep_weekly = keep_weekly; }
     if keep_monthly.is_some() { data.keep_monthly = keep_monthly; }
     if keep_yearly.is_some() { data.keep_yearly = keep_yearly; }
+
+    if notify.is_some() { data.notify = notify; }
+    if notify_user.is_some() { data.notify_user = notify_user; }
 
     config.set_data(&name, "datastore", &data)?;
 
