@@ -1,3 +1,26 @@
+rust-proxmox-backup (0.9.6-1) unstable; urgency=medium
+
+  * fix #3106: improve queueing new incoming connections
+
+  * fix #2870: sync: ensure a updated ticket is used, if available
+
+  * proxy: log if there are too many open connections
+
+  * ui: SyncJobEdit: fix sending 'delete' values on SyncJob creation
+
+  * datastore config: allow to configure who receives job notify emails
+
+  * ui: fix task description for log rotate
+
+  * proxy: also rotate auth.log file
+
+  * ui: add shell panel under administration
+
+  * ui: sync jobs: only set default schedule when creating new jobs and some
+    other small fixes
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 04 Nov 2020 19:12:57 +0100
+
 rust-proxmox-backup (0.9.5-1) unstable; urgency=medium
 
   * ui: user menu: allow one to change the language while staying logged in
