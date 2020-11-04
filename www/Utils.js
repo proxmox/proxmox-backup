@@ -101,7 +101,7 @@ Ext.define('PBS.Utils', {
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
-	    logrotate: [gettext('Log'), gettext('Rotation')],
+	    logrotate: [null, gettext('Log Rotation')],
 	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
 	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
 	    sync: ['Datastore', gettext('Remote Sync')],
