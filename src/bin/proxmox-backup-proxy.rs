@@ -74,6 +74,10 @@ async fn run() -> Result<(), Error> {
         bail!("unable to inititialize syslog - {}", err);
     }
 
+    // Note: To debug early connection error use
+    // PROXMOX_DEBUG=1 ./target/release/proxmox-backup-proxy
+    let debug = std::env::var("PROXMOX_DEBUG").is_ok();
+
     let _ = public_auth_key(); // load with lazy_static
     let _ = csrf_secret(); // load with lazy_static
 
@@ -117,7 +121,7 @@ async fn run() -> Result<(), Error> {
         ([0,0,0,0,0,0,0,0], 8007).into(),
         |listener, ready| {
 
-            let connections = accept_connections(listener, acceptor);
+            let connections = accept_connections(listener, acceptor, debug);
             let connections = hyper::server::accept::from_stream(connections);
 
             Ok(ready
@@ -160,6 +164,7 @@ async fn run() -> Result<(), Error> {
 fn accept_connections(
     mut listener: tokio::net::TcpListener,
     acceptor: Arc<openssl::ssl::SslAcceptor>,
+    debug: bool,
 ) -> tokio::sync::mpsc::Receiver<Result<tokio_openssl::SslStream<tokio::net::TcpStream>, Error>> {
 
     let (sender, receiver) = tokio::sync::mpsc::channel(1024);
@@ -181,7 +186,9 @@ fn accept_connections(
                     let mut sender = sender.clone();
 
                     if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
-                        eprintln!("connection rejected - to many open connections");
+                        if debug {
+                            eprintln!("connection rejected - to many open connections");
+                        }
                         continue;
                     }
 
@@ -195,14 +202,20 @@ fn accept_connections(
                         match result {
                             Ok(Ok(connection)) => {
                                 if let Err(_) = sender.send(Ok(connection)).await {
-                                    eprintln!("detect closed connection channel");
+                                    if debug {
+                                        eprintln!("detect closed connection channel");
+                                    }
                                 }
                             }
                             Ok(Err(err)) => {
-                                eprintln!("https handshake failed - {}", err);
+                                if debug {
+                                    eprintln!("https handshake failed - {}", err);
+                                }
                             }
                             Err(_) => {
-                                eprintln!("https handshake timeout");
+                                if debug {
+                                    eprintln!("https handshake timeout");
+                                }
                             }
                         }
 
