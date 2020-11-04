@@ -167,11 +167,11 @@ fn accept_connections(
     debug: bool,
 ) -> tokio::sync::mpsc::Receiver<Result<tokio_openssl::SslStream<tokio::net::TcpStream>, Error>> {
 
-    let (sender, receiver) = tokio::sync::mpsc::channel(1024);
+    const MAX_PENDING_ACCEPTS: usize = 1024;
+
+    let (sender, receiver) = tokio::sync::mpsc::channel(MAX_PENDING_ACCEPTS);
 
     let accept_counter = Arc::new(());
-
-    const MAX_PENDING_ACCEPTS: usize = 1024;
 
     tokio::spawn(async move {
         loop {
@@ -186,9 +186,7 @@ fn accept_connections(
                     let mut sender = sender.clone();
 
                     if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
-                        if debug {
-                            eprintln!("connection rejected - to many open connections");
-                        }
+                        eprintln!("connection rejected - to many open connections");
                         continue;
                     }
 
