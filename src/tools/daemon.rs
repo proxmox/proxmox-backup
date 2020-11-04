@@ -12,6 +12,7 @@ use std::task::{Context, Poll};
 use std::path::PathBuf;
 
 use anyhow::{bail, format_err, Error};
+use futures::future::{self, Either};
 
 use proxmox::tools::io::{ReadExt, WriteExt};
 
@@ -262,7 +263,7 @@ pub async fn create_daemon<F, S>(
 ) -> Result<(), Error>
 where
     F: FnOnce(tokio::net::TcpListener, NotifyReady) -> Result<S, Error>,
-    S: Future<Output = ()>,
+    S: Future<Output = ()> + Unpin,
 {
     let mut reloader = Reloader::new()?;
 
@@ -271,11 +272,19 @@ where
         move || async move { Ok(tokio::net::TcpListener::bind(&address).await?) },
     ).await?;
 
-    create_service(listener, NotifyReady)?.await;
+    let server_future = create_service(listener, NotifyReady)?;
+    let shutdown_future = server::shutdown_future();
+
+    let finish_future = match future::select(server_future, shutdown_future).await {
+        Either::Left((_, _)) => {
+            crate::tools::request_shutdown(); // make sure we are in shutdown mode
+            None
+        }
+        Either::Right((_, server_future)) => Some(server_future),
+    };
 
     let mut reloader = Some(reloader);
 
-    crate::tools::request_shutdown(); // make sure we are in shutdown mode
     if server::is_reload_request() {
         log::info!("daemon reload...");
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
@@ -288,6 +297,11 @@ where
     } else {
         log::info!("daemon shutting down...");
     }
+
+    if let Some(future) = finish_future {
+        future.await;
+    }
+    log::info!("daemon shut down...");
     Ok(())
 }
 
