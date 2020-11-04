@@ -581,11 +581,18 @@ async fn schedule_task_log_rotate() {
                 let mut logrotate = LogRotate::new(buildcfg::API_ACCESS_LOG_FN, true)
                         .ok_or_else(|| format_err!("could not get API access log file names"))?;
 
-                let has_rotated = logrotate.rotate(max_size, None, Some(max_files))?;
-                if has_rotated {
+                if logrotate.rotate(max_size, None, Some(max_files))? {
                     println!("rotated access log, telling daemons to re-open log file");
                     proxmox_backup::tools::runtime::block_on(command_reopen_logfiles())?;
+                    worker.log(format!("API access log was rotated"));
+                } else {
+                    worker.log(format!("API access log was not rotated"));
+                }
 
+                let mut logrotate = LogRotate::new(buildcfg::API_AUTH_LOG_FN, true)
+                        .ok_or_else(|| format_err!("could not get API auth log file names"))?;
+
+                if logrotate.rotate(max_size, None, Some(max_files))? {
                     worker.log(format!("API access log was rotated"));
                 } else {
                     worker.log(format!("API access log was not rotated"));
