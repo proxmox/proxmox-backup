@@ -1,3 +1,90 @@
+Ext.define('PBS.form.RemoteStoreSelector', {
+    extend: 'Proxmox.form.ComboGrid',
+    alias: 'widget.pbsRemoteStoreSelector',
+
+    queryMode: 'local',
+
+    valueField: 'store',
+    displayField: 'store',
+    notFoundIsValid: true,
+
+    matchFieldWidth: false,
+    listConfig: {
+	loadingText: gettext('Scanning...'),
+	width: 350,
+	columns: [
+	    {
+		header: gettext('Datastore'),
+		sortable: true,
+		dataIndex: 'store',
+		renderer: Ext.String.htmlEncode,
+		flex: 1,
+	    },
+	    {
+		header: gettext('Comment'),
+		dataIndex: 'comment',
+		renderer: Ext.String.htmlEncode,
+		flex: 1,
+	    },
+	],
+    },
+
+    doRawQuery: function() {
+	// do nothing.
+    },
+
+    setRemote: function(remote) {
+	let me = this;
+
+	if (me.remote === remote) {
+	    return;
+	}
+
+	me.remote = remote;
+
+	let store = me.store;
+	store.removeAll();
+
+	if (me.remote) {
+	    me.setDisabled(false);
+	    if (!me.firstLoad) {
+		me.clearValue();
+	    }
+
+	    store.proxy.url = '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan';
+	    store.load();
+
+	    me.firstLoad = false;
+	} else {
+	    me.setDisabled(true);
+	    me.clearValue();
+	}
+    },
+
+    initComponent: function() {
+	let me = this;
+
+	me.firstLoad = true;
+
+	let store = Ext.create('Ext.data.Store', {
+	    fields: ['store', 'comment'],
+	    proxy: {
+		type: 'proxmox',
+		url: '/api2/json/config/remote/' + encodeURIComponent(me.remote) + '/scan',
+	    },
+	});
+
+	store.sort('store', 'ASC');
+
+	Ext.apply(me, {
+	    store: store,
+	});
+
+	me.callParent();
+    },
+});
+
+
 Ext.define('PBS.window.SyncJobEdit', {
     extend: 'Proxmox.window.Edit',
     alias: 'widget.pbsSyncJobEdit',
@@ -80,12 +167,20 @@ Ext.define('PBS.window.SyncJobEdit', {
 		xtype: 'pbsRemoteSelector',
 		allowBlank: false,
 		name: 'remote',
+		listeners: {
+		    change: function(f, value) {
+			let me = this;
+			let remoteStoreField = me.up('pbsSyncJobEdit').down('field[name=remote-store]');
+			remoteStoreField.setRemote(value);
+		    },
+		},
 	    },
 	    {
 		fieldLabel: gettext('Source Datastore'),
-		xtype: 'proxmoxtextfield',
+		xtype: 'pbsRemoteStoreSelector',
 		allowBlank: false,
 		name: 'remote-store',
+		disabled: true,
 	    },
 	    {
 		fieldLabel: gettext('Sync Schedule'),
