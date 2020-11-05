@@ -397,15 +397,9 @@ pub fn send_updates_available(
 }
 
 /// Lookup users email address
-///
-/// For "backup@pam", this returns the address from "root@pam".
 fn lookup_user_email(userid: &Userid) -> Option<String> {
 
     use crate::config::user::{self, User};
-
-    if userid == Userid::backup_userid() {
-        return lookup_user_email(Userid::root_userid());
-    }
 
     if let Ok(user_config) = user::cached_config() {
         if let Ok(user) = user_config.lookup::<User>("user", userid.as_str()) {
@@ -437,7 +431,7 @@ pub fn lookup_datastore_notify_settings(
 
     email = match config.notify_user {
         Some(ref userid) => lookup_user_email(userid),
-        None => lookup_user_email(Userid::backup_userid()),
+        None => lookup_user_email(Userid::root_userid()),
     };
 
     let notify_str = config.notify.unwrap_or(String::new());

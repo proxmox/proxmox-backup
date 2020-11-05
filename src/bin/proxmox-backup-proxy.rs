@@ -377,7 +377,7 @@ async fn schedule_datastore_garbage_collection() {
             Err(_) => continue, // could not get lock
         };
 
-        let auth_id = Authid::backup_auth_id();
+        let auth_id = Authid::root_auth_id();
 
         if let Err(err) = crate::server::do_garbage_collection_job(job, datastore, auth_id, Some(event_str), false) {
             eprintln!("unable to start garbage collection job on datastore {} - {}", store, err);
@@ -440,7 +440,7 @@ async fn schedule_datastore_prune() {
                 Err(_) => continue, // could not get lock
             };
 
-            let auth_id = Authid::backup_auth_id().clone();
+            let auth_id = Authid::root_auth_id().clone();
             if let Err(err) = do_prune_job(job, prune_options, store.clone(), &auth_id, Some(event_str)) {
                 eprintln!("unable to start datastore prune job {} - {}", &store, err);
             }
@@ -484,7 +484,7 @@ async fn schedule_datastore_sync_jobs() {
                 Err(_) => continue, // could not get lock
             };
 
-            let auth_id = Authid::backup_auth_id().clone();
+            let auth_id = Authid::root_auth_id().clone();
             if let Err(err) = do_sync_job(job, job_config, &auth_id, Some(event_str)) {
                 eprintln!("unable to start datastore sync job {} - {}", &job_id, err);
             }
@@ -520,7 +520,7 @@ async fn schedule_datastore_verify_jobs() {
         };
 
         let worker_type = "verificationjob";
-        let auth_id = Authid::backup_auth_id().clone();
+        let auth_id = Authid::root_auth_id().clone();
         if check_schedule(worker_type, &event_str, &job_id) {
             let job = match Job::new(&worker_type, &job_id) {
                 Ok(job) => job,
@@ -560,7 +560,7 @@ async fn schedule_task_log_rotate() {
     if let Err(err) = WorkerTask::new_thread(
         worker_type,
         None,
-        Authid::backup_auth_id().clone(),
+        Authid::root_auth_id().clone(),
         false,
         move |worker| {
             job.start(&worker.upid().to_string())?;

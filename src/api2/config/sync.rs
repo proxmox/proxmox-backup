@@ -58,7 +58,7 @@ pub fn check_sync_job_modify_access(
                     && owner.user() == auth_id.user())
         },
         // default sync owner
-        None => auth_id == Authid::backup_auth_id(),
+        None => auth_id == Authid::root_auth_id(),
     };
 
     // same permission as changing ownership after syncing
@@ -511,7 +511,7 @@ acl:1:/remote/remote1/remotestore1:write@pbs:RemoteSyncOperator
     job.owner = Some(read_auth_id.clone());
     assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
 
-    // also not to the default 'backup@pam'
+    // also not to the default 'root@pam'
     job.owner = None;
     assert_eq!(check_sync_job_modify_access(&user_info, &write_auth_id, &job), false);
 

@@ -450,11 +450,6 @@ impl Userid {
         &self.data
     }
 
-    /// Get the "backup@pam" user id.
-    pub fn backup_userid() -> &'static Self {
-        &*BACKUP_USERID
-    }
-
     /// Get the "root@pam" user id.
     pub fn root_userid() -> &'static Self {
         &*ROOT_USERID
@@ -462,7 +457,6 @@ impl Userid {
 }
 
 lazy_static! {
-    pub static ref BACKUP_USERID: Userid = Userid::new("backup@pam".to_string(), 6);
     pub static ref ROOT_USERID: Userid = Userid::new("root@pam".to_string(), 4);
 }
 
@@ -596,11 +590,6 @@ impl Authid {
         }
     }
 
-    /// Get the "backup@pam" auth id.
-    pub fn backup_auth_id() -> &'static Self {
-        &*BACKUP_AUTHID
-    }
-
     /// Get the "root@pam" auth id.
     pub fn root_auth_id() -> &'static Self {
         &*ROOT_AUTHID
@@ -608,7 +597,6 @@ impl Authid {
 }
 
 lazy_static! {
-    pub static ref BACKUP_AUTHID: Authid = Authid::from(Userid::new("backup@pam".to_string(), 6));
     pub static ref ROOT_AUTHID: Authid = Authid::from(Userid::new("root@pam".to_string(), 4));
 }
 

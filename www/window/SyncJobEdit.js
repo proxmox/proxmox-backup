@@ -142,7 +142,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 		name: 'owner',
 		allowBlank: true,
 		value: null,
-		emptyText: 'backup@pam',
+		emptyText: 'root@pam',
 		skipEmptyText: true,
 		cbind: {
 		    deleteEmpty: '{!isCreate}',
