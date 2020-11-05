@@ -38,7 +38,7 @@ pub const DIR_NAME_SCHEMA: Schema = StringSchema::new("Directory name").schema()
         },
         "notify": {
             optional: true,
-            type: Notify,
+            schema: DATASTORE_NOTIFY_STRING_SCHEMA,
         },
         comment: {
             optional: true,
@@ -114,7 +114,7 @@ pub struct DataStoreConfig {
     pub notify_user: Option<Userid>,
     /// Send notification only for job errors
     #[serde(skip_serializing_if="Option::is_none")]
-    pub notify: Option<Notify>,
+    pub notify: Option<String>,
 }
 
 fn init() -> SectionConfig {

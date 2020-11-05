@@ -5,6 +5,7 @@ use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
+use proxmox::api::schema::parse_property_string;
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
@@ -74,7 +75,7 @@ pub fn list_datastores(
             },
             "notify": {
                 optional: true,
-                type: Notify,
+                schema: DATASTORE_NOTIFY_STRING_SCHEMA,
             },
             "gc-schedule": {
                 optional: true,
@@ -218,7 +219,7 @@ pub enum DeletableProperty {
             },
             "notify": {
                 optional: true,
-                type: Notify,
+                schema: DATASTORE_NOTIFY_STRING_SCHEMA,
             },
             "gc-schedule": {
                 optional: true,
@@ -282,7 +283,7 @@ pub fn update_datastore(
     keep_weekly: Option<u64>,
     keep_monthly: Option<u64>,
     keep_yearly: Option<u64>,
-    notify: Option<Notify>,
+    notify: Option<String>,
     notify_user: Option<Userid>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
@@ -346,7 +347,15 @@ pub fn update_datastore(
     if keep_monthly.is_some() { data.keep_monthly = keep_monthly; }
     if keep_yearly.is_some() { data.keep_yearly = keep_yearly; }
 
-    if notify.is_some() { data.notify = notify; }
+    if let Some(notify_str) = notify {
+        let value = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA)?;
+        let notify: DatastoreNotify = serde_json::from_value(value)?;
+        if let  DatastoreNotify { gc: None, verify: None, sync: None } = notify {
+            data.notify = None;
+        } else {
+            data.notify = Some(notify_str);
+        }
+    }
     if notify_user.is_some() { data.notify_user = notify_user; }
 
     config.set_data(&name, "datastore", &data)?;

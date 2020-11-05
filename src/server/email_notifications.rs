@@ -4,6 +4,7 @@ use serde_json::json;
 use handlebars::{Handlebars, Helper, Context, RenderError, RenderContext, Output, HelperResult};
 
 use proxmox::tools::email::sendmail;
+use proxmox::api::schema::parse_property_string;
 
 use crate::{
     config::datastore::DataStoreConfig,
@@ -14,6 +15,7 @@ use crate::{
         GarbageCollectionStatus,
         Userid,
         Notify,
+        DatastoreNotify,
     },
     tools::format::HumanByte,
 };
@@ -190,14 +192,19 @@ fn send_job_status_mail(
 
 pub fn send_gc_status(
     email: &str,
-    notify: Notify,
+    notify: DatastoreNotify,
     datastore: &str,
     status: &GarbageCollectionStatus,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
 
-    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-        return Ok(());
+    match notify.gc {
+        None => { /* send notifications by default */ },
+        Some(notify) => {
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+        }
     }
 
     let (fqdn, port) = get_server_url();
@@ -244,14 +251,10 @@ pub fn send_gc_status(
 
 pub fn send_verify_status(
     email: &str,
-    notify: Notify,
+    notify: DatastoreNotify,
     job: VerificationJobConfig,
     result: &Result<Vec<String>, Error>,
 ) -> Result<(), Error> {
-
-    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-        return Ok(());
-    }
 
     let (fqdn, port) = get_server_url();
     let mut data = json!({
@@ -260,8 +263,11 @@ pub fn send_verify_status(
         "port": port,
     });
 
+    let mut result_is_ok = false;
+
     let text = match result {
         Ok(errors) if errors.is_empty() => {
+            result_is_ok = true;
             HANDLEBARS.render("verify_ok_template", &data)?
         }
         Ok(errors) => {
@@ -273,6 +279,15 @@ pub fn send_verify_status(
             return Ok(());
         }
     };
+
+    match notify.verify {
+        None => { /* send notifications by default */ },
+        Some(notify) => {
+            if notify == Notify::Never || (result_is_ok && notify == Notify::Error) {
+                return Ok(());
+            }
+        }
+    }
 
     let subject = match result {
         Ok(errors) if errors.is_empty() => format!(
@@ -292,13 +307,18 @@ pub fn send_verify_status(
 
 pub fn send_sync_status(
     email: &str,
-    notify: Notify,
+    notify: DatastoreNotify,
     job: &SyncJobConfig,
     result: &Result<(), Error>,
 ) -> Result<(), Error> {
 
-    if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
-        return Ok(());
+    match notify.sync {
+        None => { /* send notifications by default */ },
+        Some(notify) => {
+            if notify == Notify::Never || (result.is_ok() && notify == Notify::Error) {
+                return Ok(());
+            }
+        }
     }
 
     let (fqdn, port) = get_server_url();
@@ -399,10 +419,11 @@ fn lookup_user_email(userid: &Userid) -> Option<String> {
 /// Lookup Datastore notify settings
 pub fn lookup_datastore_notify_settings(
     store: &str,
-) -> (Option<String>, Notify) {
+) -> (Option<String>, DatastoreNotify) {
 
-    let mut notify = Notify::Always;
     let mut email = None;
+
+    let notify = DatastoreNotify { gc: None, verify: None, sync: None };
 
     let (config, _digest) = match crate::config::datastore::config() {
         Ok(result) => result,
@@ -419,8 +440,12 @@ pub fn lookup_datastore_notify_settings(
         None => lookup_user_email(Userid::backup_userid()),
     };
 
-    if let Some(value) = config.notify {
-        notify = value;
+    let notify_str = config.notify.unwrap_or(String::new());
+
+    if let Ok(value) = parse_property_string(&notify_str, &DatastoreNotify::API_SCHEMA) {
+        if let Ok(notify) = serde_json::from_value(value) {
+            return (email, notify);
+        }
     }
 
     (email, notify)

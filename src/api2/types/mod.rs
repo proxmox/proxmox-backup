@@ -1167,3 +1167,35 @@ pub enum Notify {
     /// Send notifications for failed jobs only
     Error,
 }
+
+#[api(
+    properties: {
+        gc: {
+            type: Notify,
+            optional: true,
+        },
+        verify: {
+            type: Notify,
+            optional: true,
+        },
+        sync: {
+            type: Notify,
+            optional: true,
+        },
+    },
+)]
+#[derive(Debug, Serialize, Deserialize)]
+/// Datastore notify settings
+pub struct DatastoreNotify {
+    /// Garbage collection settings
+    pub gc: Option<Notify>,
+    /// Verify job setting
+    pub verify: Option<Notify>,
+    /// Sync job setting
+    pub sync: Option<Notify>,
+}
+
+pub const DATASTORE_NOTIFY_STRING_SCHEMA: Schema = StringSchema::new(
+    "Datastore notification setting")
+    .format(&ApiStringFormat::PropertyString(&DatastoreNotify::API_SCHEMA))
+    .schema();
