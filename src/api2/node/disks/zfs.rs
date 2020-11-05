@@ -243,7 +243,7 @@ pub fn zpool_details(
         permission: &Permission::Privilege(&["system", "disks"], PRIV_SYS_MODIFY, false),
     },
 )]
-/// Create a new ZFS pool.
+/// Create a new ZFS pool. Will be mounted under '/mnt/datastore/<name>'.
 pub fn create_zpool(
     name: String,
     devices: String,
@@ -303,10 +303,11 @@ pub fn create_zpool(
         bail!("{:?} needs at least {} disks.", raidlevel, min_disks);
     }
 
+    let mount_point = format!("/mnt/datastore/{}", &name);
+
     // check if the default path does exist already and bail if it does
-    // otherwise we get an error on mounting
-    let mut default_path = std::path::PathBuf::from("/");
-    default_path.push(&name);
+    // otherwise 'zpool create' aborts after partitioning, but before creating the pool
+    let default_path = std::path::PathBuf::from(&mount_point);
 
     match std::fs::metadata(&default_path) {
         Err(_) => {}, // path does not exist
@@ -322,7 +323,7 @@ pub fn create_zpool(
 
 
             let mut command = std::process::Command::new("zpool");
-            command.args(&["create", "-o", &format!("ashift={}", ashift), &name]);
+            command.args(&["create", "-o", &format!("ashift={}", ashift), "-m", &mount_point, &name]);
 
             match raidlevel {
                 ZfsRaidLevel::Single => {
@@ -371,7 +372,6 @@ pub fn create_zpool(
             }
 
             if add_datastore {
-                let mount_point = format!("/{}", name);
                 crate::api2::config::datastore::create_datastore(json!({ "name": name, "path": mount_point }))?
             }
 

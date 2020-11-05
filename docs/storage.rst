@@ -57,7 +57,7 @@ create a datastore at the location ``/mnt/datastore/store1``:
 You can also create a ``zpool`` with various raid levels from **Administration
 -> Disks -> Zpool** in the web interface, or by using ``zpool create``. The command
 below creates a mirrored ``zpool`` using two disks (``sdb`` & ``sdc``) and
-mounts it on the root directory (default):
+mounts it under ``/mnt/datastore/zpool1``:
 
 .. code-block:: console
 
