@@ -372,6 +372,25 @@ pub const BLOCKDEVICE_NAME_SCHEMA: Schema = StringSchema::new("Block device name
 
 #[api(
     properties: {
+        store: {
+            schema: DATASTORE_SCHEMA,
+        },
+        comment: {
+            optional: true,
+            schema: SINGLE_LINE_COMMENT_SCHEMA,
+        },
+    },
+)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Basic information about a datastore.
+pub struct DataStoreListItem {
+    pub store: String,
+    pub comment: Option<String>,
+}
+
+#[api(
+    properties: {
         "backup-type": {
             schema: BACKUP_TYPE_SCHEMA,
         },

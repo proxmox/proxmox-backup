@@ -902,15 +902,7 @@ pub fn garbage_collection_status(
         type: Array,
         items: {
             description: "Datastore name and description.",
-            properties: {
-                store: {
-                    schema: DATASTORE_SCHEMA,
-                },
-                comment: {
-                    optional: true,
-                    schema: SINGLE_LINE_COMMENT_SCHEMA,
-                },
-            },
+            type: DataStoreListItem,
         },
     },
     access: {
@@ -922,7 +914,7 @@ fn get_datastore_list(
     _param: Value,
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
-) -> Result<Value, Error> {
+) -> Result<Vec<DataStoreListItem>, Error> {
 
     let (config, _digest) = datastore::config()?;
 
@@ -935,11 +927,12 @@ fn get_datastore_list(
         let user_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
         let allowed = (user_privs & (PRIV_DATASTORE_AUDIT| PRIV_DATASTORE_BACKUP)) != 0;
         if allowed {
-            let mut entry = json!({ "store": store });
-            if let Some(comment) = data["comment"].as_str() {
-                entry["comment"] = comment.into();
-            }
-            list.push(entry);
+            list.push(
+                DataStoreListItem {
+                    store: store.clone(),
+                    comment: data["comment"].as_str().map(String::from),
+                }
+            );
         }
     }
 
