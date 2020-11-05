@@ -658,6 +658,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let mut out = encoder.create_file(metadata, file_name, file_size)?;
         while remaining != 0 {
             let mut got = match file.read(&mut self.file_copy_buffer[..]) {
+                Ok(0) => break,
                 Ok(got) => got,
                 Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(err) => bail!(err),
@@ -665,8 +666,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
             if got as u64 > remaining {
                 self.report_file_grew_while_reading()?;
                 got = remaining as usize;
-            } else if got == 0 {
-                break; // we reached eof
             }
             out.write_all(&self.file_copy_buffer[..got])?;
             remaining -= got as u64;
