@@ -1,11 +1,13 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use ::serde::{Deserialize, Serialize};
 
 use proxmox::api::{api, ApiMethod, Router, RpcEnvironment, Permission};
+use proxmox::http_err;
 use proxmox::tools::fs::open_file_locked;
 
 use crate::api2::types::*;
+use crate::client::{HttpClient, HttpClientOptions};
 use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::remote;
 use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
@@ -301,10 +303,83 @@ pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> 
     Ok(())
 }
 
+/// Helper to get client for remote.cfg entry
+pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> {
+    let options = HttpClientOptions::new()
+        .password(Some(remote.password.clone()))
+        .fingerprint(remote.fingerprint.clone());
+
+    let client = HttpClient::new(
+        &remote.host,
+        remote.port.unwrap_or(8007),
+        &remote.userid,
+        options)?;
+    let _auth_info = client.login() // make sure we can auth
+        .await
+        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
+
+    Ok(client)
+}
+
+
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: REMOTE_ID_SCHEMA,
+            },
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&["remote", "{name}"], PRIV_REMOTE_AUDIT, false),
+    },
+    returns: {
+        description: "List the accessible datastores.",
+        type: Array,
+        items: {
+            description: "Datastore name and description.",
+            type: DataStoreListItem,
+        },
+    },
+)]
+/// List datastores of a remote.cfg entry
+pub async fn scan_remote_datastores(name: String) -> Result<Vec<DataStoreListItem>, Error> {
+    let (remote_config, _digest) = remote::config()?;
+    let remote: remote::Remote = remote_config.lookup("remote", &name)?;
+
+    let map_remote_err = |api_err| {
+        http_err!(INTERNAL_SERVER_ERROR,
+                  "failed to scan remote '{}' - {}",
+                  &name,
+                  api_err)
+    };
+
+    let client = remote_client(remote)
+        .await
+        .map_err(map_remote_err)?;
+    let api_res = client
+        .get("api2/json/admin/datastore", None)
+        .await
+        .map_err(map_remote_err)?;
+    let parse_res = match api_res.get("data") {
+        Some(data) => serde_json::from_value::<Vec<DataStoreListItem>>(data.to_owned()),
+        None => bail!("remote {} did not return any datastore list data", &name),
+    };
+
+    match parse_res {
+        Ok(parsed) => Ok(parsed),
+        Err(_) => bail!("Failed to parse remote scan api result."),
+    }
+}
+
+const SCAN_ROUTER: Router = Router::new()
+    .get(&API_METHOD_SCAN_REMOTE_DATASTORES);
+
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_READ_REMOTE)
     .put(&API_METHOD_UPDATE_REMOTE)
-    .delete(&API_METHOD_DELETE_REMOTE);
+    .delete(&API_METHOD_DELETE_REMOTE)
+    .subdirs(&[("scan", &SCAN_ROUTER)]);
 
 pub const ROUTER: Router = Router::new()
     .get(&API_METHOD_LIST_REMOTES)

@@ -413,29 +413,13 @@ pub fn complete_remote_datastore_name(_arg: &str, param: &HashMap<String, String
 
     let _ = proxmox::try_block!({
         let remote = param.get("remote").ok_or_else(|| format_err!("no remote"))?;
-        let (remote_config, _digest) = config::remote::config()?;
 
-        let remote: config::remote::Remote = remote_config.lookup("remote", &remote)?;
+        let data = crate::tools::runtime::block_on(async move {
+            crate::api2::config::remote::scan_remote_datastores(remote.clone()).await
+        })?;
 
-        let options = HttpClientOptions::new()
-            .password(Some(remote.password.clone()))
-            .fingerprint(remote.fingerprint.clone());
-
-        let client = HttpClient::new(
-            &remote.host,
-            remote.port.unwrap_or(8007),
-            &remote.userid,
-            options,
-        )?;
-
-        let result = crate::tools::runtime::block_on(client.get("api2/json/admin/datastore", None))?;
-
-        if let Some(data) = result["data"].as_array() {
-            for item in data {
-                if let Some(store) = item["store"].as_str() {
-                    list.push(store.to_owned());
-                }
-            }
+        for item in data {
+            list.push(item.store);
         }
 
         Ok(())

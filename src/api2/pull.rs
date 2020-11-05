@@ -9,7 +9,7 @@ use proxmox::api::{ApiMethod, Router, RpcEnvironment, Permission};
 
 use crate::server::{WorkerTask, jobstate::Job};
 use crate::backup::DataStore;
-use crate::client::{HttpClient, HttpClientOptions, BackupRepository, pull::pull_store};
+use crate::client::{HttpClient, BackupRepository, pull::pull_store};
 use crate::api2::types::*;
 use crate::config::{
     remote,
@@ -50,17 +50,9 @@ pub async fn get_pull_parameters(
     let (remote_config, _digest) = remote::config()?;
     let remote: remote::Remote = remote_config.lookup("remote", remote)?;
 
-    let options = HttpClientOptions::new()
-        .password(Some(remote.password.clone()))
-        .fingerprint(remote.fingerprint.clone());
-
     let src_repo = BackupRepository::new(Some(remote.userid.clone()), Some(remote.host.clone()), remote.port, remote_store.to_string());
 
-    let client = HttpClient::new(&src_repo.host(), src_repo.port(), &src_repo.auth_id(), options)?;
-    let _auth_info = client.login() // make sure we can auth
-        .await
-        .map_err(|err| format_err!("remote connection to '{}' failed - {}", remote.host, err))?;
-
+    let client = crate::api2::config::remote::remote_client(remote).await?;
 
     Ok((client, src_repo, tgt_store))
 }
