@@ -142,6 +142,18 @@ pub fn create_datastore_disk(
         bail!("disk '{}' is already in use.", disk);
     }
 
+    let mount_point = format!("/mnt/datastore/{}", &name);
+
+    // check if the default path does exist already and bail if it does
+    let default_path = std::path::PathBuf::from(&mount_point);
+
+    match std::fs::metadata(&default_path) {
+        Err(_) => {}, // path does not exist
+        Ok(_) => {
+            bail!("path {:?} already exists", default_path);
+        }
+    }
+
     let upid_str = WorkerTask::new_thread(
         "dircreate", Some(name.clone()), auth_id, to_stdout, move |worker|
         {
@@ -160,7 +172,7 @@ pub fn create_datastore_disk(
             let uuid = get_fs_uuid(&partition)?;
             let uuid_path = format!("/dev/disk/by-uuid/{}", uuid);
 
-            let (mount_unit_name, mount_point) = create_datastore_mount_unit(&name, filesystem, &uuid_path)?;
+            let mount_unit_name = create_datastore_mount_unit(&name, &mount_point, filesystem, &uuid_path)?;
 
             systemd::reload_daemon()?;
             systemd::enable_unit(&mount_unit_name)?;
@@ -243,11 +255,11 @@ pub const ROUTER: Router = Router::new()
 
 fn create_datastore_mount_unit(
     datastore_name: &str,
+    mount_point: &str,
     fs_type: FileSystemType,
     what: &str,
-) -> Result<(String, String), Error> {
+) -> Result<String, Error> {
 
-    let mount_point = format!("/mnt/datastore/{}", datastore_name);
     let mut mount_unit_name = systemd::escape_unit(&mount_point, true);
     mount_unit_name.push_str(".mount");
 
@@ -265,7 +277,7 @@ fn create_datastore_mount_unit(
 
     let mount = SystemdMountSection {
         What: what.to_string(),
-        Where: mount_point.clone(),
+        Where: mount_point.to_string(),
         Type: Some(fs_type.to_string()),
         Options: Some(String::from("defaults")),
         ..Default::default()
@@ -278,5 +290,5 @@ fn create_datastore_mount_unit(
 
     systemd::config::save_systemd_mount(&mount_unit_path, &config)?;
 
-    Ok((mount_unit_name, mount_point))
+    Ok(mount_unit_name)
 }
