@@ -657,7 +657,11 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let mut remaining = file_size;
         let mut out = encoder.create_file(metadata, file_name, file_size)?;
         while remaining != 0 {
-            let mut got = file.read(&mut self.file_copy_buffer[..])?;
+            let mut got = match file.read(&mut self.file_copy_buffer[..]) {
+                Ok(got) => got,
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(err) => bail!(err),
+            };
             if got as u64 > remaining {
                 self.report_file_grew_while_reading()?;
                 got = remaining as usize;
