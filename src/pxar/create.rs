@@ -661,6 +661,8 @@ impl<'a, 'b> Archiver<'a, 'b> {
             if got as u64 > remaining {
                 self.report_file_grew_while_reading()?;
                 got = remaining as usize;
+            } else if got == 0 {
+                break; // we reached eof
             }
             out.write_all(&self.file_copy_buffer[..got])?;
             remaining -= got as u64;
