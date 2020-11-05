@@ -29,9 +29,9 @@ Ext.define('PBS.form.RemoteSelector', {
 		flex: 1,
 	    },
 	    {
-		header: gettext('User name'),
+		header: gettext('Auth ID'),
 		sortable: true,
-		dataIndex: 'userid',
+		dataIndex: 'auth-id',
 		renderer: Ext.String.htmlEncode,
 		flex: 1,
 	    },

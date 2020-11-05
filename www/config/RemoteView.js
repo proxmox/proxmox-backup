@@ -1,6 +1,6 @@
 Ext.define('pmx-remotes', {
     extend: 'Ext.data.Model',
-    fields: ['name', 'host', 'port', 'userid', 'fingerprint', 'comment',
+    fields: ['name', 'host', 'port', 'auth-id', 'fingerprint', 'comment',
 	{
 	    name: 'server',
 	    calculate: function(data) {
@@ -129,11 +129,11 @@ Ext.define('PBS.config.RemoteView', {
 	    dataIndex: 'server',
 	},
 	{
-	    header: gettext('User name'),
+	    header: gettext('Auth ID'),
 	    width: 200,
 	    sortable: true,
 	    renderer: Ext.String.htmlEncode,
-	    dataIndex: 'userid',
+	    dataIndex: 'auth-id',
 	},
 	{
 	    header: gettext('Fingerprint'),

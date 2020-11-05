@@ -78,7 +78,7 @@ pub fn list_remotes(
                 optional: true,
                 default: 8007,
             },
-            userid: {
+            "auth-id": {
                 type: Authid,
             },
             password: {
@@ -178,7 +178,7 @@ pub enum DeletableProperty {
                 type: u16,
                 optional: true,
             },
-            userid: {
+            "auth-id": {
                 optional: true,
                 type: Authid,
             },
@@ -214,7 +214,7 @@ pub fn update_remote(
     comment: Option<String>,
     host: Option<String>,
     port: Option<u16>,
-    userid: Option<Authid>,
+    auth_id: Option<Authid>,
     password: Option<String>,
     fingerprint: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
@@ -252,7 +252,7 @@ pub fn update_remote(
     }
     if let Some(host) = host { data.host = host; }
     if port.is_some() { data.port = port; }
-    if let Some(userid) = userid { data.userid = userid; }
+    if let Some(auth_id) = auth_id { data.auth_id = auth_id; }
     if let Some(password) = password { data.password = password; }
 
     if let Some(fingerprint) = fingerprint { data.fingerprint = Some(fingerprint); }
@@ -323,7 +323,7 @@ pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> 
     let client = HttpClient::new(
         &remote.host,
         remote.port.unwrap_or(8007),
-        &remote.userid,
+        &remote.auth_id,
         options)?;
     let _auth_info = client.login() // make sure we can auth
         .await

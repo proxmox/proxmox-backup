@@ -5,8 +5,6 @@ Ext.define('PBS.window.RemoteEdit', {
 
     onlineHelp: 'backup_remote',
 
-    userid: undefined,
-
     isAdd: true,
 
     subject: gettext('Remote'),
@@ -93,8 +91,8 @@ Ext.define('PBS.window.RemoteEdit', {
 	    {
 		xtype: 'proxmoxtextfield',
 		allowBlank: false,
-		name: 'userid',
-		fieldLabel: gettext('Userid'),
+		name: 'auth-id',
+		fieldLabel: gettext('Auth ID'),
 	    },
 	    {
 		xtype: 'textfield',

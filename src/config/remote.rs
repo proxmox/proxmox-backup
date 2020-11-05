@@ -44,7 +44,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
             description: "The (optional) port",
             type: u16,
         },
-        userid: {
+        "auth-id": {
             type: Authid,
         },
         password: {
@@ -57,6 +57,7 @@ pub const REMOTE_PASSWORD_SCHEMA: Schema = StringSchema::new("Password or auth t
     }
 )]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Remote properties.
 pub struct Remote {
     pub name: String,
@@ -65,7 +66,7 @@ pub struct Remote {
     pub host: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub port: Option<u16>,
-    pub userid: Authid,
+    pub auth_id: Authid,
     #[serde(skip_serializing_if="String::is_empty")]
     #[serde(with = "proxmox::tools::serde::string_as_base64")]
     pub password: String,
