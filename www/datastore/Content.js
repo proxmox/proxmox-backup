@@ -281,6 +281,7 @@ Ext.define('PBS.DataStoreContent', {
 		datastore: view.datastore,
 		backup_type: data.backup_type,
 		backup_id: data.backup_id,
+		owner: data.owner,
 		autoShow: true,
 	    });
 	    win.on('destroy', this.reload, this);

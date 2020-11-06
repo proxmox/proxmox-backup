@@ -31,8 +31,9 @@ Ext.define('PBS.BackupGroupChangeOwner', {
 
 		column1: [
 		    {
-			xtype: 'textfield',
+			xtype: 'pbsUserSelector',
 			name: 'new-owner',
+			value: me.owner,
 			fieldLabel: gettext('Userid'),
 			minLength: 8,
 			allowBlank: false,
