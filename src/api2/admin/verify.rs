@@ -2,11 +2,16 @@ use anyhow::{format_err, Error};
 
 use proxmox::api::router::SubdirMap;
 use proxmox::{list_subdirs_api_method, sortable};
-use proxmox::api::{api, ApiMethod, Router, RpcEnvironment};
+use proxmox::api::{api, ApiMethod, Permission, Router, RpcEnvironment};
 
 use crate::api2::types::*;
 use crate::server::do_verification_job;
 use crate::server::jobstate::{Job, JobState};
+use crate::config::acl::{
+    PRIV_DATASTORE_AUDIT,
+    PRIV_DATASTORE_VERIFY,
+};
+use crate::config::cached_user_info::CachedUserInfo;
 use crate::config::verify;
 use crate::config::verify::{VerificationJobConfig, VerificationJobStatus};
 use serde_json::Value;
@@ -23,9 +28,13 @@ use crate::server::UPID;
         },
     },
     returns: {
-        description: "List configured jobs and their status.",
+        description: "List configured jobs and their status (filtered by access)",
         type: Array,
         items: { type: verify::VerificationJobStatus },
+    },
+    access: {
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Audit or Datastore.Verify on datastore.",
     },
 )]
 /// List all verification jobs
@@ -34,6 +43,10 @@ pub fn list_verification_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<VerificationJobStatus>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
 
     let (config, digest) = verify::config()?;
 
@@ -41,6 +54,11 @@ pub fn list_verification_jobs(
         .convert_to_typed_array("verification")?
         .into_iter()
         .filter(|job: &VerificationJobStatus| {
+            let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+            if privs & required_privs == 0 {
+                return false;
+            }
+
             if let Some(store) = &store {
                 &job.store == store
             } else {
@@ -90,7 +108,11 @@ pub fn list_verification_jobs(
                 schema: JOB_ID_SCHEMA,
             }
         }
-    }
+    },
+    access: {
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Verify on job's datastore.",
+    },
 )]
 /// Runs a verification job manually.
 fn run_verification_job(
@@ -98,10 +120,13 @@ fn run_verification_job(
     _info: &ApiMethod,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<String, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
     let (config, _digest) = verify::config()?;
     let verification_job: VerificationJobConfig = config.lookup("verification", &id)?;
 
-    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, true)?;
 
     let job = Job::new("verificationjob", &id)?;
 
