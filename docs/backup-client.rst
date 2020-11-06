@@ -535,6 +535,29 @@ To remove the ticket, issue a logout:
   # proxmox-backup-client logout
 
 
+.. _changing-backup-owner:
+
+Changing the Owner of a Backup Group
+------------------------------------
+
+By default, the owner of a backup group is the user which was used to originally
+create that backup group (or in the case of sync jobs, ``root@pam``). This
+means that if a user ``mike@pbs`` created a backup, another user ``john@pbs``
+can not be used to create backups in that same backup group.  In case you want
+to change the owner of a backup, you can do so with the below command, using a
+user that has ``Datastore.Modify`` privileges on the datastore.
+
+.. code-block:: console
+
+  # proxmox-backup-client change-owner vm/103 john@pbs
+
+This can also be done from within the web interface, by navigating to the
+`Content` section of the datastore that contains the backup group and
+selecting the user icon under the `Actions` column. Common cases for this could
+be to change the owner of a sync job from ``root@pam``, or to repurpose a
+backup group.
+
+
 .. _backup-pruning:
 
 Pruning and Removing Backups
