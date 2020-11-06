@@ -86,7 +86,7 @@ For setting up sync jobs, the configuring user needs the following permissions:
 
 If the ``remove-vanished`` option is set, ``Datastore.Prune`` is required on
 the local datastore as well. If the ``owner`` option is not set (defaulting to
-``backup@pam``) or set to something other than the configuring user,
+``root@pam``) or set to something other than the configuring user,
 ``Datastore.Modify`` is required as well.
 
 .. note:: A sync job can only sync backup groups that the configured remote's
