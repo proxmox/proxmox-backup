@@ -58,6 +58,81 @@ Ext.define('PBS.Utils', {
 	return path.indexOf(PBS.Utils.dataStorePrefix) === 0;
     },
 
+    parsePropertyString: function(value, defaultKey) {
+	var res = {},
+	    error;
+
+	if (typeof value !== 'string' || value === '') {
+	    return res;
+	}
+
+	Ext.Array.each(value.split(','), function(p) {
+	    var kv = p.split('=', 2);
+	    if (Ext.isDefined(kv[1])) {
+		res[kv[0]] = kv[1];
+	    } else if (Ext.isDefined(defaultKey)) {
+		if (Ext.isDefined(res[defaultKey])) {
+		    error = 'defaultKey may be only defined once in propertyString';
+		    return false; // break
+		}
+		res[defaultKey] = kv[0];
+	    } else {
+		error = 'invalid propertyString, not a key=value pair and no defaultKey defined';
+		return false; // break
+	    }
+	    return true;
+	});
+
+	if (error !== undefined) {
+	    console.error(error);
+	    return null;
+	}
+
+	return res;
+    },
+
+    printPropertyString: function(data, defaultKey) {
+	var stringparts = [],
+	    gotDefaultKeyVal = false,
+	    defaultKeyVal;
+
+	Ext.Object.each(data, function(key, value) {
+	    if (defaultKey !== undefined && key === defaultKey) {
+		gotDefaultKeyVal = true;
+		defaultKeyVal = value;
+	    } else if (value !== '' && value !== undefined) {
+		stringparts.push(key + '=' + value);
+	    }
+	});
+
+	stringparts = stringparts.sort();
+	if (gotDefaultKeyVal) {
+	    stringparts.unshift(defaultKeyVal);
+	}
+
+	return stringparts.join(',');
+    },
+
+    // helper for deleting field which are set to there default values
+    delete_if_default: function(values, fieldname, default_val, create) {
+	if (values[fieldname] === '' || values[fieldname] === default_val) {
+	    if (!create) {
+		if (values.delete) {
+		    if (Ext.isArray(values.delete)) {
+			values.delete.push(fieldname);
+		    } else {
+			values.delete += ',' + fieldname;
+		    }
+		} else {
+		    values.delete = [fieldname];
+		}
+	    }
+
+	    delete values[fieldname];
+	}
+    },
+
+
     render_datetime_utc: function(datetime) {
 	let pad = (number) => number < 10 ? '0' + number : number;
 	return datetime.getUTCFullYear() +
