@@ -107,7 +107,7 @@ is stored in the file ``/etc/proxmox-backup/datastore.cfg``.
 Datastore Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: images/screenshots/pbs-gui-datastore.png
+.. image:: images/screenshots/pbs-gui-datastore-content.png
   :align: right
   :alt: Datastore Overview
 
@@ -127,8 +127,9 @@ Creating a Datastore
   :align: right
   :alt: Create a datastore
 
-You can create a new datastore from the web GUI, by navigating to **Datastore** in
-the menu tree and clicking **Create**. Here:
+You can create a new datastore from the web interface, by clicking **Add
+Datastore** in the side menu, under the **Datastore** section. In the setup
+window:
 
 * *Name* refers to the name of the datastore
 * *Backing Path* is the path to the directory upon which you want to create the
@@ -136,7 +137,9 @@ the menu tree and clicking **Create**. Here:
 * *GC Schedule* refers to the time and intervals at which garbage collection
   runs
 * *Prune Schedule* refers to the frequency at which pruning takes place
-* *Prune Options* set the amount of backups which you would like to keep (see :ref:`backup-pruning`).
+* *Prune Options* set the amount of backups which you would like to keep (see
+  :ref:`backup-pruning`).
+* *Comment* can be used to add some contextual information to the datastore.
 
 Alternatively you can create a new datastore from the command line. The
 following command creates a new datastore called ``store1`` on :file:`/backup/disk1/store1`

@@ -116,16 +116,21 @@ The administration menu item also contains a disk management subsection:
 Datastore
 ^^^^^^^^^
 
-.. image:: images/screenshots/pbs-gui-datastore.png
-  :width: 250
+.. image:: images/screenshots/pbs-gui-datastore-summary.png
   :align: right
   :alt: Datastore Configuration
 
-The Datastore section provides an interface for creating and managing
-datastores. It contains a subsection for each datastore on the system, in
-which you can use the top panel to view:
+The Datastore section contains interfaces for creating and managing
+datastores. It contains a button to create a new datastore on the server, as
+well as a subsection for each datastore on the system, in which you can use the
+top panel to view:
 
+* **Summary**: Access a range of datastore usage statistics
 * **Content**: Information on the datastore's backup groups and their respective
   contents
-* **Statistics**: Usage statistics for the datastore
-* **Permissions**: View and manage permissions for the datastore
+* **Prune & GC**: Schedule :ref:`pruning <backup-pruning>` and :ref:`garbage
+  collection <garbage-collection>` operations, and run garbage collection
+  manually
+* **Sync Jobs**: Create, manage and run :ref:`syncjobs` from remote servers
+* **Verify Jobs**: Create, manage and run :ref:`verification` jobs on the
+  datastore
