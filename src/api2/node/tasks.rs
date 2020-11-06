@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use anyhow::{Error};
+use anyhow::{bail, Error};
 use serde_json::{json, Value};
 
 use proxmox::api::{api, Router, RpcEnvironment, Permission};
@@ -9,19 +9,87 @@ use proxmox::api::router::SubdirMap;
 use proxmox::{identity, list_subdirs_api_method, sortable};
 
 use crate::tools;
+
 use crate::api2::types::*;
+use crate::api2::pull::check_pull_privs;
+
 use crate::server::{self, UPID, TaskState, TaskListInfoIterator};
-use crate::config::acl::{PRIV_SYS_AUDIT, PRIV_SYS_MODIFY};
+use crate::config::acl::{
+    PRIV_DATASTORE_MODIFY,
+    PRIV_DATASTORE_VERIFY,
+    PRIV_SYS_AUDIT,
+    PRIV_SYS_MODIFY,
+};
 use crate::config::cached_user_info::CachedUserInfo;
+
+// matches respective job execution privileges
+fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) -> Result<(), Error> {
+    match (upid.worker_type.as_str(), &upid.worker_id) {
+        ("verificationjob", Some(workerid)) => {
+            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(&workerid) {
+                if let Some(store) = captures.get(1) {
+                    return user_info.check_privs(&auth_id,
+                                                 &["datastore", store.as_str()],
+                                                 PRIV_DATASTORE_VERIFY,
+                                                 true);
+                }
+            }
+        },
+        ("syncjob", Some(workerid)) => {
+            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(&workerid) {
+                let remote = captures.get(1);
+                let remote_store = captures.get(2);
+                let local_store = captures.get(3);
+
+                if let (Some(remote), Some(remote_store), Some(local_store)) =
+                    (remote, remote_store, local_store) {
+
+                    return check_pull_privs(&auth_id,
+                                            local_store.as_str(),
+                                            remote.as_str(),
+                                            remote_store.as_str(),
+                                            false);
+                }
+            }
+        },
+        ("garbage_collection", Some(workerid)) => {
+            return user_info.check_privs(&auth_id,
+                                         &["datastore", &workerid],
+                                         PRIV_DATASTORE_MODIFY,
+                                         true)
+        },
+        ("prune", Some(workerid)) => {
+            return user_info.check_privs(&auth_id,
+                                         &["datastore",
+                                         &workerid],
+                                         PRIV_DATASTORE_MODIFY,
+                                         true);
+        },
+        _ => bail!("not a scheduled job task"),
+    };
+
+    bail!("not a scheduled job task");
+}
 
 fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
     let task_auth_id = &upid.auth_id;
     if auth_id == task_auth_id
         || (task_auth_id.is_token() && &Authid::from(task_auth_id.user().clone()) == auth_id) {
+        // task owner can always read
         Ok(())
     } else {
         let user_info = CachedUserInfo::new()?;
-        user_info.check_privs(auth_id, &["system", "tasks"], PRIV_SYS_AUDIT, false)
+
+        let task_privs = user_info.lookup_privs(auth_id, &["system", "tasks"]);
+        if task_privs & PRIV_SYS_AUDIT != 0 {
+            // allowed to read all tasks in general
+            Ok(())
+        } else if check_job_privs(&auth_id, &user_info, upid).is_ok() {
+            // job which the user/token could have configured/manually executed
+            Ok(())
+        } else {
+            bail!("task access not allowed");
+        }
     }
 }
 

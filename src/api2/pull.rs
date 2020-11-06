@@ -64,14 +64,18 @@ pub fn do_sync_job(
     schedule: Option<String>,
 ) -> Result<String, Error> {
 
-    let job_id = job.jobname().to_string();
+    let job_id = format!("{}:{}:{}:{}",
+                         sync_job.remote,
+                         sync_job.remote_store,
+                         sync_job.store,
+                         job.jobname());
     let worker_type = job.jobtype().to_string();
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&sync_job.store);
 
     let upid_str = WorkerTask::spawn(
         &worker_type,
-        Some(job.jobname().to_string()),
+        Some(job_id.clone()),
         auth_id.clone(),
         false,
         move |worker| async move {

@@ -50,11 +50,13 @@ pub fn do_verification_job(
 
     let (email, notify) = crate::server::lookup_datastore_notify_settings(&verification_job.store);
 
-    let job_id = job.jobname().to_string();
+    let job_id = format!("{}:{}",
+                         &verification_job.store,
+                         job.jobname());
     let worker_type = job.jobtype().to_string();
     let upid_str = WorkerTask::new_thread(
         &worker_type,
-        Some(job.jobname().to_string()),
+        Some(job_id.clone()),
         auth_id.clone(),
         false,
         move |worker| {
