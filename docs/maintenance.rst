@@ -58,3 +58,24 @@ Aside from using verify jobs, you can also run verification manually on entire
 datastores, backup groups, or snapshots. To do this, navigate to the **Content**
 tab of the datastore and either click *Verify All*, or select the *V.* icon from
 the *Actions* column in the table.
+
+.. _maintenance_notification:
+
+Notifications
+-------------
+
+Proxmox Backup Server can send you notification emails about automatically
+scheduled verification, garbage-collection and synchronization tasks results.
+
+By default, notifications are send to the email address configured for the
+`root@pam` user. You can set that user for each datastore.
+
+You can also change the level of notification received per task type, the
+following options are available:
+
+* Always: send a notification for any scheduled task, independent of the
+  outcome
+
+* Errors: send a notification for any scheduled task resulting in an error
+
+* Never: do not send any notification at all
