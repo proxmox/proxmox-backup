@@ -28,6 +28,7 @@ JSSRC=							\
 	window/FileBrowser.js				\
 	window/NotesEdit.js				\
 	window/RemoteEdit.js				\
+	window/NotifyOptions.js				\
 	window/SyncJobEdit.js				\
 	window/UserEdit.js				\
 	window/UserPassword.js				\
