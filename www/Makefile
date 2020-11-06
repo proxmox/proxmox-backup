@@ -5,6 +5,7 @@ IMAGES := \
 	images/proxmox_logo.png
 
 JSSRC=							\
+	Utils.js					\
 	form/UserSelector.js				\
 	form/TokenSelector.js				\
 	form/RemoteSelector.js				\
@@ -38,20 +39,19 @@ JSSRC=							\
 	dashboard/TaskSummary.js			\
 	panel/Tasks.js					\
 	panel/XtermJsConsole.js				\
-	Utils.js					\
-	AccessControlPanel.js				\
+	panel/AccessControl.js				\
 	ZFSList.js					\
 	DirectoryList.js				\
 	LoginView.js					\
 	VersionInfo.js					\
 	SystemConfiguration.js				\
 	Subscription.js					\
-	DataStoreSummary.js				\
-	DataStoreNotes.js				\
-	DataStorePruneAndGC.js				\
-	DataStorePrune.js				\
-	DataStoreContent.js				\
-	DataStorePanel.js				\
+	datastore/Summary.js				\
+	datastore/Notes.js				\
+	datastore/PruneAndGC.js				\
+	datastore/Prune.js				\
+	datastore/Content.js				\
+	datastore/Panel.js				\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\
