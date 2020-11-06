@@ -23,6 +23,7 @@ JSSRC=							\
 	config/VerifyView.js				\
 	window/ACLEdit.js				\
 	window/BackupFileDownloader.js			\
+	window/BackupGroupChangeOwner.js		\
 	window/CreateDirectory.js			\
 	window/DataStoreEdit.js				\
 	window/FileBrowser.js				\
@@ -55,7 +56,6 @@ JSSRC=							\
 	datastore/Content.js				\
 	datastore/OptionView.js				\
 	datastore/Panel.js				\
-	BackupGroupChangeOwner.js			\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\
