@@ -9,9 +9,10 @@ use crate::api2::types::*;
 
 use crate::config::acl::{
     PRIV_DATASTORE_AUDIT,
-    PRIV_DATASTORE_BACKUP,
     PRIV_DATASTORE_VERIFY,
 };
+
+use crate::config::cached_user_info::CachedUserInfo;
 
 use crate::config::verify::{self, VerificationJobConfig};
 
@@ -25,10 +26,8 @@ use crate::config::verify::{self, VerificationJobConfig};
         items: { type: verify::VerificationJobConfig },
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_VERIFY,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Audit or Datastore.Verify on datastore.",
     },
 )]
 /// List all verification jobs
@@ -36,10 +35,21 @@ pub fn list_verification_jobs(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<VerificationJobConfig>, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
+    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
 
     let (config, digest) = verify::config()?;
 
     let list = config.convert_to_typed_array("verification")?;
+
+    let list = list.into_iter()
+        .filter(|job: &VerificationJobConfig| {
+            let privs = user_info.lookup_privs(&auth_id, &["datastore", &job.store]);
+
+            privs & required_privs != 00
+        }).collect();
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -76,18 +86,23 @@ pub fn list_verification_jobs(
         }
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_VERIFY,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Verify on job's datastore.",
     },
 )]
 /// Create a new verification job.
-pub fn create_verification_job(param: Value) -> Result<(), Error> {
-
-    let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
+pub fn create_verification_job(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let verification_job: verify::VerificationJobConfig = serde_json::from_value(param.clone())?;
+
+    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, false)?;
+
+    let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, _digest) = verify::config()?;
 
@@ -117,10 +132,8 @@ pub fn create_verification_job(param: Value) -> Result<(), Error> {
         type: verify::VerificationJobConfig,
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_BACKUP | PRIV_DATASTORE_VERIFY,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Audit or Datastore.Verify on job's datastore.",
     },
 )]
 /// Read a verification job configuration.
@@ -128,9 +141,16 @@ pub fn read_verification_job(
     id: String,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<VerificationJobConfig, Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
+
     let (config, digest) = verify::config()?;
 
-    let verification_job = config.lookup("verification", &id)?;
+    let verification_job: verify::VerificationJobConfig = config.lookup("verification", &id)?;
+
+    let required_privs = PRIV_DATASTORE_AUDIT | PRIV_DATASTORE_VERIFY;
+    user_info.check_privs(&auth_id, &["datastore", &verification_job.store], required_privs, true)?;
+
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
     Ok(verification_job)
@@ -193,10 +213,8 @@ pub enum DeletableProperty {
         },
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_VERIFY,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Verify on job's datastore.",
     },
 )]
 /// Update verification job config.
@@ -209,7 +227,10 @@ pub fn update_verification_job(
     schedule: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
@@ -223,7 +244,10 @@ pub fn update_verification_job(
 
     let mut data: verify::VerificationJobConfig = config.lookup("verification", &id)?;
 
-     if let Some(delete) = delete {
+    // check existing store
+    user_info.check_privs(&auth_id, &["datastore", &data.store], PRIV_DATASTORE_VERIFY, true)?;
+
+    if let Some(delete) = delete {
         for delete_prop in delete {
             match delete_prop {
                 DeletableProperty::IgnoreVerified => { data.ignore_verified = None; },
@@ -243,7 +267,12 @@ pub fn update_verification_job(
         }
     }
 
-    if let Some(store) = store { data.store = store; }
+    if let Some(store) = store {
+        // check new store
+        user_info.check_privs(&auth_id, &["datastore", &store], PRIV_DATASTORE_VERIFY, true)?;
+        data.store = store;
+    }
+
 
     if ignore_verified.is_some() { data.ignore_verified = ignore_verified; }
     if outdated_after.is_some() { data.outdated_after = outdated_after; }
@@ -270,18 +299,25 @@ pub fn update_verification_job(
         },
     },
     access: {
-        permission: &Permission::Privilege(
-            &["datastore", "{store}"],
-            PRIV_DATASTORE_VERIFY,
-            true),
+        permission: &Permission::Anybody,
+        description: "Requires Datastore.Verify on job's datastore.",
     },
 )]
 /// Remove a verification job configuration
-pub fn delete_verification_job(id: String, digest: Option<String>) -> Result<(), Error> {
+pub fn delete_verification_job(
+    id: String,
+    digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+    let user_info = CachedUserInfo::new()?;
 
     let _lock = open_file_locked(verify::VERIFICATION_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = verify::config()?;
+
+    let job: verify::VerificationJobConfig = config.lookup("verification", &id)?;
+    user_info.check_privs(&auth_id, &["datastore", &job.store], PRIV_DATASTORE_VERIFY, true)?;
 
     if let Some(ref digest) = digest {
         let digest = proxmox::tools::hex_to_digest(digest)?;
