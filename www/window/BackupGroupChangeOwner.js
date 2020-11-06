@@ -3,7 +3,7 @@ Ext.define('PBS.BackupGroupChangeOwner', {
     alias: 'widget.pbsBackupGroupChangeOwner',
 
     submitText: gettext("Change Owner"),
-    subject: gettext("Change Owner"),
+    width: 350,
 
     initComponent: function() {
 	let me = this;
@@ -21,6 +21,7 @@ Ext.define('PBS.BackupGroupChangeOwner', {
 	Ext.apply(me, {
 	    url: `/api2/extjs/admin/datastore/${me.datastore}/change-owner`,
 	    method: 'POST',
+	    subject: gettext("Change Owner") + ` - ${me.backup_type}/${me.backup_id}`,
 	    items: {
 		xtype: 'inputpanel',
 		onGetValues: function(values) {
@@ -29,12 +30,12 @@ Ext.define('PBS.BackupGroupChangeOwner', {
 		    return values;
 		},
 
-		column1: [
+		items: [
 		    {
 			xtype: 'pbsAuthidSelector',
 			name: 'new-owner',
 			value: me.owner,
-			fieldLabel: gettext('Owner'),
+			fieldLabel: gettext('New Owner'),
 			minLength: 8,
 			allowBlank: false,
 		    },
