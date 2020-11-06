@@ -78,6 +78,15 @@ Ext.define('PBS.DataStorePanel', {
 	    },
 	},
 	{
+	    xtype: 'pbsDatastoreOptionView',
+	    itemId: 'options',
+	    title: gettext('Options'),
+	    iconCls: 'fa fa-cog',
+	    cbind: {
+		datastore: '{datastore}',
+	    },
+	},
+	{
 	    itemId: 'acl',
 	    xtype: 'pbsACLView',
 	    iconCls: 'fa fa-unlock',

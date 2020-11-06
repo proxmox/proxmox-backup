@@ -53,6 +53,7 @@ JSSRC=							\
 	datastore/PruneAndGC.js				\
 	datastore/Prune.js				\
 	datastore/Content.js				\
+	datastore/OptionView.js				\
 	datastore/Panel.js				\
 	BackupGroupChangeOwner.js			\
 	ServerStatus.js					\
