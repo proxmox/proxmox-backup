@@ -196,6 +196,8 @@ pub enum DeletableProperty {
     keep_monthly,
     /// Delete the keep-yearly property
     keep_yearly,
+    /// Delete the verify-new property
+    verify_new,
     /// Delete the notify-user property
     notify_user,
     /// Delete the notify property
@@ -253,6 +255,12 @@ pub enum DeletableProperty {
                 optional: true,
                 schema: PRUNE_SCHEMA_KEEP_YEARLY,
             },
+            "verify-new": {
+                description: "If enabled, all new backups will be verified right after completion.",
+                type: bool,
+                optional: true,
+                default: false,
+            },
             delete: {
                 description: "List of properties to delete.",
                 type: Array,
@@ -283,6 +291,7 @@ pub fn update_datastore(
     keep_weekly: Option<u64>,
     keep_monthly: Option<u64>,
     keep_yearly: Option<u64>,
+    verify_new: Option<bool>,
     notify: Option<String>,
     notify_user: Option<Userid>,
     delete: Option<Vec<DeletableProperty>>,
@@ -313,6 +322,7 @@ pub fn update_datastore(
                 DeletableProperty::keep_weekly => { data.keep_weekly = None; },
                 DeletableProperty::keep_monthly => { data.keep_monthly = None; },
                 DeletableProperty::keep_yearly => { data.keep_yearly = None; },
+                DeletableProperty::verify_new => { data.verify_new = None; },
                 DeletableProperty::notify => { data.notify = None; },
                 DeletableProperty::notify_user => { data.notify_user = None; },
             }
@@ -356,6 +366,8 @@ pub fn update_datastore(
             data.notify = Some(notify_str);
         }
     }
+    if verify_new.is_some() { data.verify_new = verify_new; }
+
     if notify_user.is_some() { data.notify_user = notify_user; }
 
     config.set_data(&name, "datastore", &data)?;
