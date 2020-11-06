@@ -31,7 +31,7 @@ Ext.onReady(function() {
 	extend: 'Ext.Panel',
 	alias: 'widget.prunesimulatorDocumentation',
 
-	html: '<iframe style="width:100%;height:100%" src="./documentation.html"/>',
+	html: '<iframe style="width:100%;height:100%;border:0px;" src="./documentation.html"/>',
     });
 
     Ext.define('PBS.prunesimulator.CalendarEvent', {
@@ -126,6 +126,7 @@ Ext.onReady(function() {
 		{
 		    xtype: 'grid',
 		    store: me.store,
+		    border: false,
 		    columns: [
 			{
 			    header: 'Backup Time',
@@ -532,7 +533,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 4,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	    {
 		xtype: 'numberfield',
@@ -542,7 +542,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 0,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	    {
 		xtype: 'numberfield',
@@ -552,7 +551,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 5,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	    {
 		xtype: 'numberfield',
@@ -562,7 +560,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 2,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	    {
 		xtype: 'numberfield',
@@ -572,7 +569,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 0,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	    {
 		xtype: 'numberfield',
@@ -582,7 +578,6 @@ Ext.onReady(function() {
 		minValue: 0,
 		value: 0,
 		fieldGroup: 'keep',
-		padding: '0 0 0 10',
 	    },
 	],
 
@@ -635,16 +630,20 @@ Ext.onReady(function() {
 	    me.items = [
 		{
 		    xtype: 'panel',
-		    layout: 'hbox',
-		    height: 180,
+		    layout: {
+			type: 'hbox',
+			align: 'stretch',
+		    },
+		    border: false,
 		    items: [
 			{
 			    title: 'View',
 			    layout: 'anchor',
 			    flex: 1,
+			    border: false,
+			    bodyPadding: 10,
 			    items: [
 				{
-				    padding: '0 0 0 10',
 				    xtype: 'checkbox',
 				    name: 'showCalendar',
 				    reference: 'showCalendar',
@@ -652,7 +651,6 @@ Ext.onReady(function() {
 				    checked: false,
 				},
 				{
-				    padding: '0 0 0 10',
 				    xtype: 'checkbox',
 				    name: 'showColors',
 				    reference: 'showColors',
@@ -680,32 +678,42 @@ Ext.onReady(function() {
 				},
 			    ],
 			},
+			{ xtype: "panel", width: 1, border: 1 },
 			{
 			    layout: 'anchor',
 			    flex: 1,
+			    border: false,
 			    title: 'Backup Schedule',
+			    bodyPadding: 10,
 			    items: scheduleItems,
 			},
 		    ],
 		},
 		{
 		    xtype: 'panel',
-		    layout: 'hbox',
+		    layout: {
+			type: 'hbox',
+			align: 'stretch',
+		    },
 		    flex: 1,
+		    border: false,
 		    items: [
 			{
 			    layout: 'anchor',
 			    title: 'Prune Options',
+			    border: false,
+			    bodyPadding: 10,
 			    items: me.keepItems,
 			    flex: 1,
 			},
+			{ xtype: "panel", width: 1, border: 1 },
 			{
 			    layout: 'fit',
 			    title: 'Backups',
+			    border: false,
 			    xtype: 'prunesimulatorPruneList',
 			    store: me.pruneStore,
 			    reference: 'pruneList',
-			    height: '100%',
 			    flex: 1,
 			},
 		    ],
@@ -746,7 +754,7 @@ Ext.onReady(function() {
 	    {
 		xtype: 'prunesimulatorDocumentation',
 		title: 'Usage',
-		margins: '5 0 0 0',
+		border: false,
 		region: 'center',
 	    },
 	],
