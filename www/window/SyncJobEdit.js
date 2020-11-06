@@ -112,7 +112,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	me.method = id ? 'PUT' : 'POST';
 	me.autoLoad = !!id;
 	me.scheduleValue = id ? null : 'hourly';
-	me.userid = id ? null : Proxmox.UserName;
+	me.authid = id ? null : Proxmox.UserName;
 	return { };
     },
 
@@ -139,10 +139,10 @@ Ext.define('PBS.window.SyncJobEdit', {
 	    },
 	    {
 		fieldLabel: gettext('Local Owner'),
-		xtype: 'pbsUserSelector',
+		xtype: 'pbsAuthidSelector',
 		name: 'owner',
 		cbind: {
-		    value: '{userid}',
+		    value: '{authid}',
 		    deleteEmpty: '{!isCreate}',
 		},
 	    },
