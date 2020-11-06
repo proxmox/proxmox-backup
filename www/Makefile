@@ -8,6 +8,7 @@ JSSRC=							\
 	Utils.js					\
 	form/UserSelector.js				\
 	form/TokenSelector.js				\
+	form/AuthidSelector.js				\
 	form/RemoteSelector.js				\
 	form/DataStoreSelector.js			\
 	form/CalendarEvent.js				\
