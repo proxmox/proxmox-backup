@@ -59,13 +59,13 @@ Sync Jobs
   :alt: Add a Sync Job
 
 Sync jobs are configured to pull the contents of a datastore on a **Remote** to
-a local datastore. You can manage sync jobs under **Configuration -> Sync Jobs**
-in the web interface, or using the ``proxmox-backup-manager sync-job`` command.
-The configuration information for sync jobs is stored at
-``/etc/proxmox-backup/sync.cfg``. To create a new sync job, click the add button
-in the GUI, or use the ``create`` subcommand. After creating a sync job, you can
-either start it manually on the GUI or provide it with a schedule (see
-:ref:`calendar-events`) to run regularly.
+a local datastore. You can manage sync jobs in the web interface, from the
+**Sync Jobs** tab of the datastore which you'd like to set one up for, or using
+the ``proxmox-backup-manager sync-job`` command.  The configuration information
+for sync jobs is stored at ``/etc/proxmox-backup/sync.cfg``. To create a new
+sync job, click the add button in the GUI, or use the ``create`` subcommand.
+After creating a sync job, you can either start it manually from the GUI or
+provide it with a schedule (see :ref:`calendar-events`) to run regularly.
 
 .. code-block:: console
 

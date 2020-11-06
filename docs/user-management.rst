@@ -41,11 +41,12 @@ users:
   :alt: Add a new user
 
 The superuser has full administration rights on everything, so you
-normally want to add other users with less privileges. You can create a new
-user with the ``user create`` subcommand or through the web interface, under
-**Configuration -> User Management**. The ``create`` subcommand lets you specify
-many options like ``--email`` or ``--password``. You can update or change any
-user properties using the ``update`` subcommand later (**Edit** in the GUI):
+normally want to add other users with less privileges. You can add a new
+user with the ``user create`` subcommand or through the web
+interface, under the **User Management** tab of **Configuration -> Access
+Control**. The ``create`` subcommand lets you specify many options like
+``--email`` or ``--password``. You can update or change any user properties
+using the ``update`` subcommand later (**Edit** in the GUI):
 
 
 .. code-block:: console

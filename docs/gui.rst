@@ -49,7 +49,7 @@ GUI Overview
 The Proxmox Backup Server web interface consists of 3 main sections:
 
 * **Header**: At the top. This shows version information, and contains buttons to view
-  documentation, monitor running tasks, and logout.
+  documentation, monitor running tasks, set the language and logout.
 * **Sidebar**: On the left. This contains the configuration options for
   the server.
 * **Configuration Panel**: In the center. This contains the control interface for the
