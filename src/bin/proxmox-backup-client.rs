@@ -32,11 +32,11 @@ use proxmox::{
 use pxar::accessor::{MaybeReady, ReadAt, ReadAtOperation};
 
 use proxmox_backup::tools;
+use proxmox_backup::api2::access::user::UserWithTokens;
 use proxmox_backup::api2::types::*;
 use proxmox_backup::api2::version;
 use proxmox_backup::client::*;
 use proxmox_backup::pxar::catalog::*;
-use proxmox_backup::config::user::complete_userid;
 use proxmox_backup::backup::{
     archive_type,
     decrypt_key,
@@ -1904,6 +1904,33 @@ fn complete_chunk_size(_arg: &str, _param: &HashMap<String, String>) -> Vec<Stri
     result
 }
 
+fn complete_auth_id(_arg: &str, param: &HashMap<String, String>) -> Vec<String> {
+    proxmox_backup::tools::runtime::main(async { complete_auth_id_do(param).await })
+}
+
+async fn complete_auth_id_do(param: &HashMap<String, String>) -> Vec<String> {
+
+    let mut result = vec![];
+
+    let repo = match extract_repository_from_map(param) {
+        Some(v) => v,
+        _ => return result,
+    };
+
+    let data = try_get(&repo, "api2/json/access/users?include_tokens=true").await;
+
+    if let Ok(parsed) = serde_json::from_value::<Vec<UserWithTokens>>(data) {
+        for user in parsed {
+            result.push(user.userid.to_string());
+            for token in user.tokens {
+                result.push(token.tokenid.to_string());
+            }
+        }
+    };
+
+    result
+}
+
 use proxmox_backup::client::RemoteChunkReader;
 /// This is a workaround until we have cleaned up the chunk/reader/... infrastructure for better
 /// async use!
@@ -2013,7 +2040,7 @@ fn main() {
     let change_owner_cmd_def = CliCommand::new(&API_METHOD_CHANGE_BACKUP_OWNER)
         .arg_param(&["group", "new-owner"])
         .completion_cb("group", complete_backup_group)
-        .completion_cb("new-owner",  complete_userid)
+        .completion_cb("new-owner",  complete_auth_id)
         .completion_cb("repository", complete_repository);
 
     let cmd_def = CliCommandMap::new()
