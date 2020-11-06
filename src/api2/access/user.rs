@@ -75,8 +75,7 @@ pub struct UserWithTokens {
     pub lastname: Option<String>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub email: Option<String>,
-    #[serde(skip_serializing_if="Vec::is_empty")]
-    #[serde(default="Vec::new")]
+    #[serde(skip_serializing_if="Vec::is_empty", default)]
     pub tokens: Vec<user::ApiToken>,
 }
 
