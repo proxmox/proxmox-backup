@@ -4,7 +4,7 @@ Graphical User Interface
 Proxmox Backup Server offers an integrated, web-based interface to manage the
 server. This means that you can carry out all administration tasks through your
 web browser, and that you don't have to worry about installing extra management
-tools. The web interface also provides a built in console, so if you prefer the
+tools. The web interface also provides a built-in console, so if you prefer the
 command line or need some extra control, you have this option.
 
 The web interface can be accessed via https://youripaddress:8007. The default
@@ -28,7 +28,6 @@ Login
 -----
 
 .. image:: images/screenshots/pbs-gui-login-window.png
-  :width: 250
   :align: right
   :alt: PBS login window
 
@@ -44,7 +43,6 @@ GUI Overview
 ------------
 
 .. image:: images/screenshots/pbs-gui-dashboard.png
-  :width: 250
   :align: right
   :alt: PBS GUI Dashboard
 
@@ -79,18 +77,17 @@ Configuration
 The Configuration section contains some system configuration options, such as
 time and network configuration. It also contains the following subsections:
 
-* **User Management**: Add users and manage accounts
-* **Permissions**: Manage permissions for various users
+* **Access Control**: Add and manage users, API tokens, and the permissions
+  associated with these items
 * **Remotes**: Add, edit and remove remotes (see :term:`Remote`)
-* **Sync Jobs**: Manage and run sync jobs to remotes
-* **Subscription**: Upload a subscription key and view subscription status
+* **Subscription**: Upload a subscription key, view subscription status and
+  access a text-based system report.
 
 
 Administration
 ^^^^^^^^^^^^^^
 
 .. image:: images/screenshots/pbs-gui-administration-serverstatus.png
-  :width: 250
   :align: right
   :alt: Administration: Server Status overview
 
@@ -105,7 +102,6 @@ tasks and information. These are:
 * **Tasks**: Task history with multiple filter options
 
 .. image:: images/screenshots/pbs-gui-disks.png
-  :width: 250
   :align: right
   :alt: Administration: Disks
 

@@ -9,7 +9,7 @@ Debian_ from the provided package repository.
 
 .. include:: package-repositories.rst
 
-Server installation
+Server Installation
 -------------------
 
 The backup server stores the actual backed up data and provides a web based GUI
@@ -52,7 +52,7 @@ It includes the following:
    is used by default and all existing data is removed.
 
 
-Install `Proxmox Backup`_ server on Debian
+Install `Proxmox Backup`_ Server on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Proxmox ships as a set of Debian packages which can be installed on top of a
@@ -84,11 +84,11 @@ support, and a set of common and useful packages.
   when LVM_ or ZFS_ is used. The network configuration is completely up to you
   as well.
 
-.. note:: You can access the web interface of the Proxmox Backup Server with
-  your web browser, using HTTPS on port 8007. For example at
- ``https://<ip-or-dns-name>:8007``
+.. Note:: You can access the web interface of the Proxmox Backup Server with
+   your web browser, using HTTPS on port 8007. For example at
+   ``https://<ip-or-dns-name>:8007``
 
-Install Proxmox Backup server on `Proxmox VE`_
+Install Proxmox Backup Server on `Proxmox VE`_
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 After configuring the
@@ -104,14 +104,14 @@ After configuring the
    server to store backups. Should the hypervisor server fail, you can
    still access the backups.
 
-.. note::
-  You can access the web interface of the Proxmox Backup Server with your web
-  browser, using HTTPS on port 8007. For example at ``https://<ip-or-dns-name>:8007``
+.. Note:: You can access the web interface of the Proxmox Backup Server with
+   your web browser, using HTTPS on port 8007. For example at
+   ``https://<ip-or-dns-name>:8007``
 
-Client installation
+Client Installation
 -------------------
 
-Install `Proxmox Backup`_ client on Debian
+Install `Proxmox Backup`_ Client on Debian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Proxmox ships as a set of Debian packages to be installed on
