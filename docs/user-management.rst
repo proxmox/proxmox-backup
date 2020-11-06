@@ -91,6 +91,10 @@ Or completely remove the user with:
 API Tokens
 ----------
 
+.. image:: images/screenshots/pbs-gui-apitoken-overview.png
+  :align: right
+  :alt: API Token Overview
+
 Any authenticated user can generate API tokens which can in turn be used to
 configure various clients, instead of directly providing the username and
 password.
@@ -104,6 +108,10 @@ An API token consists of two parts: an identifier consisting of the user name,
 the realm and a tokenname (``user@realm!tokenname``), and a secret value. Both
 need to be provided to the client in place of the user ID (``user@realm``) and
 the user password, respectively.
+
+.. image:: images/screenshots/pbs-gui-apitoken-secret-value.png
+  :align: right
+  :alt: API secret value
 
 The API token is passed from the client to the server by setting the
 ``Authorization`` HTTP header with method ``PBSAPIToken`` to the value
@@ -185,7 +193,7 @@ following roles exist:
 **RemoteSyncOperator**
   Is allowed to read data from a remote.
 
-.. image:: images/screenshots/pbs-gui-permissions-add.png
+.. image:: images/screenshots/pbs-gui-user-management-add-user.png
   :align: right
   :alt: Add permissions for user
 
