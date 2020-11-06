@@ -39,31 +39,32 @@ Ext.define('PBS.form.AuthidSelector', {
     },
 
     onLoad: function(store, data, success) {
+	let me = this;
 	if (!success) return;
 
-	let authidStore = this.store;
-
 	let records = [];
-	Ext.Array.each(data, function(user) {
-	let u = {};
-	u.authid = user.data.userid;
-	u.comment = user.data.comment;
-	u.type = 'u';
-	records.push(u);
-	let tokens = user.data.tokens || [];
-	Ext.Array.each(tokens, function(token) {
-	    let r = {};
-	    r.authid = token.tokenid;
-	    r.comment = token.comment;
-	    r.type = 't';
-	    records.push(r);
-	});
-	});
+	for (const rec of data) {
+	    records.push({
+		authid: rec.data.userid,
+		comment: rec.data.comment,
+		type: 'u',
+	    });
+	    let tokens = rec.data.tokens || [];
+	    for (const token of tokens) {
+		records.push({
+		    authid: token.tokenid,
+		    comment: token.comment,
+		    type: 't',
+		});
+	    }
+	}
 
-	authidStore.loadData(records);
+	me.store.loadData(records);
+	me.validate();
     },
 
     listConfig: {
+	width: 500,
 	columns: [
 	    {
 		header: gettext('Type'),
@@ -76,21 +77,21 @@ Ext.define('PBS.form.AuthidSelector', {
 			default: return Proxmox.Utils.unknownText;
 		    }
 		},
-		flex: 1,
+		width: 80,
 	    },
 	    {
 		header: gettext('Auth ID'),
 		sortable: true,
 		dataIndex: 'authid',
 		renderer: Ext.String.htmlEncode,
-		flex: 1,
+		flex: 2,
 	    },
 	    {
 		header: gettext('Comment'),
 		sortable: false,
 		dataIndex: 'comment',
 		renderer: Ext.String.htmlEncode,
-		flex: 1,
+		flex: 3,
 	    },
 	],
     },
