@@ -114,7 +114,7 @@ Ext.onReady(function() {
 	alias: 'widget.prunesimulatorPruneList',
 
 	initComponent: function() {
-	    var me = this;
+	    let me = this;
 
 	    if (!me.store) {
 		throw "no store specified";
@@ -710,6 +710,7 @@ Ext.onReady(function() {
 			    title: 'Prune Options',
 			    border: false,
 			    bodyPadding: 10,
+			    scrollable: true,
 			    items: me.keepItems,
 			    flex: 1,
 			},
