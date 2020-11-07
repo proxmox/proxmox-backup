@@ -668,7 +668,7 @@ Ext.onReady(function() {
 				    name: 'showCalendar',
 				    reference: 'showCalendar',
 				    fieldLabel: 'Show Calendar:',
-				    checked: false,
+				    checked: true,
 				},
 				{
 				    xtype: 'checkbox',
