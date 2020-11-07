@@ -686,7 +686,10 @@ Ext.onReady(function() {
 			    layout: 'anchor',
 			    flex: 1,
 			    border: false,
-			    title: 'Backup Schedule',
+			    title: 'Simulated Backup Schedule',
+			    defaults: {
+				labelWidth: 120,
+			    },
 			    bodyPadding: 10,
 			    items: scheduleItems,
 			},
@@ -745,19 +748,21 @@ Ext.onReady(function() {
 	items: [
 	    {
 		xtype: 'prunesimulatorPanel',
-		title: 'PBS Prune Simulator',
+		title: 'Proxmox Backup Server - Prune Simulator',
 		region: 'west',
 		layout: {
 		    type: 'vbox',
 		    align: 'stretch',
 		    pack: 'start',
 		},
-		width: 1080,
+		flex: 2,
+		maxWidth: 1100,
 	    },
 	    {
 		xtype: 'prunesimulatorDocumentation',
 		title: 'Usage',
 		border: false,
+		flex: 1,
 		region: 'center',
 	    },
 	],
