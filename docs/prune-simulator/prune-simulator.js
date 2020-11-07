@@ -353,6 +353,7 @@ Ext.onReady(function() {
 		    minutes = matchTimeSpec(minuteSpec, 0, 59);
 		} catch (err) {
 		    Ext.Msg.alert('Error', err);
+		    return;
 		}
 
 		let backups = me.populateFromSchedule(
