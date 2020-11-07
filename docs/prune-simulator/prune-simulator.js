@@ -637,7 +637,7 @@ Ext.onReady(function() {
 		    fieldLabel: 'Number of weeks',
 		    minValue: 1,
 		    value: 15,
-		    maxValue: 200,
+		    maxValue: 260, // five years
 		    padding: '0 0 0 10',
 		},
 		{
