@@ -175,7 +175,7 @@ Ext.onReady(function() {
 	    let me = this;
 	    let backups = me.store.data.items;
 
-	    let html = '<table>';
+	    let html = '<table class="cal">';
 
 	    let now = new Date(NOW.getTime());
 	    let skip = 7 - parseInt(Ext.Date.format(now, 'N'), 10);
@@ -187,38 +187,39 @@ Ext.onReady(function() {
 		html += '<tr>';
 
 		for (let j = 0; j < 7; j++) {
-		    html += '<td style="vertical-align: top;' +
-				       'width: 150px;' +
-				       'border: black 1px solid;' +
-				       '">';
-
 		    let date = Ext.Date.subtract(tableStartDate, Ext.Date.DAY, j + 7 * i);
 		    let currentDay = Ext.Date.format(date, 'd/m/Y');
 
-		    let isBackupOnDay = function(backup, day) {
+		    let dayOfWeekCls = Ext.Date.format(date, 'D').toLowerCase();
+		    let firstOfMonthCls = Ext.Date.format(date, 'd') === '01'
+		        ? 'first-of-month'
+		        : '';
+		    html += `<td class="cal-day ${dayOfWeekCls} ${firstOfMonthCls}">`;
+
+		    const isBackupOnDay = function(backup, day) {
 			return backup && Ext.Date.format(backup.data.backuptime, 'd/m/Y') === day;
 		    };
 
 		    let backup = backups[bIndex];
 
-		    html += '<table><tr><th style="border-bottom: black 1px solid;">' +
-			    Ext.Date.format(date, 'D, d M Y') + '</th>';
+		    html += '<table><tr>';
+		    html += `<th class="cal-day-date">${Ext.Date.format(date, 'D, d M Y')}</th>`;
 
 		    while (isBackupOnDay(backup, currentDay)) {
 			html += '<tr><td>';
 
 			let text = Ext.Date.format(backup.data.backuptime, 'H:i');
 			if (backup.data.mark === 'remove') {
-			    html += '<div style="text-decoration: line-through;">' + text + '</div>';
+			    html += `<span class="strikethrough">${text}</span>`;
 			} else {
-			    text += ' (' + backup.data.keepName + ')';
+			    text += ` (${backup.data.keepName})`;
 			    if (me.useColors) {
 				let bgColor = COLORS[backup.data.keepName];
 				let textColor = TEXT_COLORS[backup.data.keepName];
-				html += '<div style="background-color: ' + bgColor + '; ' +
-						    'color: ' + textColor + ';">' + text + '</div>';
+				html += `<span style="background-color: ${bgColor};
+				    color: ${textColor};">${text}</span>`;
 			    } else {
-				html += '<div>' + text + '</div>';
+				html += `<span class="black">${text}</span>`;
 			    }
 			}
 			html += '</td></tr>';
