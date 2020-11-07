@@ -281,6 +281,7 @@ Ext.onReady(function() {
 
 	    init: function(view) {
 		this.reloadFull(); // initial load
+		this.switchColor(true);
 	    },
 
 	    control: {
@@ -514,6 +515,34 @@ Ext.onReady(function() {
 		    backup.mark = backup.mark || 'remove';
 		});
 	    },
+
+	    toggleColors: function(checkbox, checked) {
+		this.switchColor(checked);
+	    },
+
+	    switchColor: function(useColors) {
+		let me = this;
+		let view = me.getView();
+
+		const getStyle = name =>
+		    `background-color: ${COLORS[name]}; color: ${TEXT_COLORS[name]};`;
+
+		for (const field of view.query('[isFormField]')) {
+		    if (field.fieldGroup !== 'keep') {
+			continue;
+		    }
+		    if (useColors) {
+		    field.setFieldStyle(getStyle(field.name));
+		    } else {
+			field.setFieldStyle('background-color: white; color: #444;');
+		    }
+		}
+
+		me.lookup('weekTable').useColors = useColors;
+		me.lookup('pruneList').useColors = useColors;
+
+		me.reloadPrune();
+	    },
 	},
 
 	keepItems: [
@@ -647,26 +676,8 @@ Ext.onReady(function() {
 				    name: 'showColors',
 				    reference: 'showColors',
 				    fieldLabel: 'Show Colors:',
-				    checked: false,
-				    handler: function(checkbox, checked) {
-					Ext.Array.each(me.query('[isFormField]'), function(field) {
-					    if (field.fieldGroup !== 'keep') {
-						return;
-					    }
-
-					    if (checked) {
-						field.setFieldStyle('background-color: ' + COLORS[field.name] + '; ' +
-						    'color: ' + TEXT_COLORS[field.name] + ';');
-					    } else {
-						field.setFieldStyle('background-color: white; color: black;');
-					    }
-					});
-
-					me.lookupReference('weekTable').useColors = checked;
-					me.lookupReference('pruneList').useColors = checked;
-
-					me.controller.reloadPrune();
-				    },
+				    checked: true,
+				    handler: 'toggleColors',
 				},
 			    ],
 			},
