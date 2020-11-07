@@ -3,6 +3,8 @@ Ext.define('PBS.DataStorePruneAndGC', {
     alias: 'widget.pbsDataStorePruneAndGC',
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'maintenance_pruning',
+
     cbindData: function(initial) {
 	let me = this;
 
@@ -99,6 +101,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		    isCreate: false,
@@ -111,6 +114,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		},
@@ -122,6 +126,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		},
@@ -133,6 +138,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		},
@@ -144,6 +150,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		},
@@ -155,6 +162,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Options'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsPruneInputPanel',
 		},

@@ -11,6 +11,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/sysadmin.html#chapter-zfs",
     "title": "ZFS on Linux"
   },
+  "maintenance-pruning": {
+    "link": "/docs/maintenance.html#maintenance-pruning",
+    "title": "Pruning"
+  },
   "maintenance-notification": {
     "link": "/docs/maintenance.html#maintenance-notification",
     "title": "Notifications"

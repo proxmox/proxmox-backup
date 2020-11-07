@@ -4,6 +4,8 @@ Ext.define('PBS.panel.PruneInputPanel', {
 
     mixins: ['Proxmox.Mixin.CBind'],
 
+    onlineHelp: 'maintenance_pruning',
+
     cbindData: function() {
 	let me = this;
 	me.isCreate = !!me.isCreate;
