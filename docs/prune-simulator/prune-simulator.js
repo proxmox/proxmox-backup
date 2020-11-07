@@ -642,9 +642,7 @@ Ext.onReady(function() {
 		    xtype: 'button',
 		    name: 'schedule-button',
 		    text: 'Update Schedule',
-		    handler: function() {
-			me.controller.reloadFull();
-		    },
+		    handler: 'reloadFull',
 		},
 	    ];
 
