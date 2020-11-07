@@ -47,6 +47,7 @@ Ext.onReady(function() {
 		{ value: '0/2:00', text: "Every two hours" },
 		{ value: '0/6:00', text: "Every six hours" },
 		{ value: '2,22:30', text: "At 02:30 and 22:30" },
+		{ value: '00:00', text: "At 00:00" },
 		{ value: '08..17:00/30', text: "From 08:00 to 17:30 every 30 minutes" },
 		{ value: 'HOUR:MINUTE', text: "Custom schedule" },
 	    ],
