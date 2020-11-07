@@ -1,20 +1,86 @@
 Maintenance Tasks
 =================
 
-Pruning & Garbage Collection
-----------------------------
+.. _maintenance_pruning:
 
-Pruning can be scheduled on both a backup group and a datastore level. To access
-pruning functionality for a specific backup group, you can use the prune command
-line option discussed in :ref:`backup-pruning`, or navigate to the **Content**
-tab of the datastore and click the scissors icon in the **Actions** column of
-the relevant backup group. To prune on a datastore level, scheduling options can
-be found under the **Prune & GC** tab of the datastore. Here you can set
-retention settings and edit the interval at which pruning takes place.
+Pruning
+-------
 
-.. image:: images/screenshots/pbs-gui-datastore-prunegc.png
+Prune lets you specify which backup snapshots you want to keep. The
+following retention options are available:
+
+``keep-last <N>``
+  Keep the last ``<N>`` backup snapshots.
+
+``keep-hourly <N>``
+  Keep backups for the last ``<N>`` hours. If there is more than one
+  backup for a single hour, only the latest is kept.
+
+``keep-daily <N>``
+  Keep backups for the last ``<N>`` days. If there is more than one
+  backup for a single day, only the latest is kept.
+
+``keep-weekly <N>``
+  Keep backups for the last ``<N>`` weeks. If there is more than one
+  backup for a single week, only the latest is kept.
+
+  .. note:: Weeks start on Monday and end on Sunday. The software
+     uses the `ISO week date`_ system and handles weeks at
+     the end of the year correctly.
+
+``keep-monthly <N>``
+  Keep backups for the last ``<N>`` months. If there is more than one
+  backup for a single month, only the latest is kept.
+
+``keep-yearly <N>``
+  Keep backups for the last ``<N>`` years. If there is more than one
+  backup for a single year, only the latest is kept.
+
+The retention options are processed in the order given above. Each option
+only covers backups within its time period. The next option does not take care
+of already covered backups. It will only consider older backups.
+
+Unfinished and incomplete backups will be removed by the prune command unless
+they are newer than the last successful backup. In this case, the last failed
+backup is retained.
+
+Prune Simulator
+^^^^^^^^^^^^^^^
+
+You can use the built-in `prune simulator <prune-simulator/index.html>`_
+to explore the effect of different retetion options with various backup
+schedules.
+
+Manual Pruning
+^^^^^^^^^^^^^^
+
+.. image:: images/screenshots/pbs-gui-datastore-content-prune-group.png
+  :target: _images/pbs-gui-datastore-content-prune-group.png
   :align: right
   :alt: Prune and garbage collection options
+
+To access pruning functionality for a specific backup group, you can use the
+prune command line option discussed in :ref:`backup-pruning`, or navigate to
+the **Content** tab of the datastore and click the scissors icon in the
+**Actions** column of the relevant backup group.
+
+Prune Schedules
+^^^^^^^^^^^^^^^
+
+To prune on a datastore level, scheduling options can be found under the
+**Prune & GC** tab of the datastore. Here you can set retention settings and
+edit the interval at which pruning takes place.
+
+.. image:: images/screenshots/pbs-gui-datastore-prunegc.png
+  :target: _images/pbs-gui-datastore-prunegc.png
+  :align: right
+  :alt: Prune and garbage collection options
+
+
+.. _maintenance_gc:
+
+Garbage Collection
+------------------
 
 You can monitor and run :ref:`garbage collection <garbage-collection>` on the
 Proxmox Backup Server using the ``garbage-collection`` subcommand of
@@ -33,6 +99,7 @@ Verification
 ------------
 
 .. image:: images/screenshots/pbs-gui-datastore-verifyjob-add.png
+  :target: _images/pbs-gui-datastore-verifyjob-add.png
   :align: right
   :alt: Adding a verify job
 
