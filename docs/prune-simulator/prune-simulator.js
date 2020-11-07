@@ -259,11 +259,6 @@ Ext.onReady(function() {
 	alias: 'widget.prunesimulatorPanel',
 
 	viewModel: {
-	    formulas: {
-		calendarHidden: function(get) {
-		    return !get('showCalendar.checked');
-		},
-	    },
 	},
 
 	getValues: function() {
@@ -724,7 +719,7 @@ Ext.onReady(function() {
 		    reference: 'weekTable',
 		    store: me.pruneStore,
 		    bind: {
-			hidden: '{calendarHidden}',
+			hidden: '{!showCalendar.checked}',
 		    },
 		},
 	    ];
