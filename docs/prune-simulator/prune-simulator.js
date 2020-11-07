@@ -1,10 +1,3 @@
-// avoid errors when running without development tools
-if (!Ext.isDefined(Ext.global.console)) {
-    var console = {
-        dir: function() {},
-        log: function() {},
-    };
-}
 
 Ext.onReady(function() {
     const NOW = new Date();
