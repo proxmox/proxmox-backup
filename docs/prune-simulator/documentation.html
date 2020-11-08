@@ -2,27 +2,45 @@
 <html>
 <head>
 <style>
+    /* similar to sphinx alabaster theme ones */
     body {
-	max-width: 90ch;
-	margin-left: 2ch;
-	margin-right: 2ch;
-	line-height: 1.5em;
-	color: #454545;
+        max-width: 90ch;
+        margin-left: 2ch;
+        margin-right: 2ch;
+        line-height: 1.4em;
+        /* avoid the very high contrast of black on white, tone it down a bit */
+        color: #3E4349;
+        hyphens: auto;
+        text-align: left;
+        font-family: 'Open Sans', sans-serif;
+        font-size: 17px;
     }
     h1, h2, h3 {
-	line-height:1.2
+        font-family: Lato, sans-serif;
+        font-size: 150%;
+        line-height:1.2
     }
     tt, code {
-	background-color: #ecf0f3;
-	color: #222;
+        background-color: #ecf0f3;
+        color: #222;
     }
     pre, tt, code {
-	font-family: 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
-	font-size: 0.9em;
+        font-family: 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
+        font-size: 0.9em;
     }
     div.note {
-	background-color: #EEE;
-	border: 1px solid #CCC;
+        background-color: #EEE;
+        border: 1px solid #CCC;
+        margin: 10px 0;
+        padding: 0px 20px;
+    }
+    p.note-title {
+        font-weight: bolder;
+        padding: 0;
+        margin: 10px 0 0 0;
+    }
+    div.note > p.last {
+        margin: 5px 0 10px 0;
     }
 </style>
 </head>
@@ -60,7 +78,8 @@ backup for a single day, only the latest is kept.</dd>
 <dd>Keep backups for the last <code class="docutils literal notranslate"><span class="pre">&lt;N&gt;</span></code> weeks. If there is more than one
 backup for a single week, only the latest is kept.
 <div class="last admonition note">
-<p class="last"><b>Note:</b> Weeks start on Monday and end on Sunday. The software
+<p class="note-title">Note:</p>
+<p class="last">Weeks start on Monday and end on Sunday. The software
 uses the <a class="reference external" href="https://en.wikipedia.org/wiki/ISO_week_date">ISO week date</a> system and handles weeks at
 the end of the year correctly.</p>
 </div>
