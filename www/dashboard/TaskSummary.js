@@ -59,7 +59,7 @@ Ext.define('PBS.TaskSummary', {
 		    filterParam.store = view.datastore;
 		}
 
-		if (record.data[state] === 0) {
+		if (record.data[state] === 0 || record.data[state] === undefined) {
 		    return;
 		}
 
@@ -200,8 +200,8 @@ Ext.define('PBS.TaskSummary', {
 	render_count: function(value, md, record, rowindex, colindex) {
 	    let me = this;
 	    let view = me.getView();
-	    let icon = me.render_icon(view.states[colindex], value);
-	    return `${icon} ${value}`;
+	    let icon = me.render_icon(view.states[colindex], value || 0);
+	    return `${icon} ${value || 0}`;
 	},
     },
 
@@ -209,7 +209,17 @@ Ext.define('PBS.TaskSummary', {
 	let me = this;
 	let controller = me.getController();
 	let data = [];
+	if (!source) {
+	    source = {};
+	}
 	me.types.forEach((type) => {
+	    if (!source[type]) {
+		source[type] = {
+		    error: 0,
+		    warning: 0,
+		    ok: 0,
+		};
+	    }
 	    source[type].type = me.titles[type];
 	    data.push(source[type]);
 	});
