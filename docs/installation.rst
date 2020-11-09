@@ -42,11 +42,11 @@ It includes the following:
 
 * Complete operating system (Debian Linux, 64-bit)
 
-* Our Linux kernel with ZFS support
+* Proxmox Linux kernel with ZFS support
 
 * Complete tool-set to administer backups and all necessary resources
 
-* Web based GUI management interface
+* Web based management interface
 
 .. note:: During the installation process, the complete server
    is used by default and all existing data is removed.
