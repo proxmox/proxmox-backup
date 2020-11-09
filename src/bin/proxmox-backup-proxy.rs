@@ -592,9 +592,9 @@ async fn schedule_task_log_rotate() {
                         .ok_or_else(|| format_err!("could not get API auth log file names"))?;
 
                 if logrotate.rotate(max_size, None, Some(max_files))? {
-                    worker.log(format!("API access log was rotated"));
+                    worker.log(format!("API authentication log was rotated"));
                 } else {
-                    worker.log(format!("API access log was not rotated"));
+                    worker.log(format!("API authentication log was not rotated"));
                 }
 
                 Ok(())
