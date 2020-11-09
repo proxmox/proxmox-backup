@@ -128,8 +128,13 @@ fn get_changelog_url(
             None => bail!("incompatible filename, doesn't match regex")
         };
 
-        return Ok(format!("http://download.proxmox.com/{}/{}_{}.changelog",
-                          base, package, version));
+        if component == "pbs-enterprise" {
+            return Ok(format!("https://enterprise.proxmox.com/{}/{}_{}.changelog",
+                              base, package, version));
+        } else {
+            return Ok(format!("http://download.proxmox.com/{}/{}_{}.changelog",
+                              base, package, version));
+        }
     }
 
     bail!("unknown origin ({}) or component ({})", origin, component)

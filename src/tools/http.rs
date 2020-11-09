@@ -2,6 +2,7 @@ use anyhow::{Error, format_err, bail};
 use lazy_static::lazy_static;
 use std::task::{Context, Poll};
 use std::os::unix::io::AsRawFd;
+use std::collections::HashMap;
 
 use hyper::{Uri, Body};
 use hyper::client::{Client, HttpConnector};
@@ -26,8 +27,21 @@ lazy_static! {
     };
 }
 
-pub async fn get_string(uri: &str) -> Result<String, Error> {
-    let res = HTTP_CLIENT.get(uri.parse()?).await?;
+pub async fn get_string(uri: &str, extra_headers: Option<&HashMap<String, String>>) -> Result<String, Error> {
+    let mut request = Request::builder()
+        .method("GET")
+        .uri(uri)
+        .header("User-Agent", "proxmox-backup-client/1.0");
+
+    if let Some(hs) = extra_headers {
+        for (h, v) in hs.iter() {
+            request = request.header(h, v);
+        }
+    }
+
+    let request = request.body(Body::empty())?;
+
+    let res = HTTP_CLIENT.request(request).await?;
 
     let status = res.status();
     if !status.is_success() {
