@@ -595,6 +595,7 @@ Ext.define('PBS.DataStoreContent', {
 	    header: gettext('Actions'),
 	    xtype: 'actioncolumn',
 	    dataIndex: 'text',
+	    width: 120,
 	    items: [
 		{
 		    handler: 'onVerify',
