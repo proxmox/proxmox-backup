@@ -185,6 +185,15 @@ Ext.define('PBS.Utils', {
 	return Ext.String.format(gettext("in {0}"), duration);
     },
 
+    render_size_usage: function(val, max) {
+	if (max === 0) {
+	    return gettext('N/A');
+	}
+	return (val*100/max).toFixed(2) + '% (' +
+	    Ext.String.format(gettext('{0} of {1}'),
+	    Proxmox.Utils.format_size(val), Proxmox.Utils.format_size(max)) + ')';
+    },
+
     constructor: function() {
 	var me = this;
 

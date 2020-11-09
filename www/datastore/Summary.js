@@ -51,18 +51,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    let total = store.getById('total').data.value;
 	    let used = store.getById('used').data.value;
 
-	    let percent = 100*used/total;
-	    if (total === 0) {
-		percent = 0;
-	    }
-	    let used_percent = `${percent.toFixed(2)}%`;
-
-	    let usage = used_percent + ' (' +
-		Ext.String.format(
-		    gettext('{0} of {1}'),
-		    Proxmox.Utils.format_size(used),
-		    Proxmox.Utils.format_size(total),
-		) + ')';
+	    let usage = PBS.Utils.render_size_usage(used, total);
 	    vm.set('usagetext', usage);
 	    vm.set('usage', used/total);
 
