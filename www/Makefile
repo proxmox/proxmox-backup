@@ -56,6 +56,8 @@ JSSRC=							\
 	datastore/Content.js				\
 	datastore/OptionView.js				\
 	datastore/Panel.js				\
+	datastore/DataStoreListSummary.js		\
+	datastore/DataStoreList.js			\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\
