@@ -9,9 +9,11 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
     },
     bodyPadding: 10,
 
+    controller: {
+	xclass: 'Ext.app.ViewController',
+    },
     viewModel: {
 	data: {
-	    usage: "N/A",
 	    full: "N/A",
 	    history: [],
 	},
@@ -30,8 +32,16 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
     setStatus: function(statusData) {
 	let me = this;
 	let vm = me.getViewModel();
-	vm.set('usagetext', PBS.Utils.render_size_usage(statusData.used, statusData.total));
-	vm.set('usage', statusData.used/statusData.total);
+
+	let usage = statusData.used/statusData.total;
+	let usagetext = Ext.String.format(gettext('{0} of {1}'),
+	    Proxmox.Utils.format_size(statusData.used),
+	    Proxmox.Utils.format_size(statusData.total),
+	);
+
+	let usagePanel = me.lookup('usage');
+	usagePanel.updateValue(usage, usagetext);
+
 	let estimate = PBS.Utils.render_estimate(statusData['estimated-full-date']);
 	vm.set('full', estimate);
 	let last = 0;
@@ -60,30 +70,23 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    },
 
 	    defaults: {
-		flex: 1,
 		padding: 5,
 	    },
 
 	    items: [
 		{
-		    xtype: 'pmxInfoWidget',
-		    iconCls: 'fa fa-fw fa-hdd-o',
-		    title: gettext('Usage'),
-		    bind: {
-			data: {
-			    usage: '{usage}',
-			    text: '{usagetext}',
-			},
-		    },
+		    xtype: 'panel',
+		    border: false,
+		    flex: 1,
 		},
 		{
 		    xtype: 'pmxInfoWidget',
 		    iconCls: 'fa fa-fw fa-line-chart',
 		    title: gettext('Estimated Full'),
+		    width: 230,
 		    printBar: false,
 		    bind: {
 			data: {
-			    usage: '0',
 			    text: '{full}',
 			},
 		    },
@@ -125,15 +128,57 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    }],
 	},
 	{
-	    xtype: 'pbsTaskSummary',
-	    border: false,
-	    header: false,
-	    subPanelModal: true,
-	    bodyPadding: 0,
-	    minHeight: 0,
-	    cbind: {
-		datastore: '{datastore}',
+	    xtype: 'container',
+	    layout: {
+		type: 'hbox',
+		align: 'stretch',
 	    },
+
+	    defaults: {
+		padding: 5,
+	    },
+
+	    items: [
+		{
+		    xtype: 'proxmoxGauge',
+		    warningThreshold: 0.8,
+		    criticalThreshold: 0.95,
+		    flex: 1,
+		    reference: 'usage',
+		},
+		{
+		    xtype: 'container',
+		    flex: 2,
+		    layout: {
+			type: 'vbox',
+			align: 'stretch',
+		    },
+
+		    defaults: {
+			padding: 5,
+		    },
+
+		    items: [
+			{
+			    xtype: 'label',
+			    text: gettext('Task Summary')
+			        + ` (${Ext.String.format(gettext('{0} days'), 30)})`,
+			},
+			{
+			    xtype: 'pbsTaskSummary',
+			    border: false,
+			    header: false,
+			    subPanelModal: true,
+			    flex: 2,
+			    bodyPadding: 0,
+			    minHeight: 0,
+			    cbind: {
+				datastore: '{datastore}',
+			    },
+			},
+		    ],
+		},
+	    ],
 	},
     ],
 });
