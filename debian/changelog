@@ -1,3 +1,32 @@
+rust-proxmox-backup (0.9.7-1) unstable; urgency=medium
+
+  * ui: add remote store selector
+
+  * tools/daemon: fix reload with open connections
+
+  * pxar/create: fix endless loop for shrinking files
+
+  * pxar/create: handle ErrorKind::Interrupted for file reads
+
+  * ui: add action-button for changing backup group owner
+
+  * docs: add interactive prune simulator
+
+  * verify: fix unprivileged verification jobs
+
+  * tasks: allow access to job tasks
+
+  * drop internal 'backup@pam' owner, sync jobs need to set a explicit owner
+
+  * api: datastore: allow to set "verify-new" option over API
+
+  * ui: datastore: add Options tab, allowing one to change per-datastore
+    notification and verify-new options
+
+  * docs: scroll navigation bar to current active section
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 09 Nov 2020 07:36:58 +0100
+
 rust-proxmox-backup (0.9.6-1) unstable; urgency=medium
 
   * fix #3106: improve queueing new incoming connections
