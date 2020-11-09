@@ -84,11 +84,29 @@ Ext.define('PBS.config.ACLView', {
 
 	    let params = {};
 	    if (view.aclPath !== undefined) {
-		params.path = view.aclPath;
+
+		let pathFilter = Ext.create('Ext.util.Filter', {
+		    filterPath: view.aclPath,
+		    filterFn: function(item) {
+			let me = this;
+			let curr = item.data.path;
+
+			if (curr.lastIndexOf("/") < me.filterPath.lastIndexOf("/")) {
+			    return me.filterPath.startsWith(curr);
+			} else {
+			    return me.filterPath === curr;
+			}
+		    },
+		});
+		view.getStore().addFilter(pathFilter);
 	    }
 	    if (view.aclExact !== undefined) {
+		if (view.aclPath !== undefined) {
+		    params.path = view.aclPath;
+		}
 		params.exact = view.aclExact;
 	    }
+
 	    proxy.setExtraParams(params);
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},

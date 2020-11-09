@@ -90,7 +90,6 @@ Ext.define('PBS.DataStorePanel', {
 	    itemId: 'acl',
 	    xtype: 'pbsACLView',
 	    iconCls: 'fa fa-unlock',
-	    aclExact: true,
 	    cbind: {
 		aclPath: '{aclPath}',
 	    },
