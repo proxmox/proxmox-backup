@@ -93,6 +93,9 @@ class ReflabelMapper(Builder):
                     logger.info('traversing section {}'.format(title.astext()))
                     ref_name = getattr(title, 'rawsource', title.astext())
 
+                    if (ref_name[:7] == ':term:`'):
+                        ref_name = ref_name[7:-1]
+
                     self.env.online_help[labelid] = {'link': '', 'title': ''}
                     self.env.online_help[labelid]['link'] = "/docs/" + os.path.basename(filename_html) + "#{}".format(labelid)
                     self.env.online_help[labelid]['title'] = ref_name
