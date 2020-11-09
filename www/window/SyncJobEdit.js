@@ -113,6 +113,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	me.autoLoad = !!id;
 	me.scheduleValue = id ? null : 'hourly';
 	me.authid = id ? null : Proxmox.UserName;
+	me.editDatastore = me.datastore === undefined && me.isCreate;
 	return { };
     },
 
@@ -128,13 +129,17 @@ Ext.define('PBS.window.SyncJobEdit', {
 	},
 	column1: [
 	    {
-		xtype: 'displayfield',
-		name: 'store',
+		xtype: 'pmxDisplayEditField',
 		fieldLabel: gettext('Local Datastore'),
-		allowBlank: false,
+		name: 'store',
 		submitValue: true,
 		cbind: {
+		    editable: '{editDatastore}',
 		    value: '{datastore}',
+		},
+		editConfig: {
+		    xtype: 'pbsDataStoreSelector',
+		    allowBlank: false,
 		},
 	    },
 	    {

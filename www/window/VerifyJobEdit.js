@@ -24,6 +24,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	me.url = id ? `${baseurl}/${id}` : baseurl;
 	me.method = id ? 'PUT' : 'POST';
 	me.autoLoad = !!id;
+	me.editDatastore = me.datastore === undefined && me.isCreate;
 	return { };
     },
 
@@ -45,13 +46,17 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	},
 	column1: [
 	    {
-		xtype: 'displayfield',
+		xtype: 'pmxDisplayEditField',
+		fieldLabel: gettext('Local Datastore'),
 		name: 'store',
-		fieldLabel: gettext('Datastore'),
-		allowBlank: false,
 		submitValue: true,
 		cbind: {
+		    editable: '{editDatastore}',
 		    value: '{datastore}',
+		},
+		editConfig: {
+		    xtype: 'pbsDataStoreSelector',
+		    allowBlank: false,
 		},
 	    },
 	    {

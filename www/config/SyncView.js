@@ -162,9 +162,11 @@ Ext.define('PBS.config.SyncJobView', {
 	reload: function() { this.getView().getStore().rstore.load(); },
 
 	init: function(view) {
-	    view.getStore().rstore.getProxy().setExtraParams({
-		store: view.datastore,
-	    });
+	    let params = {};
+	    if (view.datastore !== undefined) {
+		params.store = view.datastore;
+	    }
+	    view.getStore().rstore.getProxy().setExtraParams(params);
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
     },
