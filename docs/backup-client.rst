@@ -365,9 +365,17 @@ To set up a master key:
   backed up. It can happen, for example, that you back up an entire system, using
   a key on that system. If the system then becomes inaccessible for any reason
   and needs to be restored, this will not be possible as the encryption key will be
-  lost along with the broken system. In preparation for the worst case scenario,
-  you should consider keeping a paper copy of this key locked away in
-  a safe place.
+  lost along with the broken system.
+
+In preparation for the worst case scenario, you should consider keeping a paper
+copy of your master key locked away in a safe place. The ``paperkey`` subcommand
+can be used to create a QR encoded version of your master key. The following
+command sends the output of the ``paperkey`` command to a text file, for easy
+printing.
+
+.. code-block:: console
+
+  proxmox-backup-client key paperkey --output-format text > qrkey.txt
 
 
 Restoring Data
