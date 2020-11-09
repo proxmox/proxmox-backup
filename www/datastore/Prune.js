@@ -44,6 +44,46 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 	reload: function() {
 	    var view = this.getView();
 
+	    // helper to allow showing why a backup is kept
+	    let addKeepReasons = function(backups, params) {
+		const rules = [
+		    'keep-last',
+		    'keep-hourly',
+		    'keep-daily',
+		    'keep-weekly',
+		    'keep-monthly',
+		    'keep-yearly',
+		    'keep-all', // when all keep options are not set
+		];
+		let counter = {};
+
+		backups.sort(function(a, b) {
+		    return a["backup-time"] < b["backup-time"];
+		});
+
+		let ruleIndex = -1;
+		let nextRule = function() {
+		    let rule;
+		    do {
+			ruleIndex++;
+			rule = rules[ruleIndex];
+		    } while (!params[rule] && rule !== 'keep-all');
+		    counter[rule] = 0;
+		    return rule;
+		};
+
+		let rule = nextRule();
+		for (let backup of backups) {
+		    if (backup.keep) {
+			counter[rule]++;
+			backup.keepReason = rule;
+			if (rule !== 'keep-all' && counter[rule] >= params[rule]) {
+			    rule = nextRule();
+			}
+		    }
+		}
+	    };
+
 	    let params = view.getValues();
 	    params["dry-run"] = true;
 
@@ -59,6 +99,7 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		},
 		success: function(response, options) {
 		    var data = response.result.data;
+		    addKeepReasons(data, params);
 		    view.prune_store.setData(data);
 		},
 	    });
@@ -146,6 +187,14 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		    {
 			text: "keep",
 			dataIndex: 'keep',
+			renderer: function(value, metaData, record) {
+			    if (record.data.keep) {
+				return 'true (' + record.data.keepReason + ')';
+			    } else {
+				return 'false';
+			    }
+			},
+			flex: 1,
 		    },
 		],
 	    },
@@ -162,6 +211,8 @@ Ext.define('PBS.DataStorePrune', {
     submitText: "Prune",
 
     isCreate: true,
+
+    fieldDefaults: { labelWidth: 120 },
 
     initComponent: function() {
         var me = this;
