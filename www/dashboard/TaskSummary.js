@@ -200,7 +200,11 @@ Ext.define('PBS.TaskSummary', {
 	render_count: function(value, md, record, rowindex, colindex) {
 	    let me = this;
 	    let view = me.getView();
-	    let icon = me.render_icon(view.states[colindex], value || 0);
+	    let count = value || 0;
+	    if (count > 0) {
+		md.tdCls = 'pointer';
+	    }
+	    let icon = me.render_icon(view.states[colindex], count);
 	    return `${icon} ${value || 0}`;
 	},
     },
