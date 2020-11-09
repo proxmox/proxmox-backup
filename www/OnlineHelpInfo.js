@@ -21,7 +21,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "backup-remote": {
     "link": "/docs/managing-remotes.html#backup-remote",
-    "title": ":term:`Remote`"
+    "title": "Remote"
   },
   "syncjobs": {
     "link": "/docs/managing-remotes.html#syncjobs",
@@ -29,7 +29,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "datastore-intro": {
     "link": "/docs/storage.html#datastore-intro",
-    "title": ":term:`DataStore`"
+    "title": "DataStore"
   },
   "user-mgmt": {
     "link": "/docs/user-management.html#user-mgmt",
