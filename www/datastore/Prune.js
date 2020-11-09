@@ -76,9 +76,13 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 		for (let backup of backups) {
 		    if (backup.keep) {
 			counter[rule]++;
-			backup.keepReason = rule;
-			if (rule !== 'keep-all' && counter[rule] >= params[rule]) {
-			    rule = nextRule();
+			if (rule !== 'keep-all') {
+			    backup.keepReason = rule + ': ' + counter[rule];
+			    if (counter[rule] >= params[rule]) {
+				rule = nextRule();
+			    }
+			} else {
+			    backup.keepReason = rule;
 			}
 		    }
 		}
@@ -212,7 +216,7 @@ Ext.define('PBS.DataStorePrune', {
 
     isCreate: true,
 
-    fieldDefaults: { labelWidth: 120 },
+    fieldDefaults: { labelWidth: 130 },
 
     initComponent: function() {
         var me = this;
