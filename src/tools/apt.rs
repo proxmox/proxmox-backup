@@ -136,11 +136,13 @@ fn get_changelog_url(
 }
 
 pub struct FilterData<'a> {
-    // this is version info returned by APT
+    /// package name
+    pub package: &'a str,
+    /// this is version info returned by APT
     pub installed_version: Option<&'a str>,
     pub candidate_version: &'a str,
 
-    // this is the version info the filter is supposed to check
+    /// this is the version info the filter is supposed to check
     pub active_version: &'a str,
 }
 
@@ -270,6 +272,7 @@ where
         let mut long_desc = "".to_owned();
 
         let fd = FilterData {
+            package: package.as_str(),
             installed_version: current_version.as_deref(),
             candidate_version: &candidate_version,
             active_version: &version,
