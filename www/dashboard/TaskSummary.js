@@ -27,6 +27,12 @@ Ext.define('PBS.TaskSummary', {
 	"verify": gettext('Verify'),
     },
 
+    // set true to show the onclick panel as modal grid
+    subPanelModal: false,
+
+    // the datastore the onclick panel is filtered by
+    datastore: undefined,
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
@@ -47,6 +53,10 @@ Ext.define('PBS.TaskSummary', {
 
 		if (me.since) {
 		    filterParam.since = me.since;
+		}
+
+		if (view.datastore) {
+		    filterParam.store = view.datastore;
 		}
 
 		if (record.data[state] === 0) {
@@ -150,7 +160,13 @@ Ext.define('PBS.TaskSummary', {
 		tasklist.getStore().getProxy().setExtraParams(filterParam);
 		tasklist.getStore().removeAll();
 
-		tasklist.showBy(td, 'bl-tl');
+		if (view.subPanelModal) {
+		    tasklist.modal = true;
+		    tasklist.showBy(Ext.getBody(), 'c-c');
+		} else {
+		    tasklist.modal = false;
+		    tasklist.showBy(td, 'bl-tl');
+		}
 		setTimeout(() => tasklist.getStore().reload(), 10);
 	    }
 	},
