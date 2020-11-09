@@ -31,6 +31,7 @@ Ext.define('PBS.form.TokenSelector', {
     },
 
     onLoad: function(store, data, success) {
+	let me = this;
 	if (!success) return;
 
 	let tokenStore = this.store;
@@ -49,6 +50,9 @@ Ext.define('PBS.form.TokenSelector', {
 	});
 
 	tokenStore.loadData(records);
+	// we need to re-set the value, ExtJS doesn't knows that we injected data into the store
+	me.setValue(me.value);
+	me.validate();
     },
 
     listConfig: {

@@ -60,6 +60,8 @@ Ext.define('PBS.form.AuthidSelector', {
 	}
 
 	me.store.loadData(records);
+	// we need to re-set the value, ExtJS doesn't knows that we injected data into the store
+	me.setValue(me.value);
 	me.validate();
     },
 
