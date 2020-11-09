@@ -159,6 +159,34 @@ Ext.define('PBS.Utils', {
 	return `Datastore ${what} ${id}`;
     },
 
+    parse_datastore_worker_id: function(type, id) {
+	let result;
+	let res;
+	if (type.startsWith('verif')) {
+	    res = PBS.Utils.VERIFICATION_JOB_ID_RE.exec(id);
+	    if (res) {
+		result = res[1];
+	    }
+	} else if (type.startsWith('sync')) {
+	    res = PBS.Utils.SYNC_JOB_ID_RE.exec(id);
+	    if (res) {
+		result = res[3];
+	    }
+	} else if (type === 'backup') {
+	    res = PBS.Utils.BACKUP_JOB_ID_RE.exec(id);
+	    if (res) {
+		result = res[1];
+	    }
+	} else if (type === 'garbage_collection') {
+	    return id;
+	} else if (type === 'prune') {
+	    return id;
+	}
+
+
+	return result;
+    },
+
     extractTokenUser: function(tokenid) {
 	return tokenid.match(/^(.+)!([^!]+)$/)[1];
     },
@@ -196,6 +224,14 @@ Ext.define('PBS.Utils', {
 
     constructor: function() {
 	var me = this;
+
+	let PROXMOX_SAFE_ID_REGEX = "([A-Za-z0-9_][A-Za-z0-9._-]*)";
+	// only anchored at beginning
+	// only parses datastore for now
+	me.VERIFICATION_JOB_ID_RE = new RegExp("^" + PROXMOX_SAFE_ID_REGEX + ':?');
+	me.SYNC_JOB_ID_RE = new RegExp("^" + PROXMOX_SAFE_ID_REGEX + ':' +
+	    PROXMOX_SAFE_ID_REGEX + ':' + PROXMOX_SAFE_ID_REGEX + ':');
+	me.BACKUP_JOB_ID_RE = new RegExp("^" + PROXMOX_SAFE_ID_REGEX + ':');
 
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
