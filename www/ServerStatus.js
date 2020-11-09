@@ -51,6 +51,78 @@ Ext.define('PBS.ServerStatus', {
 
     scrollable: true,
 
+    showVersions: function() {
+	let me = this;
+
+	// Note: use simply text/html here, as ExtJS grid has problems with cut&paste
+	let panel = Ext.createWidget('component', {
+	    autoScroll: true,
+	    id: 'pkgversions',
+	    padding: 5,
+	    style: {
+		'background-color': 'white',
+		'white-space': 'pre',
+		'font-family': 'monospace',
+	    },
+	});
+
+	let win = Ext.create('Ext.window.Window', {
+	    title: gettext('Package versions'),
+	    width: 600,
+	    height: 600,
+	    layout: 'fit',
+	    modal: true,
+	    items: [panel],
+	    buttons: [
+		{
+		    xtype: 'button',
+		    iconCls: 'fa fa-clipboard',
+		    handler: function(button) {
+			window.getSelection().selectAllChildren(
+			    document.getElementById('pkgversions'),
+			);
+			document.execCommand("copy");
+		    },
+		    text: gettext('Copy'),
+		},
+		{
+		    text: gettext('Ok'),
+		    handler: function() {
+			this.up('window').close();
+		    },
+		},
+	    ],
+	});
+
+	Proxmox.Utils.API2Request({
+	    waitMsgTarget: me,
+	    url: `/nodes/localhost/apt/versions`,
+	    method: 'GET',
+	    failure: function(response, opts) {
+		win.close();
+		Ext.Msg.alert(gettext('Error'), response.htmlStatus);
+	    },
+	    success: function(response, opts) {
+		let text = '';
+		Ext.Array.each(response.result.data, function(rec) {
+		    let version = "not correctly installed";
+		    let pkg = rec.Package;
+		    if (rec.OldVersion && rec.OldVersion !== 'unknown') {
+			version = rec.OldVersion;
+		    }
+		    if (rec.ExtraInfo) {
+			text += `${pkg}: ${version} (${rec.ExtraInfo})\n`;
+		    } else {
+			text += `${pkg}: ${version}\n`;
+		    }
+		});
+
+		win.show();
+		panel.update(Ext.htmlEncode(text));
+	    },
+	});
+    },
+
     initComponent: function() {
         var me = this;
 
@@ -94,7 +166,15 @@ Ext.define('PBS.ServerStatus', {
 	    },
 	});
 
-	me.tbar = [consoleBtn, restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' }];
+	let version_btn = new Ext.Button({
+	    text: gettext('Package versions'),
+	    iconCls: 'fa fa-gift',
+	    handler: function() {
+		Proxmox.Utils.checked_command(function() { me.showVersions(); });
+	    },
+	});
+
+	me.tbar = [version_btn, '-', consoleBtn, '-', restartBtn, shutdownBtn, '->', { xtype: 'proxmoxRRDTypeSelector' }];
 
 	var rrdstore = Ext.create('Proxmox.data.RRDStore', {
 	    rrdurl: "/api2/json/nodes/localhost/rrd",
