@@ -1153,7 +1153,7 @@ pub enum RRDTimeFrameResolution {
 }
 
 #[api()]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 /// Describes a package for which an update is available.
 pub struct APTUpdateInfo {

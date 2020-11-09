@@ -215,12 +215,113 @@ fn apt_get_changelog(
     }
 }
 
+#[api(
+    input: {
+        properties: {
+            node: {
+                schema: NODE_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "List of more relevant packages.",
+        type: Array,
+        items: {
+            type: APTUpdateInfo,
+        },
+    },
+    access: {
+        permission: &Permission::Privilege(&[], PRIV_SYS_AUDIT, false),
+    },
+)]
+/// Get package information for important Proxmox Backup Server packages.
+pub fn get_versions() -> Result<Value, Error> {
+    const PACKAGES: &[&str] = &[
+        "ifupdown2",
+        "libjs-extjs",
+        "proxmox-backup",
+        "proxmox-backup-docs",
+        "proxmox-backup-client",
+        "proxmox-backup-server",
+        "proxmox-mini-journalreader",
+        "proxmox-widget-toolkit",
+        "pve-xtermjs",
+        "smartmontools",
+        "zfsutils-linux",
+    ];
+
+    fn unknown_package(package: String) -> APTUpdateInfo {
+        APTUpdateInfo {
+            package,
+            title: "unknown".into(),
+            arch: "unknown".into(),
+            description: "unknown".into(),
+            version: "unknown".into(),
+            old_version: "unknown".into(),
+            origin: "unknown".into(),
+            priority: "unknown".into(),
+            section: "unknown".into(),
+            change_log_url: "unknown".into(),
+        }
+    }
+
+    let is_kernel = |name: &str| name.starts_with("pve-kernel-");
+
+    let mut packages: Vec<APTUpdateInfo> = Vec::new();
+    let pbs_packages = apt::list_installed_apt_packages(
+        |filter| {
+            filter.installed_version == Some(filter.active_version)
+                && (is_kernel(filter.package) || PACKAGES.contains(&filter.package))
+        },
+        None,
+    );
+    if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
+        packages.push(proxmox_backup.to_owned());
+    } else {
+        packages.push(unknown_package("proxmox-backup".into()));
+    }
+
+    if let Some(pkg) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup-server") {
+        packages.push(pkg.to_owned());
+    }
+
+    let mut kernel_pkgs: Vec<APTUpdateInfo> = pbs_packages
+        .iter()
+        .filter(|pkg| is_kernel(&pkg.package))
+        .cloned()
+        .collect();
+    // make sure the cache mutex gets dropped before the next call to list_installed_apt_packages
+    {
+        let cache = apt_pkg_native::Cache::get_singleton();
+        kernel_pkgs.sort_by(|left, right| {
+            cache
+                .compare_versions(&left.old_version, &right.old_version)
+                .reverse()
+        });
+    }
+    packages.append(&mut kernel_pkgs);
+
+    // add entry for all packages we're interested in, even if not installed
+    for pkg in PACKAGES.iter() {
+        if pkg == &"proxmox-backup" || pkg == &"proxmox-backup-server" {
+            continue;
+        }
+        match pbs_packages.iter().find(|item| &item.package == pkg) {
+            Some(apt_pkg) => packages.push(apt_pkg.to_owned()),
+            None => packages.push(unknown_package(pkg.to_string())),
+        }
+    }
+
+    Ok(json!(packages))
+}
+
 const SUBDIRS: SubdirMap = &[
     ("changelog", &Router::new().get(&API_METHOD_APT_GET_CHANGELOG)),
     ("update", &Router::new()
         .get(&API_METHOD_APT_UPDATE_AVAILABLE)
         .post(&API_METHOD_APT_UPDATE_DATABASE)
     ),
+    ("versions", &Router::new().get(&API_METHOD_GET_VERSIONS)),
 ];
 
 pub const ROUTER: Router = Router::new()
