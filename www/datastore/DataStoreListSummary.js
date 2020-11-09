@@ -95,7 +95,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 	    // abuse a grid with a single column/row to do it for us
 	    xtype: 'grid',
 	    hideHeaders: true,
-	    minHeight: 50,
+	    minHeight: 70,
 	    border: false,
 	    bodyBorder: false,
 	    rowLines: false,
@@ -120,7 +120,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		    chartRangeMin: 0,
 		    chartRangeMax: 1,
 		    tipTpl: '{y:number("0.00")*100}%',
-		    height: 40,
+		    height: 60,
 		},
 	    }],
 	},
