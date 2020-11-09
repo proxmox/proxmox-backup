@@ -246,7 +246,7 @@ Ext.define('PBS.TaskSummary', {
 	    rowLines: false,
 	    viewConfig: {
 		stripeRows: false,
-		trackOver: false,
+		trackOver: true,
 	    },
 	    scrollable: false,
 	    disableSelection: true,
