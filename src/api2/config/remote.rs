@@ -284,6 +284,17 @@ pub fn update_remote(
 /// Remove a remote from the configuration file.
 pub fn delete_remote(name: String, digest: Option<String>) -> Result<(), Error> {
 
+    use crate::config::sync::{self, SyncJobConfig};
+
+    let (sync_jobs, _) = sync::config()?;
+
+    let job_list: Vec<SyncJobConfig>  = sync_jobs.convert_to_typed_array("sync")?;
+    for job in job_list {
+        if job.remote == name {
+            bail!("remote '{}' is used by sync job '{}' (datastore '{}')", name, job.id, job.store);
+        }
+    }
+
     let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = remote::config()?;
