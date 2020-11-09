@@ -4,31 +4,32 @@ Ext.define('PBS.TaskSummary', {
 
     title: gettext('Task Summary'),
 
+    states: [
+	"",
+	"error",
+	"warning",
+	"ok",
+    ],
+
+    types: [
+	"backup",
+	"prune",
+	"garbage_collection",
+	"sync",
+	"verify",
+    ],
+
+    titles: {
+	"backup": gettext('Backups'),
+	"prune": gettext('Prunes'),
+	"garbage_collection": gettext('Garbage collections'),
+	"sync": gettext('Syncs'),
+	"verify": gettext('Verify'),
+    },
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	states: [
-	    "",
-	    "error",
-	    "warning",
-	    "ok",
-	],
-
-	types: [
-	    "backup",
-	    "prune",
-	    "garbage_collection",
-	    "sync",
-	    "verify",
-	],
-
-	titles: {
-	    "backup": gettext('Backups'),
-	    "prune": gettext('Prunes'),
-	    "garbage_collection": gettext('Garbage collections'),
-	    "sync": gettext('Syncs'),
-	    "verify": gettext('Verify'),
-	},
 
 	openTaskList: function(grid, td, cellindex, record, tr, rowindex) {
 	    let me = this;
@@ -36,8 +37,8 @@ Ext.define('PBS.TaskSummary', {
 
 	    if (cellindex > 0) {
 		let tasklist = view.tasklist;
-		let state = me.states[cellindex];
-		let type = me.types[rowindex];
+		let state = view.states[cellindex];
+		let type = view.types[rowindex];
 		let filterParam = {
 		    limit: 0,
 		    'statusfilter': state,
@@ -137,7 +138,7 @@ Ext.define('PBS.TaskSummary', {
 		tasklist.cidx = cellindex;
 		tasklist.ridx = rowindex;
 
-		let task = me.titles[type];
+		let task = view.titles[type];
 		let status = "";
 		switch (state) {
 		    case 'ok': status = gettext("OK"); break;
@@ -182,7 +183,8 @@ Ext.define('PBS.TaskSummary', {
 
 	render_count: function(value, md, record, rowindex, colindex) {
 	    let me = this;
-	    let icon = me.render_icon(me.states[colindex], value);
+	    let view = me.getView();
+	    let icon = me.render_icon(view.states[colindex], value);
 	    return `${icon} ${value}`;
 	},
     },
@@ -191,8 +193,8 @@ Ext.define('PBS.TaskSummary', {
 	let me = this;
 	let controller = me.getController();
 	let data = [];
-	controller.types.forEach((type) => {
-	    source[type].type = controller.titles[type];
+	me.types.forEach((type) => {
+	    source[type].type = me.titles[type];
 	    data.push(source[type]);
 	});
 	me.lookup('grid').getStore().setData(data);
