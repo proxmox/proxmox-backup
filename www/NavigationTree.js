@@ -87,6 +87,7 @@ Ext.define('PBS.store.NavigationStore', {
 		text: gettext('Datastore'),
 		iconCls: 'fa fa-archive',
 		id: 'datastores',
+		path: 'pbsDataStores',
 		expanded: true,
 		expandable: false,
 		leaf: false,
@@ -174,9 +175,6 @@ Ext.define('PBS.view.main.NavigationTree', {
 
     listeners: {
 	itemclick: function(tl, info) {
-	    if (info.node.data.id === 'datastores') {
-		return false;
-	    }
 	    if (info.node.data.id === 'addbutton') {
 		let me = this;
 		Ext.create('PBS.DataStoreEdit', {
