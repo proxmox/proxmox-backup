@@ -71,6 +71,36 @@ fn check_job_privs(auth_id: &Authid, user_info: &CachedUserInfo, upid: &UPID) ->
     bail!("not a scheduled job task");
 }
 
+// get the store out of the worker_id
+fn check_job_store(upid: &UPID, store: &str) -> bool {
+    match (upid.worker_type.as_str(), &upid.worker_id) {
+        (workertype, Some(workerid)) if workertype.starts_with("verif") => {
+            if let Some(captures) = VERIFICATION_JOB_WORKER_ID_REGEX.captures(&workerid) {
+                if let Some(jobstore) = captures.get(1) {
+                    return store == jobstore.as_str();
+                }
+            } else {
+                return workerid == store;
+            }
+        }
+        ("syncjob", Some(workerid)) => {
+            if let Some(captures) = SYNC_JOB_WORKER_ID_REGEX.captures(&workerid) {
+                if let Some(local_store) = captures.get(3) {
+                    return store == local_store.as_str();
+                }
+            }
+        }
+        ("prune", Some(workerid))
+        | ("backup", Some(workerid))
+        | ("garbage_collection", Some(workerid)) => {
+            return workerid == store || workerid.starts_with(&format!("{}:", store));
+        }
+        _ => {}
+    };
+
+    false
+}
+
 fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
     let task_auth_id = &upid.auth_id;
     if auth_id == task_auth_id
@@ -455,21 +485,8 @@ pub fn list_tasks(
         }
 
         if let Some(store) = store {
-            // Note: useful to select all tasks spawned by proxmox-backup-client
-            let worker_id = match &info.upid.worker_id {
-                Some(w) => w,
-                None => return None, // skip
-            };
-
-            if info.upid.worker_type == "backup" || info.upid.worker_type == "restore" ||
-                info.upid.worker_type == "prune"
-            {
-                let prefix = format!("{}:", store);
-                if !worker_id.starts_with(&prefix) { return None; }
-            } else if info.upid.worker_type == "garbage_collection" {
-                if worker_id != store { return None; }
-            } else {
-                return None; // skip
+            if !check_job_store(&info.upid, store) {
+                return None;
             }
         }
 
