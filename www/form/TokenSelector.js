@@ -56,20 +56,21 @@ Ext.define('PBS.form.TokenSelector', {
     },
 
     listConfig: {
+	width: 500,
 	columns: [
 	    {
 		header: gettext('API Token'),
 		sortable: true,
 		dataIndex: 'tokenid',
 		renderer: Ext.String.htmlEncode,
-		flex: 1,
+		flex: 2,
 	    },
 	    {
 		header: gettext('Comment'),
 		sortable: false,
 		dataIndex: 'comment',
 		renderer: Ext.String.htmlEncode,
-		flex: 1,
+		flex: 3,
 	    },
 	],
     },
