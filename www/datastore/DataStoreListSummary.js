@@ -78,6 +78,7 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		},
 		{
 		    xtype: 'pmxInfoWidget',
+		    iconCls: 'fa fa-fw fa-line-chart',
 		    title: gettext('Estimated Full'),
 		    printBar: false,
 		    bind: {
