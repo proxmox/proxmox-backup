@@ -89,7 +89,21 @@ struct HardLinkInfo {
     st_ino: u64,
 }
 
-/// In case we want to collect them or redirect them we can just add this here:
+/// TODO: make a builder for the create_archive call for fewer parameters and add a method to add a
+/// logger which does not write to stderr.
+struct Logger;
+
+impl std::io::Write for Logger {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        std::io::stderr().write(data)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        std::io::stderr().flush()
+    }
+}
+
+/// And the error case.
 struct ErrorReporter;
 
 impl std::io::Write for ErrorReporter {
@@ -116,6 +130,7 @@ struct Archiver<'a, 'b> {
     device_set: Option<HashSet<u64>>,
     hardlinks: HashMap<HardLinkInfo, (PathBuf, LinkOffset)>,
     errors: ErrorReporter,
+    logger: Logger,
     file_copy_buffer: Vec<u8>,
 }
 
@@ -181,6 +196,7 @@ where
         device_set,
         hardlinks: HashMap::new(),
         errors: ErrorReporter,
+        logger: Logger,
         file_copy_buffer: vec::undefined(4 * 1024 * 1024),
     };
 
@@ -632,6 +648,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
         }
 
         let result = if skip_contents {
+            writeln!(self.logger, "skipping mount point: {:?}", self.path)?;
             Ok(())
         } else {
             self.archive_dir_contents(&mut encoder, dir, false)
