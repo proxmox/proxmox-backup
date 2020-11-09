@@ -167,6 +167,24 @@ Ext.define('PBS.Utils', {
 	return tokenid.match(/^(.+)!([^!]+)$/)[2];
     },
 
+    render_estimate: function(value) {
+	if (!value) {
+	    return gettext('Not enough data');
+	}
+
+	let now = new Date();
+	let estimate = new Date(value*1000);
+
+	let timespan = (estimate - now)/1000;
+
+	if (Number(estimate) <= Number(now) || isNaN(timespan)) {
+	    return gettext('Never');
+	}
+
+	let duration = Proxmox.Utils.format_duration_human(timespan);
+	return Ext.String.format(gettext("in {0}"), duration);
+    },
+
     constructor: function() {
 	var me = this;
 

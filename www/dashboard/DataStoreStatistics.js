@@ -47,24 +47,6 @@ Ext.define('PBS.DatastoreStatistics', {
     controller: {
 	xclass: 'Ext.app.ViewController',
 
-	render_estimate: function(value) {
-	    if (!value) {
-		return gettext('Not enough data');
-	    }
-
-	    let now = new Date();
-	    let estimate = new Date(value*1000);
-
-	    let timespan = (estimate - now)/1000;
-
-	    if (Number(estimate) <= Number(now) || isNaN(timespan)) {
-		return gettext('Never');
-	    }
-
-	    let duration = Proxmox.Utils.format_duration_human(timespan);
-	    return Ext.String.format(gettext("in {0}"), duration);
-	},
-
 	init: function(view) {
 	    Proxmox.Utils.monStoreErrors(view, view.getStore().rstore);
 	},
@@ -111,7 +93,7 @@ Ext.define('PBS.DatastoreStatistics', {
 	    text: gettext('Estimated Full'),
 	    dataIndex: 'estimated-full-date',
 	    sortable: true,
-	    renderer: 'render_estimate',
+	    renderer: PBS.Utils.render_estimate,
 	    flex: 1,
 	    minWidth: 130,
 	    maxWidth: 200,
