@@ -36,8 +36,7 @@ Ext.define('PBS.Application', {
 	    xtype: view,
 	});
 	if (skipCheck !== true) {
-	    // fixme:
-	    // Proxmox.Utils.checked_command(function() {}); // display subscription status
+	    Proxmox.Utils.checked_command(Ext.emptyFn);
 	}
     },
 
