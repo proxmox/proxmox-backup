@@ -57,7 +57,7 @@ pub fn generate_report() -> String {
                 Ok(None) => String::from("# file does not exist"),
                 Err(err) => err.to_string(),
             };
-            format!("# cat '{}'\n{}", file_name, content)
+            format!("$ cat '{}'\n{}", file_name, content)
         })
         .collect::<Vec<String>>()
         .join("\n\n");
@@ -73,14 +73,14 @@ pub fn generate_report() -> String {
                 Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
                 Err(err) => err.to_string(),
             };
-            format!("# `{} {}`\n{}", command, args.join(" "), output)
+            format!("$ `{} {}`\n{}", command, args.join(" "), output)
         })
         .collect::<Vec<String>>()
         .join("\n\n");
 
     let function_outputs = function_calls()
         .iter()
-        .map(|(desc, function)| format!("# {}\n{}", desc, function()))
+        .map(|(desc, function)| format!("$ {}\n{}", desc, function()))
         .collect::<Vec<String>>()
         .join("\n\n");
 
