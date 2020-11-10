@@ -1,3 +1,5 @@
+.. _sysadmin_network_configuration:
+
 Network Management
 ==================
 
