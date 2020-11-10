@@ -37,8 +37,7 @@ Download the ISO from |DOWNLOADS|.
 It includes the following:
 
 * The `Proxmox Backup`_ server installer, which partitions the local
-  disk(s) with ext4, ext3, xfs or ZFS, and installs the operating
-  system
+  disk(s) with ext4, xfs or ZFS, and installs the operating system
 
 * Complete operating system (Debian Linux, 64-bit)
 
