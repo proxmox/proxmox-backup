@@ -93,7 +93,7 @@ GC** from the top panel. From here, you can edit the schedule at which garbage
 collection runs and manually start the operation.
 
 
-.. _verification:
+.. _maintenance_verification:
 
 Verification
 ------------

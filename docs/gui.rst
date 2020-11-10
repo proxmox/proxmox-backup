@@ -132,5 +132,5 @@ top panel to view:
   collection <garbage-collection>` operations, and run garbage collection
   manually
 * **Sync Jobs**: Create, manage and run :ref:`syncjobs` from remote servers
-* **Verify Jobs**: Create, manage and run :ref:`verification` jobs on the
+* **Verify Jobs**: Create, manage and run :ref:`maintenance_verification` jobs on the
   datastore
