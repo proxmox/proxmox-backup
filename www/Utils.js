@@ -247,6 +247,14 @@ Ext.define('PBS.Utils', {
         };
     },
 
+    calculate_dedup_factor: function(gcstatus) {
+	let dedup = 1.0;
+	if (gcstatus['disk-bytes'] > 0) {
+	    dedup = (gcstatus['index-data-bytes'] || 0)/gcstatus['disk-bytes'];
+	}
+	return dedup;
+    },
+
     constructor: function() {
 	var me = this;
 
