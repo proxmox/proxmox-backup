@@ -22,7 +22,12 @@ Ext.define('PBS.config.ACLView', {
 
     title: gettext('Permissions'),
 
+    // Show only those permissions, which can affect this and children paths.
+    // That means that also higher up, "shorter" paths are included, as those
+    // can have a say in the rights on the asked path.
     aclPath: undefined,
+
+    // tell API to only return ACLs matching exactly the aclPath config.
     aclExact: undefined,
 
     controller: {
@@ -83,19 +88,26 @@ Ext.define('PBS.config.ACLView', {
 	    let proxy = view.getStore().rstore.getProxy();
 
 	    let params = {};
-	    if (view.aclPath !== undefined) {
-
+	    if (typeof view.aclPath === "string") {
 		let pathFilter = Ext.create('Ext.util.Filter', {
 		    filterPath: view.aclPath,
+		    filterAtoms: view.aclPath.split('/'),
 		    filterFn: function(item) {
 			let me = this;
-			let curr = item.data.path;
-
-			if (curr.lastIndexOf("/") < me.filterPath.lastIndexOf("/")) {
-			    return me.filterPath.startsWith(curr);
-			} else {
-			    return me.filterPath === curr;
+			let path = item.data.path;
+			if (path === "/" || path === me.filterPath) {
+			    return true;
+			} else if (path.length > me.filterPath.length) {
+			    return path.startsWith(me.filterPath + '/');
 			}
+			let pathAtoms = path.split('/');
+			let commonLength = Math.min(pathAtoms.length, me.filterAtoms.length);
+			for (let i = 1; i < commonLength; i++) {
+			    if (me.filterAtoms[i] !== pathAtoms[i]) {
+				return false;
+			    }
+			}
+			return true;
 		    },
 		});
 		view.getStore().addFilter(pathFilter);
