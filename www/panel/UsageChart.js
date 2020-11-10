@@ -27,8 +27,11 @@ Ext.define('PBS.widget.UsageChart', {
 		{
 		    type: 'numeric',
 		    position: 'right',
-		    hidden: true,
+		    hidden: false,
 		    minimum: 0,
+		    // TODO: make this configurable?!
+		    maximum: 1,
+		    renderer: (axis, label) => `${label*100}%`,
 		},
 		{
 		    type: 'time',
