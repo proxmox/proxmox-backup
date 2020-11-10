@@ -147,7 +147,7 @@ Ext.define('PBS.Utils', {
     },
 
     render_datastore_worker_id: function(id, what) {
-	const res = id.match(/^(\S+?)_(\S+?)_(\S+?)(_(.+))?$/);
+	const res = id.match(/^(\S+?):(\S+?)\/(\S+?)(\/(.+))?$/);
 	if (res) {
 	    let datastore = res[1], backupGroup = `${res[2]}/${res[3]}`;
 	    if (res[4] !== undefined) {
