@@ -44,7 +44,7 @@ def scan_extjs_files(wwwdir="../www"): # a bit rough i know, but we can optimize
                 js_files.append(os.path.join(root, filename))
     for js_file in js_files:
         fd = open(js_file).read()
-        allmatch = re.findall("onlineHelp:\s*[\'\"](.*?)[\'\"]", fd, re.M)
+        allmatch = re.findall("(?:onlineHelp:|get_help_tool\s*\()\s*[\'\"](.*?)[\'\"]", fd, re.M)
         for match in allmatch:
             anchor = match
             anchor = re.sub('_', '-', anchor) # normalize labels
