@@ -127,8 +127,7 @@ language.
 
  -- `The Rust Programming Language <https://doc.rust-lang.org/book/ch00-00-introduction.html>`_
 
-.. todo:: further explain the software stack
-
+.. _get_help:
 
 Getting Help
 ------------

@@ -11,6 +11,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/backup-client.html#backup-pruning",
     "title": "Pruning and Removing Backups"
   },
+  "get-help": {
+    "link": "/docs/introduction.html#get-help",
+    "title": "Getting Help"
+  },
   "chapter-zfs": {
     "link": "/docs/sysadmin.html#chapter-zfs",
     "title": "ZFS on Linux"

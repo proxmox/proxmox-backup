@@ -5,7 +5,7 @@ Ext.define('PBS.SubscriptionKeyEdit', {
     width: 300,
     autoLoad: true,
 
-    onlineHelp: 'getting_help',
+    onlineHelp: 'get_help',
 
     items: {
 	xtype: 'textfield',
@@ -22,7 +22,7 @@ Ext.define('PBS.Subscription', {
     title: gettext('Subscription'),
     border: true,
 
-    onlineHelp: 'getting_help',
+    onlineHelp: 'get_help',
 
     viewConfig: {
 	enableTextSelection: true,
