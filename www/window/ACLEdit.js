@@ -20,43 +20,46 @@ Ext.define('PBS.window.ACLEdit', {
 	me.items = [];
 
 	me.items.push({
-	    xtype: 'pbsPermissionPathSelector',
+	    xtype: 'pmxDisplayEditField',
+	    name: 'path',
 	    fieldLabel: gettext('Path'),
+	    editConfig: {
+		xtype: 'pbsPermissionPathSelector',
+		allowBlank: false,
+	    },
 	    editable: !me.path,
 	    value: me.path,
-	    name: 'path',
-	    allowBlank: false,
 	});
 
 	if (me.aclType === 'user') {
 	    me.subject = gettext('User Permission');
 	    me.items.push({
 		xtype: 'pbsUserSelector',
-		fieldLabel: gettext('User'),
 		name: 'auth-id',
+		fieldLabel: gettext('User'),
 		allowBlank: false,
 	    });
 	} else if (me.aclType === 'token') {
 	    me.subject = gettext('API Token Permission');
 	    me.items.push({
 		xtype: 'pbsTokenSelector',
-		fieldLabel: gettext('API Token'),
 		name: 'auth-id',
+		fieldLabel: gettext('API Token'),
 		allowBlank: false,
 	    });
 	}
 	me.items.push({
 	    xtype: 'pmxRoleSelector',
 	    name: 'role',
-	    value: 'NoAccess',
 	    fieldLabel: gettext('Role'),
+	    value: 'NoAccess',
 	});
 	me.items.push({
 	    xtype: 'proxmoxcheckbox',
 	    name: 'propagate',
+	    fieldLabel: gettext('Propagate'),
 	    checked: true,
 	    uncheckedValue: 0,
-	    fieldLabel: gettext('Propagate'),
 	});
 
 	me.callParent();
