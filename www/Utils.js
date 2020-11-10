@@ -225,7 +225,6 @@ Ext.define('PBS.Utils', {
     },
 
     get_help_tool: function(blockid) {
-
 	let info = Proxmox.Utils.get_help_info(blockid);
 	if (info === undefined) {
 	    info = Proxmox.Utils.get_help_info('pbs_documentation_index');
@@ -244,7 +243,7 @@ Ext.define('PBS.Utils', {
 	    tooltip: title,
 	    handler: function() {
 		window.open(docsURI);
-	    }
+	    },
         };
     },
 
