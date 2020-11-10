@@ -129,7 +129,12 @@ impl hyper::service::Service<Uri> for HttpsConnector {
                 .to_string();
 
             let config = this.ssl_connector.configure();
-            let conn = this.http.call(dst).await?;
+            let dst_str = dst.to_string(); // for error messages
+            let conn = this
+                .http
+                .call(dst)
+                .await
+                .map_err(|err| format_err!("error connecting to {} - {}", dst_str, err))?;
 
             let _ = set_tcp_keepalive(conn.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
 
