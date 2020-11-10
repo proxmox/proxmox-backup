@@ -75,8 +75,12 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		align: 'stretch',
 	    },
 
-	    width: 350,
-	    padding: 10,
+	    width: 375,
+	    padding: '5 25 5 5',
+
+	    defaults: {
+		padding: 2,
+	    },
 
 	    items: [
 		{
