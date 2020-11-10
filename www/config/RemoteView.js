@@ -32,6 +32,8 @@ Ext.define('PBS.config.RemoteView', {
 
     title: gettext('Remotes'),
 
+    tools: [PBS.Utils.get_help_tool("backup-remote")],
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 

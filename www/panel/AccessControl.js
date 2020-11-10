@@ -5,6 +5,8 @@ Ext.define('PBS.AccessControlPanel', {
 
     title: gettext('Access Control'),
 
+    tools: [PBS.Utils.get_help_tool("user-mgmt")],
+
     border: false,
     defaults: {
 	border: false,
