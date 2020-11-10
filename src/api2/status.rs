@@ -103,6 +103,7 @@ fn datastore_status(
             "total": status.total,
             "used": status.used,
             "avail": status.avail,
+            "gc-status": datastore.last_gc_status(),
         });
 
         let rrd_dir = format!("datastore/{}", store);
@@ -152,6 +153,8 @@ fn datastore_status(
                     }
                 }
 
+                entry["history-start"] = start.into();
+                entry["history-delta"] = reso.into();
                 entry["history"] = history.into();
 
                 // we skip the calculation for datastores with not enough data
