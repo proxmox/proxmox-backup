@@ -7,21 +7,20 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
     cbind: {
 	title: '{datastore}',
     },
+
+    referenceHolder: true,
     bodyPadding: 10,
 
-    controller: {
-	xclass: 'Ext.app.ViewController',
+    layout: {
+	type: 'hbox',
+	align: 'stretch',
     },
+
     viewModel: {
 	data: {
 	    full: "N/A",
-	    history: [],
-	},
-
-	stores: {
-	    historystore: {
-		data: [],
-	    },
+	    stillbad: 0,
+	    deduplication: 1.0,
 	},
     },
     setTasks: function(taskdata, since) {
@@ -44,99 +43,40 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 
 	let estimate = PBS.Utils.render_estimate(statusData['estimated-full-date']);
 	vm.set('full', estimate);
+	vm.set('deduplication', PBS.Utils.calculate_dedup_factor(statusData['gc-status']).toFixed(2));
+	vm.set('stillbad', statusData['gc-status']['still-bad']);
+
 	let last = 0;
+	let time = statusData['history-start'];
+	let delta = statusData['history-delta'];
 	let data = statusData.history.map((val) => {
 	    if (val === null) {
 		val = last;
 	    } else {
 		last = val;
 	    }
-	    return val;
+	    let entry = {
+		time: time*1000, // js Dates are ms since epoch
+		val,
+	    };
+
+	    time += delta;
+	    return entry;
 	});
-	let historyStore = vm.getStore('historystore');
-	historyStore.setData([
-	    {
-		history: data,
-	    },
-	]);
+
+	me.lookup('historychart').setData(data);
     },
 
     items: [
 	{
 	    xtype: 'container',
 	    layout: {
-		type: 'hbox',
+		type: 'vbox',
 		align: 'stretch',
 	    },
 
-	    defaults: {
-		padding: 5,
-	    },
-
-	    items: [
-		{
-		    xtype: 'panel',
-		    border: false,
-		    flex: 1,
-		},
-		{
-		    xtype: 'pmxInfoWidget',
-		    iconCls: 'fa fa-fw fa-line-chart',
-		    title: gettext('Estimated Full'),
-		    width: 230,
-		    printBar: false,
-		    bind: {
-			data: {
-			    text: '{full}',
-			},
-		    },
-		},
-	    ],
-	},
-	{
-	    // we cannot autosize a sparklineline widget,
-	    // abuse a grid with a single column/row to do it for us
-	    xtype: 'grid',
-	    hideHeaders: true,
-	    minHeight: 70,
-	    border: false,
-	    bodyBorder: false,
-	    rowLines: false,
-	    disableSelection: true,
-	    viewConfig: {
-		trackOver: false,
-	    },
-	    bind: {
-		store: '{historystore}',
-	    },
-	    columns: [{
-		xtype: 'widgetcolumn',
-		flex: 1,
-		dataIndex: 'history',
-		widget: {
-		    xtype: 'sparklineline',
-		    bind: '{record.history}',
-		    spotRadius: 0,
-		    fillColor: '#ddd',
-		    lineColor: '#555',
-		    lineWidth: 0,
-		    chartRangeMin: 0,
-		    chartRangeMax: 1,
-		    tipTpl: '{y:number("0.00")*100}%',
-		    height: 60,
-		},
-	    }],
-	},
-	{
-	    xtype: 'container',
-	    layout: {
-		type: 'hbox',
-		align: 'stretch',
-	    },
-
-	    defaults: {
-		padding: 5,
-	    },
+	    width: 350,
+	    padding: 10,
 
 	    items: [
 		{
@@ -147,8 +87,62 @@ Ext.define('PBS.datastore.DataStoreListSummary', {
 		    reference: 'usage',
 		},
 		{
+		    xtype: 'pmxInfoWidget',
+		    iconCls: 'fa fa-fw fa-line-chart',
+		    title: gettext('Estimated Full'),
+		    printBar: false,
+		    bind: {
+			data: {
+			    text: '{full}',
+			},
+		    },
+		},
+		{
+		    xtype: 'pmxInfoWidget',
+		    iconCls: 'fa fa-fw fa-compress',
+		    title: gettext('Deduplication Factor'),
+		    printBar: false,
+		    bind: {
+			data: {
+			    text: '{deduplication}',
+			},
+		    },
+		},
+		{
+		    xtype: 'pmxInfoWidget',
+		    iconCls: 'fa critical fa-fw fa-exclamation-triangle',
+		    title: gettext('Bad Chunks'),
+		    printBar: false,
+		    hidden: true,
+		    bind: {
+			data: {
+			    text: '{stillbad}',
+			},
+			visible: '{stillbad}',
+		    },
+		},
+	    ],
+	},
+	{
+	    xtype: 'container',
+	    layout: {
+		type: 'vbox',
+		align: 'stretch',
+	    },
+
+	    flex: 1,
+
+	    items: [
+		{
+		    padding: 5,
+		    xtype: 'pbsUsageChart',
+		    reference: 'historychart',
+		    title: gettext('Usage History'),
+		    height: 100,
+		},
+		{
 		    xtype: 'container',
-		    flex: 2,
+		    flex: 1,
 		    layout: {
 			type: 'vbox',
 			align: 'stretch',
