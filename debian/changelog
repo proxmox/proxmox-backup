@@ -1,3 +1,38 @@
+rust-proxmox-backup (1.0.0-1) unstable; urgency=medium
+
+  * fix #3121: forbid removing used remotes
+
+  * docs: backup-client: encryption: discuss paperkey command
+
+  * pxar: log when skipping mount points
+
+  * ui: show also parent ACLs which affect a datastore in its panel
+
+  * api: node/apt: add versions call
+
+  * ui: make Datastore a selectable panel again. Show a datastore summary
+    list, and provide unfiltered access to all sync and verify jobs.
+
+  * ui: add help tool-button to various paneös
+
+  * ui: set various onlineHelp buttons
+
+  * zfs: mount new zpools created via API under /mnt/datastore/<id>
+
+  * ui: move disks/directory views to its own tab panel
+
+  * fix #3060: continue sync if we cannot aquire the group lock
+
+  * HttpsConnector: include destination on connect errors
+
+  * fix #3060:: improve get_owner error handling
+
+  * remote.cfg: rename userid to 'auth-id'
+
+  * verify: log/warn on invalid owner
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 10 Nov 2020 14:36:13 +0100
+
 rust-proxmox-backup (0.9.7-1) unstable; urgency=medium
 
   * ui: add remote store selector
