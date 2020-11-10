@@ -73,7 +73,9 @@ class ReflabelMapper(Builder):
             'link': '/docs/index.html',
             'title': 'Proxmox Backup Server Documentation Index',
         }
-        self.env.used_anchors = scan_extjs_files()
+        # Disabled until we find a sensible way to scan proxmox-widget-toolkit
+        # as well
+        #self.env.used_anchors = scan_extjs_files()
 
         if not os.path.isdir(self.outdir):
             os.mkdir(self.outdir)
@@ -115,15 +117,18 @@ class ReflabelMapper(Builder):
     def validate_anchors(self):
         #pprint(self.env.online_help)
         to_remove = []
-        for anchor in self.env.used_anchors:
-            if anchor not in self.env.online_help:
-                logger.info("[-] anchor {} is missing from onlinehelp!".format(anchor))
-        for anchor in self.env.online_help:
-            if anchor not in self.env.used_anchors and anchor != 'pbs_documentation_index':
-                logger.info("[*] anchor {} not used! deleting...".format(anchor))
-                to_remove.append(anchor)
-        for anchor in to_remove:
-            self.env.online_help.pop(anchor, None)
+
+        # Disabled until we find a sensible way to scan proxmox-widget-toolkit
+        # as well
+        #for anchor in self.env.used_anchors:
+        #    if anchor not in self.env.online_help:
+        #        logger.info("[-] anchor {} is missing from onlinehelp!".format(anchor))
+        #for anchor in self.env.online_help:
+        #    if anchor not in self.env.used_anchors and anchor != 'pbs_documentation_index':
+        #        logger.info("[*] anchor {} not used! deleting...".format(anchor))
+        #        to_remove.append(anchor)
+        #for anchor in to_remove:
+        #   self.env.online_help.pop(anchor, None)
         return
 
     def finish(self):
