@@ -1,2 +1,2 @@
-proxmox-backup-server: package-installs-apt-sources etc/apt/sources.list.d/pbstest-beta.list
+proxmox-backup-server: package-installs-apt-sources etc/apt/sources.list.d/pbs-enterprise.list
 proxmox-backup-server: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/proxmox-backup-banner.service getty.target

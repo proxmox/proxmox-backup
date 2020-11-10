@@ -9,7 +9,7 @@ DYNAMIC_UNITS := \
 	proxmox-backup.service \
 	proxmox-backup-proxy.service
 
-all: $(UNITS) $(DYNAMIC_UNITS) pbstest-beta.list
+all: $(UNITS) $(DYNAMIC_UNITS) pbs-enterprise.list
 
 clean:
 	rm -f $(DYNAMIC_UNITS)
