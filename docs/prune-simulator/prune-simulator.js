@@ -152,7 +152,12 @@ Ext.onReady(function() {
 			    dataIndex: 'mark',
 			    renderer: function(value, metaData, record) {
 				if (record.data.mark === 'keep') {
-				    return 'keep (' + record.data.keepName + ')';
+				    if (record.data.keepCount) {
+					return 'keep (' + record.data.keepName +
+					       ': ' + record.data.keepCount + ')';
+				    } else {
+					return 'keep (' + record.data.keepName + ')';
+				    }
 				} else {
 				    return value;
 				}
@@ -213,7 +218,11 @@ Ext.onReady(function() {
 			if (backup.data.mark === 'remove') {
 			    html += `<span class="strikethrough">${text}</span>`;
 			} else {
-			    text += ` (${backup.data.keepName})`;
+			    if (backup.data.keepCount) {
+				text += ` (${backup.data.keepName}: ${backup.data.keepCount})`;
+			    } else {
+				text += ` (${backup.data.keepName})`;
+			    }
 			    if (me.useColors) {
 				let bgColor = COLORS[backup.data.keepName];
 				let textColor = TEXT_COLORS[backup.data.keepName];
@@ -470,6 +479,7 @@ Ext.onReady(function() {
 			newlyIncludedCount++;
 			backup.mark = 'keep';
 			backup.keepName = keepName;
+			backup.keepCount = newlyIncludedCount;
 		    } else {
 			backup.mark = 'remove';
 		    }
@@ -488,7 +498,7 @@ Ext.onReady(function() {
 		    Number(keepParams['keep-yearly']) === 0) {
 		    backups.forEach(function(backup) {
 			backup.mark = 'keep';
-			backup.keepName = 'all zero';
+			backup.keepName = 'keep-all';
 		    });
 
 		    return;
