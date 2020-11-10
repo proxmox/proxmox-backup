@@ -516,7 +516,12 @@ pub fn verify_all_backups(
                             && !owner.is_token()
                             && group_owner.user() == owner.user())
                 },
-                Err(_) => false,
+                Err(err) => {
+                    // intentionally not in task log
+                    // the task user might not be allowed to see this group!
+                    println!("Failed to get owner of group '{}' - {}", group, err);
+                    false
+                },
             }
         } else {
             true

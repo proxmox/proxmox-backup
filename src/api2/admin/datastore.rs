@@ -187,7 +187,13 @@ fn list_groups(
         let group = info.backup_dir.group();
 
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
-        let owner = datastore.get_owner(group)?;
+        let owner = match datastore.get_owner(group) {
+            Ok(auth_id) => auth_id,
+            Err(err) => {
+                println!("Failed to get owner of group '{}' - {}", group, err);
+                continue;
+            },
+        };
         if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
             continue;
         }
@@ -369,7 +375,13 @@ pub fn list_snapshots (
         }
 
         let list_all = (user_privs & PRIV_DATASTORE_AUDIT) != 0;
-        let owner = datastore.get_owner(group)?;
+        let owner = match datastore.get_owner(group) {
+            Ok(auth_id) => auth_id,
+            Err(err) => {
+                println!("Failed to get owner of group '{}' - {}", group, err);
+                continue;
+            },
+        };
 
         if !list_all && check_backup_owner(&owner, &auth_id).is_err() {
             continue;
