@@ -85,7 +85,7 @@ display S.M.A.R.T. attributes from the web interface or by using the command:
 
 .. _datastore_intro:
 
-:term:`DataStore`
+:term:`Datastore`
 -----------------
 
 A datastore refers to a location at which backups are stored. The current
