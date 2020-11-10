@@ -123,6 +123,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/storage.html#storage-datastore-create",
     "title": "Creating a Datastore"
   },
+  "sysadmin-host-administration": {
+    "link": "/docs/sysadmin.html#sysadmin-host-administration",
+    "title": "Host System Administration"
+  },
   "user-mgmt": {
     "link": "/docs/user-management.html#user-mgmt",
     "title": "User Management"

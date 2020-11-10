@@ -1,3 +1,5 @@
+.. _sysadmin_host_administration:
+
 Host System Administration
 ==========================
 
