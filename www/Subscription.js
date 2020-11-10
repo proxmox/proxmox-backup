@@ -24,6 +24,7 @@ Ext.define('PBS.Subscription', {
     border: true,
 
     onlineHelp: 'get_help',
+    tools: [PBS.Utils.get_help_tool("get_help")],
 
     viewConfig: {
 	enableTextSelection: true,

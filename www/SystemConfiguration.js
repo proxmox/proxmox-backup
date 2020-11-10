@@ -6,6 +6,7 @@ Ext.define('PBS.SystemConfiguration', {
     border: true,
     scrollable: true,
     defaults: { border: false },
+    tools: [PBS.Utils.get_help_tool("sysadmin-network-configuration")],
     items: [
 	{
 	    title: gettext('Network/Time'),

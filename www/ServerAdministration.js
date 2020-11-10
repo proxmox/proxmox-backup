@@ -7,6 +7,8 @@ Ext.define('PBS.ServerAdministration', {
     border: true,
     defaults: { border: false },
 
+    tools: [PBS.Utils.get_help_tool("sysadmin-host-administration")],
+
     controller: {
 	xclass: 'Ext.app.ViewController',
 
