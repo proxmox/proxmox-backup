@@ -230,11 +230,11 @@ You can list the ACLs of each user/token using the following command:
 .. code-block:: console
 
    # proxmox-backup-manager acl list
-   ┌──────────┬──────────────────┬───────────┬────────────────┐
-   │ ugid     │ path             │ propagate │ roleid         │
-   ╞══════════╪══════════════════╪═══════════╪════════════════╡
-   │ john@pbs │ /datastore/disk1 │         1 │ DatastoreAdmin │
-   └──────────┴──────────────────┴───────────┴────────────────┘
+   ┌──────────┬───────────────────┬───────────┬────────────────┐
+   │ ugid     │ path              │ propagate │ roleid         │
+   ╞══════════╪═══════════════════╪═══════════╪════════════════╡
+   │ john@pbs │ /datastore/store1 │         1 │ DatastoreAdmin │
+   └──────────┴───────────────────┴───────────┴────────────────┘
 
 A single user/token can be assigned multiple permission sets for different datastores.
 
@@ -267,7 +267,7 @@ you can use the ``proxmox-backup-manager user permission`` command:
 
 .. code-block:: console
 
-  # proxmox-backup-manager user permissions john@pbs -- path /datastore/store1
+  # proxmox-backup-manager user permissions john@pbs --path /datastore/store1
   Privileges with (*) have the propagate flag set
   
   Path: /datastore/store1
@@ -276,9 +276,10 @@ you can use the ``proxmox-backup-manager user permission`` command:
   - Datastore.Modify (*)
   - Datastore.Prune (*)
   - Datastore.Read (*)
+  - Datastore.Verify (*)
   
   # proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id 'john@pbs!client1'
-  # proxmox-backup-manager user permissions 'john@pbs!test' -- path /datastore/store1
+  # proxmox-backup-manager user permissions 'john@pbs!client1' --path /datastore/store1
   Privileges with (*) have the propagate flag set
   
   Path: /datastore/store1
