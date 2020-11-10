@@ -1,7 +1,16 @@
 [package]
 name = "proxmox-backup"
 version = "1.0.0"
-authors = ["Dietmar Maurer <dietmar@proxmox.com>"]
+authors = [
+    "Dietmar Maurer <dietmar@proxmox.com>",
+    "Dominik Csapak <d.csapak@proxmox.com>",
+    "Christian Ebner <c.ebner@proxmox.com>",
+    "Fabian Grünbichler <f.gruenbichler@proxmox.com>",
+    "Stefan Reiter <s.reiter@proxmox.com>",
+    "Thomas Lamprecht <t.lamprecht@proxmox.com>",
+    "Wolfgang Bumiller <w.bumiller@proxmox.com>",
+    "Proxmox Support Team <support@proxmox.com>",
+]
 edition = "2018"
 license = "AGPL-3"
 description = "Proxmox Backup"
