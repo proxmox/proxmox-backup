@@ -3,6 +3,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/index.html",
     "title": "Proxmox Backup Server Documentation Index"
   },
+  "changing-backup-owner": {
+    "link": "/docs/backup-client.html#changing-backup-owner",
+    "title": "Changing the Owner of a Backup Group"
+  },
   "backup-pruning": {
     "link": "/docs/backup-client.html#backup-pruning",
     "title": "Pruning and Removing Backups"

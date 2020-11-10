@@ -2,6 +2,8 @@ Ext.define('PBS.BackupGroupChangeOwner', {
     extend: 'Proxmox.window.Edit',
     alias: 'widget.pbsBackupGroupChangeOwner',
 
+    onlineHelp: 'changing-backup-owner',
+
     submitText: gettext("Change Owner"),
     width: 350,
 
