@@ -8,6 +8,8 @@ Ext.define('PBS.window.CreateDirectory', {
     url: '/nodes/localhost/disks/directory',
     method: 'POST',
 
+    onlineHelp: 'storage-disk-management',
+
     items: [
 	{
 	    xtype: 'pmxDiskSelector',

@@ -70,6 +70,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('GC Schedule'),
+		onlineHelp: 'maintenance_gc',
 		items: {
 		    xtype: 'pbsCalendarEvent',
 		    name: 'gc-schedule',
@@ -86,6 +87,7 @@ Ext.define('PBS.DataStorePruneAndGC', {
 	    editor: {
 		xtype: 'proxmoxWindowEdit',
 		title: gettext('Prune Schedule'),
+		onlineHelp: 'maintenance_pruning',
 		items: {
 		    xtype: 'pbsCalendarEvent',
 		    name: 'prune-schedule',

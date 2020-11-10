@@ -5,7 +5,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 
     userid: undefined,
 
-    onlineHelp: 'verifyjobs',
+    onlineHelp: 'maintenance-verification',
 
     isAdd: true,
 

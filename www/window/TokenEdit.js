@@ -3,7 +3,7 @@ Ext.define('PBS.window.TokenEdit', {
     alias: 'widget.pbsTokenEdit',
     mixins: ['Proxmox.Mixin.CBind'],
 
-    onlineHelp: 'user_mgmt',
+    onlineHelp: 'user_tokens',
 
     user: undefined,
     tokenname: undefined,
