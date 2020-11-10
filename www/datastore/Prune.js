@@ -11,7 +11,35 @@ Ext.define('pbs-prune-list', {
     ],
 });
 
-Ext.define('PBS.DataStorePruneInputPanel', {
+Ext.define('PBS.PruneKeepInput', {
+    extend: 'Proxmox.form.field.Integer',
+    alias: 'widget.pbsPruneKeepInput',
+
+    allowBlank: true,
+    minValue: 1,
+
+    listeners: {
+	change: function(field, newValue, oldValue) {
+	    if (newValue !== this.originalValue) {
+		this.triggers.clear.setVisible(true);
+	    }
+	},
+    },
+    triggers: {
+	clear: {
+	    cls: 'pmx-clear-trigger',
+	    weight: -1,
+	    hidden: true,
+	    handler: function() {
+		this.triggers.clear.setVisible(false);
+		this.setValue(this.originalValue);
+	    },
+	},
+    },
+
+});
+
+Ext.define('PBS.Datastore.PruneInputPanel', {
     extend: 'Proxmox.panel.InputPanel',
     alias: 'widget.pbsDataStorePruneInputPanel',
     mixins: ['Proxmox.Mixin.CBind'],
@@ -116,46 +144,34 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 
     column1: [
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-last',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-last'),
-	    minValue: 1,
 	},
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-hourly',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-hourly'),
-	    minValue: 1,
 	},
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-daily',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-daily'),
-	    minValue: 1,
 	},
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-weekly',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-weekly'),
-	    minValue: 1,
 	},
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-monthly',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-monthly'),
-	    minValue: 1,
 	},
 	{
-	    xtype: 'proxmoxintegerfield',
+	    xtype: 'pbsPruneKeepInput',
 	    name: 'keep-yearly',
-	    allowBlank: true,
 	    fieldLabel: gettext('keep-yearly'),
-	    minValue: 1,
 	},
     ],
 
@@ -189,7 +205,7 @@ Ext.define('PBS.DataStorePruneInputPanel', {
 			flex: 1,
 		    },
 		    {
-			text: "keep",
+			text: 'Keep (reason)',
 			dataIndex: 'keep',
 			renderer: function(value, metaData, record) {
 			    if (record.data.keep) {
