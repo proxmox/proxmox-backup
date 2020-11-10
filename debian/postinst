@@ -28,7 +28,7 @@ case "$1" in
 		if dpkg --compare-versions "$2" 'le' '0.9.5-1'; then
 			chown --quiet backup:backup /var/log/proxmox-backup/api/auth.log || true
 		fi
-		if dpkg --compare-versions "$2" 'le' '0.9.6-1'; then
+		if dpkg --compare-versions "$2" 'le' '0.9.7-1'; then
 			if [ -e /etc/proxmox-backup/remote.cfg ]; then
 				echo "NOTE: Switching over remote.cfg to new field names.."
 				flock -w 30 /etc/proxmox-backup/.remote.lck \
