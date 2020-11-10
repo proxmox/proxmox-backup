@@ -44,6 +44,7 @@ JSSRC=							\
 	panel/XtermJsConsole.js				\
 	panel/AccessControl.js				\
 	panel/StorageAndDisks.js			\
+	panel/UsageChart.js				\
 	ZFSList.js					\
 	DirectoryList.js				\
 	LoginView.js					\
