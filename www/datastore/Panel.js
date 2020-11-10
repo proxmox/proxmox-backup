@@ -17,8 +17,13 @@ Ext.define('PBS.DataStorePanel', {
 
     applyState: function(state) {
 	let me = this;
-	if (state.tab !== undefined) {
+	if (state.tab !== undefined && me.rendered) {
 	    me.setActiveTab(state.tab);
+	} else if (state.tab) {
+	    // if we are not rendered yet, defer setting the activetab
+	    setTimeout(function() {
+		me.setActiveTab(state.tab);
+	    }, 10);
 	}
     },
 
@@ -101,6 +106,10 @@ Ext.define('PBS.DataStorePanel', {
     initComponent: function() {
 	let me = this;
 	me.title = `${gettext("Datastore")}: ${me.datastore}`;
+	// remove invalid activeTab settings
+	if (me.activeTab && !me.items.some((item) => item.itemId === me.activeTab)) {
+	    delete me.activeTab;
+	}
 	me.callParent();
     },
 });
