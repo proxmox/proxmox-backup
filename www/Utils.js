@@ -50,6 +50,8 @@ Ext.define('PBS.Utils', {
 	}
     },
 
+    noSubKeyHtml: 'You do not have a valid subscription for this server. Please visit <a target="_blank" href="https://www.proxmox.com/proxmox-backup-server/pricing">www.proxmox.com</a> to get a list of available options.',
+
     getDataStoreFromPath: function(path) {
 	return path.slice(PBS.Utils.dataStorePrefix.length);
     },
