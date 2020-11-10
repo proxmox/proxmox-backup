@@ -235,6 +235,11 @@ Ext.define('PBS.config.VerifyJobView', {
 	    sortable: true,
 	},
 	{
+	    header: gettext('Datastore'),
+	    dataIndex: 'store',
+	    flex: 1,
+	},
+	{
 	    header: gettext('Skip Verified'),
 	    dataIndex: 'ignore-verified',
 	    renderer: Proxmox.Utils.format_boolean,
@@ -290,4 +295,13 @@ Ext.define('PBS.config.VerifyJobView', {
 	    sortable: true,
 	},
     ],
+
+    initComponent: function() {
+	let me = this;
+	let hideDatastore = !!me.datastore;
+
+	me.columns[1].hidden = hideDatastore;
+
+	me.callParent();
+    }
 });

@@ -306,4 +306,13 @@ Ext.define('PBS.config.SyncJobView', {
 	    sortable: true,
 	},
     ],
+
+    initComponent: function() {
+	let me = this;
+	let hideLocalDatastore = !!me.datastore;
+
+	me.columns[3].hidden = hideLocalDatastore;
+
+	me.callParent();
+    },
 });
