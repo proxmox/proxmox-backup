@@ -16,18 +16,18 @@ pub enum EitherStream<L, R> {
     Right(R),
 }
 
-impl<L: AsyncRead, R: AsyncRead> AsyncRead for EitherStream<L, R> {
+impl<L: AsyncRead + Unpin, R: AsyncRead + Unpin> AsyncRead for EitherStream<L, R> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context,
         buf: &mut [u8],
     ) -> Poll<Result<usize, io::Error>> {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_read(cx, buf)
+                Pin::new(s).poll_read(cx, buf)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_read(cx, buf)
+                Pin::new(s).poll_read(cx, buf)
             }
         }
     }
@@ -47,51 +47,51 @@ impl<L: AsyncRead, R: AsyncRead> AsyncRead for EitherStream<L, R> {
     where
         B: bytes::BufMut,
     {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_read_buf(cx, buf)
+                Pin::new(s).poll_read_buf(cx, buf)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_read_buf(cx, buf)
+                Pin::new(s).poll_read_buf(cx, buf)
             }
         }
     }
 }
 
-impl<L: AsyncWrite, R: AsyncWrite> AsyncWrite for EitherStream<L, R> {
+impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L, R> {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context,
         buf: &[u8],
     ) -> Poll<Result<usize, io::Error>> {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_write(cx, buf)
+                Pin::new(s).poll_write(cx, buf)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_write(cx, buf)
+                Pin::new(s).poll_write(cx, buf)
             }
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_flush(cx)
+                Pin::new(s).poll_flush(cx)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_flush(cx)
+                Pin::new(s).poll_flush(cx)
             }
         }
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_shutdown(cx)
+                Pin::new(s).poll_shutdown(cx)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_shutdown(cx)
+                Pin::new(s).poll_shutdown(cx)
             }
         }
     }
@@ -104,12 +104,12 @@ impl<L: AsyncWrite, R: AsyncWrite> AsyncWrite for EitherStream<L, R> {
     where
         B: bytes::Buf,
     {
-        match unsafe { self.get_unchecked_mut() } {
+        match self.get_mut() {
             EitherStream::Left(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_write_buf(cx, buf)
+                Pin::new(s).poll_write_buf(cx, buf)
             }
             EitherStream::Right(ref mut s) => {
-                unsafe { Pin::new_unchecked(s) }.poll_write_buf(cx, buf)
+                Pin::new(s).poll_write_buf(cx, buf)
             }
         }
     }
@@ -180,7 +180,7 @@ pub struct HyperAccept<T>(pub T);
 
 impl<T, I> hyper::server::accept::Accept for HyperAccept<T>
 where
-    T: TryStream<Ok = I>,
+    T: TryStream<Ok = I> + Unpin,
     I: AsyncRead + AsyncWrite,
 {
     type Conn = I;
@@ -190,7 +190,7 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let this = unsafe { self.map_unchecked_mut(|this| &mut this.0) };
+        let this = Pin::new(&mut self.get_mut().0);
         this.try_poll_next(cx)
     }
 }
