@@ -7,6 +7,7 @@ use std::task::{Context, Poll, RawWaker, Waker};
 use std::thread::{self, Thread};
 
 use lazy_static::lazy_static;
+use pin_utils::pin_mut;
 use tokio::runtime::{self, Runtime};
 
 thread_local! {
@@ -154,9 +155,8 @@ pub fn main<F: Future>(fut: F) -> F::Output {
     block_on(fut)
 }
 
-fn block_on_local_future<F: Future>(mut fut: F) -> F::Output {
-    use std::pin::Pin;
-    let mut fut = unsafe { Pin::new_unchecked(&mut fut) };
+fn block_on_local_future<F: Future>(fut: F) -> F::Output {
+    pin_mut!(fut);
 
     let waker = Arc::new(thread::current());
     let waker = thread_waker_clone(Arc::into_raw(waker) as *const ());
