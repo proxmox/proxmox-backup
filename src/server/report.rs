@@ -54,7 +54,7 @@ pub fn generate_report() -> String {
         .map(|file_name| {
             let content = match file_read_optional_string(Path::new(file_name)) {
                 Ok(Some(content)) => content,
-                Ok(None) => String::from("# file does not exists"),
+                Ok(None) => String::from("# file does not exist"),
                 Err(err) => err.to_string(),
             };
             format!("# cat '{}'\n{}", file_name, content)
