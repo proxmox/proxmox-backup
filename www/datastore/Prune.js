@@ -227,6 +227,8 @@ Ext.define('PBS.Datastore.PruneInputPanel', {
 Ext.define('PBS.DataStorePrune', {
     extend: 'Proxmox.window.Edit',
 
+    onlineHelp: 'maintenance_pruning',
+
     method: 'POST',
     submitText: "Prune",
 

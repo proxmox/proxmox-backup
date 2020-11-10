@@ -29,7 +29,7 @@ const proxmoxOnlineHelpInfo = {
   },
   "datastore-intro": {
     "link": "/docs/storage.html#datastore-intro",
-    "title": "DataStore"
+    "title": "Datastore"
   },
   "user-mgmt": {
     "link": "/docs/user-management.html#user-mgmt",
