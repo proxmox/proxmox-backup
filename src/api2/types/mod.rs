@@ -1177,6 +1177,8 @@ pub struct APTUpdateInfo {
     pub section: String,
     /// URL under which the package's changelog can be retrieved
     pub change_log_url: String,
+    /// Additional package information
+    pub extra_info: Option<String>,
 }
 
 #[api()]

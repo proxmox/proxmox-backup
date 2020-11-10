@@ -276,7 +276,7 @@ pub fn get_versions() -> Result<Value, Error> {
         "zfsutils-linux",
     ];
 
-    fn unknown_package(package: String) -> APTUpdateInfo {
+    fn unknown_package(package: String, extra_info: Option<String>) -> APTUpdateInfo {
         APTUpdateInfo {
             package,
             title: "unknown".into(),
@@ -288,6 +288,7 @@ pub fn get_versions() -> Result<Value, Error> {
             priority: "unknown".into(),
             section: "unknown".into(),
             change_log_url: "unknown".into(),
+            extra_info,
         }
     }
 
@@ -301,14 +302,34 @@ pub fn get_versions() -> Result<Value, Error> {
         },
         None,
     );
-    if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
-        packages.push(proxmox_backup.to_owned());
+
+    let running_kernel = nix::sys::utsname::uname().release().to_owned();
+    if let Some(proxmox_backup) = pbs_packages
+        .iter()
+        .find(|pkg| pkg.package == "proxmox-backup")
+    {
+        let mut proxmox_backup = proxmox_backup.clone();
+        proxmox_backup.extra_info = Some(format!("running kernel: {}", running_kernel));
+        packages.push(proxmox_backup);
     } else {
-        packages.push(unknown_package("proxmox-backup".into()));
+        packages.push(unknown_package(
+            "proxmox-backup".into(),
+            Some(running_kernel),
+        ));
     }
 
-    if let Some(pkg) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup-server") {
-        packages.push(pkg.to_owned());
+    if let Some(pkg) = pbs_packages
+        .iter()
+        .find(|pkg| pkg.package == "proxmox-backup-server")
+    {
+        let running_version = format!(
+            "running version: {}.{}",
+            crate::api2::version::PROXMOX_PKG_VERSION,
+            crate::api2::version::PROXMOX_PKG_RELEASE
+        );
+        let mut pkg = pkg.clone();
+        pkg.extra_info = Some(running_version);
+        packages.push(pkg);
     }
 
     let mut kernel_pkgs: Vec<APTUpdateInfo> = pbs_packages
@@ -334,7 +355,7 @@ pub fn get_versions() -> Result<Value, Error> {
         }
         match pbs_packages.iter().find(|item| &item.package == pkg) {
             Some(apt_pkg) => packages.push(apt_pkg.to_owned()),
-            None => packages.push(unknown_package(pkg.to_string())),
+            None => packages.push(unknown_package(pkg.to_string(), None)),
         }
     }
 

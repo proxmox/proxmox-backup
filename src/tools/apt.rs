@@ -361,6 +361,7 @@ where
                 },
                 priority: priority_res,
                 section: section_res,
+                extra_info: None,
             });
         }
     }
