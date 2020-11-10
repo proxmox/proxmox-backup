@@ -240,6 +240,12 @@ Ext.define('PBS.config.SyncJobView', {
 	    sortable: true,
 	},
 	{
+	    header: gettext('Local Store'),
+	    dataIndex: 'store',
+	    width: 120,
+	    sortable: true,
+	},
+	{
 	    header: gettext('Remote'),
 	    dataIndex: 'remote',
 	    width: 120,
@@ -248,12 +254,6 @@ Ext.define('PBS.config.SyncJobView', {
 	{
 	    header: gettext('Remote Store'),
 	    dataIndex: 'remote-store',
-	    width: 120,
-	    sortable: true,
-	},
-	{
-	    header: gettext('Local Store'),
-	    dataIndex: 'store',
 	    width: 120,
 	    sortable: true,
 	},
@@ -311,7 +311,12 @@ Ext.define('PBS.config.SyncJobView', {
 	let me = this;
 	let hideLocalDatastore = !!me.datastore;
 
-	me.columns[3].hidden = hideLocalDatastore;
+	for (let column of me.columns) {
+	    if (column.dataIndex === 'store') {
+		column.hidden = hideLocalDatastore;
+		break;
+	    }
+	}
 
 	me.callParent();
     },

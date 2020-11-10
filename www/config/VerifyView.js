@@ -300,8 +300,13 @@ Ext.define('PBS.config.VerifyJobView', {
 	let me = this;
 	let hideDatastore = !!me.datastore;
 
-	me.columns[1].hidden = hideDatastore;
+	for (let column of me.columns) {
+	    if (column.dataIndex === 'store') {
+		column.hidden = hideDatastore;
+		break;
+	    }
+	}
 
 	me.callParent();
-    }
+    },
 });
