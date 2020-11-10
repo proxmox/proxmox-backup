@@ -163,7 +163,7 @@ fn mount(
 async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
-    let client = connect(repo.host(), repo.port(), repo.auth_id())?;
+    let client = connect(&repo)?;
 
     let target = param["target"].as_str();
 
