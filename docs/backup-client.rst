@@ -367,11 +367,16 @@ To set up a master key:
   and needs to be restored, this will not be possible as the encryption key will be
   lost along with the broken system.
 
-In preparation for the worst case scenario, you should consider keeping a paper
-copy of your master key locked away in a safe place. The ``paperkey`` subcommand
-can be used to create a QR encoded version of your master key. The following
-command sends the output of the ``paperkey`` command to a text file, for easy
-printing.
+It is recommended that you keep your master key safe, but easily accessible, in
+order for quick disaster recovery. For this reason, the best place to store it
+is in your password manager, where it is immediately recoverable. As a backup to
+this, you should also save the key to a USB drive and store that in a secure
+place. This way, it is detached from any system, but is still easy to recover
+from, in case of emergency. Finally, in preparation for the worst case scenario,
+you should also consider keeping a paper copy of your master key locked away in
+a safe place. The ``paperkey`` subcommand can be used to create a QR encoded
+version of your master key. The following command sends the output of the
+``paperkey`` command to a text file, for easy printing.
 
 .. code-block:: console
 
