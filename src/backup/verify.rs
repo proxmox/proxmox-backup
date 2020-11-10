@@ -508,23 +508,31 @@ pub fn verify_all_backups(
     }
 
     let filter_by_owner = |group: &BackupGroup| {
-        if let Some(owner) = &owner {
-            match datastore.get_owner(group) {
-                Ok(ref group_owner) => {
-                    group_owner == owner
-                        || (group_owner.is_token()
-                            && !owner.is_token()
-                            && group_owner.user() == owner.user())
-                },
-                Err(err) => {
-                    // intentionally not in task log
-                    // the task user might not be allowed to see this group!
-                    println!("Failed to get owner of group '{}' - {}", group, err);
-                    false
-                },
-            }
-        } else {
-            true
+        match (datastore.get_owner(group), &owner) {
+            (Ok(ref group_owner), Some(owner)) => {
+                group_owner == owner
+                    || (group_owner.is_token()
+                        && !owner.is_token()
+                        && group_owner.user() == owner.user())
+            },
+            (Ok(_), None) => true,
+            (Err(err), Some(_)) => {
+                // intentionally not in task log
+                // the task user might not be allowed to see this group!
+                println!("Failed to get owner of group '{}' - {}", group, err);
+                false
+            },
+            (Err(err), None) => {
+                // we don't filter by owner, but we want to log the error
+                task_log!(
+                    worker,
+                    "Failed to get owner of group '{} - {}",
+                    group,
+                    err,
+                );
+                errors.push(group.to_string());
+                true
+            },
         }
     };
 
