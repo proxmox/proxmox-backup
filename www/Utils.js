@@ -224,6 +224,30 @@ Ext.define('PBS.Utils', {
 	    Proxmox.Utils.format_size(val), Proxmox.Utils.format_size(max)) + ')';
     },
 
+    get_help_tool: function(blockid) {
+
+	let info = Proxmox.Utils.get_help_info(blockid);
+	if (info === undefined) {
+	    info = Proxmox.Utils.get_help_info('pbs_documentation_index');
+	}
+	if (info === undefined) {
+	    throw "get_help_info failed"; // should not happen
+	}
+
+	let docsURI = window.location.origin + info.link;
+	let title = info.title;
+	if (info.subtitle) {
+	    title += ' - ' + info.subtitle;
+	}
+	return {
+	    type: 'help',
+	    tooltip: title,
+	    handler: function() {
+		window.open(docsURI);
+	    }
+        };
+    },
+
     constructor: function() {
 	var me = this;
 

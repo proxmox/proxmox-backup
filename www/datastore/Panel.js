@@ -34,6 +34,8 @@ Ext.define('PBS.DataStorePanel', {
 	border: false,
     },
 
+    tools: [PBS.Utils.get_help_tool("datastore_intro")],
+
     items: [
 	{
 	    xtype: 'pbsDataStoreSummary',

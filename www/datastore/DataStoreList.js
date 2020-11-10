@@ -203,6 +203,8 @@ Ext.define('PBS.datastore.DataStores', {
 	border: false,
     },
 
+    tools: [PBS.Utils.get_help_tool("datastore_intro")],
+
     items: [
 	{
 	    xtype: 'pbsDataStoreList',
