@@ -498,13 +498,10 @@ pub fn verify_all_backups(
 ) -> Result<Vec<String>, Error> {
     let mut errors = Vec::new();
 
+    task_log!(worker, "verify datastore {}", datastore.name());
+
     if let Some(owner) = &owner {
-        task_log!(
-            worker,
-            "verify datastore {} - limiting to backups owned by {}",
-            datastore.name(),
-            owner
-        );
+        task_log!(worker, "limiting to backups owned by {}", owner);
     }
 
     let filter_by_owner = |group: &BackupGroup| {
@@ -545,8 +542,7 @@ pub fn verify_all_backups(
         Err(err) => {
             task_log!(
                 worker,
-                "verify datastore {} - unable to list backups: {}",
-                datastore.name(),
+                "unable to list backups: {}",
                 err,
             );
             return Ok(errors);
@@ -566,7 +562,7 @@ pub fn verify_all_backups(
     // start with 64 chunks since we assume there are few corrupt ones
     let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
 
-    task_log!(worker, "verify datastore {} ({} snapshots)", datastore.name(), snapshot_count);
+    task_log!(worker, "found {} snapshots", snapshot_count);
 
     let mut done = 0;
     for group in list {
