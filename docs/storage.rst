@@ -1,6 +1,8 @@
 Storage
 =======
 
+.. _storage_disk_management:
+
 Disk Management
 ---------------
 
@@ -120,6 +122,8 @@ number of backups to keep in that store. :ref:`backup-pruning` and
 :ref:`garbage collection <garbage-collection>` can also be configured to run
 periodically based on a configured schedule (see :ref:`calendar-events`) per datastore.
 
+
+.. _storage_datastore_create:
 
 Creating a Datastore
 ^^^^^^^^^^^^^^^^^^^^

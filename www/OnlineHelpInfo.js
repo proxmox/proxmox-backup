@@ -31,6 +31,10 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/managing-remotes.html#syncjobs",
     "title": "Sync Jobs"
   },
+  "storage-disk-management": {
+    "link": "/docs/storage.html#storage-disk-management",
+    "title": "Disk Management"
+  },
   "datastore-intro": {
     "link": "/docs/storage.html#datastore-intro",
     "title": "Datastore"

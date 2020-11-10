@@ -62,24 +62,10 @@ Ext.define('PBS.store.NavigationStore', {
 			leaf: true,
 		    },
 		    {
-			text: gettext('Disks'),
+			text: gettext('Storage / Disks'),
 			iconCls: 'fa fa-hdd-o',
-			path: 'pmxDiskList',
-			leaf: false,
-			children: [
-			    {
-				text: Proxmox.Utils.directoryText,
-				iconCls: 'fa fa-folder',
-				path: 'pbsDirectoryList',
-				leaf: true,
-			    },
-			    {
-				text: "ZFS",
-				iconCls: 'fa fa-th-large',
-				path: 'pbsZFSList',
-				leaf: true,
-			    },
-			],
+			path: 'pbsStorageAndDiskPanel',
+			leaf: true,
 		    },
 		],
 	    },
