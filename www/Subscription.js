@@ -2,13 +2,14 @@ Ext.define('PBS.SubscriptionKeyEdit', {
     extend: 'Proxmox.window.Edit',
 
     title: gettext('Upload Subscription Key'),
-    width: 300,
+    width: 320,
     autoLoad: true,
 
     onlineHelp: 'get_help',
 
     items: {
 	xtype: 'textfield',
+	labelWidth: 120,
 	name: 'key',
 	value: '',
 	fieldLabel: gettext('Subscription Key'),
@@ -140,16 +141,18 @@ Ext.define('PBS.Subscription', {
 	    tbar: [
 		{
 		    text: gettext('Upload Subscription Key'),
+		    iconCls: 'fa fa-ticket',
 		    handler: function() {
 			let win = Ext.create('PBS.SubscriptionKeyEdit', {
 			    url: '/api2/extjs/' + baseurl,
+			    autoShow: true,
 			});
-			win.show();
 			win.on('destroy', reload);
 		    },
 		},
 		{
 		    text: gettext('Check'),
+		    iconCls: 'fa fa-check-square-o',
 		    handler: function() {
 			Proxmox.Utils.API2Request({
 			    params: { force: 1 },
@@ -171,10 +174,12 @@ Ext.define('PBS.Subscription', {
 		    dangerous: true,
 		    selModel: false,
 		    callback: reload,
+		    iconCls: 'fa fa-trash-o',
 		},
 		'-',
 		{
 		    text: gettext('System Report'),
+		    iconCls: 'fa fa-stethoscope',
 		    handler: function() {
 			Proxmox.Utils.checked_command(function() { me.showReport(); });
 		    },
