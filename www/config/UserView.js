@@ -76,6 +76,17 @@ Ext.define('PBS.config.UserView', {
 	    }).show();
 	},
 
+	renderName: function(val, cell, rec) {
+	    let name = [];
+	    if (rec.data.firstname) {
+		name.push(rec.data.firstname);
+	    }
+	    if (rec.data.lastname) {
+		name.push(rec.data.lastname);
+	    }
+	    return name.join(' ');
+	},
+
 	renderUsername: function(userid) {
 	    return Ext.String.htmlEncode(userid.match(/^(.+)@([^@]+)$/)[1]);
 	},
@@ -181,6 +192,7 @@ Ext.define('PBS.config.UserView', {
 	    width: 150,
 	    sortable: true,
 	    dataIndex: 'firstname',
+	    renderer: 'renderName',
 	},
 	{
 	    header: gettext('Comment'),
