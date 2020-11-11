@@ -76,8 +76,41 @@ edit the interval at which pruning takes place.
   :align: right
   :alt: Prune and garbage collection options
 
-Prune Keep Example
-^^^^^^^^^^^^^^^^^^
+
+Retention Settings Example
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The backup frequency and retention of old backups may depend on how often data
+changes, and how important an older state may be, in a specific work load.
+When backups act as a company's document archive, there may also be legal
+requirements for how long backup snapshots must be kept.
+
+For this example, we assume that you are doing daily backups, have a retention
+period of 10 years, and the period between backups stored gradually grows.
+
+- **keep-last:** ``3`` - even if only daily backups, an admin may want to create
+  an extra one just before or after a big upgrade. Setting keep-last ensures
+  this.
+
+- **keep-hourly:** not set - for daily backups this is not relevant. You cover
+  extra manual backups already, with keep-last.
+
+- **keep-daily:** ``13`` - together with keep-last, which covers at least one
+  day, this ensures that you have at least two weeks of backups.
+
+- **keep-weekly:** ``8`` - ensures that you have at least two full months of
+  weekly backups.
+
+- **keep-monthly:** ``11`` - together with the previous keep settings, this
+  ensures that you have at least a year of monthly backups.
+
+- **keep-yearly:** ``9`` - this is for the long term archive. As you covered the
+  current year with the previous options, you would set this to nine for the
+  remaining ones, giving you a total of at least 10 years of coverage.
+
+We recommend that you use a higher retention period than is minimally required
+by your environment; you can always reduce it if you find it is unnecessarily
+high, but you cannot recreate backup snapshots from the past.
 
 
 .. _maintenance_gc:
