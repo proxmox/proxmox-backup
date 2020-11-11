@@ -76,6 +76,9 @@ edit the interval at which pruning takes place.
   :align: right
   :alt: Prune and garbage collection options
 
+Prune Keep Example
+^^^^^^^^^^^^^^^^^^
+
 
 .. _maintenance_gc:
 

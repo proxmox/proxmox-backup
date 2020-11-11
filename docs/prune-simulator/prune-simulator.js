@@ -219,7 +219,7 @@ Ext.onReady(function() {
 			    html += `<span class="strikethrough">${text}</span>`;
 			} else {
 			    if (backup.data.keepCount) {
-				text += ` (${backup.data.keepName}: ${backup.data.keepCount})`;
+				text += ` (${backup.data.keepName} ${backup.data.keepCount})`;
 			    } else {
 				text += ` (${backup.data.keepName})`;
 			    }
