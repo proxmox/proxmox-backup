@@ -802,7 +802,10 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
     let keydata = match (keyfile, key_fd) {
         (None, None) => None,
         (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
-        (Some(keyfile), None) => Some(file_get_contents(keyfile)?),
+        (Some(keyfile), None) => {
+            println!("Using encryption key file: {}", keyfile);
+            Some(file_get_contents(keyfile)?)
+        },
         (None, Some(fd)) => {
             let input = unsafe { std::fs::File::from_raw_fd(fd) };
             let mut data = Vec::new();
@@ -810,6 +813,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
                 .map_err(|err| {
                     format_err!("error reading encryption key from fd {}: {}", fd, err)
                 })?;
+            println!("Using encryption key from file descriptor");
             Some(data)
         }
     };
@@ -830,7 +834,10 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         // just --crypt-mode other than none
         (None, Some(crypt_mode)) => match key::read_optional_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
-            Some(key) => (Some(key), crypt_mode),
+            Some(key) => {
+                println!("Encrypting with default encryption key!");
+                (Some(key), crypt_mode)
+            },
         }
 
         // just --keyfile
