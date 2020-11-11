@@ -623,42 +623,6 @@ Ext.onReady(function() {
 		sorters: { property: 'backuptime', direction: 'DESC' },
 	    });
 
-	    let scheduleItems = [
-		{
-		    xtype: 'prunesimulatorDayOfWeekSelector',
-		    name: 'schedule-weekdays',
-		    fieldLabel: 'Day of week',
-		    value: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
-		    allowBlank: false,
-		    multiSelect: true,
-		    padding: '0 0 0 10',
-		},
-		{
-		    xtype: 'prunesimulatorCalendarEvent',
-		    name: 'schedule-time',
-		    allowBlank: false,
-		    value: '0/6:00',
-		    fieldLabel: 'Backup schedule',
-		    padding: '0 0 0 10',
-		},
-		{
-		    xtype: 'numberfield',
-		    name: 'numberOfWeeks',
-		    allowBlank: false,
-		    fieldLabel: 'Number of weeks',
-		    minValue: 1,
-		    value: 15,
-		    maxValue: 260, // five years
-		    padding: '0 0 0 10',
-		},
-		{
-		    xtype: 'button',
-		    name: 'schedule-button',
-		    text: 'Update Schedule',
-		    handler: 'reloadFull',
-		},
-	    ];
-
 	    me.items = [
 		{
 		    xtype: 'panel',
@@ -702,7 +666,41 @@ Ext.onReady(function() {
 				labelWidth: 120,
 			    },
 			    bodyPadding: 10,
-			    items: scheduleItems,
+			    items: [
+				{
+				    xtype: 'prunesimulatorDayOfWeekSelector',
+				    name: 'schedule-weekdays',
+				    fieldLabel: 'Day of week',
+				    value: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+				    allowBlank: false,
+				    multiSelect: true,
+				    padding: '0 0 0 10',
+				},
+				{
+				    xtype: 'prunesimulatorCalendarEvent',
+				    name: 'schedule-time',
+				    allowBlank: false,
+				    value: '0/6:00',
+				    fieldLabel: 'Backup schedule',
+				    padding: '0 0 0 10',
+				},
+				{
+				    xtype: 'numberfield',
+				    name: 'numberOfWeeks',
+				    allowBlank: false,
+				    fieldLabel: 'Number of weeks',
+				    minValue: 1,
+				    value: 15,
+				    maxValue: 260, // five years
+				    padding: '0 0 0 10',
+				},
+				{
+				    xtype: 'button',
+				    name: 'schedule-button',
+				    text: 'Update Schedule',
+				    handler: 'reloadFull',
+				},
+			    ],
 			},
 		    ],
 		},
