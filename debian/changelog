@@ -1,3 +1,15 @@
+rust-proxmox-backup (1.0.1-1) unstable; urgency=medium
+
+  * ui: datastore summary: drop 'removed bytes' display
+
+  * ui: datastore add: set default schedule
+
+  * prune sim: make backup schedule a form, bind update button to its validity
+
+  * daemon: add workaround for race in reloading and systemd 'ready' notification
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 11 Nov 2020 10:18:12 +0100
+
 rust-proxmox-backup (1.0.0-1) unstable; urgency=medium
 
   * fix #3121: forbid removing used remotes
