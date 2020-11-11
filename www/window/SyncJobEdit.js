@@ -123,7 +123,7 @@ Ext.define('PBS.window.SyncJobEdit', {
 	    let me = this;
 
 	    if (!values.id && me.up('pbsSyncJobEdit').isCreate) {
-		values.id = 'auto-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 23);
+		values.id = 's-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
 	    }
 	    return values;
 	},

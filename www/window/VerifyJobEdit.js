@@ -40,7 +40,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	    let me = this;
 
 	    if (!values.id && me.up('pbsVerifyJobEdit').isCreate) {
-		values.id = 'auto-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 23);
+		values.id = 'v-' + Ext.data.identifier.Uuid.Global.generate().slice(0, 13);
 	    }
 	    return values;
 	},
