@@ -304,31 +304,19 @@ pub fn get_versions() -> Result<Value, Error> {
     );
 
     let running_kernel = nix::sys::utsname::uname().release().to_owned();
-    if let Some(proxmox_backup) = pbs_packages
-        .iter()
-        .find(|pkg| pkg.package == "proxmox-backup")
-    {
+    if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
         let mut proxmox_backup = proxmox_backup.clone();
         proxmox_backup.extra_info = Some(format!("running kernel: {}", running_kernel));
         packages.push(proxmox_backup);
     } else {
-        packages.push(unknown_package(
-            "proxmox-backup".into(),
-            Some(running_kernel),
-        ));
+        packages.push(unknown_package("proxmox-backup".into(), Some(running_kernel)));
     }
 
-    if let Some(pkg) = pbs_packages
-        .iter()
-        .find(|pkg| pkg.package == "proxmox-backup-server")
-    {
-        let running_version = format!(
-            "running version: {}.{}",
-            crate::api2::version::PROXMOX_PKG_VERSION,
-            crate::api2::version::PROXMOX_PKG_RELEASE
-        );
+    if let Some(pkg) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup-server") {
+        let version = crate::api2::version::PROXMOX_PKG_VERSION;
+        let release = crate::api2::version::PROXMOX_PKG_RELEASE;
         let mut pkg = pkg.clone();
-        pkg.extra_info = Some(running_version);
+        pkg.extra_info = Some(format!("running version: {}.{}", version, release));
         packages.push(pkg);
     }
 
