@@ -268,6 +268,21 @@ pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
     Ok(user)
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="kebab-case")]
+#[allow(non_camel_case_types)]
+pub enum DeletableProperty {
+    /// Delete the comment property.
+    comment,
+    /// Delete the firstname property.
+    firstname,
+    /// Delete the lastname property.
+    lastname,
+    /// Delete the email property.
+    email,
+}
+
 #[api(
     protected: true,
     input: {
@@ -303,6 +318,14 @@ pub fn read_user(userid: Userid, mut rpcenv: &mut dyn RpcEnvironment) -> Result<
                 schema: user::EMAIL_SCHEMA,
                 optional: true,
             },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
+            },
             digest: {
                 optional: true,
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
@@ -326,6 +349,7 @@ pub fn update_user(
     firstname: Option<String>,
     lastname: Option<String>,
     email: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
 ) -> Result<(), Error> {
 
@@ -339,6 +363,17 @@ pub fn update_user(
     }
 
     let mut data: user::User = config.lookup("user", userid.as_str())?;
+
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::comment => data.comment = None,
+                DeletableProperty::firstname => data.firstname = None,
+                DeletableProperty::lastname => data.lastname = None,
+                DeletableProperty::email => data.email = None,
+            }
+        }
+    }
 
     if let Some(comment) = comment {
         let comment = comment.trim().to_string();

@@ -100,17 +100,26 @@ Ext.define('PBS.window.UserEdit', {
 		xtype: 'proxmoxtextfield',
 		name: 'firstname',
 		fieldLabel: gettext('First Name'),
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
 		name: 'lastname',
 		fieldLabel: gettext('Last Name'),
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	    {
 		xtype: 'proxmoxtextfield',
 		name: 'email',
 		fieldLabel: gettext('E-Mail'),
 		vtype: 'proxmoxMail',
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
 
@@ -119,6 +128,9 @@ Ext.define('PBS.window.UserEdit', {
 		xtype: 'proxmoxtextfield',
 		name: 'comment',
 		fieldLabel: gettext('Comment'),
+		cbind: {
+		    deleteEmpty: '{!isCreate}',
+		},
 	    },
 	],
     },
