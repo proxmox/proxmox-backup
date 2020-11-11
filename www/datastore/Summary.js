@@ -34,7 +34,6 @@ Ext.define('PBS.DataStoreInfo', {
 	    countstext: '',
 	    usage: {},
 	    stillbad: 0,
-	    removedbytes: 0,
 	    mountpoint: "",
 	},
     },
@@ -69,7 +68,6 @@ Ext.define('PBS.DataStoreInfo', {
 	    vm.set('hostcount', countstext(counts.host));
 	    vm.set('deduplication', dedup.toFixed(2));
 	    vm.set('stillbad', gcstatus['still-bad']);
-	    vm.set('removedbytes', Proxmox.Utils.format_size(gcstatus['removed-bytes']));
 	},
 
 	startStore: function() { this.store.startUpdate(); },
@@ -156,16 +154,6 @@ Ext.define('PBS.DataStoreInfo', {
 	    bind: {
 		data: {
 		    text: '{deduplication}',
-		},
-	    },
-	},
-	{
-	    iconCls: 'fa fa-fw fa-trash-o',
-	    title: gettext('Removed Bytes'),
-	    printBar: false,
-	    bind: {
-		data: {
-		    text: '{removedbytes}',
 		},
 	    },
 	},
