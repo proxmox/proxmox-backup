@@ -381,59 +381,27 @@ async fn report() -> Result<Value, Error> {
 )]
 /// List package versions for important Proxmox Backup Server packages.
 async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
-    let output_format = param.get("output-format");
+    let output_format = get_output_format(&param);
 
-    if !verbose && output_format.is_none() {
-        let pkg_version = format!(
-            "{}.{}",
-            crate::api2::version::PROXMOX_PKG_VERSION,
-            crate::api2::version::PROXMOX_PKG_RELEASE
-        );
-        let running_kernel = nix::sys::utsname::uname().release().to_owned();
-
-        println!(
-            "proxmox-backup-server/{} (running kernel: {})",
-            pkg_version, running_kernel
-        );
-        return Ok(Value::Null);
-    }
-
-    let mut packages = crate::api2::node::apt::get_versions()?;
-    if let Some(output_format) = output_format {
-        if let Some(output_format) = output_format.as_str() {
-            let options = TableFormatOptions::default();
-            format_and_print_result_full(
-                &mut packages,
-                &crate::api2::node::apt::API_RETURN_SCHEMA_GET_VERSIONS,
-                output_format,
-                &options,
-            );
-        }
+    let mut packages = if verbose {
+        crate::api2::node::apt::get_versions()?
     } else {
-        // pveversion style print
-        let packages: Vec<APTUpdateInfo> = serde_json::from_value(packages)?;
-        for pkg in packages {
-            let mut version = "not correctly installed";
-            if !pkg.old_version.is_empty() && &pkg.old_version != "unknown" {
-                version = &pkg.old_version;
-            }
+        // TODO: slice first element out in a nicer way?
+        let packages = crate::api2::node::apt::get_versions()?;
+        let packages = packages.as_array().unwrap();
+        Value::Array(vec![packages[0].to_owned()])
+    };
 
-            if let Some(extra_info) = pkg.extra_info {
-                println!(
-                    "{}: {} ({})",
-                    pkg.package,
-                    version,
-                    extra_info
-                );
-            } else {
-                println!(
-                    "{}: {}",
-                    pkg.package,
-                    version,
-                );
-            }
-        }
-    }
+    let options = default_table_format_options()
+        .disable_sort()
+        .noborder(true) // just not helpfull for version info which gets copy pasted often
+        .column(ColumnConfig::new("Package"))
+        .column(ColumnConfig::new("Version"))
+        .column(ColumnConfig::new("ExtraInfo").header("Extra Info"))
+        ;
+    let schema = &crate::api2::node::apt::API_RETURN_SCHEMA_GET_VERSIONS;
+
+    format_and_print_result_full(&mut packages, schema, &output_format, &options);
 
     Ok(Value::Null)
 }
