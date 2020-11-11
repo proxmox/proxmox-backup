@@ -817,7 +817,10 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
     Ok(match (keydata, crypt_mode) {
         // no parameters:
         (None, None) => match key::read_optional_default_encryption_key()? {
-            Some(key) => (Some(key), CryptMode::Encrypt),
+            Some(key) => {
+                println!("Encrypting with default encryption key!");
+                (Some(key), CryptMode::Encrypt)
+            },
             None => (None, CryptMode::None),
         },
 
