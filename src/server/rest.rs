@@ -623,6 +623,10 @@ fn check_auth(
                 .ok_or_else(|| format_err!("failed to split API token header"))?;
             let tokenid: Authid = tokenid.parse()?;
 
+            if !user_info.is_active_auth_id(&tokenid) {
+                bail!("user account or token disabled or expired.");
+            }
+
             let tokensecret = parts.next()
                 .ok_or_else(|| format_err!("failed to split API token header"))?;
             let tokensecret = percent_decode_str(tokensecret)
