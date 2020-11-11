@@ -49,7 +49,6 @@ Ext.define('PBS.form.CalendarEvent', {
 	return data;
     },
 
-
     store: {
 	type: 'calendarEventExamples',
     },

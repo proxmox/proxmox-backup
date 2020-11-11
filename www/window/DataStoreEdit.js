@@ -100,6 +100,7 @@ Ext.define('PBS.DataStoreEdit', {
 	}
 	me.url = name ? baseurl + '/' + name : baseurl;
 	me.method = name ? 'PUT' : 'POST';
+	me.scheduleValue = name ? null : 'daily';
 	me.autoLoad = !!name;
 	return {};
     },
@@ -146,15 +147,18 @@ Ext.define('PBS.DataStoreEdit', {
 			emptyText: gettext('none'),
 			cbind: {
 			    deleteEmpty: '{!isCreate}',
+			    value: '{scheduleValue}',
 			},
 		    },
 		    {
 			xtype: 'pbsCalendarEvent',
 			name: 'prune-schedule',
 			fieldLabel: gettext("Prune Schedule"),
+			value: 'daily',
 			emptyText: gettext('none'),
 			cbind: {
 			    deleteEmpty: '{!isCreate}',
+			    value: '{scheduleValue}',
 			},
 		    },
 		],
