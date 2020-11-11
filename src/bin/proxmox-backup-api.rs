@@ -76,6 +76,7 @@ async fn run() -> Result<(), Error> {
                 })
             )
         },
+        "proxmox-backup.service",
     );
 
     server::write_pid(buildcfg::PROXMOX_BACKUP_API_PID_FN)?;

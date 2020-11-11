@@ -133,6 +133,7 @@ async fn run() -> Result<(), Error> {
                 .map(|_| ())
             )
         },
+        "proxmox-backup-proxy.service",
     );
 
     server::write_pid(buildcfg::PROXMOX_BACKUP_PROXY_PID_FN)?;

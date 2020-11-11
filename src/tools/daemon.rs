@@ -260,6 +260,7 @@ impl Future for NotifyReady {
 pub async fn create_daemon<F, S>(
     address: std::net::SocketAddr,
     create_service: F,
+    service_name: &str,
 ) -> Result<(), Error>
 where
     F: FnOnce(tokio::net::TcpListener, NotifyReady) -> Result<S, Error>,
@@ -301,7 +302,32 @@ where
     if let Some(future) = finish_future {
         future.await;
     }
+
+    // FIXME: this is a hack, replace with sd_notify_barrier when available
+    if server::is_reload_request() {
+        check_service_is_active(service_name).await?;
+    }
+
     log::info!("daemon shut down...");
+    Ok(())
+}
+
+pub async fn check_service_is_active(service: &str) -> Result<(), Error> {
+    for _ in 0..5 {
+        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
+        if let Ok(output) = tokio::process::Command::new("systemctl")
+            .args(&["is-active", service])
+            .output()
+            .await
+        {
+            if let Ok(text) = String::from_utf8(output.stdout) {
+                if text.trim().trim_start() != "reloading" {
+                    return Ok(());
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
