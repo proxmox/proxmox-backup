@@ -27,7 +27,7 @@ How long will my Proxmox Backup Server version be supported?
 +-----------------------+--------------------+---------------+------------+--------------------+
 |Proxmox Backup Version | Debian Version     | First Release | Debian EOL | Proxmox Backup EOL |
 +=======================+====================+===============+============+====================+
-|Proxmox Backup 1.x     | Debian 10 (Buster) | tba           | tba        | tba                |
+|Proxmox Backup 1.x     | Debian 10 (Buster) | 2020-11       | tba        | tba                |
 +-----------------------+--------------------+---------------+------------+--------------------+
 
 
