@@ -34,7 +34,7 @@ pub mod subscription;
 pub(crate) mod rrd;
 
 mod journal;
-mod services;
+pub(crate) mod services;
 mod status;
 mod syslog;
 mod time;

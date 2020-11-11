@@ -22,7 +22,7 @@ static SERVICE_NAME_LIST: [&str; 7] = [
     "systemd-timesyncd",
 ];
 
-fn real_service_name(service: &str) -> &str {
+pub fn real_service_name(service: &str) -> &str {
 
     // since postfix package 3.1.0-3.1 the postfix unit is only here
     // to manage subinstances, of which the default is called "-".

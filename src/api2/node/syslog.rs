@@ -134,12 +134,18 @@ fn get_syslog(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
+    let service = if let Some(service) = param["service"].as_str() {
+        Some(crate::api2::node::services::real_service_name(service))
+    } else {
+        None
+    };
+
     let (count, lines) = dump_journal(
         param["start"].as_u64(),
         param["limit"].as_u64(),
         param["since"].as_str(),
         param["until"].as_str(),
-        param["service"].as_str())?;
+        service)?;
 
     rpcenv["total"] = Value::from(count);
 
