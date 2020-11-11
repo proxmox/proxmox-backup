@@ -658,6 +658,7 @@ Ext.onReady(function() {
 			},
 			{ xtype: "panel", width: 1, border: 1 },
 			{
+			    xtype: 'form',
 			    layout: 'anchor',
 			    flex: 1,
 			    border: false,
@@ -698,6 +699,7 @@ Ext.onReady(function() {
 				    xtype: 'button',
 				    name: 'schedule-button',
 				    text: 'Update Schedule',
+				    formBind: true,
 				    handler: 'reloadFull',
 				},
 			    ],
