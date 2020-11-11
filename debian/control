@@ -104,7 +104,9 @@ Depends: fonts-font-awesome,
          libjs-extjs (>= 6.0.1),
          libzstd1 (>= 1.3.8),
          lvm2,
+         openssh-server,
          pbs-i18n,
+         postfix | mail-transport-agent,
          proxmox-backup-docs,
          proxmox-mini-journalreader,
          proxmox-widget-toolkit (>= 2.3-6),
@@ -113,6 +115,7 @@ Depends: fonts-font-awesome,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: zfsutils-linux,
+            ifupdown2,
 Description: Proxmox Backup Server daemon with tools and GUI
  This package contains the Proxmox Backup Server daemons and related
  tools. This includes a web-based graphical user interface.
