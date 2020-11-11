@@ -265,6 +265,34 @@ Ext.onReady(function() {
 	},
     });
 
+    Ext.define('PBS.PruneSimulatorKeepInput', {
+	extend: 'Ext.form.field.Number',
+	alias: 'widget.prunesimulatorKeepInput',
+
+	allowBlank: true,
+	fieldGroup: 'keep',
+	minValue: 1,
+
+	listeners: {
+	    afterrender: function(field) {
+		this.triggers.clear.setVisible(field.value !== null);
+	    },
+	    change: function(field, newValue, oldValue) {
+		this.triggers.clear.setVisible(newValue !== null);
+	    },
+	},
+	triggers: {
+	    clear: {
+		cls: 'clear-trigger',
+		weight: -1,
+		handler: function() {
+		    this.triggers.clear.setVisible(false);
+		    this.setValue(null);
+		},
+	    },
+	},
+    });
+
     Ext.define('PBS.PruneSimulatorPanel', {
 	extend: 'Ext.panel.Panel',
 	alias: 'widget.prunesimulatorPanel',
@@ -560,58 +588,37 @@ Ext.onReady(function() {
 
 	keepItems: [
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-last',
-		allowBlank: true,
 		fieldLabel: 'keep-last',
-		minValue: 0,
 		value: 4,
-		fieldGroup: 'keep',
 	    },
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-hourly',
-		allowBlank: true,
 		fieldLabel: 'keep-hourly',
-		minValue: 0,
-		value: 0,
-		fieldGroup: 'keep',
 	    },
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-daily',
-		allowBlank: true,
 		fieldLabel: 'keep-daily',
-		minValue: 0,
 		value: 5,
-		fieldGroup: 'keep',
 	    },
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-weekly',
-		allowBlank: true,
 		fieldLabel: 'keep-weekly',
-		minValue: 0,
 		value: 2,
-		fieldGroup: 'keep',
 	    },
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-monthly',
-		allowBlank: true,
 		fieldLabel: 'keep-monthly',
-		minValue: 0,
-		value: 0,
-		fieldGroup: 'keep',
 	    },
 	    {
-		xtype: 'numberfield',
+		xtype: 'prunesimulatorKeepInput',
 		name: 'keep-yearly',
-		allowBlank: true,
 		fieldLabel: 'keep-yearly',
-		minValue: 0,
-		value: 0,
-		fieldGroup: 'keep',
 	    },
 	],
 

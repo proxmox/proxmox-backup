@@ -17,6 +17,7 @@ MANUAL_PAGES := 			\
 PRUNE_SIMULATOR_FILES := 					\
 	prune-simulator/index.html				\
 	prune-simulator/documentation.html			\
+	prune-simulator/clear-trigger.png			\
 	prune-simulator/prune-simulator.js
 
 # Sphinx documentation setup
