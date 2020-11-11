@@ -305,30 +305,34 @@ where
 
     // FIXME: this is a hack, replace with sd_notify_barrier when available
     if server::is_reload_request() {
-        check_service_is_active(service_name).await?;
+        wait_service_is_active(service_name).await?;
     }
 
     log::info!("daemon shut down...");
     Ok(())
 }
 
-pub async fn check_service_is_active(service: &str) -> Result<(), Error> {
-    for _ in 0..5 {
-        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
-        if let Ok(output) = tokio::process::Command::new("systemctl")
+// hack, do not use if unsure!
+async fn wait_service_is_active(service: &str) -> Result<(), Error> {
+    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
+    loop {
+        let text = match tokio::process::Command::new("systemctl")
             .args(&["is-active", service])
             .output()
             .await
         {
-            if let Ok(text) = String::from_utf8(output.stdout) {
-                if text.trim().trim_start() != "reloading" {
-                    return Ok(());
-                }
-            }
-        }
-    }
+            Ok(output) => match String::from_utf8(output.stdout) {
+                Ok(text) => text,
+                Err(err) => bail!("output of 'systemctl is-active' not valid UTF-8 - {}", err),
+            },
+            Err(err) => bail!("executing 'systemctl is-active' failed - {}", err),
+        };
 
-    Ok(())
+        if text.trim().trim_start() != "reloading" {
+            return Ok(());
+        }
+        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
+    }
 }
 
 #[link(name = "systemd")]
