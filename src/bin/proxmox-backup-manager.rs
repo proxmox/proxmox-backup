@@ -384,7 +384,7 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
 
     let packages = crate::api2::node::apt::get_versions()?;
-    let mut packages = json!(if verbose { &packages[..] } else { &packages[0..1] });
+    let mut packages = json!(if verbose { &packages[..] } else { &packages[1..2] });
 
     let options = default_table_format_options()
         .disable_sort()
