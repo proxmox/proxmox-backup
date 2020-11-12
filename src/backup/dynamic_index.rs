@@ -219,7 +219,6 @@ impl IndexFile for DynamicIndexReader {
         (csum, chunk_end)
     }
 
-    #[allow(clippy::cast_ptr_alignment)]
     fn chunk_info(&self, pos: usize) -> Option<ChunkReadInfo> {
         if pos >= self.index.len() {
             return None;
