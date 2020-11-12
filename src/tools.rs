@@ -23,45 +23,43 @@ pub mod borrow;
 pub mod cert;
 pub mod daemon;
 pub mod disks;
-pub mod fs;
 pub mod format;
-pub mod lru_cache;
-pub mod runtime;
-pub mod ticket;
-pub mod statistics;
-pub mod systemd;
-pub mod nom;
+pub mod fs;
+pub mod fuse_loop;
+pub mod http;
 pub mod logrotate;
 pub mod loopdev;
-pub mod fuse_loop;
+pub mod lru_cache;
+pub mod nom;
+pub mod runtime;
 pub mod socket;
+pub mod statistics;
 pub mod subscription;
+pub mod systemd;
+pub mod ticket;
+pub mod xattr;
 pub mod zip;
-pub mod http;
 
-mod parallel_handler;
-pub use parallel_handler::*;
+pub mod parallel_handler;
+pub use parallel_handler::ParallelHandler;
 
 mod wrapped_reader_stream;
-pub use wrapped_reader_stream::*;
+pub use wrapped_reader_stream::{AsyncReaderStream, StdChannelStream, WrappedReaderStream};
 
 mod async_channel_writer;
-pub use async_channel_writer::*;
-
+pub use async_channel_writer::AsyncChannelWriter;
 
 mod std_channel_writer;
-pub use std_channel_writer::*;
-
-pub mod xattr;
+pub use std_channel_writer::StdChannelWriter;
 
 mod process_locker;
-pub use process_locker::*;
+pub use process_locker::{ProcessLocker, ProcessLockExclusiveGuard, ProcessLockSharedGuard};
 
 mod file_logger;
-pub use file_logger::*;
+pub use file_logger::{FileLogger, FileLogOptions};
 
 mod broadcast_future;
-pub use broadcast_future::*;
+pub use broadcast_future::{BroadcastData, BroadcastFuture};
 
 /// The `BufferedRead` trait provides a single function
 /// `buffered_read`. It returns a reference to an internal buffer. The
