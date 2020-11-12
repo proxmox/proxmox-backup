@@ -255,7 +255,7 @@ impl<'a, 'b> Archiver<'a, 'b> {
             let file_name = file_entry.name.to_bytes();
 
             if is_root && file_name == b".pxarexclude-cli" {
-                self.encode_pxarexclude_cli(encoder, &file_entry.name)?;
+                self.encode_pxarexclude_cli(encoder, &file_entry.name, old_patterns_count)?;
                 continue;
             }
 
@@ -387,8 +387,9 @@ impl<'a, 'b> Archiver<'a, 'b> {
         &mut self,
         encoder: &mut Encoder,
         file_name: &CStr,
+        patterns_count: usize,
     ) -> Result<(), Error> {
-        let content = generate_pxar_excludes_cli(&self.patterns);
+        let content = generate_pxar_excludes_cli(&self.patterns[..patterns_count]);
 
         if let Some(ref mut catalog) = self.catalog {
             catalog.add_file(file_name, content.len() as u64, 0)?;
