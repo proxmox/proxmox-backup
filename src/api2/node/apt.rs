@@ -304,7 +304,7 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
     );
 
     let running_kernel = format!(
-        "running kernel: {}", 
+        "running kernel: {}",
         nix::sys::utsname::uname().release().to_owned()
     );
     if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
