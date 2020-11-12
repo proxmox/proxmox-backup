@@ -237,7 +237,15 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let old_patterns_count = self.patterns.len();
         self.read_pxar_excludes(dir.as_raw_fd())?;
 
-        let file_list = self.generate_directory_file_list(&mut dir, is_root)?;
+        let mut file_list = self.generate_directory_file_list(&mut dir, is_root)?;
+
+        if is_root && old_patterns_count > 0 {
+            file_list.push(FileListEntry {
+                name: CString::new(".pxarexclude-cli").unwrap(),
+                path: PathBuf::new(),
+                stat: unsafe { std::mem::zeroed() },
+            });
+        }
 
         let dir_fd = dir.as_raw_fd();
 
@@ -403,14 +411,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
         let dir_fd = dir.as_raw_fd();
 
         let mut file_list = Vec::new();
-
-        if is_root && !self.patterns.is_empty() {
-            file_list.push(FileListEntry {
-                name: CString::new(".pxarexclude-cli").unwrap(),
-                path: PathBuf::new(),
-                stat: unsafe { std::mem::zeroed() },
-            });
-        }
 
         for file in dir.iter() {
             let file = file?;
