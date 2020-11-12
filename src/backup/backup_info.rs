@@ -327,27 +327,33 @@ impl BackupInfo {
         Ok(files)
     }
 
-    pub fn list_backups(base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
+    pub fn list_backup_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
         let mut list = Vec::new();
 
         tools::scandir(libc::AT_FDCWD, base_path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
             if file_type != nix::dir::Type::Directory { return Ok(()); }
-            tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |l1_fd, backup_id, file_type| {
+            tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |_, backup_id, file_type| {
                 if file_type != nix::dir::Type::Directory { return Ok(()); }
-                tools::scandir(l1_fd, backup_id, &BACKUP_DATE_REGEX, |l2_fd, backup_time_string, file_type| {
-                    if file_type != nix::dir::Type::Directory { return Ok(()); }
 
-                    let backup_dir = BackupDir::with_rfc3339(backup_type, backup_id, backup_time_string)?;
+                list.push(BackupGroup::new(backup_type, backup_id));
 
-                    let files = list_backup_files(l2_fd, backup_time_string)?;
-
-                    list.push(BackupInfo { backup_dir, files });
-
-                    Ok(())
-                })
+                Ok(())
             })
         })?;
+
         Ok(list)
+    }
+
+    pub fn list_backups(base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
+        let groups = BackupInfo::list_backup_groups(base_path)?;
+
+        groups
+            .into_iter()
+            .try_fold(Vec::new(), |mut snapshots, group| {
+                let group_snapshots = group.list_backups(base_path)?;
+                snapshots.extend(group_snapshots);
+                Ok(snapshots)
+            })
     }
 
     pub fn is_finished(&self) -> bool {
