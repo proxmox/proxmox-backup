@@ -154,9 +154,11 @@ impl ChunkStore {
     }
 
     pub fn cond_touch_chunk(&self, digest: &[u8; 32], fail_if_not_exist: bool) -> Result<bool, Error> {
-
         let (chunk_path, _digest_str) = self.chunk_path(digest);
+        self.cond_touch_path(&chunk_path, fail_if_not_exist)
+    }
 
+    pub fn cond_touch_path(&self, path: &Path, fail_if_not_exist: bool) -> Result<bool, Error> {
         const UTIME_NOW: i64 = (1 << 30) - 1;
         const UTIME_OMIT: i64 = (1 << 30) - 2;
 
@@ -167,7 +169,7 @@ impl ChunkStore {
 
         use nix::NixPath;
 
-        let res = chunk_path.with_nix_path(|cstr| unsafe {
+        let res = path.with_nix_path(|cstr| unsafe {
             let tmp = libc::utimensat(-1, cstr.as_ptr(), &times[0], libc::AT_SYMLINK_NOFOLLOW);
             nix::errno::Errno::result(tmp)
         })?;
@@ -177,7 +179,7 @@ impl ChunkStore {
                 return Ok(false);
             }
 
-            bail!("update atime failed for chunk {:?} - {}", chunk_path, err);
+            bail!("update atime failed for chunk/file {:?} - {}", path, err);
         }
 
         Ok(true)
@@ -328,49 +330,13 @@ impl ChunkStore {
             let lock = self.mutex.lock();
 
             if let Ok(stat) = fstatat(dirfd, filename, nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW) {
-                if bad {
-                    // filename validity checked in iterator
-                    let orig_filename = std::ffi::CString::new(&filename.to_bytes()[..64])?;
-                    match fstatat(
-                        dirfd,
-                        orig_filename.as_c_str(),
-                        nix::fcntl::AtFlags::AT_SYMLINK_NOFOLLOW)
-                    {
-                        Ok(_) => {
-                            match unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
-                                Err(err) =>
-                                    crate::task_warn!(
-                                        worker,
-                                        "unlinking corrupt chunk {:?} failed on store '{}' - {}",
-                                        filename,
-                                        self.name,
-                                        err,
-                                    ),
-                                Ok(_) => {
-                                    status.removed_bad += 1;
-                                    status.removed_bytes += stat.st_size as u64;
-                                }
-                            }
-                        },
-                        Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {
-                            // chunk hasn't been rewritten yet, keep .bad file
-                            status.still_bad += 1;
-                        },
-                        Err(err) => {
-                            // some other error, warn user and keep .bad file around too
-                            status.still_bad += 1;
-                            crate::task_warn!(
-                                worker,
-                                "error during stat on '{:?}' - {}",
-                                orig_filename,
-                                err,
-                            );
-                        }
-                    }
-                } else if stat.st_atime < min_atime {
+                if stat.st_atime < min_atime {
                     //let age = now - stat.st_atime;
                     //println!("UNLINK {}  {:?}", age/(3600*24), filename);
                     if let Err(err) = unlinkat(Some(dirfd), filename, UnlinkatFlags::NoRemoveDir) {
+                        if bad {
+                            status.still_bad += 1;
+                        }
                         bail!(
                             "unlinking chunk {:?} failed on store '{}' - {}",
                             filename,
@@ -378,13 +344,23 @@ impl ChunkStore {
                             err,
                         );
                     }
-                    status.removed_chunks += 1;
+                    if bad {
+                        status.removed_bad += 1;
+                    } else {
+                        status.removed_chunks += 1;
+                    }
                     status.removed_bytes += stat.st_size as u64;
                 } else if stat.st_atime < oldest_writer {
-                    status.pending_chunks += 1;
+                    if bad {
+                        status.still_bad += 1;
+                    } else {
+                        status.pending_chunks += 1;
+                    }
                     status.pending_bytes += stat.st_size as u64;
                 } else {
-                    status.disk_chunks += 1;
+                    if !bad {
+                        status.disk_chunks += 1;
+                    }
                     status.disk_bytes += stat.st_size as u64;
                 }
             }

@@ -446,6 +446,17 @@ impl DataStore {
                     file_name,
                     err,
                 );
+
+                // touch any corresponding .bad files to keep them around, meaning if a chunk is
+                // rewritten correctly they will be removed automatically, as well as if no index
+                // file requires the chunk anymore (won't get to this loop then)
+                for i in 0..=9 {
+                    let bad_ext = format!("{}.bad", i);
+                    let mut bad_path = PathBuf::new();
+                    bad_path.push(self.chunk_path(digest).0);
+                    bad_path.set_extension(bad_ext);
+                    self.chunk_store.cond_touch_path(&bad_path, false)?;
+                }
             }
         }
         Ok(())
