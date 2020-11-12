@@ -707,8 +707,14 @@ pub struct Counts {
 
 #[api(
     properties: {
-        "gc-status": { type: GarbageCollectionStatus, },
-        counts: { type: Counts, }
+        "gc-status": {
+            type: GarbageCollectionStatus,
+            optional: true,
+        },
+        counts: {
+            type: Counts,
+            optional: true,
+        },
     },
 )]
 #[derive(Serialize, Deserialize)]
@@ -722,9 +728,11 @@ pub struct DataStoreStatus {
     /// Available space (bytes).
     pub avail: u64,
     /// Status of last GC
-    pub gc_status: GarbageCollectionStatus,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub gc_status: Option<GarbageCollectionStatus>,
     /// Group/Snapshot counts
-    pub counts: Counts,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub counts: Option<Counts>,
 }
 
 #[api(

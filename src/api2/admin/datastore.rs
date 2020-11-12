@@ -525,7 +525,14 @@ fn get_snapshots_count(store: &DataStore) -> Result<Counts, Error> {
             store: {
                 schema: DATASTORE_SCHEMA,
             },
+            verbose: {
+                type: bool,
+                default: false,
+                optional: true,
+                description: "Include additional information like snapshot counts and GC status.",
+            },
         },
+
     },
     returns: {
         type: DataStoreStatus,
@@ -537,13 +544,18 @@ fn get_snapshots_count(store: &DataStore) -> Result<Counts, Error> {
 /// Get datastore status.
 pub fn status(
     store: String,
+    verbose: bool,
     _info: &ApiMethod,
     _rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreStatus, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
     let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
-    let counts = get_snapshots_count(&datastore)?;
-    let gc_status = datastore.last_gc_status();
+    let (counts, gc_status) = match verbose {
+        true => {
+            (Some(get_snapshots_count(&datastore)?), Some(datastore.last_gc_status()))
+        },
+        false => (None, None),
+    };
 
     Ok(DataStoreStatus {
         total: storage.total,

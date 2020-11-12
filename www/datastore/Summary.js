@@ -78,7 +78,7 @@ Ext.define('PBS.DataStoreInfo', {
 	    let datastore = encodeURIComponent(view.datastore);
 	    me.store = Ext.create('Proxmox.data.ObjectStore', {
 		interval: 5*1000,
-		url: `/api2/json/admin/datastore/${datastore}/status`,
+		url: `/api2/json/admin/datastore/${datastore}/status/?verbose=true`,
 	    });
 	    me.store.on('load', me.onLoad, me);
 	},
