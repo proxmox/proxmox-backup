@@ -261,7 +261,7 @@ fn apt_get_changelog(
     },
 )]
 /// Get package information for important Proxmox Backup Server packages.
-pub fn get_versions() -> Result<Value, Error> {
+pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
     const PACKAGES: &[&str] = &[
         "ifupdown2",
         "libjs-extjs",
@@ -350,7 +350,7 @@ pub fn get_versions() -> Result<Value, Error> {
         }
     }
 
-    Ok(json!(packages))
+    Ok(packages)
 }
 
 const SUBDIRS: SubdirMap = &[

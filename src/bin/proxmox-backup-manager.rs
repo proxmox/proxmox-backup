@@ -383,14 +383,8 @@ async fn report() -> Result<Value, Error> {
 async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
     let output_format = get_output_format(&param);
 
-    let mut packages = if verbose {
-        crate::api2::node::apt::get_versions()?
-    } else {
-        // TODO: slice first element out in a nicer way?
-        let packages = crate::api2::node::apt::get_versions()?;
-        let packages = packages.as_array().unwrap();
-        Value::Array(vec![packages[0].to_owned()])
-    };
+    let packages = crate::api2::node::apt::get_versions()?;
+    let mut packages = json!(if verbose { &packages[..] } else { &packages[0..1] });
 
     let options = default_table_format_options()
         .disable_sort()
