@@ -5,7 +5,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::fs::File;
-use std::io::{self, BufRead, ErrorKind, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
 use std::os::unix::io::RawFd;
 use std::path::Path;
 
@@ -13,8 +13,6 @@ use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
 use percent_encoding::AsciiSet;
-
-use proxmox::tools::vec;
 
 pub use proxmox::tools::fd::Fd;
 
@@ -73,76 +71,6 @@ pub trait BufferedRead {
     /// returns a reference to the available data. It returns an empty
     /// buffer if `offset` points to the end of the file.
     fn buffered_read(&mut self, offset: u64) -> Result<&[u8], Error>;
-}
-
-/// Split a file into equal sized chunks. The last chunk may be
-/// smaller. Note: We cannot implement an `Iterator`, because iterators
-/// cannot return a borrowed buffer ref (we want zero-copy)
-pub fn file_chunker<C, R>(mut file: R, chunk_size: usize, mut chunk_cb: C) -> Result<(), Error>
-where
-    C: FnMut(usize, &[u8]) -> Result<bool, Error>,
-    R: Read,
-{
-    const READ_BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4M
-
-    if chunk_size > READ_BUFFER_SIZE {
-        bail!("chunk size too large!");
-    }
-
-    let mut buf = vec::undefined(READ_BUFFER_SIZE);
-
-    let mut pos = 0;
-    let mut file_pos = 0;
-    loop {
-        let mut eof = false;
-        let mut tmp = &mut buf[..];
-        // try to read large portions, at least chunk_size
-        while pos < chunk_size {
-            match file.read(tmp) {
-                Ok(0) => {
-                    eof = true;
-                    break;
-                }
-                Ok(n) => {
-                    pos += n;
-                    if pos > chunk_size {
-                        break;
-                    }
-                    tmp = &mut tmp[n..];
-                }
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => { /* try again */ }
-                Err(e) => bail!("read chunk failed - {}", e.to_string()),
-            }
-        }
-        let mut start = 0;
-        while start + chunk_size <= pos {
-            if !(chunk_cb)(file_pos, &buf[start..start + chunk_size])? {
-                break;
-            }
-            file_pos += chunk_size;
-            start += chunk_size;
-        }
-        if eof {
-            if start < pos {
-                (chunk_cb)(file_pos, &buf[start..pos])?;
-                //file_pos += pos - start;
-            }
-            break;
-        } else {
-            let rest = pos - start;
-            if rest > 0 {
-                let ptr = buf.as_mut_ptr();
-                unsafe {
-                    std::ptr::copy_nonoverlapping(ptr.add(start), ptr, rest);
-                }
-                pos = rest;
-            } else {
-                pos = 0;
-            }
-        }
-    }
-
-    Ok(())
 }
 
 pub fn json_object_to_query(data: Value) -> Result<String, Error> {
