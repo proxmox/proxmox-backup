@@ -344,18 +344,6 @@ impl BackupInfo {
         Ok(list)
     }
 
-    pub fn list_backups(base_path: &Path) -> Result<Vec<BackupInfo>, Error> {
-        let groups = BackupInfo::list_backup_groups(base_path)?;
-
-        groups
-            .into_iter()
-            .try_fold(Vec::new(), |mut snapshots, group| {
-                let group_snapshots = group.list_backups(base_path)?;
-                snapshots.extend(group_snapshots);
-                Ok(snapshots)
-            })
-    }
-
     pub fn is_finished(&self) -> bool {
         // backup is considered unfinished if there is no manifest
         self.files.iter().any(|name| name == super::MANIFEST_BLOB_NAME)
