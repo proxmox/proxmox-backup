@@ -168,7 +168,10 @@ fn list_groups(
             let owner = match datastore.get_owner(&group) {
                 Ok(auth_id) => auth_id,
                 Err(err) => {
-                    println!("Failed to get owner of group '{}' - {}", group, err);
+                    eprintln!("Failed to get owner of group '{}/{}' - {}",
+                             &store,
+                             group,
+                             err);
                     return group_info;
                 },
             };
@@ -481,7 +484,10 @@ fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Resu
             let owner = match store.get_owner(&group) {
                 Ok(owner) => owner,
                 Err(err) => {
-                    eprintln!("Failed to get owner of group '{}' - {}", group, err);
+                    eprintln!("Failed to get owner of group '{}/{}' - {}",
+                              store.name(),
+                              group,
+                              err);
                     return false;
                 },
             };
