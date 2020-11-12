@@ -303,10 +303,13 @@ pub fn get_versions() -> Result<Vec<APTUpdateInfo>, Error> {
         None,
     );
 
-    let running_kernel = nix::sys::utsname::uname().release().to_owned();
+    let running_kernel = format!(
+        "running kernel: {}", 
+        nix::sys::utsname::uname().release().to_owned()
+    );
     if let Some(proxmox_backup) = pbs_packages.iter().find(|pkg| pkg.package == "proxmox-backup") {
         let mut proxmox_backup = proxmox_backup.clone();
-        proxmox_backup.extra_info = Some(format!("running kernel: {}", running_kernel));
+        proxmox_backup.extra_info = Some(running_kernel);
         packages.push(proxmox_backup);
     } else {
         packages.push(unknown_package("proxmox-backup".into(), Some(running_kernel)));
