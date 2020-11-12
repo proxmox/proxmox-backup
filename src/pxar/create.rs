@@ -443,9 +443,10 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 Err(err) => bail!("stat failed on {:?}: {}", full_path, err),
             };
 
+            let match_path = PathBuf::from("/").join(full_path.clone());
             if self
                 .patterns
-                .matches(full_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
+                .matches(match_path.as_os_str().as_bytes(), Some(stat.st_mode as u32))
                 == Some(MatchType::Exclude)
             {
                 continue;
