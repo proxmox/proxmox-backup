@@ -692,7 +692,7 @@ pub struct TypeCounts {
         },
     },
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 /// Counts of groups/snapshots per BackupType.
 pub struct Counts {
     /// The counts for CT backups

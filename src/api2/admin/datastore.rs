@@ -472,51 +472,40 @@ pub fn list_snapshots (
         })
 }
 
-fn get_snapshots_count(store: &DataStore) -> Result<Counts, Error> {
+fn get_snapshots_count(store: &DataStore, filter_owner: Option<&Authid>) -> Result<Counts, Error> {
     let base_path = store.base_path();
-    let backup_list = BackupInfo::list_backups(&base_path)?;
-    let mut groups = HashSet::new();
+    let groups = BackupInfo::list_backup_groups(&base_path)?;
 
-    let mut result = Counts {
-        ct: None,
-        host: None,
-        vm: None,
-        other: None,
-    };
+    groups.iter()
+        .filter(|group| {
+            let owner = match store.get_owner(&group) {
+                Ok(owner) => owner,
+                Err(err) => {
+                    eprintln!("Failed to get owner of group '{}' - {}", group, err);
+                    return false;
+                },
+            };
 
-    for info in backup_list {
-        let group = info.backup_dir.group();
+            match filter_owner {
+                Some(filter) => check_backup_owner(&owner, filter).is_ok(),
+                None => true,
+            }
+        })
+        .try_fold(Counts::default(), |mut counts, group| {
+            let snapshot_count = group.list_backups(&base_path)?.len() as u64;
 
-        let id = group.backup_id();
-        let backup_type = group.backup_type();
+            let type_count = match group.backup_type() {
+                "ct" => counts.ct.get_or_insert(Default::default()),
+                "vm" => counts.vm.get_or_insert(Default::default()),
+                "host" => counts.host.get_or_insert(Default::default()),
+                _ => counts.other.get_or_insert(Default::default()),
+            };
 
-        let mut new_id = false;
+            type_count.groups += 1;
+            type_count.snapshots += snapshot_count;
 
-        if groups.insert(format!("{}-{}", &backup_type, &id)) {
-            new_id = true;
-        }
-
-        let mut counts = match backup_type {
-            "ct" => result.ct.take().unwrap_or(Default::default()),
-            "host" => result.host.take().unwrap_or(Default::default()),
-            "vm" => result.vm.take().unwrap_or(Default::default()),
-            _ => result.other.take().unwrap_or(Default::default()),
-        };
-
-        counts.snapshots += 1;
-        if new_id {
-            counts.groups +=1;
-        }
-
-        match backup_type {
-            "ct" => result.ct = Some(counts),
-            "host" => result.host = Some(counts),
-            "vm" => result.vm = Some(counts),
-            _ => result.other = Some(counts),
-        }
-    }
-
-    Ok(result)
+            Ok(counts)
+        })
 }
 
 #[api(
@@ -546,15 +535,27 @@ pub fn status(
     store: String,
     verbose: bool,
     _info: &ApiMethod,
-    _rpcenv: &mut dyn RpcEnvironment,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<DataStoreStatus, Error> {
     let datastore = DataStore::lookup_datastore(&store)?;
     let storage = crate::tools::disks::disk_usage(&datastore.base_path())?;
-    let (counts, gc_status) = match verbose {
-        true => {
-            (Some(get_snapshots_count(&datastore)?), Some(datastore.last_gc_status()))
-        },
-        false => (None, None),
+    let (counts, gc_status) = if verbose {
+        let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let user_info = CachedUserInfo::new()?;
+
+        let store_privs = user_info.lookup_privs(&auth_id, &["datastore", &store]);
+        let filter_owner = if store_privs & PRIV_DATASTORE_AUDIT != 0 {
+            None
+        } else {
+            Some(&auth_id)
+        };
+
+        let counts = Some(get_snapshots_count(&datastore, filter_owner)?);
+        let gc_status = Some(datastore.last_gc_status());
+
+        (counts, gc_status)
+    } else {
+        (None, None)
     };
 
     Ok(DataStoreStatus {
