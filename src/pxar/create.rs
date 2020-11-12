@@ -425,10 +425,6 @@ impl<'a, 'b> Archiver<'a, 'b> {
                 continue;
             }
 
-            if file_name_bytes == b".pxarexclude" {
-                continue;
-            }
-
             let os_file_name = OsStr::from_bytes(file_name_bytes);
             assert_single_path_component(os_file_name)?;
             let full_path = self.path.join(os_file_name);
