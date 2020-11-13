@@ -87,11 +87,15 @@ Ext.define('PBS.datastore.DataStoreList', {
 		delete me.datastores[store];
 	    }
 	}
+
+	let hasDatastores = Object.keys(me.datastores).length > 0;
+
+	me.getComponent('emptybox').setHidden(hasDatastores);
     },
 
     addSorted: function(data) {
 	let me = this;
-	let i = 0;
+	let i = 1;
 	let datastores = Object
 	    .keys(me.datastores)
 	    .sort((a, b) => a.localeCompare(b));
@@ -116,7 +120,13 @@ Ext.define('PBS.datastore.DataStoreList', {
 
     initComponent: function() {
 	let me = this;
-	me.items = [];
+	me.items = [
+	    {
+		itemId: 'emptybox',
+		xtype: 'box',
+		html: gettext('No Datastores configured'),
+	    },
+	];
 	me.datastores = {};
 	// todo make configurable?
 	me.since = (Date.now()/1000 - 30 * 24*3600).toFixed(0);
