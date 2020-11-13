@@ -84,6 +84,7 @@ Ext.define('PBS.datastore.DataStoreList', {
 	for (const [store, panel] of Object.entries(me.datastores)) {
 	    if (!found[store]) {
 		me.remove(panel);
+		delete me.datastores[store];
 	    }
 	}
     },
