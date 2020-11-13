@@ -534,6 +534,15 @@ impl HttpClient {
         self.request(req).await
     }
 
+    pub async fn put(
+        &mut self,
+        path: &str,
+        data: Option<Value>,
+    ) -> Result<Value, Error> {
+        let req = Self::request_builder(&self.server, self.port, "PUT", path, data)?;
+        self.request(req).await
+    }
+
     pub async fn download(
         &mut self,
         path: &str,
