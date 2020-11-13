@@ -264,6 +264,13 @@ Ext.define('PBS.DataStoreSummary', {
 		me.down('pbsDataStoreInfo').setTitle(`${me.datastore} (${path})`);
 		me.down('pbsDataStoreNotes').setNotes(response.result.data.comment);
 	    },
+	    failure: function(response) {
+		// fallback if e.g. we have no permissions to the config
+		let rec = Ext.getStore('pbs-datastore-list').findRecord('store', me.datastore);
+		if (rec) {
+		    me.down('pbsDataStoreNotes').setNotes(rec.data.comment || "");
+		}
+	    },
 	});
 
 	me.query('proxmoxRRDChart').forEach((chart) => {

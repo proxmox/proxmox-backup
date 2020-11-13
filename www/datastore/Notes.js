@@ -56,7 +56,7 @@ Ext.define('PBS.DataStoreNotes', {
 	    url: me.url,
 	    waitMsgTarget: me,
 	    failure: function(response, opts) {
-		me.update(gettext('Error') + " " + response.htmlStatus);
+		Ext.Msg.alert(gettext('Error'), response.htmlStatus);
 		me.setCollapsed(false);
 	    },
 	    success: function(response, opts) {
