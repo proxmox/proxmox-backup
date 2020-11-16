@@ -1,0 +1,643 @@
+use std::collections::HashMap;
+use std::fs::File;
+use std::time::Duration;
+
+use anyhow::{bail, format_err, Error};
+use serde::{de::Deserializer, Deserialize, Serialize};
+use serde_json::Value;
+
+use proxmox::api::api;
+use proxmox::sys::error::SysError;
+use proxmox::tools::tfa::totp::Totp;
+use proxmox::tools::tfa::u2f;
+use proxmox::tools::uuid::Uuid;
+
+use crate::api2::types::Userid;
+
+/// Mapping of userid to TFA entry.
+pub type TfaUsers = HashMap<Userid, TfaUserData>;
+
+const CONF_FILE: &str = configdir!("/tfa.json");
+const LOCK_FILE: &str = configdir!("/tfa.json.lock");
+const LOCK_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// U2F registration challenges time out after 2 minutes.
+const CHALLENGE_TIMEOUT: i64 = 2 * 60;
+
+#[derive(Deserialize, Serialize)]
+pub struct U2fConfig {
+    appid: String,
+}
+
+#[derive(Default, Deserialize, Serialize)]
+pub struct TfaConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub u2f: Option<U2fConfig>,
+    #[serde(skip_serializing_if = "TfaUsers::is_empty", default)]
+    pub users: TfaUsers,
+}
+
+/// Heper to get a u2f instance from a u2f config, or `None` if there isn't one configured.
+fn get_u2f(u2f: &Option<U2fConfig>) -> Option<u2f::U2f> {
+    u2f.as_ref().map(|cfg| u2f::U2f::new(cfg.appid.clone(), cfg.appid.clone()))
+}
+
+/// Heper to get a u2f instance from a u2f config.
+// deduplicate error message while working around self-borrow issue
+fn need_u2f(u2f: &Option<U2fConfig>) -> Result<u2f::U2f, Error> {
+    get_u2f(u2f).ok_or_else(|| format_err!("no u2f configuration available"))
+}
+
+impl TfaConfig {
+    fn u2f(&self) -> Option<u2f::U2f> {
+        get_u2f(&self.u2f)
+    }
+
+    fn need_u2f(&self) -> Result<u2f::U2f, Error> {
+        need_u2f(&self.u2f)
+    }
+
+    /// Get a two factor authentication challenge for a user, if the user has TFA set up.
+    pub fn login_challenge(&self, userid: &Userid) -> Result<Option<TfaChallenge>, Error> {
+        match self.users.get(userid) {
+            Some(udata) => udata.challenge(self.u2f().as_ref()),
+            None => Ok(None),
+        }
+    }
+
+    /// Get a u2f registration challenge.
+    fn u2f_registration_challenge(
+        &mut self,
+        user: &Userid,
+        description: String,
+    ) -> Result<String, Error> {
+        let u2f = self.need_u2f()?;
+
+        self.users
+            .entry(user.clone())
+            .or_default()
+            .u2f_registration_challenge(&u2f, description)
+    }
+
+    /// Finish a u2f registration challenge.
+    fn u2f_registration_finish(
+        &mut self,
+        user: &Userid,
+        challenge: &str,
+        response: &str,
+    ) -> Result<String, Error> {
+        let u2f = self.need_u2f()?;
+
+        match self.users.get_mut(user) {
+            Some(user) => user.u2f_registration_finish(&u2f, challenge, response),
+            None => bail!("no such challenge"),
+        }
+    }
+
+    /// Verify a TFA response.
+    fn verify(
+        &mut self,
+        userid: &Userid,
+        challenge: &TfaChallenge,
+        response: TfaResponse,
+    ) -> Result<(), Error> {
+        match self.users.get_mut(userid) {
+            Some(user) => {
+                match response {
+                    TfaResponse::Totp(value) => user.verify_totp(&value),
+                    TfaResponse::U2f(value) => match &challenge.u2f {
+                        Some(challenge) => {
+                            let u2f = need_u2f(&self.u2f)?;
+                            user.verify_u2f(u2f, &challenge.challenge, value)
+                        }
+                        None => bail!("no u2f factor available for user '{}'", userid),
+                    }
+                    TfaResponse::Recovery(value) => user.verify_recovery(&value),
+                }
+            }
+            None => bail!("no 2nd factor available for user '{}'", userid),
+        }
+    }
+}
+
+#[api]
+/// Over the API we only provide this part when querying a user's second factor list.
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TfaInfo {
+    /// The id used to reference this entry.
+    pub id: String,
+
+    /// User chosen description for this entry.
+    pub description: String,
+
+    /// Whether this TFA entry is currently enabled.
+    #[serde(skip_serializing_if = "is_default_tfa_enable")]
+    #[serde(default = "default_tfa_enable")]
+    pub enable: bool,
+}
+
+impl TfaInfo {
+    /// For recovery keys we have a fixed entry.
+    pub(crate) fn recovery() -> Self {
+        Self {
+            id: "recovery".to_string(),
+            description: "recovery keys".to_string(),
+            enable: true,
+        }
+    }
+}
+
+/// A TFA entry for a user.
+///
+/// This simply connects a raw registration to a non optional descriptive text chosen by the user.
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TfaEntry<T> {
+    #[serde(flatten)]
+    pub info: TfaInfo,
+
+    /// The actual entry.
+    entry: T,
+}
+
+impl<T> TfaEntry<T> {
+    /// Create an entry with a description. The id will be autogenerated.
+    fn new(description: String, entry: T) -> Self {
+        Self {
+            info: TfaInfo {
+                id: Uuid::generate().to_string(),
+                enable: true,
+                description,
+            },
+            entry,
+        }
+    }
+}
+
+/// A u2f registration challenge.
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct U2fRegistrationChallenge {
+    /// JSON formatted challenge string.
+    challenge: String,
+
+    /// The description chosen by the user for this registration.
+    description: String,
+
+    /// When the challenge was created as unix epoch. They are supposed to be short-lived.
+    created: i64,
+}
+
+impl U2fRegistrationChallenge {
+    pub fn new(challenge: String, description: String) -> Self {
+        Self {
+            challenge,
+            description,
+            created: proxmox::tools::time::epoch_i64(),
+        }
+    }
+
+    fn is_expired(&self, at_epoch: i64) -> bool {
+        self.created < at_epoch
+    }
+}
+
+/// TFA data for a user.
+#[derive(Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct TfaUserData {
+    /// Totp keys for a user.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub(crate) totp: Vec<TfaEntry<Totp>>,
+
+    /// Registered u2f tokens for a user.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub(crate) u2f: Vec<TfaEntry<u2f::Registration>>,
+
+    /// Recovery keys. (Unordered OTP values).
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub(crate) recovery: Vec<String>,
+
+    /// Active u2f registration challenges for a user.
+    ///
+    /// Expired values are automatically filtered out while parsing the tfa configuration file.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(deserialize_with = "filter_expired_registrations")]
+    u2f_registrations: Vec<U2fRegistrationChallenge>,
+}
+
+/// Serde helper using our `FilteredVecVisitor` to filter out expired entries directly at load
+/// time.
+fn filter_expired_registrations<'de, D>(
+    deserializer: D,
+) -> Result<Vec<U2fRegistrationChallenge>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+    Ok(
+        deserializer.deserialize_seq(crate::tools::serde_filter::FilteredVecVisitor::new(
+            "a u2f registration challenge entry",
+            move |reg: &U2fRegistrationChallenge| !reg.is_expired(expire_before),
+        ))?,
+    )
+}
+
+impl TfaUserData {
+    /// `true` if no second factors exist
+    pub fn is_empty(&self) -> bool {
+        self.totp.is_empty() && self.u2f.is_empty() && self.recovery.is_empty()
+    }
+
+    /// Find an entry by id, except for the "recovery" entry which we're currently treating
+    /// specially.
+    pub fn find_entry_mut<'a>(&'a mut self, id: &str) -> Option<&'a mut TfaInfo> {
+        for entry in &mut self.totp {
+            if entry.info.id == id {
+                return Some(&mut entry.info);
+            }
+        }
+
+        for entry in &mut self.u2f {
+            if entry.info.id == id {
+                return Some(&mut entry.info);
+            }
+        }
+
+        None
+    }
+
+    /// Create a u2f registration challenge.
+    ///
+    /// The description is required at this point already mostly to better be able to identify such
+    /// challenges in the tfa config file if necessary. The user otherwise has no access to this
+    /// information at this point, as the challenge is identified by its actual challenge data
+    /// instead.
+    fn u2f_registration_challenge(
+        &mut self,
+        u2f: &u2f::U2f,
+        description: String,
+    ) -> Result<String, Error> {
+        let challenge = serde_json::to_string(&u2f.registration_challenge()?)?;
+
+        self.u2f_registrations.push(U2fRegistrationChallenge::new(
+            challenge.clone(),
+            description,
+        ));
+
+        Ok(challenge)
+    }
+
+    /// Finish a u2f registration. The challenge should correspond to an output of
+    /// `u2f_registration_challenge` (which is a stringified `RegistrationChallenge`). The response
+    /// should come directly from the client.
+    fn u2f_registration_finish(
+        &mut self,
+        u2f: &u2f::U2f,
+        challenge: &str,
+        response: &str,
+    ) -> Result<String, Error> {
+        let expire_before = proxmox::tools::time::epoch_i64() - CHALLENGE_TIMEOUT;
+
+        let index = self
+            .u2f_registrations
+            .iter()
+            .position(|r| r.challenge == challenge)
+            .ok_or_else(|| format_err!("no such challenge"))?;
+
+        let reg = &self.u2f_registrations[index];
+        if reg.is_expired(expire_before) {
+            bail!("no such challenge");
+        }
+
+        // the verify call only takes the actual challenge string, so we have to extract it
+        // (u2f::RegistrationChallenge did not always implement Deserialize...)
+        let chobj: Value = serde_json::from_str(challenge)
+            .map_err(|err| format_err!("error parsing original registration challenge: {}", err))?;
+        let challenge = chobj["challenge"]
+            .as_str()
+            .ok_or_else(|| format_err!("invalid registration challenge"))?;
+
+        let (mut reg, description) = match u2f.registration_verify(challenge, response)? {
+            None => bail!("verification failed"),
+            Some(reg) => {
+                let entry = self.u2f_registrations.remove(index);
+                (reg, entry.description)
+            }
+        };
+
+        // we do not care about the attestation certificates, so don't store them
+        reg.certificate.clear();
+
+        let entry = TfaEntry::new(description, reg);
+        let id = entry.info.id.clone();
+        self.u2f.push(entry);
+        Ok(id)
+    }
+
+    /// Generate a generic TFA challenge. See the [`TfaChallenge`] description for details.
+    pub fn challenge(&self, u2f: Option<&u2f::U2f>) -> Result<Option<TfaChallenge>, Error> {
+        if self.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(TfaChallenge {
+            totp: self.totp.iter().any(|e| e.info.enable),
+            recovery: RecoveryState::from_count(self.recovery.len()),
+            u2f: match u2f {
+                Some(u2f) => self.u2f_challenge(u2f)?,
+                None => None,
+            },
+        }))
+    }
+
+    /// Helper to iterate over enabled totp entries.
+    fn enabled_totp_entries(&self) -> impl Iterator<Item = &Totp> {
+        self.totp
+            .iter()
+            .filter_map(|e| {
+                if e.info.enable {
+                    Some(&e.entry)
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Helper to iterate over enabled u2f entries.
+    fn enabled_u2f_entries(&self) -> impl Iterator<Item = &u2f::Registration> {
+        self.u2f
+            .iter()
+            .filter_map(|e| {
+                if e.info.enable {
+                    Some(&e.entry)
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Generate an optional u2f challenge.
+    fn u2f_challenge(&self, u2f: &u2f::U2f) -> Result<Option<U2fChallenge>, Error> {
+        if self.u2f.is_empty() {
+            return Ok(None);
+        }
+
+        let keys: Vec<u2f::RegisteredKey> = self
+            .enabled_u2f_entries()
+            .map(|registration| registration.key.clone())
+            .collect();
+
+        if keys.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(U2fChallenge {
+            challenge: u2f.auth_challenge()?,
+            keys,
+        }))
+    }
+
+    /// Verify a totp challenge. The `value` should be the totp digits as plain text.
+    fn verify_totp(&self, value: &str) -> Result<(), Error> {
+        let now = std::time::SystemTime::now();
+
+        for entry in self.enabled_totp_entries() {
+            if entry.verify(value, now, -1..=1)?.is_some() {
+                return Ok(());
+            }
+        }
+
+        bail!("totp verification failed");
+    }
+
+    /// Verify a u2f response.
+    fn verify_u2f(
+        &self,
+        u2f: u2f::U2f,
+        challenge: &u2f::AuthChallenge,
+        response: Value,
+    ) -> Result<(), Error> {
+        let response: u2f::AuthResponse = serde_json::from_value(response)
+            .map_err(|err| format_err!("invalid u2f response: {}", err))?;
+
+        if let Some(entry) = self
+            .enabled_u2f_entries()
+            .find(|e| e.key.key_handle == response.key_handle)
+        {
+            if u2f.auth_verify_obj(&entry.public_key, &challenge.challenge, response)?.is_some() {
+                return Ok(());
+            }
+        }
+
+        bail!("u2f verification failed");
+    }
+
+    /// Verify a recovery key.
+    ///
+    /// NOTE: If successful, the key will automatically be removed from the list of available
+    /// recovery keys, so the configuration needs to be saved afterwards!
+    fn verify_recovery(&mut self, value: &str) -> Result<(), Error> {
+        match self.recovery.iter().position(|v| v == value) {
+            Some(idx) => {
+                self.recovery.remove(idx);
+                Ok(())
+            }
+            None => bail!("recovery verification failed"),
+        }
+    }
+
+    /// Add a new set of recovery keys. There can only be 1 set of keys at a time.
+    fn add_recovery(&mut self) -> Result<Vec<String>, Error> {
+        if !self.recovery.is_empty() {
+            bail!("user already has recovery keys");
+        }
+
+        let mut key_data = [0u8; 40]; // 10 keys of 32 bits
+        proxmox::sys::linux::fill_with_random_data(&mut key_data)?;
+        for b in key_data.chunks(4) {
+            self.recovery.push(format!("{:02x}{:02x}{:02x}{:02x}", b[0], b[1], b[2], b[3]));
+        }
+
+        Ok(self.recovery.clone())
+    }
+}
+
+/// Read the TFA entries.
+pub fn read() -> Result<TfaConfig, Error> {
+    let file = match File::open(CONF_FILE) {
+        Ok(file) => file,
+        Err(ref err) if err.not_found() => return Ok(TfaConfig::default()),
+        Err(err) => return Err(err.into()),
+    };
+
+    Ok(serde_json::from_reader(file)?)
+}
+
+/// Requires the write lock to be held.
+pub fn write(data: &TfaConfig) -> Result<(), Error> {
+    let options = proxmox::tools::fs::CreateOptions::new()
+        .perm(nix::sys::stat::Mode::from_bits_truncate(0o0600));
+
+    let json = serde_json::to_vec(data)?;
+    proxmox::tools::fs::replace_file(CONF_FILE, &json, options)
+}
+
+pub fn read_lock() -> Result<File, Error> {
+    proxmox::tools::fs::open_file_locked(LOCK_FILE, LOCK_TIMEOUT, false)
+}
+
+pub fn write_lock() -> Result<File, Error> {
+    proxmox::tools::fs::open_file_locked(LOCK_FILE, LOCK_TIMEOUT, true)
+}
+
+/// Add a TOTP entry for a user. Returns the ID.
+pub fn add_totp(userid: &Userid, description: String, value: Totp) -> Result<String, Error> {
+    let _lock = crate::config::tfa::write_lock();
+    let mut data = read()?;
+    let entry = TfaEntry::new(description, value);
+    let id = entry.info.id.clone();
+    data.users
+        .entry(userid.clone())
+        .or_default()
+        .totp
+        .push(entry);
+    write(&data)?;
+    Ok(id)
+}
+
+/// Add recovery tokens for the user. Returns the token list.
+pub fn add_recovery(userid: &Userid) -> Result<Vec<String>, Error> {
+    let _lock = crate::config::tfa::write_lock();
+
+    let mut data = read()?;
+    let out = data.users.entry(userid.clone()).or_default().add_recovery()?;
+    write(&data)?;
+    Ok(out)
+}
+
+/// Add a u2f registration challenge for a user.
+pub fn add_u2f_registration(userid: &Userid, description: String) -> Result<String, Error> {
+    let _lock = crate::config::tfa::write_lock();
+    let mut data = read()?;
+    let challenge = data.u2f_registration_challenge(userid, description)?;
+    write(&data)?;
+    Ok(challenge)
+}
+
+/// Finish a u2f registration challenge for a user.
+pub fn finish_u2f_registration(
+    userid: &Userid,
+    challenge: &str,
+    response: &str,
+) -> Result<String, Error> {
+    let _lock = crate::config::tfa::write_lock();
+    let mut data = read()?;
+    let challenge = data.u2f_registration_finish(userid, challenge, response)?;
+    write(&data)?;
+    Ok(challenge)
+}
+
+/// Verify a TFA challenge.
+pub fn verify_challenge(
+    userid: &Userid,
+    challenge: &TfaChallenge,
+    response: TfaResponse,
+) -> Result<(), Error> {
+    let _lock = crate::config::tfa::write_lock();
+    let mut data = read()?;
+    data.verify(userid, challenge, response)?;
+    write(&data)?;
+    Ok(())
+}
+
+/// Used to inform the user about the recovery code status.
+#[derive(Clone, Copy, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecoveryState {
+    Unavailable,
+    Low,
+    Available,
+}
+
+impl RecoveryState {
+    fn from_count(count: usize) -> Self {
+        match count {
+            0 => RecoveryState::Unavailable,
+            1..=3 => RecoveryState::Low,
+            _ => RecoveryState::Available,
+        }
+    }
+
+    // serde needs `&self` but this is a tiny Copy type, so we mark this as inline
+    #[inline]
+    fn is_unavailable(&self) -> bool {
+        *self == RecoveryState::Unavailable
+    }
+}
+
+impl Default for RecoveryState {
+    fn default() -> Self {
+        RecoveryState::Unavailable
+    }
+}
+
+/// When sending a TFA challenge to the user, we include information about what kind of challenge
+/// the user may perform. If u2f devices are available, a u2f challenge will be included.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct TfaChallenge {
+    /// True if the user has TOTP devices.
+    totp: bool,
+
+    /// Whether there are recovery keys available.
+    #[serde(skip_serializing_if = "RecoveryState::is_unavailable", default)]
+    recovery: RecoveryState,
+
+    /// If the user has any u2f tokens registered, this will contain the U2F challenge data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    u2f: Option<U2fChallenge>,
+}
+
+/// Data used for u2f challenges.
+#[derive(Deserialize, Serialize)]
+pub struct U2fChallenge {
+    /// AppID and challenge data.
+    challenge: u2f::AuthChallenge,
+
+    /// Available tokens/keys.
+    keys: Vec<u2f::RegisteredKey>,
+}
+
+/// A user's response to a TFA challenge.
+pub enum TfaResponse {
+    Totp(String),
+    U2f(Value),
+    Recovery(String),
+}
+
+impl std::str::FromStr for TfaResponse {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        Ok(if s.starts_with("totp:") {
+            TfaResponse::Totp(s[5..].to_string())
+        } else if s.starts_with("u2f:") {
+            TfaResponse::U2f(serde_json::from_str(&s[4..])?)
+        } else if s.starts_with("recovery:") {
+            TfaResponse::Recovery(s[9..].to_string())
+        } else {
+            bail!("invalid tfa response");
+        })
+    }
+}
+
+const fn default_tfa_enable() -> bool {
+    true
+}
+
+const fn is_default_tfa_enable(v: &bool) -> bool {
+    *v
+}
