@@ -600,8 +600,9 @@ fn check_auth(
             let ticket = user_auth_data.ticket.clone();
             let ticket_lifetime = tools::ticket::TICKET_LIFETIME;
 
-            let userid: Userid = Ticket::parse(&ticket)?
-                .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?;
+            let userid: Userid = Ticket::<super::ticket::ApiTicket>::parse(&ticket)?
+                .verify_with_time_frame(public_auth_key(), "PBS", None, -300..ticket_lifetime)?
+                .require_full()?;
 
             let auth_id = Authid::from(userid.clone());
             if !user_info.is_active_auth_id(&auth_id) {

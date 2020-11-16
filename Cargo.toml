@@ -68,6 +68,7 @@ udev = ">= 0.3, <0.5"
 url = "2.1"
 #valgrind_request = { git = "https://github.com/edef1c/libvalgrind_request", version = "1.1.0", optional = true }
 walkdir = "2"
+webauthn-rs = "0.2.5"
 xdg = "2.2"
 zstd = { version = "0.4", features = [ "bindgen" ] }
 nom = "5.1"

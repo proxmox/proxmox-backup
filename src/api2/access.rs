@@ -4,33 +4,46 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use proxmox::api::{api, RpcEnvironment, Permission};
 use proxmox::api::router::{Router, SubdirMap};
-use proxmox::{sortable, identity};
+use proxmox::api::{api, Permission, RpcEnvironment};
 use proxmox::{http_err, list_subdirs_api_method};
+use proxmox::{identity, sortable};
 
-use crate::tools::ticket::{self, Empty, Ticket};
-use crate::auth_helpers::*;
 use crate::api2::types::*;
+use crate::auth_helpers::*;
+use crate::server::ticket::ApiTicket;
+use crate::tools::ticket::{self, Empty, Ticket};
 
 use crate::config::acl as acl_config;
-use crate::config::acl::{PRIVILEGES, PRIV_SYS_AUDIT, PRIV_PERMISSIONS_MODIFY};
+use crate::config::acl::{PRIVILEGES, PRIV_PERMISSIONS_MODIFY, PRIV_SYS_AUDIT};
 use crate::config::cached_user_info::CachedUserInfo;
+use crate::config::tfa::TfaChallenge;
 
-pub mod user;
-pub mod domain;
 pub mod acl;
+pub mod domain;
 pub mod role;
+pub mod tfa;
+pub mod user;
 
-/// returns Ok(true) if a ticket has to be created
-/// and Ok(false) if not
+enum AuthResult {
+    /// Successful authentication which does not require a new ticket.
+    Success,
+
+    /// Successful authentication which requires a ticket to be created.
+    CreateTicket,
+
+    /// A partial ticket which requires a 2nd factor will be created.
+    Partial(TfaChallenge),
+}
+
 fn authenticate_user(
     userid: &Userid,
     password: &str,
     path: Option<String>,
     privs: Option<String>,
     port: Option<u16>,
-) -> Result<bool, Error> {
+    tfa_challenge: Option<String>,
+) -> Result<AuthResult, Error> {
     let user_info = CachedUserInfo::new()?;
 
     let auth_id = Authid::from(userid.clone());
@@ -38,12 +51,16 @@ fn authenticate_user(
         bail!("user account disabled or expired.");
     }
 
+    if let Some(tfa_challenge) = tfa_challenge {
+        return authenticate_2nd(userid, &tfa_challenge, password);
+    }
+
     if password.starts_with("PBS:") {
         if let Ok(ticket_userid) = Ticket::<Userid>::parse(password)
             .and_then(|ticket| ticket.verify(public_auth_key(), "PBS", None))
         {
             if *userid == ticket_userid {
-                return Ok(true);
+                return Ok(AuthResult::CreateTicket);
             }
             bail!("ticket login failed - wrong userid");
         }
@@ -53,17 +70,17 @@ fn authenticate_user(
         }
 
         let path = path.ok_or_else(|| format_err!("missing path for termproxy ticket"))?;
-        let privilege_name = privs
-            .ok_or_else(|| format_err!("missing privilege name for termproxy ticket"))?;
+        let privilege_name =
+            privs.ok_or_else(|| format_err!("missing privilege name for termproxy ticket"))?;
         let port = port.ok_or_else(|| format_err!("missing port for termproxy ticket"))?;
 
-        if let Ok(Empty) = Ticket::parse(password)
-            .and_then(|ticket| ticket.verify(
+        if let Ok(Empty) = Ticket::parse(password).and_then(|ticket| {
+            ticket.verify(
                 public_auth_key(),
                 ticket::TERM_PREFIX,
                 Some(&ticket::term_aad(userid, &path, port)),
-            ))
-        {
+            )
+        }) {
             for (name, privilege) in PRIVILEGES {
                 if *name == privilege_name {
                     let mut path_vec = Vec::new();
@@ -73,7 +90,7 @@ fn authenticate_user(
                         }
                     }
                     user_info.check_privs(&auth_id, &path_vec, *privilege, false)?;
-                    return Ok(false);
+                    return Ok(AuthResult::Success);
                 }
             }
 
@@ -81,8 +98,26 @@ fn authenticate_user(
         }
     }
 
-    let _ = crate::auth::authenticate_user(userid, password)?;
-    Ok(true)
+    let _: () = crate::auth::authenticate_user(userid, password)?;
+
+    Ok(match crate::config::tfa::login_challenge(userid)? {
+        None => AuthResult::CreateTicket,
+        Some(challenge) => AuthResult::Partial(challenge),
+    })
+}
+
+fn authenticate_2nd(
+    userid: &Userid,
+    challenge_ticket: &str,
+    response: &str,
+) -> Result<AuthResult, Error> {
+    let challenge: TfaChallenge = Ticket::<ApiTicket>::parse(&challenge_ticket)?
+        .verify_with_time_frame(public_auth_key(), "PBS", Some(userid.as_str()), -120..240)?
+        .require_partial()?;
+
+    let _: () = crate::config::tfa::verify_challenge(userid, &challenge, response.parse()?)?;
+
+    Ok(AuthResult::CreateTicket)
 }
 
 #[api(
@@ -107,6 +142,11 @@ fn authenticate_user(
             port: {
                 type: Integer,
                 description: "Port for verifying terminal tickets.",
+                optional: true,
+            },
+            "tfa-challenge": {
+                type: String,
+                description: "The signed TFA challenge string the user wants to respond to.",
                 optional: true,
             },
         },
@@ -141,15 +181,18 @@ fn create_ticket(
     path: Option<String>,
     privs: Option<String>,
     port: Option<u16>,
+    tfa_challenge: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-    match authenticate_user(&username, &password, path, privs, port) {
-        Ok(true) => {
-            let ticket = Ticket::new("PBS", &username)?.sign(private_auth_key(), None)?;
-
+    match authenticate_user(&username, &password, path, privs, port, tfa_challenge) {
+        Ok(AuthResult::Success) => Ok(json!({ "username": username })),
+        Ok(AuthResult::CreateTicket) => {
+            let api_ticket = ApiTicket::full(username.clone());
+            let ticket = Ticket::new("PBS", &api_ticket)?.sign(private_auth_key(), None)?;
             let token = assemble_csrf_prevention_token(csrf_secret(), &username);
 
-            crate::server::rest::auth_logger()?.log(format!("successful auth for user '{}'", username));
+            crate::server::rest::auth_logger()?
+                .log(format!("successful auth for user '{}'", username));
 
             Ok(json!({
                 "username": username,
@@ -157,9 +200,15 @@ fn create_ticket(
                 "CSRFPreventionToken": token,
             }))
         }
-        Ok(false) => Ok(json!({
-            "username": username,
-        })),
+        Ok(AuthResult::Partial(challenge)) => {
+            let api_ticket = ApiTicket::partial(challenge);
+            let ticket = Ticket::new("PBS", &api_ticket)?
+                .sign(private_auth_key(), Some(username.as_str()))?;
+            Ok(json!({
+                "username": username,
+                "ticket": ticket,
+            }))
+        }
         Err(err) => {
             let client_ip = match rpcenv.get_client_ip().map(|addr| addr.ip()) {
                 Some(ip) => format!("{}", ip),
@@ -219,12 +268,16 @@ fn change_password(
 
     let mut allowed = userid == *current_user;
 
-    if current_user == "root@pam" { allowed = true; }
+    if current_user == "root@pam" {
+        allowed = true;
+    }
 
     if !allowed {
         let user_info = CachedUserInfo::new()?;
         let privs = user_info.lookup_privs(&current_auth, &[]);
-        if (privs & PRIV_PERMISSIONS_MODIFY) != 0 { allowed = true; }
+        if (privs & PRIV_PERMISSIONS_MODIFY) != 0 {
+            allowed = true;
+        }
     }
 
     if !allowed {
@@ -281,12 +334,13 @@ pub fn list_permissions(
                     auth_id
                 } else if auth_id.is_token()
                     && !current_auth_id.is_token()
-                    && auth_id.user() == current_auth_id.user() {
+                    && auth_id.user() == current_auth_id.user()
+                {
                     auth_id
                 } else {
                     bail!("not allowed to list permissions of {}", auth_id);
                 }
-            },
+            }
             None => current_auth_id,
         }
     } else {
@@ -296,11 +350,10 @@ pub fn list_permissions(
         }
     };
 
-
     fn populate_acl_paths(
         mut paths: HashSet<String>,
         node: acl_config::AclTreeNode,
-        path: &str
+        path: &str,
     ) -> HashSet<String> {
         for (sub_path, child_node) in node.children {
             let sub_path = format!("{}/{}", path, &sub_path);
@@ -315,7 +368,7 @@ pub fn list_permissions(
             let mut paths = HashSet::new();
             paths.insert(path);
             paths
-        },
+        }
         None => {
             let mut paths = HashSet::new();
 
@@ -330,31 +383,35 @@ pub fn list_permissions(
             paths.insert("/system".to_string());
 
             paths
-        },
+        }
     };
 
-    let map = paths
-        .into_iter()
-        .fold(HashMap::new(), |mut map: HashMap<String, HashMap<String, bool>>, path: String| {
+    let map = paths.into_iter().fold(
+        HashMap::new(),
+        |mut map: HashMap<String, HashMap<String, bool>>, path: String| {
             let split_path = acl_config::split_acl_path(path.as_str());
             let (privs, propagated_privs) = user_info.lookup_privs_details(&auth_id, &split_path);
 
             match privs {
                 0 => map, // Don't leak ACL paths where we don't have any privileges
                 _ => {
-                    let priv_map = PRIVILEGES
-                        .iter()
-                        .fold(HashMap::new(), |mut priv_map, (name, value)| {
-                            if value & privs != 0 {
-                                priv_map.insert(name.to_string(), value & propagated_privs != 0);
-                            }
-                            priv_map
-                        });
+                    let priv_map =
+                        PRIVILEGES
+                            .iter()
+                            .fold(HashMap::new(), |mut priv_map, (name, value)| {
+                                if value & privs != 0 {
+                                    priv_map
+                                        .insert(name.to_string(), value & propagated_privs != 0);
+                                }
+                                priv_map
+                            });
 
                     map.insert(path, priv_map);
                     map
-                },
-            }});
+                }
+            }
+        },
+    );
 
     Ok(map)
 }
@@ -362,21 +419,16 @@ pub fn list_permissions(
 #[sortable]
 const SUBDIRS: SubdirMap = &sorted!([
     ("acl", &acl::ROUTER),
+    ("password", &Router::new().put(&API_METHOD_CHANGE_PASSWORD)),
     (
-        "password", &Router::new()
-            .put(&API_METHOD_CHANGE_PASSWORD)
+        "permissions",
+        &Router::new().get(&API_METHOD_LIST_PERMISSIONS)
     ),
-    (
-        "permissions", &Router::new()
-            .get(&API_METHOD_LIST_PERMISSIONS)
-    ),
-    (
-        "ticket", &Router::new()
-            .post(&API_METHOD_CREATE_TICKET)
-    ),
+    ("ticket", &Router::new().post(&API_METHOD_CREATE_TICKET)),
     ("domains", &domain::ROUTER),
     ("roles", &role::ROUTER),
     ("users", &user::ROUTER),
+    ("tfa", &tfa::ROUTER),
 ]);
 
 pub const ROUTER: Router = Router::new()

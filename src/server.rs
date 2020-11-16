@@ -87,3 +87,5 @@ pub use email_notifications::*;
 
 mod report;
 pub use report::*;
+
+pub mod ticket;
