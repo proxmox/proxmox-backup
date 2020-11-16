@@ -123,6 +123,7 @@ Ext.define('PBS.datastore.DataStoreList', {
 	me.items = [
 	    {
 		itemId: 'emptybox',
+		hidden: true,
 		xtype: 'box',
 		html: gettext('No Datastores configured'),
 	    },
