@@ -875,6 +875,11 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
                    description: "Path to file.",
                }
            },
+           "all-file-systems": {
+               type: Boolean,
+               description: "Include all mounted subdirectories.",
+               optional: true,
+           },
            keyfile: {
                schema: KEYFILE_SCHEMA,
                optional: true,
