@@ -86,6 +86,7 @@ async fn run() -> Result<(), Error> {
 
     config.add_alias("novnc", "/usr/share/novnc-pve");
     config.add_alias("extjs", "/usr/share/javascript/extjs");
+    config.add_alias("qrcodejs", "/usr/share/javascript/qrcodejs");
     config.add_alias("fontawesome", "/usr/share/fonts-font-awesome");
     config.add_alias("xtermjs", "/usr/share/pve-xtermjs");
     config.add_alias("locale", "/usr/share/pbs-i18n");
