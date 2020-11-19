@@ -12,7 +12,7 @@ use std::path::Path;
 use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 use openssl::hash::{hash, DigestBytes, MessageDigest};
-use percent_encoding::AsciiSet;
+use percent_encoding::{utf8_percent_encode, AsciiSet};
 
 pub use proxmox::tools::fd::Fd;
 
@@ -287,6 +287,11 @@ pub fn extract_cookie(cookie: &str, cookie_name: &str) -> Option<String> {
     }
 
     None
+}
+
+/// percent encode a url component
+pub fn percent_encode_component(comp: &str) -> String {
+    utf8_percent_encode(comp, percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
 pub fn join(data: &Vec<String>, sep: char) -> String {

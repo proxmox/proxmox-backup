@@ -124,7 +124,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
 
     let mut client = connect(&repo)?;
 
-    let path = format!("api2/json/nodes/localhost/tasks/{}", upid_str);
+    let path = format!("api2/json/nodes/localhost/tasks/{}", tools::percent_encode_component(upid_str));
     let _ = client.delete(&path, None).await?;
 
     Ok(Value::Null)

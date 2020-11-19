@@ -2,6 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::json;
 
 use super::HttpClient;
+use crate::tools;
 
 pub async fn display_task_log(
     client: HttpClient,
@@ -9,7 +10,7 @@ pub async fn display_task_log(
     strip_date: bool,
 ) -> Result<(), Error> {
 
-    let path = format!("api2/json/nodes/localhost/tasks/{}/log", upid_str);
+    let path = format!("api2/json/nodes/localhost/tasks/{}/log", tools::percent_encode_component(upid_str));
 
     let mut start = 1;
     let limit = 500;
