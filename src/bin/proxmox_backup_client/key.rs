@@ -4,9 +4,16 @@ use std::process::{Stdio, Command};
 
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use proxmox::api::api;
-use proxmox::api::cli::{CliCommand, CliCommandMap};
+use proxmox::api::cli::{
+    CliCommand,
+    CliCommandMap,
+    format_and_print_result,
+    get_output_format,
+    OUTPUT_FORMAT,
+};
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
@@ -16,6 +23,7 @@ use proxmox_backup::backup::{
     store_key_config,
     CryptConfig,
     KeyConfig,
+    KeyDerivationConfig,
 };
 use proxmox_backup::tools;
 
@@ -233,6 +241,59 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
     input: {
         properties: {
             path: {
+                description: "Key file. Without this the default key's metadata will be shown.",
+                optional: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Print the encryption key's metadata.
+fn show_key(
+    path: Option<String>,
+    param: Value,
+) -> Result<(), Error> {
+    let path = match path {
+        Some(path) => PathBuf::from(path),
+        None => {
+            let path = find_default_encryption_key()?
+                .ok_or_else(|| {
+                    format_err!("no encryption file provided and no default file found")
+                })?;
+            path
+        }
+    };
+
+    let output_format = get_output_format(&param);
+    let config: KeyConfig = serde_json::from_slice(&file_get_contents(path.clone())?)?;
+
+    if output_format == "text" {
+        println!("Path: {:?}", path);
+        match config.kdf {
+            Some(KeyDerivationConfig::PBKDF2 { .. }) => println!("KDF: pbkdf2"),
+            Some(KeyDerivationConfig::Scrypt { .. }) => println!("KDF: scrypt"),
+            None => println!("KDF: none (plaintext key)"),
+        };
+        println!("Created: {}", proxmox::tools::time::epoch_to_rfc3339_utc(config.created)?);
+        println!("Modified: {}", proxmox::tools::time::epoch_to_rfc3339_utc(config.modified)?);
+        match config.fingerprint {
+            Some(fp) => println!("Fingerprint: {}", fp),
+            None => println!("Fingerprint: none (legacy key)"),
+        };
+    } else {
+        format_and_print_result(&serde_json::to_value(config)?, &output_format);
+    }
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            path: {
                 description: "Path to the PEM formatted RSA public key.",
             },
         },
@@ -348,6 +409,10 @@ pub fn cli() -> CliCommandMap {
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
+    let key_show_cmd_def = CliCommand::new(&API_METHOD_SHOW_KEY)
+        .arg_param(&["path"])
+        .completion_cb("path", tools::complete_file_name);
+
     let paper_key_cmd_def = CliCommand::new(&API_METHOD_PAPER_KEY)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -357,6 +422,7 @@ pub fn cli() -> CliCommandMap {
         .insert("create-master-key", key_create_master_key_cmd_def)
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)
+        .insert("show", key_show_cmd_def)
         .insert("paperkey", paper_key_cmd_def)
 }
 
