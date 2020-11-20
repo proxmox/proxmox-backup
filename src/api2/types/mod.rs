@@ -5,7 +5,7 @@ use proxmox::api::{api, schema::*};
 use proxmox::const_regex;
 use proxmox::{IPRE, IPRE_BRACKET, IPV4RE, IPV6RE, IPV4OCTET, IPV6H16, IPV6LS32};
 
-use crate::backup::{CryptMode, BACKUP_ID_REGEX};
+use crate::backup::{CryptMode, Fingerprint, BACKUP_ID_REGEX};
 use crate::server::UPID;
 
 #[macro_use]
@@ -484,6 +484,10 @@ pub struct SnapshotVerifyState {
             type: SnapshotVerifyState,
             optional: true,
         },
+        fingerprint: {
+            type: String,
+            optional: true,
+        },
         files: {
             items: {
                 schema: BACKUP_ARCHIVE_NAME_SCHEMA
@@ -508,6 +512,9 @@ pub struct SnapshotListItem {
     /// The result of the last run verify task
     #[serde(skip_serializing_if="Option::is_none")]
     pub verification: Option<SnapshotVerifyState>,
+    /// Fingerprint of encryption key
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub fingerprint: Option<Fingerprint>,
     /// List of contained archive files.
     pub files: Vec<BackupContent>,
     /// Overall snapshot size (sum of all archive sizes).

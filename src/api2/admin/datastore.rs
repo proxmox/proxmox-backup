@@ -403,6 +403,14 @@ pub fn list_snapshots (
                     .and_then(|notes| notes.lines().next())
                     .map(String::from);
 
+                let fingerprint = match manifest.fingerprint() {
+                    Ok(fp) => fp,
+                    Err(err) => {
+                        eprintln!("error parsing fingerprint: '{}'", err);
+                        None
+                    },
+                };
+
                 let verification = manifest.unprotected["verify_state"].clone();
                 let verification: Option<SnapshotVerifyState> = match serde_json::from_value(verification) {
                     Ok(verify) => verify,
@@ -420,6 +428,7 @@ pub fn list_snapshots (
                     backup_time,
                     comment,
                     verification,
+                    fingerprint,
                     files,
                     size,
                     owner,
@@ -443,6 +452,7 @@ pub fn list_snapshots (
                     backup_time,
                     comment: None,
                     verification: None,
+                    fingerprint: None,
                     files,
                     size: None,
                     owner,
