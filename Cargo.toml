@@ -48,7 +48,7 @@ percent-encoding = "2.1"
 pin-utils = "0.1.0"
 pin-project = "0.4"
 pathpatterns = "0.1.2"
-proxmox = { version = "0.7.0", features = [ "sortable-macro", "api-macro", "websocket" ] }
+proxmox = { version = "0.7.1", features = [ "sortable-macro", "api-macro", "websocket" ] }
 #proxmox = { git = "git://git.proxmox.com/git/proxmox", version = "0.1.2", features = [ "sortable-macro", "api-macro" ] }
 #proxmox = { path = "../proxmox/proxmox", features = [ "sortable-macro", "api-macro", "websocket" ] }
 proxmox-fuse = "0.1.0"
