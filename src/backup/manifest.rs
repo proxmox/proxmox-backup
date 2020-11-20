@@ -5,7 +5,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 use ::serde::{Deserialize, Serialize};
 
-use crate::backup::{BackupDir, CryptMode, CryptConfig};
+use crate::backup::{BackupDir, CryptMode, CryptConfig, Fingerprint};
 
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
@@ -223,10 +223,46 @@ impl BackupManifest {
         if let Some(crypt_config) = crypt_config {
             let sig = self.signature(crypt_config)?;
             manifest["signature"] = proxmox::tools::digest_to_hex(&sig).into();
+            let fingerprint = &crypt_config.fingerprint();
+            manifest["unprotected"]["key-fingerprint"] = serde_json::to_value(fingerprint)?;
         }
 
         let manifest = serde_json::to_string_pretty(&manifest).unwrap().into();
         Ok(manifest)
+    }
+
+    pub fn fingerprint(&self) -> Result<Option<Fingerprint>, Error> {
+        match &self.unprotected["key-fingerprint"] {
+            Value::Null => Ok(None),
+            value => Ok(Some(serde_json::from_value(value.clone())?))
+        }
+    }
+
+    /// Checks if a BackupManifest and a CryptConfig share a valid fingerprint combination.
+    ///
+    /// An unsigned manifest is valid with any or no CryptConfig.
+    /// A signed manifest is only valid with a matching CryptConfig.
+    pub fn check_fingerprint(&self, crypt_config: Option<&CryptConfig>) -> Result<(), Error> {
+        if let Some(fingerprint) = self.fingerprint()? {
+            match crypt_config {
+                None => bail!(
+                    "missing key - manifest was created with key {}",
+                    fingerprint,
+                ),
+                Some(crypt_config) => {
+                    let config_fp = crypt_config.fingerprint();
+                    if config_fp != fingerprint {
+                        bail!(
+                            "wrong key - manifest's key {} does not match provided key {}",
+                            fingerprint,
+                            config_fp
+                        );
+                    }
+                }
+            }
+        };
+
+        Ok(())
     }
 
     /// Try to read the manifest. This verifies the signature if there is a crypt_config.
