@@ -73,7 +73,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     let crypt_config = match keydata {
         None => None,
         Some(key) => {
-            let (key, _created) = decrypt_key(&key, &get_encryption_key_password)?;
+            let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }
@@ -170,7 +170,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
     let crypt_config = match keydata {
         None => None,
         Some(key) => {
-            let (key, _created) = decrypt_key(&key, &get_encryption_key_password)?;
+            let (key, _created, _fingerprint) = decrypt_key(&key, &get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }

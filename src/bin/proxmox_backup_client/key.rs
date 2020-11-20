@@ -11,7 +11,11 @@ use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
 use proxmox_backup::backup::{
-    encrypt_key_with_passphrase, load_and_decrypt_key, store_key_config, KeyConfig,
+    encrypt_key_with_passphrase,
+    load_and_decrypt_key,
+    store_key_config,
+    CryptConfig,
+    KeyConfig,
 };
 use proxmox_backup::tools;
 
@@ -120,7 +124,10 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
     let kdf = kdf.unwrap_or_default();
 
-    let key = proxmox::sys::linux::random_data(32)?;
+    let mut key_array = [0u8; 32];
+    proxmox::sys::linux::fill_with_random_data(&mut key_array)?;
+    let crypt_config = CryptConfig::new(key_array.clone())?;
+    let key = key_array.to_vec();
 
     match kdf {
         Kdf::None => {
@@ -134,6 +141,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
                     created,
                     modified: created,
                     data: key,
+                    fingerprint: Some(crypt_config.fingerprint()),
                 },
             )?;
         }
@@ -145,7 +153,8 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
             let password = tty::read_and_verify_password("Encryption Key Password: ")?;
 
-            let key_config = encrypt_key_with_passphrase(&key, &password)?;
+            let mut key_config = encrypt_key_with_passphrase(&key, &password)?;
+            key_config.fingerprint = Some(crypt_config.fingerprint());
 
             store_key_config(&path, false, key_config)?;
         }
@@ -188,7 +197,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
         bail!("unable to change passphrase - no tty");
     }
 
-    let (key, created) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
+    let (key, created, fingerprint) = load_and_decrypt_key(&path, &get_encryption_key_password)?;
 
     match kdf {
         Kdf::None => {
@@ -202,6 +211,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
                     created, // keep original value
                     modified,
                     data: key.to_vec(),
+                    fingerprint: Some(fingerprint),
                 },
             )?;
         }
@@ -210,6 +220,7 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
 
             let mut new_key_config = encrypt_key_with_passphrase(&key, &password)?;
             new_key_config.created = created; // keep original value
+            new_key_config.fingerprint = Some(fingerprint);
 
             store_key_config(&path, true, new_key_config)?;
         }

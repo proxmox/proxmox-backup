@@ -1069,7 +1069,7 @@ async fn create_backup(
     let (crypt_config, rsa_encrypted_key) = match keydata {
         None => (None, None),
         Some(key) => {
-            let (key, created) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            let (key, created, _fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
 
             let crypt_config = CryptConfig::new(key)?;
 
@@ -1380,7 +1380,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let crypt_config = match keydata {
         None => None,
         Some(key) => {
-            let (key, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            let (key, _, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
@@ -1538,7 +1538,7 @@ async fn upload_log(param: Value) -> Result<Value, Error> {
     let crypt_config = match keydata {
         None => None,
         Some(key) => {
-            let (key, _created) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            let (key, _created, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }

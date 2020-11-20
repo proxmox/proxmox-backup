@@ -102,6 +102,40 @@ impl From<u64> for HumanByte {
     }
 }
 
+pub fn as_fingerprint(bytes: &[u8]) -> String {
+    proxmox::tools::digest_to_hex(bytes)
+        .as_bytes()
+        .chunks(2)
+        .map(|v| std::str::from_utf8(v).unwrap())
+        .collect::<Vec<&str>>().join(":")
+}
+
+pub mod bytes_as_fingerprint {
+    use serde::{Deserialize, Serializer, Deserializer};
+
+    pub fn serialize<S>(
+        bytes: &[u8; 32],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = crate::tools::format::as_fingerprint(bytes);
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<[u8; 32], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut s = String::deserialize(deserializer)?;
+        s.retain(|c| c != ':');
+        proxmox::tools::hex_to_digest(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 #[test]
 fn correct_byte_convert() {
     fn convert(b: usize) -> String {

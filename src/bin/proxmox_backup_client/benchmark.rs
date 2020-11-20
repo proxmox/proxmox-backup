@@ -151,7 +151,7 @@ pub async fn benchmark(
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
+            let (key, _, _) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
             let crypt_config = CryptConfig::new(key)?;
             Some(Arc::new(crypt_config))
         }

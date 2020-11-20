@@ -2,6 +2,8 @@ use anyhow::{bail, format_err, Context, Error};
 
 use serde::{Deserialize, Serialize};
 
+use crate::backup::{CryptConfig, Fingerprint};
+
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
 
@@ -66,6 +68,9 @@ pub struct KeyConfig {
     pub modified: i64,
     #[serde(with = "proxmox::tools::serde::bytes_as_base64")]
     pub data: Vec<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub fingerprint: Option<Fingerprint>,
  }
 
 pub fn store_key_config(
@@ -142,13 +147,14 @@ pub fn encrypt_key_with_passphrase(
         created,
         modified: created,
         data: enc_data,
+        fingerprint: None,
     })
 }
 
 pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64), Error> {
+) -> Result<([u8;32], i64, Fingerprint), Error> {
     do_load_and_decrypt_key(path, passphrase)
         .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
@@ -156,14 +162,14 @@ pub fn load_and_decrypt_key(
 fn do_load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64), Error> {
+) -> Result<([u8;32], i64, Fingerprint), Error> {
     decrypt_key(&file_get_contents(&path)?, passphrase)
 }
 
 pub fn decrypt_key(
     mut keydata: &[u8],
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64), Error> {
+) -> Result<([u8;32], i64, Fingerprint), Error> {
     let key_config: KeyConfig = serde_json::from_reader(&mut keydata)?;
 
     let raw_data = key_config.data;
@@ -203,5 +209,13 @@ pub fn decrypt_key(
     let mut result = [0u8; 32];
     result.copy_from_slice(&key);
 
-    Ok((result, created))
+    let fingerprint = match key_config.fingerprint {
+        Some(fingerprint) => fingerprint,
+        None => {
+            let crypt_config = CryptConfig::new(result.clone())?;
+            crypt_config.fingerprint()
+        },
+    };
+
+    Ok((result, created, fingerprint))
 }

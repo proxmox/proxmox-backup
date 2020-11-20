@@ -17,6 +17,8 @@ use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
 use serde::{Deserialize, Serialize};
 
+use crate::tools::format::{as_fingerprint, bytes_as_fingerprint};
+
 use proxmox::api::api;
 
 // openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
@@ -37,14 +39,18 @@ pub enum CryptMode {
     SignOnly,
 }
 
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(transparent)]
 /// 32-byte fingerprint, usually calculated with SHA256.
 pub struct Fingerprint {
+    #[serde(with = "bytes_as_fingerprint")]
     bytes: [u8; 32],
 }
 
+/// Display as short key ID
 impl Display for Fingerprint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.bytes)
+        write!(f, "{}", as_fingerprint(&self.bytes[0..8]))
     }
 }
 
@@ -243,7 +249,13 @@ impl CryptConfig {
     ) -> Result<Vec<u8>, Error> {
 
         let modified = proxmox::tools::time::epoch_i64();
-        let key_config = super::KeyConfig { kdf: None, created, modified, data: self.enc_key.to_vec() };
+        let key_config = super::KeyConfig {
+            kdf: None,
+            created,
+            modified,
+            data: self.enc_key.to_vec(),
+            fingerprint: Some(self.fingerprint()),
+        };
         let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
 
         let mut buffer = vec![0u8; rsa.size() as usize];
