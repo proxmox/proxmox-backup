@@ -312,6 +312,10 @@ pub const BACKUP_API_SUBDIRS: SubdirMap = &[
             .download(&API_METHOD_DOWNLOAD_PREVIOUS)
     ),
     (
+        "previous_backup_time", &Router::new()
+            .get(&API_METHOD_GET_PREVIOUS_BACKUP_TIME)
+    ),
+    (
         "speedtest", &Router::new()
             .upload(&API_METHOD_UPLOAD_SPEEDTEST)
     ),
@@ -692,6 +696,28 @@ fn finish_backup (
     env.log("successfully finished backup");
 
     Ok(Value::Null)
+}
+
+#[sortable]
+pub const API_METHOD_GET_PREVIOUS_BACKUP_TIME: ApiMethod = ApiMethod::new(
+    &ApiHandler::Sync(&get_previous_backup_time),
+    &ObjectSchema::new(
+        "Get previous backup time.",
+        &[],
+    )
+);
+
+fn get_previous_backup_time(
+    _param: Value,
+    _info: &ApiMethod,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let env: &BackupEnvironment = rpcenv.as_ref();
+
+    let backup_time = env.last_backup.as_ref().map(|info| info.backup_dir.backup_time());
+
+    Ok(json!(backup_time))
 }
 
 #[sortable]

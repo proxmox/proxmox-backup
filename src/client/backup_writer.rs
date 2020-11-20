@@ -475,6 +475,13 @@ impl BackupWriter {
         Ok(index)
     }
 
+    /// Retrieve backup time of last backup
+    pub async fn previous_backup_time(&self) -> Result<Option<i64>, Error> {
+        let data = self.h2.get("previous_backup_time", None).await?;
+        serde_json::from_value(data)
+            .map_err(|err| format_err!("Failed to parse backup time value returned by server - {}", err))
+    }
+
     /// Download backup manifest (index.json) of last backup
     pub async fn download_previous_manifest(&self) -> Result<BackupManifest, Error> {
 

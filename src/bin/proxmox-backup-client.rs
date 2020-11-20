@@ -1099,23 +1099,42 @@ async fn create_backup(
         false
     ).await?;
 
-    let previous_manifest = match client.download_previous_manifest().await {
-        Ok(previous_manifest) => {
-            match previous_manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref)) {
-                Ok(()) => {
-                    println!("Successfully downloaded previous manifest.");
-                    Some(Arc::new(previous_manifest))
-                },
-                Err(err) => {
-                    println!("Couldn't re-use pevious manifest - {}", err);
-                    None
-                },
+    let download_previous_manifest = match client.previous_backup_time().await {
+        Ok(Some(backup_time)) => {
+            println!(
+                "Downloading previous manifest ({})",
+                strftime_local("%c", backup_time)?
+            );
+            true
+        }
+        Ok(None) => {
+            println!("No previous manifest available.");
+            false
+        }
+        Err(_) => {
+            // Fallback for outdated server, TODO remove/bubble up with 2.0
+            true
+        }
+    };
+
+    let previous_manifest = if download_previous_manifest {
+        match client.download_previous_manifest().await {
+            Ok(previous_manifest) => {
+                match previous_manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref)) {
+                    Ok(()) => Some(Arc::new(previous_manifest)),
+                    Err(err) => {
+                        println!("Couldn't re-use previous manifest - {}", err);
+                        None
+                    }
+                }
             }
-        },
-        Err(err) => {
-            println!("Couldn't download pevious manifest - {}", err);
-            None
-        },
+            Err(err) => {
+                println!("Couldn't download previous manifest - {}", err);
+                None
+            }
+        }
+    } else {
+        None
     };
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
