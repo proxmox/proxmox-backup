@@ -7,6 +7,8 @@
 //! encryption](https://en.wikipedia.org/wiki/Authenticated_encryption)
 //! for a short introduction.
 
+use std::fmt;
+use std::fmt::Display;
 use std::io::Write;
 
 use anyhow::{bail, Error};
@@ -17,6 +19,11 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::api;
 
+// openssl::sha::sha256(b"Proxmox Backup Encryption Key Fingerprint")
+const FINGERPRINT_INPUT: [u8; 32] = [ 110, 208, 239, 119,  71,  31, 255,  77,
+                                       85, 199, 168, 254,  74, 157, 182,  33,
+                                       97,  64, 127,  19,  76, 114,  93, 223,
+                                       48, 153,  45,  37, 236,  69, 237,  38, ];
 #[api(default: "encrypt")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -28,6 +35,17 @@ pub enum CryptMode {
     Encrypt,
     /// Only sign.
     SignOnly,
+}
+
+/// 32-byte fingerprint, usually calculated with SHA256.
+pub struct Fingerprint {
+    bytes: [u8; 32],
+}
+
+impl Display for Fingerprint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.bytes)
+    }
 }
 
 /// Encryption Configuration with secret key
@@ -99,6 +117,12 @@ impl CryptConfig {
         let mut tag = [0u8; 32];
         signer.sign(&mut tag).unwrap();
         tag
+    }
+
+    pub fn fingerprint(&self) -> Fingerprint {
+        Fingerprint {
+            bytes: self.compute_digest(&FINGERPRINT_INPUT)
+        }
     }
 
     pub fn data_crypter(&self, iv: &[u8; 16], mode: Mode) -> Result<Crypter, Error>  {
