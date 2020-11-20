@@ -214,6 +214,7 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     ).await?;
 
     let (manifest, _) = client.download_manifest().await?;
+    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
     let file_info = manifest.lookup_file_info(&server_archive_name)?;
 

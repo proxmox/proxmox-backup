@@ -1099,10 +1099,23 @@ async fn create_backup(
         false
     ).await?;
 
-    let previous_manifest = if let Ok(previous_manifest) = client.download_previous_manifest().await {
-        Some(Arc::new(previous_manifest))
-    } else {
-        None
+    let previous_manifest = match client.download_previous_manifest().await {
+        Ok(previous_manifest) => {
+            match previous_manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref)) {
+                Ok(()) => {
+                    println!("Successfully downloaded previous manifest.");
+                    Some(Arc::new(previous_manifest))
+                },
+                Err(err) => {
+                    println!("Couldn't re-use pevious manifest - {}", err);
+                    None
+                },
+            }
+        },
+        Err(err) => {
+            println!("Couldn't download pevious manifest - {}", err);
+            None
+        },
     };
 
     let snapshot = BackupDir::new(backup_type, backup_id, backup_time)?;
@@ -1400,6 +1413,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
     ).await?;
 
     let (manifest, backup_index_data) = client.download_manifest().await?;
+    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
     let (archive_name, archive_type) = parse_archive_type(archive_name);
 

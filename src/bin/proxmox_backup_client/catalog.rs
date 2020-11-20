@@ -92,6 +92,7 @@ async fn dump_catalog(param: Value) -> Result<Value, Error> {
     ).await?;
 
     let (manifest, _) = client.download_manifest().await?;
+    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
     let index = client.download_dynamic_index(&manifest, CATALOG_NAME).await?;
 
@@ -199,6 +200,7 @@ async fn catalog_shell(param: Value) -> Result<(), Error> {
         .open("/tmp")?;
 
     let (manifest, _) = client.download_manifest().await?;
+    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
 
     let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
     let most_used = index.find_most_used_chunks(8);
