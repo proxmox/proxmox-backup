@@ -398,13 +398,47 @@ fn paper_key(
     };
 
     let data = file_get_contents(&path)?;
-    let data = std::str::from_utf8(&data)?;
+    let data = String::from_utf8(data)?;
+
+    let (data, is_private_key) = if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
+        let lines: Vec<String> = data
+            .lines()
+            .map(|s| s.trim_end())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+
+        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
+            bail!("unexpected key format");
+        }
+
+        if lines.len() < 20 {
+            bail!("unexpected key format");
+        }
+
+        (lines, true)
+    } else {
+        match serde_json::from_str::<KeyConfig>(&data) {
+            Ok(key_config) => {
+                let lines = serde_json::to_string_pretty(&key_config)?
+                    .lines()
+                    .map(String::from)
+                    .collect();
+
+                (lines, false)
+            },
+            Err(err) => {
+                eprintln!("Couldn't parse '{:?}' as KeyConfig - {}", path, err);
+                bail!("Neither a PEM-formatted private key, nor a PBS key file.");
+            },
+        }
+    };
 
     let format = output_format.unwrap_or(PaperkeyFormat::Html);
 
     match format {
-        PaperkeyFormat::Html => paperkey_html(data, subject),
-        PaperkeyFormat::Text => paperkey_text(data, subject),
+        PaperkeyFormat::Html => paperkey_html(&data, subject, is_private_key),
+        PaperkeyFormat::Text => paperkey_text(&data, subject, is_private_key),
     }
 }
 
@@ -439,7 +473,7 @@ pub fn cli() -> CliCommandMap {
         .insert("paperkey", paper_key_cmd_def)
 }
 
-fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
+fn paperkey_html(lines: &[String], subject: Option<String>, is_private: bool) -> Result<(), Error> {
 
     let img_size_pt = 500;
 
@@ -468,21 +502,7 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
         println!("<p>Subject: {}</p>", subject);
     }
 
-    if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
-        let lines: Vec<String> = data.lines()
-            .map(|s| s.trim_end())
-            .filter(|s| !s.is_empty())
-            .map(String::from)
-            .collect();
-
-        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
-            bail!("unexpected key format");
-        }
-
-        if lines.len() < 20 {
-            bail!("unexpected key format");
-        }
-
+    if is_private {
         const BLOCK_SIZE: usize = 20;
         let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
 
@@ -503,8 +523,7 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
 
             println!("</p>");
 
-            let data = data.join("\n");
-            let qr_code = generate_qr_code("svg", data.as_bytes())?;
+            let qr_code = generate_qr_code("svg", data)?;
             let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
 
             println!("<center>");
@@ -520,16 +539,13 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
         return Ok(());
     }
 
-    let key_config: KeyConfig = serde_json::from_str(&data)?;
-    let key_text = serde_json::to_string_pretty(&key_config)?;
-
     println!("<div style=\"page-break-inside: avoid\">");
 
     println!("<p>");
 
     println!("-----BEGIN PROXMOX BACKUP KEY-----");
 
-    for line in key_text.lines() {
+    for line in lines {
         println!("{}", line);
     }
 
@@ -537,7 +553,7 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
 
     println!("</p>");
 
-    let qr_code = generate_qr_code("svg", key_text.as_bytes())?;
+    let qr_code = generate_qr_code("svg", lines)?;
     let qr_code = base64::encode_config(&qr_code, base64::STANDARD_NO_PAD);
 
     println!("<center>");
@@ -554,27 +570,13 @@ fn paperkey_html(data: &str, subject: Option<String>) -> Result<(), Error> {
     Ok(())
 }
 
-fn paperkey_text(data: &str, subject: Option<String>) -> Result<(), Error> {
+fn paperkey_text(lines: &[String], subject: Option<String>, is_private: bool) -> Result<(), Error> {
 
     if let Some(subject) = subject {
         println!("Subject: {}\n", subject);
     }
 
-    if data.starts_with("-----BEGIN ENCRYPTED PRIVATE KEY-----\n") {
-        let lines: Vec<String> = data.lines()
-            .map(|s| s.trim_end())
-            .filter(|s| !s.is_empty())
-            .map(String::from)
-            .collect();
-
-        if !lines[lines.len()-1].starts_with("-----END ENCRYPTED PRIVATE KEY-----") {
-            bail!("unexpected key format");
-        }
-
-        if lines.len() < 20 {
-            bail!("unexpected key format");
-        }
-
+    if is_private {
         const BLOCK_SIZE: usize = 5;
         let blocks = (lines.len() + BLOCK_SIZE -1)/BLOCK_SIZE;
 
@@ -589,8 +591,7 @@ fn paperkey_text(data: &str, subject: Option<String>) -> Result<(), Error> {
             for l in start..end {
                 println!("{:-2}: {}", l, lines[l]);
             }
-            let data = data.join("\n");
-            let qr_code = generate_qr_code("utf8i", data.as_bytes())?;
+            let qr_code = generate_qr_code("utf8i", data)?;
             let qr_code = String::from_utf8(qr_code)
                 .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
             println!("{}", qr_code);
@@ -600,14 +601,13 @@ fn paperkey_text(data: &str, subject: Option<String>) -> Result<(), Error> {
         return Ok(());
     }
 
-    let key_config: KeyConfig = serde_json::from_str(&data)?;
-    let key_text = serde_json::to_string_pretty(&key_config)?;
-
     println!("-----BEGIN PROXMOX BACKUP KEY-----");
-    println!("{}", key_text);
+    for line in lines {
+        println!("{}", line);
+    }
     println!("-----END PROXMOX BACKUP KEY-----");
 
-    let qr_code = generate_qr_code("utf8i", key_text.as_bytes())?;
+    let qr_code = generate_qr_code("utf8i", &lines)?;
     let qr_code = String::from_utf8(qr_code)
         .map_err(|_| format_err!("Failed to read qr code (got non-utf8 data)"))?;
 
@@ -616,8 +616,7 @@ fn paperkey_text(data: &str, subject: Option<String>) -> Result<(), Error> {
     Ok(())
 }
 
-fn generate_qr_code(output_type: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
-
+fn generate_qr_code(output_type: &str, lines: &[String]) -> Result<Vec<u8>, Error> {
     let mut child = Command::new("qrencode")
         .args(&["-t", output_type, "-m0", "-s1", "-lm", "--output", "-"])
         .stdin(Stdio::piped())
@@ -627,7 +626,8 @@ fn generate_qr_code(output_type: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
     {
         let stdin = child.stdin.as_mut()
             .ok_or_else(|| format_err!("Failed to open stdin"))?;
-        stdin.write_all(data)
+        let data = lines.join("\n");
+        stdin.write_all(data.as_bytes())
             .map_err(|_| format_err!("Failed to write to stdin"))?;
     }
 
