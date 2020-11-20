@@ -182,7 +182,9 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
     let crypt_config = match keyfile {
         None => None,
         Some(path) => {
-            let (key, _, _) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
+            println!("Encryption key file: '{:?}'", path);
+            let (key, _, fingerprint) = load_and_decrypt_key(&path, &crate::key::get_encryption_key_password)?;
+            println!("Encryption key fingerprint: '{}'", fingerprint);
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };

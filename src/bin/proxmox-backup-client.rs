@@ -1069,7 +1069,8 @@ async fn create_backup(
     let (crypt_config, rsa_encrypted_key) = match keydata {
         None => (None, None),
         Some(key) => {
-            let (key, created, _fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            println!("Encryption key fingerprint: {}", fingerprint);
 
             let crypt_config = CryptConfig::new(key)?;
 
@@ -1078,6 +1079,8 @@ async fn create_backup(
                     let pem_data = file_get_contents(path)?;
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
                     let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
+                    println!("Master key '{:?}'", path);
+
                     (Some(Arc::new(crypt_config)), Some(enc_key))
                 }
                 _ => (Some(Arc::new(crypt_config)), None),
@@ -1380,7 +1383,8 @@ async fn restore(param: Value) -> Result<Value, Error> {
     let crypt_config = match keydata {
         None => None,
         Some(key) => {
-            let (key, _, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            let (key, _, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
+            println!("Encryption key fingerprint: '{}'", fingerprint);
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
