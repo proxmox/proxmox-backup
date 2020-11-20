@@ -12,6 +12,7 @@ Ext.define('pbs-data-store-snapshots', {
 	'files',
 	'owner',
 	'verification',
+	'fingerprint',
 	{ name: 'size', type: 'int', allowNull: true },
 	{
 	    name: 'crypt-mode',
@@ -182,6 +183,7 @@ Ext.define('PBS.DataStoreContent', {
 		for (const file of data.files) {
 		    file.text = file.filename;
 		    file['crypt-mode'] = PBS.Utils.cryptmap.indexOf(file['crypt-mode']);
+		    file.fingerprint = data.fingerprint;
 		    file.leaf = true;
 		    file.matchesFilter = true;
 
@@ -699,7 +701,16 @@ Ext.define('PBS.DataStoreContent', {
 		if (iconCls) {
 		    iconTxt = `<i class="fa fa-fw fa-${iconCls}"></i> `;
 		}
-		return (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText;
+		let tip;
+		if (v !== PBS.Utils.cryptmap.indexOf('none') && record.data.fingerprint !== undefined) {
+		    tip = "Key: " + PBS.Utils.renderKeyID(record.data.fingerprint);
+		}
+		let txt = (iconTxt + PBS.Utils.cryptText[v]) || Proxmox.Utils.unknownText;
+		if (record.parentNode.id === 'root' || tip === undefined) {
+		    return txt;
+		} else {
+		    return `<span data-qtip="${tip}">${txt}</span>`;
+		}
 	    },
 	},
 	{

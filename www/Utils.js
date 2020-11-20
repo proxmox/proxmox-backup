@@ -161,6 +161,11 @@ Ext.define('PBS.Utils', {
 	return `Datastore ${what} ${id}`;
     },
 
+    // mimics Display trait in backend
+    renderKeyID: function(fingerprint) {
+	return fingerprint.substring(0, 23);
+    },
+
     parse_datastore_worker_id: function(type, id) {
 	let result;
 	let res;
