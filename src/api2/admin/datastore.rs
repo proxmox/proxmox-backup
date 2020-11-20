@@ -391,9 +391,11 @@ pub fn list_snapshots (
     };
 
     let info_to_snapshot_list_item = |group: &BackupGroup, owner, info: BackupInfo| {
+        let backup_type = group.backup_type().to_string();
+        let backup_id = group.backup_id().to_string();
         let backup_time = info.backup_dir.backup_time();
 
-        let (comment, verification, files, size) = match get_all_snapshot_files(&datastore, &info) {
+        match get_all_snapshot_files(&datastore, &info) {
             Ok((manifest, files)) => {
                 // extract the first line from notes
                 let comment: Option<String> = manifest.unprotected["notes"]
@@ -401,8 +403,8 @@ pub fn list_snapshots (
                     .and_then(|notes| notes.lines().next())
                     .map(String::from);
 
-                let verify = manifest.unprotected["verify_state"].clone();
-                let verify: Option<SnapshotVerifyState> = match serde_json::from_value(verify) {
+                let verification = manifest.unprotected["verify_state"].clone();
+                let verification: Option<SnapshotVerifyState> = match serde_json::from_value(verification) {
                     Ok(verify) => verify,
                     Err(err) => {
                         eprintln!("error parsing verification state : '{}'", err);
@@ -412,14 +414,20 @@ pub fn list_snapshots (
 
                 let size = Some(files.iter().map(|x| x.size.unwrap_or(0)).sum());
 
-                (comment, verify, files, size)
+                SnapshotListItem {
+                    backup_type,
+                    backup_id,
+                    backup_time,
+                    comment,
+                    verification,
+                    files,
+                    size,
+                    owner,
+                }
             },
             Err(err) => {
                 eprintln!("error during snapshot file listing: '{}'", err);
-                (
-                    None,
-                    None,
-                    info
+                let files = info
                         .files
                         .into_iter()
                         .map(|x| BackupContent {
@@ -427,21 +435,19 @@ pub fn list_snapshots (
                             size: None,
                             crypt_mode: None,
                         })
-                        .collect(),
-                    None,
-                )
-            },
-        };
+                        .collect();
 
-        SnapshotListItem {
-            backup_type: group.backup_type().to_string(),
-            backup_id: group.backup_id().to_string(),
-            backup_time,
-            comment,
-            verification,
-            files,
-            size,
-            owner,
+                SnapshotListItem {
+                    backup_type,
+                    backup_id,
+                    backup_time,
+                    comment: None,
+                    verification: None,
+                    files,
+                    size: None,
+                    owner,
+                }
+            },
         }
     };
 
