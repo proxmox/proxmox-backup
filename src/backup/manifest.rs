@@ -273,6 +273,19 @@ impl BackupManifest {
         if let Some(ref crypt_config) = crypt_config {
             if let Some(signature) = signature {
                 let expected_signature = proxmox::tools::digest_to_hex(&Self::json_signature(&json, crypt_config)?);
+
+                let fingerprint = &json["unprotected"]["key-fingerprint"];
+                if fingerprint != &Value::Null {
+                    let fingerprint = serde_json::from_value(fingerprint.clone())?;
+                    let config_fp = crypt_config.fingerprint();
+                    if config_fp != fingerprint {
+                        bail!(
+                            "wrong key - unable to verify signature since manifest's key {} does not match provided key {}",
+                            fingerprint,
+                            config_fp
+                        );
+                    }
+                }
                 if signature != expected_signature {
                     bail!("wrong signature in manifest");
                 }
