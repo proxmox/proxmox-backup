@@ -69,8 +69,15 @@ pub fn do_verification_job(
 
             let result = verify_all_backups(datastore, worker.clone(), worker.upid(), None, Some(&filter));
             let job_result = match result {
-                Ok(ref errors) if errors.is_empty() => Ok(()),
-                Ok(_) => Err(format_err!("verification failed - please check the log for details")),
+                Ok(ref failed_dirs) if failed_dirs.is_empty() => Ok(()),
+                Ok(ref failed_dirs) => {
+                    worker.log("Failed to verify the following snapshots/groups:");
+                    for dir in failed_dirs {
+                        worker.log(format!("\t{}", dir));
+                    }
+
+                    Err(format_err!("verification failed - please check the log for details"))
+                },
                 Err(_) => Err(format_err!("verification failed - job aborted")),
             };
 

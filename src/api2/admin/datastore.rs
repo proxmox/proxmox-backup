@@ -695,7 +695,7 @@ pub fn verify(
                 verify_all_backups(datastore, worker.clone(), worker.upid(), owner, None)?
             };
             if failed_dirs.len() > 0 {
-                worker.log("Failed to verify following snapshots/groups:");
+                worker.log("Failed to verify the following snapshots/groups:");
                 for dir in failed_dirs {
                     worker.log(format!("\t{}", dir));
                 }
