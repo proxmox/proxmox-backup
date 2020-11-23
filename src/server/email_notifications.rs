@@ -81,7 +81,7 @@ const VERIFY_ERR_TEMPLATE: &str = r###"
 Job ID:    {{job.id}}
 Datastore: {{job.store}}
 
-Verification failed on these snapshots:
+Verification failed on these snapshots/groups:
 
 {{#each errors}}
   {{this~}}
