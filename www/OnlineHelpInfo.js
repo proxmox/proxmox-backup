@@ -75,42 +75,6 @@ const proxmoxOnlineHelpInfo = {
     "link": "/docs/pve-integration.html#pve-integration",
     "title": "`Proxmox VE`_ Integration"
   },
-  "rst-primer": {
-    "link": "/docs/reStructuredText-primer.html#rst-primer",
-    "title": "reStructuredText Primer"
-  },
-  "rst-inline-markup": {
-    "link": "/docs/reStructuredText-primer.html#rst-inline-markup",
-    "title": "Inline markup"
-  },
-  "rst-literal-blocks": {
-    "link": "/docs/reStructuredText-primer.html#rst-literal-blocks",
-    "title": "Literal blocks"
-  },
-  "rst-doctest-blocks": {
-    "link": "/docs/reStructuredText-primer.html#rst-doctest-blocks",
-    "title": "Doctest blocks"
-  },
-  "rst-tables": {
-    "link": "/docs/reStructuredText-primer.html#rst-tables",
-    "title": "Tables"
-  },
-  "rst-field-lists": {
-    "link": "/docs/reStructuredText-primer.html#rst-field-lists",
-    "title": "Field Lists"
-  },
-  "rst-roles-alt": {
-    "link": "/docs/reStructuredText-primer.html#rst-roles-alt",
-    "title": "Roles"
-  },
-  "rst-directives": {
-    "link": "/docs/reStructuredText-primer.html#rst-directives",
-    "title": "Directives"
-  },
-  "html-meta": {
-    "link": "/docs/reStructuredText-primer.html#html-meta",
-    "title": "HTML Metadata"
-  },
   "storage-disk-management": {
     "link": "/docs/storage.html#storage-disk-management",
     "title": "Disk Management"
