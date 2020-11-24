@@ -1,4 +1,4 @@
-rust-proxmox-backup (1.0.2-1) stable; urgency=medium
+rust-proxmox-backup (1.0.3-1) unstable; urgency=medium
 
   * client: inform user when automatically using the default encryption key
 
@@ -28,7 +28,9 @@ rust-proxmox-backup (1.0.2-1) stable; urgency=medium
   * fix #3139: add key fingerprint to backup snapshot manifest and check it
     when loading with a key
 
- -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Nov 2020 08:30:44 +0100
+  * ui: add snapshot/file fingerprint tooltip
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Nov 2020 08:55:47 +0100
 
 rust-proxmox-backup (1.0.1-1) unstable; urgency=medium
 
