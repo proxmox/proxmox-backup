@@ -395,7 +395,7 @@ Ext.define('PBS.dashboard.SubscriptionInfo', {
 		break;
 	    case 0:
 		icon = 'times-circle critical';
-		message = gettext('<h1>No valid subscription</h1>' + PBS.Utils.noSubKeyHtml);
+		message = `<h1>${gettext('No valid subscription')}</h1>${PBS.Utils.noSubKeyHtml}`;
 		break;
 	    default:
 		throw 'invalid subscription status';
