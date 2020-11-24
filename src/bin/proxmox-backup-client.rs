@@ -2110,6 +2110,7 @@ fn main() {
         .insert("prune", prune_cmd_def)
         .insert("restore", restore_cmd_def)
         .insert("snapshots", snapshots_cmd_def)
+        .insert("snapshot", snapshot_mgtm_cli())
         .insert("files", files_cmd_def)
         .insert("status", status_cmd_def)
         .insert("key", key::cli())
