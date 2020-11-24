@@ -188,15 +188,8 @@ pub fn load_and_decrypt_key(
     path: &std::path::Path,
     passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
 ) -> Result<([u8;32], i64, Fingerprint), Error> {
-    do_load_and_decrypt_key(path, passphrase)
-        .with_context(|| format!("failed to load decryption key from {:?}", path))
-}
-
-fn do_load_and_decrypt_key(
-    path: &std::path::Path,
-    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
-) -> Result<([u8;32], i64, Fingerprint), Error> {
     decrypt_key(&file_get_contents(&path)?, passphrase)
+        .with_context(|| format!("failed to load decryption key from {:?}", path))
 }
 
 pub fn decrypt_key(
