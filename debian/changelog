@@ -1,3 +1,35 @@
+rust-proxmox-backup (1.0.2-1) stable; urgency=medium
+
+  * client: inform user when automatically using the default encryption key
+
+  * ui: UserView: render name as 'Firstname Lastname'
+
+  * proxmox-backup-manager: add versions command
+
+  * pxar: fix anchored exclusion at archive root
+
+  * pxar: include .pxarexclude files in the archive
+
+  * client: expose all-file-systems option
+
+  * api: make expensive parts of datastore status opt-in
+
+  * api: include datastore ID in invalid owner errors
+
+  * garbage collection: treat .bad files like regular chunks to ensure they
+    are removed if not referenced anymore
+
+  * client: fix issues with encoded UPID strings
+
+  * encryption: add fingerprint to key config
+
+  * client: add 'key show' command
+
+  * fix #3139: add key fingerprint to backup snapshot manifest and check it
+    when loading with a key
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Nov 2020 08:30:44 +0100
+
 rust-proxmox-backup (1.0.1-1) unstable; urgency=medium
 
   * ui: datastore summary: drop 'removed bytes' display
