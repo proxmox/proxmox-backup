@@ -8,9 +8,10 @@ use serde_json::Value;
 
 use proxmox::api::api;
 use proxmox::api::cli::{
+    ColumnConfig,
     CliCommand,
     CliCommandMap,
-    format_and_print_result,
+    format_and_print_result_full,
     get_output_format,
     OUTPUT_FORMAT,
 };
@@ -22,6 +23,7 @@ use proxmox_backup::backup::{
     load_and_decrypt_key,
     store_key_config,
     CryptConfig,
+    Kdf,
     KeyConfig,
     KeyDerivationConfig,
 };
@@ -84,27 +86,6 @@ pub fn get_encryption_key_password() -> Result<Vec<u8>, Error> {
 }
 
 #[api(
-    default: "scrypt",
-)]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-/// Key derivation function for password protected encryption keys.
-pub enum Kdf {
-    /// Do not encrypt the key.
-    None,
-
-    /// Encrypt they key with a password using SCrypt.
-    Scrypt,
-}
-
-impl Default for Kdf {
-    #[inline]
-    fn default() -> Self {
-        Kdf::Scrypt
-    }
-}
-
-#[api(
     input: {
         properties: {
             kdf: {
@@ -153,7 +134,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
                 },
             )?;
         }
-        Kdf::Scrypt => {
+        Kdf::Scrypt | Kdf::PBKDF2 => {
             // always read passphrase from tty
             if !tty::stdin_isatty() {
                 bail!("unable to read passphrase - no tty");
@@ -161,7 +142,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
             let password = tty::read_and_verify_password("Encryption Key Password: ")?;
 
-            let mut key_config = encrypt_key_with_passphrase(&key, &password)?;
+            let mut key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
             key_config.fingerprint = Some(crypt_config.fingerprint());
 
             store_key_config(&path, false, key_config)?;
@@ -223,10 +204,10 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
                 },
             )?;
         }
-        Kdf::Scrypt => {
+        Kdf::Scrypt | Kdf::PBKDF2 => {
             let password = tty::read_and_verify_password("New Password: ")?;
 
-            let mut new_key_config = encrypt_key_with_passphrase(&key, &password)?;
+            let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
             new_key_config.created = created; // keep original value
             new_key_config.fingerprint = Some(fingerprint);
 
@@ -235,6 +216,27 @@ fn change_passphrase(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error
     }
 
     Ok(())
+}
+
+#[api(
+    properties: {
+        kdf: {
+            type: Kdf,
+        },
+    },
+)]
+#[derive(Deserialize, Serialize)]
+/// Encryption Key Information
+struct KeyInfo {
+    /// Path to key
+    path: String,
+    kdf: Kdf,
+    /// Key creation time
+    pub created: i64,
+    /// Key modification time
+    pub modified: i64,
+    /// Key fingerprint
+    pub fingerprint: Option<String>,
 }
 
 #[api(
@@ -267,25 +269,36 @@ fn show_key(
         }
     };
 
-    let output_format = get_output_format(&param);
+
     let config: KeyConfig = serde_json::from_slice(&file_get_contents(path.clone())?)?;
 
-    if output_format == "text" {
-        println!("Path: {:?}", path);
-        match config.kdf {
-            Some(KeyDerivationConfig::PBKDF2 { .. }) => println!("KDF: pbkdf2"),
-            Some(KeyDerivationConfig::Scrypt { .. }) => println!("KDF: scrypt"),
-            None => println!("KDF: none (plaintext key)"),
-        };
-        println!("Created: {}", proxmox::tools::time::epoch_to_rfc3339_utc(config.created)?);
-        println!("Modified: {}", proxmox::tools::time::epoch_to_rfc3339_utc(config.modified)?);
-        match config.fingerprint {
-            Some(fp) => println!("Fingerprint: {}", fp),
-            None => println!("Fingerprint: none (legacy key)"),
-        };
-    } else {
-        format_and_print_result(&serde_json::to_value(config)?, &output_format);
-    }
+    let output_format = get_output_format(&param);
+
+    let info = KeyInfo {
+        path: format!("{:?}", path),
+        kdf: match config.kdf {
+            Some(KeyDerivationConfig::PBKDF2 { .. }) => Kdf::PBKDF2,
+            Some(KeyDerivationConfig::Scrypt { .. }) => Kdf::Scrypt,
+            None => Kdf::None,
+        },
+        created: config.created,
+        modified: config.modified,
+        fingerprint:  match config.fingerprint {
+            Some(ref fp) => Some(format!("{}", fp)),
+            None => None,
+        },
+    };
+
+    let options = proxmox::api::cli::default_table_format_options()
+        .column(ColumnConfig::new("path"))
+        .column(ColumnConfig::new("kdf"))
+        .column(ColumnConfig::new("created").renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("modified").renderer(tools::format::render_epoch))
+        .column(ColumnConfig::new("fingerprint"));
+
+    let schema = &KeyInfo::API_SCHEMA;
+
+    format_and_print_result_full(&mut serde_json::to_value(info)?, schema, &output_format, &options);
 
     Ok(())
 }

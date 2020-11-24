@@ -4,8 +4,31 @@ use serde::{Deserialize, Serialize};
 
 use crate::backup::{CryptConfig, Fingerprint};
 
+use proxmox::api::api;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox::try_block;
+
+#[api(default: "scrypt")]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+/// Key derivation function for password protected encryption keys.
+pub enum Kdf {
+    /// Do not encrypt the key.
+    None,
+
+    /// Encrypt they key with a password using SCrypt.
+    Scrypt,
+
+    /// Encrtypt the Key with a password using PBKDF2
+    PBKDF2,
+}
+
+impl Default for Kdf {
+    #[inline]
+    fn default() -> Self {
+        Kdf::Scrypt
+    }
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum KeyDerivationConfig {
@@ -108,15 +131,25 @@ pub fn store_key_config(
 pub fn encrypt_key_with_passphrase(
     raw_key: &[u8],
     passphrase: &[u8],
+    kdf: Kdf,
 ) -> Result<KeyConfig, Error> {
 
     let salt = proxmox::sys::linux::random_data(32)?;
 
-    let kdf = KeyDerivationConfig::Scrypt {
-        n: 65536,
-        r: 8,
-        p: 1,
-        salt,
+    let kdf = match kdf {
+        Kdf::Scrypt => KeyDerivationConfig::Scrypt {
+            n: 65536,
+            r: 8,
+            p: 1,
+            salt,
+        },
+        Kdf::PBKDF2 => KeyDerivationConfig::PBKDF2 {
+            iter: 65535,
+            salt,
+        },
+        Kdf::None => {
+            bail!("No key derivation function specified");
+        }
     };
 
     let derived_key = kdf.derive_key(passphrase)?;
