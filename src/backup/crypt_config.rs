@@ -47,6 +47,12 @@ pub struct Fingerprint {
     bytes: [u8; 32],
 }
 
+impl Fingerprint {
+    pub fn bytes(&self) -> &[u8; 32] {
+        &self.bytes
+    }
+}
+
 /// Display as short key ID
 impl Display for Fingerprint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
