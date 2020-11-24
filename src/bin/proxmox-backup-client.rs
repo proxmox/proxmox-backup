@@ -463,75 +463,6 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
-            group: {
-                type: String,
-                description: "Backup group.",
-                optional: true,
-            },
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-   }
-)]
-/// List backup snapshots.
-async fn list_snapshots(param: Value) -> Result<Value, Error> {
-
-    let repo = extract_repository_from_value(&param)?;
-
-    let output_format = get_output_format(&param);
-
-    let client = connect(&repo)?;
-
-    let group: Option<BackupGroup> = if let Some(path) = param["group"].as_str() {
-        Some(path.parse()?)
-    } else {
-        None
-    };
-
-    let mut data = api_datastore_list_snapshots(&client, repo.store(), group).await?;
-
-    record_repository(&repo);
-
-    let render_snapshot_path = |_v: &Value, record: &Value| -> Result<String, Error> {
-        let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
-        Ok(snapshot.relative_path().to_str().unwrap().to_owned())
-    };
-
-    let render_files = |_v: &Value, record: &Value| -> Result<String, Error> {
-        let item: SnapshotListItem = serde_json::from_value(record.to_owned())?;
-        let mut filenames = Vec::new();
-        for file in &item.files {
-            filenames.push(file.filename.to_string());
-        }
-        Ok(tools::format::render_backup_file_list(&filenames[..]))
-    };
-
-    let options = default_table_format_options()
-        .sortby("backup-type", false)
-        .sortby("backup-id", false)
-        .sortby("backup-time", false)
-        .column(ColumnConfig::new("backup-id").renderer(render_snapshot_path).header("snapshot"))
-        .column(ColumnConfig::new("size").renderer(tools::format::render_bytes_human_readable))
-        .column(ColumnConfig::new("files").renderer(render_files))
-        ;
-
-    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_SNAPSHOTS;
-
-    format_and_print_result_full(&mut data, info, &output_format, &options);
-
-    Ok(Value::Null)
-}
-
-#[api(
-   input: {
-        properties: {
-            repository: {
-                schema: REPO_URL_SCHEMA,
-                optional: true,
-            },
             snapshot: {
                 type: String,
                 description: "Snapshot path.",
@@ -2051,11 +1982,6 @@ fn main() {
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
-    let snapshots_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOTS)
-        .arg_param(&["group"])
-        .completion_cb("group", complete_backup_group)
-        .completion_cb("repository", complete_repository);
-
     let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
         .arg_param(&["snapshot"])
         .completion_cb("repository", complete_repository)
@@ -2109,7 +2035,6 @@ fn main() {
         .insert("logout", logout_cmd_def)
         .insert("prune", prune_cmd_def)
         .insert("restore", restore_cmd_def)
-        .insert("snapshots", snapshots_cmd_def)
         .insert("snapshot", snapshot_mgtm_cli())
         .insert("files", files_cmd_def)
         .insert("status", status_cmd_def)
@@ -2121,7 +2046,10 @@ fn main() {
         .insert("task", task_mgmt_cli())
         .insert("version", version_cmd_def)
         .insert("benchmark", benchmark_cmd_def)
-        .insert("change-owner", change_owner_cmd_def);
+        .insert("change-owner", change_owner_cmd_def)
+
+        .alias(&["snapshots"], &["snapshot", "list"])
+        ;
 
     let rpcenv = CliEnvironment::new();
     run_cli_command(cmd_def, rpcenv, Some(|future| {
