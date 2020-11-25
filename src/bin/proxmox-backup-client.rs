@@ -644,7 +644,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         (None, None) => None,
         (Some(_), Some(_)) => bail!("--keyfile and --keyfd are mutually exclusive"),
         (Some(keyfile), None) => {
-            println!("Using encryption key file: {}", keyfile);
+            eprintln!("Using encryption key file: {}", keyfile);
             Some(file_get_contents(keyfile)?)
         },
         (None, Some(fd)) => {
@@ -654,7 +654,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
                 .map_err(|err| {
                     format_err!("error reading encryption key from fd {}: {}", fd, err)
                 })?;
-            println!("Using encryption key from file descriptor");
+            eprintln!("Using encryption key from file descriptor");
             Some(data)
         }
     };
@@ -663,7 +663,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         // no parameters:
         (None, None) => match key::read_optional_default_encryption_key()? {
             Some(key) => {
-                println!("Encrypting with default encryption key!");
+                eprintln!("Encrypting with default encryption key!");
                 (Some(key), CryptMode::Encrypt)
             },
             None => (None, CryptMode::None),
@@ -676,7 +676,7 @@ fn keyfile_parameters(param: &Value) -> Result<(Option<Vec<u8>>, CryptMode), Err
         (None, Some(crypt_mode)) => match key::read_optional_default_encryption_key()? {
             None => bail!("--crypt-mode without --keyfile and no default key file available"),
             Some(key) => {
-                println!("Encrypting with default encryption key!");
+                eprintln!("Encrypting with default encryption key!");
                 (Some(key), crypt_mode)
             },
         }
@@ -1257,7 +1257,7 @@ async fn restore(param: Value) -> Result<Value, Error> {
         None => None,
         Some(key) => {
             let (key, _, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
-            println!("Encryption key fingerprint: '{}'", fingerprint);
+            eprintln!("Encryption key fingerprint: '{}'", fingerprint);
             Some(Arc::new(CryptConfig::new(key)?))
         }
     };
