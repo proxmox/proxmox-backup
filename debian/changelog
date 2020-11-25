@@ -1,3 +1,9 @@
+rust-proxmox-backup (1.0.5-1) unstable; urgency=medium
+
+  * client: restore: print meta information exclusively to standard error
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 25 Nov 2020 15:29:58 +0100
+
 rust-proxmox-backup (1.0.4-1) unstable; urgency=medium
 
   * fingerprint: add bytes() accessor
