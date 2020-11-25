@@ -392,11 +392,11 @@ periodic recovery tests to ensure that you can access the data in
 case of problems.
 
 First, you need to find the snapshot which you want to restore. The snapshot
-command provides a list of all the snapshots on the server:
+list command provides a list of all the snapshots on the server:
 
 .. code-block:: console
 
-  # proxmox-backup-client snapshots
+  # proxmox-backup-client snapshot list
   ┌────────────────────────────────┬─────────────┬────────────────────────────────────┐
   │ snapshot                       │        size │ files                              │
   ╞════════════════════════════════╪═════════════╪════════════════════════════════════╡
@@ -581,7 +581,7 @@ command:
 
 .. code-block:: console
 
-  # proxmox-backup-client forget <snapshot>
+  # proxmox-backup-client snapshot forget <snapshot>
 
 
 .. caution:: This command removes all archives in this backup
