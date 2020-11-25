@@ -1,17 +1,29 @@
+use std::sync::Arc;
+
 use anyhow::Error;
 use serde_json::{json, Value};
 
-use proxmox::api::{api, cli::*};
+use proxmox::{
+    api::{api, cli::*},
+    tools::fs::file_get_contents,
+};
+
 use proxmox_backup::{
     tools,
     api2::types::*,
     backup::{
+        CryptMode,
+        CryptConfig,
+        DataBlob,
         BackupGroup,
+        decrypt_key,
     }
 };
 
 use crate::{
     REPO_URL_SCHEMA,
+    KEYFILE_SCHEMA,
+    KEYFD_SCHEMA,
     BackupDir,
     api_datastore_list_snapshots,
     complete_backup_snapshot,
@@ -20,6 +32,7 @@ use crate::{
     connect,
     extract_repository_from_value,
     record_repository,
+    keyfile_parameters,
 };
 
 #[api(
@@ -180,6 +193,81 @@ async fn forget_snapshots(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
+   input: {
+       properties: {
+           repository: {
+               schema: REPO_URL_SCHEMA,
+               optional: true,
+           },
+           snapshot: {
+               type: String,
+               description: "Group/Snapshot path.",
+           },
+           logfile: {
+               type: String,
+               description: "The path to the log file you want to upload.",
+           },
+           keyfile: {
+               schema: KEYFILE_SCHEMA,
+               optional: true,
+           },
+           "keyfd": {
+               schema: KEYFD_SCHEMA,
+               optional: true,
+           },
+           "crypt-mode": {
+               type: CryptMode,
+               optional: true,
+           },
+       }
+   }
+)]
+/// Upload backup log file.
+async fn upload_log(param: Value) -> Result<Value, Error> {
+
+    let logfile = tools::required_string_param(&param, "logfile")?;
+    let repo = extract_repository_from_value(&param)?;
+
+    let snapshot = tools::required_string_param(&param, "snapshot")?;
+    let snapshot: BackupDir = snapshot.parse()?;
+
+    let mut client = connect(&repo)?;
+
+    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
+
+    let crypt_config = match keydata {
+        None => None,
+        Some(key) => {
+            let (key, _created, _) = decrypt_key(&key, &crate::key::get_encryption_key_password)?;
+            let crypt_config = CryptConfig::new(key)?;
+            Some(Arc::new(crypt_config))
+        }
+    };
+
+    let data = file_get_contents(logfile)?;
+
+    // fixme: howto sign log?
+    let blob = match crypt_mode {
+        CryptMode::None | CryptMode::SignOnly => DataBlob::encode(&data, None, true)?,
+        CryptMode::Encrypt => DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?,
+    };
+
+    let raw_data = blob.into_inner();
+
+    let path = format!("api2/json/admin/datastore/{}/upload-backup-log", repo.store());
+
+    let args = json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id":  snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time(),
+    });
+
+    let body = hyper::Body::from(raw_data);
+
+    client.upload("application/octet-stream", body, &path, Some(args)).await
+}
+
+#[api(
     input: {
         properties: {
             repository: {
@@ -315,5 +403,14 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
                 .arg_param(&["snapshot"])
                 .completion_cb("repository", complete_repository)
                 .completion_cb("snapshot", complete_backup_snapshot)
+        )
+        .insert(
+            "upload-log",
+            CliCommand::new(&API_METHOD_UPLOAD_LOG)
+                .arg_param(&["snapshot", "logfile"])
+                .completion_cb("snapshot", complete_backup_snapshot)
+                .completion_cb("logfile", tools::complete_file_name)
+                .completion_cb("keyfile", tools::complete_file_name)
+                .completion_cb("repository", complete_repository)
         )
 }

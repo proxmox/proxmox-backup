@@ -53,7 +53,6 @@ use proxmox_backup::backup::{
     ChunkStream,
     CryptConfig,
     CryptMode,
-    DataBlob,
     DynamicIndexReader,
     FixedChunkStream,
     FixedIndexReader,
@@ -1371,81 +1370,6 @@ async fn restore(param: Value) -> Result<Value, Error> {
     Ok(Value::Null)
 }
 
-#[api(
-   input: {
-       properties: {
-           repository: {
-               schema: REPO_URL_SCHEMA,
-               optional: true,
-           },
-           snapshot: {
-               type: String,
-               description: "Group/Snapshot path.",
-           },
-           logfile: {
-               type: String,
-               description: "The path to the log file you want to upload.",
-           },
-           keyfile: {
-               schema: KEYFILE_SCHEMA,
-               optional: true,
-           },
-           "keyfd": {
-               schema: KEYFD_SCHEMA,
-               optional: true,
-           },
-           "crypt-mode": {
-               type: CryptMode,
-               optional: true,
-           },
-       }
-   }
-)]
-/// Upload backup log file.
-async fn upload_log(param: Value) -> Result<Value, Error> {
-
-    let logfile = tools::required_string_param(&param, "logfile")?;
-    let repo = extract_repository_from_value(&param)?;
-
-    let snapshot = tools::required_string_param(&param, "snapshot")?;
-    let snapshot: BackupDir = snapshot.parse()?;
-
-    let mut client = connect(&repo)?;
-
-    let (keydata, crypt_mode) = keyfile_parameters(&param)?;
-
-    let crypt_config = match keydata {
-        None => None,
-        Some(key) => {
-            let (key, _created, _) = decrypt_key(&key, &key::get_encryption_key_password)?;
-            let crypt_config = CryptConfig::new(key)?;
-            Some(Arc::new(crypt_config))
-        }
-    };
-
-    let data = file_get_contents(logfile)?;
-
-    // fixme: howto sign log?
-    let blob = match crypt_mode {
-        CryptMode::None | CryptMode::SignOnly => DataBlob::encode(&data, None, true)?,
-        CryptMode::Encrypt => DataBlob::encode(&data, crypt_config.as_ref().map(Arc::as_ref), true)?,
-    };
-
-    let raw_data = blob.into_inner();
-
-    let path = format!("api2/json/admin/datastore/{}/upload-backup-log", repo.store());
-
-    let args = json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id":  snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    });
-
-    let body = hyper::Body::from(raw_data);
-
-    client.upload("application/octet-stream", body, &path, Some(args)).await
-}
-
 const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     &ApiHandler::Async(&prune),
     &ObjectSchema::new(
@@ -1883,13 +1807,6 @@ fn main() {
         .completion_cb("repository", complete_repository)
         .completion_cb("keyfile", tools::complete_file_name);
 
-    let upload_log_cmd_def = CliCommand::new(&API_METHOD_UPLOAD_LOG)
-        .arg_param(&["snapshot", "logfile"])
-        .completion_cb("snapshot", complete_backup_snapshot)
-        .completion_cb("logfile", tools::complete_file_name)
-        .completion_cb("keyfile", tools::complete_file_name)
-        .completion_cb("repository", complete_repository);
-
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
@@ -1928,7 +1845,6 @@ fn main() {
 
     let cmd_def = CliCommandMap::new()
         .insert("backup", backup_cmd_def)
-        .insert("upload-log", upload_log_cmd_def)
         .insert("garbage-collect", garbage_collect_cmd_def)
         .insert("list", list_cmd_def)
         .insert("login", login_cmd_def)
@@ -1949,6 +1865,7 @@ fn main() {
 
         .alias(&["files"], &["snapshot", "files"])
         .alias(&["forget"], &["snapshot", "forget"])
+        .alias(&["upload-log"], &["snapshot", "upload-log"])
         .alias(&["snapshots"], &["snapshot", "list"])
         ;
 
