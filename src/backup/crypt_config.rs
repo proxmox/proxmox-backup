@@ -48,6 +48,9 @@ pub struct Fingerprint {
 }
 
 impl Fingerprint {
+    pub fn new(bytes: [u8; 32]) -> Self {
+        Self { bytes }
+    }
     pub fn bytes(&self) -> &[u8; 32] {
         &self.bytes
     }
@@ -132,9 +135,7 @@ impl CryptConfig {
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
-        Fingerprint {
-            bytes: self.compute_digest(&FINGERPRINT_INPUT)
-        }
+        Fingerprint::new(self.compute_digest(&FINGERPRINT_INPUT))
     }
 
     pub fn data_crypter(&self, iv: &[u8; 16], mode: Mode) -> Result<Crypter, Error>  {
