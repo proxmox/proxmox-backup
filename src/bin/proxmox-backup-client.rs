@@ -586,58 +586,6 @@ async fn api_version(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
-
-#[api(
-   input: {
-        properties: {
-            repository: {
-                schema: REPO_URL_SCHEMA,
-                optional: true,
-            },
-            snapshot: {
-                type: String,
-                description: "Snapshot path.",
-             },
-            "output-format": {
-                schema: OUTPUT_FORMAT,
-                optional: true,
-            },
-        }
-   }
-)]
-/// List snapshot files.
-async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
-
-    let repo = extract_repository_from_value(&param)?;
-
-    let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot: BackupDir = path.parse()?;
-
-    let output_format = get_output_format(&param);
-
-    let client = connect(&repo)?;
-
-    let path = format!("api2/json/admin/datastore/{}/files", repo.store());
-
-    let mut result = client.get(&path, Some(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    }))).await?;
-
-    record_repository(&repo);
-
-    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_SNAPSHOT_FILES;
-
-    let mut data: Value = result["data"].take();
-
-    let options = default_table_format_options();
-
-    format_and_print_result_full(&mut data, info, &output_format, &options);
-
-    Ok(Value::Null)
-}
-
 #[api(
     input: {
         properties: {
@@ -1997,11 +1945,6 @@ fn main() {
         .completion_cb("archive-name", complete_archive_name)
         .completion_cb("target", tools::complete_file_name);
 
-    let files_cmd_def = CliCommand::new(&API_METHOD_LIST_SNAPSHOT_FILES)
-        .arg_param(&["snapshot"])
-        .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_backup_snapshot);
-
     let prune_cmd_def = CliCommand::new(&API_METHOD_PRUNE)
         .arg_param(&["group"])
         .completion_cb("group", complete_backup_group)
@@ -2036,7 +1979,6 @@ fn main() {
         .insert("prune", prune_cmd_def)
         .insert("restore", restore_cmd_def)
         .insert("snapshot", snapshot_mgtm_cli())
-        .insert("files", files_cmd_def)
         .insert("status", status_cmd_def)
         .insert("key", key::cli())
         .insert("mount", mount_cmd_def())
@@ -2048,6 +1990,7 @@ fn main() {
         .insert("benchmark", benchmark_cmd_def)
         .insert("change-owner", change_owner_cmd_def)
 
+        .alias(&["files"], &["snapshot", "files"])
         .alias(&["snapshots"], &["snapshot", "list"])
         ;
 
