@@ -463,43 +463,6 @@ async fn change_backup_owner(group: String, mut param: Value) -> Result<(), Erro
                 schema: REPO_URL_SCHEMA,
                 optional: true,
             },
-            snapshot: {
-                type: String,
-                description: "Snapshot path.",
-             },
-        }
-   }
-)]
-/// Forget (remove) backup snapshots.
-async fn forget_snapshots(param: Value) -> Result<Value, Error> {
-
-    let repo = extract_repository_from_value(&param)?;
-
-    let path = tools::required_string_param(&param, "snapshot")?;
-    let snapshot: BackupDir = path.parse()?;
-
-    let mut client = connect(&repo)?;
-
-    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
-
-    let result = client.delete(&path, Some(json!({
-        "backup-type": snapshot.group().backup_type(),
-        "backup-id": snapshot.group().backup_id(),
-        "backup-time": snapshot.backup_time(),
-    }))).await?;
-
-    record_repository(&repo);
-
-    Ok(result)
-}
-
-#[api(
-   input: {
-        properties: {
-            repository: {
-                schema: REPO_URL_SCHEMA,
-                optional: true,
-            },
         }
    }
 )]
@@ -1930,11 +1893,6 @@ fn main() {
     let list_cmd_def = CliCommand::new(&API_METHOD_LIST_BACKUP_GROUPS)
         .completion_cb("repository", complete_repository);
 
-    let forget_cmd_def = CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
-        .arg_param(&["snapshot"])
-        .completion_cb("repository", complete_repository)
-        .completion_cb("snapshot", complete_backup_snapshot);
-
     let garbage_collect_cmd_def = CliCommand::new(&API_METHOD_START_GARBAGE_COLLECTION)
         .completion_cb("repository", complete_repository);
 
@@ -1971,7 +1929,6 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("backup", backup_cmd_def)
         .insert("upload-log", upload_log_cmd_def)
-        .insert("forget", forget_cmd_def)
         .insert("garbage-collect", garbage_collect_cmd_def)
         .insert("list", list_cmd_def)
         .insert("login", login_cmd_def)
@@ -1991,6 +1948,7 @@ fn main() {
         .insert("change-owner", change_owner_cmd_def)
 
         .alias(&["files"], &["snapshot", "files"])
+        .alias(&["forget"], &["snapshot", "forget"])
         .alias(&["snapshots"], &["snapshot", "list"])
         ;
 

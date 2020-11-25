@@ -143,6 +143,43 @@ async fn list_snapshot_files(param: Value) -> Result<Value, Error> {
 }
 
 #[api(
+   input: {
+        properties: {
+            repository: {
+                schema: REPO_URL_SCHEMA,
+                optional: true,
+            },
+            snapshot: {
+                type: String,
+                description: "Snapshot path.",
+             },
+        }
+   }
+)]
+/// Forget (remove) backup snapshots.
+async fn forget_snapshots(param: Value) -> Result<Value, Error> {
+
+    let repo = extract_repository_from_value(&param)?;
+
+    let path = tools::required_string_param(&param, "snapshot")?;
+    let snapshot: BackupDir = path.parse()?;
+
+    let mut client = connect(&repo)?;
+
+    let path = format!("api2/json/admin/datastore/{}/snapshots", repo.store());
+
+    let result = client.delete(&path, Some(json!({
+        "backup-type": snapshot.group().backup_type(),
+        "backup-id": snapshot.group().backup_id(),
+        "backup-time": snapshot.backup_time(),
+    }))).await?;
+
+    record_repository(&repo);
+
+    Ok(result)
+}
+
+#[api(
     input: {
         properties: {
             repository: {
@@ -272,5 +309,11 @@ pub fn snapshot_mgtm_cli() -> CliCommandMap {
                 .completion_cb("repository", complete_repository)
                 .completion_cb("snapshot", complete_backup_snapshot)
         )
-
+        .insert(
+            "forget",
+            CliCommand::new(&API_METHOD_FORGET_SNAPSHOTS)
+                .arg_param(&["snapshot"])
+                .completion_cb("repository", complete_repository)
+                .completion_cb("snapshot", complete_backup_snapshot)
+        )
 }
