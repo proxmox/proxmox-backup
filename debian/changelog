@@ -1,3 +1,13 @@
+rust-proxmox-backup (1.0.4-1) unstable; urgency=medium
+
+  * fingerprint: add bytes() accessor
+
+  * ui: fix broken gettext use
+
+  * cli: move more commands into "snapshot" sub-command
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 25 Nov 2020 06:37:41 +0100
+
 rust-proxmox-backup (1.0.3-1) unstable; urgency=medium
 
   * client: inform user when automatically using the default encryption key
