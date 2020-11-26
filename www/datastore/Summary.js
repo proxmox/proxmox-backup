@@ -266,7 +266,8 @@ Ext.define('PBS.DataStoreSummary', {
 	    },
 	    failure: function(response) {
 		// fallback if e.g. we have no permissions to the config
-		let rec = Ext.getStore('pbs-datastore-list').findRecord('store', me.datastore);
+		let rec = Ext.getStore('pbs-datastore-list')
+		    .findRecord('store', me.datastore, 0, false, true, true);
 		if (rec) {
 		    me.down('pbsDataStoreNotes').setNotes(rec.data.comment || "");
 		}
