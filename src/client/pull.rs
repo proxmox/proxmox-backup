@@ -565,7 +565,7 @@ pub async fn pull_store(
 
     if delete {
         let result: Result<(), Error> = proxmox::try_block!({
-            let local_groups = BackupGroup::list_groups(&tgt_store.base_path())?;
+            let local_groups = BackupInfo::list_backup_groups(&tgt_store.base_path())?;
             for local_group in local_groups {
                 if new_groups.contains(&local_group) { continue; }
                 worker.log(format!("delete vanished group '{}/{}'", local_group.backup_type(), local_group.backup_id()));

@@ -145,20 +145,6 @@ impl BackupGroup {
 
         Ok(last)
     }
-
-    pub fn list_groups(base_path: &Path) -> Result<Vec<BackupGroup>, Error> {
-        let mut list = Vec::new();
-
-        tools::scandir(libc::AT_FDCWD, base_path, &BACKUP_TYPE_REGEX, |l0_fd, backup_type, file_type| {
-            if file_type != nix::dir::Type::Directory { return Ok(()); }
-            tools::scandir(l0_fd, backup_type, &BACKUP_ID_REGEX, |_l1_fd, backup_id, file_type| {
-                if file_type != nix::dir::Type::Directory { return Ok(()); }
-                list.push(BackupGroup::new(backup_type, backup_id));
-                Ok(())
-            })
-        })?;
-        Ok(list)
-    }
 }
 
 impl std::fmt::Display for BackupGroup {

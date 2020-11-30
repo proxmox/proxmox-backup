@@ -4,7 +4,7 @@ use proxmox::try_block;
 
 use crate::{
     api2::types::*,
-    backup::{compute_prune_info, BackupGroup, DataStore, PruneOptions},
+    backup::{compute_prune_info, BackupInfo, DataStore, PruneOptions},
     server::jobstate::Job,
     server::WorkerTask,
     task_log,
@@ -43,7 +43,7 @@ pub fn do_prune_job(
 
                 let base_path = datastore.base_path();
 
-                let groups = BackupGroup::list_groups(&base_path)?;
+                let groups = BackupInfo::list_backup_groups(&base_path)?;
                 for group in groups {
                     let list = group.list_backups(&base_path)?;
                     let mut prune_info = compute_prune_info(list, &prune_options)?;
