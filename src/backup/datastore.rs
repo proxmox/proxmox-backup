@@ -491,26 +491,24 @@ impl DataStore {
                 }
             }
 
-            let path = self.chunk_store.relative_path(&img);
-
-            match std::fs::File::open(&path) {
+            match std::fs::File::open(&img) {
                 Ok(file) => {
                     if let Ok(archive_type) = archive_type(&img) {
                         if archive_type == ArchiveType::FixedIndex {
                             let index = FixedIndexReader::new(file).map_err(|e| {
-                                format_err!("can't read index '{}' - {}", path.to_string_lossy(), e)
+                                format_err!("can't read index '{}' - {}", img.to_string_lossy(), e)
                             })?;
                             self.index_mark_used_chunks(index, &img, status, worker)?;
                         } else if archive_type == ArchiveType::DynamicIndex {
                             let index = DynamicIndexReader::new(file).map_err(|e| {
-                                format_err!("can't read index '{}' - {}", path.to_string_lossy(), e)
+                                format_err!("can't read index '{}' - {}", img.to_string_lossy(), e)
                             })?;
                             self.index_mark_used_chunks(index, &img, status, worker)?;
                         }
                     }
                 }
                 Err(err) if err.kind() == io::ErrorKind::NotFound => (), // ignore vanished files
-                Err(err) => bail!("can't open index {} - {}", path.to_string_lossy(), err),
+                Err(err) => bail!("can't open index {} - {}", img.to_string_lossy(), err),
             }
             done += 1;
 
