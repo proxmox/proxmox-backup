@@ -419,12 +419,10 @@ impl<'a> TryFrom<&'a str> for &'a TokennameRef {
 }
 
 /// A complete user id consisting of a user name and a realm
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Userid {
     data: String,
     name_len: usize,
-    //name: Username,
-    //realm: Realm,
 }
 
 impl Userid {
@@ -458,14 +456,6 @@ impl Userid {
 
 lazy_static! {
     pub static ref ROOT_USERID: Userid = Userid::new("root@pam".to_string(), 4);
-}
-
-impl Eq for Userid {}
-
-impl PartialEq for Userid {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.data == rhs.data && self.name_len == rhs.name_len
-    }
 }
 
 impl From<Authid> for Userid {
