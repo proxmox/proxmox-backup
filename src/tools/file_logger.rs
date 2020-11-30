@@ -20,6 +20,7 @@ use std::io::Write;
 /// };
 /// let mut log = FileLogger::new("test.log", options).unwrap();
 /// flog!(log, "A simple log: {}", "Hello!");
+/// # std::fs::remove_file("test.log");
 /// ```
 
 #[derive(Debug, Default)]
@@ -51,7 +52,7 @@ pub struct FileLogger {
     options: FileLogOptions,
 }
 
-/// Log messages to [FileLogger](tools/struct.FileLogger.html)
+/// Log messages to [`FileLogger`](tools/struct.FileLogger.html)
 #[macro_export]
 macro_rules! flog {
     ($log:expr, $($arg:tt)*) => ({
