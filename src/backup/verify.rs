@@ -10,6 +10,7 @@ use crate::{
     api2::types::*,
     backup::{
         DataStore,
+        StoreProgress,
         DataBlob,
         BackupGroup,
         BackupDir,
@@ -425,11 +426,11 @@ pub fn verify_backup_group(
     group: &BackupGroup,
     verified_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
     corrupt_chunks: Arc<Mutex<HashSet<[u8;32]>>>,
-    progress: Option<(usize, usize)>, // (done, snapshot_count)
+    progress: &mut StoreProgress,
     worker: Arc<dyn TaskState + Send + Sync>,
     upid: &UPID,
     filter: Option<&dyn Fn(&BackupManifest) -> bool>,
-) -> Result<(usize, Vec<String>), Error> {
+) -> Result<Vec<String>, Error> {
 
     let mut errors = Vec::new();
     let mut list = match group.list_backups(&datastore.base_path()) {
@@ -442,19 +443,17 @@ pub fn verify_backup_group(
                 group,
                 err,
             );
-            return Ok((0, errors));
+            return Ok(errors);
         }
     };
 
-    task_log!(worker, "verify group {}:{}", datastore.name(), group);
+    let snapshot_count = list.len();
+    task_log!(worker, "verify group {}:{} ({} snapshots)", datastore.name(), group, snapshot_count);
 
-    let (done, snapshot_count) = progress.unwrap_or((0, list.len()));
+    progress.group_snapshots = snapshot_count as u64;
 
-    let mut count = 0;
     BackupInfo::sort_list(&mut list, false); // newest first
-    for info in list {
-        count += 1;
-
+    for (pos, info) in list.into_iter().enumerate() {
         if !verify_backup_dir(
             datastore.clone(),
             &info.backup_dir,
@@ -466,20 +465,15 @@ pub fn verify_backup_group(
         )? {
             errors.push(info.backup_dir.to_string());
         }
-        if snapshot_count != 0 {
-            let pos = done + count;
-            let percentage = ((pos as f64) * 100.0)/(snapshot_count as f64);
-            task_log!(
-                worker,
-                "percentage done: {:.2}% ({} of {} snapshots)",
-                percentage,
-                pos,
-                snapshot_count,
-            );
-        }
+        progress.done_snapshots = pos as u64 + 1;
+        task_log!(
+            worker,
+            "percentage done: {}",
+            progress
+        );
     }
 
-    Ok((count, errors))
+    Ok(errors)
 }
 
 /// Verify all (owned) backups inside a datastore
@@ -551,34 +545,33 @@ pub fn verify_all_backups(
 
     list.sort_unstable();
 
-    let mut snapshot_count = 0;
-    for group in list.iter() {
-        snapshot_count += group.list_backups(&datastore.base_path())?.len();
-    }
-
     // start with 16384 chunks (up to 65GB)
     let verified_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*16)));
 
     // start with 64 chunks since we assume there are few corrupt ones
     let corrupt_chunks = Arc::new(Mutex::new(HashSet::with_capacity(64)));
 
-    task_log!(worker, "found {} snapshots", snapshot_count);
+    let group_count = list.len();
+    task_log!(worker, "found {} groups", group_count);
 
-    let mut done = 0;
-    for group in list {
-        let (count, mut group_errors) = verify_backup_group(
+    let mut progress = StoreProgress::new(group_count as u64);
+
+    for (pos, group) in list.into_iter().enumerate() {
+        progress.done_groups = pos as u64;
+        progress.done_snapshots = 0;
+        progress.group_snapshots = 0;
+
+        let mut group_errors = verify_backup_group(
             datastore.clone(),
             &group,
             verified_chunks.clone(),
             corrupt_chunks.clone(),
-            Some((done, snapshot_count)),
+            &mut progress,
             worker.clone(),
             upid,
             filter,
         )?;
         errors.append(&mut group_errors);
-
-        done += count;
     }
 
     Ok(errors)

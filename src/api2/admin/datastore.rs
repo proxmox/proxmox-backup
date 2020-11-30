@@ -687,12 +687,12 @@ pub fn verify(
                 }
                 res
             } else if let Some(backup_group) = backup_group {
-                let (_count, failed_dirs) = verify_backup_group(
+                let failed_dirs = verify_backup_group(
                     datastore,
                     &backup_group,
                     verified_chunks,
                     corrupt_chunks,
-                    None,
+                    &mut StoreProgress::new(1),
                     worker.clone(),
                     worker.upid(),
                     None,
