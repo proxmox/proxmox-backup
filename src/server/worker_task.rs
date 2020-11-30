@@ -347,6 +347,9 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
     let mut finish_list: Vec<TaskListInfo> = read_task_file_from_path(PROXMOX_BACKUP_INDEX_TASK_FN)?;
     let had_index_file = !finish_list.is_empty();
 
+    // We use filter_map because one negative case wants to *move* the data into `finish_list`,
+    // clippy doesn't quite catch this!
+    #[allow(clippy::unnecessary_filter_map)]
     let mut active_list: Vec<TaskListInfo> = read_task_file_from_path(PROXMOX_BACKUP_ACTIVE_TASK_FN)?
         .into_iter()
         .filter_map(|info| {
