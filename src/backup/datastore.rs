@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::time::Duration;
 use std::fs::File;
 
@@ -474,12 +475,24 @@ impl DataStore {
         let mut done = 0;
         let mut last_percentage: usize = 0;
 
+        let mut strange_paths_count: u64 = 0;
+
         for img in image_list {
 
             worker.check_abort()?;
             tools::fail_on_shutdown()?;
 
+            if let Some(backup_dir_path) = img.parent() {
+                let backup_dir_path = backup_dir_path.strip_prefix(self.base_path())?;
+                if let Some(backup_dir_str) = backup_dir_path.to_str() {
+                    if BackupDir::from_str(backup_dir_str).is_err() {
+                        strange_paths_count += 1;
+                    }
+                }
+            }
+
             let path = self.chunk_store.relative_path(&img);
+
             match std::fs::File::open(&path) {
                 Ok(file) => {
                     if let Ok(archive_type) = archive_type(&img) {
@@ -513,6 +526,15 @@ impl DataStore {
                 last_percentage = percentage;
             }
         }
+
+        if strange_paths_count > 0 {
+            crate::task_log!(
+                worker,
+                "found (and marked) {} index files outside of expected directory scheme",
+                strange_paths_count,
+            );
+        }
+
 
         Ok(())
     }
