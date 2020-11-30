@@ -277,11 +277,11 @@ impl Extractor {
             .map_err(|err| format_err!("unexpected end of directory entry: {}", err))?
             .ok_or_else(|| format_err!("broken pxar archive (directory stack underrun)"))?;
 
-        if let Some(fd) = dir.try_as_raw_fd() {
+        if let Some(fd) = dir.try_as_borrowed_fd() {
             metadata::apply(
                 self.feature_flags,
                 dir.metadata(),
-                fd,
+                fd.as_raw_fd(),
                 &CString::new(dir.file_name().as_bytes())?,
                 &mut self.on_error,
             )
@@ -298,6 +298,7 @@ impl Extractor {
     fn parent_fd(&mut self) -> Result<RawFd, Error> {
         self.dir_stack
             .last_dir_fd(self.allow_existing_dirs)
+            .map(|d| d.as_raw_fd())
             .map_err(|err| format_err!("failed to get parent directory file descriptor: {}", err))
     }
 
@@ -325,7 +326,7 @@ impl Extractor {
         let root = self.dir_stack.root_dir_fd()?;
         let target = CString::new(link.as_bytes())?;
         nix::unistd::linkat(
-            Some(root),
+            Some(root.as_raw_fd()),
             target.as_c_str(),
             Some(parent),
             file_name,

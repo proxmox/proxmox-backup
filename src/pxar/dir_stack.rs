@@ -8,6 +8,7 @@ use nix::fcntl::OFlag;
 use nix::sys::stat::{mkdirat, Mode};
 
 use proxmox::sys::error::SysError;
+use proxmox::tools::fd::BorrowedFd;
 use pxar::Metadata;
 
 use crate::pxar::tools::{assert_single_path_component, perms_from_metadata};
@@ -35,7 +36,11 @@ impl PxarDir {
         }
     }
 
-    fn create_dir(&mut self, parent: RawFd, allow_existing_dirs: bool) -> Result<RawFd, Error> {
+    fn create_dir(
+        &mut self,
+        parent: RawFd,
+        allow_existing_dirs: bool,
+    ) -> Result<BorrowedFd, Error> {
         match mkdirat(
             parent,
             self.file_name.as_os_str(),
@@ -52,7 +57,7 @@ impl PxarDir {
         self.open_dir(parent)
     }
 
-    fn open_dir(&mut self, parent: RawFd) -> Result<RawFd, Error> {
+    fn open_dir(&mut self, parent: RawFd) -> Result<BorrowedFd, Error> {
         let dir = Dir::openat(
             parent,
             self.file_name.as_os_str(),
@@ -60,14 +65,14 @@ impl PxarDir {
             Mode::empty(),
         )?;
 
-        let fd = dir.as_raw_fd();
+        let fd = BorrowedFd::new(&dir);
         self.dir = Some(dir);
 
         Ok(fd)
     }
 
-    pub fn try_as_raw_fd(&self) -> Option<RawFd> {
-        self.dir.as_ref().map(AsRawFd::as_raw_fd)
+    pub fn try_as_borrowed_fd(&self) -> Option<BorrowedFd> {
+        self.dir.as_ref().map(BorrowedFd::new)
     }
 
     pub fn metadata(&self) -> &Metadata {
@@ -119,32 +124,39 @@ impl PxarDirStack {
         Ok(out)
     }
 
-    pub fn last_dir_fd(&mut self, allow_existing_dirs: bool) -> Result<RawFd, Error> {
+    pub fn last_dir_fd(&mut self, allow_existing_dirs: bool) -> Result<BorrowedFd, Error> {
         // should not be possible given the way we use it:
         assert!(!self.dirs.is_empty(), "PxarDirStack underrun");
 
+        let dirs_len = self.dirs.len();
         let mut fd = self.dirs[self.created - 1]
-            .try_as_raw_fd()
-            .ok_or_else(|| format_err!("lost track of directory file descriptors"))?;
-        while self.created < self.dirs.len() {
-            fd = self.dirs[self.created].create_dir(fd, allow_existing_dirs)?;
+            .try_as_borrowed_fd()
+            .ok_or_else(|| format_err!("lost track of directory file descriptors"))?
+            .as_raw_fd();
+
+        while self.created < dirs_len {
+            fd = self.dirs[self.created]
+                .create_dir(fd, allow_existing_dirs)?
+                .as_raw_fd();
             self.created += 1;
         }
 
-        Ok(fd)
+        self.dirs[self.created - 1]
+            .try_as_borrowed_fd()
+            .ok_or_else(|| format_err!("lost track of directory file descriptors"))
     }
 
     pub fn create_last_dir(&mut self, allow_existing_dirs: bool) -> Result<(), Error> {
-        let _: RawFd = self.last_dir_fd(allow_existing_dirs)?;
+        let _: BorrowedFd = self.last_dir_fd(allow_existing_dirs)?;
         Ok(())
     }
 
-    pub fn root_dir_fd(&self) -> Result<RawFd, Error> {
+    pub fn root_dir_fd(&self) -> Result<BorrowedFd, Error> {
         // should not be possible given the way we use it:
         assert!(!self.dirs.is_empty(), "PxarDirStack underrun");
 
         self.dirs[0]
-            .try_as_raw_fd()
+            .try_as_borrowed_fd()
             .ok_or_else(|| format_err!("lost track of directory file descriptors"))
     }
 }
