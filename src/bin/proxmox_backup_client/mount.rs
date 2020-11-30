@@ -1,22 +1,21 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::os::unix::io::RawFd;
-use std::path::Path;
-use std::ffi::OsStr;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::hash::BuildHasher;
+use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{bail, format_err, Error};
+use futures::future::FutureExt;
+use futures::select;
+use futures::stream::{StreamExt, TryStreamExt};
+use nix::unistd::{fork, ForkResult};
 use serde_json::Value;
 use tokio::signal::unix::{signal, SignalKind};
-use nix::unistd::{fork, ForkResult, pipe};
-use futures::select;
-use futures::future::FutureExt;
-use futures::stream::{StreamExt, TryStreamExt};
 
 use proxmox::{sortable, identity};
 use proxmox::api::{ApiHandler, ApiMethod, RpcEnvironment, schema::*, cli::*};
-
+use proxmox::tools::fd::Fd;
 
 use proxmox_backup::tools;
 use proxmox_backup::backup::{
@@ -143,24 +142,24 @@ fn mount(
 
     // Process should be deamonized.
     // Make sure to fork before the async runtime is instantiated to avoid troubles.
-    let pipe = pipe()?;
+    let (pr, pw) = proxmox_backup::tools::pipe()?;
     match unsafe { fork() } {
         Ok(ForkResult::Parent { .. }) => {
-            nix::unistd::close(pipe.1).unwrap();
+            drop(pw);
             // Blocks the parent process until we are ready to go in the child
-            let _res = nix::unistd::read(pipe.0, &mut [0]).unwrap();
+            let _res = nix::unistd::read(pr.as_raw_fd(), &mut [0]).unwrap();
             Ok(Value::Null)
         }
         Ok(ForkResult::Child) => {
-            nix::unistd::close(pipe.0).unwrap();
+            drop(pr);
             nix::unistd::setsid().unwrap();
-            proxmox_backup::tools::runtime::main(mount_do(param, Some(pipe.1)))
+            proxmox_backup::tools::runtime::main(mount_do(param, Some(pw)))
         }
         Err(_) => bail!("failed to daemonize process"),
     }
 }
 
-async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
+async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
     let repo = extract_repository_from_value(&param)?;
     let archive_name = tools::required_string_param(&param, "archive-name")?;
     let client = connect(&repo)?;
@@ -235,8 +234,8 @@ async fn mount_do(param: Value, pipe: Option<RawFd>) -> Result<Value, Error> {
             }
             // Signal the parent process that we are done with the setup and it can
             // terminate.
-            nix::unistd::write(pipe, &[0u8])?;
-            nix::unistd::close(pipe).unwrap();
+            nix::unistd::write(pipe.as_raw_fd(), &[0u8])?;
+            let _: Fd = pipe;
         }
 
         Ok(())
