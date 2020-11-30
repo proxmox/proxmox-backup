@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::{File, rename};
-use std::os::unix::io::FromRawFd;
+use std::os::unix::io::{FromRawFd, IntoRawFd};
 use std::io::Read;
 
 use anyhow::{bail, Error};
@@ -49,7 +49,7 @@ impl LogRotate {
     fn compress(source_path: &PathBuf, target_path: &PathBuf, options: &CreateOptions) -> Result<(), Error> {
         let mut source = File::open(source_path)?;
         let (fd, tmp_path) = make_tmp_file(target_path, options.clone())?;
-        let target = unsafe { File::from_raw_fd(fd) };
+        let target = unsafe { File::from_raw_fd(fd.into_raw_fd()) };
         let mut encoder = match zstd::stream::write::Encoder::new(target, 0) {
             Ok(encoder) => encoder,
             Err(err) => {
