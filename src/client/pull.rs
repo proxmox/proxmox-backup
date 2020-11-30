@@ -395,7 +395,7 @@ pub async fn pull_group(
     tgt_store: Arc<DataStore>,
     group: &BackupGroup,
     delete: bool,
-    progress: Option<(usize, usize)>, // (groups_done, group_count)
+    progress: &mut StoreProgress,
 ) -> Result<(), Error> {
 
     let path = format!("api2/json/admin/datastore/{}/snapshots", src_repo.store());
@@ -418,18 +418,10 @@ pub async fn pull_group(
 
     let mut remote_snapshots = std::collections::HashSet::new();
 
-    let (per_start, per_group) = if let Some((groups_done, group_count)) = progress {
-        let per_start = (groups_done as f64)/(group_count as f64);
-        let per_group = 1.0/(group_count as f64);
-        (per_start, per_group)
-    } else {
-        (0.0, 1.0)
-    };
-
     // start with 16384 chunks (up to 65GB)
     let downloaded_chunks = Arc::new(Mutex::new(HashSet::with_capacity(1024*64)));
 
-    let snapshot_count = list.len();
+    progress.group_snapshots = list.len() as u64;
 
     for (pos, item) in list.into_iter().enumerate() {
         let snapshot = BackupDir::new(item.backup_type, item.backup_id, item.backup_time)?;
@@ -469,9 +461,8 @@ pub async fn pull_group(
 
         let result = pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot, downloaded_chunks.clone()).await;
 
-        let percentage = (pos as f64)/(snapshot_count as f64);
-        let percentage = per_start + percentage*per_group;
-        worker.log(format!("percentage done: {:.2}%", percentage*100.0));
+        progress.done_snapshots = pos as u64 + 1;
+        worker.log(format!("percentage done: {}", progress.clone()));
 
         result?; // stop on error
     }
@@ -523,9 +514,13 @@ pub async fn pull_store(
         new_groups.insert(BackupGroup::new(&item.backup_type, &item.backup_id));
     }
 
-    let group_count = list.len();
+    let mut progress = StoreProgress::new(list.len() as u64);
 
-    for (groups_done, item) in list.into_iter().enumerate() {
+    for (done, item) in list.into_iter().enumerate() {
+        progress.done_groups = done as u64;
+        progress.done_snapshots = 0;
+        progress.group_snapshots = 0;
+
         let group = BackupGroup::new(&item.backup_type, &item.backup_id);
 
         let (owner, _lock_guard) = match tgt_store.create_locked_backup_group(&group, &auth_id) {
@@ -551,7 +546,7 @@ pub async fn pull_store(
             tgt_store.clone(),
             &group,
             delete,
-            Some((groups_done, group_count)),
+            &mut progress,
         ).await {
             worker.log(format!(
                 "sync group {}/{} failed - {}",
