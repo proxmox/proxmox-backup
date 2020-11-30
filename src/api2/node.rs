@@ -6,7 +6,6 @@ use futures::future::{FutureExt, TryFutureExt};
 use hyper::body::Body;
 use hyper::http::request::Parts;
 use hyper::upgrade::Upgraded;
-use nix::fcntl::{fcntl, FcntlArg, FdFlag};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -145,18 +144,10 @@ async fn termproxy(
         move |worker| async move {
             // move inside the worker so that it survives and does not close the port
             // remove CLOEXEC from listenere so that we can reuse it in termproxy
-            let fd = listener.as_raw_fd();
-            let mut flags = match fcntl(fd, FcntlArg::F_GETFD) {
-                Ok(bits) => FdFlag::from_bits_truncate(bits),
-                Err(err) => bail!("could not get fd: {}", err),
-            };
-            flags.remove(FdFlag::FD_CLOEXEC);
-            if let Err(err) = fcntl(fd, FcntlArg::F_SETFD(flags)) {
-                bail!("could not set fd: {}", err);
-            }
+            tools::fd_change_cloexec(listener.as_raw_fd(), false)?;
 
             let mut arguments: Vec<&str> = Vec::new();
-            let fd_string = fd.to_string();
+            let fd_string = listener.as_raw_fd().to_string();
             arguments.push(&fd_string);
             arguments.extend_from_slice(&[
                 "--path",
