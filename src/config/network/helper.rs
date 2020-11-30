@@ -1,14 +1,16 @@
 use std::path::Path;
 use std::process::Command;
 use std::collections::HashMap;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 
 use anyhow::{Error, bail, format_err};
 use lazy_static::lazy_static;
-use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
 use nix::ioctl_read_bad;
+use nix::sys::socket::{socket, AddressFamily, SockType, SockFlag};
 use regex::Regex;
 
 use proxmox::*; // for IP macros
+use proxmox::tools::fd::Fd;
 
 pub static IPV4_REVERSE_MASK: &[&str] = &[
     "0.0.0.0",
@@ -133,8 +135,24 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
 
     let lines = raw.lines();
 
-    let sock = socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(), None)
-        .or_else(|_| socket(AddressFamily::Inet6, SockType::Datagram, SockFlag::empty(), None))?;
+    let sock = unsafe {
+        Fd::from_raw_fd(
+            socket(
+                AddressFamily::Inet,
+                SockType::Datagram,
+                SockFlag::empty(),
+                None,
+            )
+            .or_else(|_| {
+                socket(
+                    AddressFamily::Inet6,
+                    SockType::Datagram,
+                    SockFlag::empty(),
+                    None,
+                )
+            })?,
+        )
+    };
 
     let mut interface_list = HashMap::new();
 
@@ -146,7 +164,7 @@ pub fn get_network_interfaces() -> Result<HashMap<String, bool>, Error> {
             for (i, b) in std::ffi::CString::new(ifname)?.as_bytes_with_nul().iter().enumerate() {
                 if i < (libc::IFNAMSIZ-1) { req.ifr_name[i] = *b as libc::c_uchar; }
             }
-            let res = unsafe { get_interface_flags(sock, &mut req)? };
+            let res = unsafe { get_interface_flags(sock.as_raw_fd(), &mut req)? };
             if res != 0 {
                 bail!("ioctl get_interface_flags for '{}' failed ({})", ifname, res);
             }
