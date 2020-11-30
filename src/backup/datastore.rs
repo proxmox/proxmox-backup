@@ -795,14 +795,32 @@ impl StoreProgress {
 
 impl std::fmt::Display for StoreProgress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:.2}% ({} of {} groups, {} of {} group snapshots)",
-            self.percentage() * 100.0,
-            self.done_groups,
-            self.total_groups,
-            self.done_snapshots,
-            self.group_snapshots,
-        )
+        if self.group_snapshots == 0 {
+            write!(
+                f,
+                "{:.2}% ({} of {} groups)",
+                self.percentage() * 100.0,
+                self.done_groups,
+                self.total_groups,
+            )
+        } else if self.total_groups == 1 {
+            write!(
+                f,
+                "{:.2}% ({} of {} snapshots)",
+                self.percentage() * 100.0,
+                self.done_snapshots,
+                self.group_snapshots,
+            )
+        } else {
+            write!(
+                f,
+                "{:.2}% ({} of {} groups, {} of {} group snapshots)",
+                self.percentage() * 100.0,
+                self.done_groups,
+                self.total_groups,
+                self.done_snapshots,
+                self.group_snapshots,
+            )
+        }
     }
 }
