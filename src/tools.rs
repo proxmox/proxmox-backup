@@ -2,6 +2,7 @@
 //!
 //! This is a collection of small and useful tools.
 use std::any::Any;
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::fs::File;
@@ -297,14 +298,14 @@ pub fn percent_encode_component(comp: &str) -> String {
     utf8_percent_encode(comp, percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
-pub fn join(data: &Vec<String>, sep: char) -> String {
+pub fn join<S: Borrow<str>>(data: &[S], sep: char) -> String {
     let mut list = String::new();
 
     for item in data {
         if !list.is_empty() {
             list.push(sep);
         }
-        list.push_str(item);
+        list.push_str(item.borrow());
     }
 
     list
