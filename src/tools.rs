@@ -128,35 +128,38 @@ pub fn required_string_property<'a>(param: &'a Value, name: &str) -> Result<&'a 
     }
 }
 
-pub fn required_integer_param<'a>(param: &'a Value, name: &str) -> Result<i64, Error> {
+pub fn required_integer_param(param: &Value, name: &str) -> Result<i64, Error> {
     match param[name].as_i64() {
         Some(s) => Ok(s),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
-pub fn required_integer_property<'a>(param: &'a Value, name: &str) -> Result<i64, Error> {
+pub fn required_integer_property(param: &Value, name: &str) -> Result<i64, Error> {
     match param[name].as_i64() {
         Some(s) => Ok(s),
         None => bail!("missing property '{}'", name),
     }
 }
 
-pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<Vec<Value>, Error> {
+pub fn required_array_param(param: &Value, name: &str) -> Result<Vec<Value>, Error> {
     match param[name].as_array() {
         Some(s) => Ok(s.to_vec()),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
-pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<Vec<Value>, Error> {
+pub fn required_array_property(param: &Value, name: &str) -> Result<Vec<Value>, Error> {
     match param[name].as_array() {
         Some(s) => Ok(s.to_vec()),
         None => bail!("missing property '{}'", name),
     }
 }
 
-pub fn complete_file_name<S: BuildHasher>(arg: &str, _param: &HashMap<String, String, S>) -> Vec<String> {
+pub fn complete_file_name<S>(arg: &str, _param: &HashMap<String, String, S>) -> Vec<String>
+where
+    S: BuildHasher,
+{
     let mut result = vec![];
 
     use nix::fcntl::AtFlags;
@@ -312,7 +315,7 @@ pub fn join(data: &Vec<String>, sep: char) -> String {
 /// This function fails with a reasonable error message if checksums do not match.
 pub fn detect_modified_configuration_file(digest1: &[u8;32], digest2: &[u8;32]) -> Result<(), Error> {
     if digest1 != digest2 {
-	bail!("detected modified configuration - file changed by other user? Try again.");
+        bail!("detected modified configuration - file changed by other user? Try again.");
     }
     Ok(())
 }
@@ -534,15 +537,13 @@ pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
 
     loop {
         let count = match file.read(&mut buffer) {
+            Ok(0) => break,
             Ok(count) => count,
             Err(ref err) if err.kind() == std::io::ErrorKind::Interrupted => {
                 continue;
             }
             Err(err) => return Err(err.into()),
         };
-        if count == 0 {
-            break;
-        }
         size += count as u64;
         hasher.update(&buffer[..count]);
     }
