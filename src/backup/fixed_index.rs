@@ -3,7 +3,7 @@ use std::io::{Seek, SeekFrom};
 
 use super::chunk_stat::*;
 use super::chunk_store::*;
-use super::{IndexFile, ChunkReadInfo};
+use super::{ChunkReadInfo, IndexFile};
 use crate::tools;
 
 use std::fs::File;
@@ -69,8 +69,7 @@ impl FixedIndexReader {
 
         let header_size = std::mem::size_of::<FixedIndexHeader>();
 
-        let rawfd = file.as_raw_fd();
-        let stat = match nix::sys::stat::fstat(rawfd) {
+        let stat = match nix::sys::stat::fstat(file.as_raw_fd()) {
             Ok(stat) => stat,
             Err(err) => bail!("fstat failed - {}", err),
         };
@@ -93,7 +92,6 @@ impl FixedIndexReader {
 
         let index_length = ((size + chunk_size - 1) / chunk_size) as usize;
         let index_size = index_length * 32;
-
 
         let expected_index_size = (stat.st_size as usize) - header_size;
         if index_size != expected_index_size {
@@ -150,7 +148,7 @@ impl FixedIndexReader {
         println!("ChunkSize: {}", self.chunk_size);
 
         let mut ctime_str = self.ctime.to_string();
-        if let Ok(s) = proxmox::tools::time::strftime_local("%c",self.ctime) {
+        if let Ok(s) = proxmox::tools::time::strftime_local("%c", self.ctime) {
             ctime_str = s;
         }
 
@@ -215,7 +213,7 @@ impl IndexFile for FixedIndexReader {
 
         Some((
             (offset / self.chunk_size as u64) as usize,
-            offset & (self.chunk_size - 1) as u64 // fast modulo, valid for 2^x chunk_size
+            offset & (self.chunk_size - 1) as u64, // fast modulo, valid for 2^x chunk_size
         ))
     }
 }
