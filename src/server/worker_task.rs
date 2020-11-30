@@ -601,7 +601,7 @@ impl WorkerTask {
         path.push(upid.to_string());
 
         let logger_options = FileLogOptions {
-            to_stdout: to_stdout,
+            to_stdout,
             exclusive: true,
             prefix_time: true,
             read: true,
