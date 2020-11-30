@@ -505,7 +505,7 @@ impl DataStore {
             if percentage > last_percentage {
                 crate::task_log!(
                     worker,
-                    "percentage done: phase1 {}% ({} of {} index files)",
+                    "marked {}% ({} of {} index files)",
                     percentage,
                     done,
                     image_count,

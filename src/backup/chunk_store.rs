@@ -301,7 +301,7 @@ impl ChunkStore {
                 last_percentage = percentage;
                 crate::task_log!(
                     worker,
-                    "percentage done: phase2 {}% (processed {} chunks)",
+                    "processed {}% ({} chunks)",
                     percentage,
                     chunk_count,
                 );
