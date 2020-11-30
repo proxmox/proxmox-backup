@@ -142,16 +142,16 @@ pub fn required_integer_property(param: &Value, name: &str) -> Result<i64, Error
     }
 }
 
-pub fn required_array_param(param: &Value, name: &str) -> Result<Vec<Value>, Error> {
+pub fn required_array_param<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
     match param[name].as_array() {
-        Some(s) => Ok(s.to_vec()),
+        Some(s) => Ok(&s),
         None => bail!("missing parameter '{}'", name),
     }
 }
 
-pub fn required_array_property(param: &Value, name: &str) -> Result<Vec<Value>, Error> {
+pub fn required_array_property<'a>(param: &'a Value, name: &str) -> Result<&'a [Value], Error> {
     match param[name].as_array() {
-        Some(s) => Ok(s.to_vec()),
+        Some(s) => Ok(&s),
         None => bail!("missing property '{}'", name),
     }
 }
