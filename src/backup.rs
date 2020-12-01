@@ -247,6 +247,9 @@ pub use prune::*;
 mod datastore;
 pub use datastore::*;
 
+mod store_progress;
+pub use store_progress::*;
+
 mod verify;
 pub use verify::*;
 
