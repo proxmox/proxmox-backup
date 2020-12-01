@@ -53,3 +53,62 @@ Setup:
 Note: 2. may be skipped if you already added the PVE or PBS package repository
 
 You are now able to build using the Makefile or cargo itself.
+
+
+Design Notes
+============
+
+Here are some random thought about the software design (unless I find a better place).
+
+
+Large chunk sizes
+-----------------
+
+It is important to notice that large chunk sizes are crucial for
+performance. We have a multi-user system, where different people can do
+different operations on a datastore at the same time, and most operation
+involves reading a series of chunks.
+
+So what is the maximal theoretical speed we can get when reading a
+series of chunks? Reading a chunk sequence need the following steps:
+
+- seek to the first chunk start location
+- read the chunk data
+- seek to the first chunk start location
+- read the chunk data
+- ...
+
+Lets use the following disk performance metrics:
+
+:AST: Average Seek Time (second)
+:MRS: Maximum sequential Read Speed (bytes/second)
+:ACS: Average Chunk Size (bytes)
+
+The maximum performance you can get is::
+
+  MAX(ACS) = ACS /(AST + ACS/MRS)
+
+Please note that chunk data is likely to be sequential arranged on disk, but
+this it is sort of a best case assumption.
+
+For a typical rotational disk, we assume the following values::
+
+  AST: 10ms
+  MRS: 170MB/s
+
+  MAX(4MB)  = 115.37 MB/s
+  MAX(1MB)  =  61.85 MB/s;
+  MAX(64KB) =   6.02 MB/s;
+  MAX(4KB)  =   0.39 MB/s;
+  MAX(1KB)  =   0.10 MB/s;
+
+Modern SSD are much faster, lets assume the following::
+
+  max IOPS: 20000 => AST = 0.00005
+  MRS: 500Mb/s
+
+  MAX(4MB)  = 474 MB/s
+  MAX(1MB)  = 465 MB/s;
+  MAX(64KB) = 354 MB/s;
+  MAX(4KB)  =  67 MB/s;
+  MAX(1KB)  =  18 MB/s;
