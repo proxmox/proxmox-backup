@@ -112,3 +112,24 @@ Modern SSD are much faster, lets assume the following::
   MAX(64KB) = 354 MB/s;
   MAX(4KB)  =  67 MB/s;
   MAX(1KB)  =  18 MB/s;
+
+
+Also, the average chunk directly relates to the number of chunks produced by
+a backup::
+
+  CHUNK_COUNT = BACKUP_SIZE / ACS
+
+Here are some staticics from my developer worstation::
+
+  Disk Usage:       65 GB
+  Directories:   58971
+  Files:        726314
+  Files < 64KB: 617541
+
+As you see, there are really many small files. If we would do file
+level deduplication, i.e. generate one chunk per file, we end up with
+more than 700000 chunks.
+
+Instead, our current algorithm only produce large chunks with an
+average chunks size of 4MB. With above data, this produce about 15000
+chunks (factor 50 less chunks).
