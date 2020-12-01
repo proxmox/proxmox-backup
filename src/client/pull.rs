@@ -462,7 +462,7 @@ pub async fn pull_group(
         let result = pull_snapshot_from(worker, reader, tgt_store.clone(), &snapshot, downloaded_chunks.clone()).await;
 
         progress.done_snapshots = pos as u64 + 1;
-        worker.log(format!("percentage done: {}", progress.clone()));
+        worker.log(format!("percentage done: {}", progress));
 
         result?; // stop on error
     }
