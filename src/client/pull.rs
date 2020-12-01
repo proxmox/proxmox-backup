@@ -498,6 +498,8 @@ pub async fn pull_store(
 
     let mut list: Vec<GroupListItem> = serde_json::from_value(result["data"].take())?;
 
+    worker.log(format!("found {} groups to sync", list.len()));
+
     list.sort_unstable_by(|a, b| {
         let type_order = a.backup_type.cmp(&b.backup_type);
         if type_order == std::cmp::Ordering::Equal {
