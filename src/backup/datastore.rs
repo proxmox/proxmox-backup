@@ -257,6 +257,12 @@ impl DataStore {
                 )
             })?;
 
+        // the manifest does not exists anymore, we do not need to keep the lock
+        if let Ok(path) = self.manifest_lock_path(backup_dir) {
+            // ignore errors
+            let _ = std::fs::remove_file(path);
+        }
+
         Ok(())
     }
 
@@ -698,13 +704,32 @@ impl DataStore {
         ))
     }
 
+    /// Returns the filename to lock a manifest
+    ///
+    /// Also creates the basedir. The lockfile is located in
+    /// '/run/proxmox-backup/locks/{datastore}/{type}/{id}/{timestamp}.index.json.lck'
+    fn manifest_lock_path(
+        &self,
+        backup_dir: &BackupDir,
+    ) -> Result<String, Error> {
+        let mut path = format!(
+            "/run/proxmox-backup/locks/{}/{}/{}",
+            self.name(),
+            backup_dir.group().backup_type(),
+            backup_dir.group().backup_id(),
+        );
+        std::fs::create_dir_all(&path)?;
+        use std::fmt::Write;
+        write!(path, "/{}{}", backup_dir.backup_time_string(), &MANIFEST_LOCK_NAME)?;
+
+        Ok(path)
+    }
+
     fn lock_manifest(
         &self,
         backup_dir: &BackupDir,
     ) -> Result<File, Error> {
-        let mut path = self.base_path();
-        path.push(backup_dir.relative_path());
-        path.push(&MANIFEST_LOCK_NAME);
+        let path = self.manifest_lock_path(backup_dir)?;
 
         // update_manifest should never take a long time, so if someone else has
         // the lock we can simply block a bit and should get it soon
