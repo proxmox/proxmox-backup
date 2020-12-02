@@ -244,7 +244,7 @@ impl DataStore {
         let (_guard, _manifest_guard);
         if !force {
             _guard = lock_dir_noblock(&full_path, "snapshot", "possibly running or in use")?;
-            _manifest_guard = self.lock_manifest(backup_dir);
+            _manifest_guard = self.lock_manifest(backup_dir)?;
         }
 
         log::info!("removing backup snapshot {:?}", full_path);
