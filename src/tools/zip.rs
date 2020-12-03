@@ -354,7 +354,6 @@ impl ZipEntry {
 /// ```no_run
 /// use proxmox_backup::tools::zip::*;
 /// use tokio::fs::File;
-/// use tokio::prelude::*;
 /// use anyhow::{Error, Result};
 ///
 /// #[tokio::main]
