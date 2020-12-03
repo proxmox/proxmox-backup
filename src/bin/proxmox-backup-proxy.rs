@@ -262,7 +262,7 @@ async fn run_task_scheduler() {
             Ok(d) => d,
             Err(err) => {
                 eprintln!("task scheduler: compute next minute failed - {}", err);
-                tokio::time::delay_until(tokio::time::Instant::from_std(Instant::now() + Duration::from_secs(60))).await;
+                tokio::time::sleep_until(tokio::time::Instant::from_std(Instant::now() + Duration::from_secs(60))).await;
                 continue;
             }
         };
@@ -286,7 +286,7 @@ async fn run_task_scheduler() {
             }
         }
 
-        tokio::time::delay_until(tokio::time::Instant::from_std(delay_target)).await;
+        tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
     }
 }
 
@@ -649,7 +649,7 @@ async fn run_stat_generator() {
 
         generate_host_stats(save).await;
 
-        tokio::time::delay_until(tokio::time::Instant::from_std(delay_target)).await;
+        tokio::time::sleep_until(tokio::time::Instant::from_std(delay_target)).await;
 
      }
 

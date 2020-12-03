@@ -14,7 +14,7 @@ async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
         if !proxmox_backup::server::worker_is_active_local(&upid) {
             break;
         }
-        tokio::time::delay_for(sleep_duration).await;
+        tokio::time::sleep(sleep_duration).await;
     }
     Ok(())
 }

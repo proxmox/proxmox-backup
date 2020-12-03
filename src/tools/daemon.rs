@@ -331,17 +331,17 @@ async fn get_service_state(service: &str) -> Result<String, Error> {
 }
 
 async fn wait_service_is_state(service: &str, state: &str) -> Result<(), Error> {
-    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
+    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
     while get_service_state(service).await? != state {
-        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
+        tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     }
     Ok(())
 }
 
 async fn wait_service_is_not_state(service: &str, state: &str) -> Result<(), Error> {
-    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
+    tokio::time::sleep(std::time::Duration::new(1, 0)).await;
     while get_service_state(service).await? == state {
-        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
+        tokio::time::sleep(std::time::Duration::new(5, 0)).await;
     }
     Ok(())
 }

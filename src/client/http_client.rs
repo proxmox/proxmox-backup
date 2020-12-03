@@ -345,7 +345,7 @@ impl HttpClient {
 
         let renewal_future = async move {
             loop {
-                tokio::time::delay_for(Duration::new(60*15,  0)).await; // 15 minutes
+                tokio::time::sleep(Duration::new(60*15,  0)).await; // 15 minutes
                 let (auth_id, ticket) = {
                     let authinfo = auth2.read().unwrap().clone();
                     (authinfo.auth_id, authinfo.ticket)

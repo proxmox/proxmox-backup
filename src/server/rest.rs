@@ -385,7 +385,7 @@ pub async fn handle_api_request<Env: RpcEnvironment, S: 'static + BuildHasher + 
         Err(err) => {
             if let Some(httperr) = err.downcast_ref::<HttpError>() {
                 if httperr.code == StatusCode::UNAUTHORIZED {
-                    tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
+                    tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                 }
             }
             (formatter.format_error)(err)
@@ -708,7 +708,7 @@ async fn handle_request(
 
                         // always delay unauthorized calls by 3 seconds (from start of request)
                         let err = http_err!(UNAUTHORIZED, "authentication failed - {}", err);
-                        tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
+                        tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
                 }
@@ -723,7 +723,7 @@ async fn handle_request(
                     let auth_id = rpcenv.get_auth_id();
                     if !check_api_permission(api_method.access.permission, auth_id.as_deref(), &uri_param, user_info.as_ref()) {
                         let err = http_err!(FORBIDDEN, "permission check failed");
-                        tokio::time::delay_until(Instant::from_std(access_forbidden_time)).await;
+                        tokio::time::sleep_until(Instant::from_std(access_forbidden_time)).await;
                         return Ok((formatter.format_error)(err));
                     }
 
@@ -765,7 +765,7 @@ async fn handle_request(
                         return Ok(get_index(Some(userid.clone()), Some(new_csrf_token), language, &api, parts));
                     },
                     _ => {
-                        tokio::time::delay_until(Instant::from_std(delay_unauth_time)).await;
+                        tokio::time::sleep_until(Instant::from_std(delay_unauth_time)).await;
                         return Ok(get_index(None, None, language, &api, parts));
                     }
                 }

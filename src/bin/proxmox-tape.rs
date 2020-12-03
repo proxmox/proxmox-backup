@@ -65,7 +65,7 @@ pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
 
     loop {
         if worker_is_active_local(&upid) {
-            tokio::time::delay_for(sleep_duration).await;
+            tokio::time::sleep(sleep_duration).await;
         } else {
             break;
         }
