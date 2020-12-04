@@ -84,8 +84,7 @@ pub fn get_runtime_with_builder<F: Fn() -> runtime::Builder>(get_builder: F) -> 
 pub fn get_runtime() -> Arc<Runtime> {
 
     get_runtime_with_builder(|| {
-        let mut builder = runtime::Builder::new();
-        builder.threaded_scheduler();
+        let mut builder = runtime::Builder::new_multi_thread();
         builder.enable_all();
         builder
     })
@@ -122,7 +121,8 @@ pub fn block_on<F: Future>(fut: F) -> F::Output {
         // not a worker thread, not associated with a runtime, make sure we have a runtime (spawn
         // it on demand if necessary), then enter it
         let _guard = BlockingGuard::set();
-        get_runtime().enter(move || block_on_local_future(fut))
+        let _enter_guard = get_runtime().enter();
+        get_runtime().block_on(fut)
     }
 }
 
