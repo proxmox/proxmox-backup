@@ -58,7 +58,7 @@ impl AsyncChannelWriter {
                         }
                     }
 
-                    let mut sender = match self.sender.take() {
+                    let sender = match self.sender.take() {
                         Some(sender) => sender,
                         None => return Poll::Ready(Err(io_err_other("no sender"))),
                     };

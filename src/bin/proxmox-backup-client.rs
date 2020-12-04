@@ -305,7 +305,7 @@ async fn backup_directory<P: AsRef<Path>>(
     )?;
     let mut chunk_stream = ChunkStream::new(pxar_stream, chunk_size);
 
-    let (mut tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
+    let (tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
 
     let stream = ReceiverStream::new(rx)
         .map_err(Error::from);

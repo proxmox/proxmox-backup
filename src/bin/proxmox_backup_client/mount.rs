@@ -294,7 +294,7 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
 
         // poll until loop file is mapped (or errors)
         select! {
-            res = session_fut => {
+            _res = session_fut => {
                 bail!("FUSE session unexpectedly ended before loop file mapping");
             },
             res = st_recv.try_next() => {

@@ -583,6 +583,7 @@ impl BackupWriter {
             })
             .merge_known_chunks()
             .try_for_each(move |merged_chunk_info| {
+                let upload_queue = upload_queue.clone();
 
                 if let MergedChunkInfo::New(chunk_info) = merged_chunk_info {
                     let offset = chunk_info.offset;
@@ -610,7 +611,6 @@ impl BackupWriter {
 
                     let new_info = MergedChunkInfo::Known(vec![(offset, digest)]);
 
-                    let mut upload_queue = upload_queue.clone();
                     future::Either::Left(h2
                         .send_request(request, upload_data)
                         .and_then(move |response| async move {
@@ -621,7 +621,6 @@ impl BackupWriter {
                         })
                     )
                 } else {
-                    let mut upload_queue = upload_queue.clone();
                     future::Either::Right(async move {
                         upload_queue
                             .send((merged_chunk_info, None))
@@ -672,8 +671,6 @@ impl BackupWriter {
             if start_time.elapsed().as_secs() >= 5 {
                 break;
             }
-
-            let mut upload_queue = upload_queue.clone();
 
             if verbose { eprintln!("send test data ({} bytes)", data.len()); }
             let request = H2Client::request_builder("localhost", "POST", "speedtest", None, None).unwrap();

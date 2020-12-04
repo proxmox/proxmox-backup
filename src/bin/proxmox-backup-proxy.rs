@@ -164,7 +164,7 @@ async fn run() -> Result<(), Error> {
 }
 
 fn accept_connections(
-    mut listener: tokio::net::TcpListener,
+    listener: tokio::net::TcpListener,
     acceptor: Arc<openssl::ssl::SslAcceptor>,
     debug: bool,
 ) -> tokio::sync::mpsc::Receiver<Result<std::pin::Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>, Error>> {

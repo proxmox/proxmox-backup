@@ -21,7 +21,7 @@ where
     let backup_user = crate::backup::backup_user()?;
     let backup_gid = backup_user.gid.as_raw();
 
-    let mut socket = UnixListener::bind(&path)?;
+    let socket = UnixListener::bind(&path)?;
 
     let func = Arc::new(func);
 

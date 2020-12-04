@@ -159,7 +159,7 @@ fn test_broadcast_future() {
         .map_err(|err| { panic!("got error {}", err); })
         .map(|_| ());
 
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
         let r1 = tokio::spawn(receiver1);
         let r2 = tokio::spawn(receiver2);

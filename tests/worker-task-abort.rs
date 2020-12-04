@@ -39,7 +39,7 @@ fn worker_task_abort() -> Result<(), Error> {
     let errmsg: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let errmsg1 = errmsg.clone();
 
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
 
         let mut commando_sock = server::CommandoSocket::new(server::our_ctrl_sock());
