@@ -24,6 +24,7 @@ pub mod sync;
 pub mod token_shadow;
 pub mod user;
 pub mod verify;
+pub mod drive;
 
 /// Check configuration directory permissions
 ///

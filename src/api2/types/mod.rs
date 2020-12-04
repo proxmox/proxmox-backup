@@ -20,6 +20,10 @@ pub use userid::Userid;
 pub use userid::Authid;
 pub use userid::{PROXMOX_TOKEN_ID_SCHEMA, PROXMOX_TOKEN_NAME_SCHEMA, PROXMOX_GROUP_ID_SCHEMA};
 
+mod tape;
+pub use tape::*;
+
+
 // File names: may not contain slashes, may not start with "."
 pub const FILENAME_FORMAT: ApiStringFormat = ApiStringFormat::VerifyFn(|name| {
     if name.starts_with('.') {
