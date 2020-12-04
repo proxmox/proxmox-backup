@@ -1,13 +1,12 @@
 //! Generic AsyncRead/AsyncWrite utilities.
 
 use std::io;
-use std::mem::MaybeUninit;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures::stream::{Stream, TryStream};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpListener;
 use hyper::client::connect::Connection;
 
@@ -20,39 +19,14 @@ impl<L: AsyncRead + Unpin, R: AsyncRead + Unpin> AsyncRead for EitherStream<L, R
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<Result<usize, io::Error>> {
+        buf: &mut ReadBuf,
+    ) -> Poll<Result<(), io::Error>> {
         match self.get_mut() {
             EitherStream::Left(ref mut s) => {
                 Pin::new(s).poll_read(cx, buf)
             }
             EitherStream::Right(ref mut s) => {
                 Pin::new(s).poll_read(cx, buf)
-            }
-        }
-    }
-
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
-        match *self {
-            EitherStream::Left(ref s) => s.prepare_uninitialized_buffer(buf),
-            EitherStream::Right(ref s) => s.prepare_uninitialized_buffer(buf),
-        }
-    }
-
-    fn poll_read_buf<B>(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut B,
-    ) -> Poll<Result<usize, io::Error>>
-    where
-        B: bytes::BufMut,
-    {
-        match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
-                Pin::new(s).poll_read_buf(cx, buf)
-            }
-            EitherStream::Right(ref mut s) => {
-                Pin::new(s).poll_read_buf(cx, buf)
             }
         }
     }
@@ -92,24 +66,6 @@ impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L
             }
             EitherStream::Right(ref mut s) => {
                 Pin::new(s).poll_shutdown(cx)
-            }
-        }
-    }
-
-    fn poll_write_buf<B>(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut B,
-    ) -> Poll<Result<usize, io::Error>>
-    where
-        B: bytes::Buf,
-    {
-        match self.get_mut() {
-            EitherStream::Left(ref mut s) => {
-                Pin::new(s).poll_write_buf(cx, buf)
-            }
-            EitherStream::Right(ref mut s) => {
-                Pin::new(s).poll_write_buf(cx, buf)
             }
         }
     }

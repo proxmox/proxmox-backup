@@ -6,7 +6,7 @@ use std::io::SeekFrom;
 use anyhow::Error;
 use futures::future::FutureExt;
 use futures::ready;
-use tokio::io::{AsyncRead, AsyncSeek};
+use tokio::io::{AsyncRead, AsyncSeek, ReadBuf};
 
 use proxmox::sys::error::io_err_other;
 use proxmox::io_format_err;
@@ -71,8 +71,8 @@ where
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context,
-        buf: &mut [u8],
-    ) -> Poll<tokio::io::Result<usize>> {
+        buf: &mut ReadBuf,
+    ) -> Poll<tokio::io::Result<()>> {
         let this = Pin::get_mut(self);
         loop {
             match &mut this.state {
@@ -86,12 +86,12 @@ where
                     } else {
                         match this.index.chunk_from_offset(this.position) {
                             Some(res) => res,
-                            None => return Poll::Ready(Ok(0))
+                            None => return Poll::Ready(Ok(()))
                         }
                     };
 
                     if idx >= this.index.index_count() {
-                        return Poll::Ready(Ok(0));
+                        return Poll::Ready(Ok(()));
                     }
 
                     let info = this
@@ -142,13 +142,13 @@ where
                 AsyncIndexReaderState::HaveData => {
                     let offset = this.current_chunk_offset as usize;
                     let len = this.read_buffer.len();
-                    let n = if len - offset < buf.len() {
+                    let n = if len - offset < buf.remaining() {
                         len - offset
                     } else {
-                        buf.len()
+                        buf.remaining()
                     };
 
-                    buf[0..n].copy_from_slice(&this.read_buffer[offset..(offset + n)]);
+                    buf.put_slice(&this.read_buffer[offset..(offset + n)]);
                     this.position += n as u64;
 
                     if offset + n == len {
@@ -158,7 +158,7 @@ where
                         this.state = AsyncIndexReaderState::HaveData;
                     }
 
-                    return Poll::Ready(Ok(n));
+                    return Poll::Ready(Ok(()));
                 }
             }
         }
@@ -172,9 +172,8 @@ where
 {
     fn start_seek(
         self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
         pos: SeekFrom,
-    ) -> Poll<tokio::io::Result<()>> {
+    ) -> tokio::io::Result<()> {
         let this = Pin::get_mut(self);
         this.seek_to_pos = match pos {
             SeekFrom::Start(offset) => {
@@ -187,7 +186,7 @@ where
                 this.position as i64 + offset
             }
         };
-        Poll::Ready(Ok(()))
+        Ok(())
     }
 
     fn poll_complete(

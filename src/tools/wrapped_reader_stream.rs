@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::sync::mpsc::Receiver;
 
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, ReadBuf};
 use futures::ready;
 use futures::stream::Stream;
 
@@ -69,8 +69,10 @@ impl<R: AsyncRead + Unpin> Stream for AsyncReaderStream<R> {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        match ready!(Pin::new(&mut this.reader).poll_read(cx, &mut this.buffer)) {
-            Ok(n) => {
+        let mut read_buf = ReadBuf::new(&mut this.buffer);
+        match ready!(Pin::new(&mut this.reader).poll_read(cx, &mut read_buf)) {
+            Ok(()) => {
+                let n = read_buf.filled().len();
                 if n == 0 {
                     // EOF
                     Poll::Ready(None)
