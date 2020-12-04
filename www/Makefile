@@ -4,6 +4,13 @@ IMAGES := \
 	images/logo-128.png \
 	images/proxmox_logo.png
 
+TAPE_UI_FILES=
+
+ifdef TEST_TAPE_GUI
+TAPE_UI_FILES=						\
+	TapeManagement.js
+endif
+
 JSSRC=							\
 	Utils.js					\
 	form/UserSelector.js				\
@@ -63,6 +70,7 @@ JSSRC=							\
 	ServerStatus.js					\
 	ServerAdministration.js				\
 	Dashboard.js					\
+	${TAPE_UI_FILES}				\
 	NavigationTree.js				\
 	Application.js					\
 	MainView.js

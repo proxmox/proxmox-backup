@@ -116,6 +116,19 @@ Ext.define('PBS.view.main.NavigationTree', {
 
 	    let root = view.getStore().getRoot();
 
+	    if (PBS.TapeManagement !== undefined) {
+		if (!root.findChild('id', 'tape_management', false)) {
+		    root.insertChild(3, {
+			text: "Tape Management",
+			iconCls: 'fa fa-gears',
+			id: 'tape_management',
+			path: 'pbsTapeManagement',
+			expanded: true,
+			children: [],
+		    });
+		}
+	    }
+
 	    records.sort((a, b) => a.id.localeCompare(b.id));
 
 	    var list = root.findChild('id', 'datastores', false);
