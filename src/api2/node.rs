@@ -197,7 +197,7 @@ async fn termproxy(
 
             let mut needs_kill = false;
             let res = tokio::select!{
-                res = &mut child => {
+                res = child.wait() => {
                     let exit_code = res?;
                     if !exit_code.success() {
                         match exit_code.code() {
@@ -217,14 +217,13 @@ async fn termproxy(
 
             if needs_kill {
                 if res.is_ok() {
-                    child.kill()?;
-                    child.await?;
+                    child.kill().await?;
                     return Ok(());
                 }
 
-                if let Err(err) = child.kill() {
+                if let Err(err) = child.kill().await {
                     worker.warn(format!("error killing termproxy: {}", err));
-                } else if let Err(err) = child.await {
+                } else if let Err(err) = child.wait().await {
                     worker.warn(format!("error awaiting termproxy: {}", err));
                 }
             }
