@@ -5,6 +5,7 @@ use std::task::{Context, Poll};
 use anyhow::{format_err, Error};
 use futures::future::TryFutureExt;
 use futures::stream::Stream;
+use tokio::net::TcpStream;
 
 // Simple H2 client to test H2 download speed using h2s-server.rs
 
@@ -37,11 +38,11 @@ impl Future for Process {
                         this.body.flow_control().release_capacity(chunk.len())?;
                         this.bytes += chunk.len();
                         // println!("GOT FRAME {}", chunk.len());
-                    },
+                    }
                     Some(Err(err)) => return Poll::Ready(Err(Error::from(err))),
                     None => {
                         this.trailers = true;
-                    },
+                    }
                 }
             }
         }
@@ -60,11 +61,11 @@ fn send_request(
 
     let (response, _stream) = client.send_request(request, true).unwrap();
 
-    response
-        .map_err(Error::from)
-        .and_then(|response| {
-            Process { body: response.into_body(), trailers: false, bytes: 0 }
-        })
+    response.map_err(Error::from).and_then(|response| Process {
+        body: response.into_body(),
+        trailers: false,
+        bytes: 0,
+    })
 }
 
 fn main() -> Result<(), Error> {
@@ -74,57 +75,51 @@ fn main() -> Result<(), Error> {
 async fn run() -> Result<(), Error> {
     let start = std::time::SystemTime::now();
 
-    let conn =
-        tokio::net::TcpStream::connect(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
-
+    let conn = TcpStream::connect(std::net::SocketAddr::from(([127, 0, 0, 1], 8008))).await?;
     conn.set_nodelay(true).unwrap();
-    conn.set_recv_buffer_size(1024*1024).unwrap();
 
     use openssl::ssl::{SslConnector, SslMethod};
 
     let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls()).unwrap();
     ssl_connector_builder.set_verify(openssl::ssl::SslVerifyMode::NONE);
-    let conn =
-        tokio_openssl::connect(
-            ssl_connector_builder.build().configure()?,
-            "localhost",
-            conn,
-        )
+    let ssl = ssl_connector_builder
+        .build()
+        .configure()?
+        .into_ssl("localhost")?;
+
+    let conn = tokio_openssl::SslStream::new(ssl, conn)?;
+    let mut conn = Box::pin(conn);
+    conn.as_mut()
+        .connect()
         .await
         .map_err(|err| format_err!("connect failed - {}", err))?;
 
     let (client, h2) = h2::client::Builder::new()
-        .initial_connection_window_size(1024*1024*1024)
-        .initial_window_size(1024*1024*1024)
-        .max_frame_size(4*1024*1024)
+        .initial_connection_window_size(1024 * 1024 * 1024)
+        .initial_window_size(1024 * 1024 * 1024)
+        .max_frame_size(4 * 1024 * 1024)
         .handshake(conn)
         .await?;
 
-    // Spawn a task to run the conn...
     tokio::spawn(async move {
-        if let Err(e) = h2.await {
-            println!("GOT ERR={:?}", e);
+        if let Err(err) = h2.await {
+            println!("GOT ERR={:?}", err);
         }
     });
 
     let mut bytes = 0;
-    for _ in 0..100 {
-        match send_request(client.clone()).await {
-            Ok(b) => {
-                bytes += b;
-            }
-            Err(e) => {
-                println!("ERROR {}", e);
-                return Ok(());
-            }
-        }
+    for _ in 0..2000 {
+        bytes += send_request(client.clone()).await?;
     }
 
     let elapsed = start.elapsed().unwrap();
-    let elapsed = (elapsed.as_secs() as f64) +
-        (elapsed.subsec_millis() as f64)/1000.0;
+    let elapsed = (elapsed.as_secs() as f64) + (elapsed.subsec_millis() as f64) / 1000.0;
 
-    println!("Downloaded {} bytes, {} MB/s", bytes, (bytes as f64)/(elapsed*1024.0*1024.0));
+    println!(
+        "Downloaded {} bytes, {} MB/s",
+        bytes,
+        (bytes as f64) / (elapsed * 1024.0 * 1024.0)
+    );
 
     Ok(())
 }

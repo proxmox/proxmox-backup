@@ -1,51 +1,55 @@
-use anyhow::{Error};
+use anyhow::Error;
 use futures::*;
+use hyper::{Body, Request, Response};
 
-// Simple H2 server to test H2 speed with h2client.rs
-
-use tokio::net::TcpListener;
-use tokio::io::{AsyncRead, AsyncWrite};
-
-use proxmox_backup::client::pipe_to_stream::PipeToSendStream;
+use tokio::net::{TcpListener, TcpStream};
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::runtime::main(run())
 }
 
 async fn run() -> Result<(), Error> {
-    let mut listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
+    let listener = TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());
 
     loop {
         let (socket, _addr) = listener.accept().await?;
-        tokio::spawn(handle_connection(socket)
-            .map(|res| {
-                if let Err(err) = res {
-                    eprintln!("Error: {}", err);
-                }
-            }));
+        tokio::spawn(handle_connection(socket).map(|res| {
+            if let Err(err) = res {
+                eprintln!("Error: {}", err);
+            }
+        }));
     }
 }
 
-async fn handle_connection<T: AsyncRead + AsyncWrite + Unpin>(socket: T) -> Result<(), Error> {
-    let mut conn = h2::server::handshake(socket).await?;
+async fn handle_connection(socket: TcpStream) -> Result<(), Error> {
+    socket.set_nodelay(true).unwrap();
 
-    println!("H2 connection bound");
+    let mut http = hyper::server::conn::Http::new();
+    http.http2_only(true);
+    // increase window size: todo - find optiomal size
+    let max_window_size = (1 << 31) - 2;
+    http.http2_initial_stream_window_size(max_window_size);
+    http.http2_initial_connection_window_size(max_window_size);
 
-    while let Some((request, mut respond)) = conn.try_next().await? {
-        println!("GOT request: {:?}", request);
+    let service = hyper::service::service_fn(|_req: Request<Body>| {
+        println!("Got request");
+        let buffer = vec![65u8; 4 * 1024 * 1024]; // nonsense [A,A,A,A...]
+        let body = Body::from(buffer);
 
-        let response = http::Response::builder()
+        let response = Response::builder()
             .status(http::StatusCode::OK)
-            .body(())
+            .header(http::header::CONTENT_TYPE, "application/octet-stream")
+            .body(body)
             .unwrap();
+        future::ok::<_, Error>(response)
+    });
 
-        let send = respond.send_response(response, false).unwrap();
-        let data = vec![65u8; 1024*1024];
-        PipeToSendStream::new(bytes::Bytes::from(data), send).await?;
-        println!("DATA SENT");
-    }
+    http.serve_connection(socket, service)
+        .map_err(Error::from)
+        .await?;
 
+    println!("H2 connection CLOSE !");
     Ok(())
 }

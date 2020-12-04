@@ -2,13 +2,11 @@ use std::sync::Arc;
 
 use anyhow::{format_err, Error};
 use futures::*;
-use hyper::{Request, Response, Body};
-use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
+use hyper::{Body, Request, Response};
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use tokio::net::{TcpListener, TcpStream};
 
 use proxmox_backup::configdir;
-
-// Simple H2 server to test H2 speed with h2s-client.rs
 
 fn main() -> Result<(), Error> {
     proxmox_backup::tools::runtime::main(run())
@@ -19,38 +17,38 @@ async fn run() -> Result<(), Error> {
     let cert_path = configdir!("/proxy.pem");
 
     let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
-    acceptor.set_private_key_file(key_path, SslFiletype::PEM)
+    acceptor
+        .set_private_key_file(key_path, SslFiletype::PEM)
         .map_err(|err| format_err!("unable to read proxy key {} - {}", key_path, err))?;
-    acceptor.set_certificate_chain_file(cert_path)
+    acceptor
+        .set_certificate_chain_file(cert_path)
         .map_err(|err| format_err!("unable to read proxy cert {} - {}", cert_path, err))?;
     acceptor.check_private_key().unwrap();
 
     let acceptor = Arc::new(acceptor.build());
 
-    let mut listener = TcpListener::bind(std::net::SocketAddr::from(([127,0,0,1], 8008))).await?;
+    let listener = TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 8008))).await?;
 
     println!("listening on {:?}", listener.local_addr());
 
     loop {
         let (socket, _addr) = listener.accept().await?;
-        tokio::spawn(handle_connection(socket, Arc::clone(&acceptor))
-            .map(|res| {
-                if let Err(err) = res {
-                    eprintln!("Error: {}", err);
-                }
-            }));
+        tokio::spawn(handle_connection(socket, Arc::clone(&acceptor)).map(|res| {
+            if let Err(err) = res {
+                eprintln!("Error: {}", err);
+            }
+        }));
     }
 }
 
-async fn handle_connection(
-    socket: TcpStream,
-    acceptor: Arc<SslAcceptor>,
-) -> Result<(), Error> {
+async fn handle_connection(socket: TcpStream, acceptor: Arc<SslAcceptor>) -> Result<(), Error> {
     socket.set_nodelay(true).unwrap();
-    socket.set_send_buffer_size(1024*1024).unwrap();
-    socket.set_recv_buffer_size(1024*1024).unwrap();
 
-    let socket = tokio_openssl::accept(acceptor.as_ref(), socket).await?;
+    let ssl = openssl::ssl::Ssl::new(acceptor.context())?;
+    let stream = tokio_openssl::SslStream::new(ssl, socket)?;
+    let mut stream = Box::pin(stream);
+
+    stream.as_mut().accept().await?;
 
     let mut http = hyper::server::conn::Http::new();
     http.http2_only(true);
@@ -61,7 +59,7 @@ async fn handle_connection(
 
     let service = hyper::service::service_fn(|_req: Request<Body>| {
         println!("Got request");
-        let buffer = vec![65u8; 1024*1024]; // nonsense [A,A,A,A...]
+        let buffer = vec![65u8; 4 * 1024 * 1024]; // nonsense [A,A,A,A...]
         let body = Body::from(buffer);
 
         let response = Response::builder()
@@ -72,7 +70,7 @@ async fn handle_connection(
         future::ok::<_, Error>(response)
     });
 
-    http.serve_connection(socket, service)
+    http.serve_connection(stream, service)
         .map_err(Error::from)
         .await?;
 
