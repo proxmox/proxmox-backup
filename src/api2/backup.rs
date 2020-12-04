@@ -2,7 +2,7 @@ use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::header::{HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
-use hyper::{Body, Response, StatusCode};
+use hyper::{Body, Response, Request, StatusCode};
 use serde_json::{json, Value};
 
 use proxmox::{sortable, identity, list_subdirs_api_method};
@@ -171,8 +171,7 @@ async move {
 
         let env2 = env.clone();
 
-        let mut req_fut = req_body
-            .on_upgrade()
+        let mut req_fut = hyper::upgrade::on(Request::from_parts(parts, req_body))
             .map_err(Error::from)
             .and_then(move |conn| {
                 env2.debug("protocol upgrade done");

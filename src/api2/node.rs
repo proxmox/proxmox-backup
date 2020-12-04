@@ -6,6 +6,7 @@ use futures::future::{FutureExt, TryFutureExt};
 use hyper::body::Body;
 use hyper::http::request::Parts;
 use hyper::upgrade::Upgraded;
+use hyper::Request;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -292,10 +293,10 @@ fn upgrade_to_websocket(
                 Some(&ticket::term_aad(&userid, "/system", port)),
             )?;
 
-        let (ws, response) = WebSocket::new(parts.headers)?;
+        let (ws, response) = WebSocket::new(parts.headers.clone())?;
 
         crate::server::spawn_internal_task(async move {
-            let conn: Upgraded = match req_body.on_upgrade().map_err(Error::from).await {
+            let conn: Upgraded = match hyper::upgrade::on(Request::from_parts(parts, req_body)).map_err(Error::from).await {
                 Ok(upgraded) => upgraded,
                 _ => bail!("error"),
             };

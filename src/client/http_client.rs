@@ -646,10 +646,7 @@ impl HttpClient {
             bail!("unknown error");
         }
 
-        let upgraded = resp
-            .into_body()
-            .on_upgrade()
-            .await?;
+        let upgraded = hyper::upgrade::on(resp).await?;
 
         let max_window_size = (1 << 31) - 2;
 

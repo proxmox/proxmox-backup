@@ -2,7 +2,7 @@ use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper::header::{self, HeaderValue, UPGRADE};
 use hyper::http::request::Parts;
-use hyper::{Body, Response, StatusCode};
+use hyper::{Body, Response, Request, StatusCode};
 use serde_json::Value;
 
 use proxmox::{sortable, identity};
@@ -130,8 +130,7 @@ fn upgrade_to_backup_reader_protocol(
 
             let abort_future = worker.abort_future();
 
-            let req_fut = req_body
-                .on_upgrade()
+            let req_fut = hyper::upgrade::on(Request::from_parts(parts, req_body))
                 .map_err(Error::from)
                 .and_then({
                     let env = env.clone();
