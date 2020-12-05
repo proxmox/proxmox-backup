@@ -6,6 +6,9 @@ pub use tape_write::*;
 mod tape_read;
 pub use tape_read::*;
 
+mod inventory;
+pub use inventory::*;
+
 /// Directory path where we stora all status information
 pub const MEDIA_POOL_STATUS_DIR: &str = "/var/lib/proxmox-backup/mediapool";
 
