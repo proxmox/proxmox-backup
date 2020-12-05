@@ -181,6 +181,7 @@ fn create_ticket(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             userid: {
@@ -195,7 +196,6 @@ fn create_ticket(
         description: "Anybody is allowed to change there own password. In addition, users with 'Permissions:Modify' privilege may change any password.",
         permission: &Permission::Anybody,
     },
-
 )]
 /// Change user password
 ///
@@ -215,7 +215,7 @@ fn change_password(
 
     let mut allowed = userid == current_user;
 
-    if userid == "root@pam" { allowed = true; }
+    if current_user == "root@pam" { allowed = true; }
 
     if !allowed {
         let user_info = CachedUserInfo::new()?;
