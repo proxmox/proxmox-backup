@@ -30,3 +30,5 @@ pub mod auth_helpers;
 pub mod auth;
 
 pub mod rrd;
+
+pub mod tape;
