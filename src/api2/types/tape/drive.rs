@@ -1,5 +1,5 @@
-//! Types for tape backup API
-//!
+//! Types for tape drive API
+
 use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
@@ -7,7 +7,7 @@ use proxmox::api::{
     schema::{Schema, StringSchema},
 };
 
-use super::PROXMOX_SAFE_ID_FORMAT;
+use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
 
 pub const DRIVE_ID_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)

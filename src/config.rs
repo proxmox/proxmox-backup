@@ -25,6 +25,7 @@ pub mod token_shadow;
 pub mod user;
 pub mod verify;
 pub mod drive;
+pub mod media_pool;
 
 /// Check configuration directory permissions
 ///
