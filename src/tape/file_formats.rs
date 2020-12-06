@@ -26,8 +26,16 @@ pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] = [72, 87, 109, 
 // openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.0")[0..8];
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 125, 232, 114, 133];
 
+/// Tape Block Header with data payload
+///
 /// Note: this struct is large, never put this on the stack!
 /// so we use an unsized type to avoid that.
+///
+/// Tape data block are always read/written with a fixed size
+/// (PROXMOX_TAPE_BLOCK_SIZE). But they may contain less data, so the
+/// header has an additional size field. For streams of blocks, there
+/// is a sequence number ('seq_nr') which may be use for additional
+/// error checking.
 #[repr(C,packed)]
 pub struct BlockHeader {
     pub magic: [u8; 8],
@@ -138,4 +146,45 @@ impl MediaSetLabel {
             ctime,
         }
     }
+}
+
+impl BlockHeader {
+
+    pub const SIZE: usize = PROXMOX_TAPE_BLOCK_SIZE;
+
+    /// Allocates a new instance on the heap
+    pub fn new() -> Box<Self> {
+        use std::alloc::{alloc_zeroed, Layout};
+
+        let mut buffer = unsafe {
+            let ptr = alloc_zeroed(
+                Layout::from_size_align(Self::SIZE, std::mem::align_of::<u64>())
+                    .unwrap(),
+            );
+            Box::from_raw(
+                std::slice::from_raw_parts_mut(ptr, Self::SIZE - 16)
+                    as *mut [u8] as *mut Self
+            )
+        };
+        buffer.magic = PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0;
+        buffer
+    }
+
+    pub fn set_size(&mut self, size: usize) {
+        let size = size.to_le_bytes();
+        self.size.copy_from_slice(&size[..3]);
+    }
+
+    pub fn size(&self) -> usize {
+        (self.size[0] as usize) + ((self.size[1] as usize)<<8) + ((self.size[2] as usize)<<16)
+    }
+
+    pub fn set_seq_nr(&mut self, seq_nr: u32) {
+        self.seq_nr = seq_nr.to_le();
+    }
+
+    pub fn seq_nr(&self) -> u32 {
+        u32::from_le(self.seq_nr)
+    }
+
 }
