@@ -6,6 +6,9 @@ pub use tape_write::*;
 mod tape_read;
 pub use tape_read::*;
 
+mod helpers;
+pub use helpers::*;
+
 mod inventory;
 pub use inventory::*;
 
