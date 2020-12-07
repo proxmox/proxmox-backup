@@ -15,6 +15,9 @@ pub use inventory::*;
 mod changer;
 pub use changer::*;
 
+mod drive;
+pub use drive::*;
+
 /// Directory path where we stora all status information
 pub const MEDIA_POOL_STATUS_DIR: &str = "/var/lib/proxmox-backup/mediapool";
 

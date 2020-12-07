@@ -1,5 +1,8 @@
 //! Types for tape backup API
 
+mod device;
+pub use device::*;
+
 mod drive;
 pub use drive::*;
 
