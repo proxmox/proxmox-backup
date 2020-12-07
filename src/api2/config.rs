@@ -5,9 +5,11 @@ pub mod datastore;
 pub mod remote;
 pub mod sync;
 pub mod verify;
+pub mod drive;
 
 const SUBDIRS: SubdirMap = &[
     ("datastore", &datastore::ROUTER),
+    ("drive", &drive::ROUTER),
     ("remote", &remote::ROUTER),
     ("sync", &sync::ROUTER),
     ("verify", &verify::ROUTER)

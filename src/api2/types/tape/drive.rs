@@ -88,3 +88,26 @@ pub struct ScsiTapeChanger {
     pub name: String,
     pub path: String,
 }
+
+
+#[api()]
+#[derive(Serialize,Deserialize)]
+/// Drive list entry
+pub struct DriveListEntry {
+    /// Drive name
+    pub name: String,
+    /// Path to the linux device node
+    pub path: String,
+    /// Associated changer device
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub changer: Option<String>,
+    /// Vendor (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub vendor: Option<String>,
+    /// Model (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub model: Option<String>,
+    /// Serial number (autodetected)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub serial: Option<String>,
+}
