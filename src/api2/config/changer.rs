@@ -6,6 +6,7 @@ use proxmox::api::{api, Router, RpcEnvironment};
 use crate::{
     config,
     api2::types::{
+        PROXMOX_CONFIG_DIGEST_SCHEMA,
         CHANGER_ID_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
@@ -148,19 +149,29 @@ pub fn list_changers(
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
-        },
+            digest: {
+                schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
+                optional: true,
+            },
+         },
     },
 )]
 /// Update a tape changer configuration
 pub fn update_changer(
     name: String,
     path: Option<String>,
+    digest: Option<String>,
     _param: Value,
 ) -> Result<(), Error> {
 
     let _lock = config::drive::lock()?;
 
-    let (mut config, _digest) = config::drive::config()?;
+    let (mut config, expected_digest) = config::drive::config()?;
+
+    if let Some(ref digest) = digest {
+        let digest = proxmox::tools::hex_to_digest(digest)?;
+        crate::tools::detect_modified_configuration_file(&digest, &expected_digest)?;
+    }
 
     let mut data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
