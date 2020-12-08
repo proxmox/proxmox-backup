@@ -6,16 +6,14 @@ use proxmox::api::{api, Router, RpcEnvironment};
 use crate::{
     config,
     api2::types::{
-        DRIVE_ID_SCHEMA,
         CHANGER_ID_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
-        LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
     },
     tape::{
-        linux_tape_device_list,
+        linux_tape_changer_list,
         check_drive_path,
         lookup_drive,
     },
@@ -25,7 +23,7 @@ use crate::{
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: CHANGER_ID_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
@@ -33,24 +31,30 @@ use crate::{
         },
     },
 )]
-/// Create a new drive
-pub fn create_drive(param: Value) -> Result<(), Error> {
+/// Create a new changer device
+pub fn create_changer(
+    name: String,
+    path: String,
+) -> Result<(), Error> {
 
     let _lock = config::drive::lock()?;
 
     let (mut config, _digest) = config::drive::config()?;
 
-    let item: LinuxTapeDrive = serde_json::from_value(param)?;
+    let linux_changers = linux_tape_changer_list();
 
-    let linux_drives = linux_tape_device_list();
+    check_drive_path(&linux_changers, &path)?;
 
-    check_drive_path(&linux_drives, &item.path)?;
-
-    if config.sections.get(&item.name).is_some() {
-        bail!("Entry '{}' already exists", item.name);
+    if config.sections.get(&name).is_some() {
+        bail!("Entry '{}' already exists", name);
     }
 
-    config.set_data(&item.name, "linux", &item)?;
+    let item = ScsiTapeChanger {
+        name: name.clone(),
+        path,
+    };
+
+    config.set_data(&name, "changer", &item)?;
 
     config::drive::save_config(&config)?;
 
@@ -61,24 +65,25 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: CHANGER_ID_SCHEMA,
             },
         },
     },
     returns: {
-        type: LinuxTapeDrive,
+        type: ScsiTapeChanger,
     },
+
 )]
-/// Get drive configuration
+/// Get tape changer configuration
 pub fn get_config(
     name: String,
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
-) -> Result<LinuxTapeDrive, Error> {
+) -> Result<ScsiTapeChanger, Error> {
 
     let (config, digest) = config::drive::config()?;
 
-    let data: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
 
@@ -90,37 +95,37 @@ pub fn get_config(
         properties: {},
     },
     returns: {
-        description: "The list of configured remotes (with config digest).",
+        description: "The list of configured changers (with config digest).",
         type: Array,
         items: {
             type: DriveListEntry,
         },
     },
 )]
-/// List drives
-pub fn list_drives(
+/// List changers
+pub fn list_changers(
     _param: Value,
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<DriveListEntry>, Error> {
 
     let (config, digest) = config::drive::config()?;
 
-    let linux_drives = linux_tape_device_list();
+    let linux_changers = linux_tape_changer_list();
 
-    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    let changer_list: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
 
     let mut list = Vec::new();
 
-    for drive in drive_list {
+    for changer in changer_list {
         let mut entry = DriveListEntry {
-            name: drive.name,
-            path: drive.path.clone(),
-            changer: drive.changer,
+            name: changer.name,
+            path: changer.path.clone(),
+            changer: None,
             vendor: None,
             model: None,
             serial: None,
         };
-        if let Some(info) = lookup_drive(&linux_drives, &drive.path) {
+        if let Some(info) = lookup_drive(&linux_changers, &changer.path) {
             entry.vendor = Some(info.vendor.clone());
             entry.model = Some(info.model.clone());
             entry.serial = Some(info.serial.clone());
@@ -137,24 +142,19 @@ pub fn list_drives(
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: CHANGER_ID_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
-            changer: {
-                schema: CHANGER_ID_SCHEMA,
-                optional: true,
-            },
         },
     },
 )]
-/// Update a drive configuration
-pub fn update_drive(
+/// Update a tape changer configuration
+pub fn update_changer(
     name: String,
     path: Option<String>,
-    changer: Option<String>,
     _param: Value,
 ) -> Result<(), Error> {
 
@@ -162,20 +162,15 @@ pub fn update_drive(
 
     let (mut config, _digest) = config::drive::config()?;
 
-    let mut data: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let mut data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     if let Some(path) = path {
-        let linux_drives = linux_tape_device_list();
-        check_drive_path(&linux_drives, &path)?;
+        let changers = linux_tape_changer_list();
+        check_drive_path(&changers, &path)?;
         data.path = path;
     }
 
-    if let Some(changer) = changer {
-        let _: ScsiTapeChanger = config.lookup("changer", &changer)?;
-        data.changer = Some(changer);
-    }
-
-    config.set_data(&name, "linux", &data)?;
+    config.set_data(&name, "changer", &data)?;
 
     config::drive::save_config(&config)?;
 
@@ -186,13 +181,13 @@ pub fn update_drive(
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: CHANGER_ID_SCHEMA,
             },
         },
     },
 )]
-/// Delete a drive configuration
-pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
+/// Delete a tape changer configuration
+pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
 
     let _lock = config::drive::lock()?;
 
@@ -200,12 +195,12 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
 
     match config.sections.get(&name) {
         Some((section_type, _)) => {
-            if section_type != "linux" {
-                bail!("Entry '{}' exists, but is not a linux tape drive", name);
+            if section_type != "changer" {
+                bail!("Entry '{}' exists, but is not a changer device", name);
             }
             config.sections.remove(&name);
         },
-        None => bail!("Delete drive '{}' failed - no such drive", name),
+        None => bail!("Delete changer '{}' failed - no such entry", name),
     }
 
     config::drive::save_config(&config)?;
@@ -218,33 +213,32 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
         properties: {},
     },
     returns: {
-        description: "The list of autodetected tape drives.",
+        description: "The list of autodetected tape changers.",
         type: Array,
         items: {
             type: TapeDeviceInfo,
         },
     },
 )]
-/// Scan tape drives
-pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
+/// Scan for SCSI tape changers
+pub fn scan_changers(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
 
-    let list = linux_tape_device_list();
+    let list = linux_tape_changer_list();
 
     Ok(list)
 }
 
-
-pub const SCAN_DRIVES: Router = Router::new()
-    .get(&API_METHOD_SCAN_DRIVES);
+pub const SCAN_CHANGERS: Router = Router::new()
+    .get(&API_METHOD_SCAN_CHANGERS);
 
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)
-    .put(&API_METHOD_UPDATE_DRIVE)
-    .delete(&API_METHOD_DELETE_DRIVE);
+    .put(&API_METHOD_UPDATE_CHANGER)
+    .delete(&API_METHOD_DELETE_CHANGER);
 
 
 pub const ROUTER: Router = Router::new()
-    .get(&API_METHOD_LIST_DRIVES)
-    .post(&API_METHOD_CREATE_DRIVE)
+    .get(&API_METHOD_LIST_CHANGERS)
+    .post(&API_METHOD_CREATE_CHANGER)
     .match_all("name", &ITEM_ROUTER);
