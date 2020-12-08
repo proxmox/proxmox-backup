@@ -11,7 +11,6 @@ use crate::{
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
         ScsiTapeChanger,
-        TapeDeviceInfo,
     },
     tape::{
         linux_tape_changer_list,
@@ -218,30 +217,6 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
 
     Ok(())
 }
-
-#[api(
-    input: {
-        properties: {},
-    },
-    returns: {
-        description: "The list of autodetected tape changers.",
-        type: Array,
-        items: {
-            type: TapeDeviceInfo,
-        },
-    },
-)]
-/// Scan for SCSI tape changers
-pub fn scan_changers(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
-    let list = linux_tape_changer_list();
-
-    Ok(list)
-}
-
-pub const SCAN_CHANGERS: Router = Router::new()
-    .get(&API_METHOD_SCAN_CHANGERS);
-
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)

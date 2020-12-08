@@ -13,7 +13,6 @@ use crate::{
         DriveListEntry,
         LinuxTapeDrive,
         ScsiTapeChanger,
-        TapeDeviceInfo,
     },
     tape::{
         linux_tape_device_list,
@@ -223,31 +222,6 @@ pub fn delete_drive(name: String, _param: Value) -> Result<(), Error> {
 
     Ok(())
 }
-
-#[api(
-    input: {
-        properties: {},
-    },
-    returns: {
-        description: "The list of autodetected tape drives.",
-        type: Array,
-        items: {
-            type: TapeDeviceInfo,
-        },
-    },
-)]
-/// Scan tape drives
-pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
-
-    let list = linux_tape_device_list();
-
-    Ok(list)
-}
-
-
-pub const SCAN_DRIVES: Router = Router::new()
-    .get(&API_METHOD_SCAN_DRIVES);
-
 
 const ITEM_ROUTER: Router = Router::new()
     .get(&API_METHOD_GET_CONFIG)

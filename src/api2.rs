@@ -9,6 +9,7 @@ pub mod types;
 pub mod version;
 pub mod ping;
 pub mod pull;
+pub mod tape;
 mod helpers;
 
 use proxmox::api::router::SubdirMap;
@@ -27,6 +28,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("pull", &pull::ROUTER),
     ("reader", &reader::ROUTER),
     ("status", &status::ROUTER),
+    ("tape", &tape::ROUTER),
     ("version", &version::ROUTER),
 ];
 

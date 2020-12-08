@@ -57,6 +57,21 @@ pub fn mtx_unload(
     Ok(())
 }
 
+/// Run 'mtx transfer'
+pub fn mtx_transfer(
+    path: &str,
+    from_slot: u64,
+    to_slot: u64,
+) -> Result<(), Error> {
+
+    let mut command = std::process::Command::new("mtx");
+    command.args(&["-f", path, "transfer", &from_slot.to_string(), &to_slot.to_string()]);
+
+    run_command(command, None)?;
+
+    Ok(())
+}
+
 /// Extract the list of online media from MtxStatus
 ///
 /// Returns a HashSet containing all found media Uuid
