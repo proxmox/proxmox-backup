@@ -93,9 +93,43 @@ fn erase_media(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Rewind tape
+fn rewind(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_REWIND;
+
+    match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
+        .insert(
+            "rewind",
+            CliCommand::new(&API_METHOD_REWIND)
+                .completion_cb("drive", complete_drive_name)
+        )
         .insert(
             "erase",
             CliCommand::new(&API_METHOD_ERASE_MEDIA)

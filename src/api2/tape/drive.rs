@@ -141,7 +141,33 @@ pub fn erase_media(drive: String, fast: Option<bool>) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+        },
+    },
+)]
+/// Rewind tape
+pub fn rewind(drive: String) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let mut drive = open_drive(&config, &drive)?;
+
+    drive.rewind()?;
+
+    Ok(())
+}
+
 pub const SUBDIRS: SubdirMap = &[
+    (
+        "rewind",
+        &Router::new()
+            .put(&API_METHOD_REWIND)
+    ),
     (
         "erase-media",
         &Router::new()
