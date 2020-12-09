@@ -10,8 +10,6 @@ use proxmox_backup::tools;
 use proxmox_backup::config;
 use proxmox_backup::api2::{self, types::* };
 use proxmox_backup::client::*;
-use proxmox_backup::tools::ticket::Ticket;
-use proxmox_backup::auth_helpers::*;
 
 mod proxmox_backup_manager;
 use proxmox_backup_manager::*;
@@ -51,27 +49,6 @@ pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn connect() -> Result<HttpClient, Error> {
-
-    let uid = nix::unistd::Uid::current();
-
-    let mut options = HttpClientOptions::new()
-        .prefix(Some("proxmox-backup".to_string()))
-        .verify_cert(false); // not required for connection to localhost
-
-    let client = if uid.is_root()  {
-        let ticket = Ticket::new("PBS", Userid::root_userid())?
-            .sign(private_auth_key(), None)?;
-        options = options.password(Some(ticket));
-        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
-    } else {
-        options = options.ticket_cache(true).interactive(true);
-        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
-    };
-
-    Ok(client)
-}
-
 #[api(
    input: {
         properties: {
@@ -92,7 +69,7 @@ async fn start_garbage_collection(param: Value) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
-    let mut client = connect()?;
+    let mut client = connect_to_localhost()?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
@@ -123,7 +100,7 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let store = tools::required_string_param(&param, "store")?;
 
-    let client = connect()?;
+    let client = connect_to_localhost()?;
 
     let path = format!("api2/json/admin/datastore/{}/gc", store);
 
@@ -183,7 +160,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
 
     let output_format = get_output_format(&param);
 
-    let client = connect()?;
+    let client = connect_to_localhost()?;
 
     let limit = param["limit"].as_u64().unwrap_or(50) as usize;
     let running = !param["all"].as_bool().unwrap_or(false);
@@ -222,7 +199,7 @@ async fn task_log(param: Value) -> Result<Value, Error> {
 
     let upid = tools::required_string_param(&param, "upid")?;
 
-    let client = connect()?;
+    let client = connect_to_localhost()?;
 
     display_task_log(client, upid, true).await?;
 
@@ -243,7 +220,7 @@ async fn task_stop(param: Value) -> Result<Value, Error> {
 
     let upid_str = tools::required_string_param(&param, "upid")?;
 
-    let mut client = connect()?;
+    let mut client = connect_to_localhost()?;
 
     let path = format!("api2/json/nodes/localhost/tasks/{}", tools::percent_encode_component(upid_str));
     let _ = client.delete(&path, None).await?;
@@ -302,7 +279,7 @@ async fn pull_datastore(
 
     let output_format = get_output_format(&param);
 
-    let mut client = connect()?;
+    let mut client = connect_to_localhost()?;
 
     let mut args = json!({
         "store": local_store,
@@ -342,7 +319,7 @@ async fn verify(
 
     let output_format = get_output_format(&param);
 
-    let mut client = connect()?;
+    let mut client = connect_to_localhost()?;
 
     let args = json!({});
 

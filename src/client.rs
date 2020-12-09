@@ -3,6 +3,16 @@
 //! This library implements the client side to access the backups
 //! server using https.
 
+use anyhow::Error;
+
+use crate::{
+    api2::types::{Userid, Authid},
+    tools::ticket::Ticket,
+    auth_helpers::private_auth_key,
+};
+
+
+
 mod merge_known_chunks;
 pub mod pipe_to_stream;
 
@@ -31,3 +41,27 @@ mod backup_specification;
 pub use backup_specification::*;
 
 pub mod pull;
+
+/// Connect to localhost:8007 as root@pam
+///
+/// This automatically creates a ticket if run as 'root' user.
+pub fn connect_to_localhost() -> Result<HttpClient, Error> {
+
+    let uid = nix::unistd::Uid::current();
+
+    let mut options = HttpClientOptions::new()
+        .prefix(Some("proxmox-backup".to_string()))
+        .verify_cert(false); // not required for connection to localhost
+
+    let client = if uid.is_root()  {
+        let ticket = Ticket::new("PBS", Userid::root_userid())?
+            .sign(private_auth_key(), None)?;
+        options = options.password(Some(ticket));
+        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
+    } else {
+        options = options.ticket_cache(true).interactive(true);
+        HttpClient::new("localhost", 8007, Authid::root_auth_id(), options)?
+    };
+
+    Ok(client)
+}
