@@ -22,6 +22,7 @@ use crate::{
 };
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -134,6 +135,7 @@ pub fn list_drives(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -193,6 +195,7 @@ pub fn update_drive(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {

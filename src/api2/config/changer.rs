@@ -20,6 +20,7 @@ use crate::{
 };
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -139,6 +140,7 @@ pub fn list_changers(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
@@ -188,6 +190,7 @@ pub fn update_changer(
 }
 
 #[api(
+    protected: true,
     input: {
         properties: {
             name: {
