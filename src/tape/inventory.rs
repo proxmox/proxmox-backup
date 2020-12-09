@@ -28,7 +28,7 @@ use crate::{
         RetentionPolicy,
     },
     tape::{
-        MEDIA_POOL_STATUS_DIR,
+        TAPE_STATUS_DIR,
         file_formats::{
             DriveLabel,
             MediaSetLabel,
@@ -205,8 +205,16 @@ impl Inventory {
     fn replace_file(&self) -> Result<(), Error> {
         let list: Vec<&MediaId> = self.map.values().collect();
         let raw = serde_json::to_string_pretty(&serde_json::to_value(list)?)?;
-        let options = CreateOptions::new();
+
+        let backup_user = crate::backup::backup_user()?;
+        let mode = nix::sys::stat::Mode::from_bits_truncate(0o0640);
+        let options = CreateOptions::new()
+            .perm(mode)
+            .owner(backup_user.uid)
+            .group(backup_user.gid);
+
         replace_file(&self.inventory_path, raw.as_bytes(), options)?;
+
         Ok(())
     }
 
@@ -605,7 +613,7 @@ pub fn complete_media_uuid(
     _param: &HashMap<String, String>,
 ) -> Vec<String> {
 
-    let inventory = match Inventory::load(Path::new(MEDIA_POOL_STATUS_DIR)) {
+    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -619,7 +627,7 @@ pub fn complete_media_set_uuid(
     _param: &HashMap<String, String>,
 ) -> Vec<String> {
 
-    let inventory = match Inventory::load(Path::new(MEDIA_POOL_STATUS_DIR)) {
+    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };
@@ -635,7 +643,7 @@ pub fn complete_media_changer_id(
     _param: &HashMap<String, String>,
 ) -> Vec<String> {
 
-    let inventory = match Inventory::load(Path::new(MEDIA_POOL_STATUS_DIR)) {
+    let inventory = match Inventory::load(Path::new(TAPE_STATUS_DIR)) {
         Ok(inventory) => inventory,
         Err(_) => return Vec::new(),
     };

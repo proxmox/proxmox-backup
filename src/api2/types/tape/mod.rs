@@ -8,3 +8,6 @@ pub use drive::*;
 
 mod media_pool;
 pub use media_pool::*;
+
+mod media_status;
+pub use media_status::*;

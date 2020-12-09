@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::Error;
 use serde_json::Value;
 
@@ -14,9 +16,14 @@ use crate::{
         MtxEntryKind,
     },
     tape::{
+        TAPE_STATUS_DIR,
         ElementStatus,
+        OnlineStatusMap,
+        Inventory,
+        MediaStateDatabase,
         linux_tape_changer_list,
         mtx_status,
+        mtx_status_to_online_set,
         mtx_transfer,
     },
 };
@@ -47,8 +54,7 @@ pub fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
 
     let status = mtx_status(&data.path)?;
 
-    /* todo: update persistent state
-    let state_path = Path::new(MEDIA_POOL_STATUS_DIR);
+    let state_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(state_path)?;
 
     let mut map = OnlineStatusMap::new(&config)?;
@@ -57,7 +63,6 @@ pub fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
 
     let mut state_db = MediaStateDatabase::load(state_path)?;
     state_db.update_online_status(&map)?;
-     */
 
     let mut list = Vec::new();
 
