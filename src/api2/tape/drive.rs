@@ -17,6 +17,7 @@ use crate::{
         mtx_load,
         mtx_unload,
         linux_tape_device_list,
+        open_drive,
     },
 };
 
@@ -113,7 +114,39 @@ pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
     Ok(list)
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+            fast: {
+                description: "Use fast erase.",
+                type: bool,
+                optional: true,
+                default: true,
+            },
+        },
+    },
+)]
+/// Erase media
+pub fn erase_media(drive: String, fast: Option<bool>) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let mut drive = open_drive(&config, &drive)?;
+
+    drive.erase_media(fast.unwrap_or(true))?;
+
+    Ok(())
+}
+
 pub const SUBDIRS: SubdirMap = &[
+    (
+        "erase-media",
+        &Router::new()
+            .put(&API_METHOD_ERASE_MEDIA)
+    ),
     (
         "load-slot",
         &Router::new()
