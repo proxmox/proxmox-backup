@@ -372,7 +372,6 @@ fn create_master_key() -> Result<(), Error> {
             },
             "output-format": {
                 type: PaperkeyFormat,
-                description: "Output format. Text or Html.",
                 optional: true,
             },
         },

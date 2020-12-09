@@ -19,10 +19,7 @@ use crate::config::acl::{PRIV_REMOTE_AUDIT, PRIV_REMOTE_MODIFY};
     returns: {
         description: "The list of configured remotes (with config digest).",
         type: Array,
-        items: {
-            type: remote::Remote,
-            description: "Remote configuration (without password).",
-        },
+        items: { type: remote::Remote },
     },
     access: {
         description: "List configured remotes filtered by Remote.Audit privileges",
@@ -124,10 +121,7 @@ pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
             },
         },
     },
-    returns: {
-        description: "The remote configuration (with config digest).",
-        type: remote::Remote,
-    },
+    returns: { type: remote::Remote },
     access: {
         permission: &Permission::Privilege(&["remote", "{name}"], PRIV_REMOTE_AUDIT, false),
     }
@@ -347,10 +341,7 @@ pub async fn remote_client(remote: remote::Remote) -> Result<HttpClient, Error> 
     returns: {
         description: "List the accessible datastores.",
         type: Array,
-        items: {
-            description: "Datastore name and description.",
-            type: DataStoreListItem,
-        },
+        items: { type: DataStoreListItem },
     },
 )]
 /// List datastores of a remote.cfg entry

@@ -249,10 +249,7 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
             },
          },
     },
-    returns: {
-        description: "The user configuration (with config digest).",
-        type: user::User,
-    },
+    returns: { type: user::User },
     access: {
         permission: &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),
@@ -468,10 +465,7 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
             },
         },
     },
-    returns: {
-        description: "Get API token metadata (with config digest).",
-        type: user::ApiToken,
-    },
+    returns: { type: user::ApiToken },
     access: {
         permission: &Permission::Or(&[
             &Permission::Privilege(&["access", "users"], PRIV_SYS_AUDIT, false),

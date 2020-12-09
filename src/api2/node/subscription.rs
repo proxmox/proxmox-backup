@@ -73,10 +73,7 @@ pub fn check_subscription(
             },
         },
     },
-    returns: {
-        description: "Subscription status.",
-        type: SubscriptionInfo,
-    },
+    returns: { type: SubscriptionInfo },
     access: {
         permission: &Permission::Anybody,
     },

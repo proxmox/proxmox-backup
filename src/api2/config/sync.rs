@@ -182,10 +182,7 @@ pub fn create_sync_job(
             },
         },
     },
-    returns: {
-        description: "The sync job configuration.",
-        type: sync::SyncJobConfig,
-    },
+    returns: { type: sync::SyncJobConfig },
     access: {
         description: "Limited to sync job entries where user has Datastore.Audit on target datastore, and Remote.Audit on source remote.",
         permission: &Permission::Anybody,

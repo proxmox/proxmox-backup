@@ -166,7 +166,6 @@ fn check_task_access(auth_id: &Authid, upid: &UPID) -> Result<(), Error> {
             },
             user: {
                 type: Userid,
-                description: "The user who started the task.",
             },
             tokenid: {
                 type: Tokenname,

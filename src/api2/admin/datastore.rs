@@ -975,10 +975,7 @@ pub fn garbage_collection_status(
     returns: {
         description: "List the accessible datastores.",
         type: Array,
-        items: {
-            description: "Datastore name and description.",
-            type: DataStoreListItem,
-        },
+        items: { type: DataStoreListItem },
     },
     access: {
         permission: &Permission::Anybody,

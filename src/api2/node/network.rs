@@ -102,10 +102,7 @@ pub fn list_network_devices(
             },
         },
     },
-    returns: {
-        description: "The network interface configuration (with config digest).",
-        type: Interface,
-    },
+    returns: { type: Interface },
     access: {
         permission: &Permission::Privilege(&["system", "network", "interfaces", "{name}"], PRIV_SYS_AUDIT, false),
     },
@@ -135,7 +132,6 @@ pub fn read_interface(iface: String) -> Result<Value, Error> {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
             "type": {
-                description: "Interface type.",
                 type: NetworkInterfaceType,
                 optional: true,
             },
@@ -388,7 +384,6 @@ pub enum DeletableProperty {
                 schema: NETWORK_INTERFACE_NAME_SCHEMA,
             },
             "type": {
-                description: "Interface type. If specified, need to match the current type.",
                 type: NetworkInterfaceType,
                 optional: true,
             },

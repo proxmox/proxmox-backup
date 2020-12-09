@@ -151,10 +151,7 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
             },
         },
     },
-    returns: {
-        description: "The datastore configuration (with config digest).",
-        type: datastore::DataStoreConfig,
-    },
+    returns: { type: datastore::DataStoreConfig },
     access: {
         permission: &Permission::Privilege(&["datastore", "{name}"], PRIV_DATASTORE_AUDIT, false),
     },

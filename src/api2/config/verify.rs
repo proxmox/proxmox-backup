@@ -127,10 +127,7 @@ pub fn create_verification_job(
             },
         },
     },
-    returns: {
-        description: "The verification job configuration.",
-        type: verify::VerificationJobConfig,
-    },
+    returns: { type: verify::VerificationJobConfig },
     access: {
         permission: &Permission::Anybody,
         description: "Requires Datastore.Audit or Datastore.Verify on job's datastore.",
