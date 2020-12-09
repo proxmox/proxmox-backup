@@ -11,6 +11,7 @@ use crate::{
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
         ScsiTapeChanger,
+        LinuxTapeDrive,
     },
     tape::{
         linux_tape_changer_list,
@@ -214,6 +215,15 @@ pub fn delete_changer(name: String, _param: Value) -> Result<(), Error> {
             config.sections.remove(&name);
         },
         None => bail!("Delete changer '{}' failed - no such entry", name),
+    }
+
+    let drive_list: Vec<LinuxTapeDrive> = config.convert_to_typed_array("linux")?;
+    for drive in drive_list {
+        if let Some(changer) = drive.changer {
+            if changer == name {
+                bail!("Delete changer '{}' failed - used by drive '{}'", name, drive.name);
+            }
+        }
     }
 
     config::drive::save_config(&config)?;
