@@ -18,6 +18,7 @@ use crate::{
         mtx_unload,
         linux_tape_device_list,
         open_drive,
+        media_changer,
     },
 };
 
@@ -162,6 +163,32 @@ pub fn rewind(drive: String) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+        },
+    },
+)]
+/// Eject/Unload drive media
+pub fn eject_media(drive: String) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let (mut changer, _) = media_changer(&config, &drive, false)?;
+
+    if !changer.eject_on_unload() {
+        let mut drive = open_drive(&config, &drive)?;
+        drive.eject_media()?;
+    }
+
+    changer.unload_media()?;
+
+    Ok(())
+}
+
 pub const SUBDIRS: SubdirMap = &[
     (
         "rewind",
@@ -172,6 +199,11 @@ pub const SUBDIRS: SubdirMap = &[
         "erase-media",
         &Router::new()
             .put(&API_METHOD_ERASE_MEDIA)
+    ),
+    (
+        "eject-media",
+        &Router::new()
+            .put(&API_METHOD_EJECT_MEDIA)
     ),
     (
         "load-slot",

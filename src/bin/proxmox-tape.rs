@@ -108,11 +108,42 @@ fn rewind(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+
     let (config, _digest) = config::drive::config()?;
 
     param["drive"] = lookup_drive_name(&param, &config)?.into();
 
     let info = &api2::tape::drive::API_METHOD_REWIND;
+
+    match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Eject/Unload drive media
+fn eject_media(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_EJECT_MEDIA;
 
     match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
@@ -133,6 +164,11 @@ fn main() {
         .insert(
             "erase",
             CliCommand::new(&API_METHOD_ERASE_MEDIA)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "eject",
+            CliCommand::new(&API_METHOD_EJECT_MEDIA)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert("changer", changer_commands())
