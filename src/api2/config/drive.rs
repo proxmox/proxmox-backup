@@ -31,6 +31,10 @@ use crate::{
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
             },
+            changer: {
+                schema: CHANGER_ID_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
