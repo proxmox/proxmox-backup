@@ -3,7 +3,7 @@
 //! A set of backup medias.
 //!
 //! This struct manages backup media state during backup. The main
-//! purpose ist to allocate media sets and assing new tapes to it.
+//! purpose is to allocate media sets and assing new tapes to it.
 //!
 //!
 

@@ -1,25 +1,45 @@
+use std::path::Path;
 use anyhow::{bail, Error};
 use serde_json::Value;
 
-use proxmox::api::{api, Router, SubdirMap};
-use proxmox::{sortable, identity, list_subdirs_api_method};
+use proxmox::{
+    sortable,
+    identity,
+    list_subdirs_api_method,
+    tools::Uuid,
+    sys::error::SysError,
+    api::{
+        api,
+        Router,
+        SubdirMap,
+    },
+};
 
 use crate::{
     config,
     api2::types::{
         DRIVE_ID_SCHEMA,
         MEDIA_LABEL_SCHEMA,
+        MEDIA_POOL_NAME_SCHEMA,
         LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
     },
     tape::{
+        TAPE_STATUS_DIR,
+        TapeDriver,
         MediaChange,
+        Inventory,
+        MediaId,
         mtx_load,
         mtx_unload,
         linux_tape_device_list,
         open_drive,
         media_changer,
+        file_formats::{
+            DriveLabel,
+            MediaSetLabel,
+        },
     },
 };
 
@@ -216,6 +236,128 @@ pub fn eject_media(drive: String) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+            pool: {
+                schema: MEDIA_POOL_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Label media
+///
+/// Write a new media label to the media in 'drive'. The media is
+/// assigned to the specified 'pool', or else to the free media pool.
+///
+/// Note: The media need to be empty (you may want to erase it first).
+pub fn label_media(
+    drive: String,
+    pool: Option<String>,
+    changer_id: String,
+) -> Result<(), Error> {
+
+    if let Some(ref pool) = pool {
+        let (pool_config, _digest) = config::media_pool::config()?;
+
+        if pool_config.sections.get(pool).is_none() {
+            bail!("no such pool ('{}')", pool);
+        }
+    }
+
+    let (config, _digest) = config::drive::config()?;
+
+    let mut drive = open_drive(&config, &drive)?;
+
+    drive.rewind()?;
+
+    match drive.read_next_file() {
+        Ok(Some(_file)) => bail!("media is not empty (erase first)"),
+        Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
+        Err(err) => {
+            if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
+                /* assume tape is empty */
+            } else {
+                bail!("media read error - {}", err);
+            }
+        }
+    }
+
+    let ctime = proxmox::tools::time::epoch_i64();
+    let label = DriveLabel {
+        changer_id: changer_id.to_string(),
+        uuid: Uuid::generate(),
+        ctime,
+    };
+
+    write_media_label(&mut drive, label, pool)
+}
+
+fn write_media_label(
+    drive: &mut Box<dyn TapeDriver>,
+    label: DriveLabel,
+    pool: Option<String>,
+) -> Result<(), Error> {
+
+    drive.label_tape(&label)?;
+
+    let mut media_set_label = None;
+
+    if let Some(ref pool) = pool {
+        // assign media to pool by writing special media set label
+        println!("Label media '{}' for pool '{}'", label.changer_id, pool);
+        let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime);
+
+        drive.write_media_set_label(&set)?;
+        media_set_label = Some(set);
+    } else {
+        println!("Label media '{}' (no pool assignment)", label.changer_id);
+    }
+
+    let media_id = MediaId { label, media_set_label };
+
+    let mut inventory = Inventory::load(Path::new(TAPE_STATUS_DIR))?;
+    inventory.store(media_id.clone())?;
+
+    drive.rewind()?;
+
+    match drive.read_label() {
+        Ok(Some(info)) => {
+            if info.label.uuid != media_id.label.uuid {
+                bail!("verify label failed - got wrong label uuid");
+            }
+            if let Some(ref pool) = pool {
+                match info.media_set_label {
+                    Some((set, _)) => {
+                        if set.uuid != [0u8; 16].into() {
+                            bail!("verify media set label failed - got wrong set uuid");
+                        }
+                        if &set.pool != pool {
+                            bail!("verify media set label failed - got wrong pool");
+                        }
+                    }
+                    None => {
+                        bail!("verify media set label failed (missing set label)");
+                    }
+                }
+            }
+        },
+        Ok(None) => bail!("verify label failed (got empty media)"),
+        Err(err) => bail!("verify label failed - {}", err),
+    };
+
+    drive.rewind()?;
+
+    Ok(())
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
@@ -227,6 +369,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "erase-media",
         &Router::new()
             .put(&API_METHOD_ERASE_MEDIA)
+    ),
+    (
+        "label-media",
+        &Router::new()
+            .put(&API_METHOD_LABEL_MEDIA)
     ),
     (
         "load-slot",
