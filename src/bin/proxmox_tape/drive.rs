@@ -15,8 +15,6 @@ use proxmox_backup::{
         self,
         types::{
             DRIVE_ID_SCHEMA,
-            CHANGER_ID_SCHEMA,
-            LINUX_DRIVE_PATH_SCHEMA,
         },
     },
     tape::{
@@ -41,13 +39,13 @@ pub fn drive_commands() -> CommandLineInterface {
         )
         .insert(
             "remove",
-            CliCommand::new(&API_METHOD_DELETE_DRIVE)
+            CliCommand::new(&api2::config::drive::API_METHOD_DELETE_DRIVE)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_linux_drive_name)
         )
         .insert(
             "create",
-            CliCommand::new(&API_METHOD_CREATE_LINUX_DRIVE)
+            CliCommand::new(&api2::config::drive::API_METHOD_CREATE_DRIVE)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_drive_name)
                 .completion_cb("path", complete_drive_path)
@@ -55,7 +53,7 @@ pub fn drive_commands() -> CommandLineInterface {
         )
         .insert(
             "update",
-            CliCommand::new(&API_METHOD_UPDATE_LINUX_DRIVE)
+            CliCommand::new(&api2::config::drive::API_METHOD_UPDATE_DRIVE)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_linux_drive_name)
                 .completion_cb("path", complete_drive_path)
@@ -63,50 +61,19 @@ pub fn drive_commands() -> CommandLineInterface {
         )
         .insert(
             "load",
-            CliCommand::new(&API_METHOD_LOAD_SLOT)
-                .arg_param(&["name"])
-                .completion_cb("name", complete_linux_drive_name)
+            CliCommand::new(&api2::tape::drive::API_METHOD_LOAD_SLOT)
+                .arg_param(&["drive"])
+                .completion_cb("drive", complete_linux_drive_name)
         )
         .insert(
             "unload",
-            CliCommand::new(&API_METHOD_UNLOAD)
-                .arg_param(&["name"])
-                .completion_cb("name", complete_linux_drive_name)
+            CliCommand::new(&api2::tape::drive::API_METHOD_UNLOAD)
+                .arg_param(&["drive"])
+                .completion_cb("drive", complete_linux_drive_name)
         )
         ;
 
     cmd_def.into()
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: DRIVE_ID_SCHEMA,
-            },
-            path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-            },
-            changer: {
-                schema: CHANGER_ID_SCHEMA,
-                optional: true,
-            },
-        },
-    },
-)]
-/// Create a new drive
-fn create_linux_drive(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::drive::API_METHOD_CREATE_DRIVE;
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
 }
 
 #[api(
@@ -215,125 +182,6 @@ fn get_config(
         ;
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: DRIVE_ID_SCHEMA,
-            },
-        },
-    },
-)]
-/// Delete a drive configuration
-fn delete_drive(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::drive::API_METHOD_DELETE_DRIVE;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: DRIVE_ID_SCHEMA,
-            },
-            path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-            changer: {
-                schema: CHANGER_ID_SCHEMA,
-                optional: true,
-            },
-        },
-    },
-)]
-/// Update a drive configuration
-fn update_linux_drive(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::drive::API_METHOD_UPDATE_DRIVE;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_ID_SCHEMA,
-            },
-            slot: {
-                type: u64,
-                description: "Source slot number",
-                minimum: 1,
-            },
-        },
-    },
-)]
-/// Load media via changer from slot
-fn load_slot(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::tape::drive::API_METHOD_LOAD_SLOT;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: DRIVE_ID_SCHEMA,
-            },
-            slot: {
-                description: "Target slot number. If omitted, defaults to the slot that the drive was loaded from.",
-                type: u64,
-                minimum: 1,
-                optional: true,
-            },
-        },
-    },
-)]
-/// Unload media via changer
-fn unload(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::tape::drive::API_METHOD_UNLOAD;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
 
     Ok(())
 }

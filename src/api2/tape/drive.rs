@@ -86,7 +86,7 @@ pub fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
 #[api(
     input: {
         properties: {
-            name: {
+            drive: {
                 schema: DRIVE_ID_SCHEMA,
             },
             slot: {
@@ -99,18 +99,18 @@ pub fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
 )]
 /// Unload media via changer
 pub fn unload(
-    name: String,
+    drive: String,
     slot: Option<u64>,
     _param: Value,
 ) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let mut drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let changer: ScsiTapeChanger = match drive.changer {
+    let changer: ScsiTapeChanger = match drive_config.changer {
         Some(ref changer) => config.lookup("changer", changer)?,
-        None => bail!("drive '{}' has no associated changer", name),
+        None => bail!("drive '{}' has no associated changer", drive),
     };
 
     let drivenum: u64 = 0;
@@ -118,7 +118,7 @@ pub fn unload(
     if let Some(slot) = slot {
         mtx_unload(&changer.path, slot, drivenum)
     } else {
-        drive.unload_media()
+        drive_config.unload_media()
     }
 }
 

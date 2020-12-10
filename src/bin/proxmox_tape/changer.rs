@@ -15,15 +15,12 @@ use proxmox_backup::{
         self,
         types::{
             CHANGER_ID_SCHEMA,
-            LINUX_DRIVE_PATH_SCHEMA,
-            ScsiTapeChanger,
         },
     },
     tape::{
         complete_changer_path,
     },
     config::{
-        self,
         drive::{
             complete_drive_name,
             complete_changer_name,
@@ -43,20 +40,20 @@ pub fn changer_commands() -> CommandLineInterface {
         )
         .insert(
             "remove",
-            CliCommand::new(&API_METHOD_DELETE_CHANGER)
+            CliCommand::new(&api2::config::changer::API_METHOD_DELETE_CHANGER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_changer_name)
         )
         .insert(
             "create",
-            CliCommand::new(&API_METHOD_CREATE_CHANGER)
+            CliCommand::new(&api2::config::changer::API_METHOD_CREATE_CHANGER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_drive_name)
                 .completion_cb("path", complete_changer_path)
         )
         .insert(
             "update",
-            CliCommand::new(&API_METHOD_UPDATE_CHANGER)
+            CliCommand::new(&api2::config::changer::API_METHOD_UPDATE_CHANGER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_changer_name)
                 .completion_cb("path", complete_changer_path)
@@ -67,40 +64,13 @@ pub fn changer_commands() -> CommandLineInterface {
                 .completion_cb("name", complete_changer_name)
         )
         .insert("transfer",
-                CliCommand::new(&API_METHOD_TRANSFER)
+                CliCommand::new(&api2::tape::changer::API_METHOD_TRANSFER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_changer_name)
         )
         ;
 
     cmd_def.into()
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: CHANGER_ID_SCHEMA,
-            },
-            path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-            },
-        },
-    },
-)]
-/// Create a new changer device
-fn create_changer(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::changer::API_METHOD_CREATE_CHANGER;
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
 }
 
 #[api(
@@ -213,61 +183,6 @@ fn get_config(
 #[api(
     input: {
         properties: {
-            name: {
-                schema: CHANGER_ID_SCHEMA,
-            },
-        },
-    },
-)]
-/// Delete a tape changer configuration
-fn delete_changer(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::changer::API_METHOD_DELETE_CHANGER;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: CHANGER_ID_SCHEMA,
-            },
-            path: {
-                schema: LINUX_DRIVE_PATH_SCHEMA,
-                optional: true,
-            },
-        },
-    },
-)]
-/// Update a tape changer configuration
-fn update_changer(
-    param: Value,
-    rpcenv: &mut dyn RpcEnvironment,
-) -> Result<(), Error> {
-
-    let info = &api2::config::changer::API_METHOD_UPDATE_CHANGER;
-
-    match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
-        _ => unreachable!(),
-    };
-
-    Ok(())
-}
-
-
-#[api(
-    input: {
-        properties: {
             "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
@@ -299,43 +214,6 @@ fn get_status(
         ;
 
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
-
-    Ok(())
-}
-
-#[api(
-    input: {
-        properties: {
-            name: {
-                schema: CHANGER_ID_SCHEMA,
-            },
-            from: {
-                description: "Source slot number",
-                minimum: 1,
-            },
-            to: {
-                description: "Destination slot number",
-                minimum: 1,
-            },
-        },
-    },
-)]
-/// Transfers media from one slot to another
-fn transfer(
-    name: String,
-    from: u64,
-    to: u64,
-    _param: Value,
-) -> Result<(), Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    let data: ScsiTapeChanger = config.lookup("changer", &name)?;
-
-    let mut command = std::process::Command::new("mtx");
-    command.args(&["-f", &data.path, "transfer", &from.to_string(), &to.to_string()]);
-
-    proxmox_backup::tools::run_command(command, None)?;
 
     Ok(())
 }
