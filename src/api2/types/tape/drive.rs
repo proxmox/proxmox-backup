@@ -29,6 +29,12 @@ pub const SCSI_CHANGER_PATH_SCHEMA: Schema = StringSchema::new(
     "Path to Linux generic SCSI device (i.e. '/dev/sg4')")
     .schema();
 
+pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(3)
+    .max_length(32)
+    .schema();
+
 #[api(
     properties: {
         name: {
@@ -127,6 +133,10 @@ pub enum MtxEntryKind {
     properties: {
         "entry-kind": {
             type: MtxEntryKind,
+        },
+        "changer-id": {
+            schema: MEDIA_LABEL_SCHEMA,
+            optional: true,
         },
     },
 )]

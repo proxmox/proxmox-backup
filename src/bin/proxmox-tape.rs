@@ -16,11 +16,15 @@ use proxmox_backup::{
         self,
         types::{
             DRIVE_ID_SCHEMA,
+            MEDIA_LABEL_SCHEMA,
         },
     },
     config::{
         self,
         drive::complete_drive_name,
+    },
+    tape::{
+        complete_media_changer_id,
     },
 };
 
@@ -153,6 +157,39 @@ fn eject_media(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+                optional: true,
+            },
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+        },
+    },
+)]
+/// Load media
+fn load_media(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_LOAD_MEDIA;
+
+    match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -173,6 +210,13 @@ fn main() {
         )
         .insert("changer", changer_commands())
         .insert("drive", drive_commands())
+        .insert(
+            "load-media",
+            CliCommand::new(&API_METHOD_LOAD_MEDIA)
+                .arg_param(&["changer-id"])
+                .completion_cb("drive", complete_drive_name)
+                .completion_cb("changer-id", complete_media_changer_id)
+        )
         ;
 
     let mut rpcenv = CliEnvironment::new();

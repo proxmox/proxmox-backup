@@ -8,6 +8,7 @@ use crate::{
     config,
     api2::types::{
         DRIVE_ID_SCHEMA,
+        MEDIA_LABEL_SCHEMA,
         LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
@@ -54,6 +55,32 @@ pub fn load_slot(
     let drivenum = 0;
 
     mtx_load(&changer.path, slot, drivenum)
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+        },
+    },
+)]
+/// Load media with specified label
+///
+/// Issue a media load request to the associated changer device.
+pub fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let (mut changer, _) = media_changer(&config, &drive, false)?;
+
+    changer.load_media(&changer_id)?;
+
+    Ok(())
 }
 
 #[api(
