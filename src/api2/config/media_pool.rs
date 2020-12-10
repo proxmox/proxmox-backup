@@ -51,7 +51,7 @@ use crate::{
     },
 )]
 /// Create a new media pool
-fn create_pool(
+pub fn create_pool(
     name: String,
     drive: String,
     allocation: Option<String>,
@@ -95,7 +95,7 @@ fn create_pool(
     },
 )]
 /// List media pools
-fn list_pools(
+pub fn list_pools(
     mut rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<MediaPoolConfig>, Error> {
 
@@ -121,7 +121,7 @@ fn list_pools(
     },
 )]
 /// Get media pool configuration
-fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
+pub fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
 
     let (config, _digest) = config::media_pool::config()?;
 
@@ -134,7 +134,7 @@ fn get_config(name: String) -> Result<MediaPoolConfig, Error> {
 #[derive(Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 /// Deletable property name
-enum DeletableProperty {
+pub enum DeletableProperty {
     /// Delete media set allocation policy.
     allocation,
     /// Delete pool retention policy
@@ -177,7 +177,7 @@ enum DeletableProperty {
     },
 )]
 /// Update media pool settings
-fn update_pool(
+pub fn update_pool(
     name: String,
     drive: Option<String>,
     allocation: Option<String>,
@@ -224,7 +224,7 @@ fn update_pool(
     },
 )]
 /// Delete a media pool configuration
-fn delete_pool(name: String) -> Result<(), Error> {
+pub fn delete_pool(name: String) -> Result<(), Error> {
 
     let _lock = config::media_pool::lock()?;
 

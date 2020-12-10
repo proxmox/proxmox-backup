@@ -29,7 +29,7 @@ use crate::{
 
 pub const MEDIA_POOL_NAME_SCHEMA: Schema = StringSchema::new("Media pool name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(3)
+    .min_length(2)
     .max_length(32)
     .schema();
 
