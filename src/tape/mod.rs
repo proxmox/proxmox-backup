@@ -31,6 +31,9 @@ pub use media_state_database::*;
 mod online_status_map;
 pub use online_status_map::*;
 
+mod media_pool;
+pub use media_pool::*;
+
 /// Directory path where we store all tape status information
 pub const TAPE_STATUS_DIR: &str = "/var/lib/proxmox-backup/tape";
 
