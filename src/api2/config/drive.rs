@@ -1,4 +1,5 @@
 use anyhow::{bail, Error};
+use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use proxmox::api::{api, Router, RpcEnvironment};
@@ -138,6 +139,15 @@ pub fn list_drives(
     Ok(list)
 }
 
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete the changer property.
+    changer,
+}
+
 #[api(
     protected: true,
     input: {
@@ -153,6 +163,14 @@ pub fn list_drives(
                 schema: CHANGER_ID_SCHEMA,
                 optional: true,
             },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                }
+            },
             digest: {
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
                 optional: true,
@@ -165,6 +183,7 @@ pub fn update_drive(
     name: String,
     path: Option<String>,
     changer: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
    _param: Value,
 ) -> Result<(), Error> {
@@ -179,6 +198,14 @@ pub fn update_drive(
     }
 
     let mut data: LinuxTapeDrive = config.lookup("linux", &name)?;
+
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::changer => { data.changer = None; },
+            }
+        }
+    }
 
     if let Some(path) = path {
         let linux_drives = linux_tape_device_list();
