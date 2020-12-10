@@ -81,13 +81,19 @@ Ext.define('PBS.window.AddTfaRecovery', {
 		throw "no userid set";
 	    }
 
+	    let params = { type: 'recovery' };
+
+	    if (Proxmox.UserName !== 'root@pam') {
+		params.password = me.lookup('password').getValue();
+	    }
+
 	    me.getView().close();
 
 	    try {
 		let response = await PBS.Async.api2({
 		    url: `${baseurl}/${userid}`,
 		    method: 'POST',
-		    params: { type: 'recovery' },
+		    params,
 		});
 		let values = response.result.data.recovery.join("\n");
 		Ext.create('PBS.window.TfaRecoveryShow', {
