@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::api::{api, Router, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox::{sortable, identity, list_subdirs_api_method};
 
 use crate::{
     config,
@@ -216,16 +216,17 @@ pub fn eject_media(drive: String) -> Result<(), Error> {
     Ok(())
 }
 
-pub const SUBDIRS: SubdirMap = &[
-    (
-        "erase-media",
-        &Router::new()
-            .put(&API_METHOD_ERASE_MEDIA)
-    ),
+#[sortable]
+pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "eject-media",
         &Router::new()
             .put(&API_METHOD_EJECT_MEDIA)
+    ),
+    (
+        "erase-media",
+        &Router::new()
+            .put(&API_METHOD_ERASE_MEDIA)
     ),
     (
         "load-slot",
@@ -247,7 +248,7 @@ pub const SUBDIRS: SubdirMap = &[
         &Router::new()
             .put(&API_METHOD_UNLOAD)
     ),
-];
+]);
 
 pub const ROUTER: Router = Router::new()
     .get(&list_subdirs_api_method!(SUBDIRS))
