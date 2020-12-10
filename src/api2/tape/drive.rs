@@ -26,7 +26,7 @@ use crate::{
 #[api(
     input: {
         properties: {
-            name: {
+            drive: {
                 schema: DRIVE_ID_SCHEMA,
             },
             slot: {
@@ -38,18 +38,18 @@ use crate::{
 )]
 /// Load media via changer from slot
 pub fn load_slot(
-    name: String,
+    drive: String,
     slot: u64,
     _param: Value,
 ) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let changer: ScsiTapeChanger = match drive.changer {
+    let changer: ScsiTapeChanger = match drive_config.changer {
         Some(ref changer) => config.lookup("changer", changer)?,
-        None => bail!("drive '{}' has no associated changer", name),
+        None => bail!("drive '{}' has no associated changer", drive),
     };
 
     let drivenum = 0;

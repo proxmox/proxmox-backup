@@ -280,7 +280,7 @@ fn update_linux_drive(
 #[api(
     input: {
         properties: {
-            name: {
+            drive: {
                 schema: DRIVE_ID_SCHEMA,
             },
             slot: {
