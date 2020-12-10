@@ -12,6 +12,7 @@ use proxmox::{
 };
 
 use proxmox_backup::{
+    tools::format::render_epoch,
     api2::{
         self,
         types::{
@@ -229,6 +230,50 @@ fn label_media(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+                optional: true,
+            },
+             "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+             },
+        },
+    },
+)]
+/// Read media label
+fn read_label(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+   let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let output_format = get_output_format(&param);
+    let info = &api2::tape::drive::API_METHOD_READ_LABEL;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("uuid"))
+        .column(ColumnConfig::new("ctime").renderer(render_epoch))
+        .column(ColumnConfig::new("pool"))
+        .column(ColumnConfig::new("media-set-uuid"))
+        .column(ColumnConfig::new("media-set-ctime").renderer(render_epoch))
+        ;
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(())
+
+}
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -245,6 +290,11 @@ fn main() {
         .insert(
             "eject",
             CliCommand::new(&API_METHOD_EJECT_MEDIA)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "read-label",
+            CliCommand::new(&API_METHOD_READ_LABEL)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

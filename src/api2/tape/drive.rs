@@ -24,6 +24,7 @@ use crate::{
         LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
+        MediaLabelInfoFlat,
     },
     tape::{
         TAPE_STATUS_DIR,
@@ -356,6 +357,54 @@ fn write_media_label(
     drive.rewind()?;
 
     Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: MediaLabelInfoFlat,
+    },
+)]
+/// Read media label
+pub fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let mut drive = open_drive(&config, &drive)?;
+
+    let info = drive.read_label()?;
+
+    let info = match info {
+        Some(info) => {
+            let mut flat = MediaLabelInfoFlat {
+                uuid: info.label.uuid.to_string(),
+                changer_id: info.label.changer_id.clone(),
+                ctime: info.label.ctime,
+                media_set_ctime: None,
+                media_set_uuid: None,
+                pool: None,
+                seq_nr: None,
+            };
+            if let Some((set, _)) = info.media_set_label {
+                flat.pool = Some(set.pool.clone());
+                flat.seq_nr = Some(set.seq_nr);
+                flat.media_set_uuid = Some(set.uuid.to_string());
+                flat.media_set_ctime = Some(set.ctime);
+            }
+            flat
+        }
+        None => {
+            bail!("Media is empty (no label).");
+        }
+    };
+
+    Ok(info)
 }
 
 #[sortable]

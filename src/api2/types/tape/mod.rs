@@ -11,3 +11,6 @@ pub use media_pool::*;
 
 mod media_status;
 pub use media_status::*;
+
+mod media;
+pub use media::*;
