@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, StringSchema},
+    schema::{Schema, IntegerSchema, StringSchema},
 };
 
 use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
@@ -33,6 +33,13 @@ pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
+    .schema();
+
+pub const CHANGER_DRIVE_ID_SCHEMA: Schema = IntegerSchema::new(
+    "Associated changer drive number (requires option changer)")
+    .minimum(0)
+    .maximum(8)
+    .default(0)
     .schema();
 
 #[api(
@@ -65,17 +72,23 @@ pub struct VirtualTapeDrive {
         changer: {
             schema: CHANGER_ID_SCHEMA,
             optional: true,
-        }
+        },
+        "changer-drive-id": {
+            schema: CHANGER_DRIVE_ID_SCHEMA,
+            optional: true,
+        },
     }
 )]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// Linux SCSI tape driver
 pub struct LinuxTapeDrive {
     pub name: String,
     pub path: String,
-    /// Associated changer device
     #[serde(skip_serializing_if="Option::is_none")]
     pub changer: Option<String>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub changer_drive_id: Option<u64>,
 }
 
 #[api(

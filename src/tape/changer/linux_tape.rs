@@ -57,20 +57,20 @@ impl MediaChange for LinuxTapeDrive {
 
         let status = mtx_status(&changer.path)?;
 
-        let drivenum = 0; // fixme: read from drive config
+        let drivenum = self.changer_drive_id.unwrap_or(0);
 
         // already loaded?
         for (i, drive_status) in status.drives.iter().enumerate() {
             if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
                 if *tag == changer_id {
-                    if i != drivenum {
+                    if i as u64 != drivenum {
                         bail!("unable to load media '{}' - media in wrong drive ({} != {})",
                               changer_id, i, drivenum);
                     }
                     return Ok(())
                 }
             }
-            if i == drivenum {
+            if i as u64 == drivenum {
                 match  drive_status.status {
                     ElementStatus::Empty => { /* OK */ },
                     _ => unload_to_free_slot(&self.name, &changer.path, &status, drivenum as u64)?,
@@ -105,7 +105,7 @@ impl MediaChange for LinuxTapeDrive {
             None => return Ok(()),
         };
 
-        let drivenum: u64 = 0;
+        let drivenum = self.changer_drive_id.unwrap_or(0);
 
         let status = mtx_status(&changer.path)?;
 

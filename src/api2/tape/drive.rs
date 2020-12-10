@@ -52,7 +52,7 @@ pub fn load_slot(
         None => bail!("drive '{}' has no associated changer", drive),
     };
 
-    let drivenum = 0;
+    let drivenum = drive_config.changer_drive_id.unwrap_or(0);
 
     mtx_load(&changer.path, slot, drivenum)
 }
@@ -218,11 +218,6 @@ pub fn eject_media(drive: String) -> Result<(), Error> {
 
 pub const SUBDIRS: SubdirMap = &[
     (
-        "rewind",
-        &Router::new()
-            .put(&API_METHOD_REWIND)
-    ),
-    (
         "erase-media",
         &Router::new()
             .put(&API_METHOD_ERASE_MEDIA)
@@ -236,6 +231,11 @@ pub const SUBDIRS: SubdirMap = &[
         "load-slot",
         &Router::new()
             .put(&API_METHOD_LOAD_SLOT)
+    ),
+    (
+        "rewind",
+        &Router::new()
+            .put(&API_METHOD_REWIND)
     ),
     (
         "scan",
