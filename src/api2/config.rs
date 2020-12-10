@@ -7,11 +7,13 @@ pub mod sync;
 pub mod verify;
 pub mod drive;
 pub mod changer;
+pub mod media_pool;
 
 const SUBDIRS: SubdirMap = &[
     ("changer", &changer::ROUTER),
     ("datastore", &datastore::ROUTER),
     ("drive", &drive::ROUTER),
+    ("media-pool", &media_pool::ROUTER),
     ("remote", &remote::ROUTER),
     ("sync", &sync::ROUTER),
     ("verify", &verify::ROUTER)
