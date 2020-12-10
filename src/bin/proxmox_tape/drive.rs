@@ -32,7 +32,7 @@ use proxmox_backup::{
 pub fn drive_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("scan-for-drives", CliCommand::new(&API_METHOD_SCAN_FOR_DRIVES))
+        .insert("scan", CliCommand::new(&API_METHOD_SCAN_FOR_DRIVES))
         .insert("list", CliCommand::new(&API_METHOD_LIST_DRIVES))
         .insert("config",
                 CliCommand::new(&API_METHOD_GET_CONFIG)

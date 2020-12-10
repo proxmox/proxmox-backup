@@ -34,7 +34,7 @@ use proxmox_backup::{
 pub fn changer_commands() -> CommandLineInterface {
 
     let cmd_def = CliCommandMap::new()
-        .insert("scan-for-changers", CliCommand::new(&API_METHOD_SCAN_FOR_CHANGERS))
+        .insert("scan", CliCommand::new(&API_METHOD_SCAN_FOR_CHANGERS))
         .insert("list", CliCommand::new(&API_METHOD_LIST_CHANGERS))
         .insert("config",
                 CliCommand::new(&API_METHOD_GET_CONFIG)
