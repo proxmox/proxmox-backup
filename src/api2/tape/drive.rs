@@ -522,8 +522,105 @@ pub fn inventory(
 }
 
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+            pool: {
+                schema: MEDIA_POOL_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Label media with barcodes from changer device
+pub fn barcode_label_media(
+    drive: String,
+    pool: Option<String>,
+) -> Result<(), Error> {
+
+    if let Some(ref pool) = pool {
+        let (pool_config, _digest) = config::media_pool::config()?;
+
+        if pool_config.sections.get(pool).is_none() {
+            bail!("no such pool ('{}')", pool);
+        }
+    }
+
+    let (config, _digest) = config::drive::config()?;
+
+    let (mut changer, changer_name) = media_changer(&config, &drive, false)?;
+
+    let changer_id_list = changer.list_media_changer_ids()?;
+
+    let state_path = Path::new(TAPE_STATUS_DIR);
+
+    let mut inventory = Inventory::load(state_path)?;
+    let mut state_db = MediaStateDatabase::load(state_path)?;
+
+    update_changer_online_status(&config, &mut inventory, &mut state_db, &changer_name, &changer_id_list)?;
+
+    if changer_id_list.is_empty() {
+        bail!("changer device does not list any media labels");
+    }
+
+    for changer_id in changer_id_list {
+        if changer_id.starts_with("CLN") { continue; }
+
+        inventory.reload()?;
+        if inventory.find_media_by_changer_id(&changer_id).is_some() {
+            println!("media '{}' already inventoried (already labeled)", changer_id);
+            continue;
+        }
+
+        println!("checking/loading media '{}'", changer_id);
+
+        if let Err(err) = changer.load_media(&changer_id) {
+            eprintln!("unable to load media '{}' - {}", changer_id, err);
+            continue;
+        }
+
+        let mut drive = open_drive(&config, &drive)?;
+        drive.rewind()?;
+
+        match drive.read_next_file() {
+            Ok(Some(_file)) => {
+                println!("media '{}' is not empty (erase first)", changer_id);
+                continue;
+            }
+            Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
+            Err(err) => {
+                if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
+                    /* assume tape is empty */
+                } else {
+                    println!("media '{}' read error (maybe not empty - erase first)", changer_id);
+                    continue;
+                }
+            }
+        }
+
+        let ctime = proxmox::tools::time::epoch_i64();
+        let label = DriveLabel {
+            changer_id: changer_id.to_string(),
+            uuid: Uuid::generate(),
+            ctime,
+        };
+
+        write_media_label(&mut drive, label, pool.clone())?
+    }
+
+    Ok(())
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
+    (
+        "barcode-label-media",
+        &Router::new()
+            .put(&API_METHOD_BARCODE_LABEL_MEDIA)
+    ),
     (
         "eject-media",
         &Router::new()
