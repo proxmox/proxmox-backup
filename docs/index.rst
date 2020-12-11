@@ -33,6 +33,7 @@ in the section entitled "GNU Free Documentation License".
    pve-integration.rst
    pxar-tool.rst
    sysadmin.rst
+   technical-overview.rst
    faq.rst
 
 .. raw:: latex

@@ -1,3 +1,5 @@
+.. _terminology:
+
 Terminology
 ===========
 
@@ -99,6 +101,7 @@ Backup Group
 The tuple ``<type>/<ID>`` is called a backup group. Such a group
 may contain one or more backup snapshots.
 
+.. _backup_snapshot:
 
 Backup Snapshot
 ---------------
