@@ -1,7 +1,8 @@
 include ../defines.mk
 
 IMAGES := \
-	images/logo-128.png \
+	images/icon-tape.svg 				\
+	images/logo-128.png 				\
 	images/proxmox_logo.png
 
 TAPE_UI_FILES=

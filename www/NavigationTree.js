@@ -119,8 +119,8 @@ Ext.define('PBS.view.main.NavigationTree', {
 	    if (PBS.TapeManagement !== undefined) {
 		if (!root.findChild('id', 'tape_management', false)) {
 		    root.insertChild(3, {
-			text: "Tape Management",
-			iconCls: 'fa fa-gears',
+			text: "Tape Backup",
+			iconCls: 'pbs-icon-tape',
 			id: 'tape_management',
 			path: 'pbsTapeManagement',
 			expanded: true,
