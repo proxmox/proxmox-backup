@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use proxmox::{
     api::{
@@ -323,18 +323,39 @@ fn read_label(
         },
     },
 )]
-/// List or update media labels (Changer Inventory)
-fn inventory(
-    mut param: Value,
+/// List (and update) media labels (Changer Inventory)
+async fn inventory(
+    read_labels: Option<bool>,
+    read_all_labels: Option<bool>,
+    param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
-    let (config, _digest) = config::drive::config()?;
-
-    param["drive"] = lookup_drive_name(&param, &config)?.into();
-
     let output_format = get_output_format(&param);
+
+    let (config, _digest) = config::drive::config()?;
+    let drive = lookup_drive_name(&param, &config)?;
+
+    let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
+
+    if do_read {
+        let mut param = json!({
+            "drive": &drive,
+        });
+        if let Some(true) = read_all_labels {
+            param["read-all-labels"] = true.into();
+        }
+        let info = &api2::tape::drive::API_METHOD_UPDATE_INVENTORY;
+        let result = match info.handler {
+            ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+            _ => unreachable!(),
+        };
+        wait_for_local_worker(result.as_str().unwrap()).await?;
+    }
+
     let info = &api2::tape::drive::API_METHOD_INVENTORY;
+
+    let param = json!({ "drive": &drive });
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),

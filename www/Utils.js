@@ -278,6 +278,7 @@ Ext.define('PBS.Utils', {
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
+	    "inventory-update": [gettext('Drive'), gettext('Inventory update')],
 	    "label-media": [gettext('Drive'), gettext('Label media')],
 	    logrotate: [null, gettext('Log Rotation')],
 	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
