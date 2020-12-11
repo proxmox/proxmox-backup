@@ -437,6 +437,7 @@ pub fn update_user(
 /// Remove a user from the configuration file.
 pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> {
 
+    let _tfa_lock = crate::config::tfa::write_lock()?;
     let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
     let (mut config, expected_digest) = user::config()?;
@@ -452,6 +453,19 @@ pub fn delete_user(userid: Userid, digest: Option<String>) -> Result<(), Error> 
     }
 
     user::save_config(&config)?;
+
+    match crate::config::tfa::read().and_then(|mut cfg| {
+        let _: bool = cfg.remove_user(&userid);
+        crate::config::tfa::write(&cfg)
+    }) {
+        Ok(()) => (),
+        Err(err) => {
+            eprintln!(
+                "error updating TFA config after deleting user {:?}: {}",
+                userid, err
+            );
+        }
+    }
 
     Ok(())
 }

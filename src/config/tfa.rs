@@ -247,6 +247,18 @@ impl TfaConfig {
             None => bail!("no 2nd factor available for user '{}'", userid),
         }
     }
+
+    /// Remove non-existent users.
+    pub fn cleanup_users(&mut self, config: &proxmox::api::section_config::SectionConfigData) {
+        use crate::config::user::User;
+        self.users
+            .retain(|user, _| config.lookup::<User>("user", user.as_str()).is_ok());
+    }
+
+    /// Remove a user. Returns `true` if the user actually existed.
+    pub fn remove_user(&mut self, user: &Userid) -> bool {
+        self.users.remove(user).is_some()
+    }
 }
 
 #[api]
