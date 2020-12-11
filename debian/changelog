@@ -1,3 +1,22 @@
+rust-proxmox-backup (1.0.6-1) unstable; urgency=medium
+
+  * stricter handling of file-descriptors, fixes some cases where some could
+    leak
+
+  * ui: fix various usages of the findRecord emthod, ensuring it matches exact
+
+  * garbage collection: improve task log format
+
+  * verification: improve progress log, make it similar to what's logged on
+    pull (sync)
+
+  * datastore: move manifest locking to /run. This avoids issues with
+    filesystems which cannot natively handle removing in-use files ("delete on
+    last close"), and create a virtual, internal, replacement file to work
+    around that. This is done, for example, by NFS or CIFS (samba).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 11 Dec 2020 12:51:33 +0100
+
 rust-proxmox-backup (1.0.5-1) unstable; urgency=medium
 
   * client: restore: print meta information exclusively to standard error
