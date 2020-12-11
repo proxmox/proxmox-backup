@@ -13,6 +13,10 @@ use proxmox::{
 
 use proxmox_backup::{
     tools::format::render_epoch,
+    server::{
+        UPID,
+        worker_is_active_local,
+    },
     api2::{
         self,
         types::{
@@ -33,6 +37,24 @@ use proxmox_backup::{
 
 mod proxmox_tape;
 use proxmox_tape::*;
+
+// Note: local workers should print logs to stdout, so there is no need
+// to fetch/display logs. We just wait for the worker to finish.
+pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
+
+    let upid: UPID = upid_str.parse()?;
+
+    let sleep_duration = core::time::Duration::new(0, 100_000_000);
+
+    loop {
+        if worker_is_active_local(&upid) {
+            tokio::time::delay_for(sleep_duration).await;
+        } else {
+            break;
+        }
+    }
+    Ok(())
+}
 
 fn lookup_drive_name(
     param: &Value,
@@ -211,7 +233,7 @@ fn load_media(
     },
 )]
 /// Label media
-fn label_media(
+async fn label_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -222,10 +244,12 @@ fn label_media(
 
     let info = &api2::tape::drive::API_METHOD_LABEL_MEDIA;
 
-    match info.handler {
+    let result = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
 
     Ok(())
 }
@@ -341,7 +365,7 @@ fn inventory(
     },
 )]
 /// Label media with barcodes from changer device
-fn barcode_label_media(
+async fn barcode_label_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -352,10 +376,12 @@ fn barcode_label_media(
 
     let info = &api2::tape::drive::API_METHOD_BARCODE_LABEL_MEDIA;
 
-    match info.handler {
+    let result = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
 
     Ok(())
 }

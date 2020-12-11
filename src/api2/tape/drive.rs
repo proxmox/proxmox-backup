@@ -1,4 +1,6 @@
 use std::path::Path;
+use std::sync::Arc;
+
 use anyhow::{bail, Error};
 use serde_json::Value;
 
@@ -10,6 +12,7 @@ use proxmox::{
     sys::error::SysError,
     api::{
         api,
+        RpcEnvironment,
         Router,
         SubdirMap,
     },
@@ -18,15 +21,18 @@ use proxmox::{
 use crate::{
     config,
     api2::types::{
+        UPID_SCHEMA,
         DRIVE_ID_SCHEMA,
         MEDIA_LABEL_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
+        Authid,
         LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
         MediaLabelInfoFlat,
         LabelUuidMap,
     },
+    server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         TapeDriver,
@@ -255,6 +261,9 @@ pub fn eject_media(drive: String) -> Result<(), Error> {
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Label media
 ///
@@ -266,7 +275,10 @@ pub fn label_media(
     drive: String,
     pool: Option<String>,
     changer_id: String,
-) -> Result<(), Error> {
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     if let Some(ref pool) = pool {
         let (pool_config, _digest) = config::media_pool::config()?;
@@ -278,33 +290,45 @@ pub fn label_media(
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive = open_drive(&config, &drive)?;
+    let upid_str = WorkerTask::new_thread(
+        "label-media",
+        Some(drive.clone()),
+        auth_id,
+        true,
+        move |worker| {
 
-    drive.rewind()?;
+            let mut drive = open_drive(&config, &drive)?;
 
-    match drive.read_next_file() {
-        Ok(Some(_file)) => bail!("media is not empty (erase first)"),
-        Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
-        Err(err) => {
-            if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
-                /* assume tape is empty */
-            } else {
-                bail!("media read error - {}", err);
+            drive.rewind()?;
+
+            match drive.read_next_file() {
+                Ok(Some(_file)) => bail!("media is not empty (erase first)"),
+                Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
+                Err(err) => {
+                    if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
+                        /* assume tape is empty */
+                    } else {
+                        bail!("media read error - {}", err);
+                    }
+                }
             }
+
+            let ctime = proxmox::tools::time::epoch_i64();
+            let label = DriveLabel {
+                changer_id: changer_id.to_string(),
+                uuid: Uuid::generate(),
+                ctime,
+            };
+
+            write_media_label(worker, &mut drive, label, pool)
         }
-    }
+    )?;
 
-    let ctime = proxmox::tools::time::epoch_i64();
-    let label = DriveLabel {
-        changer_id: changer_id.to_string(),
-        uuid: Uuid::generate(),
-        ctime,
-    };
-
-    write_media_label(&mut drive, label, pool)
+    Ok(upid_str.into())
 }
 
 fn write_media_label(
+    worker: Arc<WorkerTask>,
     drive: &mut Box<dyn TapeDriver>,
     label: DriveLabel,
     pool: Option<String>,
@@ -316,13 +340,13 @@ fn write_media_label(
 
     if let Some(ref pool) = pool {
         // assign media to pool by writing special media set label
-        println!("Label media '{}' for pool '{}'", label.changer_id, pool);
+        worker.log(format!("Label media '{}' for pool '{}'", label.changer_id, pool));
         let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime);
 
         drive.write_media_set_label(&set)?;
         media_set_label = Some(set);
     } else {
-        println!("Label media '{}' (no pool assignment)", label.changer_id);
+        worker.log(format!("Label media '{}' (no pool assignment)", label.changer_id));
     }
 
     let media_id = MediaId { label, media_set_label };
@@ -534,12 +558,16 @@ pub fn inventory(
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Label media with barcodes from changer device
 pub fn barcode_label_media(
     drive: String,
     pool: Option<String>,
-) -> Result<(), Error> {
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     if let Some(ref pool) = pool {
         let (pool_config, _digest) = config::media_pool::config()?;
@@ -548,6 +576,27 @@ pub fn barcode_label_media(
             bail!("no such pool ('{}')", pool);
         }
     }
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let upid_str = WorkerTask::new_thread(
+        "barcode-label-media",
+        Some(drive.clone()),
+        auth_id,
+        true,
+        move |worker| {
+            barcode_label_media_worker(worker, drive, pool)
+        }
+    )?;
+
+    Ok(upid_str.into())
+}
+
+fn barcode_label_media_worker(
+    worker: Arc<WorkerTask>,
+    drive: String,
+    pool: Option<String>,
+) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
@@ -571,14 +620,14 @@ pub fn barcode_label_media(
 
         inventory.reload()?;
         if inventory.find_media_by_changer_id(&changer_id).is_some() {
-            println!("media '{}' already inventoried (already labeled)", changer_id);
+            worker.log(format!("media '{}' already inventoried (already labeled)", changer_id));
             continue;
         }
 
-        println!("checking/loading media '{}'", changer_id);
+        worker.log(format!("checking/loading media '{}'", changer_id));
 
         if let Err(err) = changer.load_media(&changer_id) {
-            eprintln!("unable to load media '{}' - {}", changer_id, err);
+            worker.warn(format!("unable to load media '{}' - {}", changer_id, err));
             continue;
         }
 
@@ -587,7 +636,7 @@ pub fn barcode_label_media(
 
         match drive.read_next_file() {
             Ok(Some(_file)) => {
-                println!("media '{}' is not empty (erase first)", changer_id);
+                worker.log(format!("media '{}' is not empty (erase first)", changer_id));
                 continue;
             }
             Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
@@ -595,7 +644,7 @@ pub fn barcode_label_media(
                 if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
                     /* assume tape is empty */
                 } else {
-                    println!("media '{}' read error (maybe not empty - erase first)", changer_id);
+                    worker.warn(format!("media '{}' read error (maybe not empty - erase first)", changer_id));
                     continue;
                 }
             }
@@ -608,7 +657,7 @@ pub fn barcode_label_media(
             ctime,
         };
 
-        write_media_label(&mut drive, label, pool.clone())?
+        write_media_label(worker.clone(), &mut drive, label, pool.clone())?
     }
 
     Ok(())
