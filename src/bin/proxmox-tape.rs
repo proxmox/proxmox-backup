@@ -103,7 +103,7 @@ fn lookup_drive_name(
     },
 )]
 /// Erase media
-fn erase_media(
+async fn erase_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -114,10 +114,12 @@ fn erase_media(
 
     let info = &api2::tape::drive::API_METHOD_ERASE_MEDIA;
 
-    match info.handler {
+    let result = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
 
     Ok(())
 }
@@ -133,7 +135,7 @@ fn erase_media(
     },
 )]
 /// Rewind tape
-fn rewind(
+async fn rewind(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -144,10 +146,12 @@ fn rewind(
 
     let info = &api2::tape::drive::API_METHOD_REWIND;
 
-    match info.handler {
+    let result = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
         _ => unreachable!(),
     };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
 
     Ok(())
 }

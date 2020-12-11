@@ -189,17 +189,36 @@ pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Erase media
-pub fn erase_media(drive: String, fast: Option<bool>) -> Result<(), Error> {
+pub fn erase_media(
+    drive: String,
+    fast: Option<bool>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive = open_drive(&config, &drive)?;
+    check_drive_exists(&config, &drive)?; // early check before starting worker
 
-    drive.erase_media(fast.unwrap_or(true))?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    Ok(())
+    let upid_str = WorkerTask::new_thread(
+        "erase-media",
+        Some(drive.clone()),
+        auth_id,
+        true,
+        move |_worker| {
+            let mut drive = open_drive(&config, &drive)?;
+            drive.erase_media(fast.unwrap_or(true))?;
+            Ok(())
+        }
+    )?;
+
+    Ok(upid_str.into())
 }
 
 #[api(
@@ -210,17 +229,35 @@ pub fn erase_media(drive: String, fast: Option<bool>) -> Result<(), Error> {
             },
         },
     },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
 )]
 /// Rewind tape
-pub fn rewind(drive: String) -> Result<(), Error> {
+pub fn rewind(
+    drive: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive = open_drive(&config, &drive)?;
+    check_drive_exists(&config, &drive)?; // early check before starting worker
 
-    drive.rewind()?;
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
-    Ok(())
+    let upid_str = WorkerTask::new_thread(
+        "rewind-media",
+        Some(drive.clone()),
+        auth_id,
+        true,
+        move |_worker| {
+            let mut drive = open_drive(&config, &drive)?;
+            drive.rewind()?;
+            Ok(())
+        }
+    )?;
+
+    Ok(upid_str.into())
 }
 
 #[api(
