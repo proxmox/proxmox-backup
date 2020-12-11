@@ -29,6 +29,7 @@ use crate::{
     },
     tape::{
         TAPE_STATUS_DIR,
+        MediaLabelInfo,
         file_formats::{
             DriveLabel,
             MediaSetLabel,
@@ -45,6 +46,16 @@ pub struct MediaId {
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_label: Option<MediaSetLabel>,
 }
+
+impl From<MediaLabelInfo> for MediaId {
+    fn from(info: MediaLabelInfo) -> Self {
+        Self {
+            label: info.label.clone(),
+            media_set_label: info.media_set_label.map(|(l, _)| l),
+        }
+    }
+}
+
 
 /// Media Set
 ///
@@ -239,17 +250,6 @@ impl Inventory {
         self.replace_file()?;
         Ok(())
     }
-
-    /*
-    /// Same a store, but extract MediaId form MediaLabelInfo
-    pub fn store_media_info(&mut self, info: &MediaLabelInfo) -> Result<(), Error> {
-        let media_id = MediaId {
-            label: info.label.clone(),
-            media_set_label: info.media_set_label.clone().map(|(l, _)| l),
-        };
-        self.store(media_id)
-    }
-    */
 
     /// Lookup media
     pub fn lookup_media(&self, uuid: &Uuid) -> Option<&MediaId> {

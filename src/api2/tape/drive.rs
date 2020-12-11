@@ -25,18 +25,21 @@ use crate::{
         ScsiTapeChanger,
         TapeDeviceInfo,
         MediaLabelInfoFlat,
+        LabelUuidMap,
     },
     tape::{
         TAPE_STATUS_DIR,
         TapeDriver,
         MediaChange,
         Inventory,
+        MediaStateDatabase,
         MediaId,
         mtx_load,
         mtx_unload,
         linux_tape_device_list,
         open_drive,
         media_changer,
+        update_changer_online_status,
         file_formats::{
             DriveLabel,
             MediaSetLabel,
@@ -407,6 +410,118 @@ pub fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
     Ok(info)
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+            },
+            "read-labels": {
+                description: "Load unknown tapes and try read labels",
+                type: bool,
+                optional: true,
+            },
+            "read-all-labels": {
+                description: "Load all tapes and try read labels (even if already inventoried)",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        description: "The list of media labels with associated media Uuid (if any).",
+        type: Array,
+        items: {
+            type: LabelUuidMap,
+        },
+    },
+)]
+/// List (and update) media labels (Changer Inventory)
+///
+/// Note: Only useful for drives with associated changer device.
+///
+/// This method queries the changer to get a list of media labels. It
+/// 'read-labels' is set, it then loads any unknown media into the
+/// drive, reads the label, and store the result to the media
+/// database.
+pub fn inventory(
+    drive: String,
+    read_labels: Option<bool>,
+    read_all_labels: Option<bool>,
+) -> Result<Vec<LabelUuidMap>, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let (mut changer, changer_name) = media_changer(&config, &drive, false)?;
+
+    let changer_id_list = changer.list_media_changer_ids()?;
+
+    let state_path = Path::new(TAPE_STATUS_DIR);
+
+    let mut inventory = Inventory::load(state_path)?;
+    let mut state_db = MediaStateDatabase::load(state_path)?;
+
+    update_changer_online_status(&config, &mut inventory, &mut state_db, &changer_name, &changer_id_list)?;
+
+    let mut list = Vec::new();
+
+    let do_read = read_labels.unwrap_or(false) || read_all_labels.unwrap_or(false);
+
+    for changer_id in changer_id_list.iter() {
+        if changer_id.starts_with("CLN") {
+            // skip cleaning unit
+            continue;
+        }
+
+        let changer_id = changer_id.to_string();
+
+        if !read_all_labels.unwrap_or(false) {
+            if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
+                list.push(LabelUuidMap { changer_id, uuid: Some(media_id.label.uuid.to_string()) });
+                continue;
+            }
+        }
+
+        if !do_read {
+            list.push(LabelUuidMap { changer_id, uuid: None });
+            continue;
+        }
+
+        if let Err(err) = changer.load_media(&changer_id) {
+            eprintln!("unable to load media '{}' - {}", changer_id, err);
+            list.push(LabelUuidMap { changer_id, uuid: None });
+            continue;
+        }
+
+        let mut drive = open_drive(&config, &drive)?;
+        match drive.read_label() {
+            Err(err) => {
+                eprintln!("unable to read label form media '{}' - {}", changer_id, err);
+                list.push(LabelUuidMap { changer_id, uuid: None });
+
+            }
+            Ok(None) => {
+                // no label on media (empty)
+                list.push(LabelUuidMap { changer_id, uuid: None });
+
+            }
+            Ok(Some(info)) => {
+                if changer_id != info.label.changer_id {
+                    eprintln!("label changer ID missmatch ({} != {})", changer_id, info.label.changer_id);
+                    list.push(LabelUuidMap { changer_id, uuid: None });
+                    continue;
+                }
+                let uuid = info.label.uuid.to_string();
+                inventory.store(info.into())?;
+                list.push(LabelUuidMap { changer_id, uuid: Some(uuid) });
+            }
+        }
+    }
+
+    Ok(list)
+}
+
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
@@ -420,6 +535,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .put(&API_METHOD_ERASE_MEDIA)
     ),
     (
+        "inventory",
+        &Router::new()
+            .get(&API_METHOD_INVENTORY)
+    ),
+    (
         "label-media",
         &Router::new()
             .put(&API_METHOD_LABEL_MEDIA)
@@ -428,6 +548,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "load-slot",
         &Router::new()
             .put(&API_METHOD_LOAD_SLOT)
+    ),
+    (
+        "read-label",
+        &Router::new()
+            .get(&API_METHOD_READ_LABEL)
     ),
     (
         "rewind",

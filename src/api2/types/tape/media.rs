@@ -83,3 +83,14 @@ pub struct MediaLabelInfoFlat {
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_ctime: Option<i64>,
 }
+
+#[api()]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Label with optional Uuid
+pub struct LabelUuidMap {
+    /// Changer ID (label)
+    pub changer_id: String,
+    /// Associated Uuid (if any)
+    pub uuid: Option<String>,
+}

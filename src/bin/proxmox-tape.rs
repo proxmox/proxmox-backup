@@ -249,7 +249,8 @@ fn read_label(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-   let (config, _digest) = config::drive::config()?;
+
+    let (config, _digest) = config::drive::config()?;
 
     param["drive"] = lookup_drive_name(&param, &config)?.into();
 
@@ -272,8 +273,59 @@ fn read_label(
     format_and_print_result_full(&mut data, info.returns, &output_format, &options);
 
     Ok(())
-
 }
+
+#[api(
+    input: {
+        properties: {
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+            drive: {
+                schema: DRIVE_ID_SCHEMA,
+                optional: true,
+            },
+            "read-labels": {
+                description: "Load unknown tapes and try read labels",
+                type: bool,
+                optional: true,
+            },
+            "read-all-labels": {
+                description: "Load all tapes and try read labels (even if already inventoried)",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+)]
+/// List or update media labels (Changer Inventory)
+fn inventory(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let output_format = get_output_format(&param);
+    let info = &api2::tape::drive::API_METHOD_INVENTORY;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("uuid"))
+        ;
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+
+    Ok(())
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -290,6 +342,11 @@ fn main() {
         .insert(
             "eject",
             CliCommand::new(&API_METHOD_EJECT_MEDIA)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "inventory",
+            CliCommand::new(&API_METHOD_INVENTORY)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
