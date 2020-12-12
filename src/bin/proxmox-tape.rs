@@ -167,7 +167,7 @@ async fn rewind(
     },
 )]
 /// Eject/Unload drive media
-fn eject_media(
+async fn eject_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -179,7 +179,7 @@ fn eject_media(
     let info = &api2::tape::drive::API_METHOD_EJECT_MEDIA;
 
     match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
         _ => unreachable!(),
     };
 
@@ -200,7 +200,7 @@ fn eject_media(
     },
 )]
 /// Load media
-fn load_media(
+async fn load_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -212,7 +212,7 @@ fn load_media(
     let info = &api2::tape::drive::API_METHOD_LOAD_MEDIA;
 
     match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
         _ => unreachable!(),
     };
 
@@ -273,7 +273,7 @@ async fn label_media(
     },
 )]
 /// Read media label
-fn read_label(
+async fn read_label(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -285,7 +285,7 @@ fn read_label(
     let output_format = get_output_format(&param);
     let info = &api2::tape::drive::API_METHOD_READ_LABEL;
     let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
         _ => unreachable!(),
     };
 
@@ -361,7 +361,7 @@ async fn inventory(
 
     let param = json!({ "drive": &drive });
     let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
         _ => unreachable!(),
     };
 
