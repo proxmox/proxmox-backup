@@ -46,13 +46,15 @@ use crate::{
     },
 )]
 /// Get tape changer status
-pub fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
+pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
-    let status = mtx_status(&data.path)?;
+    let status = tokio::task::spawn_blocking(move || {
+        mtx_status(&data.path)
+    }).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
     let inventory = Inventory::load(state_path)?;
@@ -115,7 +117,7 @@ pub fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
     },
 )]
 /// Transfers media from one slot to another
-pub fn transfer(
+pub async fn transfer(
     name: String,
     from: u64,
     to: u64,
@@ -125,9 +127,9 @@ pub fn transfer(
 
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
-    mtx_transfer(&data.path, from, to)?;
-
-    Ok(())
+    tokio::task::spawn_blocking(move || {
+        mtx_transfer(&data.path, from, to)
+    }).await?
 }
 
 #[api(
