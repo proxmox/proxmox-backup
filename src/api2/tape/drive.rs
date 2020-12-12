@@ -70,7 +70,7 @@ use crate::{
     },
 )]
 /// Load media via changer from slot
-pub fn load_slot(
+pub async fn load_slot(
     drive: String,
     slot: u64,
     _param: Value,
@@ -85,9 +85,10 @@ pub fn load_slot(
         None => bail!("drive '{}' has no associated changer", drive),
     };
 
-    let drivenum = drive_config.changer_drive_id.unwrap_or(0);
-
-    mtx_load(&changer.path, slot, drivenum)
+    tokio::task::spawn_blocking(move || {
+        let drivenum = drive_config.changer_drive_id.unwrap_or(0);
+        mtx_load(&changer.path, slot, drivenum)
+    }).await?
 }
 
 #[api(
@@ -105,15 +106,14 @@ pub fn load_slot(
 /// Load media with specified label
 ///
 /// Issue a media load request to the associated changer device.
-pub fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
+pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let (mut changer, _) = media_changer(&config, &drive, false)?;
-
-    changer.load_media(&changer_id)?;
-
-    Ok(())
+    tokio::task::spawn_blocking(move || {
+        let (mut changer, _) = media_changer(&config, &drive, false)?;
+        changer.load_media(&changer_id)
+    }).await?
 }
 
 #[api(
@@ -131,7 +131,7 @@ pub fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
     },
 )]
 /// Unload media via changer
-pub fn unload(
+pub async fn unload(
     drive: String,
     slot: Option<u64>,
     _param: Value,
@@ -146,13 +146,15 @@ pub fn unload(
         None => bail!("drive '{}' has no associated changer", drive),
     };
 
-    let drivenum: u64 = 0;
+    let drivenum = drive_config.changer_drive_id.unwrap_or(0);
 
-    if let Some(slot) = slot {
-        mtx_unload(&changer.path, slot, drivenum)
-    } else {
-        drive_config.unload_media()
-    }
+    tokio::task::spawn_blocking(move || {
+        if let Some(slot) = slot {
+            mtx_unload(&changer.path, slot, drivenum)
+        } else {
+            drive_config.unload_media()
+        }
+    }).await?
 }
 
 #[api(
@@ -270,20 +272,20 @@ pub fn rewind(
     },
 )]
 /// Eject/Unload drive media
-pub fn eject_media(drive: String) -> Result<(), Error> {
+pub async fn eject_media(drive: String) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let (mut changer, _) = media_changer(&config, &drive, false)?;
+    tokio::task::spawn_blocking(move || {
+        let (mut changer, _) = media_changer(&config, &drive, false)?;
 
-    if !changer.eject_on_unload() {
-        let mut drive = open_drive(&config, &drive)?;
-        drive.eject_media()?;
-    }
+        if !changer.eject_on_unload() {
+            let mut drive = open_drive(&config, &drive)?;
+            drive.eject_media()?;
+        }
 
-    changer.unload_media()?;
-
-    Ok(())
+        changer.unload_media()
+    }).await?
 }
 
 #[api(
@@ -439,39 +441,41 @@ fn write_media_label(
     },
 )]
 /// Read media label
-pub fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
+pub async fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive = open_drive(&config, &drive)?;
+    tokio::task::spawn_blocking(move || {
+        let mut drive = open_drive(&config, &drive)?;
 
-    let info = drive.read_label()?;
+        let info = drive.read_label()?;
 
-    let info = match info {
-        Some(info) => {
-            let mut flat = MediaLabelInfoFlat {
-                uuid: info.label.uuid.to_string(),
-                changer_id: info.label.changer_id.clone(),
-                ctime: info.label.ctime,
-                media_set_ctime: None,
-                media_set_uuid: None,
-                pool: None,
-                seq_nr: None,
-            };
-            if let Some((set, _)) = info.media_set_label {
-                flat.pool = Some(set.pool.clone());
-                flat.seq_nr = Some(set.seq_nr);
-                flat.media_set_uuid = Some(set.uuid.to_string());
-                flat.media_set_ctime = Some(set.ctime);
+        let info = match info {
+            Some(info) => {
+                let mut flat = MediaLabelInfoFlat {
+                    uuid: info.label.uuid.to_string(),
+                    changer_id: info.label.changer_id.clone(),
+                    ctime: info.label.ctime,
+                    media_set_ctime: None,
+                    media_set_uuid: None,
+                    pool: None,
+                    seq_nr: None,
+                };
+                if let Some((set, _)) = info.media_set_label {
+                    flat.pool = Some(set.pool.clone());
+                    flat.seq_nr = Some(set.seq_nr);
+                    flat.media_set_uuid = Some(set.uuid.to_string());
+                    flat.media_set_ctime = Some(set.ctime);
+                }
+                flat
             }
-            flat
-        }
-        None => {
-            bail!("Media is empty (no label).");
-        }
-    };
+            None => {
+                bail!("Media is empty (no label).");
+            }
+        };
 
-    Ok(info)
+        Ok(info)
+    }).await?
 }
 
 #[api(
@@ -497,41 +501,49 @@ pub fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
 /// This method queries the changer to get a list of media labels.
 ///
 /// Note: This updates the media online status.
-pub fn inventory(
+pub async fn inventory(
     drive: String,
 ) -> Result<Vec<LabelUuidMap>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    let (changer, changer_name) = media_changer(&config, &drive, false)?;
+    tokio::task::spawn_blocking(move || {
+        let (changer, changer_name) = media_changer(&config, &drive, false)?;
 
-    let changer_id_list = changer.list_media_changer_ids()?;
+        let changer_id_list = changer.list_media_changer_ids()?;
 
-    let state_path = Path::new(TAPE_STATUS_DIR);
+        let state_path = Path::new(TAPE_STATUS_DIR);
 
-    let mut inventory = Inventory::load(state_path)?;
-    let mut state_db = MediaStateDatabase::load(state_path)?;
+        let mut inventory = Inventory::load(state_path)?;
+        let mut state_db = MediaStateDatabase::load(state_path)?;
 
-    update_changer_online_status(&config, &mut inventory, &mut state_db, &changer_name, &changer_id_list)?;
+        update_changer_online_status(
+            &config,
+            &mut inventory,
+            &mut state_db,
+            &changer_name,
+            &changer_id_list,
+        )?;
 
-    let mut list = Vec::new();
+        let mut list = Vec::new();
 
-    for changer_id in changer_id_list.iter() {
-        if changer_id.starts_with("CLN") {
-            // skip cleaning unit
-            continue;
+        for changer_id in changer_id_list.iter() {
+            if changer_id.starts_with("CLN") {
+                // skip cleaning unit
+                continue;
+            }
+
+            let changer_id = changer_id.to_string();
+
+            if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
+                list.push(LabelUuidMap { changer_id, uuid: Some(media_id.label.uuid.to_string()) });
+            } else {
+                list.push(LabelUuidMap { changer_id, uuid: None });
+            }
         }
 
-        let changer_id = changer_id.to_string();
-
-        if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
-            list.push(LabelUuidMap { changer_id, uuid: Some(media_id.label.uuid.to_string()) });
-        } else {
-            list.push(LabelUuidMap { changer_id, uuid: None });
-        }
-    }
-
-    Ok(list)
+        Ok(list)
+    }).await?
 }
 
 #[api(
