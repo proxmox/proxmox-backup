@@ -9,7 +9,7 @@ use crate::{
     api2::types::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         DRIVE_NAME_SCHEMA,
-        CHANGER_ID_SCHEMA,
+        CHANGER_NAME_SCHEMA,
         CHANGER_DRIVE_ID_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
@@ -34,7 +34,7 @@ use crate::{
                 schema: LINUX_DRIVE_PATH_SCHEMA,
             },
             changer: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
             "changer-drive-id": {
@@ -168,7 +168,7 @@ pub enum DeletableProperty {
                 optional: true,
             },
             changer: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
                 optional: true,
             },
             "changer-drive-id": {

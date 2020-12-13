@@ -9,7 +9,7 @@ use proxmox::list_subdirs_api_method;
 use crate::{
     config,
     api2::types::{
-        CHANGER_ID_SCHEMA,
+        CHANGER_NAME_SCHEMA,
         ScsiTapeChanger,
         TapeDeviceInfo,
         MtxStatusEntry,
@@ -33,7 +33,7 @@ use crate::{
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
         },
     },
@@ -103,7 +103,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
             from: {
                 description: "Source slot number",

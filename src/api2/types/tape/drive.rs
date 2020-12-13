@@ -15,7 +15,7 @@ pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .max_length(32)
     .schema();
 
-pub const CHANGER_ID_SCHEMA: Schema = StringSchema::new("Tape Changer Identifier.")
+pub const CHANGER_NAME_SCHEMA: Schema = StringSchema::new("Tape Changer Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
@@ -70,7 +70,7 @@ pub struct VirtualTapeDrive {
             schema: LINUX_DRIVE_PATH_SCHEMA,
         },
         changer: {
-            schema: CHANGER_ID_SCHEMA,
+            schema: CHANGER_NAME_SCHEMA,
             optional: true,
         },
         "changer-drive-id": {
@@ -94,7 +94,7 @@ pub struct LinuxTapeDrive {
 #[api(
     properties: {
         name: {
-            schema: CHANGER_ID_SCHEMA,
+            schema: CHANGER_NAME_SCHEMA,
         },
         path: {
             schema: SCSI_CHANGER_PATH_SCHEMA,

@@ -14,7 +14,7 @@ use proxmox_backup::{
     api2::{
         self,
         types::{
-            CHANGER_ID_SCHEMA,
+            CHANGER_NAME_SCHEMA,
         },
     },
     tape::{
@@ -152,7 +152,7 @@ fn scan_for_changers(
                 optional: true,
             },
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
         },
     },
@@ -188,7 +188,7 @@ fn get_config(
                 optional: true,
             },
              name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
         },
     },

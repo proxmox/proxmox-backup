@@ -7,7 +7,7 @@ use crate::{
     config,
     api2::types::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
-        CHANGER_ID_SCHEMA,
+        CHANGER_NAME_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
         DriveListEntry,
         ScsiTapeChanger,
@@ -25,7 +25,7 @@ use crate::{
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
@@ -67,7 +67,7 @@ pub fn create_changer(
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
         },
     },
@@ -145,7 +145,7 @@ pub fn list_changers(
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
@@ -195,7 +195,7 @@ pub fn update_changer(
     input: {
         properties: {
             name: {
-                schema: CHANGER_ID_SCHEMA,
+                schema: CHANGER_NAME_SCHEMA,
             },
         },
     },
