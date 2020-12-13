@@ -20,7 +20,7 @@ use proxmox_backup::{
     api2::{
         self,
         types::{
-            DRIVE_ID_SCHEMA,
+            DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
         },
@@ -90,7 +90,7 @@ fn lookup_drive_name(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
             fast: {
@@ -128,7 +128,7 @@ async fn erase_media(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
         },
@@ -160,7 +160,7 @@ async fn rewind(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
         },
@@ -190,7 +190,7 @@ async fn eject_media(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
             "changer-id": {
@@ -227,7 +227,7 @@ async fn load_media(
                 optional: true,
             },
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
             "changer-id": {
@@ -262,7 +262,7 @@ async fn label_media(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
              "output-format": {
@@ -311,7 +311,7 @@ async fn read_label(
                 optional: true,
             },
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
             "read-labels": {
@@ -383,7 +383,7 @@ async fn inventory(
                 optional: true,
             },
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
         },

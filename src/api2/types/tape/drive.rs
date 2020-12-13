@@ -9,7 +9,7 @@ use proxmox::api::{
 
 use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
 
-pub const DRIVE_ID_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
+pub const DRIVE_NAME_SCHEMA: Schema = StringSchema::new("Drive Identifier.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)
     .max_length(32)
@@ -45,7 +45,7 @@ pub const CHANGER_DRIVE_ID_SCHEMA: Schema = IntegerSchema::new(
 #[api(
     properties: {
         name: {
-            schema: DRIVE_ID_SCHEMA,
+            schema: DRIVE_NAME_SCHEMA,
         }
     }
 )]
@@ -64,7 +64,7 @@ pub struct VirtualTapeDrive {
 #[api(
     properties: {
         name: {
-            schema: DRIVE_ID_SCHEMA,
+            schema: DRIVE_NAME_SCHEMA,
         },
         path: {
             schema: LINUX_DRIVE_PATH_SCHEMA,

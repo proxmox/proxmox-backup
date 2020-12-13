@@ -14,7 +14,7 @@ use proxmox_backup::{
     api2::{
         self,
         types::{
-            DRIVE_ID_SCHEMA,
+            DRIVE_NAME_SCHEMA,
         },
     },
     tape::{
@@ -157,7 +157,7 @@ fn scan_for_drives(
                 optional: true,
             },
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },

@@ -21,7 +21,7 @@ use crate::{
         parse_calendar_event,
     },
     api2::types::{
-        DRIVE_ID_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         PROXMOX_SAFE_ID_FORMAT,
         SINGLE_LINE_COMMENT_FORMAT,
     },
@@ -116,7 +116,7 @@ impl std::str::FromStr for RetentionPolicy {
             schema: MEDIA_POOL_NAME_SCHEMA,
         },
         drive: {
-            schema: DRIVE_ID_SCHEMA,
+            schema: DRIVE_NAME_SCHEMA,
         },
         allocation: {
             schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,

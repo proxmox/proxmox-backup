@@ -8,7 +8,7 @@ use crate::{
     config,
     api2::types::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
-        DRIVE_ID_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         CHANGER_ID_SCHEMA,
         CHANGER_DRIVE_ID_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
@@ -28,7 +28,7 @@ use crate::{
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
@@ -72,7 +72,7 @@ pub fn create_drive(param: Value) -> Result<(), Error> {
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },
@@ -161,7 +161,7 @@ pub enum DeletableProperty {
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
@@ -258,7 +258,7 @@ pub fn update_drive(
     input: {
         properties: {
             name: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },

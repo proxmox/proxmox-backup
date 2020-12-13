@@ -21,7 +21,7 @@ use proxmox::{
 
 use crate::{
     api2::types::{
-        DRIVE_ID_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         VirtualTapeDrive,
         LinuxTapeDrive,
         ScsiTapeChanger,
@@ -34,7 +34,7 @@ lazy_static! {
 
 
 fn init() -> SectionConfig {
-    let mut config = SectionConfig::new(&DRIVE_ID_SCHEMA);
+    let mut config = SectionConfig::new(&DRIVE_NAME_SCHEMA);
 
     let obj_schema = match VirtualTapeDrive::API_SCHEMA {
         Schema::Object(ref obj_schema) => obj_schema,

@@ -11,7 +11,7 @@ use proxmox::{
 
 use crate::{
     api2::types::{
-        DRIVE_ID_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
         MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
         MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
@@ -33,7 +33,7 @@ use crate::{
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             allocation: {
                 schema: MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
@@ -150,7 +150,7 @@ pub enum DeletableProperty {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
             allocation: {

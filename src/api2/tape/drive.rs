@@ -25,7 +25,7 @@ use crate::{
     },
     api2::types::{
         UPID_SCHEMA,
-        DRIVE_ID_SCHEMA,
+        DRIVE_NAME_SCHEMA,
         MEDIA_LABEL_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
         Authid,
@@ -60,7 +60,7 @@ use crate::{
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             slot: {
                 description: "Source slot number",
@@ -95,7 +95,7 @@ pub async fn load_slot(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             "changer-id": {
                 schema: MEDIA_LABEL_SCHEMA,
@@ -120,7 +120,7 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             slot: {
                 description: "Target slot number. If omitted, defaults to the slot that the drive was loaded from.",
@@ -181,7 +181,7 @@ pub fn scan_drives(_param: Value) -> Result<Vec<TapeDeviceInfo>, Error> {
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             fast: {
                 description: "Use fast erase.",
@@ -227,7 +227,7 @@ pub fn erase_media(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },
@@ -266,7 +266,7 @@ pub fn rewind(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },
@@ -292,7 +292,7 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             "changer-id": {
                 schema: MEDIA_LABEL_SCHEMA,
@@ -432,7 +432,7 @@ fn write_media_label(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },
@@ -482,7 +482,7 @@ pub async fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
         },
     },
@@ -550,7 +550,7 @@ pub async fn inventory(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             "read-all-labels": {
                 description: "Load all tapes and try read labels (even if already inventoried)",
@@ -655,7 +655,7 @@ pub fn update_inventory(
     input: {
         properties: {
             drive: {
-                schema: DRIVE_ID_SCHEMA,
+                schema: DRIVE_NAME_SCHEMA,
             },
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
