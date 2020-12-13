@@ -3,6 +3,9 @@
 mod device;
 pub use device::*;
 
+mod changer;
+pub use changer::*;
+
 mod drive;
 pub use drive::*;
 
