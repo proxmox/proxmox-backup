@@ -25,6 +25,7 @@ use proxmox_backup::{
             MEDIA_POOL_NAME_SCHEMA,
         },
     },
+    tape::open_drive,
     config::{
         self,
         drive::complete_drive_name,
@@ -411,6 +412,29 @@ async fn barcode_label_media(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Move to end of media (MTEOM, used to debug)
+fn move_to_eom(param: Value) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let drive = lookup_drive_name(&param, &config)?;
+    let mut drive = open_drive(&config, &drive)?;
+
+    drive.move_to_eom()?;
+
+    Ok(())
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -423,6 +447,11 @@ fn main() {
         .insert(
             "rewind",
             CliCommand::new(&API_METHOD_REWIND)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "eod",
+            CliCommand::new(&API_METHOD_MOVE_TO_EOM)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
