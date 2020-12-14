@@ -21,9 +21,9 @@ use crate::{
         TapeWrite,
         TapeRead,
         file_formats::{
-            PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0,
+            PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
-            DriveLabel,
+            MediaLabel,
             MediaSetLabel,
             MediaContentHeader,
         },
@@ -36,7 +36,7 @@ use crate::{
 
 #[derive(Serialize,Deserialize)]
 pub struct MediaLabelInfo {
-    pub label: DriveLabel,
+    pub label: MediaLabel,
     pub label_uuid: Uuid,
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_label: Option<(MediaSetLabel, Uuid)>
@@ -71,7 +71,7 @@ pub trait TapeDriver {
     /// Write label to tape (erase tape content)
     ///
     /// This returns the MediaContentHeader uuid (not the media uuid).
-    fn label_tape(&mut self, label: &DriveLabel) -> Result<Uuid, Error> {
+    fn label_tape(&mut self, label: &MediaLabel) -> Result<Uuid, Error> {
 
         self.rewind()?;
 
@@ -79,7 +79,7 @@ pub trait TapeDriver {
 
         let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
 
-        let header = MediaContentHeader::new(PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0, raw.len() as u32);
+        let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, raw.len() as u32);
         let content_uuid = header.content_uuid();
 
         {
@@ -112,10 +112,10 @@ pub trait TapeDriver {
             };
 
             let header: MediaContentHeader = unsafe { reader.read_le_value()? };
-            header.check(PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0, 1, 64*1024)?;
+            header.check(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, 1, 64*1024)?;
             let data = reader.read_exact_allocated(header.size as usize)?;
 
-            let label: DriveLabel = serde_json::from_slice(&data)
+            let label: MediaLabel = serde_json::from_slice(&data)
                 .map_err(|err| format_err!("unable to parse drive label - {}", err))?;
 
             // make sure we read the EOF marker
@@ -235,7 +235,7 @@ pub fn open_drive(
 pub fn request_and_load_media(
     config: &SectionConfigData,
     drive: &str,
-    label: &DriveLabel,
+    label: &MediaLabel,
 ) -> Result<(
     Box<dyn TapeDriver>,
     MediaLabelInfo,

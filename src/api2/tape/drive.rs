@@ -50,7 +50,7 @@ use crate::{
         media_changer,
         update_changer_online_status,
          file_formats::{
-            DriveLabel,
+            MediaLabel,
             MediaSetLabel,
         },
     },
@@ -356,7 +356,7 @@ pub fn label_media(
             }
 
             let ctime = proxmox::tools::time::epoch_i64();
-            let label = DriveLabel {
+            let label = MediaLabel {
                 changer_id: changer_id.to_string(),
                 uuid: Uuid::generate(),
                 ctime,
@@ -372,7 +372,7 @@ pub fn label_media(
 fn write_media_label(
     worker: Arc<WorkerTask>,
     drive: &mut Box<dyn TapeDriver>,
-    label: DriveLabel,
+    label: MediaLabel,
     pool: Option<String>,
 ) -> Result<(), Error> {
 
@@ -756,7 +756,7 @@ fn barcode_label_media_worker(
         }
 
         let ctime = proxmox::tools::time::epoch_i64();
-        let label = DriveLabel {
+        let label = MediaLabel {
             changer_id: changer_id.to_string(),
             uuid: Uuid::generate(),
             ctime,

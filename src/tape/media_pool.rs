@@ -28,7 +28,7 @@ use crate::{
         Inventory,
         MediaStateDatabase,
         file_formats::{
-            DriveLabel,
+            MediaLabel,
             MediaSetLabel,
         },
     }
@@ -467,7 +467,7 @@ impl BackupMedia {
     }
     
     /// Returns the drive label
-    pub fn label(&self) -> &DriveLabel {
+    pub fn label(&self) -> &MediaLabel {
         &self.id.label
     }
 

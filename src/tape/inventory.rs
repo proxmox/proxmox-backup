@@ -2,7 +2,7 @@
 //!
 //! The Inventory persistently stores the list of known backup
 //! media. A backup media is identified by its 'MediaId', which is the
-//! DriveLabel/MediaSetLabel combination.
+//! MediaLabel/MediaSetLabel combination.
 
 use std::collections::{HashMap, BTreeMap};
 use std::path::{Path, PathBuf};
@@ -31,7 +31,7 @@ use crate::{
         TAPE_STATUS_DIR,
         MediaLabelInfo,
         file_formats::{
-            DriveLabel,
+            MediaLabel,
             MediaSetLabel,
         },
     },
@@ -42,7 +42,7 @@ use crate::{
 /// This combines the label and media set label.
 #[derive(Debug,Serialize,Deserialize,Clone)]
 pub struct MediaId {
-    pub label: DriveLabel,
+    pub label: MediaLabel,
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_label: Option<MediaSetLabel>,
 }
@@ -559,7 +559,7 @@ impl Inventory {
     /// Genreate and insert a new free tape (test helper)
     pub fn generate_free_tape(&mut self, changer_id: &str, ctime: i64) -> Uuid {
 
-        let label = DriveLabel {
+        let label = MediaLabel {
             changer_id: changer_id.to_string(),
             uuid: Uuid::generate(),
             ctime,
@@ -580,7 +580,7 @@ impl Inventory {
         ctime: i64,
     ) -> Uuid {
 
-        let label = DriveLabel {
+        let label = MediaLabel {
             changer_id: changer_id.to_string(),
             uuid: Uuid::generate(),
             ctime,
@@ -602,7 +602,7 @@ impl Inventory {
         set: MediaSetLabel,
         ctime: i64,
     ) -> Uuid {
-        let label = DriveLabel {
+        let label = MediaLabel {
             changer_id: changer_id.to_string(),
             uuid: Uuid::generate(),
             ctime,

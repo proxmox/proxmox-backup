@@ -16,7 +16,7 @@ pub const PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0: [u8; 8] = [220, 189, 175, 202, 23
 // openssl::sha::sha256(b"Proxmox Backup Content Header v1.0")[0..8];
 pub const PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0: [u8; 8] = [99, 238, 20, 159, 205, 242, 155, 12];
 // openssl::sha::sha256(b"Proxmox Backup Tape Label v1.0")[0..8];
-pub const PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0: [u8; 8] = [42, 5, 191, 60, 176, 48, 170, 57];
+pub const PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0: [u8; 8] = [42, 5, 191, 60, 176, 48, 170, 57];
 // openssl::sha::sha256(b"Proxmox Backup MediaSet Label v1.0")
 pub const PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0: [u8; 8] = [8, 96, 99, 249, 47, 151, 83, 216];
 
@@ -32,7 +32,7 @@ lazy_static::lazy_static!{
     /// Map content Uuid to human readable names.
     pub static ref PROXMOX_BACKUP_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
         let mut map = HashMap::new();
-        map.insert(&PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0, "Proxmox Backup Tape Label v1.0");
+        map.insert(&PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, "Proxmox Backup Tape Label v1.0");
         map.insert(&PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, "Proxmox Backup MediaSet Label v1.0");
         map.insert(&PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0, "Proxmox Backup Chunk Archive v1.0");
         map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, "Proxmox Backup Snapshot Archive v1.0");
@@ -152,11 +152,11 @@ pub struct ChunkArchiveEntryHeader {
 }
 
 #[derive(Serialize,Deserialize,Clone,Debug)]
-/// Drive Label
+/// Media Label
 ///
-/// Drive Labels are used to uniquely identify a media. They are
+/// Media labels are used to uniquely identify a media. They are
 /// stored as first file on the tape.
-pub struct DriveLabel {
+pub struct MediaLabel {
     /// Unique ID
     pub uuid: Uuid,
     /// Media Changer ID or Barcode
