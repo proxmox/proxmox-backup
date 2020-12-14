@@ -251,6 +251,16 @@ impl Inventory {
         Ok(())
     }
 
+    /// Remove a single media persistently
+    pub fn remove_media(&mut self, uuid: &Uuid)  -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = Self::load_media_db(&self.inventory_path)?;
+        self.map.remove(uuid);
+        self.update_helpers();
+        self.replace_file()?;
+        Ok(())
+    }
+
     /// Lookup media
     pub fn lookup_media(&self, uuid: &Uuid) -> Option<&MediaId> {
         self.map.get(uuid)

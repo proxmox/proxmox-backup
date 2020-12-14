@@ -1,9 +1,11 @@
 use std::path::Path;
 
-use anyhow::Error;
+use anyhow::{bail, format_err, Error};
 
-use proxmox::api::{api, Router, SubdirMap};
-use proxmox::list_subdirs_api_method;
+use proxmox::{
+    api::{api, Router, SubdirMap},
+    list_subdirs_api_method,
+};
 
 use crate::{
     config::{
@@ -11,6 +13,7 @@ use crate::{
     },
     api2::types::{
         MEDIA_POOL_NAME_SCHEMA,
+        MEDIA_LABEL_SCHEMA,
         MediaPoolConfig,
         MediaListEntry,
         MediaStatus,
@@ -154,7 +157,57 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
     Ok(list)
 }
 
+#[api(
+    input: {
+        properties: {
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+            force: {
+                description: "Force removal (even if media is used in a media set).",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Destroy media (completely remove from database)
+pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Error> {
+
+    let force = force.unwrap_or(false);
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let mut inventory = Inventory::load(status_path)?;
+
+    let media_id = inventory.find_media_by_changer_id(&changer_id)
+        .ok_or_else(|| format_err!("no such media '{}'", changer_id))?;
+
+    if !force {
+        if let Some(ref set) = media_id.media_set_label {
+            let is_empty = set.uuid.as_ref() == [0u8;16];
+            if !is_empty {
+                bail!("media '{}' contains data (please use 'force' flag to remove.", changer_id);
+            }
+        }
+    }
+
+    let uuid = media_id.label.uuid.clone();
+    drop(media_id);
+
+    inventory.remove_media(&uuid)?;
+
+    let mut state_db = MediaStateDatabase::load(status_path)?;
+    state_db.remove_media(&uuid)?;
+
+    Ok(())
+}
+
 const SUBDIRS: SubdirMap = &[
+    (
+        "destroy",
+        &Router::new()
+            .get(&API_METHOD_DESTROY_MEDIA)
+    ),
     (
         "list",
         &Router::new()

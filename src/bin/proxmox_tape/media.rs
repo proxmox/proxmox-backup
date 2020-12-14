@@ -20,6 +20,7 @@ use proxmox_backup::{
             MediaListEntry,
         },
     },
+    tape::complete_media_changer_id,
     config::{
         media_pool::complete_pool_name,
     },
@@ -32,6 +33,12 @@ pub fn media_commands() -> CommandLineInterface {
             "list",
             CliCommand::new(&API_METHOD_LIST_MEDIA)
                 .completion_cb("pool", complete_pool_name)
+        )
+        .insert(
+            "destroy-media",
+            CliCommand::new(&api2::tape::media::API_METHOD_DESTROY_MEDIA)
+                .arg_param(&["changer-id"])
+                .completion_cb("changer-id", complete_media_changer_id)
         )
         ;
 

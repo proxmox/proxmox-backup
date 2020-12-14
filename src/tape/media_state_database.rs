@@ -201,6 +201,14 @@ impl MediaStateDatabase {
         self.store()
     }
 
+    /// Lock database, reload database, remove media, store database
+    pub fn remove_media(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = Self::load_media_db(&self.database_path)?;
+        self.map.remove(uuid);
+        self.store()
+    }
+
     fn store(&self) -> Result<(), Error> {
 
         let mut list = Vec::new();
