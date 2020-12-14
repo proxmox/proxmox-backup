@@ -35,7 +35,7 @@ pub fn media_commands() -> CommandLineInterface {
                 .completion_cb("pool", complete_pool_name)
         )
         .insert(
-            "destroy-media",
+            "destroy",
             CliCommand::new(&api2::tape::media::API_METHOD_DESTROY_MEDIA)
                 .arg_param(&["changer-id"])
                 .completion_cb("changer-id", complete_media_changer_id)
