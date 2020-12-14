@@ -25,14 +25,19 @@ use proxmox_backup::{
             MEDIA_POOL_NAME_SCHEMA,
         },
     },
-    tape::open_drive,
     config::{
         self,
         drive::complete_drive_name,
         media_pool::complete_pool_name,
     },
     tape::{
+        open_drive,
         complete_media_changer_id,
+        file_formats::{
+            PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
+            PROXMOX_BACKUP_CONTENT_NAME,
+            MediaContentHeader,
+        },
     },
 };
 
@@ -435,6 +440,64 @@ fn move_to_eom(param: Value) -> Result<(), Error> {
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Rewind, then read media contents and print debug info
+fn debug_scan(param: Value) -> Result<(), Error> {
+
+    use proxmox::tools::io::ReadExt;
+
+    let (config, _digest) = config::drive::config()?;
+
+    let drive = lookup_drive_name(&param, &config)?;
+    let mut drive = open_drive(&config, &drive)?;
+
+    println!("rewinding tape");
+    drive.rewind()?;
+
+    loop {
+        let file_number = drive.current_file_number()?;
+
+        match drive.read_next_file()? {
+            None => {
+                println!("EOD");
+                continue;
+            },
+            Some(mut reader) => {
+                println!("got file number {}", file_number);
+
+                let header: Result<MediaContentHeader, _> = unsafe { reader.read_le_value() };
+                match header {
+                    Ok(header) => {
+                        if header.magic != PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0 {
+                            println!("got MediaContentHeader with wrong magic: {:?}", header.magic);
+                        } else {
+                            if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
+                                println!("got content header: {}", name);
+                            } else {
+                                println!("got unknown content header: {:?}", header.content_magic);
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        println!("unable to read content header - {}", err);
+                    }
+                }
+                let bytes = reader.skip_to_end()?;
+                println!("skipped {} bytes", bytes);
+            }
+        }
+    }
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
@@ -447,6 +510,11 @@ fn main() {
         .insert(
             "rewind",
             CliCommand::new(&API_METHOD_REWIND)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "scan",
+            CliCommand::new(&API_METHOD_DEBUG_SCAN)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

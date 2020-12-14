@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Error};
 use ::serde::{Deserialize, Serialize};
 use endian_trait::Endian;
@@ -25,6 +27,17 @@ pub const PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0: [u8; 8] = [72, 87, 109, 
 
 // openssl::sha::sha256(b"Proxmox Backup Snapshot Archive v1.0")[0..8];
 pub const PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0: [u8; 8] = [9, 182, 2, 31, 125, 232, 114, 133];
+
+lazy_static::lazy_static!{
+    pub static ref PROXMOX_BACKUP_CONTENT_NAME: HashMap<&'static [u8;8], &'static str> = {
+        let mut map = HashMap::new();
+        map.insert(&PROXMOX_BACKUP_DRIVE_LABEL_MAGIC_1_0, "Proxmox Backup Tape Label v1.0");
+        map.insert(&PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0, "Proxmox Backup MediaSet Label v1.0");
+        map.insert(&PROXMOX_BACKUP_CHUNK_ARCHIVE_MAGIC_1_0, "Proxmox Backup Chunk Archive v1.0");
+        map.insert(&PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, "Proxmox Backup Snapshot Archive v1.0");
+        map
+    };
+}
 
 /// Tape Block Header with data payload
 ///
