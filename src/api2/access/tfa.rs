@@ -408,17 +408,15 @@ fn add_tfa_entry(
     value: Option<String>,
     challenge: Option<String>,
     password: Option<String>,
-    mut params: Value, // FIXME: once api macro supports raw parameters names, use `r#type`
+    r#type: TfaType,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TfaUpdateInfo, Error> {
     tfa_update_auth(rpcenv, &userid, password)?;
 
-    let tfa_type: TfaType = serde_json::from_value(params["type"].take())?;
-
     let need_description =
         move || description.ok_or_else(|| format_err!("'description' is required for new entries"));
 
-    match tfa_type {
+    match r#type {
         TfaType::Totp => match (totp, value) {
             (Some(totp), Some(value)) => {
                 if challenge.is_some() {
