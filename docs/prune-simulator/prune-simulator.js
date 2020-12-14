@@ -482,16 +482,17 @@ Ext.onReady(function() {
 
 		backups.forEach(function(backup) {
 		    let mark = backup.mark;
+		    if (mark && mark === 'keep') {
+			let id = idFunc(backup);
+			alreadyIncluded[id] = true;
+		    }
+		});
+
+		backups.forEach(function(backup) {
+		    let mark = backup.mark;
 		    let id = idFunc(backup);
 
-		    if (finished || alreadyIncluded[id]) {
-			return;
-		    }
-
-		    if (mark) {
-			if (mark === 'keep') {
-			    alreadyIncluded[id] = true;
-			}
+		    if (finished || alreadyIncluded[id] || mark) {
 			return;
 		    }
 
