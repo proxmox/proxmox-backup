@@ -107,6 +107,31 @@ fn to_data(data: TfaUserData) -> Vec<TypedTfaInfo> {
     out
 }
 
+/// Iterate through tuples of `(type, index, id)`.
+fn tfa_id_iter(data: &TfaUserData) -> impl Iterator<Item = (TfaType, usize, &str)> {
+    data.totp
+        .iter()
+        .enumerate()
+        .map(|(i, entry)| (TfaType::Totp, i, entry.info.id.as_str()))
+        .chain(
+            data.webauthn
+                .iter()
+                .enumerate()
+                .map(|(i, entry)| (TfaType::Webauthn, i, entry.info.id.as_str())),
+        )
+        .chain(
+            data.u2f
+                .iter()
+                .enumerate()
+                .map(|(i, entry)| (TfaType::U2f, i, entry.info.id.as_str())),
+        )
+        .chain(
+            data.recovery
+                .iter()
+                .map(|_| (TfaType::Recovery, 0, "recovery")),
+        )
+}
+
 #[api(
     protected: true,
     input: {
@@ -149,40 +174,37 @@ pub fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> 
     let _lock = crate::config::tfa::read_lock()?;
 
     if let Some(user_data) = crate::config::tfa::read()?.users.remove(&userid) {
-        if id == "recovery" {
-            if user_data.has_recovery() {
+        match {
+            // scope to prevent the temprary iter from borrowing across the whole match
+            let entry = tfa_id_iter(&user_data).find(|(_ty, _index, entry_id)| id == *entry_id);
+            entry.map(|(ty, index, _)| (ty, index))
+        } {
+            Some((TfaType::Recovery, _)) => {
                 return Ok(TypedTfaInfo {
                     ty: TfaType::Recovery,
                     info: TfaInfo::recovery(),
+                })
+            }
+            Some((TfaType::Totp, index)) => {
+                return Ok(TypedTfaInfo {
+                    ty: TfaType::Totp,
+                    // `into_iter().nth()` to *move* out of it
+                    info: user_data.totp.into_iter().nth(index).unwrap().info,
                 });
             }
-        } else {
-            for tfa in user_data.totp {
-                if tfa.info.id == id {
-                    return Ok(TypedTfaInfo {
-                        ty: TfaType::Totp,
-                        info: tfa.info,
-                    });
-                }
+            Some((TfaType::Webauthn, index)) => {
+                return Ok(TypedTfaInfo {
+                    ty: TfaType::Webauthn,
+                    info: user_data.webauthn.into_iter().nth(index).unwrap().info,
+                });
             }
-
-            for tfa in user_data.webauthn {
-                if tfa.info.id == id {
-                    return Ok(TypedTfaInfo {
-                        ty: TfaType::Webauthn,
-                        info: tfa.info,
-                    });
-                }
+            Some((TfaType::U2f, index)) => {
+                return Ok(TypedTfaInfo {
+                    ty: TfaType::U2f,
+                    info: user_data.u2f.into_iter().nth(index).unwrap().info,
+                });
             }
-
-            for tfa in user_data.u2f {
-                if tfa.info.id == id {
-                    return Ok(TypedTfaInfo {
-                        ty: TfaType::U2f,
-                        info: tfa.info,
-                    });
-                }
-            }
+            None => (),
         }
     }
 
@@ -228,29 +250,16 @@ pub fn delete_tfa(
         .get_mut(&userid)
         .ok_or_else(|| http_err!(NOT_FOUND, "no such entry: {}/{}", userid, id))?;
 
-    let found = if id == "recovery" {
-        let found = user_data.has_recovery();
-        user_data.recovery = None;
-        found
-    } else if let Some(i) = user_data.totp.iter().position(|entry| entry.info.id == id) {
-        user_data.totp.remove(i);
-        true
-    } else if let Some(i) = user_data
-        .webauthn
-        .iter()
-        .position(|entry| entry.info.id == id)
-    {
-        user_data.webauthn.remove(i);
-        true
-    } else if let Some(i) = user_data.u2f.iter().position(|entry| entry.info.id == id) {
-        user_data.u2f.remove(i);
-        true
-    } else {
-        false
-    };
-
-    if !found {
-        http_bail!(NOT_FOUND, "no such tfa entry: {}/{}", userid, id);
+    match {
+        // scope to prevent the temprary iter from borrowing across the whole match
+        let entry = tfa_id_iter(&user_data).find(|(_, _, entry_id)| id == *entry_id);
+        entry.map(|(ty, index, _)| (ty, index))
+    } {
+        Some((TfaType::Recovery, _)) => user_data.recovery = None,
+        Some((TfaType::Totp, index)) => drop(user_data.totp.remove(index)),
+        Some((TfaType::Webauthn, index)) => drop(user_data.webauthn.remove(index)),
+        Some((TfaType::U2f, index)) => drop(user_data.u2f.remove(index)),
+        None => http_bail!(NOT_FOUND, "no such tfa entry: {}/{}", userid, id),
     }
 
     if user_data.is_empty() {
