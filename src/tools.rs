@@ -554,3 +554,12 @@ pub fn compute_file_csum(file: &mut File) -> Result<([u8; 32], u64), Error> {
 
     Ok((csum, size))
 }
+
+/// Create the base run-directory.
+///
+/// This exists to fixate the permissions for the run *base* directory while allowing intermediate
+/// directories after it to have different permissions.
+pub fn create_run_dir() -> Result<(), Error> {
+    let _: bool = proxmox::tools::fs::create_path(PROXMOX_BACKUP_RUN_DIR_M!(), None, None)?;
+    Ok(())
+}
