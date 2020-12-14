@@ -9,10 +9,18 @@ use proxmox::{
         RpcEnvironment,
         section_config::SectionConfigData,
     },
+    tools::{
+        Uuid,
+        time::strftime_local,
+        io::ReadExt,
+    },
 };
 
 use proxmox_backup::{
-    tools::format::render_epoch,
+    tools::format::{
+        HumanByte,
+        render_epoch,
+    },
     server::{
         UPID,
         worker_is_active_local,
@@ -451,9 +459,10 @@ fn move_to_eom(param: Value) -> Result<(), Error> {
     },
 )]
 /// Rewind, then read media contents and print debug info
+///
+/// Note: This reads unless the driver returns an IO Error, so this
+/// method is expected to fails when we reach EOT.
 fn debug_scan(param: Value) -> Result<(), Error> {
-
-    use proxmox::tools::io::ReadExt;
 
     let (config, _digest) = config::drive::config()?;
 
@@ -482,6 +491,10 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                         } else {
                             if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
                                 println!("got content header: {}", name);
+                                println!("  uuid:  {}", Uuid::from(header.uuid));
+                                println!("  ctime: {}", strftime_local("%c", header.ctime)?);
+                                println!("  hsize: {}", HumanByte::from(header.size as usize));
+                                println!("  part:  {}", header.part_number);
                             } else {
                                 println!("got unknown content header: {:?}", header.content_magic);
                             }
@@ -492,7 +505,7 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                     }
                 }
                 let bytes = reader.skip_to_end()?;
-                println!("skipped {} bytes", bytes);
+                println!("skipped {}", HumanByte::from(bytes));
             }
         }
     }
