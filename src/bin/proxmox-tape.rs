@@ -10,7 +10,6 @@ use proxmox::{
         section_config::SectionConfigData,
     },
     tools::{
-        Uuid,
         time::strftime_local,
         io::ReadExt,
     },
@@ -491,7 +490,7 @@ fn debug_scan(param: Value) -> Result<(), Error> {
                         } else {
                             if let Some(name) = PROXMOX_BACKUP_CONTENT_NAME.get(&header.content_magic) {
                                 println!("got content header: {}", name);
-                                println!("  uuid:  {}", Uuid::from(header.uuid));
+                                println!("  uuid:  {}", header.content_uuid());
                                 println!("  ctime: {}", strftime_local("%c", header.ctime)?);
                                 println!("  hsize: {}", HumanByte::from(header.size as usize));
                                 println!("  part:  {}", header.part_number);
