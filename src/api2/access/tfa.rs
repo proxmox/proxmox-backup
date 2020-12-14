@@ -145,7 +145,7 @@ pub fn list_user_tfa(userid: Userid) -> Result<Vec<TypedTfaInfo>, Error> {
     },
 )]
 /// Get a single TFA entry.
-pub fn get_tfa(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
+pub fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
     let _lock = crate::config::tfa::read_lock()?;
 
     if let Some(user_data) = crate::config::tfa::read()?.users.remove(&userid) {
@@ -570,6 +570,6 @@ const USER_ROUTER: Router = Router::new()
     .match_all("id", &ITEM_ROUTER);
 
 const ITEM_ROUTER: Router = Router::new()
-    .get(&API_METHOD_GET_TFA)
+    .get(&API_METHOD_GET_TFA_ENTRY)
     .put(&API_METHOD_UPDATE_TFA_ENTRY)
     .delete(&API_METHOD_DELETE_TFA);
