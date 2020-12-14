@@ -6,3 +6,6 @@ pub use drive::*;
 
 mod pool;
 pub use pool::*;
+
+mod media;
+pub use media::*;
