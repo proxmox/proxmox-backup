@@ -194,7 +194,7 @@ fn get_config(
     },
 )]
 /// Get tape changer status
-fn get_status(
+async fn get_status(
     param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -202,7 +202,7 @@ fn get_status(
     let output_format = get_output_format(&param);
     let info = &api2::tape::changer::API_METHOD_GET_STATUS;
     let mut data = match info.handler {
-        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
         _ => unreachable!(),
     };
 
