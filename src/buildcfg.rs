@@ -42,3 +42,13 @@ pub const PROXMOX_BACKUP_API_PID_FN: &str = concat!(PROXMOX_BACKUP_RUN_DIR_M!(),
 macro_rules! configdir {
     ($subdir:expr) => (concat!("/etc/proxmox-backup", $subdir))
 }
+
+/// Prepend the run directory to a file name.
+///
+/// This is a simply way to get the full path for files in `/run`.
+#[macro_export]
+macro_rules! rundir {
+    ($subdir:expr) => {
+        concat!(PROXMOX_BACKUP_RUN_DIR_M!(), $subdir)
+    };
+}
