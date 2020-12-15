@@ -1,3 +1,5 @@
+//! Magnetic tape backup
+
 use anyhow::{format_err, Error};
 
 use proxmox::tools::fs::{
@@ -33,6 +35,9 @@ pub use online_status_map::*;
 
 mod media_pool;
 pub use media_pool::*;
+
+mod media_catalog;
+pub use media_catalog::*;
 
 /// Directory path where we store all tape status information
 pub const TAPE_STATUS_DIR: &str = "/var/lib/proxmox-backup/tape";
