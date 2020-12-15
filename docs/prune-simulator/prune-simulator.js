@@ -449,11 +449,8 @@ Ext.onReady(function() {
 		    });
 		});
 
-		// ordering here and iterating backwards through days
-		// ensures that everything is ordered
-		timesOnSingleDay.sort(function(a, b) {
-		    return b - a;
-		});
+		// sort recent times first, backups array below is ordered now -> past
+		timesOnSingleDay.sort((a, b) => b - a)
 
 		let backups = [];
 
