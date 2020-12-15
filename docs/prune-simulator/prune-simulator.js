@@ -452,7 +452,7 @@ Ext.onReady(function() {
 		// ordering here and iterating backwards through days
 		// ensures that everything is ordered
 		timesOnSingleDay.sort(function(a, b) {
-		    return a < b;
+		    return b - a;
 		});
 
 		let backups = [];
