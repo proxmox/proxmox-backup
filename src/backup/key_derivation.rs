@@ -245,3 +245,17 @@ pub fn decrypt_key(
 
     Ok((result, created, fingerprint))
 }
+
+pub fn rsa_encrypt_key_config(
+    rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
+    key: &KeyConfig,
+) -> Result<Vec<u8>, Error> {
+    let data = serde_json::to_string(key)?.as_bytes().to_vec();
+
+    let mut buffer = vec![0u8; rsa.size() as usize];
+    let len = rsa.public_encrypt(&data, &mut buffer, openssl::rsa::Padding::PKCS1)?;
+    if len != buffer.len() {
+        bail!("got unexpected length from rsa.public_encrypt().");
+    }
+    Ok(buffer)
+}

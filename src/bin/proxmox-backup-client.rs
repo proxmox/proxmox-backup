@@ -40,6 +40,7 @@ use proxmox_backup::pxar::catalog::*;
 use proxmox_backup::backup::{
     archive_type,
     decrypt_key,
+    rsa_encrypt_key_config,
     verify_chunk_size,
     ArchiveType,
     AsyncReadChunk,
@@ -57,6 +58,7 @@ use proxmox_backup::backup::{
     ENCRYPTED_KEY_BLOB_NAME,
     FixedChunkStream,
     FixedIndexReader,
+    KeyConfig,
     IndexFile,
     MANIFEST_BLOB_NAME,
     Shell,
@@ -914,13 +916,20 @@ async fn create_backup(
             let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
             println!("Encryption key fingerprint: {}", fingerprint);
 
-            let crypt_config = CryptConfig::new(key)?;
+            let crypt_config = CryptConfig::new(key.clone())?;
 
             match key::find_master_pubkey()? {
                 Some(ref path) if path.exists() => {
                     let pem_data = file_get_contents(path)?;
                     let rsa = openssl::rsa::Rsa::public_key_from_pem(&pem_data)?;
-                    let enc_key = crypt_config.generate_rsa_encoded_key(rsa, created)?;
+                    let key_config = KeyConfig {
+                        kdf: None,
+                        created,
+                        modified: proxmox::tools::time::epoch_i64(),
+                        data: key.to_vec(),
+                        fingerprint: Some(fingerprint),
+                    };
+                    let enc_key = rsa_encrypt_key_config(rsa, &key_config)?;
                     println!("Master key '{:?}'", path);
 
                     (Some(Arc::new(crypt_config)), Some(enc_key))

@@ -11,7 +11,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::io::Write;
 
-use anyhow::{bail, Error};
+use anyhow::{Error};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::pbkdf2_hmac;
 use openssl::symm::{decrypt_aead, Cipher, Crypter, Mode};
@@ -247,29 +247,5 @@ impl CryptConfig {
         )?;
 
         Ok(decr_data)
-    }
-
-    pub fn generate_rsa_encoded_key(
-        &self,
-        rsa: openssl::rsa::Rsa<openssl::pkey::Public>,
-        created: i64,
-    ) -> Result<Vec<u8>, Error> {
-
-        let modified = proxmox::tools::time::epoch_i64();
-        let key_config = super::KeyConfig {
-            kdf: None,
-            created,
-            modified,
-            data: self.enc_key.to_vec(),
-            fingerprint: Some(self.fingerprint()),
-        };
-        let data = serde_json::to_string(&key_config)?.as_bytes().to_vec();
-
-        let mut buffer = vec![0u8; rsa.size() as usize];
-        let len = rsa.public_encrypt(&data, &mut buffer, openssl::rsa::Padding::PKCS1)?;
-        if len != buffer.len() {
-            bail!("got unexpected length from rsa.public_encrypt().");
-        }
-        Ok(buffer)
     }
 }
