@@ -235,13 +235,16 @@ pub fn decrypt_key(
     let mut result = [0u8; 32];
     result.copy_from_slice(&key);
 
-    let fingerprint = match key_config.fingerprint {
-        Some(fingerprint) => fingerprint,
-        None => {
-            let crypt_config = CryptConfig::new(result.clone())?;
-            crypt_config.fingerprint()
-        },
-    };
+    let crypt_config = CryptConfig::new(result.clone())?;
+    let fingerprint = crypt_config.fingerprint();
+    if let Some(stored_fingerprint) = key_config.fingerprint {
+        if fingerprint != stored_fingerprint {
+            eprintln!(
+                "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
+                stored_fingerprint, fingerprint
+            );
+        }
+    }
 
     Ok((result, created, fingerprint))
 }
@@ -312,6 +315,23 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
     assert_eq!(key.created, created);
     assert_eq!(key.data, decrypted);
     assert_eq!(key.fingerprint, Some(fingerprint));
+
+    let key = KeyConfig {
+        kdf: None,
+        created: proxmox::tools::time::epoch_i64(),
+        modified: proxmox::tools::time::epoch_i64(),
+        data: (0u8..32u8).collect(),
+        fingerprint: Some(Fingerprint::new([0u8; 32])), // wrong FP
+    };
+    let encrypted = rsa_encrypt_key_config(public.clone(), &key).expect("encryption failed");
+    let (decrypted, created, fingerprint) =
+        rsa_decrypt_key_config(private.clone(), &encrypted, &passphrase)
+            .expect("decryption failed");
+
+    assert_eq!(key.created, created);
+    assert_eq!(key.data, decrypted);
+    // wrong FP update by round-trip through encrypt/decrypt
+    assert_ne!(key.fingerprint, Some(fingerprint));
 
     Ok(())
 }
