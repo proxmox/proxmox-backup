@@ -145,9 +145,13 @@ impl MediaContentHeader {
 
 #[derive(Endian)]
 #[repr(C,packed)]
+/// Header for data blobs inside a chunk archive
 pub struct ChunkArchiveEntryHeader {
+    /// Magic number ('PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0')
     pub magic: [u8; 8],
+    /// Chunk digest
     pub digest: [u8; 32],
+    /// Chunk size
     pub size: u64,
 }
 
