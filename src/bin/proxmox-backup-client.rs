@@ -1273,10 +1273,15 @@ async fn restore(param: Value) -> Result<Value, Error> {
         true,
     ).await?;
 
-    let (manifest, backup_index_data) = client.download_manifest().await?;
-    manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
-
     let (archive_name, archive_type) = parse_archive_type(archive_name);
+
+    let (manifest, backup_index_data) = client.download_manifest().await?;
+
+    if archive_name == ENCRYPTED_KEY_BLOB_NAME && crypt_config.is_none() {
+        eprintln!("Restoring encrypted key blob without original key - skipping manifest fingerprint check!")
+    } else {
+        manifest.check_fingerprint(crypt_config.as_ref().map(Arc::as_ref))?;
+    }
 
     if archive_name == MANIFEST_BLOB_NAME {
         if let Some(target) = target {
