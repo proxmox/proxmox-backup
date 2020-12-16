@@ -15,7 +15,6 @@ use proxmox_backup::{
         self,
         types::{
             MEDIA_POOL_NAME_SCHEMA,
-            MediaLocationKind,
             MediaStatus,
             MediaListEntry,
         },
@@ -72,19 +71,6 @@ async fn list_media(
         _ => unreachable!(),
     };
 
-    fn render_location(_value: &Value, record: &Value) -> Result<String, Error> {
-        let record: MediaListEntry = serde_json::from_value(record.clone())?;
-        Ok(match record.location {
-            MediaLocationKind::Online =>  {
-                record.location_hint.unwrap_or(String::from("-"))
-            }
-            MediaLocationKind::Offline => String::from("offline"),
-            MediaLocationKind::Vault => {
-                format!("V({})", record.location_hint.unwrap_or(String::from("-")))
-            }
-        })
-    }
-
     fn render_status(_value: &Value, record: &Value) -> Result<String, Error> {
         let record: MediaListEntry = serde_json::from_value(record.clone())?;
         Ok(match record.status {
@@ -115,7 +101,7 @@ async fn list_media(
         .column(ColumnConfig::new("media-set-name"))
         .column(ColumnConfig::new("seq-nr"))
         .column(ColumnConfig::new("status").renderer(render_status))
-        .column(ColumnConfig::new("location").renderer(render_location))
+        .column(ColumnConfig::new("location"))
         .column(ColumnConfig::new("uuid"))
         .column(ColumnConfig::new("media-set-uuid"))
         ;

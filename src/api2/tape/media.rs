@@ -17,31 +17,15 @@ use crate::{
         MediaPoolConfig,
         MediaListEntry,
         MediaStatus,
-        MediaLocationKind,
     },
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
         MediaStateDatabase,
-        MediaLocation,
         MediaPool,
         update_online_status,
     },
 };
-
-fn split_location(location: &MediaLocation) -> (MediaLocationKind, Option<String>) {
-    match location {
-        MediaLocation::Online(changer_name) => {
-            (MediaLocationKind::Online, Some(changer_name.to_string()))
-        }
-        MediaLocation::Offline => {
-            (MediaLocationKind::Offline, None)
-        }
-        MediaLocation::Vault(vault) => {
-            (MediaLocationKind::Vault, Some(vault.to_string()))
-        }
-    }
-}
 
 #[api(
     input: {
@@ -94,8 +78,6 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
         let current_time = proxmox::tools::time::epoch_i64();
 
         for media in pool.list_media() {
-            let (location, location_hint) = split_location(&media.location());
-
             let expired = pool.media_is_expired(&media, current_time);
 
             let media_set_uuid = media.media_set_label().as_ref()
@@ -114,8 +96,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
                 uuid: media.uuid().to_string(),
                 changer_id: media.changer_id().to_string(),
                 pool: Some(pool_name.to_string()),
-                location,
-                location_hint,
+                location: media.location().clone(),
                 status: *media.status(),
                 expired,
                 media_set_uuid,
@@ -133,7 +114,6 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
         for media_id in inventory.list_unassigned_media() {
 
             let (mut status, location) = state_db.status_and_location(&media_id.label.uuid);
-            let (location, location_hint) = split_location(&location);
 
             if status == MediaStatus::Unknown {
                 status = MediaStatus::Writable;
@@ -143,7 +123,6 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
                 uuid: media_id.label.uuid.to_string(),
                 changer_id: media_id.label.changer_id.to_string(),
                 location,
-                location_hint,
                 status,
                 expired: false,
                 media_set_uuid: None,

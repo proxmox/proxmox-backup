@@ -16,6 +16,7 @@ use proxmox::tools::Uuid;
 use crate::{
     api2::types::{
         MediaStatus,
+        MediaLocation,
         MediaSetPolicy,
         RetentionPolicy,
         MediaPoolConfig,
@@ -24,7 +25,6 @@ use crate::{
     tape::{
         MediaId,
         MediaSet,
-        MediaLocation,
         Inventory,
         MediaStateDatabase,
         file_formats::{

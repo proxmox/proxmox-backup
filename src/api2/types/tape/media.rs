@@ -4,26 +4,13 @@ use proxmox::api::api;
 
 use super::{
     MediaStatus,
+    MediaLocation,
 };
-
-#[api()]
-#[derive(Serialize,Deserialize)]
-#[serde(rename_all = "lowercase")]
-/// Media location
-pub enum MediaLocationKind {
-    /// Ready for use (inside tape library)
-    Online,
-    /// Local available, but need to be mounted (insert into tape
-    /// drive)
-    Offline,
-    /// Media is inside a Vault
-    Vault,
-}
 
 #[api(
     properties: {
         location: {
-            type: MediaLocationKind,
+            type: MediaLocation,
         },
         status: {
             type: MediaStatus,
@@ -38,9 +25,7 @@ pub struct MediaListEntry {
     pub changer_id: String,
     /// Media Uuid
     pub uuid: String,
-    pub location: MediaLocationKind,
-    /// Media location hint (vault name, changer name)
-    pub location_hint: Option<String>,
+    pub location: MediaLocation,
     pub status: MediaStatus,
     /// Expired flag
     pub expired: bool,

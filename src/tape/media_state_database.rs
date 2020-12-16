@@ -21,20 +21,9 @@ use crate::{
     },
     api2::types::{
         MediaStatus,
+        MediaLocation,
     },
 };
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-/// Media location
-pub enum MediaLocation {
-    /// Ready for use (inside tape library)
-    Online(String),
-    /// Local available, but need to be mounted (insert into tape
-    /// drive)
-    Offline,
-    /// Media is inside a Vault
-    Vault(String),
-}
 
 #[derive(Serialize,Deserialize)]
 struct MediaStateEntry {
