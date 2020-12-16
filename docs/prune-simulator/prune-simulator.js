@@ -450,7 +450,7 @@ Ext.onReady(function() {
 		});
 
 		// sort recent times first, backups array below is ordered now -> past
-		timesOnSingleDay.sort((a, b) => b - a)
+		timesOnSingleDay.sort((a, b) => b - a);
 
 		let backups = [];
 
