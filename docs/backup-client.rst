@@ -353,8 +353,10 @@ To set up a master key:
 
    .. code-block:: console
 
-     # openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out /path/to/target
-     Enter pass phrase for ./master-private.pem: *********
+     # proxmox-backup-client key import-with-master-key /path/to/target --master-keyfile /path/to/master-private.pem --encrypted-keyfile /path/to/rsa-encrypted.key
+     Master Key Password: ******
+     New Password: ******
+     Verify Password: ******
 
 7. The target file will now contain the encryption key information in plain
    text. The success of this can be confirmed by passing the resulting ``json``
