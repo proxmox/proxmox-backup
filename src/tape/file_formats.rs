@@ -48,13 +48,13 @@ lazy_static::lazy_static!{
 /// so we use an unsized type to avoid that.
 ///
 /// Tape data block are always read/written with a fixed size
-/// (PROXMOX_TAPE_BLOCK_SIZE). But they may contain less data, so the
+/// (`PROXMOX_TAPE_BLOCK_SIZE`). But they may contain less data, so the
 /// header has an additional size field. For streams of blocks, there
-/// is a sequence number ('seq_nr') which may be use for additional
+/// is a sequence number (`seq_nr`) which may be use for additional
 /// error checking.
 #[repr(C,packed)]
 pub struct BlockHeader {
-    /// fixed value 'PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0'
+    /// fixed value `PROXMOX_TAPE_BLOCK_HEADER_MAGIC_1_0`
     pub magic: [u8; 8],
     pub flags: BlockHeaderFlags,
     /// size as 3 bytes unsigned, little endian
@@ -65,6 +65,7 @@ pub struct BlockHeader {
 }
 
 bitflags! {
+    /// Header flags (e.g. `END_OF_STREAM` or `INCOMPLETE`)
     pub struct BlockHeaderFlags: u8 {
         /// Marks the last block in a stream.
         const END_OF_STREAM = 0b00000001;
@@ -78,13 +79,13 @@ bitflags! {
 /// Media Content Header
 ///
 /// All tape files start with this header. The header may contain some
-/// informational data indicated by 'size'.
+/// informational data indicated by `size`.
 ///
-/// '| MediaContentHeader | header data (size) | stream data |'
+/// `| MediaContentHeader | header data (size) | stream data |`
 ///
 /// Note: The stream data following may be of any size.
 pub struct MediaContentHeader {
-    /// fixed value 'PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0'
+    /// fixed value `PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0`
     pub magic: [u8; 8],
     /// magic number for the content following
     pub content_magic: [u8; 8],
@@ -147,7 +148,7 @@ impl MediaContentHeader {
 #[repr(C,packed)]
 /// Header for data blobs inside a chunk archive
 pub struct ChunkArchiveEntryHeader {
-    /// Magic number ('PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0')
+    /// fixed value `PROXMOX_BACKUP_CHUNK_ARCHIVE_ENTRY_MAGIC_1_0`
     pub magic: [u8; 8],
     /// Chunk digest
     pub digest: [u8; 32],
@@ -171,16 +172,16 @@ pub struct MediaLabel {
 
 
 #[derive(Serialize,Deserialize,Clone,Debug)]
-/// MediaSet Label
+/// `MediaSet` Label
 ///
-/// Used to uniquely identify a MediaSet. They are stored as second
+/// Used to uniquely identify a `MediaSet`. They are stored as second
 /// file on the tape.
 pub struct MediaSetLabel {
-    /// The associated MediaPool
+    /// The associated `MediaPool`
     pub pool: String,
-    /// MediaSet Uuid. We use the all-zero Uuid to reseve an empty media for a specific pool
+    /// Uuid. We use the all-zero Uuid to reseve an empty media for a specific pool
     pub uuid: Uuid,
-    /// MediaSet media sequence number
+    /// Media sequence number
     pub seq_nr: u64,
     /// Creation time stamp
     pub ctime: i64,
@@ -220,23 +221,23 @@ impl BlockHeader {
         buffer
     }
 
-    /// Set the size
+    /// Set the `size` field
     pub fn set_size(&mut self, size: usize) {
         let size = size.to_le_bytes();
         self.size.copy_from_slice(&size[..3]);
     }
 
-    /// Returns the size
+    /// Returns the `size` field
     pub fn size(&self) -> usize {
         (self.size[0] as usize) + ((self.size[1] as usize)<<8) + ((self.size[2] as usize)<<16)
     }
 
-    /// Set the 'seq_nr' field
+    /// Set the `seq_nr` field
     pub fn set_seq_nr(&mut self, seq_nr: u32) {
         self.seq_nr = seq_nr.to_le();
     }
 
-    /// Returns the 'seq_nr' field
+    /// Returns the `seq_nr` field
     pub fn seq_nr(&self) -> u32 {
         u32::from_le(self.seq_nr)
     }
