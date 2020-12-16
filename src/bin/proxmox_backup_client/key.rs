@@ -21,12 +21,14 @@ use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_backup::backup::{
     encrypt_key_with_passphrase,
     load_and_decrypt_key,
+    rsa_decrypt_key_config,
     store_key_config,
     CryptConfig,
     Kdf,
     KeyConfig,
     KeyDerivationConfig,
 };
+
 use proxmox_backup::tools;
 
 #[api()]
@@ -146,6 +148,90 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
             key_config.fingerprint = Some(crypt_config.fingerprint());
 
             store_key_config(&path, false, key_config)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "master-keyfile": {
+                description: "(Private) master key to use.",
+            },
+            "encrypted-keyfile": {
+                description: "RSA-encrypted keyfile to import.",
+            },
+            kdf: {
+                type: Kdf,
+                optional: true,
+            },
+            "path": {
+                description:
+                    "Output file. Without this the key will become the new default encryption key.",
+                optional: true,
+            }
+        },
+    },
+)]
+/// Import an encrypted backup of an encryption key using a (private) master key.
+async fn import_with_master_key(
+    master_keyfile: String,
+    encrypted_keyfile: String,
+    kdf: Option<Kdf>,
+    path: Option<String>,
+) -> Result<(), Error> {
+    let path = match path {
+        Some(path) => PathBuf::from(path),
+        None => {
+            let path = place_default_encryption_key()?;
+            if path.exists() {
+                bail!("Please remove default encryption key at {:?} before importing to default location (or choose a non-default one).", path);
+            }
+            println!("Importing key to default location at: {:?}", path);
+            path
+        }
+    };
+
+    let encrypted_key = file_get_contents(&encrypted_keyfile)?;
+    let master_key = file_get_contents(&master_keyfile)?;
+    let password = tty::read_password("Master Key Password: ")?;
+
+    let master_key =
+        openssl::pkey::PKey::private_key_from_pem_passphrase(&master_key, &password)
+        .map_err(|err| format_err!("failed to read PEM-formatted private key - {}", err))?
+        .rsa()
+        .map_err(|err| format_err!("not a valid private RSA key - {}", err))?;
+
+    let (key, created, fingerprint) =
+        rsa_decrypt_key_config(master_key, &encrypted_key, &get_encryption_key_password)?;
+
+    let kdf = kdf.unwrap_or_default();
+    match kdf {
+        Kdf::None => {
+            let modified = proxmox::tools::time::epoch_i64();
+
+            store_key_config(
+                &path,
+                true,
+                KeyConfig {
+                    kdf: None,
+                    created, // keep original value
+                    modified,
+                    data: key.to_vec(),
+                    fingerprint: Some(fingerprint),
+                },
+            )?;
+        }
+        Kdf::Scrypt | Kdf::PBKDF2 => {
+            let password = tty::read_and_verify_password("New Password: ")?;
+
+            let mut new_key_config = encrypt_key_with_passphrase(&key, &password, kdf)?;
+            new_key_config.created = created; // keep original value
+            new_key_config.fingerprint = Some(fingerprint);
+
+            store_key_config(&path, true, new_key_config)?;
         }
     }
 
@@ -446,6 +532,14 @@ pub fn cli() -> CliCommandMap {
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
 
+    let key_import_with_master_key_cmd_def = CliCommand::new(&API_METHOD_IMPORT_WITH_MASTER_KEY)
+        .arg_param(&["master-keyfile"])
+        .completion_cb("master-keyfile", tools::complete_file_name)
+        .arg_param(&["encrypted-keyfile"])
+        .completion_cb("encrypted-keyfile", tools::complete_file_name)
+        .arg_param(&["path"])
+        .completion_cb("path", tools::complete_file_name);
+
     let key_change_passphrase_cmd_def = CliCommand::new(&API_METHOD_CHANGE_PASSPHRASE)
         .arg_param(&["path"])
         .completion_cb("path", tools::complete_file_name);
@@ -465,6 +559,7 @@ pub fn cli() -> CliCommandMap {
 
     CliCommandMap::new()
         .insert("create", key_create_cmd_def)
+        .insert("import-with-master-key", key_import_with_master_key_cmd_def)
         .insert("create-master-key", key_create_master_key_cmd_def)
         .insert("import-master-pubkey", key_import_master_pubkey_cmd_def)
         .insert("change-passphrase", key_change_passphrase_cmd_def)

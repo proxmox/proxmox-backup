@@ -1081,14 +1081,6 @@ async fn create_backup(
             .await?;
         manifest.add_file(target.to_string(), stats.size, stats.csum, crypt_mode)?;
 
-        // openssl rsautl -decrypt -inkey master-private.pem -in rsa-encrypted.key -out t
-        /*
-        let mut buffer2 = vec![0u8; rsa.size() as usize];
-        let pem_data = file_get_contents("master-private.pem")?;
-        let rsa = openssl::rsa::Rsa::private_key_from_pem(&pem_data)?;
-        let len = rsa.private_decrypt(&buffer, &mut buffer2, openssl::rsa::Padding::PKCS1)?;
-        println!("TEST {} {:?}", len, buffer2);
-         */
     }
     // create manifest (index.json)
     // manifests are never encrypted, but include a signature

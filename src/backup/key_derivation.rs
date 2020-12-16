@@ -259,3 +259,15 @@ pub fn rsa_encrypt_key_config(
     }
     Ok(buffer)
 }
+
+pub fn rsa_decrypt_key_config(
+    rsa: openssl::rsa::Rsa<openssl::pkey::Private>,
+    key: &[u8],
+    passphrase: &dyn Fn() -> Result<Vec<u8>, Error>,
+) -> Result<([u8; 32], i64, Fingerprint), Error> {
+    let mut buffer = vec![0u8; rsa.size() as usize];
+    let decrypted = rsa
+        .private_decrypt(key, &mut buffer, openssl::rsa::Padding::PKCS1)
+        .map_err(|err| format_err!("failed to decrypt KeyConfig using RSA - {}", err))?;
+    decrypt_key(&mut buffer[..decrypted], passphrase)
+}
