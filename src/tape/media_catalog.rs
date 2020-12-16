@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{Write, Read, BufReader};
+use std::io::{Write, Read, BufReader, Seek, SeekFrom};
+use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::collections::HashMap;
 
@@ -24,6 +25,9 @@ use crate::{
     backup::BackupDir,
     tape::drive::MediaLabelInfo,
 };
+
+// openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
+pub const PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0: [u8; 8] = [221, 29, 164, 1, 59, 69, 19, 40];
 
 /// The Media Catalog
 ///
@@ -109,12 +113,9 @@ impl MediaCatalog {
                 .create(create)
                 .open(&path)?;
 
-            use std::os::unix::io::AsRawFd;
-
             let backup_user = crate::backup::backup_user()?;
-            if let Err(err) = fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid)) {
-                bail!("fchown on media catalog {:?} failed - {}", path, err);
-            }
+            fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
+                .map_err(|err| format_err!("fchown failed - {}", err))?;
 
             let mut me = Self {
                 uuid: uuid.clone(),
@@ -127,7 +128,11 @@ impl MediaCatalog {
                 pending: Vec::new(),
             };
 
-            me.load_catalog(&mut file)?;
+            let found_magic_number = me.load_catalog(&mut file)?;
+
+            if !found_magic_number {
+                me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
+            }
 
             if write {
                 me.file = Some(file);
@@ -147,49 +152,53 @@ impl MediaCatalog {
         log_to_stdout: bool,
     ) -> Result<Self, Error> {
 
-
-        Self::create_basedir(base_path)?;
-
         let uuid = &label_info.label.uuid;
 
         let mut tmp_path = base_path.to_owned();
         tmp_path.push(uuid.to_string());
         tmp_path.set_extension("tmp");
 
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp_path)?;
+        let me = proxmox::try_block!({
 
-        use std::os::unix::io::AsRawFd;
+            Self::create_basedir(base_path)?;
 
-        let backup_user = crate::backup::backup_user()?;
-        if let Err(err) = fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid)) {
-            bail!("fchown on media catalog {:?} failed - {}", tmp_path, err);
-        }
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&tmp_path)?;
 
-        let mut me = Self {
-            uuid: uuid.clone(),
-            file: Some(file),
-            log_to_stdout: false,
-            current_archive: None,
-            last_entry: None,
-            chunk_index: HashMap::new(),
-            snapshot_index: HashMap::new(),
-            pending: Vec::new(),
-        };
+            let backup_user = crate::backup::backup_user()?;
+            fchown(file.as_raw_fd(), Some(backup_user.uid), Some(backup_user.gid))
+                .map_err(|err| format_err!("fchown failed - {}", err))?;
 
-        me.log_to_stdout = log_to_stdout;
+            let mut me = Self {
+                uuid: uuid.clone(),
+                file: Some(file),
+                log_to_stdout: false,
+                current_archive: None,
+                last_entry: None,
+                chunk_index: HashMap::new(),
+                snapshot_index: HashMap::new(),
+                pending: Vec::new(),
+            };
 
-        me.register_label(&label_info.label_uuid, 0)?;
+            me.log_to_stdout = log_to_stdout;
 
-        if let Some((_, ref content_uuid)) = label_info.media_set_label {
-            me.register_label(&content_uuid, 1)?;
-        }
+            me.register_label(&label_info.label_uuid, 0)?;
 
-        me.commit()?;
+            if let Some((_, ref content_uuid)) = label_info.media_set_label {
+                me.register_label(&content_uuid, 1)?;
+            }
+
+            me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
+            me.commit()?;
+
+            Ok(me)
+        }).map_err(|err: Error| {
+            format_err!("unable to create temporary media catalog {:?} - {}", tmp_path, err)
+        })?;
 
         Ok(me)
     }
@@ -525,11 +534,28 @@ impl MediaCatalog {
         Ok(())
     }
 
-    fn load_catalog(&mut self, file: &mut File) -> Result<(), Error> {
+    fn load_catalog(&mut self, file: &mut File) -> Result<bool, Error> {
 
         let mut file = BufReader::new(file);
+        let mut found_magic_number = false;
 
         loop {
+            let pos = file.seek(SeekFrom::Current(0))?;
+
+            if pos == 0 { // read/check magic number
+                let mut magic = [0u8; 8];
+                match file.read_exact_or_eof(&mut magic) {
+                    Ok(false) => { /* EOF */ break; }
+                    Ok(true) => { /* OK */ }
+                    Err(err) => bail!("read failed - {}", err),
+                }
+                if magic != PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0 {
+                    bail!("wrong magic number");
+                }
+                found_magic_number = true;
+                continue;
+            }
+
             let mut entry_type = [0u8; 1];
             match file.read_exact_or_eof(&mut entry_type) {
                 Ok(false) => { /* EOF */ break; }
@@ -597,7 +623,7 @@ impl MediaCatalog {
 
         }
 
-        Ok(())
+        Ok(found_magic_number)
     }
 }
 
