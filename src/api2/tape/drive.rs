@@ -32,7 +32,7 @@ use crate::{
         LinuxTapeDrive,
         ScsiTapeChanger,
         TapeDeviceInfo,
-        MediaLabelInfoFlat,
+        MediaIdFlat,
         LabelUuidMap,
     },
     server::WorkerTask,
@@ -405,7 +405,7 @@ fn write_media_label(
             }
             if let Some(ref pool) = pool {
                 match info.media_set_label {
-                    Some((set, _)) => {
+                    Some(set) => {
                         if set.uuid != [0u8; 16].into() {
                             bail!("verify media set label failed - got wrong set uuid");
                         }
@@ -437,31 +437,31 @@ fn write_media_label(
         },
     },
     returns: {
-        type: MediaLabelInfoFlat,
+        type: MediaIdFlat,
     },
 )]
 /// Read media label
-pub async fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
+pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
         let mut drive = open_drive(&config, &drive)?;
 
-        let info = drive.read_label()?;
+        let media_id = drive.read_label()?;
 
-        let info = match info {
-            Some(info) => {
-                let mut flat = MediaLabelInfoFlat {
-                    uuid: info.label.uuid.to_string(),
-                    changer_id: info.label.changer_id.clone(),
-                    ctime: info.label.ctime,
+        let media_id = match media_id {
+            Some(media_id) => {
+                let mut flat = MediaIdFlat {
+                    uuid: media_id.label.uuid.to_string(),
+                    changer_id: media_id.label.changer_id.clone(),
+                    ctime: media_id.label.ctime,
                     media_set_ctime: None,
                     media_set_uuid: None,
                     pool: None,
                     seq_nr: None,
                 };
-                if let Some((set, _)) = info.media_set_label {
+                if let Some(set) = media_id.media_set_label {
                     flat.pool = Some(set.pool.clone());
                     flat.seq_nr = Some(set.seq_nr);
                     flat.media_set_uuid = Some(set.uuid.to_string());
@@ -474,7 +474,7 @@ pub async fn read_label(drive: String) -> Result<MediaLabelInfoFlat, Error> {
             }
         };
 
-        Ok(info)
+        Ok(media_id)
     }).await?
 }
 
@@ -633,13 +633,13 @@ pub fn update_inventory(
                     Ok(None) => {
                         worker.log(format!("media '{}' is empty", changer_id));
                     }
-                    Ok(Some(info)) => {
-                        if changer_id != info.label.changer_id {
-                            worker.warn(format!("label changer ID missmatch ({} != {})", changer_id, info.label.changer_id));
+                    Ok(Some(media_id)) => {
+                        if changer_id != media_id.label.changer_id {
+                            worker.warn(format!("label changer ID missmatch ({} != {})", changer_id, media_id.label.changer_id));
                             continue;
                         }
-                        worker.log(format!("inventorize media '{}' with uuid '{}'", changer_id, info.label.uuid));
-                        inventory.store(info.into())?;
+                        worker.log(format!("inventorize media '{}' with uuid '{}'", changer_id, media_id.label.uuid));
+                        inventory.store(media_id)?;
                     }
                 }
             }

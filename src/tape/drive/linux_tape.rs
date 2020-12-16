@@ -7,7 +7,6 @@ use anyhow::{bail, format_err, Error};
 use nix::fcntl::{fcntl, FcntlArg, OFlag};
 
 use proxmox::sys::error::SysResult;
-use proxmox::tools::Uuid;
 
 use crate::{
     tape::{
@@ -353,7 +352,7 @@ impl TapeDriver for LinuxTapeHandle {
         Ok(Box::new(handle))
     }
 
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<Uuid, Error> {
+    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
 
         let file_number = self.current_file_number()?;
         if file_number != 1 {
@@ -371,7 +370,7 @@ impl TapeDriver for LinuxTapeHandle {
 
         self.sync()?; // sync data to tape
 
-        Ok(Uuid::from(header.uuid))
+        Ok(())
     }
 
     /// Rewind and put the drive off line (Eject media).

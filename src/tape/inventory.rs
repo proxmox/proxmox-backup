@@ -29,7 +29,6 @@ use crate::{
     },
     tape::{
         TAPE_STATUS_DIR,
-        MediaLabelInfo,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -46,16 +45,6 @@ pub struct MediaId {
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_label: Option<MediaSetLabel>,
 }
-
-impl From<MediaLabelInfo> for MediaId {
-    fn from(info: MediaLabelInfo) -> Self {
-        Self {
-            label: info.label.clone(),
-            media_set_label: info.media_set_label.map(|(l, _)| l),
-        }
-    }
-}
-
 
 /// Media Set
 ///

@@ -6,9 +6,8 @@ mod linux_list_drives;
 pub use linux_list_drives::*;
 
 use anyhow::{bail, format_err, Error};
-use ::serde::{Deserialize, Serialize};
+use ::serde::{Deserialize};
 
-use proxmox::tools::Uuid;
 use proxmox::tools::io::ReadExt;
 use proxmox::api::section_config::SectionConfigData;
 
@@ -20,6 +19,7 @@ use crate::{
     tape::{
         TapeWrite,
         TapeRead,
+        MediaId,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
@@ -33,15 +33,6 @@ use crate::{
         },
     },
 };
-
-#[derive(Serialize,Deserialize)]
-/// Contains `MediaLabel` and `MediaSetLabel`, including additional content Uuids
-pub struct MediaLabelInfo {
-    pub label: MediaLabel,
-    pub label_uuid: Uuid,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub media_set_label: Option<(MediaSetLabel, Uuid)>
-}
 
 /// Tape driver interface
 pub trait TapeDriver {
@@ -70,9 +61,7 @@ pub trait TapeDriver {
     fn write_file<'a>(&'a mut self) -> Result<Box<dyn TapeWrite + 'a>, std::io::Error>;
 
     /// Write label to tape (erase tape content)
-    ///
-    /// This returns the MediaContentHeader uuid (not the media uuid).
-    fn label_tape(&mut self, label: &MediaLabel) -> Result<Uuid, Error> {
+    fn label_tape(&mut self, label: &MediaLabel) -> Result<(), Error> {
 
         self.rewind()?;
 
@@ -81,7 +70,6 @@ pub trait TapeDriver {
         let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
 
         let header = MediaContentHeader::new(PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0, raw.len() as u32);
-        let content_uuid = header.content_uuid();
 
         {
             let mut writer = self.write_file()?;
@@ -91,22 +79,20 @@ pub trait TapeDriver {
 
         self.sync()?; // sync data to tape
 
-        Ok(content_uuid)
+        Ok(())
     }
 
     /// Write the media set label to tape
-    ///
-    /// This returns the MediaContentHeader uuid (not the media uuid).
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<Uuid, Error>;
+    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error>;
 
     /// Read the media label
     ///
     /// This tries to read both media labels (label and media_set_label).
-    fn read_label(&mut self) -> Result<Option<MediaLabelInfo>, Error> {
+    fn read_label(&mut self) -> Result<Option<MediaId>, Error> {
 
         self.rewind()?;
 
-        let (label, label_uuid) = {
+        let label = {
             let mut reader = match self.read_next_file()? {
                 None => return Ok(None), // tape is empty
                 Some(reader) => reader,
@@ -124,14 +110,14 @@ pub trait TapeDriver {
                 bail!("got unexpected data after label");
             }
 
-            (label, Uuid::from(header.uuid))
+            label
         };
 
-        let mut info = MediaLabelInfo { label, label_uuid, media_set_label: None };
+        let mut media_id = MediaId { label, media_set_label: None };
 
-         // try to read MediaSet label
+        // try to read MediaSet label
         let mut reader = match self.read_next_file()? {
-            None => return Ok(Some(info)),
+            None => return Ok(Some(media_id)),
             Some(reader) => reader,
         };
 
@@ -147,9 +133,9 @@ pub trait TapeDriver {
             bail!("got unexpected data after media set label");
         }
 
-        info.media_set_label = Some((media_set_label, Uuid::from(header.uuid)));
+        media_id.media_set_label = Some(media_set_label);
 
-        Ok(Some(info))
+        Ok(Some(media_id))
     }
 
     /// Eject media
@@ -239,7 +225,7 @@ pub fn request_and_load_media(
     label: &MediaLabel,
 ) -> Result<(
     Box<dyn TapeDriver>,
-    MediaLabelInfo,
+    MediaId,
 ), Error> {
 
     match config.sections.get(drive) {
@@ -254,10 +240,10 @@ pub fn request_and_load_media(
 
                     let mut handle = drive.open()?;
 
-                    if let Ok(Some(info)) = handle.read_label() {
-                        println!("found media label {} ({})", info.label.changer_id, info.label.uuid.to_string());
-                        if info.label.uuid == label.uuid {
-                            return Ok((Box::new(handle), info));
+                    if let Ok(Some(media_id)) = handle.read_label() {
+                        println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
+                        if media_id.label.uuid == label.uuid {
+                            return Ok((Box::new(handle), media_id));
                         }
                     }
                     bail!("read label failed (label all tapes first)");
@@ -279,10 +265,10 @@ pub fn request_and_load_media(
                             }
                         };
 
-                        if let Ok(Some(info)) = handle.read_label() {
-                            println!("found media label {} ({})", info.label.changer_id, info.label.uuid.to_string());
-                            if info.label.uuid == label.uuid {
-                                return Ok((Box::new(handle), info));
+                        if let Ok(Some(media_id)) = handle.read_label() {
+                            println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
+                            if media_id.label.uuid == label.uuid {
+                                return Ok((Box::new(handle), media_id));
                             }
                         }
 

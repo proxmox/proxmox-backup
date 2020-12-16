@@ -23,7 +23,9 @@ use proxmox::tools::{
 
 use crate::{
     backup::BackupDir,
-    tape::drive::MediaLabelInfo,
+    tape::{
+        MediaId,
+    },
 };
 
 // openssl::sha::sha256(b"Proxmox Backup Media Catalog v1.0")[0..8]
@@ -148,11 +150,11 @@ impl MediaCatalog {
     /// Creates a temporary, empty catalog database
     pub fn create_temporary_database(
         base_path: &Path,
-        label_info: &MediaLabelInfo,
+        media_id: &MediaId,
         log_to_stdout: bool,
     ) -> Result<Self, Error> {
 
-        let uuid = &label_info.label.uuid;
+        let uuid = &media_id.label.uuid;
 
         let mut tmp_path = base_path.to_owned();
         tmp_path.push(uuid.to_string());
@@ -186,10 +188,10 @@ impl MediaCatalog {
 
             me.log_to_stdout = log_to_stdout;
 
-            me.register_label(&label_info.label_uuid, 0)?;
+            me.register_label(&media_id.label.uuid, 0)?;
 
-            if let Some((_, ref content_uuid)) = label_info.media_set_label {
-                me.register_label(&content_uuid, 1)?;
+            if let Some(ref set) = media_id.media_set_label {
+                me.register_label(&set.uuid, 1)?;
             }
 
             me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
@@ -273,13 +275,13 @@ impl MediaCatalog {
     /// Destroy existing catalog, opens a new one
     pub fn overwrite(
         base_path: &Path,
-        label_info: &MediaLabelInfo,
+        media_id: &MediaId,
         log_to_stdout: bool,
     ) ->  Result<Self, Error> {
 
-        let uuid = &label_info.label.uuid;
+        let uuid = &media_id.label.uuid;
 
-        let me = Self::create_temporary_database(base_path, &label_info, log_to_stdout)?;
+        let me = Self::create_temporary_database(base_path, &media_id, log_to_stdout)?;
 
         Self::finish_temporary_database(base_path, uuid, true)?;
 

@@ -7,7 +7,6 @@ use anyhow::{bail, format_err, Error};
 use serde::{Serialize, Deserialize};
 
 use proxmox::tools::{
-    Uuid,
     fs::{replace_file, CreateOptions},
 };
 
@@ -308,7 +307,7 @@ impl TapeDriver for VirtualTapeHandle {
         }
     }
 
-    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<Uuid, Error> {
+    fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
 
         let mut status = self.load_status()?;
         match status.current_tape {
@@ -333,7 +332,7 @@ impl TapeDriver for VirtualTapeHandle {
                     writer.finish(false)?;
                 }
 
-                Ok(Uuid::from(header.uuid))
+                Ok(())
             }
             None => bail!("drive is empty (no tape loaded)."),
         }

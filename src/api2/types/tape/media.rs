@@ -47,7 +47,7 @@ pub struct MediaListEntry {
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Media label info
-pub struct MediaLabelInfoFlat {
+pub struct MediaIdFlat {
     /// Unique ID
     pub uuid: String,
     /// Media Changer ID or Barcode
