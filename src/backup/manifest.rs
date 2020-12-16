@@ -10,6 +10,7 @@ use crate::backup::{BackupDir, CryptMode, CryptConfig, Fingerprint};
 pub const MANIFEST_BLOB_NAME: &str = "index.json.blob";
 pub const MANIFEST_LOCK_NAME: &str = ".index.json.lck";
 pub const CLIENT_LOG_BLOB_NAME: &str = "client.log.blob";
+pub const ENCRYPTED_KEY_BLOB_NAME: &str = "rsa-encrypted.key.blob";
 
 mod hex_csum {
     use serde::{self, Deserialize, Serializer, Deserializer};

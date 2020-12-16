@@ -54,6 +54,7 @@ use proxmox_backup::backup::{
     CryptConfig,
     CryptMode,
     DynamicIndexReader,
+    ENCRYPTED_KEY_BLOB_NAME,
     FixedChunkStream,
     FixedIndexReader,
     IndexFile,
@@ -1064,7 +1065,7 @@ async fn create_backup(
     }
 
     if let Some(rsa_encrypted_key) = rsa_encrypted_key {
-        let target = "rsa-encrypted.key.blob";
+        let target = ENCRYPTED_KEY_BLOB_NAME;
         println!("Upload RSA encoded key to '{:?}' as {}", repo, target);
         let stats = client
             .upload_blob_from_data(rsa_encrypted_key, target, false, false)
