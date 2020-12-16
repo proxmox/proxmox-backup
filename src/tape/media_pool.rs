@@ -34,6 +34,7 @@ use crate::{
     }
 };
 
+/// Media Pool lock guard
 pub struct MediaPoolLockGuard(std::fs::File);
 
 /// Media Pool

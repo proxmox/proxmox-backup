@@ -9,19 +9,29 @@ use crate::tools::nom::{
     parse_failure, parse_error, IResult,
 };
 
+/// Changer element status.
+///
+/// Drive and slots may be `Empty`, or contain some media, either
+/// with knwon volume tag `VolumeTag(String)`, or without (`Full`).
 pub enum ElementStatus {
     Empty,
     Full,
     VolumeTag(String),
 }
 
+/// Changer drive status.
 pub struct DriveStatus {
+    /// The slot the element was loaded from (if known).
     pub loaded_slot: Option<u64>,
+    /// The status.
     pub status: ElementStatus,
 }
 
+/// Changer status - show drive/slot usage
 pub struct MtxStatus {
+    /// List of known drives
     pub drives: Vec<DriveStatus>,
+    /// List of known slots
     pub slots: Vec<ElementStatus>,
 }
 

@@ -21,13 +21,13 @@ use crate::tape::{
     },
 };
 
-/// Writes chunk lists to tape.
+/// Writes chunk archives to tape.
 ///
-/// A chunk archive consists of a 'MediaContentHeader' followed by a
+/// A chunk archive consists of a `MediaContentHeader` followed by a
 /// list of chunks entries. Each chunk entry consists of a
-/// 'ChunkArchiveEntryHeader' folowed by thew chunk data ('DataBlob').
+/// `ChunkArchiveEntryHeader` folowed by the chunk data (`DataBlob`).
 ///
-/// | MediaContentHeader | ( ChunkArchiveEntryHeader | DataBlob )* |
+/// `| MediaContentHeader | ( ChunkArchiveEntryHeader | DataBlob )* |`
 pub struct ChunkArchiveWriter<'a> {
     writer: Option<Box<dyn TapeWrite + 'a>>,
     bytes_written: usize, // does not include bytes from current writer
@@ -75,7 +75,7 @@ impl <'a> ChunkArchiveWriter<'a> {
 
     /// Write chunk into archive.
     ///
-    /// This may return false when LEOM is detected (when close_on_leom is set).
+    /// This may return false when `LEOM` is detected (when close_on_leom is set).
     /// In that case the archive only contains parts of the last chunk.
     pub fn try_write_chunk(
         &mut self,
@@ -131,9 +131,9 @@ impl <'a> ChunkArchiveWriter<'a> {
         Ok(true)
     }
 
-    /// This must be called at the end to add padding and EOF
+    /// This must be called at the end to add padding and `EOF`
     ///
-    /// Returns true on LEOM or when we hit max archive size
+    /// Returns true on `LEOM` or when we hit max archive size
     pub fn finish(&mut self) -> Result<bool, std::io::Error> {
         match self.writer.take() {
             Some(mut writer) => {

@@ -685,28 +685,28 @@ impl MediaSetCatalog {
 
 #[derive(Endian)]
 #[repr(C)]
-pub struct LabelEntry {
+struct LabelEntry {
     file_number: u64,
     uuid: [u8;16],
 }
 
 #[derive(Endian)]
 #[repr(C)]
-pub struct ChunkArchiveStart {
+struct ChunkArchiveStart {
     file_number: u64,
     uuid: [u8;16],
 }
 
 #[derive(Endian)]
 #[repr(C)]
-pub struct ChunkArchiveEnd{
+struct ChunkArchiveEnd{
     file_number: u64,
     uuid: [u8;16],
 }
 
 #[derive(Endian)]
 #[repr(C)]
-pub struct SnapshotEntry{
+struct SnapshotEntry{
     file_number: u64,
     uuid: [u8;16],
     name_len: u16,

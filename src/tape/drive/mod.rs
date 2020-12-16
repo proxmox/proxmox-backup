@@ -35,6 +35,7 @@ use crate::{
 };
 
 #[derive(Serialize,Deserialize)]
+/// Contains `MediaLabel` and `MediaSetLabel`, including additional content Uuids
 pub struct MediaLabelInfo {
     pub label: MediaLabel,
     pub label_uuid: Uuid,
