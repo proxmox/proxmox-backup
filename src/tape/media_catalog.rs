@@ -43,7 +43,7 @@ pub struct MediaCatalog  {
 
     file: Option<File>,
 
-    pub log_to_stdout: bool,
+    log_to_stdout: bool,
 
     current_archive: Option<(Uuid, u64)>,
 
@@ -78,6 +78,11 @@ impl MediaCatalog {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// Enable/Disable logging to stdout (disabled by default)
+    pub fn log_to_stdout(&mut self, enable: bool) {
+        self.log_to_stdout = enable;
     }
 
     fn create_basedir(base_path: &Path) -> Result<(), Error> {
@@ -148,6 +153,8 @@ impl MediaCatalog {
     }
 
     /// Creates a temporary, empty catalog database
+    ///
+    /// Creates a new catalog file using a ".tmp" file extension.
     pub fn create_temporary_database(
         base_path: &Path,
         media_id: &MediaId,
@@ -206,6 +213,9 @@ impl MediaCatalog {
     }
 
     /// Commit or Abort a temporary catalog database
+    ///
+    /// With commit set, we rename the ".tmp" file extension to
+    /// ".log". When commit is false, we remove the ".tmp" file.
     pub fn finish_temporary_database(
         base_path: &Path,
         uuid: &Uuid,
