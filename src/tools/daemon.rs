@@ -291,6 +291,7 @@ where
         if let Err(e) = systemd_notify(SystemdNotify::Reloading) {
             log::error!("failed to notify systemd about the state change: {}", e);
         }
+        wait_service_is_state(service_name, "reloading").await?;
         if let Err(e) = reloader.take().unwrap().fork_restart() {
             log::error!("error during reload: {}", e);
             let _ = systemd_notify(SystemdNotify::Status("error during reload".to_string()));
@@ -305,7 +306,7 @@ where
 
     // FIXME: this is a hack, replace with sd_notify_barrier when available
     if server::is_reload_request() {
-        wait_service_is_active(service_name).await?;
+        wait_service_is_not_state(service_name, "reloading").await?;
     }
 
     log::info!("daemon shut down...");
@@ -313,26 +314,36 @@ where
 }
 
 // hack, do not use if unsure!
-async fn wait_service_is_active(service: &str) -> Result<(), Error> {
-    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
-    loop {
-        let text = match tokio::process::Command::new("systemctl")
-            .args(&["is-active", service])
-            .output()
-            .await
-        {
-            Ok(output) => match String::from_utf8(output.stdout) {
-                Ok(text) => text,
-                Err(err) => bail!("output of 'systemctl is-active' not valid UTF-8 - {}", err),
-            },
-            Err(err) => bail!("executing 'systemctl is-active' failed - {}", err),
-        };
+async fn get_service_state(service: &str) -> Result<String, Error> {
+    let text = match tokio::process::Command::new("systemctl")
+        .args(&["is-active", service])
+        .output()
+        .await
+    {
+        Ok(output) => match String::from_utf8(output.stdout) {
+            Ok(text) => text,
+            Err(err) => bail!("output of 'systemctl is-active' not valid UTF-8 - {}", err),
+        },
+        Err(err) => bail!("executing 'systemctl is-active' failed - {}", err),
+    };
 
-        if text.trim().trim_start() != "reloading" {
-            return Ok(());
-        }
+    Ok(text.trim().trim_start().to_string())
+}
+
+async fn wait_service_is_state(service: &str, state: &str) -> Result<(), Error> {
+    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
+    while get_service_state(service).await? != state {
         tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
     }
+    Ok(())
+}
+
+async fn wait_service_is_not_state(service: &str, state: &str) -> Result<(), Error> {
+    tokio::time::delay_for(std::time::Duration::new(1, 0)).await;
+    while get_service_state(service).await? == state {
+        tokio::time::delay_for(std::time::Duration::new(5, 0)).await;
+    }
+    Ok(())
 }
 
 #[link(name = "systemd")]
