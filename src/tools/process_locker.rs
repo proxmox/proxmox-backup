@@ -55,7 +55,9 @@ impl  Drop for ProcessLockSharedGuard {
             if let Err(err) = nix::fcntl::fcntl(data.file.as_raw_fd(), nix::fcntl::FcntlArg::F_SETLKW(&op)) {
                 panic!("unable to drop writer lock - {}", err);
             }
-            data.writers = 0;
+        }
+        if data.writers > 0 {
+            data.writers -= 1;
         }
     }
 }
