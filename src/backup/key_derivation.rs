@@ -239,7 +239,7 @@ pub fn decrypt_key(
     let fingerprint = crypt_config.fingerprint();
     if let Some(stored_fingerprint) = key_config.fingerprint {
         if fingerprint != stored_fingerprint {
-            eprintln!(
+            bail!(
                 "KeyConfig contains wrong fingerprint {}, contained key has fingerprint {}",
                 stored_fingerprint, fingerprint
             );
@@ -316,6 +316,11 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
     assert_eq!(key.data, decrypted);
     assert_eq!(key.fingerprint, Some(fingerprint));
 
+    Ok(())
+}
+
+#[test]
+fn fingerprint_checks() -> Result<(), Error> {
     let key = KeyConfig {
         kdf: None,
         created: proxmox::tools::time::epoch_i64(),
@@ -323,15 +328,30 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
         data: (0u8..32u8).collect(),
         fingerprint: Some(Fingerprint::new([0u8; 32])), // wrong FP
     };
-    let encrypted = rsa_encrypt_key_config(public.clone(), &key).expect("encryption failed");
-    let (decrypted, created, fingerprint) =
-        rsa_decrypt_key_config(private.clone(), &encrypted, &passphrase)
-            .expect("decryption failed");
 
+    let expected_fingerprint = Fingerprint::new([
+            14, 171, 212, 70, 11, 110, 185, 202, 52, 80, 35, 222, 226, 183, 120, 199, 144, 229, 74,
+            22, 131, 185, 101, 156, 10, 87, 174, 25, 144, 144, 21, 155,
+        ]);
+
+    let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
+    decrypt_key(&mut data, &{ || { Ok(Vec::new()) }}).expect_err("decoding KeyConfig with wrong fingerprint worked");
+
+    let key = KeyConfig {
+        kdf: None,
+        created: proxmox::tools::time::epoch_i64(),
+        modified: proxmox::tools::time::epoch_i64(),
+        data: (0u8..32u8).collect(),
+        fingerprint: None,
+    };
+
+
+    let mut data = serde_json::to_vec(&key).expect("encoding KeyConfig failed");
+    let (key_data, created, fingerprint) = decrypt_key(&mut data, &{ || { Ok(Vec::new()) }}).expect("decoding KeyConfig without fingerprint failed");
+
+    assert_eq!(key.data, key_data);
     assert_eq!(key.created, created);
-    assert_eq!(key.data, decrypted);
-    // wrong FP update by round-trip through encrypt/decrypt
-    assert_ne!(key.fingerprint, Some(fingerprint));
+    assert_eq!(expected_fingerprint, fingerprint);
 
     Ok(())
 }
