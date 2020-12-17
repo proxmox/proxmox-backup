@@ -20,10 +20,16 @@ use crate::api2::types::{Authid,Userid};
 // define Privilege bitfield
 
 constnamedbitmap! {
-    /// Contains a list of Privileges
+    /// Contains a list of privilege name to privilege value mappings.
+    ///
+    /// The names are used when displaying/persisting privileges anywhere, the values are used to
+    /// allow easy matching of privileges as bitflags.
     PRIVILEGES: u64 => {
+        /// Sys.Audit allows knowing about the system and its status
         PRIV_SYS_AUDIT("Sys.Audit");
+        /// Sys.Modify allows modifying system-level configuration
         PRIV_SYS_MODIFY("Sys.Modify");
+        /// Sys.Modify allows to poweroff/reboot/.. the system
         PRIV_SYS_POWER_MANAGEMENT("Sys.PowerManagement");
 
         /// Datastore.Audit allows knowing about a datastore,
@@ -45,12 +51,17 @@ constnamedbitmap! {
         /// but also requires backup ownership
         PRIV_DATASTORE_PRUNE("Datastore.Prune");
 
+        /// Permissions.Modify allows modifying ACLs
         PRIV_PERMISSIONS_MODIFY("Permissions.Modify");
 
+        /// Remote.Audit allows reading remote.cfg and sync.cfg entries
         PRIV_REMOTE_AUDIT("Remote.Audit");
+        /// Remote.Modify allows modifying remote.cfg
         PRIV_REMOTE_MODIFY("Remote.Modify");
+        /// Remote.Read allows reading data from a configured `Remote`
         PRIV_REMOTE_READ("Remote.Read");
 
+        /// Sys.Console allows access to the system's console
         PRIV_SYS_CONSOLE("Sys.Console");
     }
 }
@@ -60,9 +71,10 @@ constnamedbitmap! {
 /// which are limited to the 'root@pam` superuser
 pub const ROLE_ADMIN: u64 = std::u64::MAX;
 
-/// NoAccess can be used to remove privileges from specific paths
+/// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NO_ACCESS: u64 = 0;
 
+/// Audit can view configuration and status information, but not modify it.
 pub const ROLE_AUDIT: u64 =
 PRIV_SYS_AUDIT |
 PRIV_DATASTORE_AUDIT;
@@ -110,12 +122,16 @@ pub const ROLE_REMOTE_SYNC_OPERATOR: u64 =
 PRIV_REMOTE_AUDIT |
 PRIV_REMOTE_READ;
 
+/// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
 
 #[api()]
 #[repr(u64)]
 #[derive(Serialize, Deserialize)]
-/// Role
+/// Enum representing roles via their [PRIVILEGES] combination.
+///
+/// Since privileges are implemented as bitflags, each unique combination of privileges maps to a
+/// single, unique `u64` value that is used in this enum definition.
 pub enum Role {
     /// Administrator
     Admin = ROLE_ADMIN,
@@ -150,6 +166,8 @@ impl FromStr for Role {
 }
 
 lazy_static! {
+    /// Map of pre-defined [Roles](Role) to their associated [privileges](PRIVILEGES) combination and
+    /// description.
     pub static ref ROLE_NAMES: HashMap<&'static str, (u64, &'static str)> = {
         let mut map = HashMap::new();
 
@@ -167,8 +185,7 @@ lazy_static! {
     };
 }
 
-pub fn split_acl_path(path: &str) -> Vec<&str> {
-
+pub(crate) fn split_acl_path(path: &str) -> Vec<&str> {
     let items = path.split('/');
 
     let mut components = vec![];
@@ -181,6 +198,9 @@ pub fn split_acl_path(path: &str) -> Vec<&str> {
     components
 }
 
+/// Check whether a given ACL `path` conforms to the expected schema.
+///
+/// Currently this just checks for the number of components for various sub-trees.
 pub fn check_acl_path(path: &str) -> Result<(), Error> {
 
     let components = split_acl_path(path);
@@ -234,18 +254,29 @@ pub fn check_acl_path(path: &str) -> Result<(), Error> {
     bail!("invalid acl path '{}'.", path);
 }
 
+/// Tree representing a parsed acl.cfg
 pub struct AclTree {
+    /// Root node of the tree.
+    ///
+    /// The rest of the tree is available via [find_node()](AclTree::find_node()) or an
+    /// [AclTreeNode]'s [children](AclTreeNode::children) member.
     pub root: AclTreeNode,
 }
 
+/// Node representing ACLs for a certain ACL path.
 pub struct AclTreeNode {
+    /// [User](crate::config::user::User) or
+    /// [Token](crate::config::user::ApiToken) ACLs for this node.
     pub users: HashMap<Authid, HashMap<String, bool>>,
+    /// `Group` ACLs for this node (not yet implemented)
     pub groups: HashMap<String, HashMap<String, bool>>,
+    /// `AclTreeNodes` representing ACL paths directly below the current one.
     pub children: BTreeMap<String, AclTreeNode>,
 }
 
 impl AclTreeNode {
 
+    /// Creates a new, empty AclTreeNode.
     pub fn new() -> Self {
         Self {
             users: HashMap::new(),
@@ -254,17 +285,25 @@ impl AclTreeNode {
         }
     }
 
-    pub fn extract_roles(&self, auth_id: &Authid, all: bool) -> HashMap<String, bool> {
-        let user_roles = self.extract_user_roles(auth_id, all);
+    /// Returns applicable [Role] and their propagation status for a given
+    /// [Authid](crate::api2::types::Authid).
+    ///
+    /// If the `Authid` is a [User](crate::config::user::User) that has no specific `Roles` configured on this node,
+    /// applicable `Group` roles will be returned instead.
+    ///
+    /// If `leaf` is `false`, only those roles where the propagate flag in the ACL is set to `true`
+    /// are returned. Otherwise, all roles will be returned.
+    pub fn extract_roles(&self, auth_id: &Authid, leaf: bool) -> HashMap<String, bool> {
+        let user_roles = self.extract_user_roles(auth_id, leaf);
         if !user_roles.is_empty() || auth_id.is_token() {
             // user privs always override group privs
             return user_roles
         };
 
-        self.extract_group_roles(auth_id.user(), all)
+        self.extract_group_roles(auth_id.user(), leaf)
     }
 
-    pub fn extract_user_roles(&self, auth_id: &Authid, all: bool) -> HashMap<String, bool> {
+    fn extract_user_roles(&self, auth_id: &Authid, leaf: bool) -> HashMap<String, bool> {
 
         let mut map = HashMap::new();
 
@@ -274,7 +313,7 @@ impl AclTreeNode {
         };
 
         for (role, propagate) in roles {
-            if *propagate || all {
+            if *propagate || leaf {
                 if role == ROLE_NAME_NO_ACCESS {
                     // return a map with a single role 'NoAccess'
                     let mut map = HashMap::new();
@@ -288,7 +327,7 @@ impl AclTreeNode {
         map
     }
 
-    pub fn extract_group_roles(&self, _user: &Userid, all: bool) -> HashMap<String, bool> {
+    fn extract_group_roles(&self, _user: &Userid, leaf: bool) -> HashMap<String, bool> {
 
         let mut map = HashMap::new();
 
@@ -297,7 +336,7 @@ impl AclTreeNode {
             if !is_member { continue; }
 
             for (role, propagate) in roles {
-                if *propagate || all {
+                if *propagate || leaf {
                     if role == ROLE_NAME_NO_ACCESS {
                         // return a map with a single role 'NoAccess'
                         let mut map = HashMap::new();
@@ -312,7 +351,7 @@ impl AclTreeNode {
         map
     }
 
-    pub fn delete_group_role(&mut self, group: &str, role: &str) {
+    fn delete_group_role(&mut self, group: &str, role: &str) {
         let roles = match self.groups.get_mut(group) {
             Some(r) => r,
             None => return,
@@ -320,7 +359,7 @@ impl AclTreeNode {
         roles.remove(role);
     }
 
-    pub fn delete_user_role(&mut self, auth_id: &Authid, role: &str) {
+    fn delete_user_role(&mut self, auth_id: &Authid, role: &str) {
         let roles = match self.users.get_mut(auth_id) {
             Some(r) => r,
             None => return,
@@ -328,7 +367,7 @@ impl AclTreeNode {
         roles.remove(role);
     }
 
-    pub fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
+    fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
         let map = self.groups.entry(group).or_insert_with(|| HashMap::new());
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
@@ -339,7 +378,7 @@ impl AclTreeNode {
         }
     }
 
-    pub fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
+    fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
         let map = self.users.entry(auth_id).or_insert_with(|| HashMap::new());
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
@@ -353,12 +392,14 @@ impl AclTreeNode {
 
 impl AclTree {
 
+    /// Create a new, empty ACL tree with a single, empty root [node](AclTreeNode)
     pub fn new() -> Self {
         Self {
             root: AclTreeNode::new(),
         }
     }
 
+    /// Iterates over the tree looking for a node matching `path`.
     pub fn find_node(&mut self, path: &str) -> Option<&mut AclTreeNode> {
         let path = split_acl_path(path);
         return self.get_node(&path);
@@ -384,6 +425,10 @@ impl AclTree {
         node
     }
 
+    /// Deletes the specified `role` from the `group`'s ACL on `path`.
+    ///
+    /// Never fails, even if the `path` has no ACLs configured, or the `group`/`role` combination
+    /// does not exist on `path`.
     pub fn delete_group_role(&mut self, path: &str, group: &str, role: &str) {
         let path = split_acl_path(path);
         let node = match self.get_node(&path) {
@@ -393,6 +438,10 @@ impl AclTree {
         node.delete_group_role(group, role);
     }
 
+    /// Deletes the specified `role` from the `user`'s ACL on `path`.
+    ///
+    /// Never fails, even if the `path` has no ACLs configured, or the `user`/`role` combination
+    /// does not exist on `path`.
     pub fn delete_user_role(&mut self, path: &str, auth_id: &Authid, role: &str) {
         let path = split_acl_path(path);
         let node = match self.get_node(&path) {
@@ -402,12 +451,20 @@ impl AclTree {
         node.delete_user_role(auth_id, role);
     }
 
+    /// Inserts the specified `role` into the `group` ACL on `path`.
+    ///
+    /// The [AclTreeNode] representing `path` will be created and inserted into the tree if
+    /// necessary.
     pub fn insert_group_role(&mut self, path: &str, group: &str, role: &str, propagate: bool) {
         let path = split_acl_path(path);
         let node = self.get_or_insert_node(&path);
         node.insert_group_role(group.to_string(), role.to_string(), propagate);
     }
 
+    /// Inserts the specified `role` into the `user` ACL on `path`.
+    ///
+    /// The [AclTreeNode] representing `path` will be created and inserted into the tree if
+    /// necessary.
     pub fn insert_user_role(&mut self, path: &str, auth_id: &Authid, role: &str, propagate: bool) {
         let path = split_acl_path(path);
         let node = self.get_or_insert_node(&path);
@@ -498,7 +555,7 @@ impl AclTree {
         Ok(())
     }
 
-    pub fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
+    fn write_config(&self, w: &mut dyn Write) -> Result<(), Error> {
         Self::write_node_config(&self.root, "", w)
     }
 
@@ -547,7 +604,7 @@ impl AclTree {
         Ok(())
     }
 
-    pub fn load(filename: &Path) -> Result<(Self, [u8;32]), Error> {
+    fn load(filename: &Path) -> Result<(Self, [u8;32]), Error> {
         let mut tree = Self::new();
 
         let raw = match std::fs::read_to_string(filename) {
@@ -575,7 +632,8 @@ impl AclTree {
         Ok((tree, digest))
     }
 
-    pub fn from_raw(raw: &str) -> Result<Self, Error> {
+    #[cfg(test)]
+    pub(crate) fn from_raw(raw: &str) -> Result<Self, Error> {
         let mut tree = Self::new();
         for (linenr, line) in raw.lines().enumerate() {
             let line = line.trim();
@@ -587,6 +645,14 @@ impl AclTree {
         Ok(tree)
     }
 
+    /// Returns a map of role name and propagation status for a given `auth_id` and `path`.
+    ///
+    /// This will collect role mappings according to the following algorithm:
+    /// - iterate over all intermediate nodes along `path` and collect roles with `propagate` set
+    /// - get all (propagating and non-propagating) roles for last component of path
+    /// - more specific role maps replace less specific role maps
+    /// -- user/token is more specific than group at each level
+    /// -- roles lower in the tree are more specific than those higher up along the path
     pub fn roles(&self, auth_id: &Authid, path: &[&str]) -> HashMap<String, bool> {
 
         let mut node = &self.root;
@@ -610,14 +676,21 @@ impl AclTree {
     }
 }
 
+/// Filename where [AclTree] is stored.
 pub const ACL_CFG_FILENAME: &str = "/etc/proxmox-backup/acl.cfg";
+/// Path used to lock the [AclTree] when modifying.
 pub const ACL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.acl.lck";
 
+/// Reads the [AclTree] from the [default path](ACL_CFG_FILENAME).
 pub fn config() -> Result<(AclTree, [u8; 32]), Error> {
     let path = PathBuf::from(ACL_CFG_FILENAME);
     AclTree::load(&path)
 }
 
+/// Returns a cached [AclTree] or fresh copy read directly from the [default path](ACL_CFG_FILENAME)
+///
+/// Since the AclTree is used for every API request's permission check, this caching mechanism
+/// allows to skip reading and parsing the file again if it is unchanged.
 pub fn cached_config() -> Result<Arc<AclTree>, Error> {
 
     struct ConfigCache {
@@ -663,6 +736,8 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
     Ok(config)
 }
 
+/// Saves an [AclTree] to the [default path](ACL_CFG_FILENAME), ensuring proper ownership and
+/// file permissions.
 pub fn save_config(acl: &AclTree) -> Result<(), Error> {
     let mut raw: Vec<u8> = Vec::new();
 
