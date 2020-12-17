@@ -1,0 +1,139 @@
+use std::io::{Read, Write};
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use std::path::{Path, PathBuf};
+
+use proxmox::{
+    sys::error::SysError,
+    tools::Uuid,
+};
+
+use crate::tape::{
+    TapeWrite,
+    file_formats::{
+        PROXMOX_TAPE_BLOCK_SIZE,
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
+        MediaContentHeader,
+    },
+};
+
+/// Write a set of files as `pxar` archive to the tape
+///
+/// This ignores file attributes like ACLs and xattrs.
+///
+/// Returns `Ok(Some(content_uuid))` on succees, and `Ok(None)` if
+/// `LEOM` was detected before all data was written. The stream is
+/// marked inclomplete in that case and does not contain all data (The
+/// backup task must rewrite the whole file on the next media).
+pub fn tape_write_snapshot_archive<'a>(
+    writer: &mut (dyn TapeWrite + 'a),
+    snapshot: &str,
+    base_path: &Path,
+    file_list: &[String],
+) -> Result<Option<Uuid>, std::io::Error> {
+
+    let header_data = snapshot.as_bytes().to_vec();
+
+    let header = MediaContentHeader::new(
+        PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0, header_data.len() as u32);
+    let content_uuid = header.uuid.into();
+
+    let root_metadata = pxar::Metadata::dir_builder(0o0664).build();
+
+    let mut file_copy_buffer = proxmox::tools::vec::undefined(PROXMOX_TAPE_BLOCK_SIZE);
+
+    let result: Result<(), std::io::Error> = proxmox::try_block!({
+
+        let leom = writer.write_header(&header, &header_data)?;
+        if leom {
+            return Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32));
+        }
+
+        let mut encoder = pxar::encoder::sync::Encoder::new(PxarTapeWriter::new(writer), &root_metadata)?;
+
+        for filename in file_list.iter() {
+            let mut path = PathBuf::from(base_path);
+            path.push(filename);
+
+            let mut file = std::fs::File::open(&path)?;
+            let metadata = file.metadata()?;
+            let file_size = metadata.len();
+
+            let metadata: pxar::Metadata = metadata.into();
+
+            if !metadata.is_regular_file() {
+                proxmox::io_bail!("path {:?} is not a regular file", path);
+            }
+
+            let mut remaining = file_size;
+            let mut out = encoder.create_file(&metadata, filename, file_size)?;
+            while remaining != 0 {
+                let got = file.read(&mut file_copy_buffer[..])?;
+                if got as u64 > remaining {
+                    proxmox::io_bail!("file {:?} changed while reading", path);
+                }
+                out.write_all(&file_copy_buffer[..got])?;
+                remaining -= got as u64;
+
+            }
+            if remaining > 0 {
+                proxmox::io_bail!("file {:?} shrunk while reading", path);
+            }
+        }
+        encoder.finish()?;
+        Ok(())
+    });
+
+    match result {
+        Ok(()) => {
+            writer.finish(false)?;
+            Ok(Some(content_uuid))
+        }
+        Err(err) => {
+            if err.is_errno(nix::errno::Errno::ENOSPC) && writer.logical_end_of_media() {
+                writer.finish(true)?; // mark as incomplete
+                Ok(None)
+            } else {
+                Err(err)
+            }
+        }
+    }
+}
+
+// Helper to create pxar archives on tape
+//
+// We generate and error at LEOM,
+struct PxarTapeWriter<'a, T: TapeWrite + ?Sized> {
+    inner: &'a mut T,
+}
+
+impl<'a, T: TapeWrite + ?Sized> PxarTapeWriter<'a, T> {
+    pub fn new(inner: &'a mut T) -> Self {
+        Self { inner }
+    }
+}
+
+impl<'a, T: TapeWrite + ?Sized> pxar::encoder::SeqWrite for PxarTapeWriter<'a, T> {
+
+    fn poll_seq_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let this = unsafe { self.get_unchecked_mut() };
+        Poll::Ready(match this.inner.write_all(buf) {
+            Ok(leom) => {
+                if leom {
+                    Err(std::io::Error::from_raw_os_error(nix::errno::Errno::ENOSPC as i32))
+                } else {
+                    Ok(buf.len())
+                }
+            }
+            Err(err) => Err(err),
+        })
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
