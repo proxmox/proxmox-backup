@@ -74,56 +74,65 @@ pub const ROLE_ADMIN: u64 = std::u64::MAX;
 /// NoAccess can be used to remove privileges from specific (sub-)paths
 pub const ROLE_NO_ACCESS: u64 = 0;
 
+#[rustfmt::skip]
 /// Audit can view configuration and status information, but not modify it.
-pub const ROLE_AUDIT: u64 =
-PRIV_SYS_AUDIT |
-PRIV_DATASTORE_AUDIT;
+pub const ROLE_AUDIT: u64 = 0
+    | PRIV_SYS_AUDIT
+    | PRIV_DATASTORE_AUDIT;
 
+#[rustfmt::skip]
 /// Datastore.Admin can do anything on the datastore.
-pub const ROLE_DATASTORE_ADMIN: u64 =
-PRIV_DATASTORE_AUDIT |
-PRIV_DATASTORE_MODIFY |
-PRIV_DATASTORE_READ |
-PRIV_DATASTORE_VERIFY |
-PRIV_DATASTORE_BACKUP |
-PRIV_DATASTORE_PRUNE;
+pub const ROLE_DATASTORE_ADMIN: u64 = 0
+    | PRIV_DATASTORE_AUDIT
+    | PRIV_DATASTORE_MODIFY
+    | PRIV_DATASTORE_READ
+    | PRIV_DATASTORE_VERIFY
+    | PRIV_DATASTORE_BACKUP
+    | PRIV_DATASTORE_PRUNE;
 
+#[rustfmt::skip]
 /// Datastore.Reader can read/verify datastore content and do restore
-pub const ROLE_DATASTORE_READER: u64 =
-PRIV_DATASTORE_AUDIT |
-PRIV_DATASTORE_VERIFY |
-PRIV_DATASTORE_READ;
+pub const ROLE_DATASTORE_READER: u64 = 0
+    | PRIV_DATASTORE_AUDIT
+    | PRIV_DATASTORE_VERIFY
+    | PRIV_DATASTORE_READ;
 
+#[rustfmt::skip]
 /// Datastore.Backup can do backup and restore, but no prune.
-pub const ROLE_DATASTORE_BACKUP: u64 =
-PRIV_DATASTORE_BACKUP;
+pub const ROLE_DATASTORE_BACKUP: u64 = 0
+    | PRIV_DATASTORE_BACKUP;
 
+#[rustfmt::skip]
 /// Datastore.PowerUser can do backup, restore, and prune.
-pub const ROLE_DATASTORE_POWERUSER: u64 =
-PRIV_DATASTORE_PRUNE |
-PRIV_DATASTORE_BACKUP;
+pub const ROLE_DATASTORE_POWERUSER: u64 = 0
+    | PRIV_DATASTORE_PRUNE
+    | PRIV_DATASTORE_BACKUP;
 
+#[rustfmt::skip]
 /// Datastore.Audit can audit the datastore.
-pub const ROLE_DATASTORE_AUDIT: u64 =
-PRIV_DATASTORE_AUDIT;
+pub const ROLE_DATASTORE_AUDIT: u64 = 0
+    | PRIV_DATASTORE_AUDIT;
 
+#[rustfmt::skip]
 /// Remote.Audit can audit the remote
-pub const ROLE_REMOTE_AUDIT: u64 =
-PRIV_REMOTE_AUDIT;
+pub const ROLE_REMOTE_AUDIT: u64 = 0
+    | PRIV_REMOTE_AUDIT;
 
+#[rustfmt::skip]
 /// Remote.Admin can do anything on the remote.
-pub const ROLE_REMOTE_ADMIN: u64 =
-PRIV_REMOTE_AUDIT |
-PRIV_REMOTE_MODIFY |
-PRIV_REMOTE_READ;
+pub const ROLE_REMOTE_ADMIN: u64 = 0
+    | PRIV_REMOTE_AUDIT
+    | PRIV_REMOTE_MODIFY
+    | PRIV_REMOTE_READ;
 
+#[rustfmt::skip]
 /// Remote.SyncOperator can do read and prune on the remote.
-pub const ROLE_REMOTE_SYNC_OPERATOR: u64 =
-PRIV_REMOTE_AUDIT |
-PRIV_REMOTE_READ;
+pub const ROLE_REMOTE_SYNC_OPERATOR: u64 = 0
+    | PRIV_REMOTE_AUDIT
+    | PRIV_REMOTE_READ;
 
 /// NoAccess can be used to remove privileges from specific (sub-)paths
-pub const ROLE_NAME_NO_ACCESS: &str ="NoAccess";
+pub const ROLE_NAME_NO_ACCESS: &str = "NoAccess";
 
 #[api()]
 #[repr(u64)]
