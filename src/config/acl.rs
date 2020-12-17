@@ -1,8 +1,8 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
-use std::collections::{HashMap, BTreeMap, BTreeSet};
-use std::path::{PathBuf, Path};
-use std::sync::{Arc, RwLock};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Error};
 
@@ -11,11 +11,11 @@ use lazy_static::lazy_static;
 use ::serde::{Deserialize, Serialize};
 use serde::de::{value, IntoDeserializer};
 
-use proxmox::tools::{fs::replace_file, fs::CreateOptions};
-use proxmox::constnamedbitmap;
 use proxmox::api::{api, schema::*};
+use proxmox::constnamedbitmap;
+use proxmox::tools::{fs::replace_file, fs::CreateOptions};
 
-use crate::api2::types::{Authid,Userid};
+use crate::api2::types::{Authid, Userid};
 
 // define Privilege bitfield
 
@@ -65,7 +65,6 @@ constnamedbitmap! {
         PRIV_SYS_CONSOLE("Sys.Console");
     }
 }
-
 
 /// Admin always has all privileges. It can do everything except a few actions
 /// which are limited to the 'root@pam` superuser
@@ -200,7 +199,9 @@ pub(crate) fn split_acl_path(path: &str) -> Vec<&str> {
     let mut components = vec![];
 
     for name in items {
-        if name.is_empty() { continue; }
+        if name.is_empty() {
+            continue;
+        }
         components.push(name);
     }
 
@@ -211,45 +212,70 @@ pub(crate) fn split_acl_path(path: &str) -> Vec<&str> {
 ///
 /// Currently this just checks for the number of components for various sub-trees.
 pub fn check_acl_path(path: &str) -> Result<(), Error> {
-
     let components = split_acl_path(path);
 
     let components_len = components.len();
 
-    if components_len == 0 { return Ok(()); }
+    if components_len == 0 {
+        return Ok(());
+    }
     match components[0] {
         "access" => {
-            if components_len == 1 { return Ok(()); }
+            if components_len == 1 {
+                return Ok(());
+            }
             match components[1] {
                 "acl" | "users" => {
-                    if components_len == 2 { return Ok(()); }
+                    if components_len == 2 {
+                        return Ok(());
+                    }
                 }
-                _ => {},
+                _ => {}
             }
         }
-        "datastore" => {  // /datastore/{store}
-            if components_len <= 2 { return Ok(()); }
+        "datastore" => {
+            // /datastore/{store}
+            if components_len <= 2 {
+                return Ok(());
+            }
         }
-        "remote" => { // /remote/{remote}/{store}
-            if components_len <= 3 { return Ok(()); }
+        "remote" => {
+            // /remote/{remote}/{store}
+            if components_len <= 3 {
+                return Ok(());
+            }
         }
         "system" => {
-            if components_len == 1 { return Ok(()); }
+            if components_len == 1 {
+                return Ok(());
+            }
             match components[1] {
                 "disks" | "log" | "status" | "tasks" | "time" => {
-                    if components_len == 2 { return Ok(()); }
+                    if components_len == 2 {
+                        return Ok(());
+                    }
                 }
-                "services" => { // /system/services/{service}
-                    if components_len <= 3 { return Ok(()); }
+                "services" => {
+                    // /system/services/{service}
+                    if components_len <= 3 {
+                        return Ok(());
+                    }
                 }
                 "network" => {
-                    if components_len == 2 { return Ok(()); }
+                    if components_len == 2 {
+                        return Ok(());
+                    }
                     match components[2] {
                         "dns" => {
-                            if components_len == 3 { return Ok(()); }
+                            if components_len == 3 {
+                                return Ok(());
+                            }
                         }
-                        "interfaces" => { // /system/network/interfaces/{iface}
-                            if components_len <= 4 { return Ok(()); }
+                        "interfaces" => {
+                            // /system/network/interfaces/{iface}
+                            if components_len <= 4 {
+                                return Ok(());
+                            }
                         }
                         _ => {}
                     }
@@ -284,7 +310,6 @@ pub struct AclTreeNode {
 }
 
 impl AclTreeNode {
-
     /// Creates a new, empty AclTreeNode.
     pub fn new() -> Self {
         Self {
@@ -306,14 +331,13 @@ impl AclTreeNode {
         let user_roles = self.extract_user_roles(auth_id, leaf);
         if !user_roles.is_empty() || auth_id.is_token() {
             // user privs always override group privs
-            return user_roles
+            return user_roles;
         };
 
         self.extract_group_roles(auth_id.user(), leaf)
     }
 
     fn extract_user_roles(&self, auth_id: &Authid, leaf: bool) -> HashMap<String, bool> {
-
         let mut map = HashMap::new();
 
         let roles = match self.users.get(auth_id) {
@@ -337,12 +361,13 @@ impl AclTreeNode {
     }
 
     fn extract_group_roles(&self, _user: &Userid, leaf: bool) -> HashMap<String, bool> {
-
         let mut map = HashMap::new();
 
         for (_group, roles) in &self.groups {
             let is_member = false; // fixme: check if user is member of the group
-            if !is_member { continue; }
+            if !is_member {
+                continue;
+            }
 
             for (role, propagate) in roles {
                 if *propagate || leaf {
@@ -400,7 +425,6 @@ impl AclTreeNode {
 }
 
 impl AclTree {
-
     /// Create a new, empty ACL tree with a single, empty root [node](AclTreeNode)
     pub fn new() -> Self {
         Self {
@@ -428,7 +452,9 @@ impl AclTree {
     fn get_or_insert_node(&mut self, path: &[&str]) -> &mut AclTreeNode {
         let mut node = &mut self.root;
         for comp in path {
-            node = node.children.entry(String::from(*comp))
+            node = node
+                .children
+                .entry(String::from(*comp))
                 .or_insert_with(|| AclTreeNode::new());
         }
         node
@@ -480,26 +506,27 @@ impl AclTree {
         node.insert_user_role(auth_id.to_owned(), role.to_string(), propagate);
     }
 
-    fn write_node_config(
-        node: &AclTreeNode,
-        path: &str,
-        w: &mut dyn Write,
-    ) -> Result<(), Error> {
-
+    fn write_node_config(node: &AclTreeNode, path: &str, w: &mut dyn Write) -> Result<(), Error> {
         let mut role_ug_map0 = HashMap::new();
         let mut role_ug_map1 = HashMap::new();
 
         for (auth_id, roles) in &node.users {
             // no need to save, because root is always 'Administrator'
-            if !auth_id.is_token() && auth_id.user() == "root@pam" { continue; }
+            if !auth_id.is_token() && auth_id.user() == "root@pam" {
+                continue;
+            }
             for (role, propagate) in roles {
                 let role = role.as_str();
                 let auth_id = auth_id.to_string();
                 if *propagate {
-                    role_ug_map1.entry(role).or_insert_with(|| BTreeSet::new())
+                    role_ug_map1
+                        .entry(role)
+                        .or_insert_with(|| BTreeSet::new())
                         .insert(auth_id);
                 } else {
-                    role_ug_map0.entry(role).or_insert_with(|| BTreeSet::new())
+                    role_ug_map0
+                        .entry(role)
+                        .or_insert_with(|| BTreeSet::new())
                         .insert(auth_id);
                 }
             }
@@ -509,10 +536,14 @@ impl AclTree {
             for (role, propagate) in roles {
                 let group = format!("@{}", group);
                 if *propagate {
-                    role_ug_map1.entry(role).or_insert_with(|| BTreeSet::new())
+                    role_ug_map1
+                        .entry(role)
+                        .or_insert_with(|| BTreeSet::new())
                         .insert(group);
                 } else {
-                    role_ug_map0.entry(role).or_insert_with(|| BTreeSet::new())
+                    role_ug_map0
+                        .entry(role)
+                        .or_insert_with(|| BTreeSet::new())
                         .insert(group);
                 }
             }
@@ -524,11 +555,15 @@ impl AclTree {
             let mut result_map = BTreeMap::new();
             for (item, property_map) in item_property_map {
                 let item_list = property_map.iter().fold(String::new(), |mut acc, v| {
-                    if !acc.is_empty() { acc.push(','); }
+                    if !acc.is_empty() {
+                        acc.push(',');
+                    }
                     acc.push_str(v);
                     acc
                 });
-                result_map.entry(item_list).or_insert_with(|| BTreeSet::new())
+                result_map
+                    .entry(item_list)
+                    .or_insert_with(|| BTreeSet::new())
                     .insert(item.to_string());
             }
             result_map
@@ -538,9 +573,13 @@ impl AclTree {
         let uglist_role_map1 = group_by_property_list(&role_ug_map1);
 
         fn role_list(roles: &BTreeSet<String>) -> String {
-            if roles.contains(ROLE_NAME_NO_ACCESS) { return String::from(ROLE_NAME_NO_ACCESS); }
+            if roles.contains(ROLE_NAME_NO_ACCESS) {
+                return String::from(ROLE_NAME_NO_ACCESS);
+            }
             roles.iter().fold(String::new(), |mut acc, v| {
-                if !acc.is_empty() { acc.push(','); }
+                if !acc.is_empty() {
+                    acc.push(',');
+                }
                 acc.push_str(v);
                 acc
             })
@@ -548,12 +587,24 @@ impl AclTree {
 
         for (uglist, roles) in &uglist_role_map0 {
             let role_list = role_list(roles);
-            writeln!(w, "acl:0:{}:{}:{}", if path.is_empty() { "/" } else { path }, uglist, role_list)?;
+            writeln!(
+                w,
+                "acl:0:{}:{}:{}",
+                if path.is_empty() { "/" } else { path },
+                uglist,
+                role_list
+            )?;
         }
 
         for (uglist, roles) in &uglist_role_map1 {
             let role_list = role_list(roles);
-            writeln!(w, "acl:1:{}:{}:{}", if path.is_empty() { "/" } else { path }, uglist, role_list)?;
+            writeln!(
+                w,
+                "acl:1:{}:{}:{}",
+                if path.is_empty() { "/" } else { path },
+                uglist,
+                role_list
+            )?;
         }
 
         for (name, child) in node.children.iter() {
@@ -569,7 +620,6 @@ impl AclTree {
     }
 
     fn parse_acl_line(&mut self, line: &str) -> Result<(), Error> {
-
         let items: Vec<&str> = line.split(':').collect();
 
         if items.len() != 5 {
@@ -613,7 +663,7 @@ impl AclTree {
         Ok(())
     }
 
-    fn load(filename: &Path) -> Result<(Self, [u8;32]), Error> {
+    fn load(filename: &Path) -> Result<(Self, [u8; 32]), Error> {
         let mut tree = Self::new();
 
         let raw = match std::fs::read_to_string(filename) {
@@ -631,10 +681,16 @@ impl AclTree {
 
         for (linenr, line) in raw.lines().enumerate() {
             let line = line.trim();
-            if line.is_empty() { continue; }
+            if line.is_empty() {
+                continue;
+            }
             if let Err(err) = tree.parse_acl_line(line) {
-                bail!("unable to parse acl config {:?}, line {} - {}",
-                      filename, linenr+1, err);
+                bail!(
+                    "unable to parse acl config {:?}, line {} - {}",
+                    filename,
+                    linenr + 1,
+                    err
+                );
             }
         }
 
@@ -646,9 +702,15 @@ impl AclTree {
         let mut tree = Self::new();
         for (linenr, line) in raw.lines().enumerate() {
             let line = line.trim();
-            if line.is_empty() { continue; }
+            if line.is_empty() {
+                continue;
+            }
             if let Err(err) = tree.parse_acl_line(line) {
-                bail!("unable to parse acl config data, line {} - {}", linenr+1, err);
+                bail!(
+                    "unable to parse acl config data, line {} - {}",
+                    linenr + 1,
+                    err
+                );
             }
         }
         Ok(tree)
@@ -663,7 +725,6 @@ impl AclTree {
     /// -- user/token is more specific than group at each level
     /// -- roles lower in the tree are more specific than those higher up along the path
     pub fn roles(&self, auth_id: &Authid, path: &[&str]) -> HashMap<String, bool> {
-
         let mut node = &self.root;
         let mut role_map = node.extract_roles(auth_id, path.is_empty());
 
@@ -701,7 +762,6 @@ pub fn config() -> Result<(AclTree, [u8; 32]), Error> {
 /// Since the AclTree is used for every API request's permission check, this caching mechanism
 /// allows to skip reading and parsing the file again if it is unchanged.
 pub fn cached_config() -> Result<Arc<AclTree>, Error> {
-
     struct ConfigCache {
         data: Option<Arc<AclTree>>,
         last_mtime: i64,
@@ -709,8 +769,11 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
     }
 
     lazy_static! {
-        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(
-            ConfigCache { data: None, last_mtime: 0, last_mtime_nsec: 0 });
+        static ref CACHED_CONFIG: RwLock<ConfigCache> = RwLock::new(ConfigCache {
+            data: None,
+            last_mtime: 0,
+            last_mtime_nsec: 0
+        });
     }
 
     let stat = match nix::sys::stat::stat(ACL_CFG_FILENAME) {
@@ -719,11 +782,13 @@ pub fn cached_config() -> Result<Arc<AclTree>, Error> {
         Err(err) => bail!("unable to stat '{}' - {}", ACL_CFG_FILENAME, err),
     };
 
-    { // limit scope
+    {
+        // limit scope
         let cache = CACHED_CONFIG.read().unwrap();
         if let Some(ref config) = cache.data {
             if let Some(stat) = stat {
-                if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec {
+                if stat.st_mtime == cache.last_mtime && stat.st_mtime_nsec == cache.last_mtime_nsec
+                {
                     return Ok(config.clone());
                 }
             } else if cache.last_mtime == 0 && cache.last_mtime_nsec == 0 {
@@ -768,30 +833,30 @@ pub fn save_config(acl: &AclTree) -> Result<(), Error> {
 
 #[cfg(test)]
 mod test {
-    use anyhow::{Error};
     use super::AclTree;
+    use anyhow::Error;
 
     use crate::api2::types::Authid;
 
-    fn check_roles(
-        tree: &AclTree,
-        auth_id: &Authid,
-        path: &str,
-        expected_roles: &str,
-    ) {
-
+    fn check_roles(tree: &AclTree, auth_id: &Authid, path: &str, expected_roles: &str) {
         let path_vec = super::split_acl_path(path);
-        let mut roles = tree.roles(auth_id, &path_vec)
-            .iter().map(|(v, _)| v.clone()).collect::<Vec<String>>();
+        let mut roles = tree
+            .roles(auth_id, &path_vec)
+            .iter()
+            .map(|(v, _)| v.clone())
+            .collect::<Vec<String>>();
         roles.sort();
         let roles = roles.join(",");
 
-        assert_eq!(roles, expected_roles, "\nat check_roles for '{}' on '{}'", auth_id, path);
+        assert_eq!(
+            roles, expected_roles,
+            "\nat check_roles for '{}' on '{}'",
+            auth_id, path
+        );
     }
 
     #[test]
     fn test_acl_line_compression() {
-
         let tree = AclTree::from_raw(
             "\
             acl:0:/store/store2:user1@pbs:Admin\n\
@@ -803,20 +868,25 @@ mod test {
         .expect("failed to parse acl tree");
 
         let mut raw: Vec<u8> = Vec::new();
-        tree.write_config(&mut raw).expect("failed to write acl tree");
+        tree.write_config(&mut raw)
+            .expect("failed to write acl tree");
         let raw = std::str::from_utf8(&raw).expect("acl tree is not valid utf8");
 
-        assert_eq!(raw, "acl:0:/store/store2:user1@pbs,user2@pbs:Admin,DatastoreBackup\n");
+        assert_eq!(
+            raw,
+            "acl:0:/store/store2:user1@pbs,user2@pbs:Admin,DatastoreBackup\n"
+        );
     }
 
     #[test]
     fn test_roles_1() -> Result<(), Error> {
-
-        let tree = AclTree::from_raw(r###"
+        let tree = AclTree::from_raw(
+            r###"
 acl:1:/storage:user1@pbs:Admin
 acl:1:/storage/store1:user1@pbs:DatastoreBackup
 acl:1:/storage/store2:user2@pbs:DatastoreBackup
-"###)?;
+"###,
+        )?;
         let user1: Authid = "user1@pbs".parse()?;
         check_roles(&tree, &user1, "/", "");
         check_roles(&tree, &user1, "/storage", "Admin");
@@ -834,12 +904,13 @@ acl:1:/storage/store2:user2@pbs:DatastoreBackup
 
     #[test]
     fn test_role_no_access() -> Result<(), Error> {
-
-        let tree = AclTree::from_raw(r###"
+        let tree = AclTree::from_raw(
+            r###"
 acl:1:/:user1@pbs:Admin
 acl:1:/storage:user1@pbs:NoAccess
 acl:1:/storage/store1:user1@pbs:DatastoreBackup
-"###)?;
+"###,
+        )?;
         let user1: Authid = "user1@pbs".parse()?;
         check_roles(&tree, &user1, "/", "Admin");
         check_roles(&tree, &user1, "/storage", "NoAccess");
@@ -847,11 +918,13 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
         check_roles(&tree, &user1, "/storage/store2", "NoAccess");
         check_roles(&tree, &user1, "/system", "Admin");
 
-        let tree = AclTree::from_raw(r###"
+        let tree = AclTree::from_raw(
+            r###"
 acl:1:/:user1@pbs:Admin
 acl:0:/storage:user1@pbs:NoAccess
 acl:1:/storage/store1:user1@pbs:DatastoreBackup
-"###)?;
+"###,
+        )?;
         check_roles(&tree, &user1, "/", "Admin");
         check_roles(&tree, &user1, "/storage", "NoAccess");
         check_roles(&tree, &user1, "/storage/store1", "DatastoreBackup");
@@ -863,7 +936,6 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
     #[test]
     fn test_role_add_delete() -> Result<(), Error> {
-
         let mut tree = AclTree::new();
 
         let user1: Authid = "user1@pbs".parse()?;
@@ -887,7 +959,6 @@ acl:1:/storage/store1:user1@pbs:DatastoreBackup
 
     #[test]
     fn test_no_access_overwrite() -> Result<(), Error> {
-
         let mut tree = AclTree::new();
 
         let user1: Authid = "user1@pbs".parse()?;
