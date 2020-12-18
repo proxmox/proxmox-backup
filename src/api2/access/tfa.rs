@@ -33,7 +33,10 @@ fn tfa_update_auth(
     if must_exist && authid.user() != userid {
         let (config, _digest) = crate::config::user::config()?;
 
-        if config.sections.get(userid.as_str()).is_none() {
+        if config
+            .lookup::<crate::config::user::User>("user", userid.as_str())
+            .is_err()
+        {
             bail!("user '{}' does not exists.", userid);
         }
     }
