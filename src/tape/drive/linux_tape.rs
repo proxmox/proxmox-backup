@@ -193,7 +193,7 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    fn mtfsf(&mut self, count: i32) -> Result<(), Error> {
+    fn forward_space_count_files(&mut self, count: i32) -> Result<(), Error> {
 
         let cmd = mtop { mt_op: MTCmd::MTFSF, mt_count: count, };
 
@@ -368,7 +368,7 @@ impl TapeDriver for LinuxTapeHandle {
         let file_number = self.current_file_number()?;
         if file_number != 1 {
             self.rewind()?;
-            self.mtfsf(1)?; // skip label
+            self.forward_space_count_files(1)?; // skip label
         }
 
         let file_number = self.current_file_number()?;
