@@ -313,7 +313,7 @@ async fn read_label(
         .column(ColumnConfig::new("media-set-ctime").renderer(render_epoch))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
@@ -385,7 +385,7 @@ async fn inventory(
         .column(ColumnConfig::new("uuid"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }

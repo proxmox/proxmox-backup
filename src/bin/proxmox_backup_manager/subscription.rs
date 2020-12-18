@@ -27,7 +27,7 @@ fn get(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
     };
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

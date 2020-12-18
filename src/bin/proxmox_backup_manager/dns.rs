@@ -35,7 +35,7 @@ fn get_dns(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
         .column(ColumnConfig::new("dns2"))
         .column(ColumnConfig::new("dns3"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

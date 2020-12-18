@@ -64,7 +64,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
     let mut data = result["data"].take();
 
-    let schema = &proxmox_backup::api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
+    let return_type = &proxmox_backup::api2::node::tasks::API_METHOD_LIST_TASKS.returns;
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
@@ -72,7 +72,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("upid"))
         .column(ColumnConfig::new("status").renderer(tools::format::render_task_status));
 
-    format_and_print_result_full(&mut data, schema, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }

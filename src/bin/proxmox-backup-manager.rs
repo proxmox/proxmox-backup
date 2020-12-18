@@ -106,11 +106,11 @@ async fn garbage_collection_status(param: Value) -> Result<Value, Error> {
 
     let mut result = client.get(&path, None).await?;
     let mut data = result["data"].take();
-    let schema = &api2::admin::datastore::API_RETURN_SCHEMA_GARBAGE_COLLECTION_STATUS;
+    let return_type = &api2::admin::datastore::API_METHOD_GARBAGE_COLLECTION_STATUS.returns;
 
     let options = default_table_format_options();
 
-    format_and_print_result_full(&mut data, schema, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -172,7 +172,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
     let mut result = client.get("api2/json/nodes/localhost/tasks", Some(args)).await?;
 
     let mut data = result["data"].take();
-    let schema = &api2::node::tasks::API_RETURN_SCHEMA_LIST_TASKS;
+    let return_type = &api2::node::tasks::API_METHOD_LIST_TASKS.returns;
 
     let options = default_table_format_options()
         .column(ColumnConfig::new("starttime").right_align(false).renderer(tools::format::render_epoch))
@@ -180,7 +180,7 @@ async fn task_list(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("upid"))
         .column(ColumnConfig::new("status").renderer(tools::format::render_task_status));
 
-    format_and_print_result_full(&mut data, schema, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -370,9 +370,9 @@ async fn get_versions(verbose: bool, param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("Version"))
         .column(ColumnConfig::new("ExtraInfo").header("Extra Info"))
         ;
-    let schema = &crate::api2::node::apt::API_RETURN_SCHEMA_GET_VERSIONS;
+    let return_type = &crate::api2::node::apt::API_METHOD_GET_VERSIONS.returns;
 
-    format_and_print_result_full(&mut packages, schema, &output_format, &options);
+    format_and_print_result_full(&mut packages, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }

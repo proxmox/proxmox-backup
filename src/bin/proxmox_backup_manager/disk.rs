@@ -59,7 +59,7 @@ fn list_disks(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         .column(ColumnConfig::new("status"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -100,7 +100,7 @@ fn smart_attributes(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result
     let mut data = data["attributes"].take();
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, API_METHOD_SMART_ATTRIBUTES.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &API_METHOD_SMART_ATTRIBUTES.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -227,7 +227,7 @@ fn list_zpools(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
         .column(ColumnConfig::new("alloc").right_align(true).renderer(render_usage))
         .column(ColumnConfig::new("health"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -274,7 +274,7 @@ fn list_datastore_mounts(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> R
         .column(ColumnConfig::new("filesystem"))
         .column(ColumnConfig::new("options"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

@@ -15,7 +15,7 @@ use proxmox::api::{
     api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
     RpcEnvironment, RpcEnvironmentType, Permission
 };
-use proxmox::api::router::SubdirMap;
+use proxmox::api::router::{ReturnType, SubdirMap};
 use proxmox::api::schema::*;
 use proxmox::tools::fs::{replace_file, CreateOptions};
 use proxmox::{http_err, identity, list_subdirs_api_method, sortable};
@@ -148,7 +148,7 @@ fn get_all_snapshot_files(
     },
 )]
 /// List backup groups.
-fn list_groups(
+pub fn list_groups(
     store: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Vec<GroupListItem>, Error> {
@@ -772,7 +772,7 @@ pub const API_RETURN_SCHEMA_PRUNE: Schema = ArraySchema::new(
     &PruneListItem::API_SCHEMA
 ).schema();
 
-const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
+pub const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
     &ApiHandler::Sync(&prune),
     &ObjectSchema::new(
         "Prune the datastore.",
@@ -787,7 +787,7 @@ const API_METHOD_PRUNE: ApiMethod = ApiMethod::new(
             ("store", false, &DATASTORE_SCHEMA),
         ])
     ))
-    .returns(&API_RETURN_SCHEMA_PRUNE)
+    .returns(ReturnType::new(false, &API_RETURN_SCHEMA_PRUNE))
     .access(None, &Permission::Privilege(
     &["datastore", "{store}"],
     PRIV_DATASTORE_MODIFY | PRIV_DATASTORE_PRUNE,

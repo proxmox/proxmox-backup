@@ -92,7 +92,7 @@ fn list_pools(
         .column(ColumnConfig::new("template"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
@@ -131,7 +131,7 @@ fn get_config(
         .column(ColumnConfig::new("template"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }

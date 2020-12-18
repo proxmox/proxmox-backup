@@ -47,7 +47,7 @@ fn list_acls(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Err
         .column(ColumnConfig::new("propagate"))
         .column(ColumnConfig::new("roleid"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

@@ -15,6 +15,7 @@ use proxmox::api::cli::{
     get_output_format,
     OUTPUT_FORMAT,
 };
+use proxmox::api::router::ReturnType;
 use proxmox::sys::linux::tty;
 use proxmox::tools::fs::{file_get_contents, replace_file, CreateOptions};
 
@@ -382,9 +383,14 @@ fn show_key(
         .column(ColumnConfig::new("modified").renderer(tools::format::render_epoch))
         .column(ColumnConfig::new("fingerprint"));
 
-    let schema = &KeyInfo::API_SCHEMA;
+    let return_type = ReturnType::new(false, &KeyInfo::API_SCHEMA);
 
-    format_and_print_result_full(&mut serde_json::to_value(info)?, schema, &output_format, &options);
+    format_and_print_result_full(
+        &mut serde_json::to_value(info)?,
+        &return_type,
+        &output_format,
+        &options,
+    );
 
     Ok(())
 }

@@ -15,6 +15,7 @@ use proxmox::api::{
         format_and_print_result_full,
         default_table_format_options,
     },
+    router::ReturnType,
 };
 
 use proxmox_backup::backup::{
@@ -178,7 +179,7 @@ fn render_result(
 ) -> Result<(), Error> {
 
     let mut data = serde_json::to_value(benchmark_result)?;
-    let schema = &BenchmarkResult::API_SCHEMA;
+    let return_type = ReturnType::new(false, &BenchmarkResult::API_SCHEMA);
 
     let render_speed = |value: &Value, _record: &Value| -> Result<String, Error> {
         match value["speed"].as_f64() {
@@ -211,7 +212,7 @@ fn render_result(
                 .right_align(false).renderer(render_speed));
 
 
-    format_and_print_result_full(&mut data, schema, output_format, &options);
+    format_and_print_result_full(&mut data, &return_type, output_format, &options);
 
     Ok(())
 }

@@ -104,7 +104,7 @@ fn list_changers(
         .column(ColumnConfig::new("serial"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
@@ -139,7 +139,7 @@ fn scan_for_changers(
         .column(ColumnConfig::new("serial"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
@@ -175,7 +175,7 @@ fn get_config(
         .column(ColumnConfig::new("path"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
@@ -213,7 +213,7 @@ async fn get_status(
         .column(ColumnConfig::new("loaded-slot"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }

@@ -412,9 +412,9 @@ async fn list_backup_groups(param: Value) -> Result<Value, Error> {
 
     let mut data: Value = result["data"].take();
 
-    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_LIST_GROUPS;
+    let return_type = &proxmox_backup::api2::admin::datastore::API_METHOD_LIST_GROUPS.returns;
 
-    format_and_print_result_full(&mut data, info, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -1458,7 +1458,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("keep").renderer(render_prune_action).header("action"))
         ;
 
-    let info = &proxmox_backup::api2::admin::datastore::API_RETURN_SCHEMA_PRUNE;
+    let return_type = &proxmox_backup::api2::admin::datastore::API_METHOD_PRUNE.returns;
 
     let mut data = result["data"].take();
 
@@ -1469,7 +1469,7 @@ async fn prune_async(mut param: Value) -> Result<Value, Error> {
         data = list.into();
     }
 
-    format_and_print_result_full(&mut data, info, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -1522,9 +1522,9 @@ async fn status(param: Value) -> Result<Value, Error> {
         .column(ColumnConfig::new("used").renderer(render_total_percentage))
         .column(ColumnConfig::new("avail").renderer(render_total_percentage));
 
-    let schema = &API_RETURN_SCHEMA_STATUS;
+    let return_type = &API_METHOD_STATUS.returns;
 
-    format_and_print_result_full(&mut data, schema, &output_format, &options);
+    format_and_print_result_full(&mut data, return_type, &output_format, &options);
 
     Ok(Value::Null)
 }

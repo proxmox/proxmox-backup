@@ -32,7 +32,7 @@ fn list_datastores(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Valu
         .column(ColumnConfig::new("path"))
         .column(ColumnConfig::new("comment"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -62,7 +62,7 @@ fn show_datastore(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
     };
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

@@ -35,7 +35,7 @@ fn list_sync_jobs(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value
         .column(ColumnConfig::new("schedule"))
         .column(ColumnConfig::new("comment"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -65,7 +65,7 @@ fn show_sync_job(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value,
     };
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

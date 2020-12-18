@@ -26,13 +26,14 @@ use proxmox::api::{
     ApiHandler,
     ApiMethod,
     HttpError,
+    ParameterSchema,
     Permission,
     RpcEnvironment,
     RpcEnvironmentType,
     check_api_permission,
 };
 use proxmox::api::schema::{
-    ObjectSchema,
+    ObjectSchemaType,
     parse_parameter_strings,
     parse_simple_value,
     verify_json_object,
@@ -233,7 +234,7 @@ impl tower_service::Service<Request<Body>> for ApiService {
 }
 
 fn parse_query_parameters<S: 'static + BuildHasher + Send>(
-    param_schema: &ObjectSchema,
+    param_schema: ParameterSchema,
     form: &str, // x-www-form-urlencoded body data
     parts: &Parts,
     uri_param: &HashMap<String, String, S>,
@@ -264,7 +265,7 @@ fn parse_query_parameters<S: 'static + BuildHasher + Send>(
 }
 
 async fn get_request_parameters<S: 'static + BuildHasher + Send>(
-    param_schema: &ObjectSchema,
+    param_schema: ParameterSchema,
     parts: Parts,
     req_body: Body,
     uri_param: HashMap<String, String, S>,
@@ -305,7 +306,7 @@ async fn get_request_parameters<S: 'static + BuildHasher + Send>(
                 params[&k] = parse_simple_value(&v, prop_schema)?;
             }
         }
-        verify_json_object(&params, param_schema)?;
+        verify_json_object(&params, &param_schema)?;
         return Ok(params);
     } else {
         parse_query_parameters(param_schema, utf8_data, &parts, &uri_param)

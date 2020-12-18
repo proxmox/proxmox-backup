@@ -34,7 +34,7 @@ fn list_remotes(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, 
         .column(ColumnConfig::new("fingerprint"))
         .column(ColumnConfig::new("comment"));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }
@@ -64,7 +64,7 @@ fn show_remote(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
     };
 
     let options = default_table_format_options();
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

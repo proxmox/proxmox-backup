@@ -88,7 +88,7 @@ fn list_network_devices(mut param: Value, rpcenv: &mut dyn RpcEnvironment) -> Re
         .column(ColumnConfig::new("gateway").header("gateway").renderer(render_gateway))
         .column(ColumnConfig::new("bridge_ports").header("ports/slaves").renderer(render_ports));
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(Value::Null)
 }

@@ -106,7 +106,7 @@ async fn list_media(
         .column(ColumnConfig::new("media-set-uuid"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
 }
