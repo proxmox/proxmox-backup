@@ -20,6 +20,7 @@ fn tfa_update_auth(
     rpcenv: &mut dyn RpcEnvironment,
     userid: &Userid,
     password: Option<String>,
+    must_exist: bool,
 ) -> Result<(), Error> {
     let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
@@ -29,7 +30,7 @@ fn tfa_update_auth(
     }
 
     // After authentication, verify that the to-be-modified user actually exists:
-    if authid.user() != userid {
+    if must_exist && authid.user() != userid {
         let (config, _digest) = crate::config::user::config()?;
 
         if config.sections.get(userid.as_str()).is_none() {
@@ -238,7 +239,7 @@ fn delete_tfa(
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password)?;
+    tfa_update_auth(rpcenv, &userid, password, false)?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
@@ -424,7 +425,7 @@ fn add_tfa_entry(
     r#type: TfaType,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<TfaUpdateInfo, Error> {
-    tfa_update_auth(rpcenv, &userid, password)?;
+    tfa_update_auth(rpcenv, &userid, password, true)?;
 
     let need_description =
         move || description.ok_or_else(|| format_err!("'description' is required for new entries"));
@@ -547,7 +548,7 @@ fn update_tfa_entry(
     password: Option<String>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
-    tfa_update_auth(rpcenv, &userid, password)?;
+    tfa_update_auth(rpcenv, &userid, password, true)?;
 
     let _lock = crate::config::tfa::write_lock()?;
 
