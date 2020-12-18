@@ -167,12 +167,12 @@ impl TapeDriver for VirtualTapeHandle {
         Ok(()) // do nothing for now
     }
 
-    fn current_file_number(&mut self) -> Result<usize, Error> {
+    fn current_file_number(&mut self) -> Result<u64, Error> {
        let status = self.load_status()
             .map_err(|err| format_err!("current_file_number failed: {}", err.to_string()))?;
 
         match status.current_tape {
-            Some(VirtualTapeStatus { pos, .. }) => { Ok(pos)},
+            Some(VirtualTapeStatus { pos, .. }) => { Ok(pos as u64)},
             None => bail!("current_file_number failed: drive is empty (no tape loaded)."),
         }
     }

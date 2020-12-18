@@ -308,7 +308,7 @@ impl TapeDriver for LinuxTapeHandle {
         Ok(())
     }
 
-    fn current_file_number(&mut self) -> Result<usize, Error> {
+    fn current_file_number(&mut self) -> Result<u64, Error> {
         let mut status = mtget::default();
 
         self.mtnop()?;
@@ -320,7 +320,7 @@ impl TapeDriver for LinuxTapeHandle {
         if status.mt_fileno < 0 {
             bail!("current_file_number failed (got {})", status.mt_fileno);
         }
-        Ok(status.mt_fileno as usize)
+        Ok(status.mt_fileno as u64)
     }
 
     fn erase_media(&mut self, fast: bool) -> Result<(), Error> {

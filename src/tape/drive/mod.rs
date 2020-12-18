@@ -49,7 +49,7 @@ pub trait TapeDriver {
     fn move_to_eom(&mut self) -> Result<(), Error>;
 
     /// Current file number
-    fn current_file_number(&mut self) -> Result<usize, Error>;
+    fn current_file_number(&mut self) -> Result<u64, Error>;
 
     /// Completely erase the media
     fn erase_media(&mut self, fast: bool) -> Result<(), Error>;
