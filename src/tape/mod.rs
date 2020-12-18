@@ -45,6 +45,9 @@ pub use chunk_archive::*;
 mod snapshot_archive;
 pub use snapshot_archive::*;
 
+mod pool_writer;
+pub use pool_writer::*;
+
 /// Directory path where we store all tape status information
 pub const TAPE_STATUS_DIR: &str = "/var/lib/proxmox-backup/tape";
 
