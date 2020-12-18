@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, format_err, Error};
 
 use proxmox_backup::api2;
@@ -31,10 +33,40 @@ fn verify_object_schema(schema: &ObjectSchema) -> Result<(), Error> {
     Ok(())
 }
 
+// verify entries in an AllOf schema are actually object schemas and that they don't contain
+// duplicate keys
+fn verify_all_of_schema(schema: &AllOfSchema) -> Result<(), Error> {
+    for entry in schema.list {
+        match entry {
+            Schema::Object(obj) => verify_object_schema(obj)?,
+            _ => bail!("AllOf schema with a non-object schema entry!"),
+        }
+    }
+
+    let mut keys = HashSet::<&'static str>::new();
+    let mut dupes = String::new();
+    for property in schema.properties() {
+        if keys.insert(property.0) {
+            if dupes.is_empty() {
+                dupes.push_str(", ");
+            }
+            dupes.push_str(property.0);
+        }
+    }
+    if !dupes.is_empty() {
+        bail!("Duplicate keys found in AllOf schema: {}", dupes);
+    }
+
+    Ok(())
+}
+
 fn verify_schema(schema: &Schema) -> Result<(), Error> {
     match schema {
         Schema::Object(obj_schema) => {
             verify_object_schema(obj_schema)?;
+        }
+        Schema::AllOf(all_of_schema) => {
+            verify_all_of_schema(all_of_schema)?;
         }
         Schema::Array(arr_schema) => {
             verify_schema(arr_schema.items)?;
@@ -68,10 +100,18 @@ fn verify_api_method(
     info: &ApiMethod
 ) -> Result<(), Error>
 {
-    verify_object_schema(info.parameters)
-        .map_err(|err| format_err!("{} {} parameters: {}", method, path, err))?;
+    match &info.parameters {
+        ParameterSchema::Object(obj) => {
+            verify_object_schema(obj)
+                .map_err(|err| format_err!("{} {} parameters: {}", method, path, err))?;
+        }
+        ParameterSchema::AllOf(all_of) => {
+            verify_all_of_schema(all_of)
+                .map_err(|err| format_err!("{} {} parameters: {}", method, path, err))?;
+        }
+    }
 
-    verify_schema(info.returns)
+    verify_schema(info.returns.schema)
         .map_err(|err| format_err!("{} {} returns: {}", method, path, err))?;
 
     verify_access_permissions(info.access.permission)
