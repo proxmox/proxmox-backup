@@ -1,6 +1,5 @@
 use anyhow::{bail, format_err, Error};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use proxmox::api::{api, Permission, Router, RpcEnvironment};
 use proxmox::tools::tfa::totp::Totp;
@@ -45,7 +44,7 @@ fn tfa_update_auth(
 /// A TFA entry type.
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum TfaType {
+enum TfaType {
     /// A TOTP entry type.
     Totp,
     /// A U2F token entry.
@@ -65,7 +64,7 @@ pub enum TfaType {
 /// A TFA entry for a user.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct TypedTfaInfo {
+struct TypedTfaInfo {
     #[serde(rename = "type")]
     pub ty: TfaType,
 
@@ -145,7 +144,7 @@ fn tfa_id_iter(data: &TfaUserData) -> impl Iterator<Item = (TfaType, usize, &str
     },
 )]
 /// Add a TOTP secret to the user.
-pub fn list_user_tfa(userid: Userid) -> Result<Vec<TypedTfaInfo>, Error> {
+fn list_user_tfa(userid: Userid) -> Result<Vec<TypedTfaInfo>, Error> {
     let _lock = crate::config::tfa::read_lock()?;
 
     Ok(match crate::config::tfa::read()?.users.remove(&userid) {
@@ -170,7 +169,7 @@ pub fn list_user_tfa(userid: Userid) -> Result<Vec<TypedTfaInfo>, Error> {
     },
 )]
 /// Get a single TFA entry.
-pub fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
+fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
     let _lock = crate::config::tfa::read_lock()?;
 
     if let Some(user_data) = crate::config::tfa::read()?.users.remove(&userid) {
@@ -233,7 +232,7 @@ pub fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> 
     },
 )]
 /// Get a single TFA entry.
-pub fn delete_tfa(
+fn delete_tfa(
     userid: Userid,
     id: String,
     password: Option<String>,
@@ -283,7 +282,7 @@ pub fn delete_tfa(
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 /// Over the API we only provide the descriptions for TFA data.
-pub struct TfaUser {
+struct TfaUser {
     /// The user this entry belongs to.
     userid: Userid,
 
@@ -300,9 +299,14 @@ pub struct TfaUser {
         permission: &Permission::Anybody,
         description: "Returns all or just the logged-in user, depending on privileges.",
     },
+    returns: {
+        description: "The list tuples of user and TFA entries.",
+        type: Array,
+        items: { type: TfaUser }
+    },
 )]
 /// List user TFA configuration.
-pub fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
+fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<TfaUser>, Error> {
     let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
@@ -329,7 +333,7 @@ pub fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Error> {
         }
     }
 
-    Ok(serde_json::to_value(out)?)
+    Ok(out)
 }
 
 #[api(
@@ -535,7 +539,7 @@ fn add_tfa_entry(
     },
 )]
 /// Update user's TFA entry description.
-pub fn update_tfa_entry(
+fn update_tfa_entry(
     userid: Userid,
     id: String,
     description: Option<String>,
