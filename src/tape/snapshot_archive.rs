@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::path::{Path, PathBuf};
 
 use proxmox::{
     sys::error::SysError,
@@ -10,6 +9,7 @@ use proxmox::{
 
 use crate::tape::{
     TapeWrite,
+    SnapshotReader,
     file_formats::{
         PROXMOX_TAPE_BLOCK_SIZE,
         PROXMOX_BACKUP_SNAPSHOT_ARCHIVE_MAGIC_1_0,
@@ -27,10 +27,11 @@ use crate::tape::{
 /// backup task must rewrite the whole file on the next media).
 pub fn tape_write_snapshot_archive<'a>(
     writer: &mut (dyn TapeWrite + 'a),
-    snapshot: &str,
-    base_path: &Path,
-    file_list: &[String],
+    snapshot_reader: &SnapshotReader,
 ) -> Result<Option<Uuid>, std::io::Error> {
+
+    let snapshot = snapshot_reader.snapshot().to_string();
+    let file_list = snapshot_reader.file_list();
 
     let header_data = snapshot.as_bytes().to_vec();
 
@@ -52,17 +53,16 @@ pub fn tape_write_snapshot_archive<'a>(
         let mut encoder = pxar::encoder::sync::Encoder::new(PxarTapeWriter::new(writer), &root_metadata)?;
 
         for filename in file_list.iter() {
-            let mut path = PathBuf::from(base_path);
-            path.push(filename);
 
-            let mut file = std::fs::File::open(&path)?;
+            let mut file = snapshot_reader.open_file(filename)
+                .map_err(|err| proxmox::io_format_err!("open file '{}' failed - {}", filename, err))?;
             let metadata = file.metadata()?;
             let file_size = metadata.len();
 
             let metadata: pxar::Metadata = metadata.into();
 
             if !metadata.is_regular_file() {
-                proxmox::io_bail!("path {:?} is not a regular file", path);
+                proxmox::io_bail!("file '{}' is not a regular file", filename);
             }
 
             let mut remaining = file_size;
@@ -70,14 +70,14 @@ pub fn tape_write_snapshot_archive<'a>(
             while remaining != 0 {
                 let got = file.read(&mut file_copy_buffer[..])?;
                 if got as u64 > remaining {
-                    proxmox::io_bail!("file {:?} changed while reading", path);
+                    proxmox::io_bail!("file '{}' changed while reading", filename);
                 }
                 out.write_all(&file_copy_buffer[..got])?;
                 remaining -= got as u64;
 
             }
             if remaining > 0 {
-                proxmox::io_bail!("file {:?} shrunk while reading", path);
+                proxmox::io_bail!("file '{}' shrunk while reading", filename);
             }
         }
         encoder.finish()?;

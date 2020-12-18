@@ -25,6 +25,7 @@ use crate::{
 ///
 /// This make it easy to iterate over all used chunks and files.
 pub struct SnapshotReader {
+    snapshot: BackupDir,
     file_list: Vec<String>,
     locked_dir: Dir,
 }
@@ -59,7 +60,12 @@ impl SnapshotReader {
             file_list.push(CLIENT_LOG_BLOB_NAME.to_string());
         }
 
-        Ok(Self { file_list, locked_dir })
+        Ok(Self { snapshot, file_list, locked_dir })
+    }
+
+    /// Return the snapshot directory
+    pub fn snapshot(&self) -> &BackupDir {
+        &self.snapshot
     }
 
     /// Returns the list of files the snapshot refers to.
