@@ -107,26 +107,26 @@ impl webauthn_rs::WebauthnConfig for WebauthnConfig {
     }
 }
 
-/// Heper to get a u2f instance from a u2f config, or `None` if there isn't one configured.
+/// Helper to get a u2f instance from a u2f config, or `None` if there isn't one configured.
 fn get_u2f(u2f: &Option<U2fConfig>) -> Option<u2f::U2f> {
     u2f.as_ref()
         .map(|cfg| u2f::U2f::new(cfg.appid.clone(), cfg.appid.clone()))
 }
 
-/// Heper to get a u2f instance from a u2f config.
+/// Helper to get a u2f instance from a u2f config.
 ///
 /// This is outside of `TfaConfig` to not borrow its `&self`.
 fn check_u2f(u2f: &Option<U2fConfig>) -> Result<u2f::U2f, Error> {
     get_u2f(u2f).ok_or_else(|| format_err!("no u2f configuration available"))
 }
 
-/// Heper to get a `Webauthn` instance from a `WebauthnConfig`, or `None` if there isn't one
+/// Helper to get a `Webauthn` instance from a `WebauthnConfig`, or `None` if there isn't one
 /// configured.
 fn get_webauthn(waconfig: &Option<WebauthnConfig>) -> Option<Webauthn<WebauthnConfig>> {
     waconfig.clone().map(Webauthn::new)
 }
 
-/// Heper to get a u2f instance from a u2f config.
+/// Helper to get a u2f instance from a u2f config.
 ///
 /// This is outside of `TfaConfig` to not borrow its `&self`.
 fn check_webauthn(waconfig: &Option<WebauthnConfig>) -> Result<Webauthn<WebauthnConfig>, Error> {
