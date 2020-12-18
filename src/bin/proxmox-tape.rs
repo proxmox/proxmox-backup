@@ -27,6 +27,7 @@ use proxmox_backup::{
     api2::{
         self,
         types::{
+            DATASTORE_SCHEMA,
             DRIVE_NAME_SCHEMA,
             MEDIA_LABEL_SCHEMA,
             MEDIA_POOL_NAME_SCHEMA,
@@ -34,6 +35,7 @@ use proxmox_backup::{
     },
     config::{
         self,
+        datastore::complete_datastore_name,
         drive::complete_drive_name,
         media_pool::complete_pool_name,
     },
@@ -510,9 +512,46 @@ fn debug_scan(param: Value) -> Result<(), Error> {
     }
 }
 
+#[api(
+   input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            pool: {
+                schema: MEDIA_POOL_NAME_SCHEMA,
+            },
+        },
+    },
+)]
+/// Backup datastore to tape media pool
+async fn backup(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let info = &api2::tape::backup::API_METHOD_BACKUP;
+
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(())
+}
+
 fn main() {
 
     let cmd_def = CliCommandMap::new()
+        .insert(
+            "backup",
+            CliCommand::new(&API_METHOD_BACKUP)
+                .arg_param(&["store", "pool"])
+                .completion_cb("store", complete_datastore_name)
+                .completion_cb("pool", complete_pool_name)
+        )
         .insert(
             "barcode-label",
             CliCommand::new(&API_METHOD_BARCODE_LABEL_MEDIA)

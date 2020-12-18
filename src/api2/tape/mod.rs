@@ -5,8 +5,10 @@ use proxmox::list_subdirs_api_method;
 pub mod drive;
 pub mod changer;
 pub mod media;
+pub mod backup;
 
 pub const SUBDIRS: SubdirMap = &[
+    ("backup", &backup::ROUTER),
     ("changer", &changer::ROUTER),
     ("drive", &drive::ROUTER),
     ("media", &media::ROUTER),
