@@ -193,6 +193,17 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
+    fn mtfsf(&mut self, count: i32) -> Result<(), Error> {
+
+        let cmd = mtop { mt_op: MTCmd::MTFSF, mt_count: count, };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("tape fsf {} failed - {}", count, err))?;
+
+        Ok(())
+    }
+
     /// Set tape compression feature
     pub fn set_compression(&self, on: bool) -> Result<(), Error> {
 
@@ -353,6 +364,12 @@ impl TapeDriver for LinuxTapeHandle {
     }
 
     fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
+
+        let file_number = self.current_file_number()?;
+        if file_number != 1 {
+            self.rewind()?;
+            self.mtfsf(1)?; // skip label
+        }
 
         let file_number = self.current_file_number()?;
         if file_number != 1 {
