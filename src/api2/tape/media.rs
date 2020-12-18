@@ -73,7 +73,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
 
         let config: MediaPoolConfig = config.lookup("pool", pool_name)?;
 
-        let pool = MediaPool::with_config(pool_name, status_path, &config)?;
+        let pool = MediaPool::with_config(status_path, &config)?;
 
         let current_time = proxmox::tools::time::epoch_i64();
 

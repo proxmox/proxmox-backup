@@ -82,7 +82,6 @@ impl MediaPool {
 
     /// Creates a new instance using the media pool configuration
     pub fn with_config(
-        name: &str,
         state_path: &Path,
         config: &MediaPoolConfig,
     ) -> Result<Self, Error> {
@@ -91,7 +90,7 @@ impl MediaPool {
 
         let retention = config.retention.clone().unwrap_or(String::from("keep")).parse()?;
 
-        MediaPool::new(name, state_path, allocation, retention)
+        MediaPool::new(&config.name, state_path, allocation, retention)
     }
 
     /// Returns the pool name
