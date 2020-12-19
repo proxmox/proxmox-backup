@@ -43,6 +43,17 @@ Tape changer support is done using the Linux 'mtx' command line
 tool. So any changer devive supported by that tool work work.
 
 
+Drive Performance
+~~~~~~~~~~~~~~~~~
+
+Current LTO8 tapes provide read/write speeds up to 360MB/s. Please
+note that it still takes a minimum of 9 hours to completely write or
+read a single tape (even at maximum speed).
+
+The only way to speed up that data rate is to use more than one
+drive. That way you can run several backup jobs in parallel, or run
+restore jobs while the other dives are used for backups.
+
 
 Terminology
 -----------
@@ -88,3 +99,15 @@ Terminology
    (a robot).
 
    People als call this 'autoloader', 'tape robot' or 'tape jukebox'.
+
+
+Tape Quickstart
+---------------
+
+1. Configure your tape hardware (drives and changers)
+
+2. Configure one or more media pools
+
+3. Label your tape cartridges.
+
+4. Start your first tape backup job ...
