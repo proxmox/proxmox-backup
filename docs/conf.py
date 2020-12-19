@@ -172,6 +172,7 @@ html_theme_options = {
         'Proxmox Homepage': 'https://proxmox.com',
         'PDF': 'proxmox-backup.pdf',
         'Prune Simulator' : 'prune-simulator/index.html',
+        'LTO Barcode Generator' : 'lto-barcode/index.html',
     },
 
     'sidebar_width': '320px',

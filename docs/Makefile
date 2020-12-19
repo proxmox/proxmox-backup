@@ -20,6 +20,19 @@ PRUNE_SIMULATOR_FILES := 					\
 	prune-simulator/clear-trigger.png			\
 	prune-simulator/prune-simulator.js
 
+LTO_BARCODE_FILES :=						\
+	lto-barcode/index.html					\
+	lto-barcode/code39.js					\
+	lto-barcode/prefix-field.js				\
+	lto-barcode/label-style.js				\
+	lto-barcode/tape-type.js				\
+	lto-barcode/paper-size.js				\
+	lto-barcode/page-layout.js				\
+	lto-barcode/page-calibration.js				\
+	lto-barcode/label-list.js				\
+	lto-barcode/label-setup.js				\
+	lto-barcode/lto-barcode.js
+
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -79,11 +92,13 @@ onlinehelpinfo:
 	@echo "Build finished. OnlineHelpInfo.js is in $(BUILDDIR)/scanrefs."
 
 .PHONY: html
-html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES}
+html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	install -m 0644 custom.js custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	install -dm 0755 $(BUILDDIR)/html/prune-simulator
 	install -m 0644 ${PRUNE_SIMULATOR_FILES} $(BUILDDIR)/html/prune-simulator
+	install -dm 0755 $(BUILDDIR)/html/lto-barcode
+	install -m 0644 ${LTO_BARCODE_FILES} $(BUILDDIR)/html/lto-barcode
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
