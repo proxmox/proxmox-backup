@@ -74,13 +74,16 @@ Terminology
 
 .. _LTO Ultrium Cartridge Label Specification: https://www.ibm.com/support/pages/ibm-lto-ultrium-cartridge-label-specification
 
+.. _LTO Barcode Generator: lto-barcode/index.html
+
 :Barcodes: are a special form of tape labels, which are electronically
    readable. Most LTO tape robots use an 8 character string encoded as
    `Code 39`_, as definded in the `LTO Ultrium Cartridge Label
    Specification`_.
 
    You can either bye such barcode labels from your cartidge vendor,
-   or print them yourself.
+   or print them yourself. You can use our `LTO Barcode Generator`_ App
+   for that.
 
 .. Note:: Physical labels and the associated adhesive shall have an
    environmental performance to match or exceed the environmental
@@ -175,6 +178,38 @@ Administration
 
 Label Tapes
 ~~~~~~~~~~~
+
+By default, tape cartidges all looks the same, so you need to put a
+label on them for unique identification. So first, put a sticky paper
+label with some human readable text on the cartridge.
+
+If you use a `Tape Library`_, you should use an 8 character string
+encoded as `Code 39`_, as definded in the `LTO Ultrium Cartridge Label
+Specification`_. You can either bye such barcode labels from your
+cartidge vendor, or print them yourself. You can use our `LTO Barcode
+Generator`_ App for that.
+
+Next, you need to write that same label text to the tape, so that the
+software can uniquely identify the tape too.
+
+For a standalone drive, manually insert the new tape cartidge into the
+drive and run:
+
+ # proxmox-tape label --changer-id <label-text> --drive <drive-name>
+
+.. Note:: For safety reasons, this command fails if the tape contain
+   any data. If you want to overwrite it anways, erase the tape first.
+
+You can verify success by reading back the label:
+
+ # proxmox-tape read-label --drive <drive-name>
+
+If you have a tape library, apply the sticky barcode label to the tape
+cartridges first. Then load those empty tapes into the library. You
+can then label all unlabeled tapes with a single command:
+
+ # proxmox-tape barcode-label --drive <drive-name>
+
 
 Run Tape Backups
 ~~~~~~~~~~~~~~~~
