@@ -54,6 +54,13 @@ The only way to speed up that data rate is to use more than one
 drive. That way you can run several backup jobs in parallel, or run
 restore jobs while the other dives are used for backups.
 
+Also consider that you need to read data first from your datastore
+(disk). But a single spinning disk is unable to deliver data at this
+rate. We meassured a maximum rate about 100MB/s in practive, so it
+takes 33 hours to read 12TB to fill up a LTO8 tape. So if you want to
+run your tape at full speed, please make sure that the source
+datastore is able to delive that performance (use SSDs).
+
 
 Terminology
 -----------
@@ -111,3 +118,72 @@ Tape Quickstart
 3. Label your tape cartridges.
 
 4. Start your first tape backup job ...
+
+
+Configuration
+-------------
+
+Please note that you can configure anything using the graphical user
+interface or the command line interface. Both methods results in the
+same configuration.
+
+
+Tape changers
+~~~~~~~~~~~~~
+
+Tape changers (robots) are part of a `Tape Library`_. You can skip
+this step if you are using a standalone drive.
+
+Linux is able to auto detect those devices, and you can get a list
+of available devices using:
+
+ # proxmox-tape changer scan
+
+In order to use that device with Proxmox, you need to create a
+configuration entry:
+
+ # proxmox-tape changer create sl3 --path /dev/tape/by-id/scsi-CJ0JBE0059
+
+Where ``sl3`` is an arbitrary name you can choose.
+
+.. Note:: Please use stable device names from inside
+   ``/dev/tape/by-id/``. Names like ``/dev/sg0`` may point to a
+   different device after reboot, and that is not what you want.
+
+You can show the final configuration with:
+
+ # proxmox-tape changer list
+
+The Vendor, Model and Serial number are auto detected, but only shown
+if the device is online.
+
+
+Tape drives
+~~~~~~~~~~~
+
+
+Media Pools
+~~~~~~~~~~~
+
+
+Tape Jobs
+~~~~~~~~~
+
+
+Administration
+--------------
+
+Label Tapes
+~~~~~~~~~~~
+
+Run Tape Backups
+~~~~~~~~~~~~~~~~
+
+Restore from Tape
+~~~~~~~~~~~~~~~~~
+
+Update Inventory
+~~~~~~~~~~~~~~~~
+
+Restore Catalog
+~~~~~~~~~~~~~~~
