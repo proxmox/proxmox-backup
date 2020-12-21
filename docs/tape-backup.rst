@@ -2,15 +2,24 @@ Tape Backup
 ===========
 
 Our tape backup solution provides a easy way to store datastore
-contents on a tape. This increases data safety because you get:
+contents to a tape. This increases data safety because you get:
 
 - an additional copy of the data
 - to a different media type (tape)
 - to an additional location (you can move tape offsite)
 
-Tape backups do not provide random access to the stored
-data. Instead, you need to restore the data to disk before you can
-access it again.
+Statistics show that 95% of all restore jobs restores the last
+backup. Restore requests further declines the older the data gets.
+Considering that, tape backup may also help to reduce disk usage,
+because you can safely remove data from disk once archived on tape.
+This is especially true if you need to keep data for several years.
+
+Tape backups do not provide random access to the stored data. Instead,
+you need to restore the data to disk before you can access it
+again. Also, if you store your tapes offsite (using some kind of tape
+vaulting service), you need to bring them onsite before you can do any
+restore. So please consider that restores from tapes can take much
+longer than restores from disk.
 
 
 Tape Technology Primer
@@ -20,7 +29,16 @@ Tape Technology Primer
 
 As of 2021, the only broadly available tape technology standard is
 `Linear Tape Open`_, and different vendors offers LTO Ultrium tape
-drives and autoloaders.
+drives, autoloaders and LTO tape cartridges.
+
+Of cause, there are a few vendor offering proprietary drives with
+slight advantages in performance and capacity, but they have
+significat disadvantages:
+
+- proprietary (single vendor)
+- a much higher purchase cost
+
+So we currently do no test such drives.
 
 In general, LTO tapes offer the following advantages:
 
@@ -30,6 +48,10 @@ In general, LTO tapes offer the following advantages:
 - Cold Media
 - Movable (storable inside vault)
 - Multiple vendors (for both media and drives)
+
+Please note that `Proxmox Backup Server`_ already stores compressed
+data, so we do not need/use the tape compression feature. Same applies
+to encryption.
 
 
 Supported Hardware
