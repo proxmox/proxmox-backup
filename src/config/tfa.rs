@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
+use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -463,8 +464,6 @@ impl TfaUserChallengeData {
     /// Load the user's current challenges with the intent to create a challenge (create the file
     /// if it does not exist), and keep a lock on the file.
     fn open(userid: &Userid) -> Result<Self, Error> {
-        use std::os::unix::fs::OpenOptionsExt;
-
         crate::tools::create_run_dir()?;
         let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
         proxmox::tools::fs::create_path(CHALLENGE_DATA_PATH, Some(options.clone()), Some(options))
@@ -518,7 +517,13 @@ impl TfaUserChallengeData {
     /// `open` without creating the file if it doesn't exist, to finish WA authentications.
     fn open_no_create(userid: &Userid) -> Result<Option<Self>, Error> {
         let path = Self::challenge_data_path(userid);
-        let mut file = match File::open(&path) {
+        let mut file = match std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(&path)
+        {
             Ok(file) => file,
             Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(None),
             Err(err) => return Err(err.into()),
@@ -971,7 +976,8 @@ impl TfaUserData {
         }
 
         // we don't allow re-trying the challenge, so make the removal persistent now:
-        data.save()?;
+        data.save()
+            .map_err(|err| format_err!("failed to save challenge file: {}", err))?;
 
         match webauthn.authenticate_credential(response, challenge.state)? {
             Some((_cred, _counter)) => Ok(()),
