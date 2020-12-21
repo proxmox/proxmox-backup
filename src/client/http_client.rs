@@ -18,6 +18,7 @@ use proxmox::{
     api::error::HttpError,
     sys::linux::tty,
     tools::fs::{file_get_json, replace_file, CreateOptions},
+    tools::future::TimeoutFutureExt,
 };
 
 use super::pipe_to_stream::PipeToSendStream;
@@ -28,6 +29,10 @@ use crate::tools::{
     DEFAULT_ENCODE_SET,
     http::HttpsConnector,
 };
+
+/// Timeout used for several HTTP operations that are expected to finish quickly but may block in
+/// certain error conditions.
+const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Clone)]
 pub struct AuthInfo {
@@ -557,7 +562,10 @@ impl HttpClient {
         let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
         req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
 
-        let resp = client.request(req).await?;
+        let resp = client
+            .request(req)
+            .or_timeout_err(HTTP_TIMEOUT, format_err!("http download request timed out"))
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             HttpClient::api_response(resp)
@@ -624,7 +632,10 @@ impl HttpClient {
 
         req.headers_mut().insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
-        let resp = client.request(req).await?;
+        let resp = client
+            .request(req)
+            .or_timeout_err(HTTP_TIMEOUT, format_err!("http upgrade request timed out"))
+            .await?;
         let status = resp.status();
 
         if status != http::StatusCode::SWITCHING_PROTOCOLS {
@@ -705,7 +716,7 @@ impl HttpClient {
     ) -> Result<Value, Error> {
 
         client.request(req)
-            .map_err(Error::from)
+            .or_timeout_err(HTTP_TIMEOUT, format_err!("http request timed out"))
             .and_then(Self::api_response)
             .await
     }
