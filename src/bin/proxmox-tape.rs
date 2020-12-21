@@ -513,6 +513,48 @@ fn debug_scan(param: Value) -> Result<(), Error> {
 }
 
 #[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+             "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+             },
+        },
+    },
+)]
+/// Read Medium auxiliary memory attributes (Cartridge Memory)
+fn mam_attributes(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let output_format = get_output_format(&param);
+    let info = &api2::tape::drive::API_METHOD_MAM_ATTRIBUTES;
+
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .column(ColumnConfig::new("id"))
+        .column(ColumnConfig::new("name"))
+        .column(ColumnConfig::new("value"))
+        ;
+
+    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    Ok(())
+}
+
+#[api(
    input: {
         properties: {
             store: {
@@ -591,6 +633,11 @@ fn main() {
         .insert(
             "read-label",
             CliCommand::new(&API_METHOD_READ_LABEL)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "mam",
+            CliCommand::new(&API_METHOD_MAM_ATTRIBUTES)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

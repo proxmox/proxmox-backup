@@ -99,3 +99,15 @@ pub struct DriveListEntry {
     #[serde(skip_serializing_if="Option::is_none")]
     pub serial: Option<String>,
 }
+
+#[api()]
+#[derive(Serialize,Deserialize)]
+/// Medium auxiliary memory attributes (MAM)
+pub struct MamAttribute {
+    /// Attribute id
+    pub id: u16,
+    /// Attribute name
+    pub name: String,
+    /// Attribute value
+    pub value: String,
+}

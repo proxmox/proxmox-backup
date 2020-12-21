@@ -34,6 +34,7 @@ use crate::{
         TapeDeviceInfo,
         MediaIdFlat,
         LabelUuidMap,
+        MamAttribute,
     },
     server::WorkerTask,
     tape::{
@@ -46,6 +47,7 @@ use crate::{
         mtx_load,
         mtx_unload,
         linux_tape_device_list,
+        read_mam_attributes,
         open_drive,
         media_changer,
         update_changer_online_status,
@@ -768,6 +770,32 @@ fn barcode_label_media_worker(
     Ok(())
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "A List of medium auxiliary memory attributes.",
+        type: Array,
+        items: {
+            type: MamAttribute,
+        },
+    },
+)]
+/// Read Medium auxiliary memory attributes (Cartridge Memory)
+pub fn mam_attributes(drive: String) -> Result<Vec<MamAttribute>, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+
+    read_mam_attributes(&drive_config.path)
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
@@ -800,6 +828,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "load-slot",
         &Router::new()
             .put(&API_METHOD_LOAD_SLOT)
+    ),
+    (
+        "mam-attributes",
+        &Router::new()
+            .put(&API_METHOD_MAM_ATTRIBUTES)
     ),
     (
         "read-label",

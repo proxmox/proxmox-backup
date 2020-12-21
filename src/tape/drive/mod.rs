@@ -2,6 +2,9 @@ mod virtual_tape;
 mod linux_mtio;
 mod linux_tape;
 
+mod mam;
+pub use mam::*;
+
 mod linux_list_drives;
 pub use linux_list_drives::*;
 
