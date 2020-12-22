@@ -550,7 +550,7 @@ fn mam_attributes(
         .column(ColumnConfig::new("value"))
         ;
 
-    format_and_print_result_full(&mut data, info.returns, &output_format, &options);
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
     Ok(())
 }
 
