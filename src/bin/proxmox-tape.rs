@@ -526,8 +526,8 @@ fn debug_scan(param: Value) -> Result<(), Error> {
         },
     },
 )]
-/// Read Medium auxiliary memory attributes (Cartridge Memory)
-fn mam_attributes(
+/// Read Cartridge Memory (Medium auxiliary memory attributes)
+fn cartridge_memory(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
@@ -537,7 +537,7 @@ fn mam_attributes(
     param["drive"] = lookup_drive_name(&param, &config)?.into();
 
     let output_format = get_output_format(&param);
-    let info = &api2::tape::drive::API_METHOD_MAM_ATTRIBUTES;
+    let info = &api2::tape::drive::API_METHOD_CARTRIDGE_MEMORY;
 
     let mut data = match info.handler {
         ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
@@ -636,8 +636,8 @@ fn main() {
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
-            "mam",
-            CliCommand::new(&API_METHOD_MAM_ATTRIBUTES)
+            "cartridge-memory",
+            CliCommand::new(&API_METHOD_CARTRIDGE_MEMORY)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

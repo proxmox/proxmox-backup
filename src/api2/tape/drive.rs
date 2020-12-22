@@ -786,8 +786,8 @@ fn barcode_label_media_worker(
         },
     },
 )]
-/// Read Medium auxiliary memory attributes (Cartridge Memory)
-pub fn mam_attributes(drive: String) -> Result<Vec<MamAttribute>, Error> {
+/// Read Cartridge Memory (Medium auxiliary memory attributes)
+pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
@@ -830,9 +830,9 @@ pub const SUBDIRS: SubdirMap = &sorted!([
             .put(&API_METHOD_LOAD_SLOT)
     ),
     (
-        "mam-attributes",
+        "cartridge-memory",
         &Router::new()
-            .put(&API_METHOD_MAM_ATTRIBUTES)
+            .put(&API_METHOD_CARTRIDGE_MEMORY)
     ),
     (
         "read-label",
