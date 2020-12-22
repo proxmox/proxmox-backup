@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 use serde_json::Value;
 
 use proxmox::{
@@ -35,6 +35,7 @@ use crate::{
         MediaIdFlat,
         LabelUuidMap,
         MamAttribute,
+        LinuxDriveStatusFlat,
     },
     server::WorkerTask,
     tape::{
@@ -51,7 +52,7 @@ use crate::{
         open_drive,
         media_changer,
         update_changer_online_status,
-         file_formats::{
+        file_formats::{
             MediaLabel,
             MediaSetLabel,
         },
@@ -796,6 +797,33 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
     read_mam_attributes(&drive_config.path)
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        type: LinuxDriveStatusFlat,
+    },
+)]
+/// Get drive status
+pub fn status(drive: String) -> Result<LinuxDriveStatusFlat, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+
+    let handle = drive_config.open()
+        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
+
+    let drive_status = handle.get_drive_status()?;
+
+    Ok(drive_status.into())
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
@@ -848,6 +876,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "scan",
         &Router::new()
             .get(&API_METHOD_SCAN_DRIVES)
+    ),
+    (
+        "status",
+        &Router::new()
+            .get(&API_METHOD_STATUS)
     ),
     (
         "unload",

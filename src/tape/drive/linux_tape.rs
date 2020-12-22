@@ -9,6 +9,10 @@ use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use proxmox::sys::error::SysResult;
 
 use crate::{
+    api2::types::{
+        TapeDensity,
+        LinuxDriveStatusFlat,
+    },
     tape::{
         TapeRead,
         TapeWrite,
@@ -31,40 +35,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum TapeDensity {
-    None, // no tape loaded
-    LTO2,
-    LTO3,
-    LTO4,
-    LTO5,
-    LTO6,
-    LTO7,
-    LTO7M8,
-    LTO8,
-}
-
-impl TryFrom<u8> for TapeDensity {
-    type Error = Error;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let density = match value {
-            0x00 => TapeDensity::None,
-            0x42 => TapeDensity::LTO2,
-            0x44 => TapeDensity::LTO3,
-            0x46 => TapeDensity::LTO4,
-            0x58 => TapeDensity::LTO5,
-            0x5a => TapeDensity::LTO6,
-            0x5c => TapeDensity::LTO7,
-            0x5d => TapeDensity::LTO7M8,
-            0x5e => TapeDensity::LTO8,
-            _ => bail!("unknown tape density code 0x{:02x}", value),
-        };
-        Ok(density)
-    }
-}
-
-#[derive(Debug)]
-pub struct DriveStatus {
+pub struct LinuxDriveStatus {
     pub blocksize: u32,
     pub density: TapeDensity,
     pub status: GMTStatusFlags,
@@ -72,10 +43,22 @@ pub struct DriveStatus {
     pub block_number: i32,
 }
 
-impl DriveStatus {
+impl LinuxDriveStatus {
     pub fn tape_is_ready(&self) -> bool {
         self.status.contains(GMTStatusFlags::ONLINE) &&
             !self.status.contains(GMTStatusFlags::DRIVE_OPEN)
+    }
+}
+
+impl From<LinuxDriveStatus> for LinuxDriveStatusFlat {
+    fn from(status: LinuxDriveStatus) -> Self {
+         LinuxDriveStatusFlat {
+             blocksize: status.blocksize,
+             density: status.density,
+             status: format!("{:?}", status.status),
+             file_number: status.file_number,
+             block_number: status.block_number,
+         }
     }
 }
 
@@ -242,7 +225,7 @@ impl LinuxTapeHandle {
     }
 
     /// Get Tape configuration with MTIOCGET ioctl
-    pub fn get_drive_status(&self) -> Result<DriveStatus, Error> {
+    pub fn get_drive_status(&self) -> Result<LinuxDriveStatus, Error> {
 
         self.mtnop()?;
 
@@ -268,7 +251,7 @@ impl LinuxTapeHandle {
 
         let density = TapeDensity::try_from(density)?;
 
-        Ok(DriveStatus {
+        Ok(LinuxDriveStatus {
             blocksize,
             density,
             status: gmt,

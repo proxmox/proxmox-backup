@@ -1,6 +1,6 @@
 mod virtual_tape;
 mod linux_mtio;
-mod linux_tape;
+pub mod linux_tape;
 
 mod mam;
 pub use mam::*;
