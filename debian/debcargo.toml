@@ -29,6 +29,7 @@ build_depends = [
   "texlive-xetex <!nodoc>",
   "xindy <!nodoc>",
 ]
+
 build_depends_excludes = [
   "debhelper (>=11)",
 ]
@@ -39,4 +40,5 @@ depends = [
   "libfuse3-dev",
   "libsystemd-dev",
   "uuid-dev",
+  "libsgutils2-dev",
 ]
