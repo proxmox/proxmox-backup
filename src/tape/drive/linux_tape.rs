@@ -12,10 +12,12 @@ use crate::{
     api2::types::{
         TapeDensity,
         LinuxDriveStatusFlat,
+        MamAttribute,
     },
     tape::{
         TapeRead,
         TapeWrite,
+        read_mam_attributes,
         drive::{
             LinuxTapeDrive,
             TapeDriver,
@@ -260,6 +262,10 @@ impl LinuxTapeHandle {
         })
     }
 
+    /// Read Cartridge Memory (MAM Attributes)
+    pub fn cartridge_memory(&mut self) -> Result<Vec<MamAttribute>, Error> {
+        read_mam_attributes(&mut self.file)
+    }
 }
 
 

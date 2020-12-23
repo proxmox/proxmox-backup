@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::os::unix::io::AsRawFd;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
 
 use proxmox::tools::io::ReadExt;
 
-use crate::api2::types::MamAttribute;
+use crate::{
+    api2::types::MamAttribute,
+    tape::sgutils2::SgRaw,
+};
 
 // Read Medium auxiliary memory attributes (MAM)
 // see IBM SCSI reference: https://www-01.ibm.com/support/docview.wss?uid=ssg1S7003556&aid=1
@@ -92,28 +96,29 @@ lazy_static::lazy_static!{
     };
 }
 
-fn read_tape_mam(path: &str) -> Result<Vec<u8>, Error> {
+fn read_tape_mam<F: AsRawFd>(file: &mut F) -> Result<Vec<u8>, Error> {
 
-    let mut command = std::process::Command::new("sg_raw");
-    command.args(&[
-        "-r", "32k",
-        "-o", "-",
-        path,
-        "8c", "00", "00", "00", "00", "00", "00", "00",
-        "00", "00", // first attribute
-        "00", "00", "8f", "ff", // alloc len
-        "00", "00",
-    ]);
+    let mut sg_raw = SgRaw::new(file, 32*1024)?;
 
-    let output = command.output()
-        .map_err(|err| format_err!("failed to execute {:?} - {}", command, err))?;
+    let mut cmd = Vec::new();
+    cmd.extend(&[0x8c, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
+    cmd.extend(&[0u8, 0u8]); // first attribute
+    cmd.extend(&[0u8, 0u8, 0x8f, 0xff]); // alloc len
+    cmd.extend(&[0u8, 0u8]);
 
-    Ok(output.stdout)
+    sg_raw.do_command(&cmd)
+        .map_err(|err| format_err!("read cartidge memory failed - {}", err))
+        .map(|v| v.to_vec())
 }
 
-pub fn read_mam_attributes(path: &str) -> Result<Vec<MamAttribute>, Error> {
+pub fn read_mam_attributes<F: AsRawFd>(file: &mut F) -> Result<Vec<MamAttribute>, Error> {
 
-    let data = read_tape_mam(path)?;
+    let data = read_tape_mam(file)?;
+
+    decode_mam_attributes(&data)
+}
+
+fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
 
     let mut reader = &data[..];
 

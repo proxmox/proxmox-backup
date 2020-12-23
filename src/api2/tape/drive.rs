@@ -48,7 +48,6 @@ use crate::{
         mtx_load,
         mtx_unload,
         linux_tape_device_list,
-        read_mam_attributes,
         open_drive,
         media_changer,
         update_changer_online_status,
@@ -793,8 +792,10 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
     let (config, _digest) = config::drive::config()?;
 
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
+    let mut handle = drive_config.open()
+        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
 
-    read_mam_attributes(&drive_config.path)
+    handle.cartridge_memory()
 }
 
 #[api(
