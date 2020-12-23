@@ -11,7 +11,6 @@ use proxmox::sys::error::SysResult;
 use crate::{
     api2::types::{
         TapeDensity,
-        LinuxDriveStatusFlat,
         MamAttribute,
     },
     tape::{
@@ -49,18 +48,6 @@ impl LinuxDriveStatus {
     pub fn tape_is_ready(&self) -> bool {
         self.status.contains(GMTStatusFlags::ONLINE) &&
             !self.status.contains(GMTStatusFlags::DRIVE_OPEN)
-    }
-}
-
-impl From<LinuxDriveStatus> for LinuxDriveStatusFlat {
-    fn from(status: LinuxDriveStatus) -> Self {
-         LinuxDriveStatusFlat {
-             blocksize: status.blocksize,
-             density: status.density,
-             status: format!("{:?}", status.status),
-             file_number: status.file_number,
-             block_number: status.block_number,
-         }
     }
 }
 

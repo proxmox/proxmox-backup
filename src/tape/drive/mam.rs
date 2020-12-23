@@ -178,3 +178,46 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
     }
     Ok(list)
 }
+
+/// Media Usage Information from Cartridge Memory
+pub struct MediaUsageInfo {
+    pub manufactured: i64,
+    pub bytes_read: u64,
+    pub bytes_written: u64,
+}
+
+/// Extract Media Usage Information from Cartridge Memory
+pub fn mam_extract_media_usage(mam: &[MamAttribute]) -> Result<MediaUsageInfo, Error> {
+
+   let manufactured: i64 = match mam.iter().find(|v| v.id == 0x04_06).map(|v| v.value.clone()) {
+        Some(date_str) => {
+            if date_str.len() != 8 {
+                bail!("unable to parse 'Medium Manufacture Date' - wrong length");
+            }
+            let year: i32 = date_str[..4].parse()?;
+            let mon: i32 = date_str[4..6].parse()?;
+            let mday: i32 = date_str[6..8].parse()?;
+
+            use proxmox::tools::time::TmEditor;
+            let mut t = TmEditor::new(true);
+            t.set_year(year)?;
+            t.set_mon(mon)?;
+            t.set_mday(mday)?;
+
+            t.into_epoch()?
+        }
+        None => bail!("unable to read MAM 'Medium Manufacture Date'"),
+    };
+
+    let bytes_written: u64 = match mam.iter().find(|v| v.id == 0x02_20).map(|v| v.value.clone()) {
+        Some(read_str) => read_str.parse::<u64>()? * 1024*1024,
+        None => bail!("unable to read MAM 'Total MBytes Written In Medium Life'"),
+    };
+
+    let bytes_read: u64 = match mam.iter().find(|v| v.id == 0x02_21).map(|v| v.value.clone()) {
+        Some(read_str) => read_str.parse::<u64>()? * 1024*1024,
+        None => bail!("unable to read MAM 'Total MBytes Read In Medium Life'"),
+    };
+
+    Ok(MediaUsageInfo { manufactured, bytes_written, bytes_read })
+}

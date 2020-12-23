@@ -166,8 +166,8 @@ impl TryFrom<u8> for TapeDensity {
 )]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
-/// Drive status for Linux SCSI drives.
-pub struct LinuxDriveStatusFlat {
+/// Drive/Media status for Linux SCSI drives.
+pub struct LinuxDriveAndMediaStatus {
     /// Block size (0 is variable size)
     pub blocksize: u32,
     /// Tape density
@@ -178,4 +178,10 @@ pub struct LinuxDriveStatusFlat {
     pub file_number: i32,
     /// Current block number
     pub block_number: i32,
+    /// Medium Manufacture Date (epoch)
+    pub manufactured: i64,
+    /// Total Bytes Read in Medium Life
+    pub bytes_read: u64,
+    /// Total Bytes Written in Medium Life
+    pub bytes_written: u64,
 }

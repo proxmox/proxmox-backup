@@ -35,7 +35,7 @@ use crate::{
         MediaIdFlat,
         LabelUuidMap,
         MamAttribute,
-        LinuxDriveStatusFlat,
+        LinuxDriveAndMediaStatus,
     },
     server::WorkerTask,
     tape::{
@@ -51,6 +51,7 @@ use crate::{
         open_drive,
         media_changer,
         update_changer_online_status,
+        mam_extract_media_usage,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -807,22 +808,37 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
         },
     },
     returns: {
-        type: LinuxDriveStatusFlat,
+        type: LinuxDriveAndMediaStatus,
     },
 )]
-/// Get drive status
-pub fn status(drive: String) -> Result<LinuxDriveStatusFlat, Error> {
+/// Get drive/media status
+pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let handle = drive_config.open()
+    let mut handle = drive_config.open()
         .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
 
     let drive_status = handle.get_drive_status()?;
 
-    Ok(drive_status.into())
+    let mam = handle.cartridge_memory()?;
+
+    let usage = mam_extract_media_usage(&mam)?;
+
+    let status = LinuxDriveAndMediaStatus {
+        blocksize: drive_status.blocksize,
+        density: drive_status.density,
+        status: format!("{:?}", drive_status.status),
+        file_number: drive_status.file_number,
+        block_number: drive_status.block_number,
+        manufactured: usage.manufactured,
+        bytes_read: usage.bytes_read,
+        bytes_written: usage.bytes_written,
+    };
+
+    Ok(status)
 }
 
 #[sortable]

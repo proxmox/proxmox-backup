@@ -19,6 +19,7 @@ use proxmox_backup::{
     tools::format::{
         HumanByte,
         render_epoch,
+        render_bytes_human_readable,
     },
     server::{
         UPID,
@@ -568,7 +569,7 @@ fn cartridge_memory(
         },
     },
 )]
-/// Get drive status
+/// Get drive/media status
 fn status(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
@@ -592,6 +593,9 @@ fn status(
         .column(ColumnConfig::new("status"))
         .column(ColumnConfig::new("file-number"))
         .column(ColumnConfig::new("block-number"))
+        .column(ColumnConfig::new("manufactured").renderer(render_epoch))
+        .column(ColumnConfig::new("bytes-written").renderer(render_bytes_human_readable))
+        .column(ColumnConfig::new("bytes-read").renderer(render_bytes_human_readable))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
