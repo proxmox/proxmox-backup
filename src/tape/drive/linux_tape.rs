@@ -56,26 +56,7 @@ impl LinuxTapeDrive {
     /// This needs to lock the drive
     pub fn open(&self) -> Result<LinuxTapeHandle, Error> {
 
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .custom_flags(libc::O_NONBLOCK)
-            .open(&self.path)?;
-
-        // clear O_NONBLOCK from now on.
-
-        let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
-            .into_io_result()?;
-
-        let mut flags = OFlag::from_bits_truncate(flags);
-        flags.remove(OFlag::O_NONBLOCK);
-
-        fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
-            .into_io_result()?;
-
-        if !tape_is_linux_tape_device(&file) {
-            bail!("file {:?} is not a linux tape device", self.path);
-        }
+        let file = open_linux_tape_device(&self.path)?;
 
         let handle = LinuxTapeHandle { drive_name: self.name.clone(), file };
 
@@ -408,6 +389,39 @@ fn tape_is_linux_tape_device(file: &File) -> bool {
     }
 
     true
+}
+
+/// Opens a Linux tape device
+///
+/// The open call use O_NONBLOCK, but that flag is cleard after open
+/// succeeded. This also checks if the device is a non-rewinding tape
+/// device.
+pub fn open_linux_tape_device(
+    path: &str,
+) -> Result<File, Error> {
+
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(path)?;
+
+    // clear O_NONBLOCK from now on.
+
+    let flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
+        .into_io_result()?;
+
+    let mut flags = OFlag::from_bits_truncate(flags);
+    flags.remove(OFlag::O_NONBLOCK);
+
+    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
+        .into_io_result()?;
+
+    if !tape_is_linux_tape_device(&file) {
+        bail!("file {:?} is not a linux tape device", path);
+    }
+
+    Ok(file)
 }
 
 /// like BlockedWriter, but writes EOF mark on finish
