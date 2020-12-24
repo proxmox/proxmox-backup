@@ -372,23 +372,23 @@ fn tape_write_eof_mark(file: &File) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn tape_is_linux_tape_device(file: &File) -> bool {
+pub fn check_tape_is_linux_tape_device(file: &File) -> Result<(), Error> {
 
-    let devnum = match nix::sys::stat::fstat(file.as_raw_fd()) {
-        Ok(stat) => stat.st_rdev,
-        _ => return false,
-    };
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+
+    let devnum = stat.st_rdev;
 
     let major = unsafe { libc::major(devnum) };
     let minor = unsafe { libc::minor(devnum) };
 
-    if major != 9 { return false; } // The st driver uses major device number 9
+    if !(major != 9) {
+        bail!("not a tape device");
+    }
     if (minor & 128) == 0 {
-        eprintln!("Detected rewinding tape. Please use non-rewinding tape devices (/dev/nstX).");
-        return false;
+        bail!("Detected rewinding tape. Please use non-rewinding tape devices (/dev/nstX).");
     }
 
-    true
+    Ok(())
 }
 
 /// Opens a Linux tape device
@@ -417,9 +417,8 @@ pub fn open_linux_tape_device(
     fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
         .into_io_result()?;
 
-    if !tape_is_linux_tape_device(&file) {
-        bail!("file {:?} is not a linux tape device", path);
-    }
+    check_tape_is_linux_tape_device(&file)
+        .map_err(|err| format_err!("device type check {:?} failed - {}", path, err))?;
 
     Ok(file)
 }
