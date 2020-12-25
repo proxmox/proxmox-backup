@@ -53,12 +53,17 @@ impl LinuxDriveStatus {
 
 impl LinuxTapeDrive {
 
-    /// This needs to lock the drive
+    /// Open a tape device
+    ///
+    /// This does additional checks:
+    ///
+    /// - check if drive is ready (tape loaded)
+    /// - check block size
     pub fn open(&self) -> Result<LinuxTapeHandle, Error> {
 
         let file = open_linux_tape_device(&self.path)?;
 
-        let handle = LinuxTapeHandle { drive_name: self.name.clone(), file };
+        let handle = LinuxTapeHandle::new(file);
 
         let drive_status = handle.get_drive_status()?;
         println!("drive status: {:?}", drive_status);
@@ -88,17 +93,17 @@ impl LinuxTapeDrive {
     }
 }
 
+/// Linux Tape device handle
 pub struct LinuxTapeHandle {
-    drive_name: String,
     file: File,
     //_lock: File,
 }
 
 impl LinuxTapeHandle {
 
-    /// Return the drive name (useful for log and debug)
-    pub fn dive_name(&self) -> &str {
-        &self.drive_name
+    /// Creates a new instance
+    pub fn new(file: File) -> Self {
+        Self { file }
     }
 
     /// Set all options we need/want
@@ -372,6 +377,7 @@ fn tape_write_eof_mark(file: &File) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// Check for correct Major/Minor numbers
 pub fn check_tape_is_linux_tape_device(file: &File) -> Result<(), Error> {
 
     let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
