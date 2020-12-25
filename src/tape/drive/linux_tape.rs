@@ -57,6 +57,7 @@ impl LinuxTapeDrive {
     ///
     /// This does additional checks:
     ///
+    /// - check if it is a non-rewinding tape device
     /// - check if drive is ready (tape loaded)
     /// - check block size
     pub fn open(&self) -> Result<LinuxTapeHandle, Error> {
@@ -387,7 +388,7 @@ pub fn check_tape_is_linux_tape_device(file: &File) -> Result<(), Error> {
     let major = unsafe { libc::major(devnum) };
     let minor = unsafe { libc::minor(devnum) };
 
-    if !(major != 9) {
+    if major != 9 {
         bail!("not a tape device");
     }
     if (minor & 128) == 0 {
