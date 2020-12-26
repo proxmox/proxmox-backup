@@ -195,13 +195,14 @@ impl MediaCatalog {
 
             me.log_to_stdout = log_to_stdout;
 
+            me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
+
             me.register_label(&media_id.label.uuid, 0)?;
 
             if let Some(ref set) = media_id.media_set_label {
                 me.register_label(&set.uuid, 1)?;
             }
 
-            me.pending.extend(&PROXMOX_BACKUP_MEDIA_CATALOG_MAGIC_1_0);
             me.commit()?;
 
             Ok(me)
