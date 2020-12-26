@@ -119,6 +119,8 @@ pub struct MamAttribute {
 pub enum TapeDensity {
     /// No tape loaded
     None,
+    /// LTO1
+    LTO1,
     /// LTO2
     LTO2,
     /// LTO3
@@ -143,6 +145,7 @@ impl TryFrom<u8> for TapeDensity {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let density = match value {
             0x00 => TapeDensity::None,
+            0x40 => TapeDensity::LTO1,
             0x42 => TapeDensity::LTO2,
             0x44 => TapeDensity::LTO3,
             0x46 => TapeDensity::LTO4,
