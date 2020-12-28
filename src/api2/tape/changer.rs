@@ -82,9 +82,13 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
         list.push(entry);
     }
 
-    for (id, slot_status) in status.slots.iter().enumerate() {
+    for (id, (import_export, slot_status)) in status.slots.iter().enumerate() {
         let entry = MtxStatusEntry {
-            entry_kind: MtxEntryKind::Slot,
+            entry_kind: if *import_export {
+                MtxEntryKind::ImportExport
+            } else {
+                MtxEntryKind::Slot
+            },
             entry_id: id as u64 + 1,
             changer_id: match &slot_status {
                 ElementStatus::Empty => None,

@@ -87,7 +87,8 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
         }
     }
 
-    for slot_status in status.slots.iter() {
+    for (import_export, slot_status) in status.slots.iter() {
+        if *import_export { continue; }
         if let ElementStatus::VolumeTag(ref changer_id) = slot_status {
             if let Some(media_id) = inventory.find_media_by_changer_id(changer_id) {
                 online_set.insert(media_id.label.uuid.clone());

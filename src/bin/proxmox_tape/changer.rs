@@ -207,6 +207,8 @@ async fn get_status(
     };
 
     let options = default_table_format_options()
+        .sortby("entry-kind", false)
+        .sortby("entry-id", false)
         .column(ColumnConfig::new("entry-kind"))
         .column(ColumnConfig::new("entry-id"))
         .column(ColumnConfig::new("changer-id"))

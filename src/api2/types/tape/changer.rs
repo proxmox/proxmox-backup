@@ -44,13 +44,15 @@ pub struct ScsiTapeChanger {
 
 #[api()]
 #[derive(Serialize,Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 /// Mtx Entry Kind
 pub enum MtxEntryKind {
     /// Drive
     Drive,
     /// Slot
     Slot,
+    /// Import/Export Slot
+    ImportExport,
 }
 
 #[api(

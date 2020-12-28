@@ -27,7 +27,8 @@ fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenu
     } else {
         let mut free_slot = None;
         for i in 0..status.slots.len() {
-            if let ElementStatus::Empty = status.slots[i] {
+            if status.slots[i].0 { continue; } // skip import/export slots
+            if let ElementStatus::Empty = status.slots[i].1 {
                 free_slot = Some((i+1) as u64);
                 break;
             }
@@ -79,9 +80,12 @@ impl MediaChange for LinuxTapeDrive {
         }
 
         let mut slot = None;
-        for (i, element_status) in status.slots.iter().enumerate() {
+        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
             if let ElementStatus::VolumeTag(tag) = element_status {
                 if *tag == changer_id {
+                    if *import_export {
+                        bail!("unable to load media '{}' - inside import/export slot", changer_id);
+                    }
                     slot = Some(i+1);
                     break;
                 }
@@ -134,7 +138,8 @@ impl MediaChange for LinuxTapeDrive {
             }
         }
 
-        for element_status in status.slots.iter() {
+        for (import_export, element_status) in status.slots.iter() {
+            if *import_export { continue; }
             if let ElementStatus::VolumeTag(ref tag) = element_status {
                 list.push(tag.clone());
             }

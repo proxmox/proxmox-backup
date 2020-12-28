@@ -31,8 +31,8 @@ pub struct DriveStatus {
 pub struct MtxStatus {
     /// List of known drives
     pub drives: Vec<DriveStatus>,
-    /// List of known slots
-    pub slots: Vec<ElementStatus>,
+    /// List of known slots, the boolean attribute marks import/export slots
+    pub slots: Vec<(bool, ElementStatus)>,
 }
 
 // Recognizes one line
@@ -122,17 +122,19 @@ fn parse_data_transfer_element(i: &str) -> IResult<&str, (u64, DriveStatus)> {
     Ok((i, (id, element_status)))
 }
 
-fn parse_storage_element(i: &str) -> IResult<&str, (u64, ElementStatus)> {
+fn parse_storage_element(i: &str) -> IResult<&str, (u64, bool, ElementStatus)> {
 
     let (i, _) = multispace1(i)?;
     let (i, _) = tag("Storage Element")(i)?;
     let (i, _) = multispace1(i)?;
     let (i, id) = parse_u64(i)?;
+    let (i, opt_ie) = nom::combinator::opt(tag(" IMPORT/EXPORT"))(i)?;
+    let import_export =  opt_ie.is_some();
     let (i, _) = nom::character::complete::char(':')(i)?;
     let (i, element_status) = parse_slot_status(i)?;
     let (i, _) = nom::character::complete::newline(i)?;
 
-    Ok((i, (id, element_status)))
+    Ok((i, (id, import_export, element_status)))
 }
 
 fn parse_status(i: &str) ->  IResult<&str, MtxStatus> {
@@ -149,12 +151,12 @@ fn parse_status(i: &str) ->  IResult<&str, MtxStatus> {
     }
 
     let mut slots = Vec::new();
-    while let Ok((n, (id, element_status))) = parse_storage_element(i) {
+    while let Ok((n, (id, import_export, element_status))) = parse_storage_element(i) {
         if id != (slots.len() as u64 + 1) {
             return Err(parse_failure(i, "unexpected slot number"));
         }
         i = n;
-        slots.push(element_status);
+        slots.push((import_export, element_status));
     }
 
     let status = MtxStatus { drives, slots };
