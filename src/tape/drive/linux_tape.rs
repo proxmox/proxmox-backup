@@ -1,6 +1,6 @@
 use std::fs::{OpenOptions, File};
 use std::os::unix::fs::OpenOptionsExt;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
@@ -9,6 +9,7 @@ use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use proxmox::sys::error::SysResult;
 
 use crate::{
+    tools::run_command,
     api2::types::{
         TapeDensity,
         MamAttribute,
@@ -237,8 +238,22 @@ impl LinuxTapeHandle {
     }
 
     /// Read Cartridge Memory (MAM Attributes)
+    ///
+    /// Note: Only 'root' user may run RAW SG commands, so we need to
+    /// spawn setuid binary 'sg-tape-cmd'.
     pub fn cartridge_memory(&mut self) -> Result<Vec<MamAttribute>, Error> {
-        read_mam_attributes(&mut self.file)
+
+        if nix::unistd::Uid::effective().is_root() {
+            return read_mam_attributes(&mut self.file);
+        }
+
+        let mut command = std::process::Command::new(
+            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+        command.args(&["cartridge-memory"]);
+        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
+        let output = run_command(command, None)?;
+        let result: Result<Vec<MamAttribute>, String> = serde_json::from_str(&output)?;
+        result.map_err(|err| format_err!("{}", err))
     }
 }
 
