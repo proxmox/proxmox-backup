@@ -142,7 +142,7 @@ install: $(COMPILED_BINS)
 	    install -m644 zsh-completions/_$(i) $(DESTDIR)$(ZSH_COMPL_DEST)/ ;)
 	install -dm755 $(DESTDIR)$(LIBEXECDIR)/proxmox-backup
 	# install sg-tape-cmd as setuid binary
-	install -m2755 -mu+s $(COMPILEDIR)/sg-tape-cmd $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/sg-tape-cmd
+	install -m4755 -o root -g root $(COMPILEDIR)/sg-tape-cmd $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/sg-tape-cmd
 	$(foreach i,$(SERVICE_BIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(LIBEXECDIR)/proxmox-backup/ ;)
 	$(MAKE) -C www install

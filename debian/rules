@@ -42,6 +42,9 @@ override_dh_installsystemd:
 	# note: we start/try-reload-restart services manually in postinst
 	dh_installsystemd --no-start --no-restart-after-upgrade
 
+override_dh_fixperms:
+	dh_fixperms --exclude sg-tape-cmd
+
 # workaround https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=933541
 # TODO: remove once available (Debian 11 ?)
 override_dh_dwz:

@@ -8,6 +8,7 @@ usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-api
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-proxy
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-backup-banner
 usr/lib/x86_64-linux-gnu/proxmox-backup/proxmox-daily-update
+usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd
 usr/sbin/proxmox-backup-manager
 usr/share/javascript/proxmox-backup/index.hbs
 usr/share/javascript/proxmox-backup/css/ext6-pbs.css
