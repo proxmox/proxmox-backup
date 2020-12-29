@@ -318,6 +318,11 @@ pub fn list_content(
 
 const SUBDIRS: SubdirMap = &[
     (
+        "content",
+        &Router::new()
+            .get(&API_METHOD_LIST_CONTENT)
+    ),
+    (
         "destroy",
         &Router::new()
             .get(&API_METHOD_DESTROY_MEDIA)
@@ -326,11 +331,6 @@ const SUBDIRS: SubdirMap = &[
         "list",
         &Router::new()
             .get(&API_METHOD_LIST_MEDIA)
-    ),
-    (
-        "content",
-        &Router::new()
-            .get(&API_METHOD_LIST_CONTENT)
     ),
 ];
 
