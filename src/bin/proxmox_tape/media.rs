@@ -18,8 +18,13 @@ use proxmox_backup::{
             MediaStatus,
             MediaListEntry,
         },
+        tape::media::MediaContentListFilter,
     },
-    tape::complete_media_changer_id,
+    tape::{
+        complete_media_changer_id,
+        complete_media_uuid,
+        complete_media_set_uuid,
+    },
     config::{
         media_pool::complete_pool_name,
     },
@@ -38,6 +43,14 @@ pub fn media_commands() -> CommandLineInterface {
             CliCommand::new(&api2::tape::media::API_METHOD_DESTROY_MEDIA)
                 .arg_param(&["changer-id"])
                 .completion_cb("changer-id", complete_media_changer_id)
+        )
+        .insert(
+            "content",
+            CliCommand::new(&API_METHOD_LIST_CONTENT)
+                .completion_cb("pool", complete_pool_name)
+                .completion_cb("changer-id", complete_media_changer_id)
+                .completion_cb("media", complete_media_uuid)
+                .completion_cb("media-set", complete_media_set_uuid)
         )
         ;
 
@@ -109,4 +122,50 @@ async fn list_media(
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
 
     Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            "filter": {
+                type: MediaContentListFilter,
+                flatten: true,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// List media content
+fn list_content(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let output_format = get_output_format(&param);
+    let info = &api2::tape::media::API_METHOD_LIST_CONTENT;
+    let mut data = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    let options = default_table_format_options()
+        .sortby("media-set-uuid", false)
+        .sortby("seq-nr", false)
+        .sortby("snapshot", false)
+        .sortby("backup-time", false)
+        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("pool"))
+        .column(ColumnConfig::new("media-set-name"))
+        .column(ColumnConfig::new("seq-nr"))
+        .column(ColumnConfig::new("snapshot"))
+        .column(ColumnConfig::new("media-set-uuid"))
+        ;
+
+    format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
+    Ok(())
+
 }

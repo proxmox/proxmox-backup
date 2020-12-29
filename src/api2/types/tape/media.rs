@@ -79,3 +79,26 @@ pub struct LabelUuidMap {
     /// Associated Uuid (if any)
     pub uuid: Option<String>,
 }
+
+#[api()]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// Media content list entry
+pub struct MediaContentEntry {
+    /// Media changer ID
+    pub changer_id: String,
+    /// Media Uuid
+    pub uuid: String,
+    /// Media set name
+    pub media_set_name: String,
+    /// Media set uuid
+    pub media_set_uuid: String,
+    /// Media set seq_nr
+    pub seq_nr: u64,
+    /// Media Pool
+    pub pool: String,
+    /// Backup snapshot
+    pub snapshot: String,
+    /// Snapshot creation time (epoch)
+    pub backup_time: i64,
+}

@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
+use serde::{Serialize, Deserialize};
 
 use proxmox::{
     api::{api, Router, SubdirMap},
@@ -12,17 +13,24 @@ use crate::{
         self,
     },
     api2::types::{
+        BACKUP_ID_SCHEMA,
+        BACKUP_TYPE_SCHEMA,
         MEDIA_POOL_NAME_SCHEMA,
         MEDIA_LABEL_SCHEMA,
         MediaPoolConfig,
         MediaListEntry,
         MediaStatus,
+        MediaContentEntry,
+    },
+    backup::{
+        BackupDir,
     },
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
         MediaStateDatabase,
         MediaPool,
+        MediaCatalog,
         update_online_status,
     },
 };
@@ -181,6 +189,133 @@ pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Err
     Ok(())
 }
 
+#[api(
+    properties: {
+        pool: {
+            schema: MEDIA_POOL_NAME_SCHEMA,
+            optional: true,
+        },
+        "changer-id": {
+            schema: MEDIA_LABEL_SCHEMA,
+            optional: true,
+        },
+        "media": {
+            description: "Filter by media UUID.",
+            type: String,
+            optional: true,
+        },
+        "media-set": {
+            description: "Filter by media set UUID.",
+            type: String,
+            optional: true,
+        },
+        "backup-type": {
+            schema: BACKUP_TYPE_SCHEMA,
+            optional: true,
+        },
+        "backup-id": {
+            schema: BACKUP_ID_SCHEMA,
+            optional: true,
+        },
+    },
+)]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all="kebab-case")]
+/// Content list filter parameters
+pub struct MediaContentListFilter {
+    pub pool: Option<String>,
+    pub changer_id: Option<String>,
+    pub media: Option<String>,
+    pub media_set: Option<String>,
+    pub backup_type: Option<String>,
+    pub backup_id: Option<String>,
+}
+
+#[api(
+    input: {
+        properties: {
+            "filter": {
+                type: MediaContentListFilter,
+                flatten: true,
+            },
+        },
+    },
+    returns: {
+        description: "Media content list.",
+        type: Array,
+        items: {
+            type: MediaContentEntry,
+        },
+    },
+)]
+/// List media content
+pub fn list_content(
+    filter: MediaContentListFilter,
+) -> Result<Vec<MediaContentEntry>, Error> {
+
+    let (config, _digest) = config::media_pool::config()?;
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let inventory = Inventory::load(status_path)?;
+
+    let media_uuid = filter.media.and_then(|s| s.parse().ok());
+    let media_set_uuid = filter.media_set.and_then(|s| s.parse().ok());
+
+    let mut list = Vec::new();
+
+    for media_id in inventory.list_used_media() {
+        let set = media_id.media_set_label.as_ref().unwrap();
+
+        if let Some(ref changer_id) = filter.changer_id {
+            if &media_id.label.changer_id != changer_id { continue; }
+        }
+
+        if let Some(ref pool) = filter.pool {
+            if &set.pool != pool { continue; }
+        }
+
+        if let Some(ref media_uuid) = media_uuid {
+            if &media_id.label.uuid != media_uuid { continue; }
+        }
+
+        if let Some(ref media_set_uuid) = media_set_uuid {
+            if &set.uuid != media_set_uuid { continue; }
+        }
+
+        let config: MediaPoolConfig = config.lookup("pool", &set.pool)?;
+
+        let media_set_name = inventory
+            .generate_media_set_name(&set.uuid, config.template.clone())
+            .unwrap_or_else(|_| set.uuid.to_string());
+
+        let catalog = MediaCatalog::open(status_path, &media_id.label.uuid, false, false)?;
+
+        for snapshot in catalog.snapshot_index().keys() {
+            let backup_dir: BackupDir = snapshot.parse()?;
+
+            if let Some(ref backup_type) = filter.backup_type {
+                if backup_dir.group().backup_type() != backup_type { continue; }
+            }
+            if let Some(ref backup_id) = filter.backup_id {
+                if backup_dir.group().backup_id() != backup_id { continue; }
+            }
+
+            list.push(MediaContentEntry {
+                uuid: media_id.label.uuid.to_string(),
+                changer_id: media_id.label.changer_id.to_string(),
+                pool: set.pool.clone(),
+                media_set_name: media_set_name.clone(),
+                media_set_uuid: set.uuid.to_string(),
+                seq_nr: set.seq_nr,
+                snapshot: snapshot.to_owned(),
+                backup_time: backup_dir.backup_time(),
+            });
+        }
+    }
+
+    Ok(list)
+}
+
 const SUBDIRS: SubdirMap = &[
     (
         "destroy",
@@ -191,6 +326,11 @@ const SUBDIRS: SubdirMap = &[
         "list",
         &Router::new()
             .get(&API_METHOD_LIST_MEDIA)
+    ),
+    (
+        "content",
+        &Router::new()
+            .get(&API_METHOD_LIST_CONTENT)
     ),
 ];
 
