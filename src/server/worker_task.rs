@@ -360,7 +360,7 @@ fn update_active_workers(new_upid: Option<&UPID>) -> Result<(), Error> {
             }
 
             if !worker_is_active_local(&info.upid) {
-                println!("Detected stopped task '{}'", &info.upid_str);
+                // println!("Detected stopped task '{}'", &info.upid_str);
                 let now = proxmox::tools::time::epoch_i64();
                 let status = upid_read_status(&info.upid)
                     .unwrap_or_else(|_| TaskState::Unknown { endtime: now });
