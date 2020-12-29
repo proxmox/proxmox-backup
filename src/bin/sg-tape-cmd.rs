@@ -21,10 +21,8 @@ use proxmox::{
 use proxmox_backup::{
     api2::types::{
         LINUX_DRIVE_PATH_SCHEMA,
-        LinuxDriveAndMediaStatus,
     },
     tape::{
-        mam_extract_media_usage,
         linux_tape::{
             LinuxTapeHandle,
             open_linux_tape_device,
@@ -63,24 +61,8 @@ fn status(
 
     let result = proxmox::try_block!({
         let mut handle = get_tape_handle(device)?;
-
-        let drive_status = handle.get_drive_status()?;
-
-        let mam = handle.cartridge_memory()?;
-
-        let usage = mam_extract_media_usage(&mam)?;
-
-        Ok(LinuxDriveAndMediaStatus {
-            blocksize: drive_status.blocksize,
-            density: drive_status.density,
-            status: format!("{:?}", drive_status.status),
-            file_number: drive_status.file_number,
-            block_number: drive_status.block_number,
-            manufactured: usage.manufactured,
-            bytes_read: usage.bytes_read,
-            bytes_written: usage.bytes_written,
-        })
-    }).map_err(|err: Error| err.to_string());
+        handle.get_drive_and_media_status()
+   }).map_err(|err: Error| err.to_string());
 
     println!("{}", serde_json::to_string_pretty(&result)?);
 

@@ -13,11 +13,13 @@ use crate::{
     api2::types::{
         TapeDensity,
         MamAttribute,
+        LinuxDriveAndMediaStatus,
     },
     tape::{
         TapeRead,
         TapeWrite,
         read_mam_attributes,
+        mam_extract_media_usage,
         drive::{
             LinuxTapeDrive,
             TapeDriver,
@@ -65,7 +67,7 @@ impl LinuxTapeDrive {
 
         let file = open_linux_tape_device(&self.path)?;
 
-        let handle = LinuxTapeHandle::new(file);
+        let mut handle = LinuxTapeHandle::new(file);
 
         let drive_status = handle.get_drive_status()?;
         println!("drive status: {:?}", drive_status);
@@ -201,10 +203,40 @@ impl LinuxTapeHandle {
         Ok(())
     }
 
-    /// Get Tape configuration with MTIOCGET ioctl
-    pub fn get_drive_status(&self) -> Result<LinuxDriveStatus, Error> {
+    /// Get Tape and Media status
+    pub fn get_drive_and_media_status(&mut self) -> Result<LinuxDriveAndMediaStatus, Error>  {
 
-        self.mtnop()?;
+        let drive_status = self.get_drive_status()?;
+
+        let mut status = LinuxDriveAndMediaStatus {
+            blocksize: drive_status.blocksize,
+            density: drive_status.density,
+            status: format!("{:?}", drive_status.status),
+            file_number: drive_status.file_number,
+            block_number: drive_status.block_number,
+            manufactured: None,
+            bytes_read: None,
+            bytes_written: None,
+        };
+
+        if  drive_status.tape_is_ready() {
+
+            let mam = self.cartridge_memory()?;
+
+            let usage = mam_extract_media_usage(&mam)?;
+
+            status.manufactured = Some(usage.manufactured);
+            status.bytes_read = Some(usage.bytes_read);
+            status.bytes_written = Some(usage.bytes_written);
+        }
+
+        Ok(status)
+    }
+
+    /// Get Tape status/configuration with MTIOCGET ioctl
+    pub fn get_drive_status(&mut self) -> Result<LinuxDriveStatus, Error> {
+
+        let _ = self.mtnop(); // ignore errors (i.e. no tape loaded)
 
         let mut status = mtget::default();
 

@@ -115,7 +115,7 @@ pub struct MamAttribute {
 }
 
 #[api()]
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize,Deserialize,Copy,Clone,Debug)]
 pub enum TapeDensity {
     /// No tape loaded
     None,
@@ -182,9 +182,12 @@ pub struct LinuxDriveAndMediaStatus {
     /// Current block number
     pub block_number: i32,
     /// Medium Manufacture Date (epoch)
-    pub manufactured: i64,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub manufactured: Option<i64>,
     /// Total Bytes Read in Medium Life
-    pub bytes_read: u64,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bytes_read: Option<u64>,
     /// Total Bytes Written in Medium Life
-    pub bytes_written: u64,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bytes_written: Option<u64>,
 }

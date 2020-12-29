@@ -51,7 +51,10 @@ use crate::{
         open_drive,
         media_changer,
         update_changer_online_status,
-        mam_extract_media_usage,
+        linux_tape::{
+            LinuxTapeHandle,
+            open_linux_tape_device,
+        },
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -818,27 +821,13 @@ pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
 
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let mut handle = drive_config.open()
+    // Note: use open_linux_tape_device, because this also works if no medium loaded
+    let file = open_linux_tape_device(&drive_config.path)
         .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
 
-    let drive_status = handle.get_drive_status()?;
+    let mut handle = LinuxTapeHandle::new(file);
 
-    let mam = handle.cartridge_memory()?;
-
-    let usage = mam_extract_media_usage(&mam)?;
-
-    let status = LinuxDriveAndMediaStatus {
-        blocksize: drive_status.blocksize,
-        density: drive_status.density,
-        status: format!("{:?}", drive_status.status),
-        file_number: drive_status.file_number,
-        block_number: drive_status.block_number,
-        manufactured: usage.manufactured,
-        bytes_read: usage.bytes_read,
-        bytes_written: usage.bytes_written,
-    };
-
-    Ok(status)
+    handle.get_drive_and_media_status()
 }
 
 #[sortable]
