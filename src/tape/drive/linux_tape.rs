@@ -70,7 +70,6 @@ impl LinuxTapeDrive {
         let mut handle = LinuxTapeHandle::new(file);
 
         let drive_status = handle.get_drive_status()?;
-        println!("drive status: {:?}", drive_status);
 
         if !drive_status.tape_is_ready() {
             bail!("tape not ready (no tape loaded)");
@@ -90,7 +89,7 @@ impl LinuxTapeDrive {
             }
         }
 
-        // Only root can seth driver options, so we cannot
+        // Only root can set driver options, so we cannot
         // handle.set_default_options()?;
 
         Ok(handle)
