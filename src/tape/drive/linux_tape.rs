@@ -41,10 +41,10 @@ use crate::{
 #[derive(Debug)]
 pub struct LinuxDriveStatus {
     pub blocksize: u32,
-    pub density: TapeDensity,
     pub status: GMTStatusFlags,
-    pub file_number: i32,
-    pub block_number: i32,
+    pub density: Option<TapeDensity>,
+    pub file_number: Option<u32>,
+    pub block_number: Option<u32>,
 }
 
 impl LinuxDriveStatus {
@@ -244,8 +244,6 @@ impl LinuxTapeHandle {
             bail!("MTIOCGET failed - {}", err);
         }
 
-        println!("{:?}", status);
-
         let gmt = GMTStatusFlags::from_bits_truncate(status.mt_gstat);
 
         let blocksize;
@@ -258,14 +256,24 @@ impl LinuxTapeHandle {
 
         let density = ((status.mt_dsreg & MT_ST_DENSITY_MASK) >> MT_ST_DENSITY_SHIFT) as u8;
 
-        let density = TapeDensity::try_from(density)?;
-
         Ok(LinuxDriveStatus {
             blocksize,
-            density,
             status: gmt,
-            file_number: status.mt_fileno,
-            block_number: status.mt_blkno,
+            density: if density != 0 {
+                Some(TapeDensity::try_from(density)?)
+            } else {
+                None
+            },
+            file_number: if status.mt_fileno > 0 {
+                Some(status.mt_fileno as u32)
+            } else {
+                None
+            },
+            block_number: if status.mt_blkno > 0 {
+                Some(status.mt_blkno as u32)
+            } else {
+                None
+            },
         })
     }
 

@@ -117,8 +117,6 @@ pub struct MamAttribute {
 #[api()]
 #[derive(Serialize,Deserialize,Copy,Clone,Debug)]
 pub enum TapeDensity {
-    /// No tape loaded
-    None,
     /// LTO1
     LTO1,
     /// LTO2
@@ -144,7 +142,6 @@ impl TryFrom<u8> for TapeDensity {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let density = match value {
-            0x00 => TapeDensity::None,
             0x40 => TapeDensity::LTO1,
             0x42 => TapeDensity::LTO2,
             0x44 => TapeDensity::LTO3,
@@ -164,23 +161,30 @@ impl TryFrom<u8> for TapeDensity {
     properties: {
         density: {
             type: TapeDensity,
+            optional: true,
         },
     },
 )]
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// Drive/Media status for Linux SCSI drives.
+///
+/// Media related data is optional - only set if there is a medium
+/// loaded.
 pub struct LinuxDriveAndMediaStatus {
     /// Block size (0 is variable size)
     pub blocksize: u32,
     /// Tape density
-    pub density: TapeDensity,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub density: Option<TapeDensity>,
     /// Status flags
     pub status: String,
     /// Current file number
-    pub file_number: i32,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub file_number: Option<u32>,
     /// Current block number
-    pub block_number: i32,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub block_number: Option<u32>,
     /// Medium Manufacture Date (epoch)
     #[serde(skip_serializing_if="Option::is_none")]
     pub manufactured: Option<i64>,
