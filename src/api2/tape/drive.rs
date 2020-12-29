@@ -44,6 +44,7 @@ use crate::{
         MediaChange,
         Inventory,
         MediaStateDatabase,
+        MediaCatalog,
         MediaId,
         mtx_load,
         mtx_unload,
@@ -399,7 +400,12 @@ fn write_media_label(
 
     let media_id = MediaId { label, media_set_label };
 
-    let mut inventory = Inventory::load(Path::new(TAPE_STATUS_DIR))?;
+    let status_path = Path::new(TAPE_STATUS_DIR);
+
+    // Create the media catalog
+    MediaCatalog::overwrite(status_path, &media_id, false)?;
+
+    let mut inventory = Inventory::load(status_path)?;
     inventory.store(media_id.clone())?;
 
     drive.rewind()?;
