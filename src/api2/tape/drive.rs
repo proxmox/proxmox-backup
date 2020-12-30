@@ -23,25 +23,29 @@ use crate::{
         self,
         drive::check_drive_exists,
     },
-    api2::types::{
-        UPID_SCHEMA,
-        DRIVE_NAME_SCHEMA,
-        MEDIA_LABEL_SCHEMA,
-        MEDIA_POOL_NAME_SCHEMA,
-        Authid,
-        LinuxTapeDrive,
-        ScsiTapeChanger,
-        TapeDeviceInfo,
-        MediaIdFlat,
-        LabelUuidMap,
-        MamAttribute,
-        LinuxDriveAndMediaStatus,
+    api2::{
+        types::{
+            UPID_SCHEMA,
+            DRIVE_NAME_SCHEMA,
+            MEDIA_LABEL_SCHEMA,
+            MEDIA_POOL_NAME_SCHEMA,
+            Authid,
+            LinuxTapeDrive,
+            ScsiTapeChanger,
+            TapeDeviceInfo,
+            MediaIdFlat,
+            LabelUuidMap,
+            MamAttribute,
+            LinuxDriveAndMediaStatus,
+        },
+        tape::restore::restore_media,
     },
     server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         TapeDriver,
         MediaChange,
+        MediaPool,
         Inventory,
         MediaStateDatabase,
         MediaCatalog,
@@ -836,12 +840,117 @@ pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
     handle.get_drive_and_media_status()
 }
 
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+            force: {
+                description: "Force overriding existing index.",
+                type: bool,
+                optional: true,
+            },
+            verbose: {
+                description: "Verbose mode - log all found chunks.",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+)]
+/// Scan media and record content
+pub fn catalog_media(
+    drive: String,
+    force: Option<bool>,
+    verbose: Option<bool>,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let verbose = verbose.unwrap_or(false);
+    let force = force.unwrap_or(false);
+
+    let (config, _digest) = config::drive::config()?;
+
+    check_drive_exists(&config, &drive)?; // early check before starting worker
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let upid_str = WorkerTask::new_thread(
+        "catalog-media",
+        Some(drive.clone()),
+        auth_id,
+        true,
+        move |worker| {
+
+            let mut drive = open_drive(&config, &drive)?;
+
+            drive.rewind()?;
+
+            let media_id = match drive.read_label()? {
+                Some(media_id) => {
+                    worker.log(format!(
+                        "found media label: {}",
+                        serde_json::to_string_pretty(&serde_json::to_value(&media_id)?)?
+                    ));
+                    media_id
+                },
+                None => bail!("media is empty (no media label found)"),
+            };
+
+            let status_path = Path::new(TAPE_STATUS_DIR);
+
+            let mut inventory = Inventory::load(status_path)?;
+            inventory.store(media_id.clone())?;
+
+            let pool = match media_id.media_set_label {
+                None => {
+                    worker.log("media is empty");
+                    MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                    return Ok(());
+                }
+                Some(ref set) => {
+                    if set.uuid.as_ref() == [0u8;16] { // media is empty
+                        worker.log("media is empty");
+                        MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
+                        return Ok(());
+                    }
+                    set.pool.clone()
+                }
+            };
+
+            let _lock = MediaPool::lock(status_path, &pool)?;
+
+            if MediaCatalog::exists(status_path, &media_id.label.uuid) {
+                if !force {
+                    bail!("media catalog exists (please use --force to overwrite)");
+                }
+            }
+
+            restore_media(&worker, &mut drive, &media_id, None, verbose)?;
+
+            Ok(())
+
+        }
+    )?;
+
+    Ok(upid_str.into())
+}
+
 #[sortable]
 pub const SUBDIRS: SubdirMap = &sorted!([
     (
         "barcode-label-media",
         &Router::new()
             .put(&API_METHOD_BARCODE_LABEL_MEDIA)
+    ),
+    (
+        "catalog",
+        &Router::new()
+            .put(&API_METHOD_CATALOG_MEDIA)
     ),
     (
         "eject-media",

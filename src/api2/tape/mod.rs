@@ -6,6 +6,7 @@ pub mod drive;
 pub mod changer;
 pub mod media;
 pub mod backup;
+pub mod restore;
 
 pub const SUBDIRS: SubdirMap = &[
     ("backup", &backup::ROUTER),
