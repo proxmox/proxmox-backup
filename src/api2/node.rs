@@ -92,11 +92,16 @@ async fn termproxy(
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
     // intentionally user only for now
-    let userid: Userid = rpcenv
+    let auth_id: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("unknown user"))?
+        .ok_or_else(|| format_err!("no authid available"))?
         .parse()?;
-    let auth_id = Authid::from(userid.clone());
+
+    if auth_id.is_token() {
+        bail!("API tokens cannot access this API endpoint");
+    }
+
+    let userid = auth_id.user();
 
     if userid.realm() != "pam" {
         bail!("only pam users can use the console");
@@ -267,7 +272,16 @@ fn upgrade_to_websocket(
 ) -> ApiResponseFuture {
     async move {
         // intentionally user only for now
-        let userid: Userid = rpcenv.get_auth_id().unwrap().parse()?;
+        let auth_id: Authid = rpcenv
+            .get_auth_id()
+            .ok_or_else(|| format_err!("no authid available"))?
+            .parse()?;
+
+        if auth_id.is_token() {
+            bail!("API tokens cannot access this API endpoint");
+        }
+
+        let userid = auth_id.user();
         let ticket = tools::required_string_param(&param, "vncticket")?;
         let port: u16 = tools::required_integer_param(&param, "port")? as u16;
 

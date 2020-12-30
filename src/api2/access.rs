@@ -206,14 +206,18 @@ fn change_password(
     password: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
-
-    let current_user: Userid = rpcenv
+    let current_auth: Authid = rpcenv
         .get_auth_id()
-        .ok_or_else(|| format_err!("unknown user"))?
+        .ok_or_else(|| format_err!("no authid available"))?
         .parse()?;
-    let current_auth = Authid::from(current_user.clone());
 
-    let mut allowed = userid == current_user;
+    if current_auth.is_token() {
+        bail!("API tokens cannot access this API endpoint");
+    }
+
+    let current_user = current_auth.user();
+
+    let mut allowed = userid == *current_user;
 
     if current_user == "root@pam" { allowed = true; }
 
