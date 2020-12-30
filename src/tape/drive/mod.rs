@@ -301,12 +301,17 @@ pub fn request_and_load_media(
                     send_load_media_email(drive, &changer_id, to)?;
 
                     let mut last_media_uuid = None;
+                    let mut last_error = None;
 
                     loop {
                         let mut handle = match tape.open() {
                             Ok(handle) => handle,
-                            Err(_) => {
-                                //eprintln!("tape open failed - test again in 5 secs");
+                            Err(err) => {
+                                let err = err.to_string();
+                                if Some(err.clone()) != last_error {
+                                    worker.log(format!("tape open failed - {}", err));
+                                    last_error = Some(err);
+                                }
                                 std::thread::sleep(std::time::Duration::from_millis(5_000));
                                 continue;
                             }
@@ -338,7 +343,13 @@ pub fn request_and_load_media(
                                     last_media_uuid = None;
                                 }
                             }
-                            Err(_) => { /* test again */ }
+                            Err(err) => {
+                                let err = err.to_string();
+                                if Some(err.clone()) != last_error {
+                                    worker.log(format!("tape open failed - {}", err));
+                                    last_error = Some(err);
+                                }
+                            }
                         }
 
                         // eprintln!("read label failed -  test again in 5 secs");
