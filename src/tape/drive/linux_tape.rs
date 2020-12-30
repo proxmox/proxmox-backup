@@ -76,7 +76,7 @@ impl LinuxTapeDrive {
         }
 
         if drive_status.blocksize == 0 {
-            eprintln!("device is variable block size");
+            // device is variable block size - OK
         } else {
             if drive_status.blocksize != PROXMOX_TAPE_BLOCK_SIZE as u32 {
                 eprintln!("device is in fixed block size mode with wrong size ({} bytes)", drive_status.blocksize);
@@ -85,7 +85,7 @@ impl LinuxTapeDrive {
                      bail!("set variable block size mod failed - device uses wrong blocksize.");
                  }
             } else {
-                 eprintln!("device is in fixed block size mode ({} bytes)", drive_status.blocksize);
+                // device is in fixed block size mode with correct block size
             }
         }
 
