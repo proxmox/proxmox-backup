@@ -13,6 +13,7 @@ use proxmox::{
     api::{
         api,
         RpcEnvironment,
+        RpcEnvironmentType,
         Router,
         SubdirMap,
     },
@@ -220,11 +221,13 @@ pub fn erase_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "erase-media",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |_worker| {
             let mut drive = open_drive(&config, &drive)?;
             drive.erase_media(fast.unwrap_or(true))?;
@@ -259,11 +262,13 @@ pub fn rewind(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "rewind-media",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |_worker| {
             let mut drive = open_drive(&config, &drive)?;
             drive.rewind()?;
@@ -347,11 +352,13 @@ pub fn label_media(
 
     let (config, _digest) = config::drive::config()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "label-media",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |worker| {
 
             let mut drive = open_drive(&config, &drive)?;
@@ -604,11 +611,13 @@ pub fn update_inventory(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "inventory-update",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |worker| {
 
             let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
@@ -704,11 +713,13 @@ pub fn barcode_label_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "barcode-label-media",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |worker| {
             barcode_label_media_worker(worker, drive, pool)
         }
@@ -883,11 +894,13 @@ pub fn catalog_media(
 
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "catalog-media",
         Some(drive.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |worker| {
 
             let mut drive = open_drive(&config, &drive)?;

@@ -8,6 +8,7 @@ use proxmox::{
     api::{
         api,
         RpcEnvironment,
+        RpcEnvironmentType,
         Router,
     },
 };
@@ -75,11 +76,13 @@ pub fn backup(
     // early check before starting worker
     check_drive_exists(&drive_config, &pool_config.drive)?;
 
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
         Some(store.clone()),
         auth_id,
-        true,
+        to_stdout,
         move |worker| {
             backup_worker(&worker, datastore, &pool_config)?;
             Ok(())
