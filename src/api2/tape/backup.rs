@@ -139,7 +139,7 @@ fn update_media_online_status(drive: &str) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
-    if let Ok((changer, changer_name)) = media_changer(&config, drive, false) {
+    if let Ok(Some((changer, changer_name))) = media_changer(&config, drive) {
 
         let changer_id_list = changer.list_media_changer_ids()?;
 

@@ -2,56 +2,30 @@ use anyhow::Error;
 
 use proxmox::tools::email::sendmail;
 
-use super::MediaChange;
-
 /// Send email to a person to request a manual media change
-pub struct ChangeMediaEmail {
-    drive: String,
-    to: String,
-}
+pub fn send_load_media_email(
+    drive: &str,
+    changer_id: &str,
+    to: &str,
+) -> Result<(), Error> {
 
-impl ChangeMediaEmail {
+    let subject = format!("Load Media '{}' request for drive '{}'", changer_id, drive);
 
-    pub fn new(drive: &str, to: &str) -> Self {
-        Self {
-            drive: String::from(drive),
-            to: String::from(to),
-        }
-    }
-}
+    let mut text = String::new();
 
-impl MediaChange for ChangeMediaEmail {
+    text.push_str("Please insert the requested media into the backup drive.\n\n");
 
-    fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
+    text.push_str(&format!("Drive: {}\n", drive));
+    text.push_str(&format!("Media: {}\n", changer_id));
 
-        let subject = format!("Load Media '{}' request for drive '{}'", changer_id, self.drive);
+    sendmail(
+        &[to],
+        &subject,
+        Some(&text),
+        None,
+        None,
+        None,
+    )?;
 
-        let mut text = String::new();
-
-        text.push_str("Please insert the requested media into the backup drive.\n\n");
-
-        text.push_str(&format!("Drive: {}\n", self.drive));
-        text.push_str(&format!("Media: {}\n", changer_id));
-
-        sendmail(
-            &[&self.to],
-            &subject,
-            Some(&text),
-            None,
-            None,
-            None,
-        )?;
-
-        Ok(())
-    }
-
-    fn unload_media(&mut self) -> Result<(), Error> {
-        /* ignore ? */
-        Ok(())
-    }
-
-    fn list_media_changer_ids(&self) -> Result<Vec<String>, Error> {
-        Ok(Vec::new())
-    }
-
+    Ok(())
 }

@@ -55,6 +55,7 @@ use crate::{
         linux_tape_device_list,
         open_drive,
         media_changer,
+        required_media_changer,
         update_changer_online_status,
         linux_tape::{
             LinuxTapeHandle,
@@ -122,7 +123,7 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
-        let (mut changer, _) = media_changer(&config, &drive, false)?;
+        let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.load_media(&changer_id)
     }).await?
 }
@@ -288,14 +289,17 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
-        let (mut changer, _) = media_changer(&config, &drive, false)?;
-
-        if !changer.eject_on_unload() {
+        if let Some((mut changer, _)) = media_changer(&config, &drive)? {
+            if !changer.eject_on_unload() {
+                let mut drive = open_drive(&config, &drive)?;
+                drive.eject_media()?;
+            }
+            changer.unload_media()?;
+        } else {
             let mut drive = open_drive(&config, &drive)?;
             drive.eject_media()?;
         }
-
-        changer.unload_media()
+        Ok(())
     }).await?
 }
 
@@ -524,7 +528,7 @@ pub async fn inventory(
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
-        let (changer, changer_name) = media_changer(&config, &drive, false)?;
+        let (changer, changer_name) = required_media_changer(&config, &drive)?;
 
         let changer_id_list = changer.list_media_changer_ids()?;
 
@@ -607,7 +611,7 @@ pub fn update_inventory(
         true,
         move |worker| {
 
-            let (mut changer, changer_name) = media_changer(&config, &drive, false)?;
+            let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
             let changer_id_list = changer.list_media_changer_ids()?;
             if changer_id_list.is_empty() {
@@ -721,7 +725,7 @@ fn barcode_label_media_worker(
 
     let (config, _digest) = config::drive::config()?;
 
-    let (mut changer, changer_name) = media_changer(&config, &drive, false)?;
+    let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
     let changer_id_list = changer.list_media_changer_ids()?;
 

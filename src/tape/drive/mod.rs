@@ -33,7 +33,7 @@ use crate::{
         },
         changer::{
             MediaChange,
-            ChangeMediaEmail,
+            send_load_media_email,
         },
     },
 };
@@ -146,45 +146,56 @@ pub trait TapeDriver {
     fn eject_media(&mut self) -> Result<(), Error>;
 }
 
-/// Get the media changer (name + MediaChange) associated with a tape drie.
+/// Get the media changer (MediaChange + name) associated with a tape drive.
 ///
-/// If allow_email is set, returns an ChangeMediaEmail instance for
-/// standalone tape drives (changer name set to "").
+/// Returns Ok(None) if the drive has no associated changer device.
 pub fn media_changer(
     config: &SectionConfigData,
     drive: &str,
-    allow_email: bool,
-) -> Result<(Box<dyn MediaChange>, String), Error> {
+) -> Result<Option<(Box<dyn MediaChange>, String)>, Error> {
 
     match config.sections.get(drive) {
         Some((section_type_name, config)) => {
             match section_type_name.as_ref() {
                 "virtual" => {
                     let tape = VirtualTapeDrive::deserialize(config)?;
-                    Ok((Box::new(tape), drive.to_string()))
+                    Ok(Some((Box::new(tape), drive.to_string())))
                 }
                 "linux" => {
                     let tape = LinuxTapeDrive::deserialize(config)?;
                     match tape.changer {
                         Some(ref changer_name) => {
                             let changer_name = changer_name.to_string();
-                            Ok((Box::new(tape), changer_name))
+                            Ok(Some((Box::new(tape), changer_name)))
                         }
-                        None =>  {
-                            if !allow_email {
-                                bail!("drive '{}' has no changer device", drive);
-                            }
-                            let to = "root@localhost"; // fixme
-                            let changer = ChangeMediaEmail::new(drive, to);
-                            Ok((Box::new(changer), String::new()))
-                        },
+                        None => Ok(None),
                     }
                 }
-                _ => bail!("drive type '{}' not implemented!"),
+                _ => bail!("unknown drive type '{}' - internal error"),
             }
         }
         None => {
             bail!("no such drive '{}'", drive);
+        }
+    }
+}
+
+/// Get the media changer (MediaChange + name) associated with a tape drive.
+///
+/// This fail if the drive has no associated changer device.
+pub fn required_media_changer(
+    config: &SectionConfigData,
+    drive: &str,
+) -> Result<(Box<dyn MediaChange>, String), Error> {
+    match media_changer(config, drive) {
+        Ok(Some(result)) => {
+            return Ok(result);
+        }
+        Ok(None) => {
+            bail!("drive '{}' has no associated changer device", drive);
+        },
+        Err(err) => {
+            return Err(err);
         }
     }
 }
@@ -209,7 +220,7 @@ pub fn open_drive(
                         .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, tape.path, err))?;
                     Ok(Box::new(handle))
                 }
-                _ => bail!("drive type '{}' not implemented!"),
+                _ => bail!("unknown drive type '{}' - internal error"),
             }
         }
         None => {
@@ -235,7 +246,11 @@ pub fn request_and_load_media(
 
     let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox::tools::Uuid| {
         if let Ok(Some(media_id)) = handle.read_label() {
-            println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
+            worker.log(format!(
+                "found media label {} ({})",
+                media_id.label.changer_id,
+                media_id.label.uuid.to_string(),
+            ));
             if media_id.label.uuid == *uuid {
                 return Ok(media_id);
             }
@@ -278,9 +293,8 @@ pub fn request_and_load_media(
                     worker.log(format!("Please insert media '{}' into drive '{}'", changer_id, drive));
 
                     let to = "root@localhost"; // fixme
-                    let mut changer = ChangeMediaEmail::new(drive, to);
 
-                    changer.load_media(&changer_id)?; // semd email
+                    send_load_media_email(drive, &changer_id, to)?;
 
                     let mut last_media_uuid = None;
 
