@@ -46,8 +46,8 @@ fn verify_all_of_schema(schema: &AllOfSchema) -> Result<(), Error> {
     let mut keys = HashSet::<&'static str>::new();
     let mut dupes = String::new();
     for property in schema.properties() {
-        if keys.insert(property.0) {
-            if dupes.is_empty() {
+        if !keys.insert(property.0) {
+            if !dupes.is_empty() {
                 dupes.push_str(", ");
             }
             dupes.push_str(property.0);
