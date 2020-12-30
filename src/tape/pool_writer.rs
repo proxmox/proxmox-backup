@@ -12,6 +12,7 @@ use crate::{
     backup::{
         DataStore,
     },
+    server::WorkerTask,
     tape::{
         TAPE_STATUS_DIR,
         MAX_CHUNK_ARCHIVE_SIZE,
@@ -118,7 +119,7 @@ impl PoolWriter {
     }
 
     /// Load a writable media into the drive
-    pub fn load_writable_media(&mut self) -> Result<Uuid, Error> {
+    pub fn load_writable_media(&mut self, worker: &WorkerTask) -> Result<Uuid, Error> {
         let last_media_uuid = match self.status {
             Some(PoolWriterState { ref catalog, .. }) => Some(catalog.uuid().clone()),
             None => None,
@@ -147,7 +148,7 @@ impl PoolWriter {
         }
 
         let (drive_config, _digest) = crate::config::drive::config()?;
-        let (drive, catalog) = drive_load_and_label_media(&drive_config, &self.drive_name, &media.id())?;
+        let (drive, catalog) = drive_load_and_label_media(worker, &drive_config, &self.drive_name, &media.id())?;
         self.status = Some(PoolWriterState { drive, catalog, at_eom: false, bytes_written: 0 });
 
         Ok(media_uuid)
@@ -333,13 +334,14 @@ fn write_chunk_archive<'a>(
 // set label. If the tabe is empty, or the existing set label does not
 // match the expected media set, overwrite the media set label.
 fn drive_load_and_label_media(
+    worker: &WorkerTask,
     drive_config: &SectionConfigData,
     drive_name: &str,
     media_id: &MediaId,
 ) -> Result<(Box<dyn TapeDriver>, MediaCatalog), Error> {
 
     let (mut tmp_drive, info) =
-        request_and_load_media(&drive_config, &drive_name, &media_id.label)?;
+        request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
 
     let media_catalog;
 

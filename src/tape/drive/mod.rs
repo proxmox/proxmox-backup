@@ -19,6 +19,7 @@ use crate::{
         VirtualTapeDrive,
         LinuxTapeDrive,
     },
+    server::WorkerTask,
     tape::{
         TapeWrite,
         TapeRead,
@@ -223,6 +224,7 @@ pub fn open_drive(
 ///
 /// Returns a handle to the opened drive and the media labels.
 pub fn request_and_load_media(
+    worker: &WorkerTask,
     config: &SectionConfigData,
     drive: &str,
     label: &MediaLabel,
@@ -231,51 +233,97 @@ pub fn request_and_load_media(
     MediaId,
 ), Error> {
 
+    let check_label = |handle: &mut dyn TapeDriver, uuid: &proxmox::tools::Uuid| {
+        if let Ok(Some(media_id)) = handle.read_label() {
+            println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
+            if media_id.label.uuid == *uuid {
+                return Ok(media_id);
+            }
+        }
+        bail!("read label failed (please label all tapes first)");
+    };
+
     match config.sections.get(drive) {
         Some((section_type_name, config)) => {
             match section_type_name.as_ref() {
                 "virtual" => {
-                    let mut drive = VirtualTapeDrive::deserialize(config)?;
+                    let mut tape = VirtualTapeDrive::deserialize(config)?;
 
                     let changer_id = label.changer_id.clone();
 
-                    drive.load_media(&changer_id)?;
+                    tape.load_media(&changer_id)?;
 
-                    let mut handle = drive.open()?;
+                    let mut handle: Box<dyn TapeDriver> = Box::new(tape.open()?);
 
-                    if let Ok(Some(media_id)) = handle.read_label() {
-                        println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
-                        if media_id.label.uuid == label.uuid {
-                            return Ok((Box::new(handle), media_id));
-                        }
-                    }
-                    bail!("read label failed (label all tapes first)");
+                    let media_id = check_label(handle.as_mut(), &label.uuid)?;
+
+                    return Ok((handle, media_id));
                 }
                 "linux" => {
-                    let tape = LinuxTapeDrive::deserialize(config)?;
+                    let mut tape = LinuxTapeDrive::deserialize(config)?;
 
-                    let id = label.changer_id.clone();
+                    let changer_id = label.changer_id.clone();
 
-                    println!("Please insert media '{}' into drive '{}'", id, drive);
+                    if tape.changer.is_some() {
+
+                        tape.load_media(&changer_id)?;
+
+                        let mut handle: Box<dyn TapeDriver> = Box::new(tape.open()?);
+
+                        let media_id = check_label(handle.as_mut(), &label.uuid)?;
+
+                        return Ok((handle, media_id));
+                    }
+
+                    worker.log(format!("Please insert media '{}' into drive '{}'", changer_id, drive));
+
+                    let to = "root@localhost"; // fixme
+                    let mut changer = ChangeMediaEmail::new(drive, to);
+
+                    changer.load_media(&changer_id)?; // semd email
+
+                    let mut last_media_uuid = None;
 
                     loop {
                         let mut handle = match tape.open() {
                             Ok(handle) => handle,
                             Err(_) => {
-                                eprintln!("tape open failed - test again in 5 secs");
+                                //eprintln!("tape open failed - test again in 5 secs");
                                 std::thread::sleep(std::time::Duration::from_millis(5_000));
                                 continue;
                             }
                         };
 
-                        if let Ok(Some(media_id)) = handle.read_label() {
-                            println!("found media label {} ({})", media_id.label.changer_id, media_id.label.uuid.to_string());
-                            if media_id.label.uuid == label.uuid {
-                                return Ok((Box::new(handle), media_id));
+                        match handle.read_label() {
+                            Ok(Some(media_id)) => {
+                                if media_id.label.uuid == label.uuid {
+                                    worker.log(format!(
+                                        "found media label {} ({})",
+                                        media_id.label.changer_id,
+                                        media_id.label.uuid.to_string(),
+                                    ));
+                                    return Ok((Box::new(handle), media_id));
+                                } else {
+                                    if Some(media_id.label.uuid.clone()) != last_media_uuid {
+                                        worker.log(format!(
+                                            "wrong media label {} ({})",
+                                            media_id.label.changer_id,
+                                            media_id.label.uuid.to_string(),
+                                        ));
+                                        last_media_uuid = Some(media_id.label.uuid);
+                                    }
+                                }
                             }
+                            Ok(None) => {
+                                if last_media_uuid.is_some() {
+                                    worker.log(format!("found empty media without label (please label all tapes first)"));
+                                    last_media_uuid = None;
+                                }
+                            }
+                            Err(_) => { /* test again */ }
                         }
 
-                        println!("read label failed -  test again in 5 secs");
+                        // eprintln!("read label failed -  test again in 5 secs");
                         std::thread::sleep(std::time::Duration::from_millis(5_000));
                     }
                 }

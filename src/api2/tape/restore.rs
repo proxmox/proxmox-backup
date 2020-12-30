@@ -67,7 +67,7 @@ pub fn request_and_restore_media(
         Some(ref set) => &set.uuid,
     };
 
-    let (mut drive, info) = request_and_load_media(&drive_config, &drive_name, &media_id.label)?;
+    let (mut drive, info) = request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
 
     match info.media_set_label {
         None => {

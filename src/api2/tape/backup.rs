@@ -178,7 +178,7 @@ pub fn backup_snapshot(
             break;
         }
 
-        let uuid = pool_writer.load_writable_media()?;
+        let uuid = pool_writer.load_writable_media(worker)?;
 
         let (leom, _bytes) = pool_writer.append_chunk_archive(&datastore, &mut chunk_iter)?;
 
@@ -187,7 +187,7 @@ pub fn backup_snapshot(
         }
     }
 
-    let uuid = pool_writer.load_writable_media()?;
+    let uuid = pool_writer.load_writable_media(worker)?;
 
     let (done, _bytes) = pool_writer.append_snapshot_archive(&snapshot_reader)?;
 
@@ -195,7 +195,7 @@ pub fn backup_snapshot(
         // does not fit on tape, so we try on next volume
         pool_writer.set_media_status_full(&uuid)?;
 
-        pool_writer.load_writable_media()?;
+        pool_writer.load_writable_media(worker)?;
         let (done, _bytes) = pool_writer.append_snapshot_archive(&snapshot_reader)?;
 
         if !done {
