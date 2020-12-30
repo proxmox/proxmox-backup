@@ -149,6 +149,10 @@ pub trait TapeDriver {
 /// Get the media changer (MediaChange + name) associated with a tape drive.
 ///
 /// Returns Ok(None) if the drive has no associated changer device.
+///
+/// Note: This may return the drive name as changer-name if the drive
+/// implements some kind of internal changer (which is true for our
+/// 'virtual' drive implementation).
 pub fn media_changer(
     config: &SectionConfigData,
     drive: &str,
