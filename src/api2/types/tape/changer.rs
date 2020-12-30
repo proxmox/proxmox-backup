@@ -16,12 +16,12 @@ pub const CHANGER_NAME_SCHEMA: Schema = StringSchema::new("Tape Changer Identifi
     .schema();
 
 pub const SCSI_CHANGER_PATH_SCHEMA: Schema = StringSchema::new(
-    "Path to Linux generic SCSI device (i.e. '/dev/sg4')")
+    "Path to Linux generic SCSI device (e.g. '/dev/sg4')")
     .schema();
 
 pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
-    .min_length(3)
+    .min_length(2)
     .max_length(32)
     .schema();
 
