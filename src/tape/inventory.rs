@@ -346,6 +346,37 @@ impl Inventory {
         self.media_set_start_times.get(media_set_uuid).map(|t| *t)
     }
 
+    /// Lookup media set pool
+    pub fn lookup_media_set_pool(&self, media_set_uuid: &Uuid) -> Result<String, Error> {
+
+        let mut last_pool = None;
+
+        for media in self.map.values() {
+            match media.media_set_label {
+                None => continue,
+                Some(MediaSetLabel { ref uuid, .. }) => {
+                    if  uuid != media_set_uuid {
+                        continue;
+                    }
+                    if let Some((pool, _)) = self.lookup_media_pool(&media.label.uuid) {
+                        if let Some(last_pool) = last_pool {
+                            if last_pool != pool {
+                                bail!("detected media set with inconsistent pool assignment - internal error");
+                            }
+                        } else {
+                            last_pool = Some(pool);
+                        }
+                    }
+                }
+            }
+        }
+
+        match last_pool {
+            Some(pool) => Ok(pool.to_string()),
+            None => bail!("media set {} is incomplete - unable to lookup pool"),
+        }
+    }
+
     /// Compute a single media sets
     pub fn compute_media_set_members(&self, media_set_uuid: &Uuid) -> Result<MediaSet, Error> {
 
