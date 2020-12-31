@@ -13,6 +13,7 @@ pub const SUBDIRS: SubdirMap = &[
     ("changer", &changer::ROUTER),
     ("drive", &drive::ROUTER),
     ("media", &media::ROUTER),
+    ("restore", &restore::ROUTER),
 ];
 
 pub const ROUTER: Router = Router::new()

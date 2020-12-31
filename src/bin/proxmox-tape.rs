@@ -43,6 +43,7 @@ use proxmox_backup::{
     tape::{
         open_drive,
         complete_media_changer_id,
+        complete_media_set_uuid,
         file_formats::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
             PROXMOX_BACKUP_CONTENT_NAME,
@@ -631,6 +632,36 @@ async fn backup(
 
     Ok(())
 }
+#[api(
+   input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "media-set": {
+                description: "Media set UUID.",
+                type: String,
+            },
+        },
+    },
+)]
+/// Restore data from media-set
+async fn restore(
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let info = &api2::tape::restore::API_METHOD_RESTORE;
+
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(())
+}
 
 #[api(
     input: {
@@ -687,6 +718,13 @@ fn main() {
                 .arg_param(&["store", "pool"])
                 .completion_cb("store", complete_datastore_name)
                 .completion_cb("pool", complete_pool_name)
+        )
+        .insert(
+            "restore",
+            CliCommand::new(&API_METHOD_RESTORE)
+                .arg_param(&["media-set", "store"])
+                .completion_cb("store", complete_datastore_name)
+                .completion_cb("media-set", complete_media_set_uuid)
         )
         .insert(
             "barcode-label",

@@ -3,8 +3,16 @@ use std::ffi::OsStr;
 use std::convert::TryFrom;
 
 use anyhow::{bail, format_err, Error};
+use serde_json::Value;
 
 use proxmox::{
+    api::{
+        api,
+        RpcEnvironment,
+        RpcEnvironmentType,
+        Router,
+        section_config::SectionConfigData,
+    },
     tools::{
         Uuid,
         io::ReadExt,
@@ -13,12 +21,20 @@ use proxmox::{
             CreateOptions,
         },
     },
-    api::section_config::SectionConfigData,
 };
 
 use crate::{
     tools::compute_file_csum,
-    api2::types::Authid,
+    api2::types::{
+        DATASTORE_SCHEMA,
+        UPID_SCHEMA,
+        Authid,
+        MediaPoolConfig,
+    },
+    config::{
+        self,
+        drive::check_drive_exists,
+    },
     backup::{
         archive_type,
         MANIFEST_BLOB_NAME,
@@ -40,6 +56,8 @@ use crate::{
         MediaCatalog,
         ChunkArchiveDecoder,
         TapeDriver,
+        MediaPool,
+        Inventory,
         request_and_load_media,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
@@ -51,6 +69,112 @@ use crate::{
         },
     },
 };
+
+pub const ROUTER: Router = Router::new()
+    .post(&API_METHOD_RESTORE);
+
+
+#[api(
+   input: {
+        properties: {
+            store: {
+                schema: DATASTORE_SCHEMA,
+            },
+            "media-set": {
+                description: "Media set UUID.",
+                type: String,
+            },
+        },
+    },
+    returns: {
+        schema: UPID_SCHEMA,
+    },
+)]
+/// Restore data from media-set
+pub fn restore(
+    store: String,
+    media_set: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let datastore = DataStore::lookup_datastore(&store)?;
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let status_path = Path::new(TAPE_STATUS_DIR);
+    let inventory = Inventory::load(status_path)?;
+
+    let media_set_uuid = media_set.parse()?;
+
+    let pool = inventory.lookup_media_set_pool(&media_set_uuid)?;
+
+    let (config, _digest) = config::media_pool::config()?;
+    let pool_config: MediaPoolConfig = config.lookup("pool", &pool)?;
+
+    let (drive_config, _digest) = config::drive::config()?;
+    // early check before starting worker
+    check_drive_exists(&drive_config, &pool_config.drive)?;
+
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
+    let upid_str = WorkerTask::new_thread(
+        "tape-restore",
+        Some(store.clone()),
+        auth_id.clone(),
+        to_stdout,
+        move |worker| {
+
+            let _lock = MediaPool::lock(status_path, &pool)?;
+
+            let members = inventory.compute_media_set_members(&media_set_uuid)?;
+
+            let media_list = members.media_list().clone();
+
+            let mut media_id_list = Vec::new();
+
+            for (seq_nr, media_uuid) in media_list.iter().enumerate() {
+                match media_uuid {
+                    None => {
+                        bail!("media set {} is incomplete (missing member {}).", media_set_uuid, seq_nr);
+                    }
+                    Some(media_uuid) => {
+                        media_id_list.push(inventory.lookup_media(media_uuid).unwrap());
+                    }
+                }
+            }
+
+            let drive = &pool_config.drive;
+
+            worker.log(format!("Restore mediaset '{}'", media_set));
+            worker.log(format!("Pool: {}", pool));
+            worker.log(format!("Datastore: {}", store));
+            worker.log(format!("Drive: {}", drive));
+            worker.log(format!(
+                "Required media list: {}",
+                media_id_list.iter()
+                    .map(|media_id| media_id.label.changer_id.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(";")
+            ));
+
+            for media_id in media_id_list.iter() {
+                request_and_restore_media(
+                    &worker,
+                    media_id,
+                    &drive_config,
+                    drive,
+                    &datastore,
+                    &auth_id,
+                )?;
+            }
+
+            worker.log(format!("Restore mediaset '{}' done", media_set));
+            Ok(())
+        }
+    )?;
+
+    Ok(upid_str.into())
+}
 
 /// Request and restore complete media without using existing catalog (create catalog instead)
 pub fn request_and_restore_media(
