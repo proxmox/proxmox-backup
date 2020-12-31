@@ -274,6 +274,8 @@ Ext.define('PBS.Utils', {
 	// do whatever you want here
 	Proxmox.Utils.override_task_descriptions({
 	    backup: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Backup')),
+	    "tape-backup": ['Datastore', gettext('Tape Backup')],
+	    "tape-restore": ['Datastore', gettext('Tape Restore')],
 	    "barcode-label-media": [gettext('Drive'), gettext('Barcode label media')],
 	    dircreate: [gettext('Directory Storage'), gettext('Create')],
 	    dirremove: [gettext('Directory'), gettext('Remove')],
@@ -281,6 +283,7 @@ Ext.define('PBS.Utils', {
 	    garbage_collection: ['Datastore', gettext('Garbage collect')],
 	    "inventory-update": [gettext('Drive'), gettext('Inventory update')],
 	    "label-media": [gettext('Drive'), gettext('Label media')],
+	    "catalog-media": [gettext('Drive'), gettext('Catalog media')],
 	    logrotate: [null, gettext('Log Rotation')],
 	    prune: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Prune')),
 	    reader: (type, id) => PBS.Utils.render_datastore_worker_id(id, gettext('Read objects')),
