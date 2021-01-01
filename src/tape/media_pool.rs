@@ -44,6 +44,7 @@ pub struct MediaPool {
 
     media_set_policy: MediaSetPolicy,
     retention: RetentionPolicy,
+    use_offline_media: bool,
 
     inventory: Inventory,
     state_db: MediaStateDatabase,
@@ -59,6 +60,7 @@ impl MediaPool {
         state_path: &Path,
         media_set_policy: MediaSetPolicy,
         retention: RetentionPolicy,
+        use_offline_media: bool,
      ) -> Result<Self, Error> {
 
         let inventory = Inventory::load(state_path)?;
@@ -74,6 +76,7 @@ impl MediaPool {
             name: String::from(name),
             media_set_policy,
             retention,
+            use_offline_media,
             inventory,
             state_db,
             current_media_set,
@@ -84,13 +87,14 @@ impl MediaPool {
     pub fn with_config(
         state_path: &Path,
         config: &MediaPoolConfig,
+        use_offline_media: bool,
     ) -> Result<Self, Error> {
 
         let allocation = config.allocation.clone().unwrap_or(String::from("continue")).parse()?;
 
         let retention = config.retention.clone().unwrap_or(String::from("keep")).parse()?;
 
-        MediaPool::new(&config.name, state_path, allocation, retention)
+        MediaPool::new(&config.name, state_path, allocation, retention, use_offline_media)
     }
 
     /// Returns the pool name
@@ -272,7 +276,14 @@ impl MediaPool {
 
             // check if media is on site
             match media.location() {
-                MediaLocation::Online(_) | MediaLocation::Offline => { /* OK */ },
+                MediaLocation::Online(_) => { /* OK */ },
+                MediaLocation::Offline => {
+                    if self.use_offline_media {
+                        /* OK */
+                    } else {
+                        continue;
+                    }
+                },
                 MediaLocation::Vault(_) => continue,
             }
 
@@ -380,9 +391,15 @@ impl MediaPool {
             match media.status() {
                 MediaStatus::Full => { /* OK */ },
                 MediaStatus::Writable if (seq + 1) == media_count =>  {
-                    last_is_writable = true;
                     match media.location() {
-                        MediaLocation::Online(_) | MediaLocation::Offline => { /* OK */ },
+                        MediaLocation::Online(_) => {
+                            last_is_writable = true;
+                        },
+                        MediaLocation::Offline => {
+                            if self.use_offline_media {
+                                last_is_writable = true;
+                            }
+                        }
                         MediaLocation::Vault(vault) => {
                             bail!("writable media offsite in vault '{}'", vault);
                         }
@@ -465,7 +482,7 @@ impl BackupMedia {
     pub fn set_media_set_label(&mut self, set_label: MediaSetLabel) {
         self.id.media_set_label = Some(set_label);
     }
-    
+
     /// Returns the drive label
     pub fn label(&self) -> &MediaLabel {
         &self.id.label

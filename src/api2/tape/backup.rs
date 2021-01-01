@@ -109,9 +109,11 @@ fn backup_worker(
     let _lock = MediaPool::lock(status_path, &pool_config.name)?;
 
     worker.log("update media online status");
-    update_media_online_status(&pool_config.drive)?;
+    let has_changer = update_media_online_status(&pool_config.drive)?;
 
-    let pool = MediaPool::with_config(status_path, &pool_config)?;
+    let use_offline_media = !has_changer;
+
+    let pool = MediaPool::with_config(status_path, &pool_config, use_offline_media)?;
 
     let mut pool_writer = PoolWriter::new(pool, &pool_config.drive)?;
 
@@ -138,11 +140,15 @@ fn backup_worker(
 }
 
 // Try to update the the media online status
-fn update_media_online_status(drive: &str) -> Result<(), Error> {
+fn update_media_online_status(drive: &str) -> Result<bool, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
+    let mut has_changer = false;
+
     if let Ok(Some((changer, changer_name))) = media_changer(&config, drive) {
+
+        has_changer = true;
 
         let changer_id_list = changer.list_media_changer_ids()?;
 
@@ -159,7 +165,7 @@ fn update_media_online_status(drive: &str) -> Result<(), Error> {
         )?;
     }
 
-    Ok(())
+    Ok(has_changer)
 }
 
 pub fn backup_snapshot(
