@@ -26,9 +26,12 @@ use crate::{
     api2::types::{
         MediaSetPolicy,
         RetentionPolicy,
+        MediaStatus,
+        MediaLocation,
     },
     tape::{
         TAPE_STATUS_DIR,
+        OnlineStatusMap,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -120,9 +123,18 @@ impl MediaSet {
     }
 }
 
+#[derive(Serialize,Deserialize)]
+struct MediaStateEntry {
+    id: MediaId,
+    #[serde(skip_serializing_if="Option::is_none")]
+    location: Option<MediaLocation>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    status: Option<MediaStatus>,
+}
+
 /// Media Inventory
 pub struct Inventory {
-    map: BTreeMap<Uuid, MediaId>,
+    map: BTreeMap<Uuid, MediaStateEntry>,
 
     inventory_path: PathBuf,
     lockfile_path: PathBuf,
@@ -171,8 +183,8 @@ impl Inventory {
 
         let mut set_start_times = HashMap::new();
 
-        for media in self.map.values() {
-            let set = match &media.media_set_label {
+        for entry in self.map.values() {
+            let set = match &entry.id.media_set_label {
                 None => continue,
                 Some(set) => set,
             };
@@ -189,21 +201,21 @@ impl Inventory {
         open_file_locked(&self.lockfile_path, std::time::Duration::new(10, 0), true)
     }
 
-    fn load_media_db(path: &Path) -> Result<BTreeMap<Uuid, MediaId>, Error> {
+    fn load_media_db(path: &Path) -> Result<BTreeMap<Uuid, MediaStateEntry>, Error> {
 
         let data = file_get_json(path, Some(json!([])))?;
-        let media_list: Vec<MediaId> = serde_json::from_value(data)?;
+        let media_list: Vec<MediaStateEntry> = serde_json::from_value(data)?;
 
         let mut map = BTreeMap::new();
-        for item in media_list.into_iter() {
-            map.insert(item.label.uuid.clone(), item);
+        for entry in media_list.into_iter() {
+            map.insert(entry.id.label.uuid.clone(), entry);
         }
 
         Ok(map)
     }
 
     fn replace_file(&self) -> Result<(), Error> {
-        let list: Vec<&MediaId> = self.map.values().collect();
+        let list: Vec<&MediaStateEntry> = self.map.values().collect();
         let raw = serde_json::to_string_pretty(&serde_json::to_value(list)?)?;
 
         let backup_user = crate::backup::backup_user()?;
@@ -219,22 +231,40 @@ impl Inventory {
     }
 
     /// Stores a single MediaID persistently
-    pub fn store(&mut self, mut media_id: MediaId) -> Result<(), Error> {
+    pub fn store(
+        &mut self,
+        mut media_id: MediaId,
+        clear_media_status: bool,
+    ) -> Result<(), Error> {
         let _lock = self.lock()?;
         self.map = Self::load_media_db(&self.inventory_path)?;
 
-        // do not overwrite unsaved pool assignments
-        if media_id.media_set_label.is_none() {
-            if let Some(previous) = self.map.get(&media_id.label.uuid) {
-                if let Some(ref set) = previous.media_set_label {
+        let uuid = media_id.label.uuid.clone();
+
+        if let Some(previous) = self.map.remove(&media_id.label.uuid) {
+            // do not overwrite unsaved pool assignments
+            if media_id.media_set_label.is_none() {
+                if let Some(ref set) = previous.id.media_set_label {
                     if set.uuid.as_ref() == [0u8;16] {
                         media_id.media_set_label = Some(set.clone());
                     }
                 }
             }
+            let entry = MediaStateEntry {
+                id: media_id,
+                location: previous.location,
+                status: if clear_media_status {
+                    None
+                } else {
+                    previous.status
+                },
+            };
+            self.map.insert(uuid, entry);
+        } else {
+            let entry = MediaStateEntry { id: media_id, location: None, status: None };
+            self.map.insert(uuid, entry);
         }
 
-        self.map.insert(media_id.label.uuid.clone(), media_id);
         self.update_helpers();
         self.replace_file()?;
         Ok(())
@@ -252,14 +282,14 @@ impl Inventory {
 
     /// Lookup media
     pub fn lookup_media(&self, uuid: &Uuid) -> Option<&MediaId> {
-        self.map.get(uuid)
+        self.map.get(uuid).map(|entry| &entry.id)
     }
 
     /// find media by changer_id
     pub fn find_media_by_changer_id(&self, changer_id: &str) -> Option<&MediaId> {
-        for (_uuid, media_id) in &self.map {
-            if media_id.label.changer_id == changer_id {
-                return Some(media_id);
+        for (_uuid, entry) in &self.map {
+            if entry.id.label.changer_id == changer_id {
+                return Some(&entry.id);
             }
         }
         None
@@ -271,8 +301,8 @@ impl Inventory {
     pub fn lookup_media_pool(&self, uuid: &Uuid) -> Option<(&str, bool)> {
         match self.map.get(uuid) {
             None => None,
-            Some(media_id) => {
-                match media_id.media_set_label {
+            Some(entry) => {
+                match entry.id.media_set_label {
                     None => None, // not assigned to any pool
                     Some(ref set) => {
                         let is_empty = set.uuid.as_ref() == [0u8;16];
@@ -287,8 +317,8 @@ impl Inventory {
     pub fn list_pool_media(&self, pool: &str) -> Vec<MediaId> {
         let mut list = Vec::new();
 
-        for (_uuid, media_id) in &self.map {
-            match media_id.media_set_label {
+        for (_uuid, entry) in &self.map {
+            match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
                     if set.pool != pool {
@@ -297,15 +327,14 @@ impl Inventory {
 
                     if set.uuid.as_ref() == [0u8;16] { // should we do this??
                         list.push(MediaId {
-                            label: media_id.label.clone(),
+                            label: entry.id.label.clone(),
                             media_set_label: None,
                         })
                     } else {
-                        list.push(media_id.clone());
+                        list.push(entry.id.clone());
                     }
                 }
             }
-
         }
 
         list
@@ -315,12 +344,12 @@ impl Inventory {
     pub fn list_used_media(&self) -> Vec<MediaId> {
         let mut list = Vec::new();
 
-        for (_uuid, media_id) in &self.map {
-            match media_id.media_set_label {
+        for (_uuid, entry) in &self.map {
+            match entry.id.media_set_label {
                 None => continue, // not assigned to any pool
                 Some(ref set) => {
                     if set.uuid.as_ref() != [0u8;16] {
-                        list.push(media_id.clone());
+                        list.push(entry.id.clone());
                     }
                 }
             }
@@ -333,9 +362,9 @@ impl Inventory {
     pub fn list_unassigned_media(&self) -> Vec<MediaId> {
         let mut list = Vec::new();
 
-        for (_uuid, media_id) in &self.map {
-            if media_id.media_set_label.is_none() {
-                list.push(media_id.clone());
+        for (_uuid, entry) in &self.map {
+            if entry.id.media_set_label.is_none() {
+                list.push(entry.id.clone());
             }
         }
 
@@ -351,14 +380,14 @@ impl Inventory {
 
         let mut last_pool = None;
 
-        for media in self.map.values() {
-            match media.media_set_label {
+        for entry in self.map.values() {
+            match entry.id.media_set_label {
                 None => continue,
                 Some(MediaSetLabel { ref uuid, .. }) => {
                     if  uuid != media_set_uuid {
                         continue;
                     }
-                    if let Some((pool, _)) = self.lookup_media_pool(&media.label.uuid) {
+                    if let Some((pool, _)) = self.lookup_media_pool(&entry.id.label.uuid) {
                         if let Some(last_pool) = last_pool {
                             if last_pool != pool {
                                 bail!("detected media set with inconsistent pool assignment - internal error");
@@ -382,14 +411,14 @@ impl Inventory {
 
         let mut set = MediaSet::with_data(media_set_uuid.clone(), Vec::new());
 
-        for media in self.map.values() {
-            match media.media_set_label {
+        for entry in self.map.values() {
+            match entry.id.media_set_label {
                 None => continue,
                 Some(MediaSetLabel { seq_nr, ref uuid, .. }) => {
                     if  uuid != media_set_uuid {
                         continue;
                     }
-                    set.insert_media(media.label.uuid.clone(), seq_nr)?;
+                    set.insert_media(entry.id.label.uuid.clone(), seq_nr)?;
                 }
             }
         }
@@ -402,8 +431,8 @@ impl Inventory {
 
         let mut set_map: HashMap<Uuid, MediaSet> = HashMap::new();
 
-        for media in self.map.values() {
-            match media.media_set_label {
+        for entry in self.map.values() {
+            match entry.id.media_set_label {
                 None => continue,
                 Some(MediaSetLabel { seq_nr, ref uuid, .. }) => {
 
@@ -411,7 +440,7 @@ impl Inventory {
                         MediaSet::with_data(uuid.clone(), Vec::new())
                     });
 
-                    set.insert_media(media.label.uuid.clone(), seq_nr)?;
+                    set.insert_media(entry.id.label.uuid.clone(), seq_nr)?;
                 }
             }
         }
@@ -425,7 +454,7 @@ impl Inventory {
         let mut last_set: Option<(Uuid, i64)> = None;
 
         let set_list = self.map.values()
-            .filter_map(|media| media.media_set_label.as_ref())
+            .filter_map(|entry| entry.id.media_set_label.as_ref())
             .filter(|set| &set.pool == &pool && set.uuid.as_ref() != [0u8;16]);
 
         for set in set_list {
@@ -448,7 +477,7 @@ impl Inventory {
 
         // consistency check - must be the only set with that ctime
         let set_list = self.map.values()
-            .filter_map(|media| media.media_set_label.as_ref())
+            .filter_map(|entry| entry.id.media_set_label.as_ref())
             .filter(|set| &set.pool == &pool && set.uuid.as_ref() != [0u8;16]);
 
         for set in set_list {
@@ -466,7 +495,7 @@ impl Inventory {
     fn media_set_next_start_time(&self, media_set_uuid: &Uuid) -> Option<i64> {
 
         let (pool, ctime) = match self.map.values()
-            .filter_map(|media| media.media_set_label.as_ref())
+            .filter_map(|entry| entry.id.media_set_label.as_ref())
             .find_map(|set| {
                 if &set.uuid == media_set_uuid {
                     Some((set.pool.clone(), set.ctime))
@@ -479,7 +508,7 @@ impl Inventory {
             };
 
         let set_list = self.map.values()
-            .filter_map(|media| media.media_set_label.as_ref())
+            .filter_map(|entry| entry.id.media_set_label.as_ref())
             .filter(|set| (&set.uuid != media_set_uuid) && (&set.pool == &pool));
 
         let mut next_ctime = None;
@@ -586,7 +615,7 @@ impl Inventory {
         };
         let uuid = label.uuid.clone();
 
-        self.store(MediaId { label, media_set_label: None }).unwrap();
+        self.store(MediaId { label, media_set_label: None }, false).unwrap();
 
         uuid
     }
@@ -610,7 +639,7 @@ impl Inventory {
 
         let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, ctime);
 
-        self.store(MediaId { label, media_set_label: Some(set) }).unwrap();
+        self.store(MediaId { label, media_set_label: Some(set) }, false).unwrap();
 
         uuid
     }
@@ -629,10 +658,120 @@ impl Inventory {
         };
         let uuid = label.uuid.clone();
 
-        self.store(MediaId { label, media_set_label: Some(set) }).unwrap();
+        self.store(MediaId { label, media_set_label: Some(set) }, false).unwrap();
 
         uuid
     }
+}
+
+// Status/location handling
+impl Inventory {
+
+    /// Returns status and location with reasonable defaults.
+    ///
+    /// Default status is 'MediaStatus::Unknown'.
+    /// Default location is 'MediaLocation::Offline'.
+    pub fn status_and_location(&self, uuid: &Uuid) -> (MediaStatus, MediaLocation) {
+
+        match self.map.get(uuid) {
+            None => {
+                // no info stored - assume media is writable/offline
+                (MediaStatus::Unknown, MediaLocation::Offline)
+            }
+            Some(entry) => {
+                let location = entry.location.clone().unwrap_or(MediaLocation::Offline);
+                let status = entry.status.unwrap_or(MediaStatus::Unknown);
+                (status, location)
+            }
+        }
+    }
+
+    // Lock database, reload database, set status, store database
+    fn set_media_status(&mut self, uuid: &Uuid, status: Option<MediaStatus>) -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = Self::load_media_db(&self.inventory_path)?;
+        if let Some(entry) = self.map.get_mut(uuid) {
+            entry.status = status;
+            self.update_helpers();
+            self.replace_file()?;
+            Ok(())
+        } else {
+            bail!("no such media '{}'", uuid);
+        }
+    }
+
+    /// Lock database, reload database, set status to Full, store database
+    pub fn set_media_status_full(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.set_media_status(uuid, Some(MediaStatus::Full))
+    }
+
+    /// Lock database, reload database, set status to Damaged, store database
+    pub fn set_media_status_damaged(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.set_media_status(uuid, Some(MediaStatus::Damaged))
+    }
+
+    /// Lock database, reload database, set status to None, store database
+    pub fn clear_media_status(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.set_media_status(uuid, None)
+    }
+
+    // Lock database, reload database, set location, store database
+    fn set_media_location(&mut self, uuid: &Uuid, location: Option<MediaLocation>) -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = Self::load_media_db(&self.inventory_path)?;
+        if let Some(entry) = self.map.get_mut(uuid) {
+            entry.location = location;
+            self.update_helpers();
+            self.replace_file()?;
+            Ok(())
+        } else {
+            bail!("no such media '{}'", uuid);
+        }
+    }
+
+    /// Lock database, reload database, set location to vault, store database
+    pub fn set_media_location_vault(&mut self, uuid: &Uuid, vault: &str) -> Result<(), Error> {
+        self.set_media_location(uuid, Some(MediaLocation::Vault(vault.to_string())))
+    }
+
+    /// Lock database, reload database, set location to offline, store database
+    pub fn set_media_location_offline(&mut self, uuid: &Uuid) -> Result<(), Error> {
+        self.set_media_location(uuid, Some(MediaLocation::Offline))
+    }
+
+    /// Update online status
+    pub fn update_online_status(&mut self, online_map: &OnlineStatusMap) -> Result<(), Error> {
+        let _lock = self.lock()?;
+        self.map = Self::load_media_db(&self.inventory_path)?;
+
+        for (uuid, entry) in self.map.iter_mut() {
+            if let Some(changer_name) = online_map.lookup_changer(uuid) {
+                entry.location = Some(MediaLocation::Online(changer_name.to_string()));
+            } else {
+                if let Some(MediaLocation::Online(ref changer_name)) = entry.location {
+                    match online_map.online_map(changer_name) {
+                        None => {
+                            // no such changer device
+                            entry.location = Some(MediaLocation::Offline);
+                        }
+                        Some(None) => {
+                            // got no info - do nothing
+                        }
+                        Some(Some(_)) => {
+                            // media changer changed
+                            entry.location = Some(MediaLocation::Offline);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.update_helpers();
+        self.replace_file()?;
+
+        Ok(())
+    }
+
 }
 
 // shell completion helper
@@ -663,7 +802,7 @@ pub fn complete_media_set_uuid(
     };
 
     inventory.map.values()
-        .filter_map(|media| media.media_set_label.as_ref())
+        .filter_map(|entry| entry.id.media_set_label.as_ref())
         .map(|set| set.uuid.to_string()).collect()
 }
 
@@ -678,5 +817,5 @@ pub fn complete_media_changer_id(
         Err(_) => return Vec::new(),
     };
 
-    inventory.map.values().map(|media| media.label.changer_id.clone()).collect()
+    inventory.map.values().map(|entry| entry.id.label.changer_id.clone()).collect()
 }

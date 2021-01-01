@@ -14,7 +14,6 @@ use crate::{
     tape::{
         MediaChange,
         Inventory,
-        MediaStateDatabase,
         mtx_status,
         mtx_status_to_online_set,
     },
@@ -97,7 +96,7 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
 
     let (config, _digest) = crate::config::drive::config()?;
 
-    let inventory = Inventory::load(state_path)?;
+    let mut inventory = Inventory::load(state_path)?;
 
     let changers: Vec<ScsiTapeChanger> = config.convert_to_typed_array("changer")?;
 
@@ -135,8 +134,7 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
         map.update_online_status(&vtape.name, online_set)?;
     }
 
-    let mut state_db = MediaStateDatabase::load(state_path)?;
-    state_db.update_online_status(&map)?;
+    inventory.update_online_status(&map)?;
 
     Ok(map)
 }
@@ -145,7 +143,6 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
 pub fn update_changer_online_status(
     drive_config: &SectionConfigData,
     inventory: &mut Inventory,
-    state_db: &mut MediaStateDatabase,
     changer_name: &str,
     changer_id_list: &Vec<String>,
 ) -> Result<(), Error> {
@@ -158,7 +155,7 @@ pub fn update_changer_online_status(
         }
     }
     online_map.update_online_status(&changer_name, online_set)?;
-    state_db.update_online_status(&online_map)?;
+    inventory.update_online_status(&online_map)?;
 
     Ok(())
 }

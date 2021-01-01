@@ -28,7 +28,6 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
-        MediaStateDatabase,
         MediaPool,
         MediaCatalog,
         update_online_status,
@@ -118,11 +117,10 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
     if pool.is_none() {
 
         let inventory = Inventory::load(status_path)?;
-        let state_db = MediaStateDatabase::load(status_path)?;
 
         for media_id in inventory.list_unassigned_media() {
 
-            let (mut status, location) = state_db.status_and_location(&media_id.label.uuid);
+            let (mut status, location) = inventory.status_and_location(&media_id.label.uuid);
 
             if status == MediaStatus::Unknown {
                 status = MediaStatus::Writable;
@@ -183,9 +181,6 @@ pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Err
     drop(media_id);
 
     inventory.remove_media(&uuid)?;
-
-    let mut state_db = MediaStateDatabase::load(status_path)?;
-    state_db.remove_media(&uuid)?;
 
     Ok(())
 }

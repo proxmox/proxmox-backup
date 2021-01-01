@@ -34,7 +34,6 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         Inventory,
-        MediaStateDatabase,
         PoolWriter,
         MediaPool,
         SnapshotReader,
@@ -154,12 +153,10 @@ fn update_media_online_status(drive: &str) -> Result<bool, Error> {
 
         let status_path = Path::new(TAPE_STATUS_DIR);
         let mut inventory = Inventory::load(status_path)?;
-        let mut state_db = MediaStateDatabase::load(status_path)?;
 
         update_changer_online_status(
             &config,
             &mut inventory,
-            &mut state_db,
             &changer_name,
             &changer_id_list,
         )?;

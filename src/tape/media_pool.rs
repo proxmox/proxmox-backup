@@ -26,7 +26,6 @@ use crate::{
         MediaId,
         MediaSet,
         Inventory,
-        MediaStateDatabase,
         file_formats::{
             MediaLabel,
             MediaSetLabel,
@@ -47,7 +46,6 @@ pub struct MediaPool {
     use_offline_media: bool,
 
     inventory: Inventory,
-    state_db: MediaStateDatabase,
 
     current_media_set: MediaSet,
 }
@@ -70,15 +68,12 @@ impl MediaPool {
             None => MediaSet::new(),
         };
 
-        let state_db = MediaStateDatabase::load(state_path)?;
-
         Ok(MediaPool {
             name: String::from(name),
             media_set_policy,
             retention,
             use_offline_media,
             inventory,
-            state_db,
             current_media_set,
         })
     }
@@ -104,7 +99,7 @@ impl MediaPool {
 
     fn compute_media_state(&self, media_id: &MediaId) -> (MediaStatus, MediaLocation) {
 
-        let (status, location) = self.state_db.status_and_location(&media_id.label.uuid);
+        let (status, location) = self.inventory.status_and_location(&media_id.label.uuid);
 
         match status {
             MediaStatus::Full | MediaStatus::Damaged | MediaStatus::Retired => {
@@ -181,7 +176,7 @@ impl MediaPool {
     pub fn set_media_status_full(&mut self, uuid: &Uuid) -> Result<(), Error> {
         let media = self.lookup_media(uuid)?; // check if media belongs to this pool
         if media.status() != &MediaStatus::Full {
-            self.state_db.set_media_status_full(uuid)?;
+            self.inventory.set_media_status_full(uuid)?;
         }
         Ok(())
     }
@@ -304,7 +299,7 @@ impl MediaPool {
 
             media.set_media_set_label(set);
 
-            self.inventory.store(media.id().clone())?; // store persistently
+            self.inventory.store(media.id().clone(), true)?; // store persistently
 
             self.current_media_set.add_media(media.uuid().clone());
 
@@ -347,9 +342,9 @@ impl MediaPool {
 
                 media.set_media_set_label(set);
 
-                self.inventory.store(media.id().clone())?; // store persistently
-                self.state_db.clear_media_status(media.uuid())?; // remove Full status
-
+                let clear_media_status = true; // remove Full status
+                self.inventory.store(media.id().clone(), clear_media_status)?; // store persistently
+ 
                 self.current_media_set.add_media(media.uuid().clone());
 
                 return Ok(media.uuid().clone());

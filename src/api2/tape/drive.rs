@@ -48,7 +48,6 @@ use crate::{
         MediaChange,
         MediaPool,
         Inventory,
-        MediaStateDatabase,
         MediaCatalog,
         MediaId,
         mtx_load,
@@ -421,7 +420,7 @@ fn write_media_label(
     MediaCatalog::overwrite(status_path, &media_id, false)?;
 
     let mut inventory = Inventory::load(status_path)?;
-    inventory.store(media_id.clone())?;
+    inventory.store(media_id.clone(), false)?;
 
     drive.rewind()?;
 
@@ -542,12 +541,10 @@ pub async fn inventory(
         let state_path = Path::new(TAPE_STATUS_DIR);
 
         let mut inventory = Inventory::load(state_path)?;
-        let mut state_db = MediaStateDatabase::load(state_path)?;
 
         update_changer_online_status(
             &config,
             &mut inventory,
-            &mut state_db,
             &changer_name,
             &changer_id_list,
         )?;
@@ -630,9 +627,8 @@ pub fn update_inventory(
             let state_path = Path::new(TAPE_STATUS_DIR);
 
             let mut inventory = Inventory::load(state_path)?;
-            let mut state_db = MediaStateDatabase::load(state_path)?;
 
-            update_changer_online_status(&config, &mut inventory, &mut state_db, &changer_name, &changer_id_list)?;
+            update_changer_online_status(&config, &mut inventory, &changer_name, &changer_id_list)?;
 
             for changer_id in changer_id_list.iter() {
                 if changer_id.starts_with("CLN") {
@@ -668,7 +664,7 @@ pub fn update_inventory(
                             continue;
                         }
                         worker.log(format!("inventorize media '{}' with uuid '{}'", changer_id, media_id.label.uuid));
-                        inventory.store(media_id)?;
+                        inventory.store(media_id, false)?;
                     }
                 }
             }
@@ -743,9 +739,8 @@ fn barcode_label_media_worker(
     let state_path = Path::new(TAPE_STATUS_DIR);
 
     let mut inventory = Inventory::load(state_path)?;
-    let mut state_db = MediaStateDatabase::load(state_path)?;
 
-    update_changer_online_status(&config, &mut inventory, &mut state_db, &changer_name, &changer_id_list)?;
+    update_changer_online_status(&config, &mut inventory, &changer_name, &changer_id_list)?;
 
     if changer_id_list.is_empty() {
         bail!("changer device does not list any media labels");
@@ -921,7 +916,7 @@ pub fn catalog_media(
             let status_path = Path::new(TAPE_STATUS_DIR);
 
             let mut inventory = Inventory::load(status_path)?;
-            inventory.store(media_id.clone())?;
+            inventory.store(media_id.clone(), false)?;
 
             let pool = match media_id.media_set_label {
                 None => {

@@ -20,7 +20,6 @@ use crate::{
         ElementStatus,
         OnlineStatusMap,
         Inventory,
-        MediaStateDatabase,
         linux_tape_changer_list,
         mtx_status,
         mtx_status_to_online_set,
@@ -57,14 +56,13 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
     }).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
-    let inventory = Inventory::load(state_path)?;
+    let mut inventory = Inventory::load(state_path)?;
 
     let mut map = OnlineStatusMap::new(&config)?;
     let online_set = mtx_status_to_online_set(&status, &inventory);
     map.update_online_status(&name, online_set)?;
 
-    let mut state_db = MediaStateDatabase::load(state_path)?;
-    state_db.update_online_status(&map)?;
+    inventory.update_online_status(&map)?;
 
     let mut list = Vec::new();
 
