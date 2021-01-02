@@ -9,7 +9,10 @@ use proxmox::tools::io::ReadExt;
 
 use crate::{
     api2::types::MamAttribute,
-    tape::sgutils2::SgRaw,
+    tape::{
+        tape_alert_flags::TapeAlertFlags,
+        sgutils2::SgRaw,
+    },
 };
 
 // Read Medium auxiliary memory attributes (MAM)
@@ -32,7 +35,7 @@ enum MamFormat {
 static MAM_ATTRIBUTES: &'static [ (u16, u16, MamFormat, &'static str) ] = &[
     (0x00_00, 8, MamFormat::DEC, "Remaining Capacity In Partition"),
     (0x00_01, 8, MamFormat::DEC, "Maximum Capacity In Partition"),
-    (0x00_02, 8, MamFormat::BINARY, "Tapealert Flags"),
+    (0x00_02, 8, MamFormat::DEC, "Tapealert Flags"),
     (0x00_03, 8, MamFormat::DEC, "Load Count"),
     (0x00_04, 8, MamFormat::DEC, "MAM Space Remaining"),
     (0x00_05, 8, MamFormat::ASCII, "Assigning Organization"),
@@ -157,7 +160,13 @@ fn decode_mam_attributes(data: &[u8]) -> Result<Vec<MamAttribute>, Error> {
                         } else if info.1 == 4 {
                             format!("{}", u32::from_be_bytes(data[0..4].try_into()?))
                         } else if info.1 == 8 {
-                            format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
+                            if head_id == 2 { // Tape Alert Flags
+                                let value = u64::from_be_bytes(data[0..8].try_into()?);
+                                let flags = TapeAlertFlags::from_bits_truncate(value);
+                                format!("{:?}", flags)
+                            } else {
+                                format!("{}", u64::from_be_bytes(data[0..8].try_into()?))
+                            }
                         } else {
                             unreachable!();
                         }
