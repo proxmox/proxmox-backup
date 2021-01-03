@@ -340,7 +340,7 @@ fn drive_load_and_label_media(
     media_id: &MediaId,
 ) -> Result<(Box<dyn TapeDriver>, MediaCatalog), Error> {
 
-    let (mut tmp_drive, media_id) =
+    let (mut tmp_drive, info) =
         request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
 
     let media_catalog;
@@ -354,16 +354,16 @@ fn drive_load_and_label_media(
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
-    match &media_id.media_set_label {
+    match &info.media_set_label {
         None => {
             println!("wrinting new media set label");
             tmp_drive.write_media_set_label(new_set)?;
 
-            let media_id = MediaId {
-                label: media_id.label,
+            let info = MediaId {
+                label: info.label,
                 media_set_label: Some(new_set.clone()),
             };
-            media_catalog = MediaCatalog::overwrite(status_path, &media_id, true)?;
+            media_catalog = MediaCatalog::overwrite(status_path, &info, true)?;
         }
         Some(media_set_label) => {
             if new_set.uuid == media_set_label.uuid {
@@ -378,11 +378,11 @@ fn drive_load_and_label_media(
 
                 tmp_drive.write_media_set_label(new_set)?;
 
-                let media_id = MediaId {
-                    label: media_id.label,
+                let info = MediaId {
+                    label: info.label,
                     media_set_label: Some(new_set.clone()),
                 };
-                media_catalog = MediaCatalog::overwrite(status_path, &media_id, true)?;
+                media_catalog = MediaCatalog::overwrite(status_path, &info, true)?;
             }
         }
     }
