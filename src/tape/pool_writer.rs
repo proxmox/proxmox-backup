@@ -148,7 +148,13 @@ impl PoolWriter {
         }
 
         let (drive_config, _digest) = crate::config::drive::config()?;
-        let (drive, catalog) = drive_load_and_label_media(worker, &drive_config, &self.drive_name, &media.id())?;
+        let (drive, catalog) = drive_load_and_label_media(
+            worker,
+            &drive_config,
+            &self.drive_name,
+            &media.id(),
+        )?;
+
         self.status = Some(PoolWriterState { drive, catalog, at_eom: false, bytes_written: 0 });
 
         Ok(media_uuid)
@@ -340,7 +346,7 @@ fn drive_load_and_label_media(
     media_id: &MediaId,
 ) -> Result<(Box<dyn TapeDriver>, MediaCatalog), Error> {
 
-    let (mut tmp_drive, info) =
+    let (mut tmp_drive, old_media_id) =
         request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
 
     let media_catalog;
@@ -354,16 +360,11 @@ fn drive_load_and_label_media(
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
-    match &info.media_set_label {
+    match &old_media_id.media_set_label {
         None => {
             println!("wrinting new media set label");
             tmp_drive.write_media_set_label(new_set)?;
-
-            let info = MediaId {
-                label: info.label,
-                media_set_label: Some(new_set.clone()),
-            };
-            media_catalog = MediaCatalog::overwrite(status_path, &info, true)?;
+            media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
         }
         Some(media_set_label) => {
             if new_set.uuid == media_set_label.uuid {
@@ -377,12 +378,7 @@ fn drive_load_and_label_media(
                          media_set_label.uuid.to_string(), media_set_label.seq_nr);
 
                 tmp_drive.write_media_set_label(new_set)?;
-
-                let info = MediaId {
-                    label: info.label,
-                    media_set_label: Some(new_set.clone()),
-                };
-                media_catalog = MediaCatalog::overwrite(status_path, &info, true)?;
+                media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
             }
         }
     }
