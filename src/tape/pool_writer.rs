@@ -3,10 +3,7 @@ use std::path::Path;
 
 use anyhow::{bail, Error};
 
-use proxmox::{
-    tools::Uuid,
-    api::section_config::SectionConfigData,
-};
+use proxmox::tools::Uuid;
 
 use crate::{
     backup::{
@@ -28,6 +25,7 @@ use crate::{
         MediaSetCatalog,
         tape_write_snapshot_archive,
         request_and_load_media,
+        file_formats::MediaSetLabel,
     },
 };
 
@@ -148,11 +146,15 @@ impl PoolWriter {
         }
 
         let (drive_config, _digest) = crate::config::drive::config()?;
-        let (drive, catalog) = drive_load_and_label_media(
+
+        let (mut drive, old_media_id) =
+            request_and_load_media(worker, &drive_config, &self.drive_name, media.label())?;
+
+        let catalog = update_media_set_label(
             worker,
-            &drive_config,
-            &self.drive_name,
-            &media.id(),
+            drive.as_mut(),
+            old_media_id.media_set_label,
+            media.id(),
         )?;
 
         self.status = Some(PoolWriterState { drive, catalog, at_eom: false, bytes_written: 0 });
@@ -336,34 +338,29 @@ fn write_chunk_archive<'a>(
     Ok((chunk_list, content_uuid, leom, writer.bytes_written()))
 }
 
-// Requests and load 'media' into the drive. Then compare the media
-// set label. If the tabe is empty, or the existing set label does not
-// match the expected media set, overwrite the media set label.
-fn drive_load_and_label_media(
+// Compare the media set label. If the media is empty, or the existing
+// set label does not match the expected media set, overwrite the
+// media set label.
+fn update_media_set_label(
     worker: &WorkerTask,
-    drive_config: &SectionConfigData,
-    drive_name: &str,
+    drive: &mut dyn TapeDriver,
+    old_set: Option<MediaSetLabel>,
     media_id: &MediaId,
-) -> Result<(Box<dyn TapeDriver>, MediaCatalog), Error> {
-
-    let (mut tmp_drive, old_media_id) =
-        request_and_load_media(worker, &drive_config, &drive_name, &media_id.label)?;
+) -> Result<MediaCatalog, Error> {
 
     let media_catalog;
 
     let new_set = match media_id.media_set_label {
-        None => {
-            bail!("got media without media set - internal error");
-        }
+        None => bail!("got media without media set - internal error"),
         Some(ref set) => set,
     };
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
-    match &old_media_id.media_set_label {
+    match old_set {
         None => {
-            println!("wrinting new media set label");
-            tmp_drive.write_media_set_label(new_set)?;
+            worker.log(format!("wrinting new media set label"));
+            drive.write_media_set_label(new_set)?;
             media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
         }
         Some(media_set_label) => {
@@ -374,17 +371,19 @@ fn drive_load_and_label_media(
                 }
                 media_catalog = MediaCatalog::open(status_path, &media_id.label.uuid, true, false)?;
             } else {
-                println!("wrinting new media set label (overwrite '{}/{}')",
-                         media_set_label.uuid.to_string(), media_set_label.seq_nr);
+                worker.log(
+                    format!("wrinting new media set label (overwrite '{}/{}')",
+                            media_set_label.uuid.to_string(), media_set_label.seq_nr)
+                );
 
-                tmp_drive.write_media_set_label(new_set)?;
+                drive.write_media_set_label(new_set)?;
                 media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
             }
         }
     }
 
     // todo: verify last content/media_catalog somehow?
-    tmp_drive.move_to_eom()?;
+    drive.move_to_eom()?;
 
-    Ok((tmp_drive, media_catalog))
+    Ok(media_catalog)
 }
