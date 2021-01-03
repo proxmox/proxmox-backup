@@ -18,8 +18,10 @@ use crate::{
     tape::{
         TapeRead,
         TapeWrite,
+        TapeAlertFlags,
         read_mam_attributes,
         mam_extract_media_usage,
+        read_tape_alert_flags,
         drive::{
             LinuxTapeDrive,
             TapeDriver,
@@ -293,6 +295,27 @@ impl LinuxTapeHandle {
         let output = run_command(command, None)?;
         let result: Result<Vec<MamAttribute>, String> = serde_json::from_str(&output)?;
         result.map_err(|err| format_err!("{}", err))
+    }
+
+    /// Read Tape Alert Flags
+    ///
+    /// Note: Only 'root' user may run RAW SG commands, so we need to
+    /// spawn setuid binary 'sg-tape-cmd'.
+    pub fn tape_alert_flags(&mut self) -> Result<TapeAlertFlags, Error> {
+
+        if nix::unistd::Uid::effective().is_root() {
+            return read_tape_alert_flags(&mut self.file);
+        }
+
+        let mut command = std::process::Command::new(
+            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+        command.args(&["tape-alert-flags"]);
+        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
+        let output = run_command(command, None)?;
+        let result: Result<u64, String> = serde_json::from_str(&output)?;
+        result
+            .map_err(|err| format_err!("{}", err))
+            .map(|bits| TapeAlertFlags::from_bits_truncate(bits))
     }
 }
 

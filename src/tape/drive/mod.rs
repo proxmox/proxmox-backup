@@ -1,7 +1,9 @@
 mod virtual_tape;
 mod linux_mtio;
 
-pub mod tape_alert_flags;
+mod tape_alert_flags;
+pub use tape_alert_flags::*;
+
 pub mod linux_tape;
 
 mod mam;

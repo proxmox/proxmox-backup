@@ -95,6 +95,33 @@ fn cartridge_memory(
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Read Tape Alert Flags
+fn tape_alert_flags(
+    device: Option<String>,
+) -> Result<(), Error> {
+
+    let result = proxmox::try_block!({
+        let mut handle = get_tape_handle(device)?;
+
+        let flags = handle.tape_alert_flags()?;
+        Ok(flags.bits())
+    }).map_err(|err: Error| err.to_string());
+
+    println!("{}", serde_json::to_string_pretty(&result)?);
+
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
 
     // check if we are user root or backup
@@ -125,6 +152,10 @@ fn main() -> Result<(), Error> {
         .insert(
             "cartridge-memory",
             CliCommand::new(&API_METHOD_CARTRIDGE_MEMORY)
+        )
+        .insert(
+            "tape-alert-flags",
+            CliCommand::new(&API_METHOD_TAPE_ALERT_FLAGS)
         )
         ;
 
