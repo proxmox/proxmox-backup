@@ -206,12 +206,24 @@ async fn get_status(
         _ => unreachable!(),
     };
 
+    let render_changer_id = |value: &Value, _record: &Value| -> Result<String, Error> {
+        if value.is_null() {
+            return Ok(String::new());
+        }
+        let text = value.as_str().unwrap().to_string();
+        if text.is_empty() {
+            return Ok(String::from("--FULL--"));
+        } else {
+            Ok(text)
+        }
+    };
+    
     let options = default_table_format_options()
         .sortby("entry-kind", false)
         .sortby("entry-id", false)
         .column(ColumnConfig::new("entry-kind"))
         .column(ColumnConfig::new("entry-id"))
-        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("changer-id").renderer(render_changer_id))
         .column(ColumnConfig::new("loaded-slot"))
         ;
 
