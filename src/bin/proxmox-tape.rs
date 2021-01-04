@@ -592,6 +592,7 @@ fn status(
         .column(ColumnConfig::new("blocksize"))
         .column(ColumnConfig::new("density"))
         .column(ColumnConfig::new("status"))
+        .column(ColumnConfig::new("alert-flags"))
         .column(ColumnConfig::new("file-number"))
         .column(ColumnConfig::new("block-number"))
         .column(ColumnConfig::new("manufactured").renderer(render_epoch))

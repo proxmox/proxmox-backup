@@ -209,10 +209,15 @@ impl LinuxTapeHandle {
 
         let drive_status = self.get_drive_status()?;
 
+        let alert_flags = self.tape_alert_flags()
+            .map(|flags| format!("{:?}", flags))
+            .ok();
+
         let mut status = LinuxDriveAndMediaStatus {
             blocksize: drive_status.blocksize,
             density: drive_status.density,
             status: format!("{:?}", drive_status.status),
+            alert_flags,
             file_number: drive_status.file_number,
             block_number: drive_status.block_number,
             manufactured: None,
@@ -222,13 +227,14 @@ impl LinuxTapeHandle {
 
         if  drive_status.tape_is_ready() {
 
-            let mam = self.cartridge_memory()?;
+            if let Ok(mam) = self.cartridge_memory() {
 
-            let usage = mam_extract_media_usage(&mam)?;
+                let usage = mam_extract_media_usage(&mam)?;
 
-            status.manufactured = Some(usage.manufactured);
-            status.bytes_read = Some(usage.bytes_read);
-            status.bytes_written = Some(usage.bytes_written);
+                status.manufactured = Some(usage.manufactured);
+                status.bytes_read = Some(usage.bytes_read);
+                status.bytes_written = Some(usage.bytes_written);
+            }
         }
 
         Ok(status)
