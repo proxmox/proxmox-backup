@@ -19,9 +19,11 @@ use crate::{
         TapeRead,
         TapeWrite,
         TapeAlertFlags,
+        Lp17VolumeStatistics,
         read_mam_attributes,
         mam_extract_media_usage,
         read_tape_alert_flags,
+        read_volume_statistics,
         drive::{
             LinuxTapeDrive,
             TapeDriver,
@@ -322,6 +324,25 @@ impl LinuxTapeHandle {
         result
             .map_err(|err| format_err!("{}", err))
             .map(|bits| TapeAlertFlags::from_bits_truncate(bits))
+    }
+
+    /// Read Volume Statistics
+    ///
+    /// Note: Only 'root' user may run RAW SG commands, so we need to
+    /// spawn setuid binary 'sg-tape-cmd'.
+    pub fn volume_statistics(&mut self) -> Result<Lp17VolumeStatistics, Error> {
+
+        if nix::unistd::Uid::effective().is_root() {
+            return read_volume_statistics(&mut self.file);
+        }
+
+        let mut command = std::process::Command::new(
+            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+        command.args(&["volume-statistics"]);
+        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
+        let output = run_command(command, None)?;
+        let result: Result<Lp17VolumeStatistics, String> = serde_json::from_str(&output)?;
+        result.map_err(|err| format_err!("{}", err))
     }
 }
 

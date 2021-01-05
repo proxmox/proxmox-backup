@@ -4,6 +4,9 @@ mod linux_mtio;
 mod tape_alert_flags;
 pub use tape_alert_flags::*;
 
+mod volume_statistics;
+pub use volume_statistics::*;
+
 pub mod linux_tape;
 
 mod mam;

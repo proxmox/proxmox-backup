@@ -122,6 +122,31 @@ fn tape_alert_flags(
     Ok(())
 }
 
+#[api(
+   input: {
+        properties: {
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Read volume statistics
+fn volume_statistics(
+    device: Option<String>,
+) -> Result<(), Error> {
+
+    let result = proxmox::try_block!({
+        let mut handle = get_tape_handle(device)?;
+        handle.volume_statistics()
+    }).map_err(|err: Error| err.to_string());
+
+    println!("{}", serde_json::to_string_pretty(&result)?);
+
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
 
     // check if we are user root or backup
@@ -156,6 +181,10 @@ fn main() -> Result<(), Error> {
         .insert(
             "tape-alert-flags",
             CliCommand::new(&API_METHOD_TAPE_ALERT_FLAGS)
+        )
+        .insert(
+            "volume-statistics",
+            CliCommand::new(&API_METHOD_VOLUME_STATISTICS)
         )
         ;
 
