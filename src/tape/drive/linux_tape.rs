@@ -225,6 +225,8 @@ impl LinuxTapeHandle {
             manufactured: None,
             bytes_read: None,
             bytes_written: None,
+            medium_passes: None,
+            volume_mounts: None,
         };
 
         if  drive_status.tape_is_ready() {
@@ -236,6 +238,16 @@ impl LinuxTapeHandle {
                 status.manufactured = Some(usage.manufactured);
                 status.bytes_read = Some(usage.bytes_read);
                 status.bytes_written = Some(usage.bytes_written);
+            }
+
+            if let Ok(volume_stats) = self.volume_statistics() {
+
+                status.medium_passes = Some(std::cmp::max(
+                    volume_stats.beginning_of_medium_passes,
+                    volume_stats.middle_of_tape_passes,
+                ));
+
+                status.volume_mounts = Some(volume_stats.volume_mounts);
             }
         }
 

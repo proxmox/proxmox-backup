@@ -598,6 +598,8 @@ fn status(
         .column(ColumnConfig::new("manufactured").renderer(render_epoch))
         .column(ColumnConfig::new("bytes-written").renderer(render_bytes_human_readable))
         .column(ColumnConfig::new("bytes-read").renderer(render_bytes_human_readable))
+        .column(ColumnConfig::new("medium-passes"))
+        .column(ColumnConfig::new("volume-mounts"))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);

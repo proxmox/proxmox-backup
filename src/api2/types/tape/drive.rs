@@ -197,4 +197,11 @@ pub struct LinuxDriveAndMediaStatus {
     /// Total Bytes Written in Medium Life
     #[serde(skip_serializing_if="Option::is_none")]
     pub bytes_written: Option<u64>,
+    /// Number of mounts for the current volume (i.e., Thread Count)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub volume_mounts: Option<u64>,
+    /// Count of the total number of times the medium has passed over
+    /// the head.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub medium_passes: Option<u64>,
 }
