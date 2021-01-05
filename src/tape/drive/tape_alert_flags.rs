@@ -138,3 +138,48 @@ fn decode_tape_alert_flags(data: &[u8]) -> Result<TapeAlertFlags, Error> {
         Ok(TapeAlertFlags::from_bits_truncate(value))
     }).map_err(|err| format_err!("decode tape alert flags failed - {}", err))
 }
+
+const CRITICAL_FLAG_MASK: u64 =
+TapeAlertFlags::MEDIA.bits() |
+TapeAlertFlags::WRITE_FAILURE.bits() |
+TapeAlertFlags::READ_FAILURE.bits() |
+TapeAlertFlags::WRITE_PROTECT.bits() |
+TapeAlertFlags::UNRECOVERABLE_SNAPPED_TAPE.bits() |
+TapeAlertFlags::FORCED_EJECT.bits() |
+TapeAlertFlags::EXPIRED_CLEANING_MEDIA.bits() |
+TapeAlertFlags::INVALID_CLEANING_TAPE.bits() |
+TapeAlertFlags::HARDWARE_A.bits() |
+TapeAlertFlags::HARDWARE_B.bits() |
+TapeAlertFlags::EJECT_MEDIA.bits() |
+TapeAlertFlags::PREDICTIVE_FAILURE.bits() |
+TapeAlertFlags::LOADER_STRAY_TAPE.bits() |
+TapeAlertFlags::LOADER_MAGAZINE.bits() |
+TapeAlertFlags::TAPE_SYSTEM_AREA_WRITE_FAILURE.bits() |
+TapeAlertFlags::TAPE_SYSTEM_AREA_READ_FAILURE.bits() |
+TapeAlertFlags::NO_START_OF_DATA.bits() |
+TapeAlertFlags::LOADING_FAILURE.bits() |
+TapeAlertFlags::UNRECOVERABLE_UNLOAD_FAILURE.bits() |
+TapeAlertFlags::AUTOMATION_INTERFACE_FAILURE.bits();
+
+/// Check if tape-alert-flags contains critial errors.
+pub fn tape_alert_flags_critical(flags: TapeAlertFlags) -> bool {
+    (flags.bits() & CRITICAL_FLAG_MASK) != 0
+}
+
+const MEDIA_LIFE_MASK: u64 =
+TapeAlertFlags::MEDIA_LIFE.bits() |
+TapeAlertFlags::NEARING_MEDIA_LIFE.bits();
+
+/// Check if tape-alert-flags indicates media-life end
+pub fn tape_alert_flags_media_life(flags: TapeAlertFlags) -> bool {
+    (flags.bits() & MEDIA_LIFE_MASK) != 0
+}
+
+const MEDIA_CLEAN_MASK: u64 =
+TapeAlertFlags::CLEAN_NOW.bits() |
+TapeAlertFlags::CLEAN_PERIODIC.bits();
+
+/// Check if tape-alert-flags indicates media cleaning request
+pub fn tape_alert_flags_cleaning_request(flags: TapeAlertFlags) -> bool {
+    (flags.bits() & MEDIA_CLEAN_MASK) != 0
+}
