@@ -69,13 +69,13 @@ Ext.define('PBS.RunningTasks', {
 
     columns: [
 	{
-	    text: 'Task',
+	    text: gettext('Task'),
 	    dataIndex: 'upid',
 	    renderer: Proxmox.Utils.render_upid,
 	    flex: 2,
 	},
 	{
-	    text: 'Starttime',
+	    text: gettext('Starttime'),
 	    dataIndex: 'starttime',
 	    renderer: function(value) {
 		return Ext.Date.format(value, "Y-m-d H:i:s");
@@ -83,7 +83,7 @@ Ext.define('PBS.RunningTasks', {
 	    flex: 1,
 	},
 	{
-	    text: 'Duration',
+	    text: gettext('Duration'),
 	    dataIndex: 'duration',
 	    renderer: function(value, md, record) {
 		return Proxmox.Utils.format_duration_human((Date.now() - record.data.starttime)/1000);
