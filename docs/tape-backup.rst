@@ -49,7 +49,7 @@ In general, LTO tapes offer the following advantages:
 - Movable (storable inside vault)
 - Multiple vendors (for both media and drives)
 
-Please note that `Proxmox Backup Server`_ already stores compressed
+Please note that `Proxmox Backup Server` already stores compressed
 data, so we do not need/use the tape compression feature. Same applies
 to encryption.
 
@@ -160,14 +160,19 @@ Tape changers (robots) are part of a `Tape Library`_. You can skip
 this step if you are using a standalone drive.
 
 Linux is able to auto detect those devices, and you can get a list
-of available devices using:
+of available devices using::
 
  # proxmox-tape changer scan
+ ┌─────────────────────────────┬─────────┬──────────────┬────────┐
+ │ path                        │ vendor  │ model        │ serial │
+ ╞═════════════════════════════╪═════════╪══════════════╪════════╡
+ │ /dev/tape/by-id/scsi-CC2C52 │ Quantum │ Superloader3 │ CC2C52 │
+ └─────────────────────────────┴─────────┴──────────────┴────────┘
 
 In order to use that device with Proxmox, you need to create a
 configuration entry:
 
- # proxmox-tape changer create sl3 --path /dev/tape/by-id/scsi-CJ0JBE0059
+ # proxmox-tape changer create sl3 --path /dev/tape/by-id/scsi-CC2C52
 
 Where ``sl3`` is an arbitrary name you can choose.
 
@@ -175,12 +180,35 @@ Where ``sl3`` is an arbitrary name you can choose.
    ``/dev/tape/by-id/``. Names like ``/dev/sg0`` may point to a
    different device after reboot, and that is not what you want.
 
-You can show the final configuration with:
+You can show the final configuration with::
 
  # proxmox-tape changer list
+ ┌──────┬─────────────────────────────┬─────────┬──────────────┬────────────┐
+ │ name │ path                        │ vendor  │ model        │ serial     │
+ ╞══════╪═════════════════════════════╪═════════╪══════════════╪════════════╡
+ │ sl3  │ /dev/tape/by-id/scsi-CC2C52 │ Quantum │ Superloader3 │ CC2C52     │
+ └──────┴─────────────────────────────┴─────────┴──────────────┴────────────┘
 
 The Vendor, Model and Serial number are auto detected, but only shown
 if the device is online.
+
+To test your setup, please query the status of the changer device with::
+
+ # proxmox-tape changer status sl3
+ ┌───────────────┬──────────┬────────────┬─────────────┐
+ │ entry-kind    │ entry-id │ changer-id │ loaded-slot │
+ ╞═══════════════╪══════════╪════════════╪═════════════╡
+ │ drive         │        0 │ vtape1     │           1 │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        1 │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        2 │ vtape2     │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ ...           │      ... │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │       16 │            │             │
+ └───────────────┴──────────┴────────────┴─────────────┘
+
 
 
 Tape drives
