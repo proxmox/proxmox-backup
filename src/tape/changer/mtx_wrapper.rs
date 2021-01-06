@@ -1,11 +1,19 @@
 use std::collections::HashSet;
 
 use anyhow::Error;
+use serde_json::Value;
 
-use proxmox::tools::Uuid;
+use proxmox::{
+    tools::Uuid,
+    api::schema::parse_property_string,
+};
 
 use crate::{
     tools::run_command,
+    api2::types::{
+        SLOT_ARRAY_SCHEMA,
+        ScsiTapeChanger,
+    },
     tape::{
         Inventory,
         changer::{
@@ -17,14 +25,35 @@ use crate::{
 };
 
 /// Run 'mtx status' and return parsed result.
-pub fn mtx_status(path: &str) -> Result<MtxStatus, Error> {
+pub fn mtx_status(config: &ScsiTapeChanger) -> Result<MtxStatus, Error> {
+
+    let path = &config.path;
+
+    let mut export_slots: HashSet<u64> = HashSet::new();
+
+    if let Some(slots) = &config.export_slots {
+        let slots: Value = parse_property_string(&slots, &SLOT_ARRAY_SCHEMA)?;
+        export_slots = slots
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_u64())
+            .collect();
+    }
 
     let mut command = std::process::Command::new("mtx");
     command.args(&["-f", path, "status"]);
 
     let output = run_command(command, None)?;
 
-    let status = parse_mtx_status(&output)?;
+    let mut status = parse_mtx_status(&output)?;
+
+    for (i, entry) in status.slots.iter_mut().enumerate() {
+        let slot = i as u64 + 1;
+        if export_slots.contains(&slot) {
+            entry.0 = true; // mark as IMPORT/EXPORT
+        }
+    }
 
     Ok(status)
 }

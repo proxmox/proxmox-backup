@@ -52,7 +52,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
     let data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
     let status = tokio::task::spawn_blocking(move || {
-        mtx_status(&data.path)
+        mtx_status(&data)
     }).await??;
 
     let state_path = Path::new(TAPE_STATUS_DIR);

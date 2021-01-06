@@ -103,7 +103,7 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
     let mut map = OnlineStatusMap::new(&config)?;
 
     for changer in changers {
-        let status = match mtx_status(&changer.path) {
+        let status = match mtx_status(&changer) {
             Ok(status) => status,
             Err(err) => {
                 eprintln!("unable to get changer '{}' status - {}", changer.name, err);

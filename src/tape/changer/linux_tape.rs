@@ -56,7 +56,7 @@ impl MediaChange for LinuxTapeDrive {
             None => bail!("drive '{}' has no associated changer", self.name),
         };
 
-        let status = mtx_status(&changer.path)?;
+        let status = mtx_status(&changer)?;
 
         let drivenum = self.changer_drive_id.unwrap_or(0);
 
@@ -111,7 +111,7 @@ impl MediaChange for LinuxTapeDrive {
 
         let drivenum = self.changer_drive_id.unwrap_or(0);
 
-        let status = mtx_status(&changer.path)?;
+        let status = mtx_status(&changer)?;
 
         unload_to_free_slot(&self.name, &changer.path, &status, drivenum)
     }
@@ -128,7 +128,7 @@ impl MediaChange for LinuxTapeDrive {
             None => return Ok(Vec::new()),
         };
 
-        let status = mtx_status(&changer.path)?;
+        let status = mtx_status(&changer)?;
 
         let mut list = Vec::new();
 
