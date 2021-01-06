@@ -323,6 +323,20 @@ To list all configured drives use::
 The Vendor, Model and Serial number are auto detected, but only shown
 if the device is online.
 
+For testing, you can simply query the drive status with::
+
+ # proxmox-tape status --drive mydrive
+ ┌───────────┬────────────────────────┐
+ │ Name      │ Value                  │
+ ╞═══════════╪════════════════════════╡
+ │ blocksize │ 0                      │
+ ├───────────┼────────────────────────┤
+ │ status    │ DRIVE_OPEN | IM_REP_EN │
+ └───────────┴────────────────────────┘
+
+.. NOTE:: Blocksize should always be 0 (variable block size
+   mode). This is the default anyways.
+
 
 Media Pools
 ~~~~~~~~~~~
