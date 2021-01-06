@@ -170,17 +170,28 @@ of available devices using::
  └─────────────────────────────┴─────────┴──────────────┴────────┘
 
 In order to use that device with Proxmox, you need to create a
-configuration entry:
+configuration entry::
 
  # proxmox-tape changer create sl3 --path /dev/tape/by-id/scsi-CC2C52
 
 Where ``sl3`` is an arbitrary name you can choose.
 
-.. Note:: Please use stable device names from inside
+.. Note:: Please use stable device path names from inside
    ``/dev/tape/by-id/``. Names like ``/dev/sg0`` may point to a
    different device after reboot, and that is not what you want.
 
 You can show the final configuration with::
+
+ # proxmox-tape changer config sl3
+ ┌──────┬─────────────────────────────┐
+ │ Name │ Value                       │
+ ╞══════╪═════════════════════════════╡
+ │ name │ sl3                         │
+ ├──────┼─────────────────────────────┤
+ │ path │ /dev/tape/by-id/scsi-CC2C52 │
+ └──────┴─────────────────────────────┘
+
+Or simply list all configured changer devices::
 
  # proxmox-tape changer list
  ┌──────┬─────────────────────────────┬─────────┬──────────────┬────────────┐
@@ -233,7 +244,7 @@ slots, and the media inside those slots is considered to be 'offline'
 After that, you can see those artificial ``import-export`` slots in
 the status output::
 
-  # proxmox-tape changer status sl3
+ # proxmox-tape changer status sl3
  ┌───────────────┬──────────┬────────────┬─────────────┐
  │ entry-kind    │ entry-id │ changer-id │ loaded-slot │
  ╞═══════════════╪══════════╪════════════╪═════════════╡
@@ -255,6 +266,62 @@ the status output::
 
 Tape drives
 ~~~~~~~~~~~
+
+Linux is able to auto detect tape drives, and you can get a list
+of available tape drives using::
+
+ # proxmox-tape drive scan
+ ┌────────────────────────────────┬────────┬─────────────┬────────┐
+ │ path                           │ vendor │ model       │ serial │
+ ╞════════════════════════════════╪════════╪═════════════╪════════╡
+ │ /dev/tape/by-id/scsi-12345-nst │ IBM    │ ULT3580-TD4 │  12345 │
+ └────────────────────────────────┴────────┴─────────────┴────────┘
+
+In order to use that drive with Proxmox, you need to create a
+configuration entry::
+
+ # proxmox-tape drive create mydrive --path  /dev/tape/by-id/scsi-12345-nst
+
+.. Note:: Please use stable device path names from inside
+   ``/dev/tape/by-id/``. Names like ``/dev/nst0`` may point to a
+   different device after reboot, and that is not what you want.
+
+If you have a tape library, you also need to set the associated
+changer device::
+
+ # proxmox-tape drive update mydrive --changer sl3  --changer-drive-id 0
+
+The ``--changer-drive-id`` is only necessary if the tape library
+includes more than one drive (The changer status command lists all
+drive IDs).
+
+You can show the final configuration with::
+
+ # proxmox-tape drive config mydrive
+ ┌─────────┬────────────────────────────────┐
+ │ Name    │ Value                          │
+ ╞═════════╪════════════════════════════════╡
+ │ name    │ mydrive                        │
+ ├─────────┼────────────────────────────────┤
+ │ path    │ /dev/tape/by-id/scsi-12345-nst │
+ ├─────────┼────────────────────────────────┤
+ │ changer │ sl3                            │
+ └─────────┴────────────────────────────────┘
+
+.. NOTE:: The ``changer-drive-id`` value 0 is not stored in the
+   configuration, because that is the default.
+
+To list all configured drives use::
+
+ # proxmox-tape drive list
+ ┌──────────┬────────────────────────────────┬─────────┬────────┬─────────────┬────────┐
+ │ name     │ path                           │ changer │ vendor │ model       │ serial │
+ ╞══════════╪════════════════════════════════╪═════════╪════════╪═════════════╪════════╡
+ │ mydrive  │ /dev/tape/by-id/scsi-12345-nst │ sl3     │ IBM    │ ULT3580-TD4 │ 12345  │
+ └──────────┴────────────────────────────────┴─────────┴────────┴─────────────┴────────┘
+
+The Vendor, Model and Serial number are auto detected, but only shown
+if the device is online.
 
 
 Media Pools
