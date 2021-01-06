@@ -1,7 +1,13 @@
 use anyhow::{bail, Error};
+use ::serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use proxmox::api::{api, Router, RpcEnvironment};
+use proxmox::api::{
+    api,
+    Router,
+    RpcEnvironment,
+    schema::parse_property_string,
+};
 
 use crate::{
     config,
@@ -9,6 +15,8 @@ use crate::{
         PROXMOX_CONFIG_DIGEST_SCHEMA,
         CHANGER_NAME_SCHEMA,
         LINUX_DRIVE_PATH_SCHEMA,
+        SLOT_ARRAY_SCHEMA,
+        EXPORT_SLOT_LIST_SCHEMA,
         DriveListEntry,
         ScsiTapeChanger,
         LinuxTapeDrive,
@@ -30,6 +38,10 @@ use crate::{
             path: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
             },
+            "export-slots": {
+                schema: EXPORT_SLOT_LIST_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
@@ -37,6 +49,7 @@ use crate::{
 pub fn create_changer(
     name: String,
     path: String,
+    export_slots: Option<String>,
 ) -> Result<(), Error> {
 
     let _lock = config::drive::lock()?;
@@ -54,6 +67,7 @@ pub fn create_changer(
     let item = ScsiTapeChanger {
         name: name.clone(),
         path,
+        export_slots,
     };
 
     config.set_data(&name, "changer", &item)?;
@@ -139,6 +153,15 @@ pub fn list_changers(
     rpcenv["digest"] = proxmox::tools::digest_to_hex(&digest).into();
     Ok(list)
 }
+#[api()]
+#[derive(Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+#[serde(rename_all = "kebab-case")]
+/// Deletable property name
+pub enum DeletableProperty {
+    /// Delete export-slots.
+    export_slots,
+}
 
 #[api(
     protected: true,
@@ -151,6 +174,18 @@ pub fn list_changers(
                 schema: LINUX_DRIVE_PATH_SCHEMA,
                 optional: true,
             },
+            "export-slots": {
+                schema: EXPORT_SLOT_LIST_SCHEMA,
+                optional: true,
+            },
+            delete: {
+                description: "List of properties to delete.",
+                type: Array,
+                optional: true,
+                items: {
+                    type: DeletableProperty,
+                },
+            },
             digest: {
                 schema: PROXMOX_CONFIG_DIGEST_SCHEMA,
                 optional: true,
@@ -162,6 +197,8 @@ pub fn list_changers(
 pub fn update_changer(
     name: String,
     path: Option<String>,
+    export_slots: Option<String>,
+    delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
     _param: Value,
 ) -> Result<(), Error> {
@@ -177,10 +214,40 @@ pub fn update_changer(
 
     let mut data: ScsiTapeChanger = config.lookup("changer", &name)?;
 
+    if let Some(delete) = delete {
+        for delete_prop in delete {
+            match delete_prop {
+                DeletableProperty::export_slots => {
+                    data.export_slots = None;
+                }
+            }
+        }
+    }
+
     if let Some(path) = path {
         let changers = linux_tape_changer_list();
         check_drive_path(&changers, &path)?;
         data.path = path;
+    }
+
+    if let Some(export_slots) = export_slots {
+        let slots: Value = parse_property_string(
+            &export_slots, &SLOT_ARRAY_SCHEMA
+        )?;
+        let mut slots: Vec<String> = slots
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.to_string())
+            .collect();
+        slots.sort();
+
+        if slots.is_empty() {
+            data.export_slots = None;
+        } else {
+            let slots = slots.join(",");
+            data.export_slots = Some(slots);
+        }
     }
 
     config.set_data(&name, "changer", &data)?;

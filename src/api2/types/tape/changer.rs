@@ -4,7 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use proxmox::api::{
     api,
-    schema::{Schema, StringSchema},
+    schema::{
+        Schema,
+        ApiStringFormat,
+        ArraySchema,
+        IntegerSchema,
+        StringSchema,
+    },
 };
 
 use crate::api2::types::PROXMOX_SAFE_ID_FORMAT;
@@ -25,6 +31,20 @@ pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
     .max_length(32)
     .schema();
 
+pub const SLOT_ARRAY_SCHEMA: Schema = ArraySchema::new(
+    "Slot list.", &IntegerSchema::new("Slot number")
+        .minimum(1)
+        .schema())
+    .schema();
+
+pub const EXPORT_SLOT_LIST_SCHEMA: Schema = StringSchema::new(r###"\
+A list of slot numbers, comma separated. Those slots are reserved for
+Import/Export, i.e. any media in those slots are considered to be
+'offline'.
+"###)
+.format(&ApiStringFormat::PropertyString(&SLOT_ARRAY_SCHEMA))
+.schema();
+
 #[api(
     properties: {
         name: {
@@ -33,13 +53,20 @@ pub const MEDIA_LABEL_SCHEMA: Schema = StringSchema::new("Media Label/Barcode.")
         path: {
             schema: SCSI_CHANGER_PATH_SCHEMA,
         },
-    }
+        "export-slots": {
+            schema: EXPORT_SLOT_LIST_SCHEMA,
+            optional: true,
+        },
+    },
 )]
 #[derive(Serialize,Deserialize)]
+#[serde(rename_all = "kebab-case")]
 /// SCSI tape changer
 pub struct ScsiTapeChanger {
     pub name: String,
     pub path: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub export_slots: Option<String>,
 }
 
 #[api()]
