@@ -209,6 +209,48 @@ To test your setup, please query the status of the changer device with::
  │ slot          │       16 │            │             │
  └───────────────┴──────────┴────────────┴─────────────┘
 
+Tape libraries usually provide some special import/export slots (also
+called "mail slots"). Tapes inside those slots are acessible from
+outside, making it easy to add/remove tapes to/from the library. Those
+tapes are considered to be "offline", so backup jobs will not use
+them. Those special slots are auto-detected and marked as
+``import-export`` slot in the status command.
+
+It's worth noting that some of the smaller tape libraries don't have
+such slots. While they have something called "Mail Slot", that slot
+is just a way to grab the tape from the gripper. But they are unable
+to hold media while the robot does other things. They also do not
+expose that "Mail Slot" over the SCSI interface, so you wont see them in
+the status output.
+
+As a workaround, you can mark some of the normal slots as export
+slot. The software treats those slots like real ``import-export``
+slots, and the media inside those slots is considered to be 'offline'
+(not available for backup)::
+
+ # proxmox-tape changer update sl3 --export-slots 15,16
+
+After that, you can see those artificial ``import-export`` slots in
+the status output::
+
+  # proxmox-tape changer status sl3
+ ┌───────────────┬──────────┬────────────┬─────────────┐
+ │ entry-kind    │ entry-id │ changer-id │ loaded-slot │
+ ╞═══════════════╪══════════╪════════════╪═════════════╡
+ │ drive         │        0 │ vtape1     │           1 │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ import-export │       15 │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ import-export │       16 │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        1 │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        2 │ vtape2     │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ ...           │      ... │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │       14 │            │             │
+ └───────────────┴──────────┴────────────┴─────────────┘
 
 
 Tape drives
