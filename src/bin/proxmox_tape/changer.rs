@@ -85,7 +85,7 @@ pub fn changer_commands() -> CommandLineInterface {
                 .completion_cb("name", complete_changer_name)
         )
         .insert("transfer",
-                CliCommand::new(&api2::tape::changer::API_METHOD_TRANSFER)
+                CliCommand::new(&API_METHOD_TRANSFER)
                 .arg_param(&["name"])
                 .completion_cb("name", complete_changer_name)
         )
@@ -255,6 +255,45 @@ async fn get_status(
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            name: {
+                schema: CHANGER_NAME_SCHEMA,
+                optional: true,
+            },
+            from: {
+                description: "Source slot number",
+                type: u64,
+                minimum: 1,
+            },
+            to: {
+                description: "Destination slot number",
+                type: u64,
+                minimum: 1,
+            },
+        },
+    },
+)]
+/// Transfers media from one slot to another
+pub async fn transfer(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["name"] = lookup_changer_name(&param, &config)?.into();
+
+    let info = &api2::tape::changer::API_METHOD_TRANSFER;
+    match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
 
     Ok(())
 }
