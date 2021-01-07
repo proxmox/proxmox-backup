@@ -877,7 +877,7 @@ fn main() {
         .insert(
             "load-media-from-slot",
             CliCommand::new(&API_METHOD_LOAD_MEDIA_FROM_SLOT)
-                .arg_param(&["slot"])
+                .arg_param(&["source-slot"])
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(
