@@ -73,7 +73,7 @@ pub async fn wait_for_local_worker(upid_str: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn lookup_drive_name(
+pub fn lookup_drive_name(
     param: &Value,
     config: &SectionConfigData,
 ) -> Result<String, Error> {

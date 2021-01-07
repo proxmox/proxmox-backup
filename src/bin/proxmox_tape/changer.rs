@@ -1,4 +1,4 @@
-use anyhow::{Error};
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::{
@@ -7,6 +7,7 @@ use proxmox::{
         cli::*,
         RpcEnvironment,
         ApiHandler,
+        section_config::SectionConfigData,
     },
 };
 
@@ -19,14 +20,34 @@ use proxmox_backup::{
     },
     tape::{
         complete_changer_path,
+        media_changer,
     },
     config::{
+        self,
         drive::{
             complete_drive_name,
             complete_changer_name,
         }
     },
 };
+
+pub fn lookup_changer_name(
+    param: &Value,
+    config: &SectionConfigData,
+) -> Result<String, Error> {
+
+    if let Some(name) = param["name"].as_str() {
+        return Ok(String::from(name));
+    }
+
+    if let Ok(drive) = crate::lookup_drive_name(&Value::Null, config) {
+        if let Ok(Some((_, name))) = media_changer(config, &drive) {
+            return Ok(name);
+        }
+    }
+
+    bail!("unable to get (default) changer name");
+}
 
 pub fn changer_commands() -> CommandLineInterface {
 
@@ -188,17 +209,22 @@ fn get_config(
                 schema: OUTPUT_FORMAT,
                 optional: true,
             },
-             name: {
+            name: {
                 schema: CHANGER_NAME_SCHEMA,
+                optional: true,
             },
         },
     },
 )]
 /// Get tape changer status
 async fn get_status(
-    param: Value,
+    mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["name"] = lookup_changer_name(&param, &config)?.into();
 
     let output_format = get_output_format(&param);
     let info = &api2::tape::changer::API_METHOD_GET_STATUS;
@@ -218,7 +244,7 @@ async fn get_status(
             Ok(text)
         }
     };
-    
+
     let options = default_table_format_options()
         .sortby("entry-kind", false)
         .sortby("entry-id", false)
