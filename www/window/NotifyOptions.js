@@ -52,7 +52,7 @@ Ext.define('PBS.window.NotifyOptions', {
 		xtype: 'pbsUserSelector',
 		name: 'notify-user',
 		fieldLabel: gettext('Notify User'),
-		emptyText: gettext('root@pam'),
+		emptyText: 'root@pam',
 		value: null,
 		allowBlank: true,
 		renderer: Ext.String.htmlEncode,
