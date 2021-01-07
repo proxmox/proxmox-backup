@@ -4,7 +4,6 @@ use anyhow::Error;
 use serde_json::Value;
 
 use proxmox::{
-    tools::Uuid,
     api::schema::parse_property_string,
 };
 
@@ -15,10 +14,8 @@ use crate::{
         ScsiTapeChanger,
     },
     tape::{
-        Inventory,
         changer::{
             MtxStatus,
-            ElementStatus,
             parse_mtx_status,
         },
     },
@@ -99,31 +96,4 @@ pub fn mtx_transfer(
     run_command(command, None)?;
 
     Ok(())
-}
-
-/// Extract the list of online media from MtxStatus
-///
-/// Returns a HashSet containing all found media Uuid
-pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> HashSet<Uuid> {
-
-    let mut online_set = HashSet::new();
-
-    for drive_status in status.drives.iter() {
-        if let ElementStatus::VolumeTag(ref changer_id) = drive_status.status {
-            if let Some(media_id) = inventory.find_media_by_changer_id(changer_id) {
-                online_set.insert(media_id.label.uuid.clone());
-            }
-        }
-    }
-
-    for (import_export, slot_status) in status.slots.iter() {
-        if *import_export { continue; }
-        if let ElementStatus::VolumeTag(ref changer_id) = slot_status {
-            if let Some(media_id) = inventory.find_media_by_changer_id(changer_id) {
-                online_set.insert(media_id.label.uuid.clone());
-            }
-        }
-    }
-
-    online_set
 }

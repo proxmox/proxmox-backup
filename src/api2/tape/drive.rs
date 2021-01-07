@@ -32,7 +32,6 @@ use crate::{
             MEDIA_POOL_NAME_SCHEMA,
             Authid,
             LinuxTapeDrive,
-            ScsiTapeChanger,
             TapeDeviceInfo,
             MediaIdFlat,
             LabelUuidMap,
@@ -50,8 +49,6 @@ use crate::{
         Inventory,
         MediaCatalog,
         MediaId,
-        mtx_load,
-        mtx_unload,
         linux_tape_device_list,
         open_drive,
         media_changer,
@@ -67,41 +64,6 @@ use crate::{
         },
     },
 };
-
-#[api(
-    input: {
-        properties: {
-            drive: {
-                schema: DRIVE_NAME_SCHEMA,
-            },
-            slot: {
-                description: "Source slot number",
-                minimum: 1,
-            },
-        },
-    },
-)]
-/// Load media via changer from slot
-pub async fn load_slot(
-    drive: String,
-    slot: u64,
-    _param: Value,
-) -> Result<(), Error> {
-
-    let (config, _digest) = config::drive::config()?;
-
-    let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-
-    let changer: ScsiTapeChanger = match drive_config.changer {
-        Some(ref changer) => config.lookup("changer", changer)?,
-        None => bail!("drive '{}' has no associated changer", drive),
-    };
-
-    tokio::task::spawn_blocking(move || {
-        let drivenum = drive_config.changer_drive_id.unwrap_or(0);
-        mtx_load(&changer.path, slot, drivenum)
-    }).await?
-}
 
 #[api(
     input: {
@@ -127,6 +89,31 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
         changer.load_media(&changer_id)
     }).await?
 }
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+            "source-slot": {
+                description: "Source slot number.",
+                minimum: 1,
+            },
+        },
+    },
+)]
+/// Load media from the specified slot
+///
+/// Issue a media load request to the associated changer device.
+pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    tokio::task::spawn_blocking(move || {
+        let (mut changer, _) = required_media_changer(&config, &drive)?;
+        changer.load_media_from_slot(source_slot)
+    }).await?
+}
 
 #[api(
     input: {
@@ -134,7 +121,7 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
-            slot: {
+            "target-slot": {
                 description: "Target slot number. If omitted, defaults to the slot that the drive was loaded from.",
                 minimum: 1,
                 optional: true,
@@ -145,7 +132,7 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
 /// Unload media via changer
 pub async fn unload(
     drive: String,
-    slot: Option<u64>,
+    target_slot: Option<u64>,
     _param: Value,
 ) -> Result<(), Error> {
 
@@ -153,19 +140,8 @@ pub async fn unload(
 
     let mut drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
-    let changer: ScsiTapeChanger = match drive_config.changer {
-        Some(ref changer) => config.lookup("changer", changer)?,
-        None => bail!("drive '{}' has no associated changer", drive),
-    };
-
-    let drivenum = drive_config.changer_drive_id.unwrap_or(0);
-
     tokio::task::spawn_blocking(move || {
-        if let Some(slot) = slot {
-            mtx_unload(&changer.path, slot, drivenum)
-        } else {
-            drive_config.unload_media()
-        }
+        drive_config.unload_media(target_slot)
     }).await?
 }
 
@@ -298,7 +274,7 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
                 let mut drive = open_drive(&config, &drive)?;
                 drive.eject_media()?;
             }
-            changer.unload_media()?;
+            changer.unload_media(None)?;
         } else {
             let mut drive = open_drive(&config, &drive)?;
             drive.eject_media()?;
@@ -534,9 +510,9 @@ pub async fn inventory(
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
-        let (changer, changer_name) = required_media_changer(&config, &drive)?;
+        let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-        let changer_id_list = changer.list_media_changer_ids()?;
+        let changer_id_list = changer.online_media_changer_ids()?;
 
         let state_path = Path::new(TAPE_STATUS_DIR);
 
@@ -619,7 +595,7 @@ pub fn update_inventory(
 
             let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-            let changer_id_list = changer.list_media_changer_ids()?;
+            let changer_id_list = changer.online_media_changer_ids()?;
             if changer_id_list.is_empty() {
                 worker.log(format!("changer device does not list any media labels"));
             }
@@ -734,7 +710,7 @@ fn barcode_label_media_worker(
 
     let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-    let changer_id_list = changer.list_media_changer_ids()?;
+    let changer_id_list = changer.online_media_changer_ids()?;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
 

@@ -14,6 +14,9 @@ use crate::{
     tape::{
         TapeWrite,
         TapeRead,
+        MtxStatus,
+        DriveStatus,
+        ElementStatus,
         changer::MediaChange,
         drive::{
             VirtualTapeDrive,
@@ -73,15 +76,7 @@ pub struct VirtualTapeHandle {
     _lock: File,
 }
 
-impl  VirtualTapeHandle {
-
-    pub fn insert_tape(&self, _tape_filename: &str) {
-        unimplemented!();
-    }
-
-    pub fn eject_tape(&self) {
-        unimplemented!();
-    }
+impl VirtualTapeHandle {
 
     fn status_file_path(&self) -> std::path::PathBuf {
         let mut path = self.path.clone();
@@ -159,6 +154,25 @@ impl  VirtualTapeHandle {
         replace_file(&path, raw.as_bytes(), options)?;
         Ok(())
     }
+
+    fn online_media_changer_ids(&self) -> Result<Vec<String>, Error> {
+        let mut list = Vec::new();
+        for entry in std::fs::read_dir(&self.path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() && path.extension() == Some(std::ffi::OsStr::new("json")) {
+                if let Some(name) = path.file_stem() {
+                    if let Some(name) = name.to_str() {
+                        if name.starts_with("tape-") {
+                            list.push(name[5..].to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(list)
+    }
+
 }
 
 impl TapeDriver for VirtualTapeHandle {
@@ -348,6 +362,51 @@ impl TapeDriver for VirtualTapeHandle {
 
 impl MediaChange for VirtualTapeHandle {
 
+    fn status(&mut self) -> Result<MtxStatus, Error> {
+
+        let drive_status = self.load_status()?;
+
+        let mut drives = Vec::new();
+
+        if let Some(current_tape) = &drive_status.current_tape {
+            drives.push(DriveStatus {
+                loaded_slot: None,
+                status: ElementStatus::VolumeTag(current_tape.name.clone()),
+            });
+        }
+
+        // This implementation is lame, because we do not have fixed
+        // slot-assignment here.
+
+        let mut slots = Vec::new();
+        let changer_ids = self.online_media_changer_ids()?;
+        let max_slots = ((changer_ids.len() + 7)/8) * 8;
+
+        for i in 0..max_slots {
+            if let Some(changer_id) = changer_ids.get(i) {
+                slots.push((false,  ElementStatus::VolumeTag(changer_id.clone())));
+            } else {
+                slots.push((false,  ElementStatus::Empty));
+            }
+        }
+
+        Ok(MtxStatus { drives, slots })
+    }
+
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+        if slot < 1 {
+            bail!("invalid slot ID {}", slot);
+        }
+
+        let changer_ids = self.online_media_changer_ids()?;
+
+        if slot > changer_ids.len() as u64 {
+            bail!("slot {} is empty", slot);
+        }
+
+        self.load_media(&changer_ids[slot as usize - 1])
+    }
+
     /// Try to load media
     ///
     /// We automatically create an empty virtual tape here (if it does
@@ -371,7 +430,8 @@ impl MediaChange for VirtualTapeHandle {
         self.store_status(&status)
     }
 
-    fn unload_media(&mut self) -> Result<(), Error> {
+    fn unload_media(&mut self, _target_slot: Option<u64>) -> Result<(), Error> {
+        // Note: we currently simply ignore target_slot
         self.eject_media()?;
         Ok(())
     }
@@ -379,36 +439,28 @@ impl MediaChange for VirtualTapeHandle {
     fn eject_on_unload(&self) -> bool {
         true
     }
-
-    fn list_media_changer_ids(&self) -> Result<Vec<String>, Error> {
-        let mut list = Vec::new();
-        for entry in std::fs::read_dir(&self.path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() && path.extension() == Some(std::ffi::OsStr::new("json")) {
-                if let Some(name) = path.file_stem() {
-                    if let Some(name) = name.to_str() {
-                        if name.starts_with("tape-") {
-                            list.push(name[5..].to_string());
-                        }
-                    }
-                }
-            }
-        }
-        Ok(list)
-    }
 }
 
 impl MediaChange for VirtualTapeDrive {
+
+    fn status(&mut self) -> Result<MtxStatus, Error> {
+        let mut handle = self.open()?;
+        handle.status()
+    }
+
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+        let mut handle = self.open()?;
+        handle.load_media_from_slot(slot)
+    }
 
     fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
         let mut handle = self.open()?;
         handle.load_media(changer_id)
     }
 
-    fn unload_media(&mut self) -> Result<(), Error> {
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
         let mut handle = self.open()?;
-        handle.eject_media()?;
+        handle.unload_media(target_slot)?;
         Ok(())
     }
 
@@ -416,8 +468,8 @@ impl MediaChange for VirtualTapeDrive {
         true
     }
 
-    fn list_media_changer_ids(&self) -> Result<Vec<String>, Error> {
+    fn online_media_changer_ids(&mut self) -> Result<Vec<String>, Error> {
         let handle = self.open()?;
-        handle.list_media_changer_ids()
+        handle.online_media_changer_ids()
     }
 }

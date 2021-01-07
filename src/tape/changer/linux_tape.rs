@@ -43,6 +43,30 @@ fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenu
 
 impl MediaChange for LinuxTapeDrive {
 
+    fn status(&mut self) -> Result<MtxStatus, Error> {
+        let (config, _digest) = crate::config::drive::config()?;
+
+        let changer: ScsiTapeChanger = match self.changer {
+            Some(ref changer) => config.lookup("changer", changer)?,
+            None => bail!("drive '{}' has no associated changer", self.name),
+        };
+
+        mtx_status(&changer)
+    }
+
+    fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
+        let (config, _digest) = crate::config::drive::config()?;
+
+        let changer: ScsiTapeChanger = match self.changer {
+            Some(ref changer) => config.lookup("changer", changer)?,
+            None => bail!("drive '{}' has no associated changer", self.name),
+        };
+
+        let drivenum = self.changer_drive_id.unwrap_or(0);
+
+        mtx_load(&changer.path, slot, drivenum as u64)
+    }
+
     fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
 
         if changer_id.starts_with("CLN") {
@@ -97,11 +121,10 @@ impl MediaChange for LinuxTapeDrive {
             Some(slot) => slot,
         };
 
-
         mtx_load(&changer.path, slot as u64, drivenum as u64)
     }
 
-    fn unload_media(&mut self) -> Result<(), Error> {
+    fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
         let (config, _digest) = crate::config::drive::config()?;
 
         let changer: ScsiTapeChanger = match self.changer {
@@ -111,40 +134,15 @@ impl MediaChange for LinuxTapeDrive {
 
         let drivenum = self.changer_drive_id.unwrap_or(0);
 
-        let status = mtx_status(&changer)?;
-
-        unload_to_free_slot(&self.name, &changer.path, &status, drivenum)
+        if let Some(target_slot) = target_slot {
+            mtx_unload(&changer.path, target_slot, drivenum)
+        } else {
+            let status = mtx_status(&changer)?;
+            unload_to_free_slot(&self.name, &changer.path, &status, drivenum)
+        }
     }
 
     fn eject_on_unload(&self) -> bool {
         true
-    }
-
-    fn list_media_changer_ids(&self) -> Result<Vec<String>, Error> {
-        let (config, _digest) = crate::config::drive::config()?;
-
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => return Ok(Vec::new()),
-        };
-
-        let status = mtx_status(&changer)?;
-
-        let mut list = Vec::new();
-
-        for drive_status in status.drives.iter() {
-            if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
-                list.push(tag.clone());
-            }
-        }
-
-        for (import_export, element_status) in status.slots.iter() {
-            if *import_export { continue; }
-            if let ElementStatus::VolumeTag(ref tag) = element_status {
-                list.push(tag.clone());
-            }
-        }
-
-        Ok(list)
     }
 }

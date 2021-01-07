@@ -216,7 +216,7 @@ async fn eject_media(
         },
     },
 )]
-/// Load media
+/// Load media with specified label
 async fn load_media(
     mut param: Value,
     rpcenv: &mut dyn RpcEnvironment,
@@ -227,6 +227,77 @@ async fn load_media(
     param["drive"] = lookup_drive_name(&param, &config)?.into();
 
     let info = &api2::tape::drive::API_METHOD_LOAD_MEDIA;
+
+    match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            "source-slot": {
+                description: "Source slot number.",
+                type: u64,
+                minimum: 1,
+            },
+        },
+    },
+)]
+/// Load media from the specified slot
+async fn load_media_from_slot(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_LOAD_SLOT;
+
+    match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            "target-slot": {
+                description: "Target slot number. If omitted, defaults to the slot that the drive was loaded from.",
+                type: u64,
+                minimum: 1,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Unload media via changer
+async fn unload_media(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_UNLOAD;
 
     match info.handler {
         ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
@@ -802,6 +873,17 @@ fn main() {
                 .arg_param(&["changer-id"])
                 .completion_cb("drive", complete_drive_name)
                 .completion_cb("changer-id", complete_media_changer_id)
+        )
+        .insert(
+            "load-media-from-slot",
+            CliCommand::new(&API_METHOD_LOAD_MEDIA_FROM_SLOT)
+                .arg_param(&["slot"])
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "unload",
+            CliCommand::new(&API_METHOD_UNLOAD_MEDIA)
+                .completion_cb("drive", complete_drive_name)
         )
         ;
 

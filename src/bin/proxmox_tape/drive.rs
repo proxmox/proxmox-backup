@@ -59,18 +59,6 @@ pub fn drive_commands() -> CommandLineInterface {
                 .completion_cb("path", complete_drive_path)
                 .completion_cb("changer", complete_changer_name)
         )
-        .insert(
-            "load",
-            CliCommand::new(&api2::tape::drive::API_METHOD_LOAD_SLOT)
-                .arg_param(&["drive"])
-                .completion_cb("drive", complete_linux_drive_name)
-        )
-        .insert(
-            "unload",
-            CliCommand::new(&api2::tape::drive::API_METHOD_UNLOAD)
-                .arg_param(&["drive"])
-                .completion_cb("drive", complete_linux_drive_name)
-        )
         ;
 
     cmd_def.into()

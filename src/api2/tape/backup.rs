@@ -145,11 +145,11 @@ fn update_media_online_status(drive: &str) -> Result<bool, Error> {
 
     let mut has_changer = false;
 
-    if let Ok(Some((changer, changer_name))) = media_changer(&config, drive) {
+    if let Ok(Some((mut changer, changer_name))) = media_changer(&config, drive) {
 
         has_changer = true;
 
-        let changer_id_list = changer.list_media_changer_ids()?;
+        let changer_id_list = changer.online_media_changer_ids()?;
 
         let status_path = Path::new(TAPE_STATUS_DIR);
         let mut inventory = Inventory::load(status_path)?;
