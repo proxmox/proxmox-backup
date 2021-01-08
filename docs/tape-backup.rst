@@ -420,6 +420,14 @@ one media pool, so a job only uses tapes from that pool.
 
    Defines how long we want to keep the data.
 
+   - Always overwrite media.
+
+   - Protect data for the duration specified.
+
+     We use systemd like time spans to specify durations, e.g. ``2
+     weeks`` (see `systemd.time manpage`_).
+
+   - Never overwrite data.
 
 .. NOTE:: FIXME: Add note about global content namespace. (We do not store
    the source datastore, so it is impossible to distinguish
