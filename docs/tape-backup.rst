@@ -418,7 +418,9 @@ one media pool, so a job only uses tapes from that pool.
 
 .. topic:: Retention Policy
 
-   Defines how long we want to keep the data.
+   Defines how long we want to keep the data. Retention period starts
+   with the existence of a newer media set, e.g. when the allocation
+   policy calendar event triggers.
 
    - Always overwrite media.
 
