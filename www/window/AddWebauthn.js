@@ -58,6 +58,8 @@ Ext.define('PBS.window.AddWebauthn', {
 	    let userid = values.user;
 	    delete values.user;
 
+	    me.getView().mask(gettext('Please wait...'), 'x-mask-loading');
+
 	    try {
 		let register_response = await PBS.Async.api2({
 		    url: `/api2/extjs/access/tfa/${userid}`,
