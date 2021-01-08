@@ -113,9 +113,12 @@ Terminology
 
 :Media Pools: A media pool is a logical container for tapes. A backup
    job targets one media pool, so a job only uses tapes from that
-   pool. The pool aditionally defines how long we can append data to a
-   tape (allocation policy), and how long we want to keep that data
-   (retention policy).
+   pool. The pool additionally defines how long a backup job can
+   append data to tapes (allocation policy) and how long you want to
+   keep the data (retention policy).
+
+:Media Set: A group of continuously written tapes (all from the same
+   media pool).
 
 :Tape drive: The decive used to read and write data to the tape. There
    are standalone drives, but drives often ship within tape libraries.
@@ -340,6 +343,58 @@ For testing, you can simply query the drive status with::
 
 Media Pools
 ~~~~~~~~~~~
+
+A media pool is a logical container for tapes. A backup job targets
+one media pool, so a job only uses tapes from that pool.
+
+.. topic:: Media Set
+
+   A media set is a group of continuously written tapes, used to split
+   the larger pool into smaller, restorable units. One or more backup
+   jobs write to a media set, producing a group of tapes. Media sets
+   are identified by an unique ID. That ID and the sequence number is
+   stored on each tape of that set (tape label).
+
+   Media sets are the basic unit for restore tasks, i.e. you need all
+   tapes in the set to restore the set content. Data is fully
+   deduplicated inside a media set.
+
+
+.. topic:: Media Set Allocation Policy
+
+   The pool additionally defines how long backup jobs can append data
+   to a media set (allocation policy). The following settings are possible:
+
+   :continue: Try to use the current media set.
+
+   :always: Each backup job creates a new media set.
+
+   :Calendar Event: Create a new set when the specified CalendarEvent triggers.
+
+   Additionally, the following events may allocate a new media set:
+
+   - Required tape is offline
+
+   - Current set contains damaged of retired tapes.
+
+
+.. topic:: Retention Policy
+
+   Defines how long we want to keep the data.
+
+
+.. NOTE:: FIXME: Add note about global content namespace. (We do not store
+   the source datastore, so it is impossible to distinguish
+   store1:/vm/100 from store2:/vm/100. Please use different media
+   pools if the source is from a different name space)
+
+
+Empty Media Pool
+^^^^^^^^^^^^^^^^
+
+It is possible to label tapes with no pool assignment. Such tapes may
+be used by any pool. Once used by a pool, media stays in that pool.
+
 
 
 Tape Jobs
