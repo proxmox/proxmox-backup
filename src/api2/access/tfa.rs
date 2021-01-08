@@ -25,8 +25,9 @@ fn tfa_update_auth(
     let authid: Authid = rpcenv.get_auth_id().unwrap().parse()?;
 
     if authid.user() != Userid::root_userid() {
-        let password = password.ok_or_else(|| format_err!("missing password"))?;
-        let _: () = crate::auth::authenticate_user(authid.user(), &password)?;
+        let password = password.ok_or_else(|| http_err!(UNAUTHORIZED, "missing password"))?;
+        let _: () = crate::auth::authenticate_user(authid.user(), &password)
+            .map_err(|err| http_err!(UNAUTHORIZED, "{}", err))?;
     }
 
     // After authentication, verify that the to-be-modified user actually exists:
@@ -37,7 +38,7 @@ fn tfa_update_auth(
             .lookup::<crate::config::user::User>("user", userid.as_str())
             .is_err()
         {
-            bail!("user '{}' does not exists.", userid);
+            http_bail!(UNAUTHORIZED, "user '{}' does not exists.", userid);
         }
     }
 
