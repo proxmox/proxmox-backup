@@ -74,6 +74,8 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    let me = this;
 	    let view = me.getView();
 
+	    view.mask(gettext('Please wait...'), 'x-mask-loading');
+
 	    let baseurl = view.baseurl;
 
 	    let userid = me.userid;
@@ -86,8 +88,6 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    if (Proxmox.UserName !== 'root@pam') {
 		params.password = me.lookup('password').getValue();
 	    }
-
-	    me.getView().close();
 
 	    try {
 		let response = await PBS.Async.api2({
@@ -102,6 +102,8 @@ Ext.define('PBS.window.AddTfaRecovery', {
 		});
 	    } catch (ex) {
 		Ext.Msg.alert(gettext('Error'), ex);
+	    } finally {
+		view.close();
 	    }
 	},
     },
