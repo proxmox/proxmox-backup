@@ -452,6 +452,23 @@ Tape Jobs
 Administration
 --------------
 
+Many sub-command of the ``proxmox-tape`` command line tools take a
+parameter called ``--drive``, which specifies the tape drive you want
+to work on. For convenience, you can set that in an environment
+variable::
+
+ # export PROXMOX_TAPE_DRIVE=mydrive
+
+You can then omit the ``--drive`` parameter from the command. If the
+drive has an associated changer device, you may also omit the changer
+parameter from commands that needs a changer device, for example::
+
+ # proxmox-tape changer status
+
+Should displays the changer status of the changer device associated with
+drive ``mydrive``.
+
+
 Label Tapes
 ~~~~~~~~~~~
 
@@ -469,20 +486,20 @@ Next, you need to write that same label text to the tape, so that the
 software can uniquely identify the tape too.
 
 For a standalone drive, manually insert the new tape cartidge into the
-drive and run:
+drive and run::
 
  # proxmox-tape label --changer-id <label-text> --drive <drive-name>
 
 .. Note:: For safety reasons, this command fails if the tape contain
    any data. If you want to overwrite it anways, erase the tape first.
 
-You can verify success by reading back the label:
+You can verify success by reading back the label::
 
  # proxmox-tape read-label --drive <drive-name>
 
 If you have a tape library, apply the sticky barcode label to the tape
 cartridges first. Then load those empty tapes into the library. You
-can then label all unlabeled tapes with a single command:
+can then label all unlabeled tapes with a single command::
 
  # proxmox-tape barcode-label --drive <drive-name>
 
