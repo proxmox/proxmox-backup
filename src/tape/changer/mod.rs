@@ -63,4 +63,10 @@ pub trait MediaChange {
 
         Ok(list)
     }
+
+    /// Load/Unload cleaning cartridge
+    ///
+    /// This fail if there is no cleaning cartridge online. Any media
+    /// inside the drive is automatically unloaded.
+    fn clean_drive(&mut self) -> Result<(), Error>;
 }

@@ -145,4 +145,47 @@ impl MediaChange for LinuxTapeDrive {
     fn eject_on_unload(&self) -> bool {
         true
     }
+
+    fn clean_drive(&mut self) -> Result<(), Error> {
+        let (config, _digest) = crate::config::drive::config()?;
+
+        let changer: ScsiTapeChanger = match self.changer {
+            Some(ref changer) => config.lookup("changer", changer)?,
+            None => bail!("unable to load cleaning cartridge - no associated changer device"),
+        };
+
+        let drivenum = self.changer_drive_id.unwrap_or(0);
+
+        let status = mtx_status(&changer)?;
+
+        let mut cleaning_cartridge_slot = None;
+
+        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
+            if *import_export { continue; }
+            if let ElementStatus::VolumeTag(ref tag) = element_status {
+                if tag.starts_with("CLN") {
+                    cleaning_cartridge_slot = Some(i + 1);
+                    break;
+                }
+            }
+        }
+
+        let cleaning_cartridge_slot = match cleaning_cartridge_slot {
+            None => bail!("clean failed - unable to find cleaning cartridge"),
+            Some(cleaning_cartridge_slot) => cleaning_cartridge_slot as u64,
+        };
+
+        if let Some(drive_status) = status.drives.get(drivenum as usize) {
+            match drive_status.status {
+                ElementStatus::Empty => { /* OK */ },
+                _ => unload_to_free_slot(&self.name, &changer.path, &status, drivenum)?,
+            }
+        }
+
+        mtx_load(&changer.path, cleaning_cartridge_slot, drivenum)?;
+
+        mtx_unload(&changer.path, cleaning_cartridge_slot, drivenum)?;
+
+        Ok(())
+    }
 }

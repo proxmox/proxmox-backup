@@ -678,6 +678,38 @@ fn status(
 }
 
 #[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Clean drive
+async fn clean_drive(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_CLEAN_DRIVE;
+
+    let result = match info.handler {
+        ApiHandler::Sync(handler) => (handler)(param, info, rpcenv)?,
+        _ => unreachable!(),
+    };
+
+    wait_for_local_worker(result.as_str().unwrap()).await?;
+
+    Ok(())
+}
+
+#[api(
    input: {
         properties: {
             store: {
@@ -854,6 +886,11 @@ fn main() {
         .insert(
             "cartridge-memory",
             CliCommand::new(&API_METHOD_CARTRIDGE_MEMORY)
+                .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "clean",
+            CliCommand::new(&API_METHOD_CLEAN_DRIVE)
                 .completion_cb("drive", complete_drive_name)
         )
         .insert(

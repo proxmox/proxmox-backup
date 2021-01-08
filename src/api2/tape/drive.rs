@@ -489,6 +489,53 @@ pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
         },
     },
     returns: {
+        schema: UPID_SCHEMA,
+    },
+)]
+/// Clean drive
+pub fn clean_drive(
+    drive: String,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<Value, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    check_drive_exists(&config, &drive)?; // early check before starting worker
+
+    let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+
+    let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
+
+    let upid_str = WorkerTask::new_thread(
+        "clean-drive",
+        Some(drive.clone()),
+        auth_id,
+        to_stdout,
+        move |worker| {
+
+            let (mut changer, _changer_name) = required_media_changer(&config, &drive)?;
+
+            worker.log("Starting drive clean");
+
+            changer.clean_drive()?;
+
+            worker.log("Drive cleaned sucessfully");
+
+            Ok(())
+        })?;
+
+    Ok(upid_str.into())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+        },
+    },
+    returns: {
         description: "The list of media labels with associated media Uuid (if any).",
         type: Array,
         items: {
@@ -643,6 +690,7 @@ pub fn update_inventory(
                         inventory.store(media_id, false)?;
                     }
                 }
+                changer.unload_media(None)?;
             }
             Ok(())
         }
@@ -939,6 +987,11 @@ pub const SUBDIRS: SubdirMap = &sorted!([
         "catalog",
         &Router::new()
             .put(&API_METHOD_CATALOG_MEDIA)
+    ),
+    (
+        "clean",
+        &Router::new()
+            .put(&API_METHOD_CLEAN_DRIVE)
     ),
     (
         "eject-media",
