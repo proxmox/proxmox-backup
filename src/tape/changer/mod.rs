@@ -56,7 +56,7 @@ pub trait MediaChange {
         for (import_export, element_status) in status.slots.iter() {
             if *import_export { continue; }
             if let ElementStatus::VolumeTag(ref tag) = element_status {
-                if !tag.starts_with("CLN") { continue; }
+                if tag.starts_with("CLN") { continue; }
                 list.push(tag.clone());
             }
         }
