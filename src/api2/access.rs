@@ -163,7 +163,9 @@ fn authenticate_2nd(
             },
             CSRFPreventionToken: {
                 type: String,
-                description: "Cross Site Request Forgery Prevention Token.",
+                description:
+                    "Cross Site Request Forgery Prevention Token. \
+                     For partial tickets this is the string \"invalid\".",
             },
         },
     },
@@ -207,6 +209,7 @@ fn create_ticket(
             Ok(json!({
                 "username": username,
                 "ticket": ticket,
+                "CSRFPreventionToken": "invalid",
             }))
         }
         Err(err) => {
