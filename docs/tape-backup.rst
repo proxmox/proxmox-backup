@@ -351,32 +351,70 @@ one media pool, so a job only uses tapes from that pool.
 
    A media set is a group of continuously written tapes, used to split
    the larger pool into smaller, restorable units. One or more backup
-   jobs write to a media set, producing a group of tapes. Media sets
-   are identified by an unique ID. That ID and the sequence number is
-   stored on each tape of that set (tape label).
+   jobs write to a media set, producing an ordered group of
+   tapes. Media sets are identified by an unique ID. That ID and the
+   sequence number is stored on each tape of that set (tape label).
 
    Media sets are the basic unit for restore tasks, i.e. you need all
-   tapes in the set to restore the set content. Data is fully
+   tapes in the set to restore the media set content. Data is fully
    deduplicated inside a media set.
 
 
 .. topic:: Media Set Allocation Policy
 
    The pool additionally defines how long backup jobs can append data
-   to a media set (allocation policy). The following settings are possible:
+   to a media set. The following settings are possible:
 
-   :continue: Try to use the current media set.
+   - Try to use the current media set.
 
-   :always: Each backup job creates a new media set.
+     This setting produce one large media set. While this is very
+     space efficient (deduplication, no unused space), it can lead to
+     long restore times, because restore jobs needs to read all tapes in the
+     set.
 
-   :Calendar Event: Create a new set when the specified CalendarEvent triggers.
+     .. NOTE:: Data is fully deduplicated inside a media set. That
+        also means that data is randomly distributed over the tapes in
+        the set. So even if you restore a single VM, this may have to
+        read data from all tapes inside the media set.
+
+     Larger media sets are also more error prone, because a single
+     damaged media makes the restore fail.
+
+     Usage scenario: Mostly used with tape libraries, and you manually
+     trigger new set creation by running a backup job with the
+     ``--export`` option.
+
+   - Always create a new media set.
+
+     With this setting each backup job creates a new media set. This
+     is less space efficient, because the last media from the last set
+     may not be fully written, leaving the remaining space unused.
+
+     The advantage is that this procudes media sets of minimal
+     size. Small set are easier to handle, you can move sets to an
+     off-site vault, and restore is much faster.
+
+   - Create a new set when the specified Calendar Event triggers.
+
+     .. _systemd.time manpage: https://manpages.debian.org/buster/systemd/systemd.time.7.en.html
+
+     This allows you to specify points in time by using systemd like
+     Calendar Event specifications (see `systemd.time manpage`_).
+
+     For example, the value ``weekly`` (or ``Mon *-*-* 00:00:00``)
+     will create a new set each week.
+
+     This balances between space efficency and media count.
 
    Additionally, the following events may allocate a new media set:
 
-   - Required tape is offline
+   - Required tape is offline (and you use a tape library).
 
    - Current set contains damaged of retired tapes.
 
+   - Database consistency errors, e.g. if the inventory does not
+     contain required media info, or contain conflicting infos
+     (outdated data).
 
 .. topic:: Retention Policy
 
