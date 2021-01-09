@@ -26,6 +26,7 @@ use crate::{
         tape_write_snapshot_archive,
         request_and_load_media,
         tape_alert_flags_critical,
+        media_changer,
         file_formats::MediaSetLabel,
     },
 };
@@ -104,6 +105,24 @@ impl PoolWriter {
             }
         }
         self.media_set_catalog.contains_snapshot(snapshot)
+    }
+
+    /// Eject media and drop PoolWriterState (close drive)
+    pub fn eject_media(&mut self) -> Result<(), Error> {
+        let mut status = match self.status.take() {
+            Some(status) => status,
+            None => return Ok(()), // no media loaded
+        };
+
+        let (drive_config, _digest) = crate::config::drive::config()?;
+
+        if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
+            changer.unload_media(None)?;
+        } else {
+            status.drive.eject_media()?;
+        }
+
+        Ok(())
     }
 
     /// commit changes to tape and catalog

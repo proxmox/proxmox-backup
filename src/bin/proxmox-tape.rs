@@ -718,6 +718,11 @@ async fn clean_drive(
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
+            "eject-media": {
+                description: "Eject media upon job completion.",
+                type: bool,
+                optional: true,
+            },
         },
     },
 )]

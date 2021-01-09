@@ -51,6 +51,11 @@ use crate::{
             pool: {
                 schema: MEDIA_POOL_NAME_SCHEMA,
             },
+            "eject-media": {
+                description: "Eject media upon job completion.",
+                type: bool,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -61,6 +66,7 @@ use crate::{
 pub fn backup(
     store: String,
     pool: String,
+    eject_media: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -77,20 +83,20 @@ pub fn backup(
 
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
+    let eject_media = eject_media.unwrap_or(false);
+
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
         Some(store.clone()),
         auth_id,
         to_stdout,
         move |worker| {
-            backup_worker(&worker, datastore, &pool_config)?;
+            backup_worker(&worker, datastore, &pool_config, eject_media)?;
             Ok(())
         }
     )?;
 
     Ok(upid_str.into())
-
-
 }
 
 pub const ROUTER: Router = Router::new()
@@ -101,6 +107,7 @@ fn backup_worker(
     worker: &WorkerTask,
     datastore: Arc<DataStore>,
     pool_config: &MediaPoolConfig,
+    eject_media: bool,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -134,6 +141,11 @@ fn backup_worker(
     }
 
     pool_writer.commit()?;
+
+    if eject_media {
+        worker.log(format!("ejection backup media"));
+        pool_writer.eject_media()?;
+    }
 
     Ok(())
 }
