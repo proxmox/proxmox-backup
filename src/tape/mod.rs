@@ -20,6 +20,9 @@ pub use tape_read::*;
 mod helpers;
 pub use helpers::*;
 
+mod media_set;
+pub use media_set::*;
+
 mod inventory;
 pub use inventory::*;
 
