@@ -145,7 +145,7 @@ pub struct MediaPoolConfig {
     /// Media retention policy
     #[serde(skip_serializing_if="Option::is_none")]
     pub retention: Option<String>,
-    /// Media set naming template (default "%id%")
+    /// Media set naming template (default "%c")
     ///
     /// The template is UTF8 text, and can include strftime time
     /// format specifications.
