@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Write, Read, BufReader, Seek, SeekFrom};
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -22,6 +22,7 @@ use proxmox::tools::{
 };
 
 use crate::{
+    tools::fs::read_subdir,
     backup::BackupDir,
     tape::{
         MediaId,
@@ -57,6 +58,22 @@ pub struct MediaCatalog  {
 }
 
 impl MediaCatalog {
+
+    /// List media with catalogs
+    pub fn media_with_catalogs(base_path: &Path) -> Result<HashSet<Uuid>, Error> {
+        let mut catalogs = HashSet::new();
+
+        for entry in read_subdir(libc::AT_FDCWD, base_path)? {
+            let entry = entry?;
+            let name = unsafe { entry.file_name_utf8_unchecked() };
+            if !name.ends_with(".log") { continue; }
+            if let Ok(uuid) = Uuid::parse_str(&name[..(name.len()-4)]) {
+                catalogs.insert(uuid);
+            }
+        }
+
+        Ok(catalogs)
+    }
 
     /// Test if a catalog exists
     pub fn exists(base_path: &Path, uuid: &Uuid) -> bool {

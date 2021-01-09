@@ -58,12 +58,15 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
 
     let status_path = Path::new(TAPE_STATUS_DIR);
 
-    tokio::task::spawn_blocking(move || {
+    let catalogs = tokio::task::spawn_blocking(move || {
+        // update online media status
         if let Err(err) = update_online_status(status_path) {
             eprintln!("{}", err);
             eprintln!("update online media status failed - using old state");
         }
-    }).await?;
+        // test what catalog files we have
+        MediaCatalog::media_with_catalogs(status_path)
+    }).await??;
 
     let mut list = Vec::new();
 
@@ -100,12 +103,20 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
                         .unwrap_or_else(|_| set.uuid.to_string())
                 });
 
+            let catalog_ok = if media.media_set_label().is_none() {
+                // Media is empty, we need no catalog
+                true
+            } else {
+                catalogs.contains(media.uuid())
+            };
+
             list.push(MediaListEntry {
                 uuid: media.uuid().to_string(),
                 changer_id: media.changer_id().to_string(),
                 pool: Some(pool_name.to_string()),
                 location: media.location().clone(),
                 status: *media.status(),
+                catalog: catalog_ok,
                 expired,
                 media_set_uuid,
                 media_set_name,
@@ -131,6 +142,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
                 changer_id: media_id.label.changer_id.to_string(),
                 location,
                 status,
+                catalog: true, // empty, so we do not need a catalog
                 expired: false,
                 media_set_uuid: None,
                 media_set_name: None,

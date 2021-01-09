@@ -104,6 +104,14 @@ async fn list_media(
         })
     }
 
+    fn catalog_status(value: &Value, _record: &Value) -> Result<String, Error> {
+        let catalog_ok = value.as_bool().unwrap();
+        if catalog_ok {
+            Ok(String::from("ok"))
+        } else {
+            Ok(String::from("missing"))
+        }
+    }
     let options = default_table_format_options()
         .sortby("pool", false)
         .sortby("media-set-uuid", false)
@@ -115,6 +123,7 @@ async fn list_media(
         .column(ColumnConfig::new("seq-nr"))
         .column(ColumnConfig::new("status").renderer(render_status))
         .column(ColumnConfig::new("location"))
+        .column(ColumnConfig::new("catalog").renderer(catalog_status))
         .column(ColumnConfig::new("uuid"))
         .column(ColumnConfig::new("media-set-uuid"))
         ;

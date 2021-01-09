@@ -29,6 +29,8 @@ pub struct MediaListEntry {
     pub status: MediaStatus,
     /// Expired flag
     pub expired: bool,
+    /// Catalog status OK
+    pub catalog: bool,
     /// Media set name
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_name: Option<String>,
