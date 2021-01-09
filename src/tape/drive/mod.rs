@@ -151,6 +151,14 @@ pub trait TapeDriver {
 
     /// Eject media
     fn eject_media(&mut self) -> Result<(), Error>;
+
+    /// Read Tape Alert Flags
+    ///
+    /// This make only sense for real LTO drives. Virtual tape drives should
+    /// simply return empty flags (default).
+    fn tape_alert_flags(&mut self) -> Result<TapeAlertFlags, Error> {
+        Ok(TapeAlertFlags::empty())
+    }
 }
 
 /// Get the media changer (MediaChange + name) associated with a tape drive.

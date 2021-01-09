@@ -25,6 +25,7 @@ use crate::{
         MediaSetCatalog,
         tape_write_snapshot_archive,
         request_and_load_media,
+        tape_alert_flags_critical,
         file_formats::MediaSetLabel,
     },
 };
@@ -149,6 +150,15 @@ impl PoolWriter {
 
         let (mut drive, old_media_id) =
             request_and_load_media(worker, &drive_config, &self.drive_name, media.label())?;
+
+        // test for critical tape alert flags
+        let alert_flags = drive.tape_alert_flags()?;
+        if !alert_flags.is_empty() {
+            worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
+            if tape_alert_flags_critical(alert_flags) {
+                bail!("aborting due to critical tape alert flags: {:?}", alert_flags);
+            }
+        }
 
         let catalog = update_media_set_label(
             worker,

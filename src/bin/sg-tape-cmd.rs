@@ -23,6 +23,7 @@ use proxmox_backup::{
         LINUX_DRIVE_PATH_SCHEMA,
     },
     tape::{
+        TapeDriver,
         linux_tape::{
             LinuxTapeHandle,
             open_linux_tape_device,
