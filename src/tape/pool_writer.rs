@@ -128,7 +128,7 @@ impl PoolWriter {
 
     /// Export current media set and drop PoolWriterState (close drive)
     pub fn export_media_set(&mut self, worker: &WorkerTask) -> Result<(), Error> {
-        let mut status = self.status.take();
+        let status = self.status.take();
 
         let (drive_config, _digest) = crate::config::drive::config()?;
 

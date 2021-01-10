@@ -72,7 +72,7 @@ impl MediaChange for MtxMediaChanger {
         mtx_status(&self.config)
     }
 
-    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error> {
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
         mtx_transfer(&self.config.path, from, to)
     }
 

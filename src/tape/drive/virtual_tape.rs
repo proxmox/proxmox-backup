@@ -393,7 +393,7 @@ impl MediaChange for VirtualTapeHandle {
         Ok(MtxStatus { drives, slots })
     }
 
-    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error> {
+    fn transfer_media(&mut self, _from: u64, _to: u64) -> Result<(), Error> {
         bail!("medfia tranfer is not implemented!");
     }
 
@@ -456,9 +456,9 @@ impl MediaChange for VirtualTapeDrive {
         handle.status()
     }
 
-    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error> {
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error> {
         let mut handle = self.open()?;
-        handle.transfer(from, to)
+        handle.transfer_media(from, to)
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {

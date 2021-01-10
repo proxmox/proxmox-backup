@@ -21,7 +21,7 @@ pub trait MediaChange {
     /// Transfer media from on slot to another (storage or import export slots)
     ///
     /// Target slot needs to be empty
-    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error>;
+    fn transfer_media(&mut self, from: u64, to: u64) -> Result<(), Error>;
 
     /// Load media from storage slot into drive
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error>;
@@ -102,10 +102,10 @@ pub trait MediaChange {
         }
         match (from, to) {
             (Some(from), Some(to)) => {
-                self.transfer(from, to);
+                self.transfer_media(from, to)?;
                 Ok(Some(to))
             }
-            (Some(from), None) => bail!("unable to find free export slot"),
+            (Some(_from), None) => bail!("unable to find free export slot"),
             (None, _) => Ok(None), // not online
         }
     }
