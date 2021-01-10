@@ -723,6 +723,11 @@ async fn clean_drive(
                 type: bool,
                 optional: true,
             },
+            "export-media-set": {
+                description: "Export media set upon job completion.",
+                type: bool,
+                optional: true,
+            },
         },
     },
 )]

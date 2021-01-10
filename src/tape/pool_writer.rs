@@ -117,9 +117,41 @@ impl PoolWriter {
         let (drive_config, _digest) = crate::config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
+            drop(status); // close drive
             changer.unload_media(None)?;
         } else {
             status.drive.eject_media()?;
+        }
+
+        Ok(())
+    }
+
+    /// Export current media set and drop PoolWriterState (close drive)
+    pub fn export_media_set(&mut self, worker: &WorkerTask) -> Result<(), Error> {
+        let mut status = self.status.take();
+
+        let (drive_config, _digest) = crate::config::drive::config()?;
+
+        if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
+            drop(status); // close drive
+
+            changer.unload_media(None)?;
+
+            for media_uuid in self.pool.current_media_list()? {
+                let media = self.pool.lookup_media(media_uuid)?;
+                let changer_id = media.changer_id();
+                if let Some(slot) = changer.export_media(changer_id)? {
+                    worker.log(format!("exported media '{}' to import/export slot {}", changer_id, slot));
+                } else {
+                    worker.warn(format!("export failed - media '{}' is not online", changer_id));
+                }
+            }
+
+        } else {
+            worker.log("standalone drive - ejecting media instead of export");
+            if let Some(mut status) = status {
+                status.drive.eject_media()?;
+            }
         }
 
         Ok(())

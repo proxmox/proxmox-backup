@@ -56,6 +56,11 @@ use crate::{
                 type: bool,
                 optional: true,
             },
+            "export-media-set": {
+                description: "Export media set upon job completion.",
+                type: bool,
+                optional: true,
+            },
         },
     },
     returns: {
@@ -67,6 +72,7 @@ pub fn backup(
     store: String,
     pool: String,
     eject_media: Option<bool>,
+    export_media_set: Option<bool>,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -84,6 +90,7 @@ pub fn backup(
     let to_stdout = if rpcenv.env_type() == RpcEnvironmentType::CLI { true } else { false };
 
     let eject_media = eject_media.unwrap_or(false);
+    let export_media_set = export_media_set.unwrap_or(false);
 
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
@@ -91,7 +98,7 @@ pub fn backup(
         auth_id,
         to_stdout,
         move |worker| {
-            backup_worker(&worker, datastore, &pool_config, eject_media)?;
+            backup_worker(&worker, datastore, &pool_config, eject_media, export_media_set)?;
             Ok(())
         }
     )?;
@@ -108,6 +115,7 @@ fn backup_worker(
     datastore: Arc<DataStore>,
     pool_config: &MediaPoolConfig,
     eject_media: bool,
+    export_media_set: bool,
 ) -> Result<(), Error> {
 
     let status_path = Path::new(TAPE_STATUS_DIR);
@@ -142,7 +150,10 @@ fn backup_worker(
 
     pool_writer.commit()?;
 
-    if eject_media {
+    if export_media_set {
+        worker.log(format!("exporting current media set"));
+        pool_writer.export_media_set(worker)?;
+    } else if eject_media {
         worker.log(format!("ejection backup media"));
         pool_writer.eject_media()?;
     }
