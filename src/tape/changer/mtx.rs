@@ -4,7 +4,6 @@ use crate::{
     tape::changer::{
         MediaChange,
         MtxStatus,
-        ElementStatus,
         mtx_status,
         mtx_transfer,
         mtx_load,
@@ -19,7 +18,7 @@ use crate::{
 /// Implements MediaChange using 'mtx' linux cli tool
 pub struct MtxMediaChanger {
     drive_name: String, // used for error messages
-    drivenum: u64,
+    drive_number: u64,
     config: ScsiTapeChanger,
 }
 
@@ -34,40 +33,21 @@ impl MtxMediaChanger {
 
         Ok(Self {
             drive_name: drive_config.name.clone(),
-            drivenum: drive_config.changer_drive_id.unwrap_or(0),
+            drive_number: drive_config.changer_drive_id.unwrap_or(0),
             config: changer_config,
         })
     }
 }
 
-fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenum: u64) -> Result<(), Error> {
-
-    if drivenum >= status.drives.len() as u64 {
-        bail!("unload drive '{}' got unexpected drive number '{}' - changer only has '{}' drives",
-              drive_name, drivenum, status.drives.len());
-    }
-    let drive_status = &status.drives[drivenum as usize];
-    if let Some(slot) = drive_status.loaded_slot {
-        // fixme: check if slot is free
-        mtx_unload(path, slot, drivenum)
-    } else {
-        let mut free_slot = None;
-        for i in 0..status.slots.len() {
-            if status.slots[i].0 { continue; } // skip import/export slots
-            if let ElementStatus::Empty = status.slots[i].1 {
-                free_slot = Some((i+1) as u64);
-                break;
-            }
-        }
-        if let Some(slot) = free_slot {
-            mtx_unload(path, slot, drivenum)
-        } else {
-            bail!("drive '{}' unload failure - no free slot", drive_name);
-        }
-    }
-}
-
 impl MediaChange for MtxMediaChanger {
+
+    fn drive_number(&self) -> u64 {
+        self.drive_number
+    }
+
+    fn drive_name(&self) -> &str {
+        &self.drive_name
+    }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
         mtx_status(&self.config)
@@ -78,151 +58,19 @@ impl MediaChange for MtxMediaChanger {
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
-        mtx_load(&self.config.path, slot, self.drivenum)
-    }
-
-    fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
-
-        if changer_id.starts_with("CLN") {
-            bail!("unable to load media '{}' (seems top be a a cleaning units)", changer_id);
-        }
-
-        let status = self.status()?;
-
-         // already loaded?
-        for (i, drive_status) in status.drives.iter().enumerate() {
-            if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
-                if *tag == changer_id {
-                    if i as u64 != self.drivenum {
-                        bail!("unable to load media '{}' - media in wrong drive ({} != {})",
-                              changer_id, i, self.drivenum);
-                    }
-                    return Ok(())
-                }
-            }
-            if i as u64 == self.drivenum {
-                match drive_status.status {
-                    ElementStatus::Empty => { /* OK */ },
-                    _ => unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)?,
-                }
-            }
-        }
-
-        let mut slot = None;
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if let ElementStatus::VolumeTag(tag) = element_status {
-                if *tag == changer_id {
-                    if *import_export {
-                        bail!("unable to load media '{}' - inside import/export slot", changer_id);
-                    }
-                    slot = Some(i+1);
-                    break;
-                }
-            }
-        }
-
-        let slot = match slot {
-            None => bail!("unable to find media '{}' (offline?)", changer_id),
-            Some(slot) => slot,
-        };
-
-        mtx_load(&self.config.path, slot as u64, self.drivenum)
+        mtx_load(&self.config.path, slot, self.drive_number)
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
         if let Some(target_slot) = target_slot {
-            mtx_unload(&self.config.path, target_slot, self.drivenum)
+            mtx_unload(&self.config.path, target_slot, self.drive_number)
         } else {
             let status = self.status()?;
-            unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)
+            self.unload_to_free_slot(status)
         }
     }
 
     fn eject_on_unload(&self) -> bool {
         true
-    }
-
-    fn clean_drive(&mut self) -> Result<(), Error> {
-        let status = self.status()?;
-
-        let mut cleaning_cartridge_slot = None;
-
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if *import_export { continue; }
-            if let ElementStatus::VolumeTag(ref tag) = element_status {
-                if tag.starts_with("CLN") {
-                    cleaning_cartridge_slot = Some(i + 1);
-                    break;
-                }
-            }
-        }
-
-        let cleaning_cartridge_slot = match cleaning_cartridge_slot {
-            None => bail!("clean failed - unable to find cleaning cartridge"),
-            Some(cleaning_cartridge_slot) => cleaning_cartridge_slot as u64,
-        };
-
-        if let Some(drive_status) = status.drives.get(self.drivenum as usize) {
-            match drive_status.status {
-                ElementStatus::Empty => { /* OK */ },
-                _ => unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)?,
-            }
-        }
-
-        mtx_load(&self.config.path, cleaning_cartridge_slot, self.drivenum)?;
-
-        mtx_unload(&self.config.path, cleaning_cartridge_slot, self.drivenum)?;
-
-        Ok(())
-    }
-
-    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
-        let status = self.status()?;
-
-        let mut from_drive = None;
-        if let Some(drive_status) = status.drives.get(self.drivenum as usize) {
-            if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
-                if tag == changer_id {
-                    from_drive = Some(self.drivenum);
-                }
-            }
-        }
-
-        let mut from = None;
-        let mut to = None;
-
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if *import_export {
-                if to.is_some() { continue; }
-                if let ElementStatus::Empty = element_status {
-                    to = Some(i as u64 + 1);
-                }
-            } else {
-                if let ElementStatus::VolumeTag(ref tag) = element_status {
-                    if tag == changer_id {
-                        from = Some(i as u64 + 1);
-                    }
-                }
-            }
-        }
-
-        if let Some(drivenum) = from_drive {
-            match to {
-                Some(to) => {
-                    mtx_unload(&self.config.path, to, drivenum)?;
-                    Ok(Some(to))
-                }
-                None =>  bail!("unable to find free export slot"),
-            }
-        } else {
-            match (from, to) {
-                (Some(from), Some(to)) => {
-                    self.transfer_media(from, to)?;
-                    Ok(Some(to))
-                }
-                (Some(_from), None) => bail!("unable to find free export slot"),
-                (None, _) => Ok(None), // not online
-            }
-        }
     }
 }

@@ -48,6 +48,7 @@ impl VirtualTapeDrive {
 
         Ok(VirtualTapeHandle {
             _lock: lock,
+            drive_name: self.name.clone(),
             max_size: self.max_size.unwrap_or(64*1024*1024),
             path: std::path::PathBuf::from(&self.path),
         })
@@ -71,6 +72,7 @@ struct TapeIndex {
 }
 
 pub struct VirtualTapeHandle {
+    drive_name: String,
     path: std::path::PathBuf,
     max_size: usize,
     _lock: File,
@@ -362,6 +364,14 @@ impl TapeDriver for VirtualTapeHandle {
 
 impl MediaChange for VirtualTapeHandle {
 
+    fn drive_number(&self) -> u64 {
+        0
+    }
+
+    fn drive_name(&self) -> &str {
+        &self.drive_name
+    }
+
     fn status(&mut self) -> Result<MtxStatus, Error> {
 
         let drive_status = self.load_status()?;
@@ -454,6 +464,14 @@ impl MediaChange for VirtualTapeHandle {
 }
 
 impl MediaChange for VirtualTapeDrive {
+
+    fn drive_number(&self) -> u64 {
+        0
+    }
+
+    fn drive_name(&self) -> &str {
+        &self.name
+    }
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
         let mut handle = self.open()?;
