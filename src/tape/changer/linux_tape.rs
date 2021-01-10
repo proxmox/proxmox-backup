@@ -15,6 +15,30 @@ use crate::{
     },
 };
 
+/// Implements MediaChange using 'mtx' linux cli tool
+pub struct MtxMediaChanger {
+    drive_name: String, // used for error messages
+    drivenum: u64,
+    config: ScsiTapeChanger,
+}
+
+impl MtxMediaChanger {
+
+    pub fn with_drive_config(drive_config: &LinuxTapeDrive) -> Result<Self, Error> {
+        let (config, _digest) = crate::config::drive::config()?;
+        let changer_config: ScsiTapeChanger = match drive_config.changer {
+            Some(ref changer) => config.lookup("changer", changer)?,
+            None => bail!("drive '{}' has no associated changer", drive_config.name),
+        };
+
+        Ok(Self {
+            drive_name: drive_config.name.clone(),
+            drivenum: drive_config.changer_drive_id.unwrap_or(0),
+            config: changer_config,
+        })
+    }
+}
+
 fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenum: u64) -> Result<(), Error> {
 
     if drivenum >= status.drives.len() as u64 {
@@ -41,30 +65,14 @@ fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenu
     }
 }
 
-impl MediaChange for LinuxTapeDrive {
+impl MediaChange for MtxMediaChanger {
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
-        let (config, _digest) = crate::config::drive::config()?;
-
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => bail!("drive '{}' has no associated changer", self.name),
-        };
-
-        mtx_status(&changer)
+        mtx_status(&self.config)
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
-        let (config, _digest) = crate::config::drive::config()?;
-
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => bail!("drive '{}' has no associated changer", self.name),
-        };
-
-        let drivenum = self.changer_drive_id.unwrap_or(0);
-
-        mtx_load(&changer.path, slot, drivenum as u64)
+        mtx_load(&self.config.path, slot, self.drivenum)
     }
 
     fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
@@ -73,32 +81,23 @@ impl MediaChange for LinuxTapeDrive {
             bail!("unable to load media '{}' (seems top be a a cleaning units)", changer_id);
         }
 
-        let (config, _digest) = crate::config::drive::config()?;
+        let status = self.status()?;
 
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => bail!("drive '{}' has no associated changer", self.name),
-        };
-
-        let status = mtx_status(&changer)?;
-
-        let drivenum = self.changer_drive_id.unwrap_or(0);
-
-        // already loaded?
+         // already loaded?
         for (i, drive_status) in status.drives.iter().enumerate() {
             if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
                 if *tag == changer_id {
-                    if i as u64 != drivenum {
+                    if i as u64 != self.drivenum {
                         bail!("unable to load media '{}' - media in wrong drive ({} != {})",
-                              changer_id, i, drivenum);
+                              changer_id, i, self.drivenum);
                     }
                     return Ok(())
                 }
             }
-            if i as u64 == drivenum {
-                match  drive_status.status {
+            if i as u64 == self.drivenum {
+                match drive_status.status {
                     ElementStatus::Empty => { /* OK */ },
-                    _ => unload_to_free_slot(&self.name, &changer.path, &status, drivenum as u64)?,
+                    _ => unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)?,
                 }
             }
         }
@@ -121,24 +120,15 @@ impl MediaChange for LinuxTapeDrive {
             Some(slot) => slot,
         };
 
-        mtx_load(&changer.path, slot as u64, drivenum as u64)
+        mtx_load(&self.config.path, slot as u64, self.drivenum)
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
-        let (config, _digest) = crate::config::drive::config()?;
-
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => return Ok(()),
-        };
-
-        let drivenum = self.changer_drive_id.unwrap_or(0);
-
         if let Some(target_slot) = target_slot {
-            mtx_unload(&changer.path, target_slot, drivenum)
+            mtx_unload(&self.config.path, target_slot, self.drivenum)
         } else {
-            let status = mtx_status(&changer)?;
-            unload_to_free_slot(&self.name, &changer.path, &status, drivenum)
+            let status = self.status()?;
+            unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)
         }
     }
 
@@ -147,16 +137,7 @@ impl MediaChange for LinuxTapeDrive {
     }
 
     fn clean_drive(&mut self) -> Result<(), Error> {
-        let (config, _digest) = crate::config::drive::config()?;
-
-        let changer: ScsiTapeChanger = match self.changer {
-            Some(ref changer) => config.lookup("changer", changer)?,
-            None => bail!("unable to load cleaning cartridge - no associated changer device"),
-        };
-
-        let drivenum = self.changer_drive_id.unwrap_or(0);
-
-        let status = mtx_status(&changer)?;
+        let status = self.status()?;
 
         let mut cleaning_cartridge_slot = None;
 
@@ -175,16 +156,16 @@ impl MediaChange for LinuxTapeDrive {
             Some(cleaning_cartridge_slot) => cleaning_cartridge_slot as u64,
         };
 
-        if let Some(drive_status) = status.drives.get(drivenum as usize) {
+        if let Some(drive_status) = status.drives.get(self.drivenum as usize) {
             match drive_status.status {
                 ElementStatus::Empty => { /* OK */ },
-                _ => unload_to_free_slot(&self.name, &changer.path, &status, drivenum)?,
+                _ => unload_to_free_slot(&self.drive_name, &self.config.path, &status, self.drivenum)?,
             }
         }
 
-        mtx_load(&changer.path, cleaning_cartridge_slot, drivenum)?;
+        mtx_load(&self.config.path, cleaning_cartridge_slot, self.drivenum)?;
 
-        mtx_unload(&changer.path, cleaning_cartridge_slot, drivenum)?;
+        mtx_unload(&self.config.path, cleaning_cartridge_slot, self.drivenum)?;
 
         Ok(())
     }

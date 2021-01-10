@@ -31,6 +31,7 @@ use crate::{
         TapeWrite,
         TapeRead,
         MediaId,
+        MtxMediaChanger,
         file_formats::{
             PROXMOX_BACKUP_MEDIA_LABEL_MAGIC_1_0,
             PROXMOX_BACKUP_MEDIA_SET_LABEL_MAGIC_1_0,
@@ -181,11 +182,12 @@ pub fn media_changer(
                     Ok(Some((Box::new(tape), drive.to_string())))
                 }
                 "linux" => {
-                    let tape = LinuxTapeDrive::deserialize(config)?;
-                    match tape.changer {
+                    let drive_config = LinuxTapeDrive::deserialize(config)?;
+                    match drive_config.changer {
                         Some(ref changer_name) => {
+                            let changer = MtxMediaChanger::with_drive_config(&drive_config)?;
                             let changer_name = changer_name.to_string();
-                            Ok(Some((Box::new(tape), changer_name)))
+                            Ok(Some((Box::new(changer), changer_name)))
                         }
                         None => Ok(None),
                     }
@@ -294,15 +296,16 @@ pub fn request_and_load_media(
                     return Ok((handle, media_id));
                 }
                 "linux" => {
-                    let mut tape = LinuxTapeDrive::deserialize(config)?;
+                    let drive_config = LinuxTapeDrive::deserialize(config)?;
 
                     let changer_id = label.changer_id.clone();
 
-                    if tape.changer.is_some() {
+                    if drive_config.changer.is_some() {
 
-                        tape.load_media(&changer_id)?;
+                        let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
+                        changer.load_media(&changer_id)?;
 
-                        let mut handle: Box<dyn TapeDriver> = Box::new(tape.open()?);
+                        let mut handle: Box<dyn TapeDriver> = Box::new(drive_config.open()?);
 
                         let media_id = check_label(handle.as_mut(), &label.uuid)?;
 
@@ -319,7 +322,7 @@ pub fn request_and_load_media(
                     let mut last_error = None;
 
                     loop {
-                        let mut handle = match tape.open() {
+                        let mut handle = match drive_config.open() {
                             Ok(handle) => handle,
                             Err(err) => {
                                 let err = err.to_string();

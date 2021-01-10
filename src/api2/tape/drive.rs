@@ -44,7 +44,6 @@ use crate::{
     tape::{
         TAPE_STATUS_DIR,
         TapeDriver,
-        MediaChange,
         MediaPool,
         Inventory,
         MediaCatalog,
@@ -138,10 +137,9 @@ pub async fn unload(
 
     let (config, _digest) = config::drive::config()?;
 
-    let mut drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-
     tokio::task::spawn_blocking(move || {
-        drive_config.unload_media(target_slot)
+        let (mut changer, _) = required_media_changer(&config, &drive)?;
+        changer.unload_media(target_slot)
     }).await?
 }
 
