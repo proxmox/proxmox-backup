@@ -48,6 +48,7 @@ fn unload_to_free_slot(drive_name: &str, path: &str, status: &MtxStatus, drivenu
     }
     let drive_status = &status.drives[drivenum as usize];
     if let Some(slot) = drive_status.loaded_slot {
+        // fixme: check if slot is free
         mtx_unload(path, slot, drivenum)
     } else {
         let mut free_slot = None;
@@ -173,5 +174,55 @@ impl MediaChange for MtxMediaChanger {
         mtx_unload(&self.config.path, cleaning_cartridge_slot, self.drivenum)?;
 
         Ok(())
+    }
+
+    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
+        let status = self.status()?;
+
+        let mut from_drive = None;
+        if let Some(drive_status) = status.drives.get(self.drivenum as usize) {
+            if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
+                if tag == changer_id {
+                    from_drive = Some(self.drivenum);
+                }
+            }
+        }
+
+        let mut from = None;
+        let mut to = None;
+
+        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
+            if *import_export {
+                if to.is_some() { continue; }
+                if let ElementStatus::Empty = element_status {
+                    to = Some(i as u64 + 1);
+                }
+            } else {
+                if let ElementStatus::VolumeTag(ref tag) = element_status {
+                    if tag == changer_id {
+                        from = Some(i as u64 + 1);
+                    }
+                }
+            }
+        }
+
+        if let Some(drivenum) = from_drive {
+            match to {
+                Some(to) => {
+                    mtx_unload(&self.config.path, to, drivenum)?;
+                    Ok(Some(to))
+                }
+                None =>  bail!("unable to find free export slot"),
+            }
+        } else {
+            match (from, to) {
+                (Some(from), Some(to)) => {
+                    self.transfer_media(from, to)?;
+                    Ok(Some(to))
+                }
+                (Some(_from), None) => bail!("unable to find free export slot"),
+                (None, _) => Ok(None), // not online
+            }
+        }
     }
 }

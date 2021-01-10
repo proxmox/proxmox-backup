@@ -243,6 +243,39 @@ async fn load_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+        },
+    },
+)]
+/// Export media with specified label
+async fn export_media(
+    mut param: Value,
+    rpcenv: &mut dyn RpcEnvironment,
+) -> Result<(), Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    param["drive"] = lookup_drive_name(&param, &config)?.into();
+
+    let info = &api2::tape::drive::API_METHOD_EXPORT_MEDIA;
+
+    match info.handler {
+        ApiHandler::Async(handler) => (handler)(param, info, rpcenv).await?,
+        _ => unreachable!(),
+    };
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             "source-slot": {
                 description: "Source slot number.",
                 type: u64,
@@ -931,6 +964,13 @@ fn main() {
             "unload",
             CliCommand::new(&API_METHOD_UNLOAD_MEDIA)
                 .completion_cb("drive", complete_drive_name)
+        )
+        .insert(
+            "export-media",
+            CliCommand::new(&API_METHOD_EXPORT_MEDIA)
+                .arg_param(&["changer-id"])
+                .completion_cb("drive", complete_drive_name)
+                .completion_cb("changer-id", complete_media_changer_id)
         )
         ;
 

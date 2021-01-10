@@ -10,7 +10,7 @@ pub use mtx_wrapper::*;
 mod mtx;
 pub use mtx::*;
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 
 /// Interface to media change devices
 pub trait MediaChange {
@@ -80,34 +80,5 @@ pub trait MediaChange {
     /// By moving the media to an empty import-export slot. Returns
     /// Some(slot) if the media was exported. Returns None if the media is
     /// not online (already exported).
-    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
-        let status = self.status()?;
-
-        let mut from = None;
-        let mut to = None;
-
-        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
-            if *import_export {
-                if to.is_some() { continue; }
-                if let ElementStatus::Empty = element_status {
-                    to = Some(i as u64 + 1);
-                }
-            } else {
-                if let ElementStatus::VolumeTag(ref tag) = element_status {
-                    if tag == changer_id {
-                        from = Some(i as u64 + 1);
-                    }
-                }
-            }
-        }
-        match (from, to) {
-            (Some(from), Some(to)) => {
-                self.transfer_media(from, to)?;
-                Ok(Some(to))
-            }
-            (Some(_from), None) => bail!("unable to find free export slot"),
-            (None, _) => Ok(None), // not online
-        }
-    }
-
+    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error>;
 }

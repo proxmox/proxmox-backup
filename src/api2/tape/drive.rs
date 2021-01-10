@@ -88,6 +88,7 @@ pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> 
         changer.load_media(&changer_id)
     }).await?
 }
+
 #[api(
     input: {
         properties: {
@@ -111,6 +112,37 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
     tokio::task::spawn_blocking(move || {
         let (mut changer, _) = required_media_changer(&config, &drive)?;
         changer.load_media_from_slot(source_slot)
+    }).await?
+}
+
+#[api(
+    input: {
+        properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+            },
+            "changer-id": {
+                schema: MEDIA_LABEL_SCHEMA,
+            },
+        },
+    },
+    returns: {
+        description: "The import-export slot number the media was transfered to.",
+        type: u64,
+        minimum: 1,
+    },
+)]
+/// Export media with specified label
+pub async fn export_media(drive: String, changer_id: String) -> Result<u64, Error> {
+
+    let (config, _digest) = config::drive::config()?;
+
+    tokio::task::spawn_blocking(move || {
+        let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
+        match changer.export_media(&changer_id)? {
+            Some(slot) => Ok(slot),
+            None => bail!("media '{}' is not online (via changer '{}')", changer_id, changer_name),
+        }
     }).await?
 }
 
