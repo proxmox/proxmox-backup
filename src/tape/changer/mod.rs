@@ -10,13 +10,18 @@ pub use mtx_wrapper::*;
 mod mtx;
 pub use mtx::*;
 
-use anyhow::Error;
+use anyhow::{bail, Error};
 
 /// Interface to media change devices
 pub trait MediaChange {
 
     /// Returns the changer status
     fn status(&mut self) -> Result<MtxStatus, Error>;
+
+    /// Transfer media from on slot to another (storage or import export slots)
+    ///
+    /// Target slot needs to be empty
+    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error>;
 
     /// Load media from storage slot into drive
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error>;
@@ -69,4 +74,40 @@ pub trait MediaChange {
     /// This fail if there is no cleaning cartridge online. Any media
     /// inside the drive is automatically unloaded.
     fn clean_drive(&mut self) -> Result<(), Error>;
+
+    /// Export media
+    ///
+    /// By moving the media to an empty import-export slot. Returns
+    /// Some(slot) if the media was exported. Returns None if the media is
+    /// not online (already exported).
+    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
+        let status = self.status()?;
+
+        let mut from = None;
+        let mut to = None;
+
+        for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
+            if *import_export {
+                if to.is_some() { continue; }
+                if let ElementStatus::Empty = element_status {
+                    to = Some(i as u64 + 1);
+                }
+            } else {
+                if let ElementStatus::VolumeTag(ref tag) = element_status {
+                    if tag == changer_id {
+                        from = Some(i as u64 + 1);
+                    }
+                }
+            }
+        }
+        match (from, to) {
+            (Some(from), Some(to)) => {
+                self.transfer(from, to);
+                Ok(Some(to))
+            }
+            (Some(from), None) => bail!("unable to find free export slot"),
+            (None, _) => Ok(None), // not online
+        }
+    }
+
 }

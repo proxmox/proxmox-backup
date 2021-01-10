@@ -6,6 +6,7 @@ use crate::{
         MtxStatus,
         ElementStatus,
         mtx_status,
+        mtx_transfer,
         mtx_load,
         mtx_unload,
     },
@@ -69,6 +70,10 @@ impl MediaChange for MtxMediaChanger {
 
     fn status(&mut self) -> Result<MtxStatus, Error> {
         mtx_status(&self.config)
+    }
+
+    fn transfer(&mut self, from: u64, to: u64) -> Result<(), Error> {
+        mtx_transfer(&self.config.path, from, to)
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
