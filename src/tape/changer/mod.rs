@@ -7,8 +7,8 @@ pub use parse_mtx_status::*;
 mod mtx_wrapper;
 pub use mtx_wrapper::*;
 
-mod linux_tape;
-pub use linux_tape::*;
+mod mtx;
+pub use mtx::*;
 
 use anyhow::Error;
 
