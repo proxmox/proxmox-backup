@@ -69,8 +69,4 @@ impl MediaChange for MtxMediaChanger {
             self.unload_to_free_slot(status)
         }
     }
-
-    fn eject_on_unload(&self) -> bool {
-        true
-    }
 }

@@ -300,10 +300,6 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
 
     tokio::task::spawn_blocking(move || {
         if let Some((mut changer, _)) = media_changer(&config, &drive)? {
-            if !changer.eject_on_unload() {
-                let mut drive = open_drive(&config, &drive)?;
-                drive.eject_media()?;
-            }
             changer.unload_media(None)?;
         } else {
             let mut drive = open_drive(&config, &drive)?;

@@ -454,10 +454,6 @@ impl MediaChange for VirtualTapeHandle {
         Ok(())
     }
 
-    fn eject_on_unload(&self) -> bool {
-        true
-    }
-
     fn clean_drive(&mut self) -> Result<(), Error> {
         Ok(())
     }
@@ -502,10 +498,6 @@ impl MediaChange for VirtualTapeDrive {
         let mut handle = self.open()?;
         handle.unload_media(target_slot)?;
         Ok(())
-    }
-
-    fn eject_on_unload(&self) -> bool {
-        true
     }
 
     fn online_media_changer_ids(&mut self) -> Result<Vec<String>, Error> {

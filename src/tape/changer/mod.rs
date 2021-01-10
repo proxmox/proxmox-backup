@@ -94,15 +94,8 @@ pub trait MediaChange {
         self.load_media_from_slot(slot as u64)
     }
 
-    /// Unload media from drive
-    ///
-    /// This is a nop on drives without autoloader.
+    /// Unload media from drive (eject media if necessary)
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error>;
-
-    /// Returns true if unload_media automatically ejects drive media
-    fn eject_on_unload(&self) -> bool {
-        false
-    }
 
     /// List online media changer IDs (barcodes)
     ///
