@@ -384,6 +384,9 @@ one media pool, so a job only uses tapes from that pool.
      trigger new set creation by running a backup job with the
      ``--export`` option.
 
+     .. NOTE:: Retention period starts with the existence of a newer
+	media set.
+
    - Always create a new media set.
 
      With this setting each backup job creates a new media set. This
@@ -393,6 +396,9 @@ one media pool, so a job only uses tapes from that pool.
      The advantage is that this procudes media sets of minimal
      size. Small set are easier to handle, you can move sets to an
      off-site vault, and restore is much faster.
+
+     .. NOTE:: Retention period starts with the creation time of the
+        media set.
 
    - Create a new set when the specified Calendar Event triggers.
 
@@ -406,6 +412,9 @@ one media pool, so a job only uses tapes from that pool.
 
      This balances between space efficency and media count.
 
+     .. NOTE:: Retention period starts when the calendar event
+        triggers.
+
    Additionally, the following events may allocate a new media set:
 
    - Required tape is offline (and you use a tape library).
@@ -418,9 +427,7 @@ one media pool, so a job only uses tapes from that pool.
 
 .. topic:: Retention Policy
 
-   Defines how long we want to keep the data. Retention period starts
-   with the existence of a newer media set, e.g. when the allocation
-   policy calendar event triggers.
+   Defines how long we want to keep the data.
 
    - Always overwrite media.
 
