@@ -246,7 +246,8 @@ async fn mount_do(param: Value, pipe: Option<Fd>) -> Result<Value, Error> {
     // handle SIGINT and SIGTERM
     let mut interrupt_int = signal(SignalKind::interrupt())?;
     let mut interrupt_term = signal(SignalKind::terminate())?;
-    let mut interrupt = futures::future::select(interrupt_int.next(), interrupt_term.next());
+
+    let mut interrupt = futures::future::select(interrupt_int.recv().boxed(), interrupt_term.recv().boxed());
 
     if server_archive_name.ends_with(".didx") {
         let index = client.download_dynamic_index(&manifest, &server_archive_name).await?;
