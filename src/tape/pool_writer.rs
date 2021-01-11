@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::time::SystemTime;
 
 use anyhow::{bail, Error};
 
@@ -294,6 +295,7 @@ impl PoolWriter {
     /// (4GB). Written chunks are registered in the media catalog.
     pub fn append_chunk_archive(
         &mut self,
+        worker: &WorkerTask,
         datastore: &DataStore,
         chunk_iter: &mut std::iter::Peekable<SnapshotChunkIterator>,
     ) -> Result<(bool, usize), Error> {
@@ -314,7 +316,10 @@ impl PoolWriter {
         }
         let writer = status.drive.write_file()?;
 
+        let start_time = SystemTime::now();
+
         let (saved_chunks, content_uuid, leom, bytes_written) = write_chunk_archive(
+            worker,
             writer,
             datastore,
             chunk_iter,
@@ -324,6 +329,13 @@ impl PoolWriter {
         )?;
 
         status.bytes_written += bytes_written;
+
+        let elapsed =  start_time.elapsed()?.as_secs_f64();
+        worker.log(format!(
+            "wrote {:.2} MB ({} MB/s)",
+            bytes_written as f64 / (1024.0*1024.0),
+            (bytes_written as f64)/(1024.0*1024.0*elapsed),
+        ));
 
         let request_sync = if status.bytes_written >= COMMIT_BLOCK_SIZE { true } else { false };
 
@@ -344,6 +356,7 @@ impl PoolWriter {
 
 /// write up to <max_size> of chunks
 fn write_chunk_archive<'a>(
+    worker: &WorkerTask,
     writer: Box<dyn 'a + TapeWrite>,
     datastore: &DataStore,
     chunk_iter: &mut std::iter::Peekable<SnapshotChunkIterator>,
@@ -374,10 +387,10 @@ fn write_chunk_archive<'a>(
         }
 
         let blob = datastore.load_chunk(&digest)?;
-        println!("CHUNK {} size {}", proxmox::tools::digest_to_hex(&digest), blob.raw_size());
+        //println!("CHUNK {} size {}", proxmox::tools::digest_to_hex(&digest), blob.raw_size());
 
         match writer.try_write_chunk(&digest, &blob) {
-            Ok(true) => {
+             Ok(true) => {
                 chunk_index.insert(digest);
                 chunk_list.push(digest);
             }
@@ -389,7 +402,7 @@ fn write_chunk_archive<'a>(
         }
 
         if writer.bytes_written() > max_size {
-            println!("Chunk Archive max size reached, closing archive");
+            worker.log(format!("Chunk Archive max size reached, closing archive"));
             break;
         }
     }
@@ -422,7 +435,7 @@ fn update_media_set_label(
         None => {
             worker.log(format!("wrinting new media set label"));
             drive.write_media_set_label(new_set)?;
-            media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
+            media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
         }
         Some(media_set_label) => {
             if new_set.uuid == media_set_label.uuid {
@@ -438,7 +451,7 @@ fn update_media_set_label(
                 );
 
                 drive.write_media_set_label(new_set)?;
-                media_catalog = MediaCatalog::overwrite(status_path, media_id, true)?;
+                media_catalog = MediaCatalog::overwrite(status_path, media_id, false)?;
             }
         }
     }

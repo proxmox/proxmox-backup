@@ -209,7 +209,7 @@ pub fn backup_snapshot(
 
         let uuid = pool_writer.load_writable_media(worker)?;
 
-        let (leom, _bytes) = pool_writer.append_chunk_archive(&datastore, &mut chunk_iter)?;
+        let (leom, _bytes) = pool_writer.append_chunk_archive(worker, &datastore, &mut chunk_iter)?;
 
         if leom {
             pool_writer.set_media_status_full(&uuid)?;
