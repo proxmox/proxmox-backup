@@ -10,6 +10,7 @@ use futures::*;
 use hyper::http::request::Parts;
 use hyper::{header, Body, Response, StatusCode};
 use serde_json::{json, Value};
+use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::api::{
     api, ApiResponseFuture, ApiHandler, ApiMethod, Router,
@@ -1562,7 +1563,7 @@ fn pxar_file_download(
                         .map_err(|err| eprintln!("error during finishing of zip: {}", err))
                 });
 
-                Body::wrap_stream(receiver.map_err(move |err| {
+                Body::wrap_stream(ReceiverStream::new(receiver).map_err(move |err| {
                     eprintln!("error during streaming of zip '{:?}' - {}", filepath, err);
                     err
                 }))

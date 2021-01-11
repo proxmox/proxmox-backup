@@ -6,6 +6,7 @@ use anyhow::{bail, format_err, Error};
 use futures::*;
 use hyper;
 use openssl::ssl::{SslMethod, SslAcceptor, SslFiletype};
+use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::try_block;
 use proxmox::api::RpcEnvironmentType;
@@ -122,7 +123,7 @@ async fn run() -> Result<(), Error> {
         |listener, ready| {
 
             let connections = accept_connections(listener, acceptor, debug);
-            let connections = hyper::server::accept::from_stream(connections);
+            let connections = hyper::server::accept::from_stream(ReceiverStream::new(connections));
 
             Ok(ready
                .and_then(|_| hyper::Server::builder(connections)

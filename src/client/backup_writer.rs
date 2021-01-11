@@ -10,6 +10,7 @@ use futures::future::AbortHandle;
 use serde_json::{json, Value};
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot};
+use tokio_stream::wrappers::ReceiverStream;
 
 use proxmox::tools::digest_to_hex;
 
@@ -321,7 +322,7 @@ impl BackupWriter {
         // });
         // old code for reference?
         tokio::spawn(
-            verify_queue_rx
+            ReceiverStream::new(verify_queue_rx)
                 .map(Ok::<_, Error>)
                 .try_for_each(move |response: h2::client::ResponseFuture| {
                     response
@@ -349,7 +350,7 @@ impl BackupWriter {
 
         // FIXME: async-block-ify this code!
         tokio::spawn(
-            verify_queue_rx
+            ReceiverStream::new(verify_queue_rx)
                 .map(Ok::<_, Error>)
                 .and_then(move |(merged_chunk_info, response): (MergedChunkInfo, Option<h2::client::ResponseFuture>)| {
                     match (response, merged_chunk_info) {

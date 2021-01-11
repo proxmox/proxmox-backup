@@ -12,6 +12,7 @@ use futures::future::FutureExt;
 use futures::stream::{StreamExt, TryStreamExt};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 use xdg::BaseDirectories;
 
 use pathpatterns::{MatchEntry, MatchType, PatternFlag};
@@ -306,7 +307,7 @@ async fn backup_directory<P: AsRef<Path>>(
 
     let (mut tx, rx) = mpsc::channel(10); // allow to buffer 10 chunks
 
-    let stream = rx
+    let stream = ReceiverStream::new(rx)
         .map_err(Error::from);
 
     // spawn chunker inside a separate task so that it can run parallel
