@@ -167,7 +167,7 @@ fn accept_connections(
     mut listener: tokio::net::TcpListener,
     acceptor: Arc<openssl::ssl::SslAcceptor>,
     debug: bool,
-) -> tokio::sync::mpsc::Receiver<Result<tokio_openssl::SslStream<tokio::net::TcpStream>, Error>> {
+) -> tokio::sync::mpsc::Receiver<Result<std::pin::Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>, Error>> {
 
     const MAX_PENDING_ACCEPTS: usize = 1024;
 
@@ -185,7 +185,24 @@ fn accept_connections(
                     sock.set_nodelay(true).unwrap();
                     let _ = set_tcp_keepalive(sock.as_raw_fd(), PROXMOX_BACKUP_TCP_KEEPALIVE_TIME);
                     let acceptor = Arc::clone(&acceptor);
-                    let mut sender = sender.clone();
+
+                    let ssl = match openssl::ssl::Ssl::new(acceptor.context()) {
+                        Ok(ssl) => ssl,
+                        Err(err) => {
+                            eprintln!("failed to create Ssl object from Acceptor context - {}", err);
+                            continue;
+                        },
+                    };
+                    let stream = match tokio_openssl::SslStream::new(ssl, sock) {
+                        Ok(stream) => stream,
+                        Err(err) => {
+                            eprintln!("failed to create SslStream using ssl and connection socket - {}", err);
+                            continue;
+                        },
+                    };
+
+                    let mut stream = Box::pin(stream);
+                    let sender = sender.clone();
 
                     if Arc::strong_count(&accept_counter) > MAX_PENDING_ACCEPTS {
                         eprintln!("connection rejected - to many open connections");
@@ -195,13 +212,13 @@ fn accept_connections(
                     let accept_counter = accept_counter.clone();
                     tokio::spawn(async move {
                         let accept_future = tokio::time::timeout(
-                            Duration::new(10, 0), tokio_openssl::accept(&acceptor, sock));
+                            Duration::new(10, 0), stream.as_mut().accept());
 
                         let result = accept_future.await;
 
                         match result {
-                            Ok(Ok(connection)) => {
-                                if let Err(_) = sender.send(Ok(connection)).await {
+                            Ok(Ok(())) => {
+                                if let Err(_) = sender.send(Ok(stream)).await {
                                     if debug {
                                         eprintln!("detect closed connection channel");
                                     }

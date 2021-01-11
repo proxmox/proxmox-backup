@@ -74,7 +74,7 @@ impl<L: AsyncWrite + Unpin, R: AsyncWrite + Unpin> AsyncWrite for EitherStream<L
 // we need this for crate::client::http_client:
 impl Connection for EitherStream<
     tokio::net::TcpStream,
-    tokio_openssl::SslStream<tokio::net::TcpStream>,
+    Pin<Box<tokio_openssl::SslStream<tokio::net::TcpStream>>>,
 > {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
