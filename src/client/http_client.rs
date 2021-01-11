@@ -18,7 +18,6 @@ use proxmox::{
     api::error::HttpError,
     sys::linux::tty,
     tools::fs::{file_get_json, replace_file, CreateOptions},
-    tools::future::TimeoutFutureExt,
 };
 
 use super::pipe_to_stream::PipeToSendStream;
@@ -562,10 +561,12 @@ impl HttpClient {
         let enc_ticket = format!("PBSAuthCookie={}", percent_encode(auth.ticket.as_bytes(), DEFAULT_ENCODE_SET));
         req.headers_mut().insert("Cookie", HeaderValue::from_str(&enc_ticket).unwrap());
 
-        let resp = client
-            .request(req)
-            .or_timeout_err(HTTP_TIMEOUT, format_err!("http download request timed out"))
-            .await?;
+        let resp = tokio::time::timeout(
+            HTTP_TIMEOUT,
+            client.request(req)
+        )
+            .await
+            .map_err(|_| format_err!("http download request timed out"))??;
         let status = resp.status();
         if !status.is_success() {
             HttpClient::api_response(resp)
@@ -632,10 +633,12 @@ impl HttpClient {
 
         req.headers_mut().insert("UPGRADE", HeaderValue::from_str(&protocol_name).unwrap());
 
-        let resp = client
-            .request(req)
-            .or_timeout_err(HTTP_TIMEOUT, format_err!("http upgrade request timed out"))
-            .await?;
+        let resp = tokio::time::timeout(
+            HTTP_TIMEOUT,
+            client.request(req)
+        )
+            .await
+            .map_err(|_| format_err!("http upgrade request timed out"))??;
         let status = resp.status();
 
         if status != http::StatusCode::SWITCHING_PROTOCOLS {
@@ -715,10 +718,14 @@ impl HttpClient {
         req: Request<Body>
     ) -> Result<Value, Error> {
 
-        client.request(req)
-            .or_timeout_err(HTTP_TIMEOUT, format_err!("http request timed out"))
-            .and_then(Self::api_response)
-            .await
+        Self::api_response(
+            tokio::time::timeout(
+                HTTP_TIMEOUT,
+                client.request(req)
+            )
+                .await
+                .map_err(|_| format_err!("http request timed out"))??
+        ).await
     }
 
     // Read-only access to server property
