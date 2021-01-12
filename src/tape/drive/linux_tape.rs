@@ -67,13 +67,22 @@ impl LinuxTapeDrive {
     /// - check if it is a non-rewinding tape device
     /// - check if drive is ready (tape loaded)
     /// - check block size
+    /// - for autoloader only, try to reload ejected tapes
     pub fn open(&self) -> Result<LinuxTapeHandle, Error> {
 
         let file = open_linux_tape_device(&self.path)?;
 
         let mut handle = LinuxTapeHandle::new(file);
 
-        let drive_status = handle.get_drive_status()?;
+        let mut drive_status = handle.get_drive_status()?;
+
+        if !drive_status.tape_is_ready() {
+            // for autoloader only, try to reload ejected tapes
+            if self.changer.is_some() {
+                let _ = handle.mtload(); // just try, ignore error
+                drive_status = handle.get_drive_status()?;
+            }
+        }
 
         if !drive_status.tape_is_ready() {
             bail!("tape not ready (no tape loaded)");
@@ -154,6 +163,17 @@ impl LinuxTapeHandle {
         unsafe {
             mtioctop(self.file.as_raw_fd(), &cmd)
         }.map_err(|err| format_err!("MTNOP failed - {}", err))?;
+
+        Ok(())
+    }
+
+    fn mtload(&mut self) -> Result<(), Error> {
+
+        let cmd = mtop { mt_op: MTCmd::MTLOAD, mt_count: 1, };
+
+        unsafe {
+            mtioctop(self.file.as_raw_fd(), &cmd)
+        }.map_err(|err| format_err!("MTLOAD failed - {}", err))?;
 
         Ok(())
     }
