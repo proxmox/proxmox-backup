@@ -1,18 +1,19 @@
 Tape Backup
 ===========
 
-Our tape backup solution provides a easy way to store datastore
-contents to a tape. This increases data safety because you get:
+Proxmox tape backup provides an easy way to store datastore contents
+to a magnetic tapes. This increases data safety because you get:
 
 - an additional copy of the data
 - to a different media type (tape)
-- to an additional location (you can move tape offsite)
+- to an additional location (you can move tapes offsite)
 
-Statistics show that 95% of all restore jobs restores the last
-backup. Restore requests further declines the older the data gets.
-Considering that, tape backup may also help to reduce disk usage,
-because you can safely remove data from disk once archived on tape.
-This is especially true if you need to keep data for several years.
+Statistics show that 95% of all restore jobs restores data from the
+last backup. Restore requests further declines the older the data
+gets. Considering this, tape backup may also help to reduce disk
+usage, because you can safely remove data from disk once archived on
+tape. This is especially true if you need to keep data for several
+years.
 
 Tape backups do not provide random access to the stored data. Instead,
 you need to restore the data to disk before you can access it
@@ -50,8 +51,7 @@ In general, LTO tapes offer the following advantages:
 - Multiple vendors (for both media and drives)
 
 Please note that `Proxmox Backup Server` already stores compressed
-data, so we do not need/use the tape compression feature. Same applies
-to encryption.
+data, so we do not need/use the tape compression feature.
 
 
 Supported Hardware
@@ -78,9 +78,9 @@ restore jobs while the other dives are used for backups.
 
 Also consider that you need to read data first from your datastore
 (disk). But a single spinning disk is unable to deliver data at this
-rate. We meassured a maximum rate about 100MB/s in practive, so it
-takes 33 hours to read 12TB to fill up a LTO8 tape. So if you want to
-run your tape at full speed, please make sure that the source
+rate. We meassured a maximum rate about 60MB/s to 100MB/s in practive,
+so it takes 33 hours to read 12TB to fill up a LTO8 tape. If you want
+to run your tape at full speed, please make sure that the source
 datastore is able to delive that performance (use SSDs).
 
 
@@ -438,18 +438,33 @@ one media pool, so a job only uses tapes from that pool.
 
    - Never overwrite data.
 
+
 .. NOTE:: FIXME: Add note about global content namespace. (We do not store
    the source datastore, so it is impossible to distinguish
    store1:/vm/100 from store2:/vm/100. Please use different media
    pools if the source is from a different name space)
 
 
-Empty Media Pool
-^^^^^^^^^^^^^^^^
+The following command creates a new media pool::
 
-It is possible to label tapes with no pool assignment. Such tapes may
-be used by any pool. Once used by a pool, media stays in that pool.
+ // proxmox-tape pool create <name> --drive <string> [OPTIONS]
 
+ # proxmox-tape pool create daily --drive mydrive
+
+
+Additional option can be set later using the update command::
+
+ # proxmox-tape pool update daily --allocation daily --retention 7days
+
+
+To list all configured pools use::
+
+ # proxmox-tape pool list
+ ┌───────┬──────────┬────────────┬───────────┬──────────┐
+ │ name  │ drive    │ allocation │ retention │ template │
+ ╞═══════╪══════════╪════════════╪═══════════╪══════════╡
+ │ daily │ mydrive  │ daily      │ 7days     │          │
+ └───────┴──────────┴────────────┴───────────┴──────────┘
 
 
 Tape Jobs
@@ -495,20 +510,40 @@ software can uniquely identify the tape too.
 For a standalone drive, manually insert the new tape cartidge into the
 drive and run::
 
- # proxmox-tape label --changer-id <label-text> --drive <drive-name>
+ # proxmox-tape label --changer-id <label-text> [--pool <pool-name>]
+
+You may omit the ``--pool`` argument to allow the tape to be used by any pool.
 
 .. Note:: For safety reasons, this command fails if the tape contain
    any data. If you want to overwrite it anways, erase the tape first.
 
 You can verify success by reading back the label::
 
- # proxmox-tape read-label --drive <drive-name>
+ # proxmox-tape read-label
+ ┌─────────────────┬──────────────────────────────────────┐
+ │ Name            │ Value                                │
+ ╞═════════════════╪══════════════════════════════════════╡
+ │ changer-id      │ vtape1                               │
+ ├─────────────────┼──────────────────────────────────────┤
+ │ uuid            │ 7f42c4dd-9626-4d89-9f2b-c7bc6da7d533 │
+ ├─────────────────┼──────────────────────────────────────┤
+ │ ctime           │ Wed Jan  6 09:07:51 2021             │
+ ├─────────────────┼──────────────────────────────────────┤
+ │ pool            │ daily                                │
+ ├─────────────────┼──────────────────────────────────────┤
+ │ media-set-uuid  │ 00000000-0000-0000-0000-000000000000 │
+ ├─────────────────┼──────────────────────────────────────┤
+ │ media-set-ctime │ Wed Jan  6 09:07:51 2021             │
+ └─────────────────┴──────────────────────────────────────┘
+
+.. NOTE:: The ``media-set-uuid`` using all zeros indicates an empty
+   tape (not used by any media set).
 
 If you have a tape library, apply the sticky barcode label to the tape
 cartridges first. Then load those empty tapes into the library. You
 can then label all unlabeled tapes with a single command::
 
- # proxmox-tape barcode-label --drive <drive-name>
+ # proxmox-tape barcode-label [--pool <pool-name>]
 
 
 Run Tape Backups

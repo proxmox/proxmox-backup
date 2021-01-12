@@ -44,7 +44,7 @@ pub const MEDIA_SET_ALLOCATION_POLICY_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| { MediaSetPolicy::from_str(s)?; Ok(()) });
 
 pub const MEDIA_SET_ALLOCATION_POLICY_SCHEMA: Schema = StringSchema::new(
-    "Media set allocation policy.")
+    "Media set allocation policy ('continue', 'always', or a calendar event).")
     .format(&MEDIA_SET_ALLOCATION_POLICY_FORMAT)
     .schema();
 
@@ -79,7 +79,7 @@ pub const MEDIA_RETENTION_POLICY_FORMAT: ApiStringFormat =
     ApiStringFormat::VerifyFn(|s| { RetentionPolicy::from_str(s)?; Ok(()) });
 
 pub const MEDIA_RETENTION_POLICY_SCHEMA: Schema = StringSchema::new(
-    "Media retention policy.")
+    "Media retention policy ('overwrite', 'keep', or time span).")
     .format(&MEDIA_RETENTION_POLICY_FORMAT)
     .schema();
 
