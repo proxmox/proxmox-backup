@@ -23,6 +23,7 @@ Ext.define('PBS.window.VerifyJobEdit', {
 	me.isCreate = !id;
 	me.url = id ? `${baseurl}/${id}` : baseurl;
 	me.method = id ? 'PUT' : 'POST';
+	me.scheduleValue = id ? null : 'daily';
 	me.autoLoad = !!id;
 	me.editDatastore = me.datastore === undefined && me.isCreate;
 	return { };
@@ -64,8 +65,8 @@ Ext.define('PBS.window.VerifyJobEdit', {
 		name: 'schedule',
 		fieldLabel: gettext('Schedule'),
 		emptyText: gettext('none (disabled)'),
-		value: 'daily',
 		cbind: {
+		    value: '{scheduleValue}',
 		    deleteEmpty: '{!isCreate}',
 		},
 	    },
