@@ -305,7 +305,7 @@ Ext.define('PBS.tfa.confirmRemove', {
 	    xtype: 'box',
 	    padding: '5 5',
 	    reference: 'message',
-	    html: gettext(''),
+	    html: '',
 	    style: {
 		textAlign: "center",
 	    },
