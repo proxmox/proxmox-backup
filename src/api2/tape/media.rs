@@ -91,13 +91,13 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
         for media in pool.list_media() {
             let expired = pool.media_is_expired(&media, current_time);
 
-            let media_set_uuid = media.media_set_label().as_ref()
+            let media_set_uuid = media.media_set_label()
                 .map(|set| set.uuid.to_string());
 
-            let seq_nr = media.media_set_label().as_ref()
+            let seq_nr = media.media_set_label()
                 .map(|set| set.seq_nr);
 
-            let media_set_name = media.media_set_label().as_ref()
+            let media_set_name = media.media_set_label()
                 .map(|set| {
                     pool.generate_media_set_name(&set.uuid, config.template.clone())
                         .unwrap_or_else(|_| set.uuid.to_string())
@@ -113,11 +113,13 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
             list.push(MediaListEntry {
                 uuid: media.uuid().to_string(),
                 changer_id: media.changer_id().to_string(),
+                ctime: media.ctime(),
                 pool: Some(pool_name.to_string()),
                 location: media.location().clone(),
                 status: *media.status(),
                 catalog: catalog_ok,
                 expired,
+                media_set_ctime: media.media_set_label().map(|set| set.ctime),
                 media_set_uuid,
                 media_set_name,
                 seq_nr,
@@ -139,6 +141,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
 
             list.push(MediaListEntry {
                 uuid: media_id.label.uuid.to_string(),
+                ctime: media_id.label.ctime,
                 changer_id: media_id.label.changer_id.to_string(),
                 location,
                 status,
@@ -146,6 +149,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
                 expired: false,
                 media_set_uuid: None,
                 media_set_name: None,
+                media_set_ctime: None,
                 seq_nr: None,
                 pool: None,
             });

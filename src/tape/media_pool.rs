@@ -469,8 +469,13 @@ impl BackupMedia {
     }
 
     /// Returns the media set label
-    pub fn media_set_label(&self) -> &Option<MediaSetLabel> {
-        &self.id.media_set_label
+    pub fn media_set_label(&self) -> Option<&MediaSetLabel> {
+        self.id.media_set_label.as_ref()
+    }
+
+    /// Returns the media creation time
+    pub fn ctime(&self) -> i64 {
+        self.id.label.ctime
     }
 
     /// Updates the media set label

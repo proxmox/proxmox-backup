@@ -25,6 +25,8 @@ pub struct MediaListEntry {
     pub changer_id: String,
     /// Media Uuid
     pub uuid: String,
+    /// Creation time stamp
+    pub ctime: i64,
     pub location: MediaLocation,
     pub status: MediaStatus,
     /// Expired flag
@@ -40,6 +42,9 @@ pub struct MediaListEntry {
     /// Media set seq_nr
     #[serde(skip_serializing_if="Option::is_none")]
     pub seq_nr: Option<u64>,
+    /// MediaSet creation time stamp
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub media_set_ctime: Option<i64>,
     /// Media Pool
     #[serde(skip_serializing_if="Option::is_none")]
     pub pool: Option<String>,
