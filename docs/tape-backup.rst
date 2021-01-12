@@ -549,6 +549,24 @@ can then label all unlabeled tapes with a single command::
 Run Tape Backups
 ~~~~~~~~~~~~~~~~
 
+To manually run a backup job use::
+
+ # proxmox-tape backup <store> <pool> [OPTIONS]
+
+The following options are available:
+
+--eject-media  Eject media upon job completion.
+
+  It is normally good practice to eject the tape after use. This unmounts the
+  tape from the drive and prevents the tape from getting dirty with dust.
+
+--export-media-set  Export media set upon job completion.
+
+  After a sucessful backup job, this moves all tapes from the used
+  media set into import-export slots. The operator can then pick up
+  those tapes and move them to a media vault.
+
+
 Restore from Tape
 ~~~~~~~~~~~~~~~~~
 
@@ -557,3 +575,45 @@ Update Inventory
 
 Restore Catalog
 ~~~~~~~~~~~~~~~
+
+Tape Cleaning
+~~~~~~~~~~~~~
+
+LTO tape drives requires regular cleaning. This is done by loading a
+cleaning cartridge into the drive, which is a manual task for
+standalone drives.
+
+For tape libraries, cleaning cartridges are identified using special
+labels starting with letters "CLN". For example, our tape library has a
+cleaning cartridge inside slot 3::
+
+ # proxmox-tape changer status sl3
+ ┌───────────────┬──────────┬────────────┬─────────────┐
+ │ entry-kind    │ entry-id │ changer-id │ loaded-slot │
+ ╞═══════════════╪══════════╪════════════╪═════════════╡
+ │ drive         │        0 │ vtape1     │           1 │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        1 │            │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        2 │ vtape2     │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ slot          │        3 │ CLN001CU   │             │
+ ├───────────────┼──────────┼────────────┼─────────────┤
+ │ ...           │      ... │            │             │
+ └───────────────┴──────────┴────────────┴─────────────┘
+
+To initiate a cleaning operation simply run::
+
+ # proxmox-tape clean
+
+This command does the following:
+
+- find the cleaning tape (in slot 3)
+
+- unload the current media from the drive (back to slot1)
+
+- load the cleaning tape into the drive
+
+- run drive cleaning operation
+
+- unload the cleaning tape (to slot 3)
