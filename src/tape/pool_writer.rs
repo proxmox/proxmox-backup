@@ -109,7 +109,7 @@ impl PoolWriter {
     }
 
     /// Eject media and drop PoolWriterState (close drive)
-    pub fn eject_media(&mut self) -> Result<(), Error> {
+    pub fn eject_media(&mut self, worker: &WorkerTask) -> Result<(), Error> {
         let mut status = match self.status.take() {
             Some(status) => status,
             None => return Ok(()), // no media loaded
@@ -118,9 +118,13 @@ impl PoolWriter {
         let (drive_config, _digest) = crate::config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
+            worker.log("eject media");
+            status.drive.eject_media()?; // rewind and eject early, so that unload_media is faster
             drop(status); // close drive
-            changer.unload_media(None)?;
+            worker.log("unload media");
+            changer.unload_media(None)?; //eject and unload
         } else {
+            worker.log("standalone drive - ejecting media");
             status.drive.eject_media()?;
         }
 
@@ -129,13 +133,19 @@ impl PoolWriter {
 
     /// Export current media set and drop PoolWriterState (close drive)
     pub fn export_media_set(&mut self, worker: &WorkerTask) -> Result<(), Error> {
-        let status = self.status.take();
+        let mut status = self.status.take();
 
         let (drive_config, _digest) = crate::config::drive::config()?;
 
         if let Some((mut changer, _)) = media_changer(&drive_config, &self.drive_name)? {
+
+            if let Some(ref mut status) = status {
+                worker.log("eject media");
+                status.drive.eject_media()?; // rewind and eject early, so that unload_media is faster
+            }
             drop(status); // close drive
 
+            worker.log("unload media");
             changer.unload_media(None)?;
 
             for media_uuid in self.pool.current_media_list()? {
@@ -149,8 +159,8 @@ impl PoolWriter {
             }
 
         } else {
-            worker.log("standalone drive - ejecting media instead of export");
             if let Some(mut status) = status {
+                worker.log("standalone drive - ejecting media instead of export");
                 status.drive.eject_media()?;
             }
         }
@@ -244,6 +254,7 @@ impl PoolWriter {
     /// media.
     pub fn append_snapshot_archive(
         &mut self,
+        worker: &WorkerTask,
         snapshot_reader: &SnapshotReader,
     ) -> Result<(bool, usize), Error> {
 
@@ -253,6 +264,7 @@ impl PoolWriter {
         };
 
         if !status.at_eom {
+            worker.log(String::from("moving to end of media"));
             status.drive.move_to_eom()?;
             status.at_eom = true;
         }
@@ -306,6 +318,7 @@ impl PoolWriter {
         };
 
         if !status.at_eom {
+            worker.log(String::from("moving to end of media"));
             status.drive.move_to_eom()?;
             status.at_eom = true;
         }
@@ -457,7 +470,7 @@ fn update_media_set_label(
     }
 
     // todo: verify last content/media_catalog somehow?
-    drive.move_to_eom()?;
+    drive.move_to_eom()?; // just to be sure
 
     Ok(media_catalog)
 }

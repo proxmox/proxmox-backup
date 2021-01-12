@@ -151,11 +151,9 @@ fn backup_worker(
     pool_writer.commit()?;
 
     if export_media_set {
-        worker.log(format!("exporting current media set"));
         pool_writer.export_media_set(worker)?;
     } else if eject_media {
-        worker.log(format!("ejection backup media"));
-        pool_writer.eject_media()?;
+        pool_writer.eject_media(worker)?;
     }
 
     Ok(())
@@ -218,14 +216,14 @@ pub fn backup_snapshot(
 
     let uuid = pool_writer.load_writable_media(worker)?;
 
-    let (done, _bytes) = pool_writer.append_snapshot_archive(&snapshot_reader)?;
+    let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
 
     if !done {
         // does not fit on tape, so we try on next volume
         pool_writer.set_media_status_full(&uuid)?;
 
         pool_writer.load_writable_media(worker)?;
-        let (done, _bytes) = pool_writer.append_snapshot_archive(&snapshot_reader)?;
+        let (done, _bytes) = pool_writer.append_snapshot_archive(worker, &snapshot_reader)?;
 
         if !done {
             bail!("write_snapshot_archive failed on second media");
