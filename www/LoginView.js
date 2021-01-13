@@ -255,14 +255,6 @@ Ext.define('PBS.login.TfaWindow', {
 
     defaultButton: 'totpButton',
 
-    viewModel: {
-	data: {
-	    userid: undefined,
-	    ticket: undefined,
-	    challenge: undefined,
-	},
-    },
-
     controller: {
 	xclass: 'Ext.app.ViewController',
 
