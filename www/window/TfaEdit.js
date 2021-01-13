@@ -75,7 +75,6 @@ Ext.define('PBS.window.TfaEdit', {
 	    name: 'password',
 	    allowBlank: false,
 	    validateBlank: true,
-	    padding: '0 0 5 5',
 	    emptyText: gettext('verify current password'),
 	},
     ],

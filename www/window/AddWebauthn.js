@@ -135,6 +135,7 @@ Ext.define('PBS.window.AddWebauthn', {
 	    xtype: 'form',
 	    reference: 'webauthn_form',
 	    layout: 'anchor',
+	    border: false,
 	    bodyPadding: 10,
 	    fieldDefaults: {
 		anchor: '100%',
@@ -171,7 +172,6 @@ Ext.define('PBS.window.AddWebauthn', {
 		    name: 'password',
 		    allowBlank: false,
 		    validateBlank: true,
-		    padding: '0 0 5 5',
 		    emptyText: gettext('verify current password'),
 		},
 	    ],
