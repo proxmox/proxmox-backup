@@ -26,7 +26,6 @@ use proxmox::api::{
     ApiHandler,
     ApiMethod,
     HttpError,
-    ParameterSchema,
     Permission,
     RpcEnvironment,
     RpcEnvironmentType,
@@ -34,6 +33,7 @@ use proxmox::api::{
 };
 use proxmox::api::schema::{
     ObjectSchemaType,
+    ParameterSchema,
     parse_parameter_strings,
     parse_simple_value,
     verify_json_object,
