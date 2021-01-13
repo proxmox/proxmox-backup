@@ -250,6 +250,7 @@ Ext.define('PBS.config.TfaView', {
 	},
 	{
 	    xtype: 'proxmoxButton',
+	    disabled: true,
 	    text: gettext('Remove'),
 	    getRecordName: rec => rec.data.description,
 	    handler: 'onRemoveButton',
