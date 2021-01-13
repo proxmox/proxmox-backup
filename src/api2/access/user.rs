@@ -218,7 +218,11 @@ pub fn list_users(
     },
 )]
 /// Create new user.
-pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> {
+pub fn create_user(
+    password: Option<String>,
+    param: Value,
+    rpcenv: &mut dyn RpcEnvironment
+) -> Result<(), Error> {
 
     let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
@@ -230,13 +234,21 @@ pub fn create_user(password: Option<String>, param: Value) -> Result<(), Error> 
         bail!("user '{}' already exists.", user.userid);
     }
 
-    let authenticator = crate::auth::lookup_authenticator(&user.userid.realm())?;
-
     config.set_data(user.userid.as_str(), "user", &user)?;
+
+    let realm = user.userid.realm();
+
+    // Fails if realm does not exist!
+    let authenticator = crate::auth::lookup_authenticator(realm)?;
 
     user::save_config(&config)?;
 
     if let Some(password) = password {
+        let user_info = CachedUserInfo::new()?;
+        let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        if realm == "pam" && !user_info.is_superuser(&current_auth_id) {
+            bail!("only superuser can edit pam credentials!");
+        }
         authenticator.store_password(user.userid.name(), &password)?;
     }
 
@@ -350,6 +362,7 @@ pub fn update_user(
     email: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
     digest: Option<String>,
+    rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<(), Error> {
 
     let _lock = open_file_locked(user::USER_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
@@ -392,6 +405,13 @@ pub fn update_user(
     }
 
     if let Some(password) = password {
+        let user_info = CachedUserInfo::new()?;
+        let current_auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
+        let self_service = current_auth_id.user() == &userid;
+        let target_realm = userid.realm();
+        if !self_service && target_realm == "pam" && !user_info.is_superuser(&current_auth_id) {
+            bail!("only superuser can edit pam credentials!");
+        }
         let authenticator = crate::auth::lookup_authenticator(userid.realm())?;
         authenticator.store_password(userid.name(), &password)?;
     }
