@@ -125,7 +125,6 @@ Ext.define('PBS.window.AddTotp', {
 	    reference: 'totp_form',
 	    fieldDefaults: {
 		anchor: '100%',
-		padding: '0 5',
 	    },
 	    items: [
 		{
@@ -205,48 +204,46 @@ Ext.define('PBS.window.AddTotp', {
 		    value: `Proxmox Backup Server - ${Proxmox.NodeName}`,
 		    qrupdate: true,
 		},
+		{
+		    xtype: 'box',
+		    itemId: 'qrbox',
+		    visible: false, // will be enabled when generating a qr code
+		    bind: {
+			visible: '{!secretEmpty}',
+		    },
+		    style: {
+			'background-color': 'white',
+			'margin-left': 'auto',
+			'margin-right': 'auto',
+			padding: '5px',
+			width: '266px',
+			height: '266px',
+		    },
+		},
+		{
+		    xtype: 'textfield',
+		    fieldLabel: gettext('Verification Code'),
+		    allowBlank: false,
+		    reference: 'challenge',
+		    name: 'challenge',
+		    bind: {
+			disabled: '{!showTOTPVerifiction}',
+			visible: '{showTOTPVerifiction}',
+		    },
+		    emptyText: gettext('Scan QR code and enter TOTP auth. code to verify'),
+		},
+		{
+		    xtype: 'textfield',
+		    inputType: 'password',
+		    fieldLabel: gettext('Password'),
+		    minLength: 5,
+		    reference: 'password',
+		    name: 'password',
+		    allowBlank: false,
+		    validateBlank: true,
+		    emptyText: gettext('verify current password'),
+		},
 	    ],
-	},
-	{
-	    xtype: 'box',
-	    itemId: 'qrbox',
-	    visible: false, // will be enabled when generating a qr code
-	    bind: {
-		visible: '{!secretEmpty}',
-	    },
-	    style: {
-		'background-color': 'white',
-		'margin-left': 'auto',
-		'margin-right': 'auto',
-		padding: '5px',
-		width: '266px',
-		height: '266px',
-	    },
-	},
-	{
-	    xtype: 'textfield',
-	    fieldLabel: gettext('Verification Code'),
-	    allowBlank: false,
-	    reference: 'challenge',
-	    name: 'challenge',
-	    bind: {
-		disabled: '{!showTOTPVerifiction}',
-		visible: '{showTOTPVerifiction}',
-	    },
-	    padding: '0 5',
-	    emptyText: gettext('Scan QR code and enter TOTP auth. code to verify'),
-	},
-	{
-	    xtype: 'textfield',
-	    inputType: 'password',
-	    fieldLabel: gettext('Password'),
-	    minLength: 5,
-	    reference: 'password',
-	    name: 'password',
-	    allowBlank: false,
-	    validateBlank: true,
-	    padding: '0 0 5 5',
-	    emptyText: gettext('verify current password'),
 	},
     ],
 
