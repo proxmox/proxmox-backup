@@ -330,26 +330,70 @@ impl MediaPool {
             }
         });
 
-        match expired_media.first_mut() {
-            None => {
-                bail!("alloc writable media in pool '{}' failed: no usable media found", self.name());
-            }
-            Some(media) => {
-                println!("reuse expired media '{}'", media.label_text());
+        if let Some(media) = expired_media.first_mut() {
+            println!("reuse expired media '{}'", media.label_text());
 
-                let seq_nr = self.current_media_set.media_list().len() as u64;
-                let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
+            let seq_nr = self.current_media_set.media_list().len() as u64;
+            let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
 
-                media.set_media_set_label(set);
+            media.set_media_set_label(set);
 
-                let clear_media_status = true; // remove Full status
-                self.inventory.store(media.id().clone(), clear_media_status)?; // store persistently
- 
-                self.current_media_set.add_media(media.uuid().clone());
+            let clear_media_status = true; // remove Full status
+            self.inventory.store(media.id().clone(), clear_media_status)?; // store persistently
 
-                return Ok(media.uuid().clone());
-            }
+            self.current_media_set.add_media(media.uuid().clone());
+
+            return Ok(media.uuid().clone());
         }
+
+        println!("no expired media in pool, try to find unassigned/free media");
+
+        // try unassigned media
+        // fixme: lock free media pool to avoid races
+        let mut free_media = Vec::new();
+
+        for media_id in self.inventory.list_unassigned_media() {
+
+            let (status, location) = self.compute_media_state(&media_id);
+            if media_id.media_set_label.is_some() { continue; } // should not happen
+
+            // check if media is on site
+            match location {
+                MediaLocation::Online(_) => { /* OK */ },
+                MediaLocation::Offline => {
+                    if self.use_offline_media {
+                        /* OK */
+                    } else {
+                        continue;
+                    }
+                },
+                MediaLocation::Vault(_) => continue,
+            }
+
+            // only consider writable media
+            if status != MediaStatus::Writable { continue; }
+
+            free_media.push(media_id);
+        }
+
+        if let Some(media) = free_media.first_mut() {
+            println!("use free media '{}'", media.label.label_text);
+
+            let seq_nr = self.current_media_set.media_list().len() as u64;
+            let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
+
+            media.media_set_label = Some(set);
+
+            let clear_media_status = true; // remove Full status
+            self.inventory.store(media.clone(), clear_media_status)?; // store persistently
+
+            self.current_media_set.add_media(media.label.uuid.clone());
+
+            return Ok(media.label.uuid.clone());
+        }
+
+
+        bail!("alloc writable media in pool '{}' failed: no usable media found", self.name());
     }
 
     /// check if the current media set is usable for writing
