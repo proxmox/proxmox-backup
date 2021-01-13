@@ -70,7 +70,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
         let entry = MtxStatusEntry {
             entry_kind: MtxEntryKind::Drive,
             entry_id: id as u64,
-            changer_id: match &drive_status.status {
+            label_text: match &drive_status.status {
                 ElementStatus::Empty => None,
                 ElementStatus::Full => Some(String::new()),
                 ElementStatus::VolumeTag(tag) => Some(tag.to_string()),
@@ -88,7 +88,7 @@ pub async fn get_status(name: String) -> Result<Vec<MtxStatusEntry>, Error> {
                 MtxEntryKind::Slot
             },
             entry_id: id as u64 + 1,
-            changer_id: match &slot_status {
+            label_text: match &slot_status {
                 ElementStatus::Empty => None,
                 ElementStatus::Full => Some(String::new()),
                 ElementStatus::VolumeTag(tag) => Some(tag.to_string()),

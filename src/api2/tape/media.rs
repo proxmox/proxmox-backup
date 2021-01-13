@@ -112,7 +112,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
 
             list.push(MediaListEntry {
                 uuid: media.uuid().to_string(),
-                changer_id: media.changer_id().to_string(),
+                label_text: media.label_text().to_string(),
                 ctime: media.ctime(),
                 pool: Some(pool_name.to_string()),
                 location: media.location().clone(),
@@ -142,7 +142,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
             list.push(MediaListEntry {
                 uuid: media_id.label.uuid.to_string(),
                 ctime: media_id.label.ctime,
-                changer_id: media_id.label.changer_id.to_string(),
+                label_text: media_id.label.label_text.to_string(),
                 location,
                 status,
                 catalog: true, // empty, so we do not need a catalog
@@ -162,7 +162,7 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
 #[api(
     input: {
         properties: {
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
             force: {
@@ -174,21 +174,21 @@ pub async fn list_media(pool: Option<String>) -> Result<Vec<MediaListEntry>, Err
     },
 )]
 /// Destroy media (completely remove from database)
-pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Error> {
+pub fn destroy_media(label_text: String, force: Option<bool>,) -> Result<(), Error> {
 
     let force = force.unwrap_or(false);
 
     let status_path = Path::new(TAPE_STATUS_DIR);
     let mut inventory = Inventory::load(status_path)?;
 
-    let media_id = inventory.find_media_by_changer_id(&changer_id)
-        .ok_or_else(|| format_err!("no such media '{}'", changer_id))?;
+    let media_id = inventory.find_media_by_label_text(&label_text)
+        .ok_or_else(|| format_err!("no such media '{}'", label_text))?;
 
     if !force {
         if let Some(ref set) = media_id.media_set_label {
             let is_empty = set.uuid.as_ref() == [0u8;16];
             if !is_empty {
-                bail!("media '{}' contains data (please use 'force' flag to remove.", changer_id);
+                bail!("media '{}' contains data (please use 'force' flag to remove.", label_text);
             }
         }
     }
@@ -207,7 +207,7 @@ pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Err
             schema: MEDIA_POOL_NAME_SCHEMA,
             optional: true,
         },
-        "changer-id": {
+        "label-text": {
             schema: MEDIA_LABEL_SCHEMA,
             optional: true,
         },
@@ -236,7 +236,7 @@ pub fn destroy_media(changer_id: String, force: Option<bool>,) -> Result<(), Err
 /// Content list filter parameters
 pub struct MediaContentListFilter {
     pub pool: Option<String>,
-    pub changer_id: Option<String>,
+    pub label_text: Option<String>,
     pub media: Option<String>,
     pub media_set: Option<String>,
     pub backup_type: Option<String>,
@@ -278,8 +278,8 @@ pub fn list_content(
     for media_id in inventory.list_used_media() {
         let set = media_id.media_set_label.as_ref().unwrap();
 
-        if let Some(ref changer_id) = filter.changer_id {
-            if &media_id.label.changer_id != changer_id { continue; }
+        if let Some(ref label_text) = filter.label_text {
+            if &media_id.label.label_text != label_text { continue; }
         }
 
         if let Some(ref pool) = filter.pool {
@@ -314,7 +314,7 @@ pub fn list_content(
 
             list.push(MediaContentEntry {
                 uuid: media_id.label.uuid.to_string(),
-                changer_id: media_id.label.changer_id.to_string(),
+                label_text: media_id.label.label_text.to_string(),
                 pool: set.pool.clone(),
                 media_set_name: media_set_name.clone(),
                 media_set_uuid: set.uuid.to_string(),

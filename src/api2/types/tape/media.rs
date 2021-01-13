@@ -21,8 +21,8 @@ use super::{
 #[serde(rename_all = "kebab-case")]
 /// Media list entry
 pub struct MediaListEntry {
-    /// Media changer ID
-    pub changer_id: String,
+    /// Media label text (or Barcode)
+    pub label_text: String,
     /// Media Uuid
     pub uuid: String,
     /// Creation time stamp
@@ -57,8 +57,8 @@ pub struct MediaListEntry {
 pub struct MediaIdFlat {
     /// Unique ID
     pub uuid: String,
-    /// Media Changer ID or Barcode
-    pub changer_id: String,
+    /// Media label text (or Barcode)
+    pub label_text: String,
     /// Creation time stamp
     pub ctime: i64,
     // All MediaSet properties are optional here
@@ -81,8 +81,8 @@ pub struct MediaIdFlat {
 #[serde(rename_all = "kebab-case")]
 /// Label with optional Uuid
 pub struct LabelUuidMap {
-    /// Changer ID (label)
-    pub changer_id: String,
+    /// Changer label text (or Barcode)
+    pub label_text: String,
     /// Associated Uuid (if any)
     pub uuid: Option<String>,
 }
@@ -92,8 +92,8 @@ pub struct LabelUuidMap {
 #[serde(rename_all = "kebab-case")]
 /// Media content list entry
 pub struct MediaContentEntry {
-    /// Media changer ID
-    pub changer_id: String,
+    /// Media label text (or Barcode)
+    pub label_text: String,
     /// Media Uuid
     pub uuid: String,
     /// Media set name

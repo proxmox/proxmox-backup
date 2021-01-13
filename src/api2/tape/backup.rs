@@ -170,7 +170,7 @@ fn update_media_online_status(drive: &str) -> Result<bool, Error> {
 
         has_changer = true;
 
-        let changer_id_list = changer.online_media_changer_ids()?;
+        let label_text_list = changer.online_media_label_texts()?;
 
         let status_path = Path::new(TAPE_STATUS_DIR);
         let mut inventory = Inventory::load(status_path)?;
@@ -179,7 +179,7 @@ fn update_media_online_status(drive: &str) -> Result<bool, Error> {
             &config,
             &mut inventory,
             &changer_name,
-            &changer_id_list,
+            &label_text_list,
         )?;
     }
 

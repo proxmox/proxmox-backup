@@ -32,17 +32,17 @@ pub trait MediaChange {
     /// Load media from storage slot into drive
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error>;
 
-    /// Load media by changer-id into drive
+    /// Load media by label-text into drive
     ///
     /// This unloads first if the drive is already loaded with another media.
     ///
     /// Note: This refuses to load media inside import/export
     /// slots. Also, you cannot load cleaning units with this
     /// interface.
-    fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
+    fn load_media(&mut self, label_text: &str) -> Result<(), Error> {
 
-        if changer_id.starts_with("CLN") {
-            bail!("unable to load media '{}' (seems top be a a cleaning units)", changer_id);
+        if label_text.starts_with("CLN") {
+            bail!("unable to load media '{}' (seems top be a a cleaning units)", label_text);
         }
 
         let mut status = self.status()?;
@@ -52,10 +52,10 @@ pub trait MediaChange {
         // already loaded?
         for (i, drive_status) in status.drives.iter().enumerate() {
             if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
-                if *tag == changer_id {
+                if *tag == label_text {
                     if i as u64 != self.drive_number() {
                         bail!("unable to load media '{}' - media in wrong drive ({} != {})",
-                              changer_id, i, self.drive_number());
+                              label_text, i, self.drive_number());
                     }
                     return Ok(()) // already loaded
                 }
@@ -76,9 +76,9 @@ pub trait MediaChange {
         let mut slot = None;
         for (i, (import_export, element_status)) in status.slots.iter().enumerate() {
             if let ElementStatus::VolumeTag(tag) = element_status {
-                if *tag == changer_id {
+                if *tag == label_text {
                     if *import_export {
-                        bail!("unable to load media '{}' - inside import/export slot", changer_id);
+                        bail!("unable to load media '{}' - inside import/export slot", label_text);
                     }
                     slot = Some(i+1);
                     break;
@@ -87,7 +87,7 @@ pub trait MediaChange {
         }
 
         let slot = match slot {
-            None => bail!("unable to find media '{}' (offline?)", changer_id),
+            None => bail!("unable to find media '{}' (offline?)", label_text),
             Some(slot) => slot,
         };
 
@@ -97,11 +97,11 @@ pub trait MediaChange {
     /// Unload media from drive (eject media if necessary)
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error>;
 
-    /// List online media changer IDs (barcodes)
+    /// List online media labels (label_text/barcodes)
     ///
-    /// List acessible (online) changer IDs. This does not include
+    /// List acessible (online) label texts. This does not include
     /// media inside import-export slots or cleaning media.
-    fn online_media_changer_ids(&mut self) -> Result<Vec<String>, Error> {
+    fn online_media_label_texts(&mut self) -> Result<Vec<String>, Error> {
         let status = self.status()?;
 
         let mut list = Vec::new();
@@ -166,13 +166,13 @@ pub trait MediaChange {
     /// By moving the media to an empty import-export slot. Returns
     /// Some(slot) if the media was exported. Returns None if the media is
     /// not online (already exported).
-    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
+    fn export_media(&mut self, label_text: &str) -> Result<Option<u64>, Error> {
         let status = self.status()?;
 
         let mut unload_from_drive = false;
         if let Some(drive_status) = status.drives.get(self.drive_number() as usize) {
             if let ElementStatus::VolumeTag(ref tag) = drive_status.status {
-                if tag == changer_id {
+                if tag == label_text {
                     unload_from_drive = true;
                 }
             }
@@ -189,7 +189,7 @@ pub trait MediaChange {
                 }
             } else {
                 if let ElementStatus::VolumeTag(ref tag) = element_status {
-                    if tag == changer_id {
+                    if tag == label_text {
                         from = Some(i as u64 + 1);
                     }
                 }

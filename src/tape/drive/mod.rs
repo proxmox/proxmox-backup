@@ -269,7 +269,7 @@ pub fn request_and_load_media(
         if let Ok(Some(media_id)) = handle.read_label() {
             worker.log(format!(
                 "found media label {} ({})",
-                media_id.label.changer_id,
+                media_id.label.label_text,
                 media_id.label.uuid.to_string(),
             ));
             if media_id.label.uuid == *uuid {
@@ -285,9 +285,9 @@ pub fn request_and_load_media(
                 "virtual" => {
                     let mut tape = VirtualTapeDrive::deserialize(config)?;
 
-                    let changer_id = label.changer_id.clone();
+                    let label_text = label.label_text.clone();
 
-                    tape.load_media(&changer_id)?;
+                    tape.load_media(&label_text)?;
 
                     let mut handle: Box<dyn TapeDriver> = Box::new(tape.open()?);
 
@@ -298,12 +298,12 @@ pub fn request_and_load_media(
                 "linux" => {
                     let drive_config = LinuxTapeDrive::deserialize(config)?;
 
-                    let changer_id = label.changer_id.clone();
+                    let label_text = label.label_text.clone();
 
                     if drive_config.changer.is_some() {
 
                         let mut changer = MtxMediaChanger::with_drive_config(&drive_config)?;
-                        changer.load_media(&changer_id)?;
+                        changer.load_media(&label_text)?;
 
                         let mut handle: Box<dyn TapeDriver> = Box::new(drive_config.open()?);
 
@@ -312,11 +312,11 @@ pub fn request_and_load_media(
                         return Ok((handle, media_id));
                     }
 
-                    worker.log(format!("Please insert media '{}' into drive '{}'", changer_id, drive));
+                    worker.log(format!("Please insert media '{}' into drive '{}'", label_text, drive));
 
                     let to = "root@localhost"; // fixme
 
-                    send_load_media_email(drive, &changer_id, to)?;
+                    send_load_media_email(drive, &label_text, to)?;
 
                     let mut last_media_uuid = None;
                     let mut last_error = None;
@@ -340,7 +340,7 @@ pub fn request_and_load_media(
                                 if media_id.label.uuid == label.uuid {
                                     worker.log(format!(
                                         "found media label {} ({})",
-                                        media_id.label.changer_id,
+                                        media_id.label.label_text,
                                         media_id.label.uuid.to_string(),
                                     ));
                                     return Ok((Box::new(handle), media_id));
@@ -348,7 +348,7 @@ pub fn request_and_load_media(
                                     if Some(media_id.label.uuid.clone()) != last_media_uuid {
                                         worker.log(format!(
                                             "wrong media label {} ({})",
-                                            media_id.label.changer_id,
+                                            media_id.label.label_text,
                                             media_id.label.uuid.to_string(),
                                         ));
                                         last_media_uuid = Some(media_id.label.uuid);

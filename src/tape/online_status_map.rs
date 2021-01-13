@@ -99,8 +99,8 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
     let mut online_set = HashSet::new();
 
     for drive_status in status.drives.iter() {
-        if let ElementStatus::VolumeTag(ref changer_id) = drive_status.status {
-            if let Some(media_id) = inventory.find_media_by_changer_id(changer_id) {
+        if let ElementStatus::VolumeTag(ref label_text) = drive_status.status {
+            if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
                 online_set.insert(media_id.label.uuid.clone());
             }
         }
@@ -108,8 +108,8 @@ pub fn mtx_status_to_online_set(status: &MtxStatus, inventory: &Inventory) -> Ha
 
     for (import_export, slot_status) in status.slots.iter() {
         if *import_export { continue; }
-        if let ElementStatus::VolumeTag(ref changer_id) = slot_status {
-            if let Some(media_id) = inventory.find_media_by_changer_id(changer_id) {
+        if let ElementStatus::VolumeTag(ref label_text) = slot_status {
+            if let Some(media_id) = inventory.find_media_by_label_text(label_text) {
                 online_set.insert(media_id.label.uuid.clone());
             }
         }
@@ -146,7 +146,7 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
 
     let vtapes: Vec<VirtualTapeDrive> = config.convert_to_typed_array("virtual")?;
     for mut vtape in vtapes {
-        let media_list = match vtape.online_media_changer_ids() {
+        let media_list = match vtape.online_media_label_texts() {
             Ok(media_list) => media_list,
             Err(err) => {
                 eprintln!("unable to get changer '{}' status - {}", vtape.name, err);
@@ -155,8 +155,8 @@ pub fn update_online_status(state_path: &Path) -> Result<OnlineStatusMap, Error>
         };
 
         let mut online_set = HashSet::new();
-        for changer_id in media_list {
-            if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
+        for label_text in media_list {
+            if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
                 online_set.insert(media_id.label.uuid.clone());
             }
         }
@@ -173,13 +173,13 @@ pub fn update_changer_online_status(
     drive_config: &SectionConfigData,
     inventory: &mut Inventory,
     changer_name: &str,
-    changer_id_list: &Vec<String>,
+    label_text_list: &Vec<String>,
 ) -> Result<(), Error> {
 
     let mut online_map = OnlineStatusMap::new(drive_config)?;
     let mut online_set = HashSet::new();
-    for changer_id in changer_id_list.iter() {
-        if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
+    for label_text in label_text_list.iter() {
+        if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
             online_set.insert(media_id.label.uuid.clone());
         }
     }

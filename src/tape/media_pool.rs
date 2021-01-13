@@ -317,7 +317,7 @@ impl MediaPool {
                 }
             }
             if self.media_is_expired(&media, current_time) {
-                println!("found expired media on media '{}'", media.changer_id());
+                println!("found expired media on media '{}'", media.label_text());
                 expired_media.push(media);
             }
         }
@@ -335,7 +335,7 @@ impl MediaPool {
                 bail!("alloc writable media in pool '{}' failed: no usable media found", self.name());
             }
             Some(media) => {
-                println!("reuse expired media '{}'", media.changer_id());
+                println!("reuse expired media '{}'", media.label_text());
 
                 let seq_nr = self.current_media_set.media_list().len() as u64;
                 let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
@@ -494,7 +494,7 @@ impl BackupMedia {
     }
 
     /// Returns the media label (Barcode)
-    pub fn changer_id(&self) -> &str {
-        &self.id.label.changer_id
+    pub fn label_text(&self) -> &str {
+        &self.id.label.label_text
     }
 }

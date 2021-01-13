@@ -157,7 +157,7 @@ impl VirtualTapeHandle {
         Ok(())
     }
 
-    fn online_media_changer_ids(&self) -> Result<Vec<String>, Error> {
+    fn online_media_label_texts(&self) -> Result<Vec<String>, Error> {
         let mut list = Vec::new();
         for entry in std::fs::read_dir(&self.path)? {
             let entry = entry?;
@@ -389,12 +389,12 @@ impl MediaChange for VirtualTapeHandle {
         // slot-assignment here.
 
         let mut slots = Vec::new();
-        let changer_ids = self.online_media_changer_ids()?;
-        let max_slots = ((changer_ids.len() + 7)/8) * 8;
+        let label_texts = self.online_media_label_texts()?;
+        let max_slots = ((label_texts.len() + 7)/8) * 8;
 
         for i in 0..max_slots {
-            if let Some(changer_id) = changer_ids.get(i) {
-                slots.push((false,  ElementStatus::VolumeTag(changer_id.clone())));
+            if let Some(label_text) = label_texts.get(i) {
+                slots.push((false,  ElementStatus::VolumeTag(label_text.clone())));
             } else {
                 slots.push((false,  ElementStatus::Empty));
             }
@@ -407,7 +407,7 @@ impl MediaChange for VirtualTapeHandle {
         bail!("media tranfer is not implemented!");
     }
 
-    fn export_media(&mut self, _changer_id: &str) -> Result<Option<u64>, Error> {
+    fn export_media(&mut self, _label_text: &str) -> Result<Option<u64>, Error> {
         bail!("media export is not implemented!");
     }
 
@@ -416,13 +416,13 @@ impl MediaChange for VirtualTapeHandle {
             bail!("invalid slot ID {}", slot);
         }
 
-        let changer_ids = self.online_media_changer_ids()?;
+        let label_texts = self.online_media_label_texts()?;
 
-        if slot > changer_ids.len() as u64 {
+        if slot > label_texts.len() as u64 {
             bail!("slot {} is empty", slot);
         }
 
-        self.load_media(&changer_ids[slot as usize - 1])
+        self.load_media(&label_texts[slot as usize - 1])
     }
 
     /// Try to load media
@@ -479,9 +479,9 @@ impl MediaChange for VirtualTapeDrive {
         handle.transfer_media(from, to)
     }
 
-    fn export_media(&mut self, changer_id: &str) -> Result<Option<u64>, Error> {
+    fn export_media(&mut self, label_text: &str) -> Result<Option<u64>, Error> {
         let mut handle = self.open()?;
-        handle.export_media(changer_id)
+        handle.export_media(label_text)
     }
 
     fn load_media_from_slot(&mut self, slot: u64) -> Result<(), Error> {
@@ -489,9 +489,9 @@ impl MediaChange for VirtualTapeDrive {
         handle.load_media_from_slot(slot)
     }
 
-    fn load_media(&mut self, changer_id: &str) -> Result<(), Error> {
+    fn load_media(&mut self, label_text: &str) -> Result<(), Error> {
         let mut handle = self.open()?;
-        handle.load_media(changer_id)
+        handle.load_media(label_text)
     }
 
     fn unload_media(&mut self, target_slot: Option<u64>) -> Result<(), Error> {
@@ -500,9 +500,9 @@ impl MediaChange for VirtualTapeDrive {
         Ok(())
     }
 
-    fn online_media_changer_ids(&mut self) -> Result<Vec<String>, Error> {
+    fn online_media_label_texts(&mut self) -> Result<Vec<String>, Error> {
         let handle = self.open()?;
-        handle.online_media_changer_ids()
+        handle.online_media_label_texts()
     }
 
     fn clean_drive(&mut self) -> Result<(), Error> {

@@ -150,11 +150,11 @@ impl PoolWriter {
 
             for media_uuid in self.pool.current_media_list()? {
                 let media = self.pool.lookup_media(media_uuid)?;
-                let changer_id = media.changer_id();
-                if let Some(slot) = changer.export_media(changer_id)? {
-                    worker.log(format!("exported media '{}' to import/export slot {}", changer_id, slot));
+                let label_text = media.label_text();
+                if let Some(slot) = changer.export_media(label_text)? {
+                    worker.log(format!("exported media '{}' to import/export slot {}", label_text, slot));
                 } else {
-                    worker.warn(format!("export failed - media '{}' is not online", changer_id));
+                    worker.warn(format!("export failed - media '{}' is not online", label_text));
                 }
             }
 

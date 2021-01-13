@@ -70,7 +70,7 @@ use crate::{
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
         },
@@ -79,13 +79,13 @@ use crate::{
 /// Load media with specified label
 ///
 /// Issue a media load request to the associated changer device.
-pub async fn load_media(drive: String, changer_id: String) -> Result<(), Error> {
+pub async fn load_media(drive: String, label_text: String) -> Result<(), Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
         let (mut changer, _) = required_media_changer(&config, &drive)?;
-        changer.load_media(&changer_id)
+        changer.load_media(&label_text)
     }).await?
 }
 
@@ -121,7 +121,7 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
         },
@@ -133,15 +133,15 @@ pub async fn load_slot(drive: String, source_slot: u64) -> Result<(), Error> {
     },
 )]
 /// Export media with specified label
-pub async fn export_media(drive: String, changer_id: String) -> Result<u64, Error> {
+pub async fn export_media(drive: String, label_text: String) -> Result<u64, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
     tokio::task::spawn_blocking(move || {
         let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
-        match changer.export_media(&changer_id)? {
+        match changer.export_media(&label_text)? {
             Some(slot) => Ok(slot),
-            None => bail!("media '{}' is not online (via changer '{}')", changer_id, changer_name),
+            None => bail!("media '{}' is not online (via changer '{}')", label_text, changer_name),
         }
     }).await?
 }
@@ -315,7 +315,7 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
             pool: {
@@ -337,7 +337,7 @@ pub async fn eject_media(drive: String) -> Result<(), Error> {
 pub fn label_media(
     drive: String,
     pool: Option<String>,
-    changer_id: String,
+    label_text: String,
     rpcenv: &mut dyn RpcEnvironment,
 ) -> Result<Value, Error> {
 
@@ -380,7 +380,7 @@ pub fn label_media(
 
             let ctime = proxmox::tools::time::epoch_i64();
             let label = MediaLabel {
-                changer_id: changer_id.to_string(),
+                label_text: label_text.to_string(),
                 uuid: Uuid::generate(),
                 ctime,
             };
@@ -405,13 +405,13 @@ fn write_media_label(
 
     if let Some(ref pool) = pool {
         // assign media to pool by writing special media set label
-        worker.log(format!("Label media '{}' for pool '{}'", label.changer_id, pool));
+        worker.log(format!("Label media '{}' for pool '{}'", label.label_text, pool));
         let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime);
 
         drive.write_media_set_label(&set)?;
         media_set_label = Some(set);
     } else {
-        worker.log(format!("Label media '{}' (no pool assignment)", label.changer_id));
+        worker.log(format!("Label media '{}' (no pool assignment)", label.label_text));
     }
 
     let media_id = MediaId { label, media_set_label };
@@ -482,7 +482,7 @@ pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
             Some(media_id) => {
                 let mut flat = MediaIdFlat {
                     uuid: media_id.label.uuid.to_string(),
-                    changer_id: media_id.label.changer_id.clone(),
+                    label_text: media_id.label.label_text.clone(),
                     ctime: media_id.label.ctime,
                     media_set_ctime: None,
                     media_set_uuid: None,
@@ -585,7 +585,7 @@ pub async fn inventory(
     tokio::task::spawn_blocking(move || {
         let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-        let changer_id_list = changer.online_media_changer_ids()?;
+        let label_text_list = changer.online_media_label_texts()?;
 
         let state_path = Path::new(TAPE_STATUS_DIR);
 
@@ -595,23 +595,23 @@ pub async fn inventory(
             &config,
             &mut inventory,
             &changer_name,
-            &changer_id_list,
+            &label_text_list,
         )?;
 
         let mut list = Vec::new();
 
-        for changer_id in changer_id_list.iter() {
-            if changer_id.starts_with("CLN") {
+        for label_text in label_text_list.iter() {
+            if label_text.starts_with("CLN") {
                 // skip cleaning unit
                 continue;
             }
 
-            let changer_id = changer_id.to_string();
+            let label_text = label_text.to_string();
 
-            if let Some(media_id) = inventory.find_media_by_changer_id(&changer_id) {
-                list.push(LabelUuidMap { changer_id, uuid: Some(media_id.label.uuid.to_string()) });
+            if let Some(media_id) = inventory.find_media_by_label_text(&label_text) {
+                list.push(LabelUuidMap { label_text, uuid: Some(media_id.label.uuid.to_string()) });
             } else {
-                list.push(LabelUuidMap { changer_id, uuid: None });
+                list.push(LabelUuidMap { label_text, uuid: None });
             }
         }
 
@@ -668,8 +668,8 @@ pub fn update_inventory(
 
             let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-            let changer_id_list = changer.online_media_changer_ids()?;
-            if changer_id_list.is_empty() {
+            let label_text_list = changer.online_media_label_texts()?;
+            if label_text_list.is_empty() {
                 worker.log(format!("changer device does not list any media labels"));
             }
 
@@ -677,42 +677,42 @@ pub fn update_inventory(
 
             let mut inventory = Inventory::load(state_path)?;
 
-            update_changer_online_status(&config, &mut inventory, &changer_name, &changer_id_list)?;
+            update_changer_online_status(&config, &mut inventory, &changer_name, &label_text_list)?;
 
-            for changer_id in changer_id_list.iter() {
-                if changer_id.starts_with("CLN") {
-                    worker.log(format!("skip cleaning unit '{}'", changer_id));
+            for label_text in label_text_list.iter() {
+                if label_text.starts_with("CLN") {
+                    worker.log(format!("skip cleaning unit '{}'", label_text));
                     continue;
                 }
 
-                let changer_id = changer_id.to_string();
+                let label_text = label_text.to_string();
 
                 if !read_all_labels.unwrap_or(false) {
-                    if let Some(_) = inventory.find_media_by_changer_id(&changer_id) {
-                        worker.log(format!("media '{}' already inventoried", changer_id));
+                    if let Some(_) = inventory.find_media_by_label_text(&label_text) {
+                        worker.log(format!("media '{}' already inventoried", label_text));
                         continue;
                     }
                 }
 
-                if let Err(err) = changer.load_media(&changer_id) {
-                    worker.warn(format!("unable to load media '{}' - {}", changer_id, err));
+                if let Err(err) = changer.load_media(&label_text) {
+                    worker.warn(format!("unable to load media '{}' - {}", label_text, err));
                     continue;
                 }
 
                 let mut drive = open_drive(&config, &drive)?;
                 match drive.read_label() {
                     Err(err) => {
-                        worker.warn(format!("unable to read label form media '{}' - {}", changer_id, err));
+                        worker.warn(format!("unable to read label form media '{}' - {}", label_text, err));
                     }
                     Ok(None) => {
-                        worker.log(format!("media '{}' is empty", changer_id));
+                        worker.log(format!("media '{}' is empty", label_text));
                     }
                     Ok(Some(media_id)) => {
-                        if changer_id != media_id.label.changer_id {
-                            worker.warn(format!("label changer ID missmatch ({} != {})", changer_id, media_id.label.changer_id));
+                        if label_text != media_id.label.label_text {
+                            worker.warn(format!("label text missmatch ({} != {})", label_text, media_id.label.label_text));
                             continue;
                         }
-                        worker.log(format!("inventorize media '{}' with uuid '{}'", changer_id, media_id.label.uuid));
+                        worker.log(format!("inventorize media '{}' with uuid '{}'", label_text, media_id.label.uuid));
                         inventory.store(media_id, false)?;
                     }
                 }
@@ -784,31 +784,31 @@ fn barcode_label_media_worker(
 
     let (mut changer, changer_name) = required_media_changer(&config, &drive)?;
 
-    let changer_id_list = changer.online_media_changer_ids()?;
+    let label_text_list = changer.online_media_label_texts()?;
 
     let state_path = Path::new(TAPE_STATUS_DIR);
 
     let mut inventory = Inventory::load(state_path)?;
 
-    update_changer_online_status(&config, &mut inventory, &changer_name, &changer_id_list)?;
+    update_changer_online_status(&config, &mut inventory, &changer_name, &label_text_list)?;
 
-    if changer_id_list.is_empty() {
+    if label_text_list.is_empty() {
         bail!("changer device does not list any media labels");
     }
 
-    for changer_id in changer_id_list {
-        if changer_id.starts_with("CLN") { continue; }
+    for label_text in label_text_list {
+        if label_text.starts_with("CLN") { continue; }
 
         inventory.reload()?;
-        if inventory.find_media_by_changer_id(&changer_id).is_some() {
-            worker.log(format!("media '{}' already inventoried (already labeled)", changer_id));
+        if inventory.find_media_by_label_text(&label_text).is_some() {
+            worker.log(format!("media '{}' already inventoried (already labeled)", label_text));
             continue;
         }
 
-        worker.log(format!("checking/loading media '{}'", changer_id));
+        worker.log(format!("checking/loading media '{}'", label_text));
 
-        if let Err(err) = changer.load_media(&changer_id) {
-            worker.warn(format!("unable to load media '{}' - {}", changer_id, err));
+        if let Err(err) = changer.load_media(&label_text) {
+            worker.warn(format!("unable to load media '{}' - {}", label_text, err));
             continue;
         }
 
@@ -817,7 +817,7 @@ fn barcode_label_media_worker(
 
         match drive.read_next_file() {
             Ok(Some(_file)) => {
-                worker.log(format!("media '{}' is not empty (erase first)", changer_id));
+                worker.log(format!("media '{}' is not empty (erase first)", label_text));
                 continue;
             }
             Ok(None) => { /* EOF mark at BOT, assume tape is empty */ },
@@ -825,7 +825,7 @@ fn barcode_label_media_worker(
                 if err.is_errno(nix::errno::Errno::ENOSPC) || err.is_errno(nix::errno::Errno::EIO) {
                     /* assume tape is empty */
                 } else {
-                    worker.warn(format!("media '{}' read error (maybe not empty - erase first)", changer_id));
+                    worker.warn(format!("media '{}' read error (maybe not empty - erase first)", label_text));
                     continue;
                 }
             }
@@ -833,7 +833,7 @@ fn barcode_label_media_worker(
 
         let ctime = proxmox::tools::time::epoch_i64();
         let label = MediaLabel {
-            changer_id: changer_id.to_string(),
+            label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
         };

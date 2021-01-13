@@ -152,7 +152,7 @@ pub fn restore(
             worker.log(format!(
                 "Required media list: {}",
                 media_id_list.iter()
-                    .map(|media_id| media_id.label.changer_id.as_str())
+                    .map(|media_id| media_id.label.label_text.as_str())
                     .collect::<Vec<&str>>()
                     .join(";")
             ));
@@ -196,12 +196,12 @@ pub fn request_and_restore_media(
     match info.media_set_label {
         None => {
             bail!("missing media set label on media {} ({})",
-                  media_id.label.changer_id, media_id.label.uuid);
+                  media_id.label.label_text, media_id.label.uuid);
         }
         Some(ref set) => {
             if &set.uuid != media_set_uuid {
                 bail!("wrong media set label on media {} ({} != {})",
-                      media_id.label.changer_id, media_id.label.uuid,
+                      media_id.label.label_text, media_id.label.uuid,
                       media_set_uuid);
             }
         }

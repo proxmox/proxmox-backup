@@ -42,7 +42,7 @@ use proxmox_backup::{
     },
     tape::{
         open_drive,
-        complete_media_changer_id,
+        complete_media_label_text,
         complete_media_set_uuid,
         file_formats::{
             PROXMOX_BACKUP_CONTENT_HEADER_MAGIC_1_0,
@@ -210,7 +210,7 @@ async fn eject_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
         },
@@ -243,7 +243,7 @@ async fn load_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
         },
@@ -351,7 +351,7 @@ async fn unload_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-            "changer-id": {
+            "label-text": {
                 schema: MEDIA_LABEL_SCHEMA,
             },
        },
@@ -411,7 +411,7 @@ async fn read_label(
     };
 
     let options = default_table_format_options()
-        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("label-text"))
         .column(ColumnConfig::new("uuid"))
         .column(ColumnConfig::new("ctime").renderer(render_epoch))
         .column(ColumnConfig::new("pool"))
@@ -487,7 +487,7 @@ async fn inventory(
     };
 
     let options = default_table_format_options()
-        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("label-text"))
         .column(ColumnConfig::new("uuid"))
         ;
 
@@ -950,9 +950,9 @@ fn main() {
         .insert(
             "load-media",
             CliCommand::new(&API_METHOD_LOAD_MEDIA)
-                .arg_param(&["changer-id"])
+                .arg_param(&["label-text"])
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("changer-id", complete_media_changer_id)
+                .completion_cb("label-text", complete_media_label_text)
         )
         .insert(
             "load-media-from-slot",
@@ -968,9 +968,9 @@ fn main() {
         .insert(
             "export-media",
             CliCommand::new(&API_METHOD_EXPORT_MEDIA)
-                .arg_param(&["changer-id"])
+                .arg_param(&["label-text"])
                 .completion_cb("drive", complete_drive_name)
-                .completion_cb("changer-id", complete_media_changer_id)
+                .completion_cb("label-text", complete_media_label_text)
         )
         ;
 

@@ -87,7 +87,7 @@ pub enum MtxEntryKind {
         "entry-kind": {
             type: MtxEntryKind,
         },
-        "changer-id": {
+        "label-text": {
             schema: MEDIA_LABEL_SCHEMA,
             optional: true,
         },
@@ -102,7 +102,7 @@ pub struct MtxStatusEntry {
     pub entry_id: u64,
     /// The media label (volume tag) if the slot/drive is full
     #[serde(skip_serializing_if="Option::is_none")]
-    pub changer_id: Option<String>,
+    pub label_text: Option<String>,
     /// The slot the drive was loaded from
     #[serde(skip_serializing_if="Option::is_none")]
     pub loaded_slot: Option<u64>,

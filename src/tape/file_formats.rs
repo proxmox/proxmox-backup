@@ -164,8 +164,8 @@ pub struct ChunkArchiveEntryHeader {
 pub struct MediaLabel {
     /// Unique ID
     pub uuid: Uuid,
-    /// Media Changer ID or Barcode
-    pub changer_id: String,
+    /// Media label text (or Barcode)
+    pub label_text: String,
     /// Creation time stamp
     pub ctime: i64,
 }

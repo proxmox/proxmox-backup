@@ -213,10 +213,10 @@ impl Inventory {
         self.map.get(uuid).map(|entry| &entry.id)
     }
 
-    /// find media by changer_id
-    pub fn find_media_by_changer_id(&self, changer_id: &str) -> Option<&MediaId> {
+    /// find media by label_text
+    pub fn find_media_by_label_text(&self, label_text: &str) -> Option<&MediaId> {
         for (_uuid, entry) in &self.map {
-            if entry.id.label.changer_id == changer_id {
+            if entry.id.label.label_text == label_text {
                 return Some(&entry.id);
             }
         }
@@ -534,10 +534,10 @@ impl Inventory {
     // Helpers to simplify testing
 
     /// Genreate and insert a new free tape (test helper)
-    pub fn generate_free_tape(&mut self, changer_id: &str, ctime: i64) -> Uuid {
+    pub fn generate_free_tape(&mut self, label_text: &str, ctime: i64) -> Uuid {
 
         let label = MediaLabel {
-            changer_id: changer_id.to_string(),
+            label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
         };
@@ -552,13 +552,13 @@ impl Inventory {
     /// (test helper)
     pub fn generate_assigned_tape(
         &mut self,
-        changer_id: &str,
+        label_text: &str,
         pool: &str,
         ctime: i64,
     ) -> Uuid {
 
         let label = MediaLabel {
-            changer_id: changer_id.to_string(),
+            label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
         };
@@ -575,12 +575,12 @@ impl Inventory {
     /// Genreate and insert a used tape (test helper)
     pub fn generate_used_tape(
         &mut self,
-        changer_id: &str,
+        label_text: &str,
         set: MediaSetLabel,
         ctime: i64,
     ) -> Uuid {
         let label = MediaLabel {
-            changer_id: changer_id.to_string(),
+            label_text: label_text.to_string(),
             uuid: Uuid::generate(),
             ctime,
         };
@@ -735,7 +735,7 @@ pub fn complete_media_set_uuid(
 }
 
 /// List of known media labels (barcodes)
-pub fn complete_media_changer_id(
+pub fn complete_media_label_text(
     _arg: &str,
     _param: &HashMap<String, String>,
 ) -> Vec<String> {
@@ -745,5 +745,5 @@ pub fn complete_media_changer_id(
         Err(_) => return Vec::new(),
     };
 
-    inventory.map.values().map(|entry| entry.id.label.changer_id.clone()).collect()
+    inventory.map.values().map(|entry| entry.id.label.label_text.clone()).collect()
 }

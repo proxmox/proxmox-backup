@@ -21,7 +21,7 @@ use proxmox_backup::{
         tape::media::MediaContentListFilter,
     },
     tape::{
-        complete_media_changer_id,
+        complete_media_label_text,
         complete_media_uuid,
         complete_media_set_uuid,
     },
@@ -41,14 +41,14 @@ pub fn media_commands() -> CommandLineInterface {
         .insert(
             "destroy",
             CliCommand::new(&api2::tape::media::API_METHOD_DESTROY_MEDIA)
-                .arg_param(&["changer-id"])
-                .completion_cb("changer-id", complete_media_changer_id)
+                .arg_param(&["label-text"])
+                .completion_cb("label-text", complete_media_label_text)
         )
         .insert(
             "content",
             CliCommand::new(&API_METHOD_LIST_CONTENT)
                 .completion_cb("pool", complete_pool_name)
-                .completion_cb("changer-id", complete_media_changer_id)
+                .completion_cb("label-text", complete_media_label_text)
                 .completion_cb("media", complete_media_uuid)
                 .completion_cb("media-set", complete_media_set_uuid)
         )
@@ -116,8 +116,8 @@ async fn list_media(
         .sortby("pool", false)
         .sortby("media-set-uuid", false)
         .sortby("seq-nr", false)
-        .sortby("changer-id", false)
-        .column(ColumnConfig::new("changer-id"))
+        .sortby("label-text", false)
+        .column(ColumnConfig::new("label-text"))
         .column(ColumnConfig::new("pool"))
         .column(ColumnConfig::new("media-set-name"))
         .column(ColumnConfig::new("seq-nr"))
@@ -165,7 +165,7 @@ fn list_content(
         .sortby("seq-nr", false)
         .sortby("snapshot", false)
         .sortby("backup-time", false)
-        .column(ColumnConfig::new("changer-id"))
+        .column(ColumnConfig::new("label-text"))
         .column(ColumnConfig::new("pool"))
         .column(ColumnConfig::new("media-set-name"))
         .column(ColumnConfig::new("seq-nr"))

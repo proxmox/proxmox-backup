@@ -233,7 +233,7 @@ async fn get_status(
         _ => unreachable!(),
     };
 
-    let render_changer_id = |value: &Value, _record: &Value| -> Result<String, Error> {
+    let render_label_text = |value: &Value, _record: &Value| -> Result<String, Error> {
         if value.is_null() {
             return Ok(String::new());
         }
@@ -250,7 +250,7 @@ async fn get_status(
         .sortby("entry-id", false)
         .column(ColumnConfig::new("entry-kind"))
         .column(ColumnConfig::new("entry-id"))
-        .column(ColumnConfig::new("changer-id").renderer(render_changer_id))
+        .column(ColumnConfig::new("label-text").renderer(render_label_text))
         .column(ColumnConfig::new("loaded-slot"))
         ;
 
