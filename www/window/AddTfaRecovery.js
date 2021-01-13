@@ -1,23 +1,34 @@
 Ext.define('PBS.window.AddTfaRecovery', {
-    extend: 'Ext.window.Window',
+    extend: 'Proxmox.window.Edit',
     alias: 'widget.pbsAddTfaRecovery',
     mixins: ['Proxmox.Mixin.CBind'],
 
     onlineHelp: 'user_mgmt',
-
-    modal: true,
-    resizable: false,
-    title: gettext('Add TFA recovery keys'),
+    isCreate: true,
+    isAdd: true,
+    subject: gettext('TFA recovery keys'),
     width: 512,
+    method: 'POST',
 
     fixedUser: false,
 
-    baseurl: '/api2/extjs/access/tfa',
+    url: '/api2/extjs/access/tfa',
+    submitUrl: function(url, values) {
+	let userid = values.userid;
+	delete values.userid;
+	return `${url}/${userid}`;
+    },
 
-    initComponent: function() {
-	let me = this;
-	me.callParent();
-	Ext.GlobalEvents.fireEvent('proxmoxShowHelp', me.onlineHelp);
+    apiCallDone: function(success, response) {
+	if (!success) {
+	    return;
+	}
+
+	let values = response.result.data.recovery.join("\n");
+	Ext.create('PBS.window.TfaRecoveryShow', {
+	    autoShow: true,
+	    values,
+	});
     },
 
     viewModel: {
@@ -28,27 +39,13 @@ Ext.define('PBS.window.AddTfaRecovery', {
 
     controller: {
 	xclass: 'Ext.app.ViewController',
-	control: {
-	    '#': {
-		show: function() {
-		    let me = this;
-		    let view = me.getView();
-
-		    if (Proxmox.UserName === 'root@pam') {
-			view.lookup('password').setVisible(false);
-			view.lookup('password').setDisabled(true);
-		    }
-		},
-	    },
-	},
-
 	hasEntry: async function(userid) {
 	    let me = this;
 	    let view = me.getView();
 
 	    try {
 		await PBS.Async.api2({
-		    url: `${view.baseurl}/${userid}/recovery`,
+		    url: `${view.url}/${userid}/recovery`,
 		    method: 'GET',
 		});
 		return true;
@@ -57,54 +54,17 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    }
 	},
 
-	init: function() {
+	init: function(view) {
 	    this.onUseridChange(null, Proxmox.UserName);
 	},
 
-	onUseridChange: async function(_field, userid) {
+	onUseridChange: async function(field, userid) {
 	    let me = this;
 
 	    me.userid = userid;
 
 	    let has_entry = await me.hasEntry(userid);
 	    me.getViewModel().set('has_entry', has_entry);
-	},
-
-	onAdd: async function() {
-	    let me = this;
-	    let view = me.getView();
-
-	    view.mask(gettext('Please wait...'), 'x-mask-loading');
-
-	    let baseurl = view.baseurl;
-
-	    let userid = me.userid;
-	    if (userid === undefined) {
-		throw "no userid set";
-	    }
-
-	    let params = { type: 'recovery' };
-
-	    if (Proxmox.UserName !== 'root@pam') {
-		params.password = me.lookup('password').getValue();
-	    }
-
-	    try {
-		let response = await PBS.Async.api2({
-		    url: `${baseurl}/${userid}`,
-		    method: 'POST',
-		    params,
-		});
-		let values = response.result.data.recovery.join("\n");
-		Ext.create('PBS.window.TfaRecoveryShow', {
-		    autoShow: true,
-		    values,
-		});
-	    } catch (ex) {
-		Ext.Msg.alert(gettext('Error'), ex);
-	    } finally {
-		view.close();
-	    }
 	},
     },
 
@@ -119,6 +79,9 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    editConfig: {
 		xtype: 'pbsUserSelector',
 		allowBlank: false,
+		validator: function(_value) {
+		    return !this.up('window').getViewModel().get('has_entry');
+		},
 	    },
 	    renderer: Ext.String.htmlEncode,
 	    value: Proxmox.UserName,
@@ -127,10 +90,17 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    },
 	},
 	{
+	    xtype: 'hiddenfield',
+	    name: 'type',
+	    value: 'recovery',
+	},
+	{
 	    xtype: 'displayfield',
 	    bind: {
 		hidden: '{!has_entry}',
 	    },
+	    hidden: true,
+	    userCls: 'pmx-hint',
 	    value: gettext('User already has recovery keys.'),
 	},
 	{
@@ -142,23 +112,9 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    name: 'password',
 	    allowBlank: false,
 	    validateBlank: true,
-	    padding: '0 0 5 5',
+	    hidden: Proxmox.UserName === 'root@pam',
+	    disabled: Proxmox.UserName === 'root@pam',
 	    emptyText: gettext('verify current password'),
-	},
-    ],
-
-    buttons: [
-	{
-	    xtype: 'proxmoxHelpButton',
-	},
-	'->',
-	{
-	    xtype: 'button',
-	    text: gettext('Add'),
-	    handler: 'onAdd',
-	    bind: {
-		disabled: '{has_entry}',
-	    },
 	},
     ],
 });
