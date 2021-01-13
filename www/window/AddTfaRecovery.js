@@ -131,15 +131,13 @@ Ext.define('PBS.window.TfaRecoveryShow', {
 
     items: [
 	{
-	    xtype: 'container',
-	    layout: 'form',
+	    xtype: 'form',
+	    layout: 'anchor',
 	    bodyPadding: 10,
 	    border: false,
 	    fieldDefaults: {
-		labelWidth: 100,
 		anchor: '100%',
             },
-	    padding: '0 10 10 10',
 	    items: [
 		{
 		    xtype: 'textarea',
@@ -153,14 +151,14 @@ Ext.define('PBS.window.TfaRecoveryShow', {
 		    },
 		    height: '160px',
 		},
+		{
+		    xtype: 'displayfield',
+		    border: false,
+		    padding: '5 0 0 0',
+		    userCls: 'pmx-hint',
+		    value: gettext('Please record recovery keys - they will only be displayed now'),
+		},
 	    ],
-	},
-	{
-	    xtype: 'component',
-	    border: false,
-	    padding: '10 10 10 10',
-	    userCls: 'pmx-hint',
-	    html: gettext('Please record recovery keys - they will only be displayed now'),
 	},
     ],
     buttons: [
