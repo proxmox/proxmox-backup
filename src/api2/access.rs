@@ -245,7 +245,7 @@ fn create_ticket(
         },
     },
     access: {
-        description: "Anybody is allowed to change there own password. In addition, users with 'Permissions:Modify' privilege may change any password.",
+        description: "Everybody is allowed to change their own password. In addition, users with 'Permissions:Modify' privilege may change any password on @pbs realm.",
         permission: &Permission::Anybody,
     },
 )]
@@ -271,17 +271,16 @@ fn change_password(
 
     let mut allowed = userid == *current_user;
 
-    if current_user == "root@pam" {
-        allowed = true;
-    }
-
     if !allowed {
         let user_info = CachedUserInfo::new()?;
         let privs = user_info.lookup_privs(&current_auth, &[]);
-        if (privs & PRIV_PERMISSIONS_MODIFY) != 0 {
+        if user_info.is_superuser(&current_auth) {
             allowed = true;
         }
-    }
+        if (privs & PRIV_PERMISSIONS_MODIFY) != 0 && userid.realm() != "pam" {
+            allowed = true;
+        }
+    };
 
     if !allowed {
         bail!("you are not authorized to change the password.");
