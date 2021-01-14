@@ -386,7 +386,12 @@ async fn label_media(
                 schema: DRIVE_NAME_SCHEMA,
                 optional: true,
             },
-             "output-format": {
+            inventorize: {
+                description: "Inventorize media",
+                type: bool,
+                optional: true,
+            },
+            "output-format": {
                 schema: OUTPUT_FORMAT,
                 optional: true,
              },

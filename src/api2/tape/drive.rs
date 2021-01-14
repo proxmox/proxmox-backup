@@ -462,6 +462,10 @@ fn write_media_label(
             drive: {
                 schema: DRIVE_NAME_SCHEMA,
             },
+            inventorize: {
+                description: "Inventorize media",
+                optional: true,
+            },
         },
     },
     returns: {
@@ -469,7 +473,10 @@ fn write_media_label(
     },
 )]
 /// Read media label
-pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
+pub async fn read_label(
+    drive: String,
+    inventorize: Option<bool>,
+) -> Result<MediaIdFlat, Error> {
 
     let (config, _digest) = config::drive::config()?;
 
@@ -480,7 +487,7 @@ pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
 
         let media_id = match media_id {
             Some(media_id) => {
-                let mut flat = MediaIdFlat {
+                 let mut flat = MediaIdFlat {
                     uuid: media_id.label.uuid.to_string(),
                     label_text: media_id.label.label_text.clone(),
                     ctime: media_id.label.ctime,
@@ -489,12 +496,19 @@ pub async fn read_label(drive: String) -> Result<MediaIdFlat, Error> {
                     pool: None,
                     seq_nr: None,
                 };
-                if let Some(set) = media_id.media_set_label {
+                if let Some(ref set) = media_id.media_set_label {
                     flat.pool = Some(set.pool.clone());
                     flat.seq_nr = Some(set.seq_nr);
                     flat.media_set_uuid = Some(set.uuid.to_string());
                     flat.media_set_ctime = Some(set.ctime);
                 }
+
+                if let Some(true) = inventorize {
+                    let state_path = Path::new(TAPE_STATUS_DIR);
+                    let mut inventory = Inventory::load(state_path)?;
+                    inventory.store(media_id, false)?;
+                }
+
                 flat
             }
             None => {
