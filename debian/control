@@ -96,8 +96,8 @@ Build-Depends: debhelper (>= 11),
  xindy <!nodoc>
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.4.1
-Vcs-Git: 
-Vcs-Browser: 
+Vcs-Git: git://git.proxmox.com/git/proxmox-backup.git
+Vcs-Browser: https://git.proxmox.com/?p=proxmox-backup.git;a=summary
 Homepage: https://www.proxmox.com
 
 Package: proxmox-backup-server

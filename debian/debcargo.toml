@@ -6,9 +6,8 @@ whitelist = ["tests/*.c"]
 allow_prerelease_deps = true
 
 [source]
-# TODO: update once public
-vcs_git = ""
-vcs_browser = ""
+vcs_git = "git://git.proxmox.com/git/proxmox-backup.git"
+vcs_browser = "https://git.proxmox.com/?p=proxmox-backup.git;a=summary"
 maintainer = "Proxmox Support Team <support@proxmox.com>"
 section = "admin"
 build_depends = [
