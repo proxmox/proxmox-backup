@@ -10,6 +10,23 @@ use proxmox_backup::tools;
 use proxmox_backup::api2;
 use proxmox_backup::api2::types::{ACL_PATH_SCHEMA, Authid, Userid};
 
+fn render_expire(value: &Value, _record: &Value) -> Result<String, Error> {
+    let never = String::from("never");
+    if value.is_null() { return Ok(never); }
+    let text = match value.as_i64() {
+        Some(epoch) if epoch == 0 => never,
+        Some(epoch) => {
+            if let Ok(epoch_string) = proxmox::tools::time::strftime_local("%c", epoch as i64) {
+                epoch_string
+            } else {
+                epoch.to_string()
+            }
+        },
+        None => value.to_string(),
+    };
+    Ok(text)
+}
+
 #[api(
     input: {
         properties: {
@@ -39,7 +56,7 @@ fn list_users(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, Er
         )
         .column(
             ColumnConfig::new("expire")
-                .renderer(tools::format::render_epoch)
+                .renderer(render_expire)
         )
         .column(ColumnConfig::new("firstname"))
         .column(ColumnConfig::new("lastname"))
@@ -83,7 +100,7 @@ fn list_tokens(param: Value, rpcenv: &mut dyn RpcEnvironment) -> Result<Value, E
         )
         .column(
             ColumnConfig::new("expire")
-                .renderer(tools::format::render_epoch)
+                .renderer(render_expire)
         )
         .column(ColumnConfig::new("comment"));
 
