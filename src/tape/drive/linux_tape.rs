@@ -331,6 +331,7 @@ impl LinuxTapeHandle {
         let mut command = std::process::Command::new(
             "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
         command.args(&["cartridge-memory"]);
+        command.args(&["--stdin"]);
         command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
         let output = run_command(command, None)?;
         let result: Result<Vec<MamAttribute>, String> = serde_json::from_str(&output)?;
@@ -350,6 +351,7 @@ impl LinuxTapeHandle {
         let mut command = std::process::Command::new(
             "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
         command.args(&["volume-statistics"]);
+        command.args(&["--stdin"]);
         command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
         let output = run_command(command, None)?;
         let result: Result<Lp17VolumeStatistics, String> = serde_json::from_str(&output)?;
@@ -492,6 +494,7 @@ impl TapeDriver for LinuxTapeHandle {
         let mut command = std::process::Command::new(
             "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
         command.args(&["tape-alert-flags"]);
+        command.args(&["--stdin"]);
         command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
         let output = run_command(command, None)?;
         let result: Result<u64, String> = serde_json::from_str(&output)?;

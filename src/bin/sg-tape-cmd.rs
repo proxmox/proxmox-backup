@@ -8,7 +8,8 @@
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
+use serde_json::Value;
 
 use proxmox::{
     api::{
@@ -19,8 +20,11 @@ use proxmox::{
 };
 
 use proxmox_backup::{
+    config,
     api2::types::{
         LINUX_DRIVE_PATH_SCHEMA,
+        DRIVE_NAME_SCHEMA,
+        LinuxTapeDrive,
     },
     tape::{
         TapeDriver,
@@ -32,24 +36,66 @@ use proxmox_backup::{
     },
 };
 
-fn get_tape_handle(device: Option<String>) -> Result<LinuxTapeHandle, Error> {
+fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
 
-    let file = if let Some(device) = device {
-        open_linux_tape_device(&device)?
-    } else {
+    let handle = if let Some(name) = param["drive"].as_str() {
+        let (config, _digest) = config::drive::config()?;
+        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        eprintln!("using device {}", drive.path);
+        drive.open()
+            .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+    } else if let Some(device) = param["device"].as_str() {
+        eprintln!("using device {}", device);
+        LinuxTapeHandle::new(open_linux_tape_device(&device)?)
+    } else if let Some(true) = param["stdin"].as_bool() {
+        eprintln!("using stdin");
         let fd = std::io::stdin().as_raw_fd();
         let file = unsafe { File::from_raw_fd(fd) };
         check_tape_is_linux_tape_device(&file)?;
-        file
+        LinuxTapeHandle::new(file)
+    } else if let Some(name) = std::env::var("PROXMOX_TAPE_DRIVE").ok() {
+        let (config, _digest) = config::drive::config()?;
+        let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+        eprintln!("using device {}", drive.path);
+        drive.open()
+            .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+    } else {
+        let (config, _digest) = config::drive::config()?;
+
+        let mut drive_names = Vec::new();
+        for (name, (section_type, _)) in config.sections.iter() {
+            if section_type != "linux" { continue; }
+            drive_names.push(name);
+        }
+
+        if drive_names.len() == 1 {
+            let name = drive_names[0];
+            let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
+            eprintln!("using device {}", drive.path);
+            drive.open()
+                .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+        } else {
+            bail!("no drive/device specified");
+        }
     };
-    Ok(LinuxTapeHandle::new(file))
+
+    Ok(handle)
 }
 
 #[api(
    input: {
         properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             device: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            stdin: {
+                description: "Use standard input as device handle.",
+                type: bool,
                 optional: true,
             },
         },
@@ -57,11 +103,11 @@ fn get_tape_handle(device: Option<String>) -> Result<LinuxTapeHandle, Error> {
 )]
 /// Tape/Media Status
 fn status(
-    device: Option<String>,
+    param: Value,
 ) -> Result<(), Error> {
 
     let result = proxmox::try_block!({
-        let mut handle = get_tape_handle(device)?;
+        let mut handle = get_tape_handle(&param)?;
         handle.get_drive_and_media_status()
    }).map_err(|err: Error| err.to_string());
 
@@ -73,8 +119,17 @@ fn status(
 #[api(
    input: {
         properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             device: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            stdin: {
+                description: "Use standard input as device handle.",
+                type: bool,
                 optional: true,
             },
         },
@@ -82,11 +137,11 @@ fn status(
 )]
 /// Read Cartridge Memory (Medium auxiliary memory attributes)
 fn cartridge_memory(
-    device: Option<String>,
+    param: Value,
 ) -> Result<(), Error> {
 
     let result = proxmox::try_block!({
-        let mut handle = get_tape_handle(device)?;
+        let mut handle = get_tape_handle(&param)?;
 
         handle.cartridge_memory()
     }).map_err(|err| err.to_string());
@@ -99,8 +154,17 @@ fn cartridge_memory(
 #[api(
    input: {
         properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             device: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            stdin: {
+                description: "Use standard input as device handle.",
+                type: bool,
                 optional: true,
             },
         },
@@ -108,11 +172,11 @@ fn cartridge_memory(
 )]
 /// Read Tape Alert Flags
 fn tape_alert_flags(
-    device: Option<String>,
+    param: Value,
 ) -> Result<(), Error> {
 
     let result = proxmox::try_block!({
-        let mut handle = get_tape_handle(device)?;
+        let mut handle = get_tape_handle(&param)?;
 
         let flags = handle.tape_alert_flags()?;
         Ok(flags.bits())
@@ -126,8 +190,17 @@ fn tape_alert_flags(
 #[api(
    input: {
         properties: {
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
             device: {
                 schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            stdin: {
+                description: "Use standard input as device handle.",
+                type: bool,
                 optional: true,
             },
         },
@@ -135,11 +208,11 @@ fn tape_alert_flags(
 )]
 /// Read volume statistics
 fn volume_statistics(
-    device: Option<String>,
+    param: Value,
 ) -> Result<(), Error> {
 
     let result = proxmox::try_block!({
-        let mut handle = get_tape_handle(device)?;
+        let mut handle = get_tape_handle(&param)?;
         handle.volume_statistics()
     }).map_err(|err: Error| err.to_string());
 
