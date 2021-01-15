@@ -229,7 +229,7 @@ impl IndexFile for DynamicIndexReader {
 
         Some(ChunkReadInfo {
             range: start..end,
-            digest: self.index[pos].digest.clone(),
+            digest: self.index[pos].digest,
         })
     }
 

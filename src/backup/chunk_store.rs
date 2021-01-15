@@ -80,7 +80,7 @@ impl ChunkStore {
 
         let default_options = CreateOptions::new();
 
-        match create_path(&base, Some(default_options.clone()), Some(options.clone())) {
+        match create_path(&base, Some(default_options), Some(options.clone())) {
             Err(err) => bail!("unable to create chunk store '{}' at {:?} - {}", name, base, err),
             Ok(res) => if ! res  { nix::unistd::chown(&base, Some(uid), Some(gid))? },
         }
@@ -113,9 +113,8 @@ impl ChunkStore {
     }
 
     fn lockfile_path<P: Into<PathBuf>>(base: P) -> PathBuf {
-        let base: PathBuf = base.into();
+        let mut lockfile_path: PathBuf = base.into();
 
-        let mut lockfile_path = base.clone();
         lockfile_path.push(".lock");
 
         lockfile_path

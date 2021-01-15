@@ -96,7 +96,7 @@ pub fn create_remote(password: String, param: Value) -> Result<(), Error> {
 
     let _lock = open_file_locked(remote::REMOTE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
-    let mut data = param.clone();
+    let mut data = param;
     data["password"] = Value::from(base64::encode(password.as_bytes()));
     let remote: remote::Remote = serde_json::from_value(data)?;
 

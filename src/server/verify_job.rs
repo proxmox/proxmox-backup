@@ -23,7 +23,7 @@ pub fn do_verification_job(
 
     let datastore = DataStore::lookup_datastore(&verification_job.store)?;
 
-    let outdated_after = verification_job.outdated_after.clone();
+    let outdated_after = verification_job.outdated_after;
     let ignore_verified_snapshots = verification_job.ignore_verified.unwrap_or(true);
 
     let filter = move |manifest: &BackupManifest| {

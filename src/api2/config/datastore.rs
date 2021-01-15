@@ -120,7 +120,7 @@ pub fn create_datastore(param: Value) -> Result<(), Error> {
 
     let _lock = open_file_locked(datastore::DATASTORE_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)?;
 
-    let datastore: datastore::DataStoreConfig = serde_json::from_value(param.clone())?;
+    let datastore: datastore::DataStoreConfig = serde_json::from_value(param)?;
 
     let (mut config, _digest) = datastore::config()?;
 

@@ -18,7 +18,7 @@ impl <W: Write> ChecksumWriter<W> {
         let hasher = crc32fast::Hasher::new();
         let signer = match config {
             Some(config) => {
-                let tied_signer = Tied::new(config.clone(), |config| {
+                let tied_signer = Tied::new(config, |config| {
                     Box::new(unsafe { (*config).data_signer() })
                 });
                 Some(tied_signer)

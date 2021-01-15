@@ -118,7 +118,7 @@ fn create(kdf: Option<Kdf>, path: Option<String>) -> Result<(), Error> {
 
     let mut key_array = [0u8; 32];
     proxmox::sys::linux::fill_with_random_data(&mut key_array)?;
-    let crypt_config = CryptConfig::new(key_array.clone())?;
+    let crypt_config = CryptConfig::new(key_array)?;
     let key = key_array.to_vec();
 
     match kdf {

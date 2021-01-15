@@ -128,7 +128,7 @@ pub fn restore(
 
             let members = inventory.compute_media_set_members(&media_set_uuid)?;
 
-            let media_list = members.media_list().clone();
+            let media_list = members.media_list();
 
             let mut media_id_list = Vec::new();
 
@@ -234,7 +234,6 @@ pub fn restore_media(
             Some(reader) => reader,
         };
 
-        let target = target.clone();
         restore_archive(worker, reader, current_file_number, target, &mut catalog, verbose)?;
     }
 

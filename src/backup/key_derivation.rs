@@ -233,7 +233,7 @@ pub fn decrypt_key_config(
     let mut result = [0u8; 32];
     result.copy_from_slice(&key);
 
-    let crypt_config = CryptConfig::new(result.clone())?;
+    let crypt_config = CryptConfig::new(result)?;
     let fingerprint = crypt_config.fingerprint();
     if let Some(ref stored_fingerprint) = key_config.fingerprint {
         if &fingerprint != stored_fingerprint {
@@ -313,9 +313,9 @@ fn encrypt_decrypt_test() -> Result<(), Error> {
         ])),
     };
 
-    let encrypted = rsa_encrypt_key_config(public.clone(), &key).expect("encryption failed");
+    let encrypted = rsa_encrypt_key_config(public, &key).expect("encryption failed");
     let (decrypted, created, fingerprint) =
-        rsa_decrypt_key_config(private.clone(), &encrypted, &passphrase)
+        rsa_decrypt_key_config(private, &encrypted, &passphrase)
             .expect("decryption failed");
 
     assert_eq!(key.created, created);

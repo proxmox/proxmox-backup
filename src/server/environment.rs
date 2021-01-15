@@ -48,6 +48,6 @@ impl RpcEnvironment for RestEnvironment {
     }
 
     fn get_client_ip(&self) -> Option<std::net::SocketAddr> {
-        self.client_ip.clone()
+        self.client_ip
     }
 }

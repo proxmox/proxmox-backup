@@ -440,8 +440,8 @@ pub fn list_snapshots (
                 let files = info
                         .files
                         .into_iter()
-                        .map(|x| BackupContent {
-                            filename: x.to_string(),
+                        .map(|filename| BackupContent {
+                            filename,
                             size: None,
                             crypt_mode: None,
                         })
@@ -666,7 +666,7 @@ pub fn verify(
 
     let upid_str = WorkerTask::new_thread(
         worker_type,
-        Some(worker_id.clone()),
+        Some(worker_id),
         auth_id.clone(),
         to_stdout,
         move |worker| {
@@ -855,7 +855,7 @@ fn prune(
 
 
     // We use a WorkerTask just to have a task log, but run synchrounously
-    let worker = WorkerTask::new("prune", Some(worker_id), auth_id.clone(), true)?;
+    let worker = WorkerTask::new("prune", Some(worker_id), auth_id, true)?;
 
     if keep_all {
         worker.log("No prune selection - keeping all files.");
@@ -1009,7 +1009,7 @@ fn get_datastore_list(
         }
     }
 
-    Ok(list.into())
+    Ok(list)
 }
 
 #[sortable]
@@ -1066,7 +1066,7 @@ fn download_file(
             .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
         let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-            .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()))
+            .map_ok(|bytes| bytes.freeze())
             .map_err(move |err| {
                 eprintln!("error during streaming of '{:?}' - {}", &path, err);
                 err

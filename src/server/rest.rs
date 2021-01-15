@@ -517,7 +517,7 @@ async fn chuncked_static_file_download(filename: PathBuf) -> Result<Response<Bod
         .map_err(|err| http_err!(BAD_REQUEST, "File open failed: {}", err))?;
 
     let payload = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new())
-        .map_ok(|bytes| hyper::body::Bytes::from(bytes.freeze()));
+        .map_ok(|bytes| bytes.freeze());
     let body = Body::wrap_stream(payload);
 
     // fixme: set other headers ?

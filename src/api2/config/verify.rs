@@ -98,7 +98,7 @@ pub fn create_verification_job(
     let auth_id: Authid = rpcenv.get_auth_id().unwrap().parse()?;
     let user_info = CachedUserInfo::new()?;
 
-    let verification_job: verify::VerificationJobConfig = serde_json::from_value(param.clone())?;
+    let verification_job: verify::VerificationJobConfig = serde_json::from_value(param)?;
 
     user_info.check_privs(&auth_id, &["datastore", &verification_job.store], PRIV_DATASTORE_VERIFY, false)?;
 

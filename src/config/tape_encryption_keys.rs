@@ -61,7 +61,7 @@ pub struct EncryptionKeyConfig {
 }
 
 pub fn compute_tape_key_fingerprint(key: &[u8; 32]) -> Result<Fingerprint, Error> {
-    let crypt_config = CryptConfig::new(key.clone())?;
+    let crypt_config = CryptConfig::new(*key)?;
     Ok(crypt_config.fingerprint())
 }
 
@@ -228,7 +228,7 @@ pub fn insert_key(key: [u8;32], key_config: KeyConfig, hint: String) -> Result<(
     save_keys(key_map)?;
 
     let item = EncryptionKeyConfig::new(key_config, hint);
-    config_map.insert(fingerprint.clone(), item);
+    config_map.insert(fingerprint, item);
     save_key_configs(config_map)?;
 
     Ok(())

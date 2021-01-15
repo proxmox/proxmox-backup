@@ -46,7 +46,7 @@ fn list_roles() -> Result<Value, Error> {
         let mut priv_list = Vec::new();
         for (name, privilege) in PRIVILEGES.iter() {
             if privs & privilege > 0 {
-                priv_list.push(name.clone());
+                priv_list.push(name);
             }
         }
         list.push(json!({ "roleid": role, "privs": priv_list, "comment": comment }));

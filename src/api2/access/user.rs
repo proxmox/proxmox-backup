@@ -603,7 +603,7 @@ pub fn generate_token(
     token_shadow::set_secret(&tokenid, &secret)?;
 
     let token = user::ApiToken {
-        tokenid: tokenid.clone(),
+        tokenid,
         comment,
         enable,
         expire,

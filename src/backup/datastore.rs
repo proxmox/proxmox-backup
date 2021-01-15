@@ -334,9 +334,7 @@ impl DataStore {
         auth_id: &Authid,
     ) -> Result<(Authid, DirLockGuard), Error> {
         // create intermediate path first:
-        let base_path = self.base_path();
-
-        let mut full_path = base_path.clone();
+        let mut full_path = self.base_path();
         full_path.push(backup_group.backup_type());
         std::fs::create_dir_all(&full_path)?;
 

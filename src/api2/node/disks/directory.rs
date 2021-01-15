@@ -164,7 +164,7 @@ pub fn create_datastore_disk(
 
             let manager = DiskManage::new();
 
-            let disk = manager.clone().disk_by_name(&disk)?;
+            let disk = manager.disk_by_name(&disk)?;
 
             let partition = create_single_linux_partition(&disk)?;
             create_file_system(&partition, filesystem)?;

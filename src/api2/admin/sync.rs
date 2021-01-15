@@ -58,7 +58,7 @@ pub fn list_sync_jobs(
             }
         })
         .filter(|job: &SyncJobStatus| {
-            let as_config: SyncJobConfig = job.clone().into();
+            let as_config: SyncJobConfig = job.into();
             check_sync_job_read_access(&user_info, &auth_id, &as_config)
         }).collect();
 

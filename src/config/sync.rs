@@ -79,7 +79,7 @@ impl From<&SyncJobStatus> for SyncJobConfig {
             owner: job_status.owner.clone(),
             remote: job_status.remote.clone(),
             remote_store: job_status.remote_store.clone(),
-            remove_vanished: job_status.remove_vanished.clone(),
+            remove_vanished: job_status.remove_vanished,
             comment: job_status.comment.clone(),
             schedule: job_status.schedule.clone(),
         }

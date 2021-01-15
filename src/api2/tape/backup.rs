@@ -94,7 +94,7 @@ pub fn backup(
 
     let upid_str = WorkerTask::new_thread(
         "tape-backup",
-        Some(store.clone()),
+        Some(store),
         auth_id,
         to_stdout,
         move |worker| {

@@ -917,7 +917,7 @@ async fn create_backup(
             let (key, created, fingerprint) = decrypt_key(&key, &key::get_encryption_key_password)?;
             println!("Encryption key fingerprint: {}", fingerprint);
 
-            let crypt_config = CryptConfig::new(key.clone())?;
+            let crypt_config = CryptConfig::new(key)?;
 
             match key::find_master_pubkey()? {
                 Some(ref path) if path.exists() => {
