@@ -135,6 +135,11 @@ Terminology
 
    People als call this 'autoloader', 'tape robot' or 'tape jukebox'.
 
+:Inventory: The inventory stores the list of known tapes (with
+   additional status information).
+
+:Catalog: A media catalog stores information about the media content.
+
 
 Tape Quickstart
 ---------------
@@ -570,11 +575,42 @@ The following options are available:
 Restore from Tape
 ~~~~~~~~~~~~~~~~~
 
+Restore is done at media-set granularity, so you first need to find
+out which media set contains the data you want to restore. This
+information is stored in the media catalog. If you do not have media
+catalogs, you need to restore them first. Please note that you need
+the catalog to find your data, but restoring a complete media-set does
+not need media catalogs.
+
+The following command shows the media content (from catalog)::
+
+ # proxmox-tape media content
+ ┌────────────┬──────┬──────────────────────────┬────────┬────────────────────────────────┬──────────────────────────────────────┐
+ │ label-text │ pool │ media-set-name           │ seq-nr │ snapshot                       │ media-set-uuid                       │
+ ╞════════════╪══════╪══════════════════════════╪════════╪════════════════════════════════╪══════════════════════════════════════╡
+ │ TEST01L8   │ p2   │ Wed Jan 13 13:55:55 2021 │      0 │ vm/201/2021-01-11T10:43:48Z    │ 9da37a55-aac7-4deb-91c6-482b3b675f30 │
+ ├────────────┼──────┼──────────────────────────┼────────┼────────────────────────────────┼──────────────────────────────────────┤
+ │        ... │ ...  │                      ... │    ... │ ...                            │                                  ... │
+ └────────────┴──────┴──────────────────────────┴────────┴────────────────────────────────┴──────────────────────────────────────┘
+
+
+A restore job reads the data from the media set and moves it back to
+data disk (datastore)::
+
+ // proxmox-tape restore <media-set-uuid> <datastore>
+
+ # proxmox-tape restore 9da37a55-aac7-4deb-91c6-482b3b675f30 mystore
+
+
+
 Update Inventory
 ~~~~~~~~~~~~~~~~
 
+
 Restore Catalog
 ~~~~~~~~~~~~~~~
+
+
 
 Tape Cleaning
 ~~~~~~~~~~~~~
