@@ -58,6 +58,21 @@ pub fn read() -> Result<TfaConfig, Error> {
     Ok(serde_json::from_reader(file)?)
 }
 
+/// Get the webauthn config with a digest.
+///
+/// This is meant only for configuration updates, which currently only means webauthn updates.
+/// Since this is meant to be done only once (since changes will lock out users), this should be
+/// used rarely, since the digest calculation is currently a bit more involved.
+pub fn webauthn_config() -> Result<Option<(WebauthnConfig, [u8; 32])>, Error>{
+    Ok(match read()?.webauthn {
+        Some(wa) => {
+            let digest = wa.digest()?;
+            Some((wa, digest))
+        }
+        None => None,
+    })
+}
+
 /// Requires the write lock to be held.
 pub fn write(data: &TfaConfig) -> Result<(), Error> {
     let options = CreateOptions::new().perm(Mode::from_bits_truncate(0o0600));
@@ -71,7 +86,10 @@ pub struct U2fConfig {
     appid: String,
 }
 
+#[api]
 #[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+/// Server side webauthn server configuration.
 pub struct WebauthnConfig {
     /// Relying party name. Any text identifier.
     ///
@@ -88,6 +106,60 @@ pub struct WebauthnConfig {
     ///
     /// Changing this *will* break existing credentials.
     id: String,
+}
+
+impl WebauthnConfig {
+    pub fn digest(&self) -> Result<[u8; 32], Error> {
+        let digest_data = crate::tools::json::to_canonical_json(&serde_json::to_value(self)?)?;
+        Ok(openssl::sha::sha256(&digest_data))
+    }
+}
+
+// TODO: api macro should be able to generate this struct & impl automatically:
+#[api]
+#[derive(Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+/// Server side webauthn server configuration.
+pub struct WebauthnConfigUpdater {
+    /// Relying party name. Any text identifier.
+    ///
+    /// Changing this *may* break existing credentials.
+    rp: Option<String>,
+
+    /// Site origin. Must be a `https://` URL (or `http://localhost`). Should contain the address
+    /// users type in their browsers to access the web interface.
+    ///
+    /// Changing this *may* break existing credentials.
+    origin: Option<String>,
+
+    /// Relying part ID. Must be the domain name without protocol, port or location.
+    ///
+    /// Changing this *will* break existing credentials.
+    id: Option<String>,
+}
+
+impl WebauthnConfigUpdater {
+    pub fn apply_to(self, target: &mut WebauthnConfig) {
+        if let Some(val) = self.rp {
+            target.rp = val;
+        }
+
+        if let Some(val) = self.origin {
+            target.origin = val;
+        }
+
+        if let Some(val) = self.id {
+            target.id = val;
+        }
+    }
+
+    pub fn build(self) -> Result<WebauthnConfig, Error> {
+        Ok(WebauthnConfig {
+            rp: self.rp.ok_or_else(|| format_err!("missing required field: `rp`"))?,
+            origin: self.origin.ok_or_else(|| format_err!("missing required field: `origin`"))?,
+            id: self.id.ok_or_else(|| format_err!("missing required field: `origin`"))?,
+        })
+    }
 }
 
 /// For now we just implement this on the configuration this way.
