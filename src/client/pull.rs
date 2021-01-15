@@ -570,7 +570,10 @@ pub async fn pull_store(
 
     let path = format!("api2/json/admin/datastore/{}/groups", src_repo.store());
 
-    let mut result = client.get(&path, None).await?;
+    let mut result = client
+        .get(&path, None)
+        .await
+        .map_err(|err| format_err!("Failed to retrieve backup groups from remote - {}", err))?;
 
     let mut list: Vec<GroupListItem> = serde_json::from_value(result["data"].take())?;
 
