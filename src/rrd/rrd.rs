@@ -128,25 +128,20 @@ impl RRA {
         // derive counter value
         if self.flags.intersects(RRAFlags::DST_DERIVE | RRAFlags::DST_COUNTER) {
             let time_diff = time - self.last_update;
+            let is_counter = self.flags.contains(RRAFlags::DST_COUNTER);
+
             let diff = if self.counter_value.is_nan() {
                 0.0
+            } else if is_counter && value < 0.0 {
+                eprintln!("rrdb update failed - got negative value for counter");
+                return;
+            } else if is_counter && value < self.counter_value {
+                // Note: We do not try automatic overflow corrections
+                self.counter_value = value;
+                eprintln!("rrdb update failed - conter overflow/reset detected");
+                return;
             } else {
-                if self.flags.contains(RRAFlags::DST_COUNTER) { // check for overflow
-                    if value < 0.0 {
-                        eprintln!("rrdb update failed - got negative value for counter");
-                        return;
-                    }
-                    // Note: We do not try automatic overflow corrections
-                    if value < self.counter_value { // overflow or counter reset
-                        self.counter_value = value;
-                        eprintln!("rrdb update failed - conter overflow/reset detected");
-                        return;
-                    } else {
-                        value - self.counter_value
-                    }
-                } else {
-                    value - self.counter_value
-                }
+                value - self.counter_value
             };
             self.counter_value = value;
             value = diff/time_diff;

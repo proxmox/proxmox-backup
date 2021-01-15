@@ -331,13 +331,11 @@ fn list_tfa(rpcenv: &mut dyn RpcEnvironment) -> Result<Vec<TfaUser>, Error> {
                 entries: to_data(data),
             });
         }
-    } else {
-        if let Some(data) = { tfa_data }.remove(authid.user()) {
-            out.push(TfaUser {
-                userid: authid.into(),
-                entries: to_data(data),
-            });
-        }
+    } else if let Some(data) = { tfa_data }.remove(authid.user()) {
+        out.push(TfaUser {
+            userid: authid.into(),
+            entries: to_data(data),
+        });
     }
 
     Ok(out)

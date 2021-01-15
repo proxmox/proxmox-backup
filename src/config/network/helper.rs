@@ -68,15 +68,16 @@ pub fn parse_cidr(cidr: &str) -> Result<(String, u8, bool), Error> {
 }
 
 pub fn check_netmask(mask: u8, is_v6: bool) -> Result<(), Error> {
-    if is_v6 {
-        if !(mask >= 1 && mask <= 128) {
-            bail!("IPv6 mask '{}' is out of range (1..128).", mask);
-        }
+    let (ver, min, max) = if is_v6 {
+        ("IPv6", 1, 128)
     } else {
-        if !(mask > 0 && mask <= 32) {
-            bail!("IPv4 mask '{}' is out of range (1..32).", mask);
-        }
+        ("IPv4", 1, 32)
+    };
+
+    if !(mask >= min && mask <= max) {
+        bail!("{} mask '{}' is out of range ({}..{}).", ver, mask, min, max);
     }
+
     Ok(())
 }
 
