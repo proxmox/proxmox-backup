@@ -16,7 +16,7 @@ Ext.define('PBS.WebauthnConfigView', {
 	    required: true,
 	},
 	id: {
-	    header: gettext('Id'),
+	    header: 'ID',
 	    required: true,
 	},
     },
@@ -75,7 +75,7 @@ Ext.define('PBS.WebauthnConfigEdit', {
 	},
 	{
 	    xtype: 'textfield',
-	    fieldLabel: gettext('id'),
+	    fieldLabel: 'ID',
 	    name: 'id',
 	    allowBlank: false,
 	},
