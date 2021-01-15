@@ -28,6 +28,7 @@ pub mod format;
 pub mod fs;
 pub mod fuse_loop;
 pub mod http;
+pub mod json;
 pub mod logrotate;
 pub mod loopdev;
 pub mod lru_cache;
