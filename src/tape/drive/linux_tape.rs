@@ -527,7 +527,7 @@ impl TapeDriver for LinuxTapeHandle {
         let result: Result<u64, String> = serde_json::from_str(&output)?;
         result
             .map_err(|err| format_err!("{}", err))
-            .map(|bits| TapeAlertFlags::from_bits_truncate(bits))
+            .map(TapeAlertFlags::from_bits_truncate)
     }
 
     /// Set or clear encryption key

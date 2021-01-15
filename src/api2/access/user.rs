@@ -169,7 +169,7 @@ pub fn list_users(
             })
             .collect()
     } else {
-        iter.map(|user: user::User| UserWithTokens::new(user))
+        iter.map(UserWithTokens::new)
             .collect()
     };
 

@@ -81,13 +81,13 @@ pub fn list_sync_jobs(
         job.last_run_state = state;
         job.last_run_endtime = endtime;
 
-        let last = job.last_run_endtime.unwrap_or_else(|| starttime);
+        let last = job.last_run_endtime.unwrap_or(starttime);
 
         job.next_run = (|| -> Option<i64> {
             let schedule = job.schedule.as_ref()?;
             let event = parse_calendar_event(&schedule).ok()?;
             // ignore errors
-            compute_next_event(&event, last, false).unwrap_or_else(|_| None)
+            compute_next_event(&event, last, false).unwrap_or(None)
         })();
     }
 

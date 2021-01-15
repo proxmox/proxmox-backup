@@ -60,7 +60,7 @@ impl FixedIndexReader {
     pub fn open(path: &Path) -> Result<Self, Error> {
         File::open(path)
             .map_err(Error::from)
-            .and_then(|file| Self::new(file))
+            .and_then(Self::new)
             .map_err(|err| format_err!("Unable to open fixed index {:?} - {}", path, err))
     }
 

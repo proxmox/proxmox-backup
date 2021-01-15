@@ -898,7 +898,7 @@ async fn create_backup(
         }
     }
 
-    let backup_time = backup_time_opt.unwrap_or_else(|| epoch_i64());
+    let backup_time = backup_time_opt.unwrap_or_else(epoch_i64);
 
     let client = connect(&repo)?;
     record_repository(&repo);

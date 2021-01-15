@@ -37,7 +37,7 @@ pub fn read_pkg_state() -> Result<Option<PkgState>, Error> {
     };
 
     serde_json::from_str(&serialized_state)
-        .map(|s| Some(s))
+        .map(Some)
         .map_err(|err| format_err!("could not parse cached package status - {}", err))
 }
 

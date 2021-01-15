@@ -402,7 +402,7 @@ impl AclTreeNode {
     }
 
     fn insert_group_role(&mut self, group: String, role: String, propagate: bool) {
-        let map = self.groups.entry(group).or_insert_with(|| HashMap::new());
+        let map = self.groups.entry(group).or_insert_with(HashMap::new);
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -413,7 +413,7 @@ impl AclTreeNode {
     }
 
     fn insert_user_role(&mut self, auth_id: Authid, role: String, propagate: bool) {
-        let map = self.users.entry(auth_id).or_insert_with(|| HashMap::new());
+        let map = self.users.entry(auth_id).or_insert_with(HashMap::new);
         if role == ROLE_NAME_NO_ACCESS {
             map.clear();
             map.insert(role, propagate);
@@ -455,7 +455,7 @@ impl AclTree {
             node = node
                 .children
                 .entry(String::from(*comp))
-                .or_insert_with(|| AclTreeNode::new());
+                .or_insert_with(AclTreeNode::new);
         }
         node
     }
@@ -521,12 +521,12 @@ impl AclTree {
                 if *propagate {
                     role_ug_map1
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(auth_id);
                 } else {
                     role_ug_map0
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(auth_id);
                 }
             }
@@ -538,12 +538,12 @@ impl AclTree {
                 if *propagate {
                     role_ug_map1
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(group);
                 } else {
                     role_ug_map0
                         .entry(role)
-                        .or_insert_with(|| BTreeSet::new())
+                        .or_insert_with(BTreeSet::new)
                         .insert(group);
                 }
             }
@@ -563,7 +563,7 @@ impl AclTree {
                 });
                 result_map
                     .entry(item_list)
-                    .or_insert_with(|| BTreeSet::new())
+                    .or_insert_with(BTreeSet::new)
                     .insert(item.to_string());
             }
             result_map
