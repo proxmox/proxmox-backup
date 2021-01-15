@@ -214,11 +214,12 @@ impl PoolWriter {
             request_and_load_media(worker, &drive_config, &self.drive_name, media.label())?;
 
         // test for critical tape alert flags
-        let alert_flags = drive.tape_alert_flags()?;
-        if !alert_flags.is_empty() {
-            worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
-            if tape_alert_flags_critical(alert_flags) {
-                bail!("aborting due to critical tape alert flags: {:?}", alert_flags);
+        if let Ok(alert_flags) = drive.tape_alert_flags() {
+            if !alert_flags.is_empty() {
+                worker.log(format!("TapeAlertFlags: {:?}", alert_flags));
+                if tape_alert_flags_critical(alert_flags) {
+                    bail!("aborting due to critical tape alert flags: {:?}", alert_flags);
+                }
             }
         }
 

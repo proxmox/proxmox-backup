@@ -70,42 +70,44 @@ impl LinuxTapeDrive {
     /// - for autoloader only, try to reload ejected tapes
     pub fn open(&self) -> Result<LinuxTapeHandle, Error> {
 
-        let file = open_linux_tape_device(&self.path)?;
+        proxmox::try_block!({
+            let file = open_linux_tape_device(&self.path)?;
 
-        let mut handle = LinuxTapeHandle::new(file);
+            let mut handle = LinuxTapeHandle::new(file);
 
-        let mut drive_status = handle.get_drive_status()?;
+            let mut drive_status = handle.get_drive_status()?;
 
-        if !drive_status.tape_is_ready() {
-            // for autoloader only, try to reload ejected tapes
-            if self.changer.is_some() {
-                let _ = handle.mtload(); // just try, ignore error
-                drive_status = handle.get_drive_status()?;
+            if !drive_status.tape_is_ready() {
+                // for autoloader only, try to reload ejected tapes
+                if self.changer.is_some() {
+                    let _ = handle.mtload(); // just try, ignore error
+                    drive_status = handle.get_drive_status()?;
+                }
             }
-        }
 
-        if !drive_status.tape_is_ready() {
-            bail!("tape not ready (no tape loaded)");
-        }
+            if !drive_status.tape_is_ready() {
+                bail!("tape not ready (no tape loaded)");
+            }
 
-        if drive_status.blocksize == 0 {
-            // device is variable block size - OK
-        } else {
-            if drive_status.blocksize != PROXMOX_TAPE_BLOCK_SIZE as u32 {
-                eprintln!("device is in fixed block size mode with wrong size ({} bytes)", drive_status.blocksize);
-                eprintln!("trying to set variable block size mode...");
-                if handle.set_block_size(0).is_err() {
-                     bail!("set variable block size mod failed - device uses wrong blocksize.");
-                 }
+            if drive_status.blocksize == 0 {
+                // device is variable block size - OK
             } else {
-                // device is in fixed block size mode with correct block size
+                if drive_status.blocksize != PROXMOX_TAPE_BLOCK_SIZE as u32 {
+                    eprintln!("device is in fixed block size mode with wrong size ({} bytes)", drive_status.blocksize);
+                    eprintln!("trying to set variable block size mode...");
+                    if handle.set_block_size(0).is_err() {
+                        bail!("set variable block size mod failed - device uses wrong blocksize.");
+                    }
+                } else {
+                    // device is in fixed block size mode with correct block size
+                }
             }
-        }
 
-        // Only root can set driver options, so we cannot
-        // handle.set_default_options()?;
+            // Only root can set driver options, so we cannot
+            // handle.set_default_options()?;
 
-        Ok(handle)
+            Ok(handle)
+        }).map_err(|err| format_err!("open drive '{}' ({}) failed - {}", self.name, self.path, err))
     }
 }
 
