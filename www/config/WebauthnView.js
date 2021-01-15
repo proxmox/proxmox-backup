@@ -10,14 +10,17 @@ Ext.define('PBS.WebauthnConfigView', {
 	rp: {
 	    header: gettext('Relying Party'),
 	    required: true,
+	    defaultValue: gettext('Not configured'),
 	},
 	origin: {
 	    header: gettext('Origin'),
 	    required: true,
+	    defaultValue: gettext('Not configured'),
 	},
 	id: {
 	    header: 'ID',
 	    required: true,
+	    defaultValue: gettext('Not configured'),
 	},
     },
 
