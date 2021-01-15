@@ -44,6 +44,27 @@ Ext.define('PBS.SystemConfiguration', {
 		},
 	    ],
 	},
+	{
+	    title: gettext('Authentication'),
+	    itemId: 'authentication',
+	    xtype: 'panel',
+	    layout: {
+		type: 'vbox',
+		align: 'stretch',
+		multi: true,
+	    },
+	    defaults: {
+		collapsible: true,
+		animCollapse: false,
+		margin: '10 10 0 10',
+	    },
+	    items: [
+		{
+		    title: gettext('Webauthn'),
+		    xtype: 'pbsWebauthnConfigView',
+		},
+	    ],
+	},
     ],
 
     initComponent: function() {
@@ -54,6 +75,11 @@ Ext.define('PBS.SystemConfiguration', {
 	let networktime = me.getComponent('network');
 	Ext.Array.forEach(networktime.query(), function(item) {
 	    item.relayEvents(networktime, ['activate', 'deactivate', 'destroy']);
+	});
+
+	let authentication = me.getComponent('authentication');
+	Ext.Array.forEach(authentication.query(), function(item) {
+	    item.relayEvents(authentication, ['activate', 'deactivate', 'destroy']);
 	});
     },
 });

@@ -30,6 +30,7 @@ JSSRC=							\
 	config/ACLView.js				\
 	config/SyncView.js				\
 	config/VerifyView.js				\
+	config/WebauthnView.js				\
 	window/ACLEdit.js				\
 	window/AddTfaRecovery.js			\
 	window/AddTotp.js				\
