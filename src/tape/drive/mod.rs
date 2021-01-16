@@ -7,6 +7,9 @@ pub use tape_alert_flags::*;
 mod volume_statistics;
 pub use volume_statistics::*;
 
+mod encryption;
+pub use encryption::*;
+
 pub mod linux_tape;
 
 mod mam;
