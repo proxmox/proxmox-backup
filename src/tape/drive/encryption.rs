@@ -1,4 +1,5 @@
 use std::os::unix::prelude::AsRawFd;
+use std::io::Write;
 
 use anyhow::{bail, format_err, Error};
 use endian_trait::Endian;
@@ -75,7 +76,7 @@ struct SspSetDataEncryptionPage {
     key_format: u8,
     reserved: [u8; 8],
     key_len: u16,
-    key: [u8; 32],
+    /* key follows */
 }
 
 fn sg_spout_set_encryption<F: AsRawFd>(
@@ -86,7 +87,11 @@ fn sg_spout_set_encryption<F: AsRawFd>(
 
     let mut sg_raw = SgRaw::new(file, 0)?;
 
-    let outbuf_len = std::mem::size_of::<SspSetDataEncryptionPage>();
+    let mut outbuf_len = std::mem::size_of::<SspSetDataEncryptionPage>();
+    if let Some(ref key) = key {
+        outbuf_len += key.len();
+    }
+
     let mut outbuf = alloc_page_aligned_buffer(outbuf_len)?;
     let chok: u8 = 0;
 
@@ -100,15 +105,15 @@ fn sg_spout_set_encryption<F: AsRawFd>(
         algorythm_index,
         key_format: 0,
         reserved: [0u8; 8],
-        key_len: 32,
-        key: match key {
-            Some(key) => key,
-            None => [0u8; 32],
-        }
+        key_len: if let Some(ref key) = key { key.len() as u16 } else { 0 },
     };
 
     let mut writer = &mut outbuf[..];
     unsafe { writer.write_be_value(page)? };
+
+    if let Some(ref key) = key {
+        writer.write_all(key)?;
+    }
 
     let mut cmd = Vec::new();
     cmd.push(0xB5); // SECURITY PROTOCOL IN (SPOUT)
@@ -181,7 +186,7 @@ struct DataEncryptionStatus {
     mode: DataEncryptionMode,
 }
 
-#[derive(Debug, Endian)]
+#[derive(Endian)]
 #[repr(C, packed)]
 struct SspDataEncryptionCapabilityPage {
     page_code: u16,
@@ -190,7 +195,7 @@ struct SspDataEncryptionCapabilityPage {
     reserverd: [u8; 15],
 }
 
-#[derive(Debug, Endian)]
+#[derive(Endian)]
 #[repr(C, packed)]
 struct SspDataEncryptionAlgorithmDescriptor {
     algorythm_index: u8,
@@ -254,7 +259,7 @@ fn decode_spin_data_encryption_caps(data: &[u8]) -> Result<u8, Error> {
 
 }
 
-#[derive(Debug, Endian)]
+#[derive(Endian)]
 #[repr(C, packed)]
 struct SspDataEncryptionStatusPage {
     page_code: u16,
