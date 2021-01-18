@@ -208,7 +208,7 @@ Ext.define('PBS.config.TfaView', {
 	},
 	{
 	    header: gettext('Created'),
-	    width: 80,
+	    width: 150,
 	    sortable: true,
 	    dataIndex: 'created',
 	    renderer: Proxmox.Utils.render_timestamp,
