@@ -219,6 +219,7 @@ Ext.define('PBS.config.TfaView', {
 	    sortable: true,
 	    dataIndex: 'description',
 	    renderer: Ext.String.htmlEncode,
+	    flex: 1,
 	},
     ],
 
