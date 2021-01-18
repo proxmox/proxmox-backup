@@ -1088,7 +1088,7 @@ impl TfaUserData {
 #[derive(Deserialize, Serialize)]
 pub struct Recovery {
     secret: String,
-    entries: Vec<String>,
+    entries: Vec<Option<String>>,
 }
 
 impl Recovery {
@@ -1116,7 +1116,7 @@ impl Recovery {
                 AsHex(&b[6..8]),
             );
 
-            this.entries.push(this.hash(entry.as_bytes())?);
+            this.entries.push(Some(this.hash(entry.as_bytes())?));
             original.push(entry);
         }
 
@@ -1138,31 +1138,32 @@ impl Recovery {
         Ok(AsHex(&hmac).to_string())
     }
 
-    /// Shortcut to get the count.
-    fn len(&self) -> usize {
-        self.entries.len()
+    /// Iterator over available keys.
+    fn available(&self) -> impl Iterator<Item = &str> {
+        self.entries.iter().filter_map(Option::as_deref)
     }
 
-    /// Check if this entry is empty.
-    fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    /// Count the available keys.
+    fn count_available(&self) -> usize {
+        self.available().count()
     }
 
     /// Convenience serde method to check if either the option is `None` or the content `is_empty`.
     fn option_is_empty(this: &Option<Self>) -> bool {
-        this.as_ref().map_or(true, Self::is_empty)
+        this.as_ref()
+            .map_or(true, |this| this.count_available() == 0)
     }
 
     /// Verify a key and remove it. Returns whether the key was valid. Errors on openssl errors.
     fn verify(&mut self, key: &str) -> Result<bool, Error> {
         let hash = self.hash(key.as_bytes())?;
-        Ok(match self.entries.iter().position(|entry| *entry == hash) {
-            Some(index) => {
-                self.entries.remove(index);
-                true
+        for entry in &mut self.entries {
+            if entry.as_ref() == Some(&hash) {
+                *entry = None;
+                return Ok(true);
             }
-            None => false,
-        })
+        }
+        Ok(false)
     }
 }
 
@@ -1283,42 +1284,35 @@ pub fn verify_challenge(
 }
 
 /// Used to inform the user about the recovery code status.
-#[derive(Clone, Copy, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RecoveryState {
-    Unavailable,
-    Low,
-    Available,
-}
+///
+/// This contains the available key indices.
+#[derive(Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct RecoveryState(Vec<usize>);
 
 impl RecoveryState {
-    fn from_count(count: usize) -> Self {
-        match count {
-            0 => RecoveryState::Unavailable,
-            1..=3 => RecoveryState::Low,
-            _ => RecoveryState::Available,
-        }
-    }
-
-    // serde needs `&self` but this is a tiny Copy type, so we mark this as inline
-    #[inline]
     fn is_unavailable(&self) -> bool {
-        *self == RecoveryState::Unavailable
-    }
-}
-
-impl Default for RecoveryState {
-    fn default() -> Self {
-        RecoveryState::Unavailable
+        self.0.is_empty()
     }
 }
 
 impl From<&Option<Recovery>> for RecoveryState {
     fn from(r: &Option<Recovery>) -> Self {
         match r {
-            Some(r) => Self::from_count(r.len()),
-            None => RecoveryState::Unavailable,
+            Some(r) => Self::from(r),
+            None => Self::default(),
         }
+    }
+}
+
+impl From<&Recovery> for RecoveryState {
+    fn from(r: &Recovery) -> Self {
+        Self(
+            r.entries
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, key)| if key.is_some() { Some(idx) } else { None })
+                .collect(),
+        )
     }
 }
 
