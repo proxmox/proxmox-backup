@@ -179,7 +179,8 @@ Ext.define('PBS.window.TfaRecoveryShow', {
 		document.getElementById('token-secret-value').select();
 		document.execCommand("copy");
 	    },
-	    text: gettext('Copy Secret Value'),
+	    iconCls: 'fa fa-clipboard',
+	    text: gettext('Copy Recovery Keys'),
 	},
     ],
 });
