@@ -24,6 +24,7 @@ use crate::{
         DRIVE_NAME_SCHEMA,
         PROXMOX_SAFE_ID_FORMAT,
         SINGLE_LINE_COMMENT_FORMAT,
+        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
     },
 };
 
@@ -130,7 +131,11 @@ impl std::str::FromStr for RetentionPolicy {
             schema: MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
             optional: true,
         },
-    }
+        encrypt: {
+            schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+            optional: true,
+        },
+    },
 )]
 #[derive(Serialize,Deserialize)]
 /// Media pool configuration
@@ -151,4 +156,9 @@ pub struct MediaPoolConfig {
     /// format specifications.
     #[serde(skip_serializing_if="Option::is_none")]
     pub template: Option<String>,
+    /// Encryption key fingerprint
+    ///
+    /// If set, encrypt all data using the specified key.
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub encrypt: Option<String>,
 }

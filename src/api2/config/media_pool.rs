@@ -16,6 +16,7 @@ use crate::{
         MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
         MEDIA_SET_ALLOCATION_POLICY_SCHEMA,
         MEDIA_RETENTION_POLICY_SCHEMA,
+        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         MediaPoolConfig,
     },
     config::{
@@ -47,6 +48,10 @@ use crate::{
                 schema: MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
                 optional: true,
             },
+            encrypt: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+                optional: true,
+            },
         },
     },
 )]
@@ -57,6 +62,7 @@ pub fn create_pool(
     allocation: Option<String>,
     retention: Option<String>,
     template: Option<String>,
+    encrypt: Option<String>,
 ) -> Result<(), Error> {
 
     let _lock = config::media_pool::lock()?;
@@ -76,6 +82,7 @@ pub fn create_pool(
         allocation,
         retention,
         template,
+        encrypt,
     };
 
     config.set_data(&name, "pool", &item)?;
@@ -141,6 +148,8 @@ pub enum DeletableProperty {
     retention,
     /// Delete media set naming template
     template,
+    /// Delete encryption fingerprint
+    encrypt,
 }
 
 #[api(
@@ -165,6 +174,10 @@ pub enum DeletableProperty {
                 schema: MEDIA_SET_NAMING_TEMPLATE_SCHEMA,
                 optional: true,
             },
+            encrypt: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+                optional: true,
+            },
             delete: {
                 description: "List of properties to delete.",
                 type: Array,
@@ -183,6 +196,7 @@ pub fn update_pool(
     allocation: Option<String>,
     retention: Option<String>,
     template: Option<String>,
+    encrypt: Option<String>,
     delete: Option<Vec<DeletableProperty>>,
 ) -> Result<(), Error> {
 
@@ -198,6 +212,7 @@ pub fn update_pool(
                 DeletableProperty::allocation => { data.allocation = None; },
                 DeletableProperty::retention => { data.retention = None; },
                 DeletableProperty::template => { data.template = None; },
+                DeletableProperty::encrypt => { data.encrypt = None; },
             }
         }
     }
@@ -206,6 +221,7 @@ pub fn update_pool(
     if allocation.is_some() { data.allocation = allocation; }
     if retention.is_some() { data.retention = retention; }
     if template.is_some() { data.template = template; }
+    if encrypt.is_some() { data.encrypt = encrypt; }
 
     config.set_data(&name, "pool", &data)?;
 

@@ -20,10 +20,13 @@ use proxmox_backup::{
     config::{
         drive::{
             complete_drive_name,
-         },
+        },
         media_pool::{
             complete_pool_name,
-       },
+        },
+        tape_encryption_keys:: {
+            complete_key_fingerprint,
+        },
     },
 };
 
@@ -48,6 +51,7 @@ pub fn pool_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
                 .completion_cb("name", complete_pool_name)
                 .completion_cb("drive", complete_drive_name)
+                .completion_cb("encrypt", complete_key_fingerprint)
         )
         .insert(
             "update",
@@ -55,6 +59,7 @@ pub fn pool_commands() -> CommandLineInterface {
                 .arg_param(&["name"])
                 .completion_cb("name", complete_pool_name)
                 .completion_cb("drive", complete_drive_name)
+                .completion_cb("encrypt", complete_key_fingerprint)
         )
         ;
 
@@ -84,12 +89,21 @@ fn list_pools(
         _ => unreachable!(),
     };
 
+    let render_encryption = |value: &Value, _record: &Value| -> Result<String, Error> {
+        if value.as_str().is_some() {
+            Ok(String::from("yes"))
+        } else {
+            Ok(String::from("no"))
+        }
+    };
+
     let options = default_table_format_options()
         .column(ColumnConfig::new("name"))
         .column(ColumnConfig::new("drive"))
         .column(ColumnConfig::new("allocation"))
         .column(ColumnConfig::new("retention"))
         .column(ColumnConfig::new("template"))
+        .column(ColumnConfig::new("encrypt").renderer(render_encryption))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
@@ -129,6 +143,7 @@ fn get_config(
         .column(ColumnConfig::new("allocation"))
         .column(ColumnConfig::new("retention"))
         .column(ColumnConfig::new("template"))
+        .column(ColumnConfig::new("encrypt"))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);
