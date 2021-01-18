@@ -29,7 +29,10 @@ Ext.define('PBS.window.AddTotp', {
 	}
 
 	let otpuri =
-	    'otpauth://totp/' + encodeURIComponent(values.userid) +
+	    'otpauth://totp/' +
+	    encodeURIComponent(values.issuer) +
+	    ':' +
+	    encodeURIComponent(values.userid) +
 	    '?secret=' + values.secret +
 	    '&period=' + values.step +
 	    '&digits=' + values.digits +
