@@ -343,6 +343,7 @@ pub struct TfaInfo {
     pub id: String,
 
     /// User chosen description for this entry.
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub description: String,
 
     /// Creation time of this entry as unix epoch.
@@ -359,7 +360,7 @@ impl TfaInfo {
     pub(crate) fn recovery(created: i64) -> Self {
         Self {
             id: "recovery".to_string(),
-            description: "recovery keys".to_string(),
+            description: String::new(),
             enable: true,
             created,
         }
