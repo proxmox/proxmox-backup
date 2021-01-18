@@ -327,6 +327,8 @@ impl TapeDriver for VirtualTapeHandle {
 
     fn write_media_set_label(&mut self, media_set_label: &MediaSetLabel) -> Result<(), Error> {
 
+        self.set_encryption(None)?;
+
         let mut status = self.load_status()?;
         match status.current_tape {
             Some(VirtualTapeStatus { ref name, ref mut pos }) => {

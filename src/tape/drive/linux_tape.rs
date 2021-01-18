@@ -461,6 +461,8 @@ impl TapeDriver for LinuxTapeHandle {
             bail!("write_media_set_label failed - got wrong file number ({} != 1)", file_number);
         }
 
+        self.set_encryption(None)?;
+
         let mut handle = TapeWriterHandle {
             writer: BlockedWriter::new(&mut self.file),
         };

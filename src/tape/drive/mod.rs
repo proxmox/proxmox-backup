@@ -81,6 +81,8 @@ pub trait TapeDriver {
 
         self.rewind()?;
 
+        self.set_encryption(None)?;
+
         self.erase_media(true)?;
 
         let raw = serde_json::to_string_pretty(&serde_json::to_value(&label)?)?;
