@@ -139,6 +139,7 @@ Ext.define('PBS.window.TfaRecoveryShow', {
     modal: true,
     resizable: false,
     title: gettext('Recovery Keys'),
+    onEsc: Ext.emptyFn,
 
     items: [
 	{
