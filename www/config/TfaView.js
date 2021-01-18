@@ -241,6 +241,7 @@ Ext.define('PBS.config.TfaView', {
 		],
 	    },
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Edit'),

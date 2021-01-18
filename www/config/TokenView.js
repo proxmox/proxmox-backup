@@ -149,6 +149,7 @@ Ext.define('PBS.config.TokenView', {
 	    handler: 'addToken',
 	    selModel: false,
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Edit'),
@@ -166,9 +167,10 @@ Ext.define('PBS.config.TokenView', {
 		return '/access/users/' + encodeURIComponent(user) + '/token/' + encodeURIComponent(tokenname);
 	    },
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
-	    text: gettext('Permissions'),
+	    text: gettext('Show Permissions'),
 	    handler: 'showPermissions',
 	    disabled: true,
 	},

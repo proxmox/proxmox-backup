@@ -128,16 +128,11 @@ Ext.define('PBS.config.UserView', {
 	    handler: 'addUser',
 	    selModel: false,
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
 	    text: gettext('Edit'),
 	    handler: 'editUser',
-	    disabled: true,
-	},
-	{
-	    xtype: 'proxmoxButton',
-	    text: gettext('Password'),
-	    handler: 'setPassword',
 	    disabled: true,
 	},
 	{
@@ -146,9 +141,16 @@ Ext.define('PBS.config.UserView', {
 	    enableFn: (rec) => rec.data.userid !== 'root@pam',
 	    callback: 'reload',
 	},
+	'-',
 	{
 	    xtype: 'proxmoxButton',
-	    text: gettext('Permissions'),
+	    text: gettext('Change Password'),
+	    handler: 'setPassword',
+	    disabled: true,
+	},
+	{
+	    xtype: 'proxmoxButton',
+	    text: gettext('Show Permissions'),
 	    handler: 'showPermissions',
 	    disabled: true,
 	},
