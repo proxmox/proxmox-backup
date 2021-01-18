@@ -43,8 +43,8 @@ fn init() -> SectionConfig {
     config
 }
 
-pub const MEDIA_POOL_CFG_FILENAME: &'static str = "/etc/proxmox-backup/media-pool.cfg";
-pub const MEDIA_POOL_CFG_LOCKFILE: &'static str = "/etc/proxmox-backup/.media-pool.lck";
+pub const MEDIA_POOL_CFG_FILENAME: &str = "/etc/proxmox-backup/media-pool.cfg";
+pub const MEDIA_POOL_CFG_LOCKFILE: &str = "/etc/proxmox-backup/.media-pool.lck";
 
 pub fn lock() -> Result<std::fs::File, Error> {
     open_file_locked(MEDIA_POOL_CFG_LOCKFILE, std::time::Duration::new(10, 0), true)
