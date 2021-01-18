@@ -422,6 +422,7 @@ async fn read_label(
         .column(ColumnConfig::new("pool"))
         .column(ColumnConfig::new("media-set-uuid"))
         .column(ColumnConfig::new("media-set-ctime").renderer(render_epoch))
+        .column(ColumnConfig::new("encryption-key-fingerprint"))
         ;
 
     format_and_print_result_full(&mut data, &info.returns, &output_format, &options);

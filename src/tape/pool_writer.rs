@@ -230,6 +230,15 @@ impl PoolWriter {
             media.id(),
         )?;
 
+        let encrypt_fingerprint = media
+            .media_set_label()
+            .as_ref()
+            .unwrap()
+            .encryption_key_fingerprint
+            .clone();
+
+        drive.set_encryption(encrypt_fingerprint)?;
+
         self.status = Some(PoolWriterState { drive, catalog, at_eom: false, bytes_written: 0 });
 
         Ok(media_uuid)
@@ -456,6 +465,9 @@ fn update_media_set_label(
                 if new_set.seq_nr != media_set_label.seq_nr {
                     bail!("got media with wrong media sequence number ({} != {}",
                           new_set.seq_nr,media_set_label.seq_nr);
+                }
+                if new_set.encryption_key_fingerprint != media_set_label.encryption_key_fingerprint {
+                    bail!("detected changed encryption fingerprint - internal error");
                 }
                 media_catalog = MediaCatalog::open(status_path, &media_id.label.uuid, true, false)?;
             } else {

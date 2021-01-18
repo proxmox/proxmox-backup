@@ -8,7 +8,7 @@
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::{

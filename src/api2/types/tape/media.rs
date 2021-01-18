@@ -74,6 +74,9 @@ pub struct MediaIdFlat {
     /// MediaSet Creation time stamp
     #[serde(skip_serializing_if="Option::is_none")]
     pub media_set_ctime: Option<i64>,
+    /// Encryption key fingerprint
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub encryption_key_fingerprint: Option<String>,
 }
 
 #[api()]

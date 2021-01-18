@@ -565,7 +565,7 @@ impl Inventory {
 
         let uuid = label.uuid.clone();
 
-        let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, ctime);
+        let set = MediaSetLabel::with_data(pool, [0u8; 16].into(), 0, ctime, None);
 
         self.store(MediaId { label, media_set_label: Some(set) }, false).unwrap();
 

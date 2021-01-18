@@ -14,6 +14,7 @@ use ::serde::{Deserialize, Serialize};
 use proxmox::tools::Uuid;
 
 use crate::{
+    backup::Fingerprint,
     api2::types::{
         MediaStatus,
         MediaLocation,
@@ -44,6 +45,7 @@ pub struct MediaPool {
     media_set_policy: MediaSetPolicy,
     retention: RetentionPolicy,
     use_offline_media: bool,
+    encrypt_fingerprint: Option<Fingerprint>,
 
     inventory: Inventory,
 
@@ -59,6 +61,7 @@ impl MediaPool {
         media_set_policy: MediaSetPolicy,
         retention: RetentionPolicy,
         use_offline_media: bool,
+        encrypt_fingerprint: Option<Fingerprint>,
      ) -> Result<Self, Error> {
 
         let inventory = Inventory::load(state_path)?;
@@ -75,6 +78,7 @@ impl MediaPool {
             use_offline_media,
             inventory,
             current_media_set,
+            encrypt_fingerprint,
         })
     }
 
@@ -89,13 +93,31 @@ impl MediaPool {
 
         let retention = config.retention.clone().unwrap_or(String::from("keep")).parse()?;
 
-        MediaPool::new(&config.name, state_path, allocation, retention, use_offline_media)
+        let encrypt_fingerprint = match config.encrypt {
+            Some(ref fingerprint) => Some(fingerprint.parse()?),
+            None => None,
+        };
+
+        MediaPool::new(
+            &config.name,
+            state_path,
+            allocation,
+            retention,
+            use_offline_media,
+            encrypt_fingerprint,
+        )
     }
 
     /// Returns the pool name
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    /// Retruns encryption settings
+    pub fn encrypt_fingerprint(&self) -> Option<Fingerprint> {
+        self.encrypt_fingerprint.clone()
+    }
+
 
     fn compute_media_state(&self, media_id: &MediaId) -> (MediaStatus, MediaLocation) {
 
@@ -247,12 +269,48 @@ impl MediaPool {
         current_time > expire_time
     }
 
+    // check if a location is considered on site
+    pub fn location_is_available(&self, location: &MediaLocation) -> bool {
+        match location {
+            MediaLocation::Online(_) => true,
+            MediaLocation::Offline => self.use_offline_media,
+            MediaLocation::Vault(_) => false,
+        }
+    }
+
+    fn add_media_to_current_set(&mut self, mut media_id: MediaId, current_time: i64) -> Result<(), Error> {
+
+        let seq_nr = self.current_media_set.media_list().len() as u64;
+
+        let pool = self.name.clone();
+
+        let encrypt_fingerprint = self.encrypt_fingerprint();
+
+        let set = MediaSetLabel::with_data(
+            &pool,
+            self.current_media_set.uuid().clone(),
+            seq_nr,
+            current_time,
+            encrypt_fingerprint,
+        );
+
+        media_id.media_set_label = Some(set);
+
+        let uuid = media_id.label.uuid.clone();
+
+        let clear_media_status = true; // remove Full status
+        self.inventory.store(media_id, clear_media_status)?; // store persistently
+
+        self.current_media_set.add_media(uuid);
+
+        Ok(())
+    }
+
+
     /// Allocates a writable media to the current media set
     pub fn alloc_writable_media(&mut self, current_time: i64) -> Result<Uuid, Error> {
 
         let last_is_writable = self.current_set_usable()?;
-
-        let pool = self.name.clone();
 
         if last_is_writable {
             let last_uuid = self.current_media_set.last_media_uuid().unwrap();
@@ -262,88 +320,65 @@ impl MediaPool {
 
         // try to find empty media in pool, add to media set
 
-        let mut media_list = self.list_media();
+        let media_list = self.list_media();
 
         let mut empty_media = Vec::new();
-        for media in media_list.iter_mut() {
-            // already part of a media set?
-            if media.media_set_label().is_some() { continue; }
+        let mut used_media = Vec::new();
 
-            // check if media is on site
-            match media.location() {
-                MediaLocation::Online(_) => { /* OK */ },
-                MediaLocation::Offline => {
-                    if self.use_offline_media {
-                        /* OK */
-                    } else {
-                        continue;
-                    }
-                },
-                MediaLocation::Vault(_) => continue,
+        for media in media_list.into_iter() {
+            if !self.location_is_available(media.location()) {
+                continue;
             }
-
-            // only consider writable media
-            if media.status() != &MediaStatus::Writable { continue; }
-
-            empty_media.push(media);
+            // already part of a media set?
+            if media.media_set_label().is_some() {
+                used_media.push(media);
+            } else {
+                // only consider writable empty media
+                if media.status() == &MediaStatus::Writable {
+                    empty_media.push(media);
+                }
+            }
         }
 
-        // sort empty_media, oldest media first
-        empty_media.sort_unstable_by_key(|media| media.label().ctime);
+        // sort empty_media, newest first -> oldest last
+        empty_media.sort_unstable_by(|a, b| b.label().ctime.cmp(&a.label().ctime));
 
-        if let Some(media) = empty_media.first_mut() {
+        if let Some(media) = empty_media.pop() {
             // found empty media, add to media set an use it
-            let seq_nr = self.current_media_set.media_list().len() as u64;
-
-            let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
-
-            media.set_media_set_label(set);
-
-            self.inventory.store(media.id().clone(), true)?; // store persistently
-
-            self.current_media_set.add_media(media.uuid().clone());
-
-            return Ok(media.uuid().clone());
+            let uuid = media.uuid().clone();
+            self.add_media_to_current_set(media.into_id(), current_time)?;
+            return Ok(uuid);
         }
 
         println!("no empty media in pool, try to reuse expired media");
 
         let mut expired_media = Vec::new();
 
-        for media in media_list.into_iter() {
+        for media in used_media.into_iter() {
             if let Some(set) = media.media_set_label() {
                 if &set.uuid == self.current_media_set.uuid() {
                     continue;
                 }
+            } else {
+                continue;
             }
+
             if self.media_is_expired(&media, current_time) {
                 println!("found expired media on media '{}'", media.label_text());
                 expired_media.push(media);
             }
         }
 
-        // sort, oldest media first
-        expired_media.sort_unstable_by_key(|media| {
-            match media.media_set_label() {
-                None => 0, // should not happen here
-                Some(set) => set.ctime,
-            }
+        // sort expired_media, newest first -> oldest last
+        expired_media.sort_unstable_by(|a, b| {
+            b.media_set_label().unwrap().ctime.cmp(&a.media_set_label().unwrap().ctime)
         });
 
-        if let Some(media) = expired_media.first_mut() {
+        if let Some(media) = expired_media.pop() {
             println!("reuse expired media '{}'", media.label_text());
-
-            let seq_nr = self.current_media_set.media_list().len() as u64;
-            let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
-
-            media.set_media_set_label(set);
-
-            let clear_media_status = true; // remove Full status
-            self.inventory.store(media.id().clone(), clear_media_status)?; // store persistently
-
-            self.current_media_set.add_media(media.uuid().clone());
-
-            return Ok(media.uuid().clone());
+            let uuid = media.uuid().clone();
+            self.add_media_to_current_set(media.into_id(), current_time)?;
+            return Ok(uuid);
         }
 
         println!("no expired media in pool, try to find unassigned/free media");
@@ -357,17 +392,8 @@ impl MediaPool {
             let (status, location) = self.compute_media_state(&media_id);
             if media_id.media_set_label.is_some() { continue; } // should not happen
 
-            // check if media is on site
-            match location {
-                MediaLocation::Online(_) => { /* OK */ },
-                MediaLocation::Offline => {
-                    if self.use_offline_media {
-                        /* OK */
-                    } else {
-                        continue;
-                    }
-                },
-                MediaLocation::Vault(_) => continue,
+            if !self.location_is_available(&location) {
+                continue;
             }
 
             // only consider writable media
@@ -376,22 +402,12 @@ impl MediaPool {
             free_media.push(media_id);
         }
 
-        if let Some(media) = free_media.first_mut() {
-            println!("use free media '{}'", media.label.label_text);
-
-            let seq_nr = self.current_media_set.media_list().len() as u64;
-            let set = MediaSetLabel::with_data(&pool, self.current_media_set.uuid().clone(), seq_nr, current_time);
-
-            media.media_set_label = Some(set);
-
-            let clear_media_status = true; // remove Full status
-            self.inventory.store(media.clone(), clear_media_status)?; // store persistently
-
-            self.current_media_set.add_media(media.label.uuid.clone());
-
-            return Ok(media.label.uuid.clone());
+        if let Some(media_id) = free_media.pop() {
+            println!("use free media '{}'", media_id.label.label_text);
+            let uuid = media_id.label.uuid.clone();
+            self.add_media_to_current_set(media_id, current_time)?;
+            return Ok(uuid);
         }
-
 
         bail!("alloc writable media in pool '{}' failed: no usable media found", self.name());
     }
@@ -535,6 +551,11 @@ impl BackupMedia {
     /// Returns the media id (drive label + media set label)
     pub fn id(&self) -> &MediaId {
         &self.id
+    }
+
+    /// Returns the media id, consumes self)
+    pub fn into_id(self) -> MediaId {
+        self.id
     }
 
     /// Returns the media label (Barcode)

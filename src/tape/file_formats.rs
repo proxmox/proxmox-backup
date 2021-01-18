@@ -7,6 +7,8 @@ use bitflags::bitflags;
 
 use proxmox::tools::Uuid;
 
+use crate::backup::Fingerprint;
+
 /// We use 256KB blocksize (always)
 pub const PROXMOX_TAPE_BLOCK_SIZE: usize = 256*1024;
 
@@ -185,16 +187,26 @@ pub struct MediaSetLabel {
     pub seq_nr: u64,
     /// Creation time stamp
     pub ctime: i64,
+    /// Encryption key finkerprint (if encryped)
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub encryption_key_fingerprint: Option<Fingerprint>,
 }
 
 impl MediaSetLabel {
 
-    pub fn with_data(pool: &str, uuid: Uuid, seq_nr: u64, ctime: i64) -> Self {
+    pub fn with_data(
+        pool: &str,
+        uuid: Uuid,
+        seq_nr: u64,
+        ctime: i64,
+        encryption_key_fingerprint: Option<Fingerprint>,
+    ) -> Self {
         Self {
             pool: pool.to_string(),
             uuid,
             seq_nr,
             ctime,
+            encryption_key_fingerprint,
         }
     }
 }

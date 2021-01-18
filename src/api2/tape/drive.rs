@@ -406,7 +406,7 @@ fn write_media_label(
     if let Some(ref pool) = pool {
         // assign media to pool by writing special media set label
         worker.log(format!("Label media '{}' for pool '{}'", label.label_text, pool));
-        let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime);
+        let set = MediaSetLabel::with_data(&pool, [0u8; 16].into(), 0, label.ctime, None);
 
         drive.write_media_set_label(&set)?;
         media_set_label = Some(set);
@@ -487,12 +487,13 @@ pub async fn read_label(
 
         let media_id = match media_id {
             Some(media_id) => {
-                 let mut flat = MediaIdFlat {
+                let mut flat = MediaIdFlat {
                     uuid: media_id.label.uuid.to_string(),
                     label_text: media_id.label.label_text.clone(),
                     ctime: media_id.label.ctime,
                     media_set_ctime: None,
                     media_set_uuid: None,
+                    encryption_key_fingerprint: None,
                     pool: None,
                     seq_nr: None,
                 };
@@ -501,6 +502,10 @@ pub async fn read_label(
                     flat.seq_nr = Some(set.seq_nr);
                     flat.media_set_uuid = Some(set.uuid.to_string());
                     flat.media_set_ctime = Some(set.ctime);
+                    flat.encryption_key_fingerprint = set
+                        .encryption_key_fingerprint
+                        .as_ref()
+                        .map(|fp| crate::tools::format::as_fingerprint(fp.bytes()));
                 }
 
                 if let Some(true) = inventorize {
@@ -992,6 +997,9 @@ pub fn catalog_media(
                         MediaCatalog::destroy(status_path, &media_id.label.uuid)?;
                         return Ok(());
                     }
+                    let encrypt_fingerprint = set.encryption_key_fingerprint.clone();
+                    drive.set_encryption(encrypt_fingerprint)?;
+
                     set.pool.clone()
                 }
             };
