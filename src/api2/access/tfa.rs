@@ -82,12 +82,12 @@ fn to_data(data: TfaUserData) -> Vec<TypedTfaInfo> {
         data.totp.len()
             + data.u2f.len()
             + data.webauthn.len()
-            + if data.has_recovery() { 1 } else { 0 },
+            + if data.recovery().is_some() { 1 } else { 0 },
     );
-    if data.has_recovery() {
+    if let Some(recovery) = data.recovery() {
         out.push(TypedTfaInfo {
             ty: TfaType::Recovery,
-            info: TfaInfo::recovery(),
+            info: TfaInfo::recovery(recovery.created),
         })
     }
     for entry in data.totp {
@@ -184,10 +184,12 @@ fn get_tfa_entry(userid: Userid, id: String) -> Result<TypedTfaInfo, Error> {
             entry.map(|(ty, index, _)| (ty, index))
         } {
             Some((TfaType::Recovery, _)) => {
-                return Ok(TypedTfaInfo {
-                    ty: TfaType::Recovery,
-                    info: TfaInfo::recovery(),
-                })
+                if let Some(recovery) = user_data.recovery() {
+                    return Ok(TypedTfaInfo {
+                        ty: TfaType::Recovery,
+                        info: TfaInfo::recovery(recovery.created),
+                    });
+                }
             }
             Some((TfaType::Totp, index)) => {
                 return Ok(TypedTfaInfo {

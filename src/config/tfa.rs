@@ -345,6 +345,9 @@ pub struct TfaInfo {
     /// User chosen description for this entry.
     pub description: String,
 
+    /// Creation time of this entry as unix epoch.
+    pub created: i64,
+
     /// Whether this TFA entry is currently enabled.
     #[serde(skip_serializing_if = "is_default_tfa_enable")]
     #[serde(default = "default_tfa_enable")]
@@ -353,11 +356,12 @@ pub struct TfaInfo {
 
 impl TfaInfo {
     /// For recovery keys we have a fixed entry.
-    pub(crate) fn recovery() -> Self {
+    pub(crate) fn recovery(created: i64) -> Self {
         Self {
             id: "recovery".to_string(),
             description: "recovery keys".to_string(),
             enable: true,
+            created,
         }
     }
 }
@@ -383,6 +387,7 @@ impl<T> TfaEntry<T> {
                 id: Uuid::generate().to_string(),
                 enable: true,
                 description,
+                created: proxmox::tools::time::epoch_i64(),
             },
             entry,
         }
@@ -748,9 +753,13 @@ pub struct TfaUserData {
 }
 
 impl TfaUserData {
-    /// Shortcut for the option type.
-    pub fn has_recovery(&self) -> bool {
-        !Recovery::option_is_empty(&self.recovery)
+    /// Shortcut to get the recovery entry only if it is not empty!
+    pub fn recovery(&self) -> Option<&Recovery> {
+        if Recovery::option_is_empty(&self.recovery) {
+            None
+        } else {
+            self.recovery.as_ref()
+        }
     }
 
     /// `true` if no second factors exist
@@ -758,7 +767,7 @@ impl TfaUserData {
         self.totp.is_empty()
             && self.u2f.is_empty()
             && self.webauthn.is_empty()
-            && !self.has_recovery()
+            && self.recovery().is_none()
     }
 
     /// Find an entry by id, except for the "recovery" entry which we're currently treating
@@ -1087,8 +1096,16 @@ impl TfaUserData {
 /// Recovery entries. We use HMAC-SHA256 with a random secret as a salted hash replacement.
 #[derive(Deserialize, Serialize)]
 pub struct Recovery {
+    /// "Salt" used for the key HMAC.
     secret: String,
+
+    /// Recovery key entries are HMACs of the original data. When used up they will become `None`
+    /// since the user is presented an enumerated list of codes, so we know the indices of used and
+    /// unused codes.
     entries: Vec<Option<String>>,
+
+    /// Creation timestamp as a unix epoch.
+    pub created: i64,
 }
 
 impl Recovery {
@@ -1101,6 +1118,7 @@ impl Recovery {
         let mut this = Self {
             secret: AsHex(&secret).to_string(),
             entries: Vec::with_capacity(10),
+            created: proxmox::tools::time::epoch_i64(),
         };
 
         let mut original = Vec::new();
