@@ -22,6 +22,13 @@ Ext.define('PBS.window.AddWebauthn', {
     viewModel: {
 	data: {
 	    valid: false,
+	    userid: Proxmox.UserName,
+	},
+	formulas: {
+	    passwordConfirmText: (get) => {
+		let id = get('userid');
+		return Ext.String.format(gettext("Confirm password of '{0}'"), id);
+	    },
 	},
     },
 
@@ -154,6 +161,12 @@ Ext.define('PBS.window.AddWebauthn', {
 		    },
 		    renderer: Ext.String.htmlEncode,
 		    value: Proxmox.UserName,
+		    listeners: {
+			change: function(field, newValue, oldValue) {
+			    let vm = this.up('window').getViewModel();
+			    vm.set('userid', newValue);
+			},
+		    },
 		},
 		{
 		    xtype: 'textfield',
@@ -161,18 +174,20 @@ Ext.define('PBS.window.AddWebauthn', {
 		    allowBlank: false,
 		    name: 'description',
 		    maxLength: 256,
-		    emptyText: gettext('a short distinguishing description'),
+		    emptyText: gettext('For example: TFA device ID, required to identify multiple factors.'),
 		},
 		{
 		    xtype: 'textfield',
 		    inputType: 'password',
-		    fieldLabel: gettext('Password'),
+		    fieldLabel: gettext('Verify Password'),
 		    minLength: 5,
 		    reference: 'password',
 		    name: 'password',
 		    allowBlank: false,
 		    validateBlank: true,
-		    emptyText: gettext('verify current password'),
+		    bind: {
+			emptyText: '{passwordConfirmText}',
+		    },
 		},
 	    ],
 	},

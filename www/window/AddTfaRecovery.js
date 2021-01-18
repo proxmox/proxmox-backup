@@ -34,6 +34,13 @@ Ext.define('PBS.window.AddTfaRecovery', {
     viewModel: {
 	data: {
 	    has_entry: false,
+	    userid: Proxmox.UserName,
+	},
+	formulas: {
+	    passwordConfirmText: (get) => {
+		let id = get('userid');
+		return Ext.String.format(gettext("Confirm password of '{0}'"), id);
+	    },
 	},
     },
 
@@ -60,11 +67,13 @@ Ext.define('PBS.window.AddTfaRecovery', {
 
 	onUseridChange: async function(field, userid) {
 	    let me = this;
+	    let vm = me.getViewModel();
 
 	    me.userid = userid;
+	    vm.set('userid', userid);
 
 	    let has_entry = await me.hasEntry(userid);
-	    me.getViewModel().set('has_entry', has_entry);
+	    vm.set('has_entry', has_entry);
 	},
     },
 
@@ -114,7 +123,9 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	    validateBlank: true,
 	    hidden: Proxmox.UserName === 'root@pam',
 	    disabled: Proxmox.UserName === 'root@pam',
-	    emptyText: gettext('verify current password'),
+	    bind: {
+		emptyText: '{passwordConfirmText}',
+	    },
 	},
     ],
 });

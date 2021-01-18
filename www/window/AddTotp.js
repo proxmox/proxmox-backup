@@ -47,11 +47,16 @@ Ext.define('PBS.window.AddTotp', {
 	    valid: false,
 	    secret: '',
 	    otpuri: '',
+	    userid: Proxmox.UserName,
 	},
 
 	formulas: {
 	    secretEmpty: function(get) {
 		return get('secret').length === 0;
+	    },
+	    passwordConfirmText: (get) => {
+		let id = get('userid');
+		return Ext.String.format(gettext("Confirm password of '{0}'"), id);
 	    },
 	},
     },
@@ -140,11 +145,18 @@ Ext.define('PBS.window.AddTotp', {
 		    },
 		    renderer: Ext.String.htmlEncode,
 		    value: Proxmox.UserName,
+		    listeners: {
+			change: function(field, newValue, oldValue) {
+			    let vm = this.up('window').getViewModel();
+			    vm.set('userid', newValue);
+			},
+		    },
 		    qrupdate: true,
 		},
 		{
 		    xtype: 'textfield',
 		    fieldLabel: gettext('Description'),
+		    emptyText: gettext('For example: TFA device ID, required to identify multiple factors.'),
 		    allowBlank: false,
 		    name: 'description',
 		    maxLength: 256,
@@ -225,7 +237,7 @@ Ext.define('PBS.window.AddTotp', {
 		},
 		{
 		    xtype: 'textfield',
-		    fieldLabel: gettext('Verification Code'),
+		    fieldLabel: gettext('Verify Code'),
 		    allowBlank: false,
 		    reference: 'challenge',
 		    name: 'challenge',
@@ -233,18 +245,20 @@ Ext.define('PBS.window.AddTotp', {
 			disabled: '{!showTOTPVerifiction}',
 			visible: '{showTOTPVerifiction}',
 		    },
-		    emptyText: gettext('Scan QR code and enter TOTP auth. code to verify'),
+		    emptyText: gettext('Scan QR code in a TOTP app and enter an auth. code here'),
 		},
 		{
 		    xtype: 'textfield',
 		    inputType: 'password',
-		    fieldLabel: gettext('Password'),
+		    fieldLabel: gettext('Verify Password'),
 		    minLength: 5,
 		    reference: 'password',
 		    name: 'password',
 		    allowBlank: false,
 		    validateBlank: true,
-		    emptyText: gettext('verify current password'),
+		    bind: {
+			emptyText: '{passwordConfirmText}',
+		    },
 		},
 	    ],
 	},
