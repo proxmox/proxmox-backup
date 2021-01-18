@@ -63,6 +63,17 @@ impl Display for Fingerprint {
     }
 }
 
+impl std::str::FromStr for Fingerprint {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        let mut tmp = s.to_string();
+        tmp.retain(|c| c != ':');
+        let bytes = proxmox::tools::hex_to_digest(&tmp)?;
+        Ok(Fingerprint::new(bytes))
+    }
+}
+
 /// Encryption Configuration with secret key
 ///
 /// This structure stores the secret key and provides helpers for
