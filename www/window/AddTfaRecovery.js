@@ -27,6 +27,7 @@ Ext.define('PBS.window.AddTfaRecovery', {
 	let values = response.result.data.recovery.join("\n");
 	Ext.create('PBS.window.TfaRecoveryShow', {
 	    autoShow: true,
+	    userid: this.getViewModel().get('userid'),
 	    values,
 	});
     },
@@ -182,5 +183,42 @@ Ext.define('PBS.window.TfaRecoveryShow', {
 	    iconCls: 'fa fa-clipboard',
 	    text: gettext('Copy Recovery Keys'),
 	},
+	{
+	    handler: function(b) {
+		let win = this.up('window');
+		win.paperkeys(win.values, win.userid);
+	    },
+	    iconCls: 'fa fa-print',
+	    text: gettext('Print Recovery Keys'),
+	},
     ],
+    paperkeys: function(keyString, userid) {
+	let me = this;
+
+	let printFrame = document.createElement("iframe");
+	Object.assign(printFrame.style, {
+	    position: "fixed",
+	    right: "0",
+	    bottom: "0",
+	    width: "0",
+	    height: "0",
+	    border: "0",
+	});
+	const host = document.location.host;
+	const title = document.title;
+	const html = `<html><head><script>
+	    window.addEventListener('DOMContentLoaded', (ev) => window.print());
+	</script><style>@media print and (max-height: 150mm) {
+	  h4, p { margin: 0; font-size: 1em; }
+	}</style></head><body style="padding: 5px;">
+	<h4>Recovery Keys for '${userid}' - ${title} (${host})</h4>
+<p style="font-size:1.5em;line-height:1.5em;font-family:monospace;
+   white-space:pre-wrap;overflow-wrap:break-word;">
+${keyString}
+</p>
+	</body></html>`;
+
+	printFrame.src = "data:text/html;base64," + btoa(html);
+	document.body.appendChild(printFrame);
+    },
 });
