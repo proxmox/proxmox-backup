@@ -39,7 +39,7 @@ pub enum CryptMode {
     SignOnly,
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 /// 32-byte fingerprint, usually calculated with SHA256.
 pub struct Fingerprint {

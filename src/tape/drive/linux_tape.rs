@@ -9,6 +9,8 @@ use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use proxmox::sys::error::SysResult;
 
 use crate::{
+    config,
+    backup::Fingerprint,
     tools::run_command,
     api2::types::{
         TapeDensity,
@@ -24,6 +26,7 @@ use crate::{
         mam_extract_media_usage,
         read_tape_alert_flags,
         read_volume_statistics,
+        set_encryption,
         drive::{
             LinuxTapeDrive,
             TapeDriver,
@@ -503,6 +506,43 @@ impl TapeDriver for LinuxTapeHandle {
         result
             .map_err(|err| format_err!("{}", err))
             .map(|bits| TapeAlertFlags::from_bits_truncate(bits))
+    }
+
+    /// Set or clear encryption key
+    ///
+    /// Note: Only 'root' user may run RAW SG commands, so we need to
+    /// spawn setuid binary 'sg-tape-cmd'. Also, encryption key file
+    /// is only readable by root.
+    fn set_encryption(&mut self, key_fingerprint: Option<Fingerprint>) -> Result<(), Error> {
+
+        if nix::unistd::Uid::effective().is_root() {
+
+            if let Some(ref key_fingerprint) = key_fingerprint {
+
+                let (key_map, _digest) = config::tape_encryption_keys::load_keys()?;
+                match key_map.get(key_fingerprint) {
+                    Some(item) => {
+                        return set_encryption(&mut self.file, Some(item.key));
+                    }
+                    None => bail!("unknown tape encryption key '{}'", key_fingerprint),
+                }
+            } else {
+                return set_encryption(&mut self.file, None);
+            }
+        }
+
+        let mut command = std::process::Command::new(
+            "/usr/lib/x86_64-linux-gnu/proxmox-backup/sg-tape-cmd");
+        command.args(&["encryption"]);
+        if let Some(fingerprint) = key_fingerprint {
+            let fingerprint = crate::tools::format::as_fingerprint(fingerprint.bytes());
+            command.args(&["--fingerprint", &fingerprint]);
+        }
+        command.args(&["--stdin"]);
+        command.stdin(unsafe { std::process::Stdio::from_raw_fd(self.file.as_raw_fd())});
+        let output = run_command(command, None)?;
+        let result: Result<(), String> = serde_json::from_str(&output)?;
+        result.map_err(|err| format_err!("{}", err))
     }
 }
 

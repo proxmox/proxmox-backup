@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox::{
@@ -880,8 +880,7 @@ pub fn cartridge_memory(drive: String) -> Result<Vec<MamAttribute>, Error> {
     let (config, _digest) = config::drive::config()?;
 
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
-    let mut handle = drive_config.open()
-        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
+    let mut handle = drive_config.open()?;
 
     handle.cartridge_memory()
 }
@@ -906,8 +905,7 @@ pub fn status(drive: String) -> Result<LinuxDriveAndMediaStatus, Error> {
     let drive_config: LinuxTapeDrive = config.lookup("linux", &drive)?;
 
     // Note: use open_linux_tape_device, because this also works if no medium loaded
-    let file = open_linux_tape_device(&drive_config.path)
-        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, drive_config.path, err))?;
+    let file = open_linux_tape_device(&drive_config.path)?;
 
     let mut handle = LinuxTapeHandle::new(file);
 

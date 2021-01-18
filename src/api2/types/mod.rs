@@ -77,7 +77,7 @@ const_regex!{
 
     pub BACKUP_REPO_URL_REGEX = concat!(r"^^(?:(?:(", USER_ID_REGEX_STR!(), "|", APITOKEN_ID_REGEX_STR!(), ")@)?(", DNS_NAME!(), "|",  IPRE_BRACKET!() ,"):)?(?:([0-9]{1,5}):)?(", PROXMOX_SAFE_ID_REGEX_STR!(), r")$");
 
-    pub CERT_FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
+    pub FINGERPRINT_SHA256_REGEX = r"^(?:[0-9a-fA-F][0-9a-fA-F])(?::[0-9a-fA-F][0-9a-fA-F]){31}$";
 
     pub ACL_PATH_REGEX = concat!(r"^(?:/|", r"(?:/", PROXMOX_SAFE_ID_REGEX_STR!(), ")+", r")$");
 
@@ -103,8 +103,8 @@ pub const IP_FORMAT: ApiStringFormat =
 pub const PVE_CONFIG_DIGEST_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&SHA256_HEX_REGEX);
 
-pub const CERT_FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&CERT_FINGERPRINT_SHA256_REGEX);
+pub const FINGERPRINT_SHA256_FORMAT: ApiStringFormat =
+    ApiStringFormat::Pattern(&FINGERPRINT_SHA256_REGEX);
 
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
@@ -163,16 +163,21 @@ pub const PBS_PASSWORD_SCHEMA: Schema = StringSchema::new("User Password.")
 pub const CERT_FINGERPRINT_SHA256_SCHEMA: Schema = StringSchema::new(
     "X509 certificate fingerprint (sha256)."
 )
-    .format(&CERT_FINGERPRINT_SHA256_FORMAT)
+    .format(&FINGERPRINT_SHA256_FORMAT)
     .schema();
 
-pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(r#"\
-Prevent changes if current configuration file has different SHA256 digest.
-This can be used to prevent concurrent modifications.
-"#
+pub const TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA: Schema = StringSchema::new(
+    "Tape encryption key fingerprint (sha256)."
 )
-    .format(&PVE_CONFIG_DIGEST_FORMAT)
+    .format(&FINGERPRINT_SHA256_FORMAT)
     .schema();
+
+pub const PROXMOX_CONFIG_DIGEST_SCHEMA: Schema = StringSchema::new(
+    "Prevent changes if current configuration file has different \
+    SHA256 digest. This can be used to prevent concurrent \
+    modifications."
+)
+    .format(&PVE_CONFIG_DIGEST_FORMAT) .schema();
 
 
 pub const CHUNK_DIGEST_FORMAT: ApiStringFormat =

@@ -21,9 +21,11 @@ use proxmox::{
 
 use proxmox_backup::{
     config,
+    backup::Fingerprint,
     api2::types::{
         LINUX_DRIVE_PATH_SCHEMA,
         DRIVE_NAME_SCHEMA,
+        TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
         LinuxTapeDrive,
     },
     tape::{
@@ -42,8 +44,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let (config, _digest) = config::drive::config()?;
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
-        drive.open()
-            .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+        drive.open()?
     } else if let Some(device) = param["device"].as_str() {
         eprintln!("using device {}", device);
         LinuxTapeHandle::new(open_linux_tape_device(&device)?)
@@ -57,8 +58,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
         let (config, _digest) = config::drive::config()?;
         let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
         eprintln!("using device {}", drive.path);
-        drive.open()
-            .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+        drive.open()?
     } else {
         let (config, _digest) = config::drive::config()?;
 
@@ -72,8 +72,7 @@ fn get_tape_handle(param: &Value) -> Result<LinuxTapeHandle, Error> {
             let name = drive_names[0];
             let drive: LinuxTapeDrive = config.lookup("linux", &name)?;
             eprintln!("using device {}", drive.path);
-            drive.open()
-                .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", name, drive.path, err))?
+            drive.open()?
         } else {
             bail!("no drive/device specified");
         }
@@ -188,6 +187,47 @@ fn tape_alert_flags(
 }
 
 #[api(
+    input: {
+        properties: {
+            fingerprint: {
+                schema: TAPE_ENCRYPTION_KEY_FINGERPRINT_SCHEMA,
+                optional: true,
+            },
+            drive: {
+                schema: DRIVE_NAME_SCHEMA,
+                optional: true,
+            },
+            device: {
+                schema: LINUX_DRIVE_PATH_SCHEMA,
+                optional: true,
+            },
+            stdin: {
+                description: "Use standard input as device handle.",
+                type: bool,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Set or clear encryption key
+fn set_encryption(
+    fingerprint: Option<Fingerprint>,
+    param: Value,
+) -> Result<(), Error> {
+
+    let result = proxmox::try_block!({
+        let mut handle = get_tape_handle(&param)?;
+
+        handle.set_encryption(fingerprint)?;
+        Ok(())
+    }).map_err(|err: Error| err.to_string());
+
+    println!("{}", serde_json::to_string_pretty(&result)?);
+
+    Ok(())
+}
+
+#[api(
    input: {
         properties: {
             drive: {
@@ -259,6 +299,10 @@ fn main() -> Result<(), Error> {
         .insert(
             "volume-statistics",
             CliCommand::new(&API_METHOD_VOLUME_STATISTICS)
+        )
+        .insert(
+            "encryption",
+            CliCommand::new(&API_METHOD_SET_ENCRYPTION)
         )
         ;
 

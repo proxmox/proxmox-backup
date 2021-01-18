@@ -952,6 +952,7 @@ fn main() {
         .insert("drive", drive_commands())
         .insert("pool", pool_commands())
         .insert("media", media_commands())
+        .insert("key", encryption_key_commands())
         .insert(
             "load-media",
             CliCommand::new(&API_METHOD_LOAD_MEDIA)

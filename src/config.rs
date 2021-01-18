@@ -27,6 +27,7 @@ pub mod user;
 pub mod verify;
 pub mod drive;
 pub mod media_pool;
+pub mod tape_encryption_keys;
 
 /// Check configuration directory permissions
 ///

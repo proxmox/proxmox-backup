@@ -9,3 +9,6 @@ pub use pool::*;
 
 mod media;
 pub use media::*;
+
+mod encryption_key;
+pub use encryption_key::*;

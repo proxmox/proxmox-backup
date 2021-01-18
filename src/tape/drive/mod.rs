@@ -25,6 +25,7 @@ use proxmox::tools::io::ReadExt;
 use proxmox::api::section_config::SectionConfigData;
 
 use crate::{
+    backup::Fingerprint,
     api2::types::{
         VirtualTapeDrive,
         LinuxTapeDrive,
@@ -163,6 +164,14 @@ pub trait TapeDriver {
     fn tape_alert_flags(&mut self) -> Result<TapeAlertFlags, Error> {
         Ok(TapeAlertFlags::empty())
     }
+
+    /// Set or clear encryption key
+    fn set_encryption(&mut self, key_fingerprint: Option<Fingerprint>) -> Result<(), Error> {
+        if key_fingerprint.is_some() {
+            bail!("drive does not support encryption");
+        }
+        Ok(())
+    }
 }
 
 /// Get the media changer (MediaChange + name) associated with a tape drive.
@@ -234,14 +243,12 @@ pub fn open_drive(
             match section_type_name.as_ref() {
                 "virtual" => {
                     let tape = VirtualTapeDrive::deserialize(config)?;
-                    let handle = tape.open()
-                        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, tape.path, err))?;
-                   Ok(Box::new(handle))
+                    let handle = tape.open()?;
+                    Ok(Box::new(handle))
                 }
                 "linux" => {
                     let tape = LinuxTapeDrive::deserialize(config)?;
-                    let handle = tape.open()
-                        .map_err(|err| format_err!("open drive '{}' ({}) failed - {}", drive, tape.path, err))?;
+                    let handle = tape.open()?;
                     Ok(Box::new(handle))
                 }
                 _ => bail!("unknown drive type '{}' - internal error"),

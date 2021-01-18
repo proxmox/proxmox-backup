@@ -40,18 +40,20 @@ impl VirtualTapeDrive {
 
     /// This needs to lock the drive
     pub fn open(&self) -> Result<VirtualTapeHandle, Error> {
-        let mut lock_path = std::path::PathBuf::from(&self.path);
-        lock_path.push(".drive.lck");
+        proxmox::try_block!({
+            let mut lock_path = std::path::PathBuf::from(&self.path);
+            lock_path.push(".drive.lck");
 
-        let timeout = std::time::Duration::new(10, 0);
-        let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true)?;
+            let timeout = std::time::Duration::new(10, 0);
+            let lock = proxmox::tools::fs::open_file_locked(&lock_path, timeout, true)?;
 
-        Ok(VirtualTapeHandle {
-            _lock: lock,
-            drive_name: self.name.clone(),
-            max_size: self.max_size.unwrap_or(64*1024*1024),
-            path: std::path::PathBuf::from(&self.path),
-        })
+            Ok(VirtualTapeHandle {
+                _lock: lock,
+                drive_name: self.name.clone(),
+                max_size: self.max_size.unwrap_or(64*1024*1024),
+                path: std::path::PathBuf::from(&self.path),
+            })
+        }).map_err(|err: Error| format_err!("open drive '{}' ({}) failed - {}", self.name, self.path, err))
     }
 }
 
