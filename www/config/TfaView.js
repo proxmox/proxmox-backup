@@ -10,7 +10,7 @@ Ext.define('pbs-tfa-users', {
 
 Ext.define('pbs-tfa-entry', {
     extend: 'Ext.data.Model',
-    fields: ['fullid', 'type', 'description', 'enable'],
+    fields: ['fullid', 'type', 'description', 'created', 'enable'],
     idProperty: 'fullid',
 });
 
@@ -63,6 +63,7 @@ Ext.define('PBS.config.TfaView', {
 			fullid: `${user.id}/${entry.id}`,
 			type: entry.type,
 			description: entry.description,
+			created: entry.created,
 			enable: entry.enable,
 		    });
 		});
@@ -204,6 +205,13 @@ Ext.define('PBS.config.TfaView', {
 	    width: 80,
 	    sortable: true,
 	    dataIndex: 'type',
+	},
+	{
+	    header: gettext('Created'),
+	    width: 80,
+	    sortable: true,
+	    dataIndex: 'created',
+	    renderer: Proxmox.Utils.render_timestamp,
 	},
 	{
 	    header: gettext('Description'),
